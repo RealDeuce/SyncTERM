@@ -328,6 +328,43 @@ is answered by the reviewed follow-up above. No additional issue content was
 posted. Documentation resolution does not imply that the wire setter, activation
 and display integration are already implemented.
 
+## Ordinary text-window update from PR #102
+
+The current pin is fork stable
+[`93fd0c3bfac24fda5e76d20b33d782b27ba89e99`](https://github.com/RealDeuce/remote-imaging-protocol/tree/93fd0c3bfac24fda5e76d20b33d782b27ba89e99),
+following `b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3`. It consolidates the
+ordinary-window contract reviewed in open
+[PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102), head
+`b23a9433c240d39a8ecd4e772e2774da3c2cb077`, normative commit
+`862c98687d5ae5862929a80038f0f05d49e7f8cc`. Exact archive SHA-256:
+`7f0bb1a52a616c0fc1228f0715a4089e75be0d5e7adcbf533499b53386df7ad0`.
+
+Only `1.4-terminal-ansi-view.md` changes in the 68-document normative inventory.
+The complete reindex matches 7864 existing blocks by heading/content, moves 94
+line identities and adds 19 blocks, for 7883 total. Eighteen ordinary-window
+implementation claims reopen for reconciliation; no implemented block is
+removed. Earlier adoption records and their initial claim accounting remain
+preserved; the latest `updates` entry records this movement separately. All 46
+previously recorded derivation digests match the archive. The new ordinary-window
+derivation is pinned at SHA-256
+`bc6635c64b7455f1e849fd4ab4cbed10dd9cd2ffdaeb5b7c758946da959f0db8`.
+An independent strict reindex from automatically removed selected-document
+extraction reproduces the reviewed ledger exactly.
+
+The contract orders/clamps bounds before identity, supplies an explicit
+changed/identical state matrix, preserves existing pixels and separates the
+global ANSI parser state from window definition. The font-2 example ends at
+row 24. Changed definitions reset cursor/rendition/margins/window modes but
+retain tabs, character-set selections and unfinished ANSI syntax. All-zero
+deactivation retains geometry/state; identical definitions reactivate without
+reset. Optional UTF-8 decoder state is explicitly outside the original protocol.
+B100 is resolved as documentation; B101 is unaffected. Geometry normalization
+and its connected acceptance are implemented, while the remaining ANSI-state
+work stays pending in the [implementation inventory](RIP3_CONFORMANCE.md#pr-102-adoption-and-ordinary-window-bounds).
+No original client instructions, native probes or UI execute. RIP1.54, original
+font bytes and external-launch exclusion remain unchanged. Issue #100 receives
+no more content; future findings reference its PR from new parent issues.
+
 ## Acceptance
 
 The source guard checks that the pinned revision and complete document inventory

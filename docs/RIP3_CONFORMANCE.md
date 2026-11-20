@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3](https://github.com/RealDeuce/remote-imaging-protocol/tree/b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3/version/3.0)
+93fd0c3bfac24fda5e76d20b33d782b27ba89e99](https://github.com/RealDeuce/remote-imaging-protocol/tree/93fd0c3bfac24fda5e76d20b33d782b27ba89e99/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -38,17 +38,21 @@ The all-zero tuple deactivates output while RIP parsing, identification,
 graphics and immediate replies stay live. An identical layout retains its
 cursor across wrap changes and deactivation/reactivation. Parsing uses the
 current ENV radix/coordinate width, prevalidates the complete tuple and absorbs
-malformed layouts or renderer failures without disconnecting. Local scripts
+invalid font/wrap fields or renderer failures without disconnecting. Endpoint
+pairs are ordered and coordinates clamp to the nominal font grid before
+identity; clamping diagnoses and continues. Local scripts
 and native key forwarding address the selected virtual TTY; the main canvas
 retains the entry's raster. Native tests cover widths 2–5, both radices, exact
 geometry/ranges and error recovery; CP437/UTF-8 connection captures cover all
 five modes, placement, scrolling, wrap/chop, reactivation and script operations.
 The full TW table, protected entries, switching and extended `b` remain pending.
 Changed definitions currently construct a fresh ANSI parser without clearing
-underlying artwork. Their final ANSI-state/reset contract and the out-of-range
-font-2 placement example are tracked in upstream
-[#100](https://github.com/bbs-land/remote-imaging-protocol/issues/100); those
-details are not claimed compliant.
+underlying artwork. Adopted
+[PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) resolves
+the ordinary-state contract and corrects the font-2 placement example.
+Geometry/normalized identity and pixel preservation are implemented; retaining
+tabs, character sets and incomplete ANSI parsing across changed definitions
+still requires implementation. Those details are not claimed compliant.
 
 Wire `g` and `H` now move the active text cursor through a native ANSI service,
 without injecting input bytes. `g` has two-digit fields in the current radix
@@ -117,9 +121,13 @@ PRs [#98](https://github.com/bbs-land/remote-imaging-protocol/pull/98) and
 [#99](https://github.com/bbs-land/remote-imaging-protocol/pull/99) now resolve the
 outer angle-scanner/branch contract and portable synthetic outline-effect
 boundary for #96/#97. Implementation acceptance remains separate.
+PR [#102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) now
+resolves ordinary-window normalization, state retention/reset and pixel
+preservation for #100. Its ANSI interpreter-state requirements remain partly
+unimplemented; the documentation blocker is resolved independently.
 [The adoption review](RIP3_REFERENCE_ADOPTION.md) and
 [`reference-review.json`](../src/tests/rip3/reference-review.json) record its
-provenance, scope and reopened claims. There are now 7867 blocks in 68 normative
+provenance, scope and reopened claims. There are now 7883 blocks in 68 normative
 documents. Implementation milestones below describe work against the previous
 pin unless explicitly reconciled with this revision. Their passing tests remain
 historical behavior evidence; they do not prove the corrected contract. The
@@ -5804,6 +5812,48 @@ The ledger records 1098 implemented, 1604 pending, 3932 unreviewed, 1167 context
 24 excluded and 42 blocked blocks. Mixed requirements that also describe
 protected/defined noncurrent windows remain pending. The reference pin and
 upstream issues are unchanged; full compliance remains unfinished.
+
+## PR #102 adoption and ordinary-window bounds
+
+The reference now pins fork stable `93fd0c3bfac24fda5e76d20b33d782b27ba89e99`,
+which consolidates the reviewed ordinary-window contract from open PR #102.
+Only the terminal-view normative document changes. The 68-document reindex
+retains 7864 exact heading/content matches, moves 94 line identities and adds
+19 blocks, yielding 7883 total. Eighteen ordinary-window implementation claims
+were reopened for reconciliation; no implemented block disappeared. All
+previously recorded research digests are unchanged; the new read-only derivation
+is recorded separately. B100 is resolved as documentation. B101 remains separate.
+No existing issue receives content and no upstream client/probe code executes.
+
+The ordinary geometry service now orders reversed endpoint pairs and clamps
+all four coordinates to the selected nominal font grid before calculating
+identity, extents and origin. Clamping reports a distinct nonfatal diagnostic
+and continues; reversed in-range pairs need no clamp warning. Invalid fonts
+and wrap values retain the old window through parser-owned recovery. Matching
+effective definitions preserve the connected cursor/saved cursor/colors and
+only update wrap, including when different raw inputs normalize identically.
+
+Independent native expectations cover all five fonts, extreme and reversed
+bounds, the corrected font-2 `(10,15)..(20,25)` to `(10,15)..(20,24)` example,
+11-by-10 extents at reference/device resolutions, ordered identity, diagnostics
+and recovery. CP437/UTF-8 TCP captures cover normalized identity, saved cursor
+and colors, changed-definition homing/default gray and unchanged visible pixels
+on all five existing device rasters. Native CMake configure/full build and seven
+affected CTests pass, including reference/reindex/preservation guards. There
+are no C compiler diagnostics; make reports environmental millisecond clock-skew
+notices. Other successful tests are reused. The 93 frozen files and 41 legacy
+helpers remain unchanged.
+
+Changed definitions still allocate a fresh CTerm. Retention of tab stops,
+character-set selections and unfinished ANSI syntax across that replacement
+is pending implementation, as is complete acceptance of all reset-mode fields.
+The existing ANSI-BBS interpreter has no independent G0/G1 character-set model;
+that requirement must be implemented within the separate RIP3 route while
+preserving RIP1.54. Optional partial UTF-8 decoding needs an explicit client
+boundary rather than a RIPtel claim. The ledger keeps these state-table rows
+pending; adoption and passing geometry tests do not establish them. The current
+queue is 1102 implemented, 1615 pending, 3931 unreviewed, 1171 context, 24 excluded
+and 40 blocked source blocks.
 
 ## Verification and acceptance
 

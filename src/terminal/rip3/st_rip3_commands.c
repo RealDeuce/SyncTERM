@@ -202,7 +202,7 @@ switch_style(const struct st_rip3_command_host *host,
 
 static int
 normal_text_window(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation)
+    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
 	struct st_rip3_environment environment;unsigned number;
 	int status=st_rip3_command_environment(host,&number,&environment);
@@ -226,6 +226,11 @@ normal_text_window(const struct st_rip3_command_host *host,
 	if (status==0) status=st_rip3_text_window_normal(&layout,&frame,(uint32_t)values[0],
 	    (uint32_t)values[1],(uint32_t)values[2],(uint32_t)values[3],(unsigned)values[4],(unsigned)values[5]);
 	if (status!=0) return status;
+	uint64_t near_x=values[0]<values[2] ? values[0] : values[2],far_x=values[0]>values[2] ? values[0] : values[2];
+	uint64_t near_y=values[1]<values[3] ? values[1] : values[3],far_y=values[1]>values[3] ? values[1] : values[3];
+	if ((near_x!=layout.x0 || far_x!=layout.x1 || near_y!=layout.y0 || far_y!=layout.y1)
+	    && sink!=NULL && sink->diagnostic!=NULL)
+		sink->diagnostic(sink->context,ST_RIP3_COMMAND_COORDINATES_CLAMPED);
 	*operation=true;return host->text_window->define(host->text_window->context,&layout);
 }
 
@@ -276,7 +281,7 @@ execute(const struct st_rip3_command_host *host,
 		return 0;
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
-	if (command[0]=='w') return normal_text_window(host,command,length,operation);
+	if (command[0]=='w') return normal_text_window(host,command,length,operation,sink);
 	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
 		return switch_style(host,command,length,operation,sink);

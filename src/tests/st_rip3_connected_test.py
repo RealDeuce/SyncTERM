@@ -317,6 +317,23 @@ Hook.onKey(Key.f9) {|event|
         frame = t.exchange(query(b"$DTW(ALL,36)$still-on", at_cursor=True) + b"\x1b[6n", b"still-on\x1b[2;2R")
         assert frame.primary == hidden.primary and frame.application["connected"] == 1
 
+        t.case("rip3-normal-window-ordered-clamped-identity")
+        before = frame
+        # Font-2 Y=25 clamps to 24: the documented (10,15)..(20,25)
+        # example becomes eleven columns by ten rows, with the same origin.
+        frame = t.exchange(b"\x01|w0A0F0K0P12\r\n\x1b[6n", b"\x1b[1;1R")
+        assert (frame.application["cterm.right_margin"], frame.application["cterm.bottom_margin"]) == (11, 10)
+        assert frame.application["cterm.attr"] == 7
+        assert all(pixel(frame, x, y) == pixel(before, x, y)
+                   for y in range(height) for x in range(width))
+        t.exchange(b"\x1b[3;4H\x1b[31m\x1b[s\x1b[2;2H\x1b[6n", b"\x1b[2;2R")
+        # Ordering and clamping happen before identity; only wrap changes.
+        frame = t.exchange(b"\x01|w0K0P0A0F02\r\n\x1b[6n", b"\x1b[2;2R")
+        assert frame.application["cterm.attr"] == 4
+        assert frame.application["cterm.ext_attr.auto_wrap"] == 0
+        t.exchange(b"\x1b[u\x1b[6n", b"\x1b[3;4R")
+        t.exchange(b"\x01|w0A0F0K0P15\r\n\x1b[6n", b"\x1b[3;4R")
+
 
 def mega(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

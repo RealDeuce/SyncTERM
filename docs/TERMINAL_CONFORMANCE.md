@@ -41,7 +41,11 @@ deactivated-window no-ops and nonfatal recovery; cursor-only commands retain
 the artwork. `$ATW$`/`$DTW$` control the default TTY, validate complete selector
 lists, retain cursor preferences and preserve artwork painted while text is
 off. Undefined nonzero slots are ignored; defining/protecting/switching them
-remains pending. The
+remains pending. Ordinary window endpoints order/clamp to their nominal font
+grid before identity; tests verify the corrected font-2 extent, preserved
+cursor/saved cursor/colors for equivalent definitions and unchanged visible
+pixels. PR #102's changed-definition tab/character-set/incomplete-ANSI retention
+still requires implementation. The
 entry's grid/raster is retained at
 the three presets and at 1280x800 and 720x400. These tests disable physical
 audio. Full-compliance acceptance and incomplete command families remain open.

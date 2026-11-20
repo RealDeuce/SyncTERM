@@ -15,8 +15,15 @@ st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	struct st_rip3_frame checked=*device;
 	int status=st_rip3_frame_world(&checked,device->world_width,device->world_height);
 	if (status!=0) return status;
-	if (font>=5 || wrap>1 || x0>x1 || y0>y1
-	    || x1>=columns[font] || y1>=rows[font]) return IO_ERROR_OUT_OF_RANGE;
+	if (font>=5 || wrap>1) return IO_ERROR_OUT_OF_RANGE;
+	/* Normalize before ordinary-definition identity is tested by the owner.
+	 * Out-of-grid coordinates adjust, rather than reject, the definition. */
+	if (x0>x1) {uint32_t saved=x0;x0=x1;x1=saved;}
+	if (y0>y1) {uint32_t saved=y0;y0=y1;y1=saved;}
+	if (x0>=columns[font]) x0=columns[font]-1;
+	if (x1>=columns[font]) x1=columns[font]-1;
+	if (y0>=rows[font]) y0=rows[font]-1;
+	if (y1>=rows[font]) y1=rows[font]-1;
 	uint32_t cw=device->device_width/columns[font],ch=device->device_height/rows[font];
 	if (cw==0 || ch==0) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_text_window_layout value={.x0=x0,.y0=y0,.x1=x1,.y1=y1,

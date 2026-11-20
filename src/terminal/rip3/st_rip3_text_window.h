@@ -19,7 +19,7 @@ struct st_rip3_text_window_operations {
 };
 
 struct st_rip3_text_window_layout {
-	/* Original inclusive character-cell coordinates for ordinary w. */
+	/* Ordered, range-clamped inclusive cell coordinates for ordinary w. */
 	uint32_t x0,y0,x1,y1;
 	unsigned font;
 	bool wrap;
@@ -30,7 +30,9 @@ struct st_rip3_text_window_layout {
 
 /* Geometry service below the parser's void recovery boundary. These are
  * non-deactivation w layouts: the all-zero tuple's gate operation belongs
- * to the owner and must retain its prior geometry/cursor. Failure preserves
+ * to the owner and must retain its prior geometry/cursor. Reversed endpoint
+ * pairs are ordered and every coordinate clamps to the nominal font grid
+ * before computing extents and placement. Failure preserves
  * result. No font resource, ANSI parser, text rendering or table mutation. */
 int st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	const struct st_rip3_frame *device, uint32_t x0, uint32_t y0,

@@ -371,6 +371,28 @@ text_deactivation(void)
 }
 
 static int
+normalized_text_window(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_window=window;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|w0A0F0K0P12\r")==0 && pump(&f)==0 && f.windows==1 && f.errors==1
+	    && f.kind==ST_RIP3_COMMAND_COORDINATES_CLAMPED && f.window.x==80 && f.window.y==288
+	    && f.window.columns==11 && f.window.rows==10 && f.window.y1==24);
+	CHECK(append(&f,"!|w0K0O0A0F02\r")==0 && pump(&f)==0 && f.windows==2 && f.identical
+	    && f.errors==1 && !f.window.wrap);
+	CHECK(append(&f,"!|w0K0P0A0F12\r")==0 && pump(&f)==0 && f.windows==3 && f.identical
+	    && f.errors==2 && f.kind==ST_RIP3_COMMAND_COORDINATES_CLAMPED);
+	CHECK(append(&f,"!|w0A0F0K0P15\r")==0 && pump(&f)==0 && f.windows==3 && f.errors==3
+	    && f.kind==ST_RIP3_COMMAND_INVALID);
+	CHECK(append(&f,"!|wZZZZZZZZ14\r")==0 && pump(&f)==0 && f.windows==4 && !f.identical
+	    && f.errors==4 && f.kind==ST_RIP3_COMMAND_COORDINATES_CLAMPED
+	    && f.window.x0==39 && f.window.y0==24 && f.window.columns==1 && f.window.rows==1);
+	CHECK(query(&f,"$RESX$","640")==0 && st_rip3_session_text_active(f.session));
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 text_activation_variables(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -437,7 +459,8 @@ main(void)
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
 	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
-	    && normal_window()==0 && text_cursor()==0 && text_deactivation()==0 && text_activation_variables()==0
+	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0
+	    && text_deactivation()==0 && text_activation_variables()==0
 	    && construction(false)==0 && construction(true)==0);
 	CHECK(st_rip3_session_test_live==0);return 0;
 }

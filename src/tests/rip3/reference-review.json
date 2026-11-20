@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/99",
-  "revision": "b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3",
-  "previous_revision": "d046bb4b1f9d066b8534ac9b1369a63abee4563c",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/102",
+  "revision": "93fd0c3bfac24fda5e76d20b33d782b27ba89e99",
+  "previous_revision": "b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3",
   "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
-  "upstream_state_at_adoption": "Both PRs open; reviewed heads integrated into fork stable.",
-  "archive_sha256": "c913830c6b5944b49f7073cab96b21ad56d43790766aa579a5febc0e1d2d99ba",
+  "upstream_state_at_adoption": "PR #102 open; reviewed normative change consolidated into fork stable.",
+  "archive_sha256": "7f0bb1a52a616c0fc1228f0715a4089e75be0d5e7adcbf533499b53386df7ad0",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1034,7 +1034,7 @@
     {
       "path": "version/3.0/research/issue-15-bezier-contracts.md",
       "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
-      "title": "Issue #15: B\u00e9zier equations, subdivision and block grammar",
+      "title": "Issue #15: Bézier equations, subdivision and block grammar",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1259,6 +1259,10 @@
       "path": "version/3.0/research/issue-97-outline-effects-boundary.md",
       "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86",
       "role": "Primary source/policy derivation; intermediate leads are not independent normative obligations."
+    },
+    {
+      "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
+      "sha256": "bc6635c64b7455f1e849fd4ab4cbed10dd9cd2ffdaeb5b7c758946da959f0db8"
     }
   ],
   "documents": [
@@ -1364,7 +1368,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "ddb1d7983d5d1ab67dd5cb744c7e3be5ca92ef02c6de292cadeae756f004d782"
+      "sha256": "c81c383348c9ce0e722002d287dc926ceb16b8b2747b62b2bd77558c1c4f88c3"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -2219,6 +2223,89 @@
         "pending": 1671,
         "implemented": 990,
         "blocked": 25,
+        "excluded": 24
+      }
+    },
+    {
+      "previous_revision": "b8c70aabbb1f1c5f8138d5281bfcbe27a3f602c3",
+      "revision": "93fd0c3bfac24fda5e76d20b33d782b27ba89e99",
+      "archive_sha256": "7f0bb1a52a616c0fc1228f0715a4089e75be0d5e7adcbf533499b53386df7ad0",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/102",
+          "revision": "b23a9433c240d39a8ecd4e772e2774da3c2cb077"
+        }
+      ],
+      "upstream_state": "PR #102 open; reviewed normative change consolidated into fork stable.",
+      "authorization": "User directed fork stable as the continuing reference; clarification issues remain in the parent repository without comments on existing threads.",
+      "prior_adoption_commit": "ae018fd7a0bc8a8307181fff1aabb40ff7fc5323",
+      "changed_documents": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 7864,
+      "moved_source_blocks": 94,
+      "new_source_blocks": 19,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:67",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:79",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:81",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:83",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:84",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:85",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:87",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:88",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:89",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:90",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:91",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:92",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:93",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:95",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:97",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:99",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:101",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:103"
+      ],
+      "reopened_implementation_claims": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:37",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:38",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:39",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:41",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:43",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:47",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:51",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:55",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:56",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:57",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:58",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:59",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:61",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:63",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:69",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:71",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:73",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:75"
+      ],
+      "removed_implementation_claims": [],
+      "source_blocks_after_update": 7883,
+      "resolved_documentation_blockers": [
+        "B100"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
+          "sha256": "bc6635c64b7455f1e849fd4ab4cbed10dd9cd2ffdaeb5b7c758946da959f0db8"
+        }
+      ],
+      "reviewed_change": "Ordinary w orders/clamps effective bounds before identity. Changed definitions reset live/saved cursor, ANSI rendition/colors/margins and per-window modes, retain tabs/character sets/incomplete ANSI parsing, and do not repaint pixels. Identical/reactivated definitions retain state except requested wrap. Protected entries reject definitions; full TW state remains unfinished.",
+      "states_after_update": {
+        "unreviewed": 3932,
+        "context": 1167,
+        "pending": 1640,
+        "implemented": 1080,
+        "blocked": 40,
         "excluded": 24
       }
     }

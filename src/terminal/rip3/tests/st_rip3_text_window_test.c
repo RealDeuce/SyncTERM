@@ -29,8 +29,9 @@ main(void)
 		struct st_rip3_text_window_layout saved=layout,other=layout;
 		other.wrap=false;CHECK(st_rip3_text_window_same(&layout,&other));
 		other.x1++;CHECK(!st_rip3_text_window_same(&layout,&other));
-		CHECK(st_rip3_text_window_normal(&layout,&frame,10,5,9,10,1,cases[i].font)==IO_ERROR_OUT_OF_RANGE);
-		CHECK(memcmp(&layout,&saved,sizeof(layout))==0);
+		CHECK(st_rip3_text_window_normal(&layout,&frame,20,10,10,5,1,cases[i].font)==0);
+		CHECK(st_rip3_text_window_same(&layout,&saved) && layout.x==cases[i].x && layout.y==cases[i].y);
+		saved=layout;
 		CHECK(st_rip3_text_window_normal(&layout,&frame,10,5,20,10,2,cases[i].font)==IO_ERROR_OUT_OF_RANGE);
 		CHECK(memcmp(&layout,&saved,sizeof(layout))==0);
 	}
@@ -41,12 +42,21 @@ main(void)
 		struct st_rip3_text_window_layout layout;
 		CHECK(st_rip3_text_window_normal(&layout,&frame,columns[font]-1,rows[font]-1,
 		    columns[font]-1,rows[font]-1,1,font)==0 && layout.columns==1 && layout.rows==1);
+		CHECK(st_rip3_text_window_normal(&layout,&frame,columns[font],rows[font],0,0,1,font)==0
+		    && layout.x0==0 && layout.y0==0 && layout.x1==columns[font]-1 && layout.y1==rows[font]-1
+		    && layout.columns==columns[font] && layout.rows==rows[font]);
+		CHECK(st_rip3_text_window_normal(&layout,&frame,UINT32_MAX,UINT32_MAX,UINT32_MAX,UINT32_MAX,0,font)==0
+		    && layout.x0==columns[font]-1 && layout.y0==rows[font]-1 && layout.columns==1 && layout.rows==1);
 		struct st_rip3_text_window_layout saved=layout;
-		CHECK(st_rip3_text_window_normal(&layout,&frame,0,0,columns[font],rows[font]-1,1,font)==IO_ERROR_OUT_OF_RANGE);
-		CHECK(memcmp(&layout,&saved,sizeof(layout))==0);
-		CHECK(st_rip3_text_window_normal(&layout,&frame,0,0,columns[font]-1,rows[font],1,font)==IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_rip3_text_window_normal(&layout,&frame,0,0,20,10,1,5)==IO_ERROR_OUT_OF_RANGE);
 		CHECK(memcmp(&layout,&saved,sizeof(layout))==0);
 	}
+	CHECK(st_rip3_frame_init_device(&frame,640,350)==0);
+	struct st_rip3_text_window_layout example;
+	CHECK(st_rip3_text_window_normal(&example,&frame,10,15,20,25,1,2)==0
+	    && example.x0==10 && example.y0==15 && example.x1==20 && example.y1==24
+	    && example.x==80 && example.y==210 && example.columns==11 && example.rows==10
+	    && example.cell_width==8 && example.cell_height==14);
 	CHECK(!st_rip3_text_window_same(NULL,NULL));
 	return 0;
 }
