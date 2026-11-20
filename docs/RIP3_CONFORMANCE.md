@@ -37,7 +37,9 @@ RGB precision values retain the old mode. Both numeric fields use current
 Base Math; malformed fields and protected writes recover nonfatally. This
 wire gate is distinct from the still-incomplete 1..8-bit COLORMODE variable
 contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
-it does not clear the screen. The scene reset `*` remains unimplemented.
+it does not clear the screen. The scene reset `*` remains unimplemented;
+its outer reset/clear contract needs reconciliation in
+[#105](https://github.com/bbs-land/remote-imaging-protocol/issues/105).
 
 Ordinary `w` definitions now configure the default text window on connected
 sessions: all five MicroANSI font modes, inclusive bounds, device-sized cells,
@@ -5940,6 +5942,31 @@ that contract and independent byte vectors, referencing #100/PR #102 and
 combined tab/charset row; tab retention itself is already connected. The pin
 remains 93fd0c3. The queue is now 1114 implemented, 1613 pending, 3911 unreviewed,
 1180 context, 24 excluded and 41 blocked source blocks.
+
+## Scene-reset contract reconciliation
+
+`RIP_RESET_WINDOWS` (`*`) is still rejected nonfatally by the separate engine,
+so files relying on it retain earlier screen content. Its canonical reset list
+selects every active table's slot zero and describes a black clear. The newer
+palette lifecycle says SOFT retains the current palette selection and skips
+protected RGB slots. The original image/port derivation proves that actual
+`RESET_WINDOWS` calls SOFT `(keep_ports=0, clear=1, update=1)` and ends on port
+zero, but explicitly does not prove other reset families because they were
+controlled in that fixture. Header bit 8's separate zero-selection operation
+also needs to be distinguished from bit 2's SOFT reset.
+
+New parent issue
+[#105](https://github.com/bbs-land/remote-imaging-protocol/issues/105) requests
+the complete outer operation: current selections/protected survivors, palette
+and clear bounds/color, text/default-font/ANSI state, cursor/cache/environment,
+input/mouse/audio, and unaffected variables/templates/clipboard/backups. It
+references #16/PR #45, #21/PR #52/#71, #24/PR #57 and the text-state follow-ups
+without adding content to those issues. A lone physical clear will not be
+presented as a complete scene reset. B105 blocks the reset list and header's
+SOFT-reset requirement. No additional corpus testing is performed. The current
+queue is 1114 implemented, 1613 pending, 3909 unreviewed, 1180 context,
+24 excluded and 43 blocked source blocks; other implementation work remains
+available while this contract is clarified.
 
 ## Verification and acceptance
 
