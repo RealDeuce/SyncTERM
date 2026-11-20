@@ -6,6 +6,7 @@
 #include "st_rip3_palettes.h"
 #include "st_rip3_stream.h"
 #include "st_pixels.h"
+#include "io_error.h"
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -621,9 +622,46 @@ large_coordinates(void)
 	return 0;
 }
 
+static int
+rgb_precisions(void)
+{
+	/* Independent packed codes and full-range channel normalization. The
+	 * lowercase UltraNum digits distinguish RGB from the global MegaNum base. */
+	static const char *const codes[]={"5","R","1T","9z","rL","4KC","LbR","11GC"};
+	static const uint32_t colors[]={0xff00ff,0x55aaff,0x246db6,0x2277dd,0x1952ad,0x105131,0x0a64b7,0x04140c};
+	struct st_rip3_command_host host={0};
+	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(st_rip3_palettes_rgb(host.palettes,40,8,colors,8)==0);
+	for (unsigned radix=36;radix<=64;radix+=28) for (unsigned bits=1;bits<=8;bits++) {
+		struct st_rip3_environment environment;
+		CHECK(st_rip3_environments_get(host.environments,0,&environment)==0);
+		environment.base_math=radix;environment.rgb_bits=bits;
+		CHECK(st_rip3_environments_set(host.environments,0,&environment)==0);
+		char command[20];
+		(void)snprintf(command,sizeof(command),"c%s",codes[bits-1]);
+		CHECK(process(&host,command,-1)==0 && process(&host,"X0000",-1)==0);
+		CHECK(pixel(host.ports,0,0,0,(uint8_t)(39+bits))==0);
+		(void)snprintf(command,sizeof(command),"S01%s",codes[bits-1]);
+		CHECK(process(&host,command,-1)==0 && process(&host,"K01010303",-1)==0);
+		CHECK(pixel(host.ports,0,2,2,(uint8_t)(39+bits))==0);
+		(void)snprintf(command,sizeof(command),"k%s",codes[bits-1]);
+		CHECK(process(&host,command,-1)==0 && process(&host,"E",-1)==0);
+		CHECK(pixel(host.ports,0,500,400,(uint8_t)(39+bits))==0);
+		uint8_t index=17;
+		CHECK(st_rip3_palettes_color_bits(host.palettes,bits,0xffffff,&index)==0 && index==255);
+	}
+	uint8_t unchanged=17;
+	CHECK(st_rip3_palettes_color_bits(host.palettes,9,0,&unchanged)==IO_ERROR_OUT_OF_RANGE && unchanged==17);
+	CHECK(st_rip3_palettes_color_bits(host.palettes,1,0x1000000,&unchanged)==IO_ERROR_OUT_OF_RANGE && unchanged==17);
+	CHECK(st_rip3_palettes_color_bits(NULL,1,0,&unchanged)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_palettes_color_bits(host.palettes,1,0,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	destroy(&host);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(rgb_precisions()==0);
 	CHECK(line_styles(ST_RIP3_CANVAS_640_480,640,480) == 0);
 	CHECK(line_styles(ST_RIP3_CANVAS_800_600,800,600) == 0);
 	CHECK(line_styles(ST_RIP3_CANVAS_1024_768,1024,768) == 0);

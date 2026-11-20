@@ -68,7 +68,7 @@ st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	uint8_t background=host->background;
 	struct st_rip3_styles *styles=host->tables->tables[ST_RIP3_TABLE_STYLE].live;
 	if (operation==ST_RIP3_VIEW_ERASE && styles!=NULL) {
-		unsigned number;struct st_rip3_style style;bool direct=false;
+		unsigned number,rgb_bits=0;struct st_rip3_style style;
 		status=st_rip3_styles_current(styles,&number);
 		if (status==0) status=st_rip3_styles_get(styles,number,&style);
 		struct st_rip3_environments *environments=host->tables->tables[ST_RIP3_TABLE_ENV].live;
@@ -76,11 +76,12 @@ st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 			struct st_rip3_environment environment;
 			status=st_rip3_environments_current(environments,&number);
 			if (status==0) status=st_rip3_environments_get(environments,number,&environment);
-			if (status==0) direct=environment.rgb_bits==8;
+			if (status==0) rgb_bits=environment.rgb_bits;
 		}
-		if (status==0 && direct) {
+		if (status==0 && rgb_bits!=0) {
 			struct st_rip3_palettes *palettes=host->tables->tables[ST_RIP3_TABLE_PAL].live;
-			status=palettes==NULL ? IO_ERROR_NOT_SUPPORTED : st_rip3_palettes_color(palettes,true,style.background_color,&background);
+			status=palettes==NULL ? IO_ERROR_NOT_SUPPORTED
+			    : st_rip3_palettes_color_bits(palettes,rgb_bits,style.background_color,&background);
 		}
 		else if (status==0) {
 			if (style.background_color>255) status=IO_ERROR_OUT_OF_RANGE;

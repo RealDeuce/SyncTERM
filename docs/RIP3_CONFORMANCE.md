@@ -35,7 +35,7 @@ Level-0 `M` now selects the current environment's color mode on connections:
 `M08` restores palette mapping, `M18` enables eight-bit direct RGB, and other
 RGB precision values retain the old mode. Both numeric fields use current
 Base Math; malformed fields and protected writes recover nonfatally. This
-wire gate is distinct from the still-incomplete 1..8-bit COLORMODE variable
+wire gate is distinct from the now-connected 1..8-bit COLORMODE variable
 contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. The scene reset `*` remains unimplemented;
 its outer reset/clear contract needs reconciliation in
@@ -46,6 +46,14 @@ WORLD state now follows the adopted word-range contract: wire `f` accepts
 and `$WORLDH/W$` preserves the inverted setter-target behavior. Device dimensions
 stay entry-owned. Zero WORLD dimensions remain queryable and capturable, while
 projection requests reject before division and recover without disconnecting.
+
+`$COLORMODE$` now sets and reports every RGB precision 1..8, including through
+protected current/noncurrent ENV records; only that precision field changes.
+Undefined getters return `-1` without defining a slot. Foreground, fill,
+background, graphical text and erase consumers use the selected precision,
+with blue/green/red packed fields normalized to eight-bit channels before the
+existing 256-color current-palette match. The wire `M` RGB gate remains eight
+only. Complete ENV switching and unfinished CM command families remain pending.
 
 Ordinary `w` definitions now configure the default text window on connected
 sessions: all five MicroANSI font modes, inclusive bounds, device-sized cells,
@@ -6009,6 +6017,45 @@ full reset/header operations, COLORMODE precisions 1..7, or unspecified behavior
 of original-client drawing on zero-size frames. Those requirements remain
 separate in the ledger.
 The current queue is 1148 implemented, 1596 pending, 3892 unreviewed,
+1180 context, 24 excluded and 43 blocked source blocks.
+
+## Connected COLORMODE component precision
+
+The macro callback now accepts and reports RGB precisions 1..8, edits defined
+targets through the documented protection bypass and leaves selection, other
+fields and other records intact. Wire `M` continues using the protected setter
+and its distinct bits=8 activation gate. Undefined COLORMODE getters return
+`-1` without variable error or implicit definition. Syntax, undefined setters
+and out-of-range precision recover nonfatally.
+
+Existing CM consumers now carry the actual precision rather than a Boolean
+eight-bit test: foreground, background, fill, lines, curves, polygons, rounded
+and skewed contours, Beziers, classic/outline text and graphics-window erasure.
+Nonzero precision always decodes CM fields in UltraNum, independently of global
+Base Math. Packed blue/green/red N-bit components normalize to the full 0..255
+range with nearest rounding; unused bits above the three fields are ignored.
+The resulting RGB value uses the existing current-palette closest match in
+the declared 256-color rendering model. This does not claim a truecolor backing
+surface or completion of unfinished CM-bearing command families.
+
+Native tests cover all precisions, protected current/noncurrent setters,
+selection/undefined/error behavior and independent packed/RGB pairs, including
+two-bit (1,2,3) → (85,170,255), three-bit (1,3,5) → (36,109,182) and the corrected
+eight-bit 0x04140c. Lowercase UltraNum digits catch accidental MegaNum decoding.
+Foreground, fill and background operations resolve to deliberately installed
+palette colors; invalid service arguments preserve outputs. CP437/UTF-8 TCP
+tests on all five existing entry rasters draw exact green points, blue fills
+and red erasures at every precision. They also check M17 retaining a macro's
+three-bit mode, undefined-query readback, invalid-mode recovery and a protected
+STYLE not blocking ENV changes or drawing.
+
+Native CMake configure/full build and all 38 affected CTests pass without new
+C compiler warnings. The shared conversion changed multiple drawing consumers,
+so their command tests ran once with the focused environment/palette/query and
+connected tests. Pure geometry/kernel checks already passed and were reused.
+RIP1.54's 93 frozen files and 41 helpers remain unchanged. The pin remains
+93fd0c3; corpus replay remains deferred and the full goal remains incomplete.
+The current queue is 1168 implemented, 1586 pending, 3882 unreviewed,
 1180 context, 24 excluded and 43 blocked source blocks.
 
 ## Verification and acceptance

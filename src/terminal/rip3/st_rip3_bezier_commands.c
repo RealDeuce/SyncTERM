@@ -89,17 +89,17 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 			uses_foreground |= style.fill.rows[i]!=0;
 			uses_background |= style.fill.rows[i]!=255;
 		}
-		if (borders) status=st_rip3_command_ink(host,env->rgb_bits==8,style.drawing_color,&drawing);
+		if (borders) status=st_rip3_command_ink(host,env->rgb_bits,style.drawing_color,&drawing);
 		if (status==0 && style.write_mode!=ST_RIP3_NOT && uses_foreground)
-			status=st_rip3_command_ink(host,env->rgb_bits==8,style.fill_color,&foreground);
+			status=st_rip3_command_ink(host,env->rgb_bits,style.fill_color,&foreground);
 		if (status==0 && ((style.write_mode!=ST_RIP3_NOT && uses_background)
 		    || (borders && style.pen.draw_background && style.pen.pattern!=0xffff)))
-			status=st_rip3_command_ink(host,env->rgb_bits==8,style.background_color,&background);
+			status=st_rip3_command_ink(host,env->rgb_bits,style.background_color,&background);
 	}
 	else if (style.write_mode!=ST_RIP3_NOT) {
-		status=st_rip3_command_ink(host,env->rgb_bits==8,style.drawing_color,&foreground);
+		status=st_rip3_command_ink(host,env->rgb_bits,style.drawing_color,&foreground);
 		if (status==0 && style.pen.draw_background && style.pen.pattern!=0xffff)
-			status=st_rip3_command_ink(host,env->rgb_bits==8,style.background_color,&background);
+			status=st_rip3_command_ink(host,env->rgb_bits,style.background_color,&background);
 	}
 	if (status!=0) return status;
 	points=malloc(path->count*sizeof(*points));

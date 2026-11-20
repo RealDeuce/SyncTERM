@@ -112,7 +112,7 @@ records(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 			case 2: value.base_math = 35; break;
 			case 3: value.coordinate_size = 1; break;
 			case 4: value.coordinate_size = 6; break;
-			case 5: value.rgb_bits = 6; break;
+			case 5: value.rgb_bits = 9; break;
 			case 6: value.mouse_pointer = 7; break;
 			case 7: value.graphics_style = 36; break;
 			case 8: value.button_style = 36; break;
@@ -176,6 +176,47 @@ run(const struct st_rip3_host_variables *host, const char *text, const char *exp
 	if (error >= 0)
 		CHECK(result.diagnostic == (enum st_rip3_host_diagnostic)error);
 	return 0;
+}
+
+static int
+color_precisions(void)
+{
+	struct st_rip3_environments *environments=NULL;
+	struct st_rip3_table_host tables={0};
+	const struct st_rip3_host_variables host={.tables=&tables};
+	CHECK(st_rip3_environments_create(&environments,ST_RIP3_CANVAS_640_480)==0);
+	tables.tables[ST_RIP3_TABLE_ENV].live=environments;
+	struct st_rip3_environment initial;
+	CHECK(st_rip3_environment_defaults(&initial)==0);
+	CHECK(st_rip3_environments_define(environments,35,&initial)==0
+	    && st_rip3_environments_protect(environments,35,true)==0);
+	for (unsigned slot=0;slot<=35;slot+=35) for (unsigned bits=1;bits<=8;bits++) {
+		char wire[80],expected[8];
+		(void)snprintf(wire,sizeof(wire),"$COLORMODE(%u,RGB,%u)$",slot,bits);
+		CHECK(run(&host,wire,"",-1)==0);
+		(void)snprintf(wire,sizeof(wire),"$COLORMODE(%u)$",slot);
+		(void)snprintf(expected,sizeof(expected),"%u",bits);
+		CHECK(run(&host,wire,expected,-1)==0);
+		CHECK(run(&host,"$CUR(ENV)$","0",-1)==0);
+	}
+	CHECK(st_rip3_environments_select(environments,35)==0);
+	CHECK(run(&host,"$COLORMODE(CUR,RGB,3)$","",-1)==0
+	    && run(&host,"$COLORMODE$","3",-1)==0
+	    && run(&host,"$COLORMODE(0)$","8",-1)==0);
+	CHECK(st_rip3_environments_select(environments,0)==0);
+	CHECK(run(&host,"$COLORMODE(35,PAL)$","",-1)==0
+	    && run(&host,"$COLORMODE$","8",-1)==0);
+	CHECK(run(&host,"$ISPROT(ENV,35)$","1",-1)==0);
+	CHECK(run(&host,"$COLORMODE(6)$","-1",-1)==0);
+	CHECK(run(&host,"$INUSE(ENV,6)$","0",-1)==0);
+	CHECK(run(&host,"$COLORMODE(6,RGB,1)$","",ST_RIP3_HOST_INVALID_REFERENCE)==0);
+	const char *invalid[]={"$COLORMODE(CUR,RGB,0)$","$COLORMODE(CUR,RGB,9)$",
+	    "$COLORMODE(CUR,RGB,-1)$","$COLORMODE(CUR,PAL,8)$","$COLORMODE(CUR,RGB)$"};
+	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+		CHECK(run(&host,invalid[i],"",ST_RIP3_HOST_INVALID_REFERENCE)==0);
+		CHECK(run(&host,"$COLORMODE$","8",-1)==0);
+	}
+	st_rip3_environments_destroy(environments);return 0;
 }
 
 static int
@@ -259,7 +300,7 @@ host_variables(void)
 	CHECK(run(&host, "$WORLDW(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$WORLDH(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL(3)$", "NONE", -1) == 0);
-	CHECK(run(&host, "$COLORMODE(3)$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
+	CHECK(run(&host, "$COLORMODE(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$basemath(cur,64)$", "", -1) == 0);
 	CHECK(run(&host, "$WORLD(CUR,DEFAULT)$", "", -1) == 0);
 	CHECK(run(&host, "$WORLD$", "4096:3072", -1) == 0);
@@ -275,8 +316,8 @@ host_variables(void)
 	CHECK(run(&host, "$WORLD$", "1234:777", -1) == 0);
 	CHECK(run(&host, "$COORDSIZE(CUR,5)$", "", -1) == 0);
 	CHECK(run(&host, "$COLORMODE(CUR,RGB,8)$", "", -1) == 0);
-	CHECK(run(&host, "$COLORMODE(CUR,RGB,6)$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(run(&host, "$COLORMODE$", "8", -1) == 0);
+	CHECK(run(&host, "$COLORMODE(CUR,RGB,6)$", "", -1) == 0);
+	CHECK(run(&host, "$COLORMODE$", "6", -1) == 0);
 	CHECK(run(&host, "$COLORMODE(CUR,PAL)$", "", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL(CUR,999999999999)$", "", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL$", "999999999999", -1) == 0);
@@ -364,6 +405,7 @@ host_variables(void)
 int
 main(void)
 {
+	CHECK(color_precisions() == 0);
 	CHECK(world_ranges() == 0);
 	CHECK(records(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
 	CHECK(records(ST_RIP3_CANVAS_800_600, 800, 600) == 0);

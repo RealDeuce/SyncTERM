@@ -217,6 +217,20 @@ st_rip3_palettes_color(const struct st_rip3_palettes *palettes,
 }
 
 int
+st_rip3_palettes_color_bits(const struct st_rip3_palettes *palettes,
+    unsigned bits, uint32_t color, uint8_t *result)
+{
+	if (palettes==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (bits>8) return IO_ERROR_OUT_OF_RANGE;
+	if (bits==0) return st_rip3_palettes_color(palettes,false,color,result);
+	uint32_t mask=(UINT32_C(1)<<bits)-1;
+	if (color>UINT32_C(0xffffff)) return IO_ERROR_OUT_OF_RANGE;
+	uint32_t red=(color>>(2*bits))&mask,green=(color>>bits)&mask,blue=color&mask;
+	red=(red*255+mask/2)/mask;green=(green*255+mask/2)/mask;blue=(blue*255+mask/2)/mask;
+	return st_rip3_palettes_color(palettes,true,(red<<16)|(green<<8)|blue,result);
+}
+
+int
 st_rip3_palettes_clone(struct st_rip3_palettes **result,
     const struct st_rip3_palettes *palettes)
 {

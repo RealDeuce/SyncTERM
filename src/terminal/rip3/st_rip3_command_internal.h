@@ -22,7 +22,7 @@ int st_rip3_command_environment(const struct st_rip3_command_host *host,
 int st_rip3_command_frame(const struct st_rip3_command_host *host,
 	unsigned environment, struct st_rip3_frame *result);
 int st_rip3_command_ink(const struct st_rip3_command_host *host,
-	bool direct, uint32_t color, uint8_t *result);
+	unsigned bits, uint32_t color, uint8_t *result);
 /* Resolve fixed drawing-context phase into the device kernel's viewport-
  * relative phase, without changing the caller's stored mask/phase record. */
 void st_rip3_command_fill(const struct st_rip3_port_info *port,

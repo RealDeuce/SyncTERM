@@ -123,9 +123,9 @@ struct st_rip3_host_sink {
  * restores prior port selection, and skips protected targets without text/error.
  * Undefined/inactive query/set targets reply -1 without mutation/error. Port
  * record backup/protection is separate from future scene-wide activation.
- * Undefined COLORMODE replies
- * remain blocked (#23). DATETIME formatting remains
- * blocked.
+ * COLORMODE queries undefined slots as -1 and edits defined precision 0..8,
+ * bypassing ENV protection. Its wire counterpart accepts only eight-bit RGB.
+ * DATETIME formatting remains blocked.
  * D requires one decimal duration 1..65535 in 60ths of a second (the detailed
  * rule; the milliseconds summary conflicts under #46). It emits no text and
  * starts the bound input gate. General same-host-command continuation/yield

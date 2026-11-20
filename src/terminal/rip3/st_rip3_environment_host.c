@@ -106,8 +106,6 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	if (status == IO_ERROR_NOT_FOUND) {
 		if (setting)
 			return IO_ERROR_INVALID_FORMAT;
-		if (color)
-			return IO_ERROR_NOT_SUPPORTED; /* NONE versus -1 remains blocked, #23. */
 		return reply_text(result, capacity, base || baud ? "NONE" : "-1");
 	}
 	if (status != 0)
@@ -149,8 +147,6 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 			status = st_rip3_host_number(reference->parameters[2].text, 1, 8, &bits);
 			if (status != 0)
 				return status;
-			if (bits != 8)
-				return IO_ERROR_NOT_SUPPORTED; /* Shipping v3 is explicitly eight-bit only. */
 			value.rgb_bits = bits;
 		}
 		else
@@ -196,7 +192,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		else
 			value.world_height = number;
 	}
-	status = st_rip3_environments_set(environments, index, &value);
+	status = color ? st_rip3_environments_color(environments,index,value.rgb_bits)
+	    : st_rip3_environments_set(environments, index, &value);
 	if (status == 0)
 		result[0] = 0;
 	return status;

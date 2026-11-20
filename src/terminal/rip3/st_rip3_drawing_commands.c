@@ -23,10 +23,11 @@ color_field(const struct st_rip3_environment *environment,
 	if (count == 0 || count > 4)
 		return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_command_field(&value, arguments, count,
-	    environment->rgb_bits == 8 ? 64 : environment->base_math);
+	    environment->rgb_bits != 0 ? 64 : environment->base_math);
 	if (status != 0)
 		return status;
-	if (value > (environment->rgb_bits == 8 ? UINT64_C(0xffffff) : 255))
+	uint64_t maximum=environment->rgb_bits==0 ? 255 : UINT64_C(0xffffff);
+	if (value > maximum)
 		return IO_ERROR_OUT_OF_RANGE;
 	*result = (uint32_t)value;
 	return 0;
@@ -145,9 +146,9 @@ font_style(struct st_rip3_style *style, const uint8_t *arguments,
 }
 
 int
-st_rip3_command_ink(const struct st_rip3_command_host *host, bool direct, uint32_t color, uint8_t *result)
+st_rip3_command_ink(const struct st_rip3_command_host *host, unsigned bits, uint32_t color, uint8_t *result)
 {
-	if (!direct) {
+	if (bits==0) {
 		if (color > 255)
 			return IO_ERROR_OUT_OF_RANGE;
 		*result = (uint8_t)color;
@@ -155,7 +156,7 @@ st_rip3_command_ink(const struct st_rip3_command_host *host, bool direct, uint32
 	}
 	if (host->palettes == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	return st_rip3_palettes_color(host->palettes, true, color, result);
+	return st_rip3_palettes_color_bits(host->palettes,bits,color,result);
 }
 
 void
@@ -213,7 +214,7 @@ point(const struct st_rip3_command_host *host, unsigned environment_number,
 	if (right > port.clip.x1) right = port.clip.x1;
 	if (bottom > port.clip.y1) bottom = port.clip.y1;
 	if (style->write_mode != ST_RIP3_NOT)
-		status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&ink);
+		status = st_rip3_command_ink(host,environment->rgb_bits,style->drawing_color,&ink);
 	if (status != 0) return status;
 	const struct st_rip3_rect area = {(int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom};
 	/* POINT is a solid odd square, not a patterned or round-capped stroke.
@@ -241,11 +242,11 @@ filled_rectangle(const struct st_rip3_command_host *host,
 		background_used |= style->fill.rows[i] != 255;
 	}
 	if (style->write_mode != ST_RIP3_NOT) {
-		if (foreground_used) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->fill_color,&foreground);
-		if (status == 0 && background_used) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->background_color,&background);
+		if (foreground_used) status = st_rip3_command_ink(host,environment->rgb_bits,style->fill_color,&foreground);
+		if (status == 0 && background_used) status = st_rip3_command_ink(host,environment->rgb_bits,style->background_color,&background);
 	}
 	/* The border is COPY even when the interior is destination-NOT. */
-	if (status == 0 && borders) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->drawing_color,&drawing);
+	if (status == 0 && borders) status = st_rip3_command_ink(host,environment->rgb_bits,style->drawing_color,&drawing);
 	if (status != 0) return status;
 	if (borders) {
 		status = st_rip3_stroke_path_vectors(host->ports,points,vertices,interior,&pen,&mask);
@@ -333,8 +334,8 @@ shape(const struct st_rip3_command_host *host,
 			uses_background |= style->fill.rows[i] != 255;
 		}
 		if (style->write_mode != ST_RIP3_NOT) {
-			if (uses_foreground) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->fill_color,&foreground);
-			if (status == 0 && uses_background) status = st_rip3_command_ink(host,environment->rgb_bits == 8,style->background_color,&background);
+			if (uses_foreground) status = st_rip3_command_ink(host,environment->rgb_bits,style->fill_color,&foreground);
+			if (status == 0 && uses_background) status = st_rip3_command_ink(host,environment->rgb_bits,style->background_color,&background);
 			if (status != 0) return status;
 		}
 		/* Axis-aligned clipping can safely saturate far fill bounds. */
@@ -348,9 +349,9 @@ shape(const struct st_rip3_command_host *host,
 	/* Destination NOT ignores both colour operands. Background lookup is
 	 * only needed for a pen whose pattern-off pixels are painted. */
 	if (style->write_mode != ST_RIP3_NOT) {
-		status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->drawing_color, &foreground);
+		status = st_rip3_command_ink(host, environment->rgb_bits, style->drawing_color, &foreground);
 		if (status == 0 && style->pen.draw_background)
-			status = st_rip3_command_ink(host, environment->rgb_bits == 8, style->background_color, &background);
+			status = st_rip3_command_ink(host, environment->rgb_bits, style->background_color, &background);
 		if (status != 0)
 			return status;
 	}
@@ -400,7 +401,7 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		if (status != 0 || !port.viewport_active)
 			return status;
 		*operation = true;
-		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.background_color, &background);
+		status = st_rip3_command_ink(host, environment.rgb_bits, style.background_color, &background);
 		if (status == 0)
 			status = st_rip3_ports_erase(host->ports, background);
 		return status;

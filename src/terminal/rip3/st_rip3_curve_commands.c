@@ -106,7 +106,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_stroke_path_vectors(host->ports,pie ? points : points+1,
 		    pie ? 2 : 1,false,&pen,&mask);
 		if (status == 0 && mask.coverage != NULL && mode != ST_RIP3_NOT)
-			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
+			status = st_rip3_command_ink(host,environment.rgb_bits,style.drawing_color,&drawing);
 		if (status == 0)
 			status = st_rip3_stroke_apply(host->ports,&mask,drawing,0,mode);
 		st_rip3_stroke_free(&mask);
@@ -117,7 +117,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			return 0;
 	}
 	if (borders || (!filled && style.write_mode != ST_RIP3_NOT)) {
-		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.drawing_color, &drawing);
+		status = st_rip3_command_ink(host, environment.rgb_bits, style.drawing_color, &drawing);
 		if (status != 0)
 			return status;
 	}
@@ -129,9 +129,9 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			uses_background |= style.fill.rows[i] != 255;
 		}
 		if (uses_foreground)
-			status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.fill_color, &foreground);
+			status = st_rip3_command_ink(host, environment.rgb_bits, style.fill_color, &foreground);
 		if (status == 0 && uses_background)
-			status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.background_color, &background);
+			status = st_rip3_command_ink(host, environment.rgb_bits, style.background_color, &background);
 		if (status != 0)
 			return status;
 	}

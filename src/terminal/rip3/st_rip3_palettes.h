@@ -58,6 +58,12 @@ int st_rip3_palettes_rgb(struct st_rip3_palettes *palettes, size_t start,
 int st_rip3_palettes_defaults(struct st_rip3_palettes *palettes);
 int st_rip3_palettes_color(const struct st_rip3_palettes *palettes,
 	bool direct, uint32_t color, uint8_t *result);
+/* Packed N-bit RGB components (blue low, then green/red), normalized to
+ * eight-bit channels with nearest rounding before current-palette matching.
+ * Bits zero means a palette index; valid direct precision is 1..8. The wire
+ * code is at most 24 bits; unused bits above the three components are ignored. */
+int st_rip3_palettes_color_bits(const struct st_rip3_palettes *palettes,
+	unsigned bits, uint32_t color, uint8_t *result);
 /* Complete owned copy for the palette backup area: current slot, in-use and
  * protection bits, and all RGB tables. Restoring explicitly replaces the
  * whole live table, including protected entries as required by the backup

@@ -130,19 +130,19 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 		/* Polygon borders retain their pattern but use COPY, even with a NOT
 		 * interior. Resolve every used operand before any geometry can paint. */
 		if (borders)
-			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
+			status = st_rip3_command_ink(host,environment.rgb_bits,style.drawing_color,&drawing);
 		if (status == 0 && style.write_mode != ST_RIP3_NOT && fill_foreground)
-			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.fill_color,&foreground);
+			status = st_rip3_command_ink(host,environment.rgb_bits,style.fill_color,&foreground);
 		if (status == 0 && ((style.write_mode != ST_RIP3_NOT && fill_background)
 		    || (borders && style.pen.draw_background && style.pen.pattern != 0xffff)))
-			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.background_color,&background);
+			status = st_rip3_command_ink(host,environment.rgb_bits,style.background_color,&background);
 		if (status != 0)
 			return status;
 	}
 	else if (style.write_mode != ST_RIP3_NOT) {
-		status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.drawing_color, &foreground);
+		status = st_rip3_command_ink(host, environment.rgb_bits, style.drawing_color, &foreground);
 		if (status == 0 && style.pen.draw_background && style.pen.pattern != 0xffff)
-			status = st_rip3_command_ink(host, environment.rgb_bits == 8, style.background_color, &background);
+			status = st_rip3_command_ink(host, environment.rgb_bits, style.background_color, &background);
 		if (status != 0)
 			return status;
 	}

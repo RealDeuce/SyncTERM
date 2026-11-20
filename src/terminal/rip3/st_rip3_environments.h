@@ -13,7 +13,7 @@ struct st_rip3_backup;
 /* Environment records own values/references, not the referenced objects.
  * Device dimensions belong to the client canvas and cannot vary per entry.
  * The shipping v3 limits supersede the inherited 2.x parameter tables:
- * stored world dimensions 0..65535, RGB precision zero (palette) or eight.
+ * stored world dimensions 0..65535, RGB precision zero (palette) or 1..8.
  * A zero stored dimension is queryable but has no usable projection frame. */
 struct st_rip3_environment {
 	unsigned graphics_style, button_style, port, text_window, palette;
@@ -54,6 +54,11 @@ int st_rip3_environments_define(struct st_rip3_environments *environments,
 	unsigned number, const struct st_rip3_environment *value);
 int st_rip3_environments_set(struct st_rip3_environments *environments,
 	unsigned number, const struct st_rip3_environment *value);
+/* COLORMODE callback's narrow protection-bypassing edit of an already defined
+ * slot. Zero selects palette mapping; 1..8 selects RGB component precision.
+ * Selection and every other record field remain unchanged. Wire M uses set. */
+int st_rip3_environments_color(struct st_rip3_environments *environments,
+	unsigned number, unsigned bits);
 /* Select an existing record only. The future scene owner must activate its
  * references in other tables as part of a complete context transaction.
  * CUR(ENV,n)/SWITCH_ENVIRONMENT runtime activation is not implemented here. */

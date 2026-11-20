@@ -31,6 +31,8 @@ wire `M` color-mode changes and literal scene-prologue restoration of palette
 mapping after RGB, independently expected red/green pixels,
 WORLD word-range/zero-state storage, asymmetric macro overflow, axis-setter
 target defects and drawing recovery after restoring a positive frame,
+COLORMODE precisions 1..8 through foreground/fill/erase, undefined replies,
+invalid-input recovery and protected STYLE independence,
 live WORLD/device queries, templates/angles, empty-input continuations, delays,
 offscreen BMP export/load and clipboard paste, repeated paint over ANSI,
 command-only CRLF without scrolling, and default-window deactivation with

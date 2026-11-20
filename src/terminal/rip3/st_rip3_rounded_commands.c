@@ -60,11 +60,11 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 	background_used |= borders && pen.draw_background && pen.pattern != 0xffff;
 	*operation = true;
 	if (style.write_mode != ST_RIP3_NOT) {
-		if (foreground_used) status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.fill_color,&foreground);
-		if (status == 0 && background_used) status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.background_color,&background);
+		if (foreground_used) status = st_rip3_command_ink(host,environment.rgb_bits,style.fill_color,&foreground);
+		if (status == 0 && background_used) status = st_rip3_command_ink(host,environment.rgb_bits,style.background_color,&background);
 	}
 	if (status == 0 && borders && (filled || style.write_mode != ST_RIP3_NOT))
-		status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&drawing);
+		status = st_rip3_command_ink(host,environment.rgb_bits,style.drawing_color,&drawing);
 	if (status != 0) return status;
 	rectangle.x0 = (double)((values[0] < values[2] ? values[0] : values[2])*frame.device_width/frame.world_width);
 	rectangle.x1 = (double)((values[0] > values[2] ? values[0] : values[2])*frame.device_width/frame.world_width);

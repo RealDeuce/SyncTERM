@@ -41,7 +41,7 @@ outline_font(struct st_rip3_outline_font *result, const struct st_rip3_text_cont
 
 static int
 outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style *style,
-    const struct st_rip3_frame *frame, bool rgb, unsigned port_number,
+    const struct st_rip3_frame *frame, unsigned rgb_bits, unsigned port_number,
     const struct st_rip3_port_info *port, const struct st_rip3_text_position *anchor,
     const uint8_t *glyphs, size_t length, bool positioned)
 {
@@ -76,8 +76,8 @@ outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style
 	if (status==0) status=st_rip3_outline_layout_positions(&layout,anchor,advances,length,bbox,positions,&total);
 	uint8_t foreground=0,background=0;
 	if (status==0 && style->write_mode!=ST_RIP3_NOT) {
-		status=st_rip3_command_ink(host,rgb,style->drawing_color,&foreground);
-		if (status==0 && style->outline.shadow!=0) status=st_rip3_command_ink(host,rgb,style->background_color,&background);
+		status=st_rip3_command_ink(host,rgb_bits,style->drawing_color,&foreground);
+		if (status==0 && style->outline.shadow!=0) status=st_rip3_command_ink(host,rgb_bits,style->background_color,&background);
 	}
 	if (status==0) status=st_rip3_draw_outline_positioned(host->ports,&font,&layout,glyphs,length,positions,
 	    foreground,background,style->write_mode);
@@ -185,7 +185,7 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	if (!positioned) anchor = (struct st_rip3_text_position){
 	    (double)(port.cursor.x-origin_x),(double)(port.cursor.y-origin_y)};
 	if (style.font_mode==ST_RIP3_FONT_OUTLINE) {
-		status=outline_text(host,&style,&frame,environment.rgb_bits==8,port_number,&port,&anchor,glyphs,glyph_count,positioned);
+		status=outline_text(host,&style,&frame,environment.rgb_bits,port_number,&port,&anchor,glyphs,glyph_count,positioned);
 		goto done;
 	}
 	const struct st_rip3_classic_font *font = host->text->font;
@@ -220,9 +220,9 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 		status = IO_ERROR_OUT_OF_RANGE; goto done;
 	}
 	if (style.write_mode != ST_RIP3_NOT) {
-		status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.drawing_color,&foreground);
+		status = st_rip3_command_ink(host,environment.rgb_bits,style.drawing_color,&foreground);
 		if (status == 0 && (style.font.flags&32) != 0)
-			status = st_rip3_command_ink(host,environment.rgb_bits == 8,style.background_color,&background);
+			status = st_rip3_command_ink(host,environment.rgb_bits,style.background_color,&background);
 	}
 	if (status == 0) status = st_rip3_draw_classic_text(host->ports,font,&style.font,glyphs,glyph_count,
 	    &anchor,foreground,background,style.write_mode);

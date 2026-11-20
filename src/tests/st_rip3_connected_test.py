@@ -408,10 +408,36 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(query(b"$WORLD(CUR," + str(width).encode() + b"," + str(height).encode()
                          + b")$") + b"\x01|n2|X0101\r\n")
 
+        t.case("rip3-macro-rgb-precisions-draw-fill-and-erase")
+        for bits in range(1, 9):
+            maximum = (1 << bits) - 1
+            red, green, blue = maximum << (2 * bits), maximum << bits, maximum
+            frame = t.exchange(query(b"$COLORMODE(CUR,RGB," + str(bits).encode() + b")$")
+                               + b"\x01|k" + ultra(red) + b"\r\n" + query(b"$EGW$")
+                               + b"\x01|c" + ultra(green) + b"|X0101|S01" + ultra(blue)
+                               + b"|K03010503\r\n" + query(b"$COLORMODE$"), str(bits).encode())
+            assert pixel(frame, 10, 10) == 0xff0000
+            assert pixel(frame, 1, 1) == 0x00ff00
+            assert pixel(frame, 4, 2) == 0x0000ff
+            assert frame.application["connected"] == 1
+        t.exchange(query(b"$COLORMODE(CUR,RGB,3)$") + b"\x01|M17\r\n"
+                   + query(b"$COLORMODE$:$COLORMODE(6)$:$INUSE(ENV,6)$"), b"3:-1:0")
+        t.exchange(query(b"$COLORMODE(CUR,RGB,0)$$COLORMODE(CUR,RGB,9)$$COLORMODE$"), b"3")
+        # A protected graphics style cannot block ENV color-mode edits.
+        frame = t.exchange(query(b"$CUR(STYLE,1)$$PROT(STYLE,1)$$COLORMODE(CUR,RGB,1)$")
+                           + b"\x01|X0401\r\n" + query(b"$COLORMODE$"), b"1")
+        assert pixel(frame, 4, 1) == 0xffffff
+        t.exchange(query(b"$UNPROT(STYLE,1)$$CUR(STYLE,0)$") + b"\x01|M08\r\n")
+
 
 def mega(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     return bytes((digits[number // 36], digits[number % 36]))
+
+
+def ultra(number):
+    digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#&"
+    return bytes(digits[(number >> shift) & 63] for shift in (18, 12, 6, 0))
 
 
 def main():

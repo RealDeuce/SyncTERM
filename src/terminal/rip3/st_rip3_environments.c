@@ -34,7 +34,7 @@ valid(const struct st_rip3_environment *value)
 	    && value->world_width <= 65535 && value->world_height <= 65535
 	    && (value->base_math == 36 || value->base_math == 64)
 	    && value->coordinate_size >= 2 && value->coordinate_size <= 5
-	    && (value->rgb_bits == 0 || value->rgb_bits == 8)
+	    && value->rgb_bits <= 8
 	    && value->mouse_pointer <= 6;
 }
 
@@ -137,6 +137,19 @@ st_rip3_environments_set(struct st_rip3_environments *environments,
 	if (!environments->entries[number].info.defined)
 		return IO_ERROR_NOT_FOUND;
 	return st_rip3_environments_define(environments, number, value);
+}
+
+int
+st_rip3_environments_color(struct st_rip3_environments *environments,
+    unsigned number, unsigned bits)
+{
+	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (number>=36 || bits>8) return IO_ERROR_OUT_OF_RANGE;
+	if (!environments->entries[number].info.defined) return IO_ERROR_NOT_FOUND;
+	/* COLORMODE's callback bypasses protection; wire M uses the ordinary
+	 * protected record setter. No other environment field is affected. */
+	environments->entries[number].data.rgb_bits=bits;
+	return 0;
 }
 
 int
