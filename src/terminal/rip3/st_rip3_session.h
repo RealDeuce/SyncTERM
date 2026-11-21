@@ -110,7 +110,7 @@ struct st_rip3_session_config {
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
  * This does not select an application terminal mode or implement unbound
- * full text-window backups/reset, button/mouse tables, graphical-text preprocessing or
+ * full text-window backups/reset, button/mouse fields, graphical-text preprocessing or
  * scene headers. Immediate host queries do include their angle preprocessor. */
 int st_rip3_session_create(struct st_rip3_session **result,
 	const struct st_rip3_session_config *config);

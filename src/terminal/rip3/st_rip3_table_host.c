@@ -7,6 +7,7 @@
 #include "st_rip3_ports.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
+#include "st_rip3_button_styles.h"
 #include "st_rip3_text_window.h"
 #include "io_error.h"
 
@@ -88,6 +89,8 @@ entry_current(enum st_rip3_table_type type, void *live, unsigned *result)
 		return st_rip3_environments_current(live, result);
 	if (type == ST_RIP3_TABLE_STYLE)
 		return st_rip3_styles_current(live, result);
+	if (type == ST_RIP3_TABLE_BUT)
+		return st_rip3_button_styles_current(live,result);
 	return IO_ERROR_NOT_SUPPORTED;
 }
 
@@ -130,6 +133,12 @@ entry_info(enum st_rip3_table_type type, void *live, unsigned index,
 		*defined = info.defined;
 		*protected = info.protected;
 		return 0;
+	}
+	if (type == ST_RIP3_TABLE_BUT) {
+		struct st_rip3_button_style_info info;
+		int status=st_rip3_button_styles_info(live,index,&info);
+		if (status==0) {*defined=info.defined;*protected=info.protected;}
+		return status;
 	}
 	if (type == ST_RIP3_TABLE_ENV) {
 		struct st_rip3_environment_info info;
@@ -294,6 +303,8 @@ objects(const struct st_rip3_table_host *host,
 			status = st_rip3_ports_select(binding->live, index);
 		else if (type == ST_RIP3_TABLE_STYLE)
 			status = st_rip3_styles_switch(binding->live,index);
+		else if (type == ST_RIP3_TABLE_BUT)
+			status = st_rip3_button_styles_select(binding->live,index);
 		else if (type == ST_RIP3_TABLE_TW) {
 			const struct st_rip3_text_window_operations *windows=binding->live;
 			status=windows->select==NULL ? IO_ERROR_NOT_SUPPORTED : windows->select(windows->context,index);
@@ -351,7 +362,8 @@ objects(const struct st_rip3_table_host *host,
 		}
 		if (uses_entries && (binding->live == NULL
 		    || (type != ST_RIP3_TABLE_PAL && type != ST_RIP3_TABLE_PORT
-		    && type != ST_RIP3_TABLE_ENV && type != ST_RIP3_TABLE_STYLE && type != ST_RIP3_TABLE_TW)))
+		    && type != ST_RIP3_TABLE_ENV && type != ST_RIP3_TABLE_STYLE && type != ST_RIP3_TABLE_TW
+		    && type != ST_RIP3_TABLE_BUT)))
 			return IO_ERROR_NOT_SUPPORTED;
 		if ((uses_slots || selected == BASE || selected == STACK) && binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
@@ -369,6 +381,8 @@ objects(const struct st_rip3_table_host *host,
 					(void)st_rip3_ports_protect(binding->live, i, protect);
 				else if (type == ST_RIP3_TABLE_STYLE)
 					(void)st_rip3_styles_protect(binding->live, i, protect);
+				else if (type == ST_RIP3_TABLE_BUT)
+					(void)st_rip3_button_styles_protect(binding->live,i,protect);
 				else if (type == ST_RIP3_TABLE_TW) {
 					const struct st_rip3_text_window_operations *windows=binding->live;
 					if (windows->protect==NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -412,6 +426,8 @@ objects(const struct st_rip3_table_host *host,
 					single_defined = info.slot_used[i]; single_protected = info.slot_protected[i];
 				}
 			}
+			if (isprot && type==ST_RIP3_TABLE_BUT && selected==CURRENT && !single_defined)
+				return IO_ERROR_NOT_SUPPORTED; /* Undefined-current rule, #112. */
 			if (isprot)
 				return reply_number(result, capacity, !single_defined && !(type==ST_RIP3_TABLE_PAL && selected==CURRENT)
 				    ? -1 : single_protected);
@@ -420,21 +436,21 @@ objects(const struct st_rip3_table_host *host,
 	}
 }
 
-enum palette_reset_kind { RESET_ENTRY, RESET_CURRENT, RESET_TABLE, RESET_BASE,
+enum table_reset_kind { RESET_ENTRY, RESET_CURRENT, RESET_TABLE, RESET_BASE,
 	RESET_SLOT, RESET_SLOTS, RESET_STACK, RESET_BACKUP, RESET_ALL };
 
 static int
-palette_reset(const struct st_rip3_table_binding *binding,
-    const struct st_rip3_builtin_reference *reference)
+table_reset(const struct st_rip3_table_binding *binding,
+    const struct st_rip3_builtin_reference *reference, bool buttons)
 {
-	struct {enum palette_reset_kind kind; unsigned index;} actions[39];
+	struct {enum table_reset_kind kind; unsigned index;} actions[39];
 	size_t count=reference->count==1 ? 1 : reference->count-1;
 	bool needs_live=false,needs_backup=false;
 	/* Validate the complete selector list and every required binding before
 	 * executing anything, including a mixed live-table/backup reset. */
 	for (size_t i=0; i<count; i++) {
 		const char *word=reference->count==1 ? "CUR" : reference->parameters[i+1].text;
-		enum palette_reset_kind kind;unsigned index=0;
+		enum table_reset_kind kind;unsigned index=0;
 		if (equal(word,"CUR")) kind=RESET_CURRENT;
 		else if (equal(word,"TBL")) kind=RESET_TABLE;
 		else if (equal(word,"BASE")) kind=RESET_BASE;
@@ -454,13 +470,20 @@ palette_reset(const struct st_rip3_table_binding *binding,
 	if ((needs_live && binding->live==NULL) || (needs_backup && binding->backup==NULL))
 		return IO_ERROR_NOT_SUPPORTED;
 	for (size_t i=0; i<count; i++) {
-		enum palette_reset_kind kind=actions[i].kind;unsigned index=actions[i].index;
+		enum table_reset_kind kind=actions[i].kind;unsigned index=actions[i].index;
 		int status=0;
-		if (kind==RESET_CURRENT) status=st_rip3_palettes_current(binding->live,&index);
-		if (status==0 && (kind==RESET_ENTRY || kind==RESET_CURRENT))
-			status=st_rip3_palettes_reset_entry(binding->live,index);
-		else if (kind==RESET_TABLE || kind==RESET_ALL)
-			status=st_rip3_palettes_reset(binding->live,false);
+		if (buttons) {
+			if (kind==RESET_CURRENT) status=st_rip3_button_styles_reset_current(binding->live);
+			else if (kind==RESET_ENTRY) status=st_rip3_button_styles_reset_entry(binding->live,index);
+			else if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_button_styles_reset_table(binding->live);
+		}
+		else {
+			if (kind==RESET_CURRENT) status=st_rip3_palettes_current(binding->live,&index);
+			if (status==0 && (kind==RESET_ENTRY || kind==RESET_CURRENT))
+				status=st_rip3_palettes_reset_entry(binding->live,index);
+			else if (kind==RESET_TABLE || kind==RESET_ALL)
+				status=st_rip3_palettes_reset(binding->live,false);
+		}
 		if (status!=0) return status;
 		if (kind==RESET_BASE) status=st_rip3_backup_clear(binding->backup,ST_RIP3_BACKUP_BASE,0);
 		else if (kind==RESET_STACK) status=st_rip3_backup_clear(binding->backup,ST_RIP3_BACKUP_STACK,0);
@@ -524,8 +547,9 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 			if (status==0) result[0]=0;
 			return status;
 		}
-		if (!equal(reference->parameters[0].text,"PAL")) return IO_ERROR_NOT_SUPPORTED;
-		status=palette_reset(&host->tables[ST_RIP3_TABLE_PAL],reference);
+		bool buttons=equal(reference->parameters[0].text,"BUT");
+		if (!buttons && !equal(reference->parameters[0].text,"PAL")) return IO_ERROR_NOT_SUPPORTED;
+		status=table_reset(&host->tables[buttons ? ST_RIP3_TABLE_BUT : ST_RIP3_TABLE_PAL],reference,buttons);
 		if (status==0) result[0]=0;
 		return status;
 	}
@@ -540,8 +564,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	}
 	copy = strcmp(reference->name, "COPY") == 0;
 	backstat = strcmp(reference->name, "BACKSTAT") == 0;
-	save = strcmp(reference->name, "SCP") == 0;
-	restore = strcmp(reference->name, "RCP") == 0;
+	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0;
+	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0;
 	if (!copy && !backstat && !save && !restore)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity == 0)
@@ -565,7 +589,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 					return IO_ERROR_INVALID_FORMAT;
 			}
 		}
-		binding = &host->tables[ST_RIP3_TABLE_PAL];
+		binding = &host->tables[reference->name[1]=='B' ? ST_RIP3_TABLE_BUT : ST_RIP3_TABLE_PAL];
 		if (binding->live == NULL || binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
 		status = save ? st_rip3_backup_save(binding->backup, place.place, place.index, binding->live)

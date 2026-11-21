@@ -47,8 +47,8 @@ wire gate is distinct from the now-connected 1..8-bit COLORMODE variable
 contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. Scene reset `*` and `$RESET(SOFT)$` now clear the
 physical canvas to palette-independent RGB black and reset the represented
-TW/STYLE/PAL/PORT/ENV families on connected sessions. The complete reset contract
-still awaits button/mouse/header/resident-query and remaining ANSI state work.
+TW/STYLE/BUT/PAL/PORT/ENV families on connected sessions. The complete reset contract
+still awaits button instances, mouse/header/resident-query and remaining ANSI state work.
 The entry-versus-default-MicroANSI policy remains a separate open client decision.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
@@ -6598,12 +6598,63 @@ detected console CPU or RIP1 graphics slowdown in the measured workloads.
 Full measurements, native reply-fence limits and reproduction commands are in
 [`performance.adoc`](performance.adoc#_2026_11_20_rip3_shared_raster_comparison).
 
-Full `*` compliance is not claimed: button styles/instances, mouse fields,
+Full `*` compliance is not claimed: button instances, mouse fields,
 HEADER revision/input lock, resident queries, charset/insert-mode state and the
 client's default font/wrap selection remain pending where applicable. No VT-102
-mode is introduced. The source queue now has 1406 implemented, 1632 pending,
+mode is introduced. That milestone's source queue had 1406 implemented, 1632 pending,
 3578 unreviewed, 1318 context, 67 excluded and 33 blocked units. Incomplete clauses
 retain their implemented subset and test evidence without being marked complete.
+
+## Connected button-style records and lifecycle
+
+The separate RIP3 session now owns all 36 button-style records and their typed
+backup area. Wire `1B` edits the selected style; `2B` and `$CUR(BUT,n)$` select
+defined records or install the fixed defaults for ordinary first use. The wire
+parser accepts current coordinate widths 2–5 and both numeric bases, converts
+width/height and bevel once in the definition-time WORLD, and stores the device
+WORD values. Bevel uses X scale only, and no-BEVEL styles store size zero. All
+seven colors use palette indices, including in RGB mode. Multiple type bits and
+inapplicable flags remain stored; `other_port` is ignored. Rendering precedence
+and creation-time clipboard checks await the button renderer.
+
+Current selection, in-use/protection queries, slot protection, `$SBS$`/`$RBS$`,
+generic whole-table `$COPY$`, and BUT live/backup `$RESET$` selectors reach those
+same records on connections. Snapshots own the complete table and its saved
+current index; restoration bypasses live protection and restores that index,
+unlike the separate STYLE restore defect. Numbered protection/consumption and the
+shared ten-slot/stack capacity use the existing backup owner.
+
+Numeric and table resets default eligible records and clear nonzero in-use
+flags. SOFT uses that ordinary reset and separately selects zero, keeping
+protected live styles and independent snapshots. Current-entry reset instead
+safely models the published RIPtel defect: records and protection remain intact,
+selection becomes zero, and default-record bytes overwrite the first 26 in-use
+bytes. No invalid memory copy or native structure layout is reproduced.
+
+New [issue #112](https://github.com/bbs-land/remote-imaging-protocol/issues/112)
+asks for subsequent writes, selection and protection when a current or protected
+record has become undefined. It references #27/PR #61/PR #71 and #16/PR #45;
+none of those existing issues receives a comment. Undefined-current writes,
+protected-but-undefined first use and undefined-current protection queries
+are rejected nonfatally rather than acquiring an unreviewed behavior. Complete
+clauses affected by B112 retain their pending/blocked status.
+
+Independent native expectations cover all 65,536 low-word flag values, every
+flags-2 byte, fixed defaults, protected edits, definition-time nonuniform scaling,
+RGB-mode palette fields, safe zero-WORLD rejection, shipped reset metadata and
+snapshot restoration. CP437/UTF-8 connection fixtures exercise all 36 slots,
+widths 2–5, both numeric bases, base/slot/stack aliases, protected saves,
+RESET(ALL), SOFT retention and malformed-input recovery on the three reference
+rasters plus 720x400. Definition/selection captures retain both pixel planes.
+The native Release CMake configure/build and 11 distinct affected CTests pass,
+including existing table/palette and SOFT regression checks and both preservation
+guards. No compiler warnings are introduced, and no ANSI music tests are run.
+
+Button creation (`1U`), faces/effects/labels, icon/hot-state rendering, click and
+hotkey dispatch, groups and auto-clip remain unimplemented. Connected style
+management does not constitute usable clickable buttons. Intra-table live-entry
+COPY and B112 state edges also remain pending. The queue now has 1448 implemented,
+1638 pending, 3528 unreviewed, 1318 context, 67 excluded and 35 blocked units.
 
 ## Verification and acceptance
 
@@ -6616,6 +6667,9 @@ control bitmap backend and one coherent capture of related cells, pixels,
 cursor and state. Keep physical audio disabled and verify PCM independently.
 Normal tests are offline; do not use Wine or the user's desktop. CI supplies
 routine platform coverage.
+For non-audio changes, select the affected tests instead of repeatedly replaying
+the existing ANSI music tests. Audible checks are appropriate when testing a new
+feature that produces sound.
 
 ```sh
 python3 tools/audit/rip3_compliance.py

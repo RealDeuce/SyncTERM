@@ -14,6 +14,7 @@ struct st_rip3_resource_paths;
 struct st_rip3_palettes;
 struct st_rip3_ports;
 struct st_rip3_styles;
+struct st_rip3_button_styles;
 struct st_rip3_input;
 struct st_rip3_query;
 struct st_rip3_bitmap_destination;
@@ -58,6 +59,7 @@ struct st_rip3_command_host {
 	struct st_rip3_palettes *palettes;
 	struct st_rip3_ports *ports;
 	struct st_rip3_styles *styles;
+	struct st_rip3_button_styles *button_styles;
 	/* Borrowed input gate. The owning source retains bytes during 3D delays. */
 	struct st_rip3_input *input;
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
@@ -101,7 +103,7 @@ struct st_rip3_command_sink {
  * including font-zero @ with the context's cached outline width,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
- * 2Y style selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
+ * 2Y style selection, 1B/2B button-style definition/selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits, ordinary w layouts/wrap/reactivation/deactivation,
@@ -408,8 +410,8 @@ struct st_rip3_command_sink {
  * Every rejected command is consumed here, with no failed state latched and
  * no status returned to the terminal/session caller. Later commands still
  * run. Internal service errors never become connection errors. Callbacks must
- * not reenter or mutate bindings during processing. This is not the active
- * terminal route or a complete RIP stream parser. */
+ * not reenter or mutate bindings during processing. The connected session owns
+ * transport and complete stream framing. */
 void st_rip3_commands_process(const struct st_rip3_command_host *host,
 	const struct st_rip3_command_sink *sink, const uint8_t *command, size_t length);
 

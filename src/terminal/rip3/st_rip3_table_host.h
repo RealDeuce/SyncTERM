@@ -31,7 +31,7 @@ struct st_rip3_table_host {
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
  * SCP/RCP, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
- * supports PAL/PORT/STYLE/TW selection and PAL/PORT/ENV/STYLE/TW metadata; backup-slot operations
+ * supports PAL/PORT/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
  * Palette live-entry COPY validates all destinations before mutation and
@@ -40,8 +40,8 @@ struct st_rip3_table_host {
  * It validates the full selector list and required bindings first. Palette
  * resets preserve selection even when it becomes undefined; ISPROT(PAL,CUR)
  * reads current protection without the numeric-slot definition check.
- * Parameter defaults and decimal slot syntax follow the reference. Other
- * live-entry COPY/reset families return NOT_SUPPORTED for wider dispatch.
+ * Parameter defaults and decimal slot syntax follow the reference. Remaining
+ * live-entry COPY and RESET families return NOT_SUPPORTED for wider dispatch.
  * CUR(STYLE,n) selects/defaults the represented style and its font family,
  * independently of PORT/ENV/text-cursor state. CUR(ENV,n), SENV, RENV, SGS and
  * RGS remain unsupported until
@@ -55,8 +55,13 @@ struct st_rip3_table_host {
  * require capacity >= 1, validated before any active operation. Validation and
  * binding failures leave caller output and bound table/save state unchanged.
  * Individual runtime reset failures may follow completed earlier selectors;
- * their effects are not rolled back. No host transmission,
- * prompting, stream parsing or app/session routing occurs here. Execution
+ * their effects are not rolled back.
+ * BUT has its own typed whole-table snapshots, SBS/RBS and RESET selector
+ * lifecycle, including the documented current-reset metadata overwrite. SOFT
+ * uses the ordinary table reset and then selects zero, not that CUR path.
+ * Undefined-current explicit writes and protected-but-undefined first selection
+ * remain unsupported under documentation issue #112.
+ * No host transmission, prompting, stream parsing or app/session routing occurs here. Execution
  * statuses are private to parser-owned recovery; use the public host-variable
  * process entry to consume malformed references without a session error. */
 

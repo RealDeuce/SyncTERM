@@ -4,6 +4,7 @@
 #include "st_rip3_host_variables.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
+#include "st_rip3_button_styles.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
@@ -242,6 +243,8 @@ soft_reset(void *context)
 	if (status==0) status=st_rip3_ports_screen_clear_black(session->commands.ports);
 	if (status==0) status=st_rip3_palettes_reset(session->commands.palettes,false);
 	if (status==0) status=st_rip3_styles_soft_reset(session->commands.styles);
+	if (status==0) status=st_rip3_button_styles_reset_table(session->commands.button_styles);
+	if (status==0) status=st_rip3_button_styles_select(session->commands.button_styles,0);
 	if (status==0) status=st_rip3_environments_soft_reset(session->commands.environments);
 	if (status!=0) return status;
 	st_rip3_outline_cache_reset(session->text.outline_cache);
@@ -467,6 +470,7 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	for (unsigned i=0; i<ST_RIP3_TABLE_COUNT; i++) st_rip3_backup_destroy(session->tables.tables[i].backup);
 	st_rip3_environments_destroy(session->commands.environments);
 	st_rip3_styles_destroy(session->commands.styles);
+	st_rip3_button_styles_destroy(session->commands.button_styles);
 	st_rip3_palettes_destroy(session->commands.palettes);
 	st_rip3_ports_destroy(session->commands.ports);
 	free(session);
@@ -521,6 +525,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=device ? st_rip3_environments_create_device(&session->commands.environments,frame.device_width,frame.device_height)
 	    : st_rip3_environments_create(&session->commands.environments,config->canvas);
 	if (status==0) status=st_rip3_styles_create(&session->commands.styles,&initial);
+	if (status==0) status=st_rip3_button_styles_create(&session->commands.button_styles);
 	if (status==0) status=st_rip3_palettes_create(&session->commands.palettes);
 	if (status==0) status=device ? st_rip3_ports_create_device(&session->commands.ports,frame.device_width,frame.device_height)
 	    : st_rip3_ports_create(&session->commands.ports,config->canvas);
@@ -531,10 +536,12 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	}
 	if (status==0) status=st_rip3_environments_backup_create(&session->tables.tables[ST_RIP3_TABLE_ENV].backup);
 	if (status==0) status=st_rip3_styles_backup_create(&session->tables.tables[ST_RIP3_TABLE_STYLE].backup);
+	if (status==0) status=st_rip3_button_styles_backup_create(&session->tables.tables[ST_RIP3_TABLE_BUT].backup);
 	if (status==0) status=st_rip3_palettes_backup_create(&session->tables.tables[ST_RIP3_TABLE_PAL].backup);
 	if (status==0) status=st_rip3_ports_backup_create(&session->tables.tables[ST_RIP3_TABLE_PORT].backup);
 	session->tables.tables[ST_RIP3_TABLE_ENV].live=session->commands.environments;
 	session->tables.tables[ST_RIP3_TABLE_STYLE].live=session->commands.styles;
+	session->tables.tables[ST_RIP3_TABLE_BUT].live=session->commands.button_styles;
 	session->tables.tables[ST_RIP3_TABLE_PAL].live=session->commands.palettes;
 	session->tables.tables[ST_RIP3_TABLE_PORT].live=session->commands.ports;
 	if (status==0) status=st_rip3_outline_cache_create(&session->text.outline_cache);

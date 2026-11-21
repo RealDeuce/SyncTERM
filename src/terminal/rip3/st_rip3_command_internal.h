@@ -12,6 +12,8 @@ struct st_rip3_environment;
 struct st_rip3_frame;
 struct st_rip3_port_info;
 struct st_rip3_fill;
+int st_rip3_button_commands_execute(const struct st_rip3_command_host *host,
+	const uint8_t *command, size_t length, bool *operation);
 
 /* Private wire-field and execution helpers. Every status is consumed by the
  * public void processing boundary; none is a terminal/session return status. */
