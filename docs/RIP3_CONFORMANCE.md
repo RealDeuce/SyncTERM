@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-1b8ab9928a9fd9071556cf0228ea69a496db3e72](https://github.com/RealDeuce/remote-imaging-protocol/tree/1b8ab9928a9fd9071556cf0228ea69a496db3e72/version/3.0)
+915ca0f3292d6ce4a74c98091cd15e8447251cef](https://github.com/RealDeuce/remote-imaging-protocol/tree/915ca0f3292d6ce4a74c98091cd15e8447251cef/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -6959,6 +6959,68 @@ rendering is connected; those modes are not claimed. B118/B119/B120 remain open.
 The queue has 1574 implemented, 1711 pending, 3422 unreviewed, 1287 context,
 67 excluded and 38 blocked units. The stable pin and frozen RIP1.54 implementation
 remain unchanged. Full RIP3 compliance remains unfinished.
+
+## PR #121 and connected keyboard buttons
+
+The pin advances to fork stable `915ca0f3292d6ce4a74c98091cd15e8447251cef`,
+including reviewed PR #121. B118 is answered. Preserve all 8099 prior source
+blocks, relocate 191 and add 32, giving 8131 units in the same 68 documents.
+No earlier implemented claim is retired. All 55 previous derivation hashes are
+unchanged; the new keyboard note is the 56th. The adoption record distinguishes
+original input/reverse-scan evidence from the explicit portable profile.
+
+Mouse-active `1U` instances capture their byte hotkey and default-Enter flag at
+creation. A matching byte consumes the event and starts the same copied host
+program/reset/FIELDID pipeline as a pointer action. Simple fields, decorations
+and later current-style changes do not supply a binding. Lookup folds ASCII on
+both sides, treats 0 as unbound, matches 128..254 exactly and uses 255 only as a
+wildcard. Explicit matches outrank CR defaults, which outrank wildcards; newest
+instances win within each class. LF is not an implicit Enter default.
+
+The real terminal event path supplies one CP437 character/control byte per
+translated event. TEXT uses the existing Unicode-to-CP437 mapping; numeric entry
+retains the connection encoding's existing interpretation. ASCII KEY_CODE events
+honor their control modifiers; Alt/GUI shortcuts remain client policy. Raw
+physical/key-up and semantic noncharacter events never become byte candidates.
+The arrow's later terminal escape sequence is not reprocessed as hotkeys.
+Unmatched events retain their normal forwarding/case. Empty/error actions still
+consume their winning event. The native forwarding test now also covers RIP3
+alongside both ANSI/RIP1 encodings, including pointer-only disable independence.
+No ANSI/RIP1 rendering code or per-cell damage state changes.
+
+HKEYOFF/HKEYON operate on the live field owner and do not alter pointer bindings.
+Before a winning keyboard callback, copy its source/identity and cancel a held
+pointer capture. Preserve physical button state, so a later release cannot
+click or hand that gesture to a replacement. Keyboard feedback reaches the
+existing native rectangle-inversion service momentarily, without a fixed sleep;
+cleanup checks a surviving instance's monotonic token rather than reading a
+freed pointer or matching a public ID. Deletion/reset and same-ID/address reuse
+cannot cause stale cleanup. This adds per-instance keyboard metadata, not a
+rendering buffer or damage layer.
+
+Keyboard callbacks supply no synthetic click coordinate. The frontend records
+actual pointer events (including ignored/disabled/wheel events), and keyboard
+activation leaves that position unchanged. Connected XY queries prove this
+behavior. The existing logical host continuation retains FIELDID across delays,
+restores outside context on return, and can delete/reset its source field safely.
+The connection remains alive after reached malformed providers and can activate
+the same binding again. Pointer regressions retain the established press/release,
+clipping, native feedback and deletion behavior.
+
+Independent native matching tables and real CP437/UTF-8 connections execute the
+published seven literal commands and priority results, NUL/255/high bytes,
+ASCII versus high-byte case, semantic Up forwarding, raw/repeated/key-up events,
+current-style independence, empty/error consumption, HKEY toggles, held-pointer
+cancellation, replacement, reset-before-host and delayed self-deletion/FIELDID.
+Full HEADER input-lock/normal-forwarding suppression remains pending with scene
+headers. Composite X/Y/M/restore/playback clauses and the inherited physical
+Scroll Lock indicator promise are not claimed by XY/bitmap tests. ICON/hot,
+grouping, hover and B119/B120 also remain unfinished.
+
+Native Release CMake is warning-free and thirteen distinct affected CTests pass,
+including the source/contract guards. The queue has 1607 implemented, 1715 pending,
+3412 unreviewed, 1294 context, 67 excluded and 36 blocked units. Full RIP3
+compliance is unfinished; RIP1.54's recorded baseline remains unchanged.
 
 ## Verification and acceptance
 

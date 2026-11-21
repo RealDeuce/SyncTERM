@@ -66,7 +66,7 @@ st_term_key_forward_test_main(void)
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	for (unsigned mode = 0; mode < 4; ++mode) {
+	for (unsigned mode = 0; mode < 6; ++mode) {
 		bool utf8 = (mode & 1) == 0;
 		bool rip = mode >= 2;
 		st_term_session_t *session = NULL;
@@ -75,7 +75,7 @@ st_term_key_forward_test_main(void)
 			.screen_mode = ST_SCREEN_MODE_80X25, .hide_status = true,
 			.encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 			.codepage = ST_CODEPAGE_CP437,
-			.graphics_mode = rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
+			.graphics_mode = mode >= 4 ? ST_CTERM_GRAPHICS_RIP_3 : rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
 			.event_hook = observe_event, .event_hook_context = &hook_calls,
 		};
 		CHECK(st_term_session_create(&session, &config) == 0);
@@ -131,6 +131,23 @@ st_term_key_forward_test_main(void)
 		CHECK(st_term_session_send_key(session, NULL, &handled) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_term_session_send_key(session, &event, NULL) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(connection.output.count == 0 && hook_calls == 0);
+		if (mode>=4) {
+			/* No connection worker exists: feed one complete definition and
+			 * fence through the actual receive pump, then disable only mouse
+			 * input. Keyboard bindings remain independently enabled. */
+			static const char program[]="!|1B00000200ZK000F000F080700000F07000000|1U0A0A1O1O1T00<><>H|1\0330000ready\r";
+			memcpy(connection.input.data,program,sizeof(program)-1);
+			connection.input.head=0;connection.input.count=sizeof(program)-1;
+			enum st_term_disposition disposition=ST_TERM_RETURN_TO_PICKER;bool finished=false;
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished);
+			CHECK(expect_output(&connection,"ready",5)==0);
+			st_term_session_set_mouse_disabled(session,true);
+			event=(struct st_console_event){.type=ST_CONSOLE_EVENT_TEXT,.data.text.codepoint='a'};
+			CHECK(st_term_session_send_key(session,&event,&handled)==0 && handled);
+			CHECK(expect_output(&connection,"H",1)==0);
+			st_term_session_set_mouse_disabled(session,false);
+			hook_calls=0;
+		}
 		connection.output.stopped = true;
 		event = (struct st_console_event){.type = ST_CONSOLE_EVENT_KEY_CODE,
 		    .data.key.code = '\r'};

@@ -1,6 +1,7 @@
 /* RIP3 transport, display, resource, prompt and mixer integration. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_term_rip3.h"
+#include "st_codepage.h"
 #include "st_term_rip3_view.h"
 #include "st_rip3_session.h"
 #include "st_rip3_text_window.h"
@@ -815,11 +816,54 @@ mouse_capture(void *context, int32_t x, int32_t y)
 bool
 st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
-	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE || event->data.mouse.action==ST_CONSOLE_MOUSE_WHEEL) return false;
+	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return false;
+	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
+	if (event->data.mouse.action==ST_CONSOLE_MOUSE_WHEEL) return false;
 	st_term_rip3_flush(rip);feedback_begin(rip);
 	bool handled=st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
 	    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
 	present(rip);flush_text(rip);feedback_end(rip);return handled;
+}
+
+bool
+st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
+{
+	if (rip==NULL || !st_rip3_session_mouse_active(rip->session)) return false;
+	uint8_t byte;uint32_t scalar;
+	switch (event->type) {
+	case ST_CONSOLE_EVENT_TEXT:
+		scalar=event->data.text.codepoint;
+		if (!st_codepage_from_unicode(&byte,ST_CODEPAGE_CP437,scalar)) return false;
+		break;
+	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
+		scalar=event->data.codepage_byte;
+		if (rip->config.encoding==ST_CTERM_ENCODING_CODEPAGE)
+			scalar=st_codepage_to_unicode(rip->config.codepage,event->data.codepage_byte,false);
+		if (!st_codepage_from_unicode(&byte,ST_CODEPAGE_CP437,scalar)) return false;
+		break;
+	case ST_CONSOLE_EVENT_KEY_CODE: {
+		unsigned code=event->data.key.code;uint32_t modifiers=event->data.key.modifiers;
+		if (code>127 || (modifiers&(ST_CONSOLE_MODIFIER_ALT|ST_CONSOLE_MODIFIER_GUI))!=0) return false;
+		if ((modifiers&ST_CONSOLE_MODIFIER_CONTROL)!=0) {
+			if (code>='a' && code<='z') code-=32;
+			if (code>='@' && code<='_') code&=31;
+			else if (code==' ') code=0;
+			else if (code=='?') code=127;
+		}
+		byte=(uint8_t)code;break;
+	}
+	default:
+		/* Backends deliver the translated key/text event separately. Raw
+		 * physical notifications (including key-up) never double-activate.
+		 * Semantic arrows/functions remain on the normal encoding path. */
+		return false;
+	}
+	/* Unlike per-byte wire batching, keyboard feedback must reach the
+	 * console during its callback and be restored by the field owner. */
+	st_term_rip3_flush(rip);
+	bool handled=st_rip3_session_key(rip->session,byte);
+	if (handled) {present(rip);flush_text(rip);}
+	return handled;
 }
 
 void
@@ -832,6 +876,7 @@ void
 st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return;
+	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	(void)st_rip3_session_mouse(rip->session,-1,-1,(event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
 	st_rip3_session_mouse_cancel(rip->session);
 }

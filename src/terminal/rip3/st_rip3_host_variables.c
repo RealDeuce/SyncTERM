@@ -94,6 +94,12 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
 		st_rip3_mouse_kill(host->mouse);result[0]=0;return 0;
 	}
+	if (strcmp(reference->name,"HKEYON")==0 || strcmp(reference->name,"HKEYOFF")==0) {
+		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
+		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
+		st_rip3_mouse_hotkeys(host->mouse,strcmp(reference->name,"HKEYON")==0);result[0]=0;return 0;
+	}
 	if (strcmp(reference->name,"FIELDID")==0) {
 		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
 		if (host->field_context==NULL || !host->field_context->active) return IO_ERROR_NOT_SUPPORTED;

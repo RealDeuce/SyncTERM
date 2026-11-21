@@ -40,8 +40,13 @@ policy awaits #120; paint requests remain nonfatal and preserve existing fields.
 Auto-stamp captures implemented plain/clipboard faces before their label, mutates
 protected live style flags only on success, and recovers after capture/font
 failures. Tests verify exported dimensions/colors and current-clipboard replacement.
-Clear/zoom, hover, ICON/hot faces and groups remain pending. Keyboard
-activation and complete nonplain source sizing/eligibility await #118/#119; see the RIP3 inventory for the exact supported subset.
+`syncterm_rip3_keyboard_CP437` and `syncterm_rip3_keyboard_UTF-8` run PR #121
+byte/default/wildcard vectors, event consumption, HKEY gates, pointer cancellation
+and reset/delayed FIELDID lifetime through real keyboard events. Native forwarding
+checks cover ANSI/RIP1/RIP3 and pointer-only disable. HEADER input lock, full mouse
+queries/restore/playback, physical indicators, clear/zoom, hover, ICON/hot faces
+and groups remain pending. Complete nonplain sizing/eligibility and enclosed
+painting await #119/#120; see the RIP3 inventory for exact scope.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
 when upstream reference documentation or a PR describes that mode. Applicable

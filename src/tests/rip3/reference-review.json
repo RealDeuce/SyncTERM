@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/117",
-  "revision": "1b8ab9928a9fd9071556cf0228ea69a496db3e72",
-  "previous_revision": "ebd81bcbb29eeca2d2c283d40221cbabb3cee531",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/121",
+  "revision": "915ca0f3292d6ce4a74c98091cd15e8447251cef",
+  "previous_revision": "1b8ab9928a9fd9071556cf0228ea69a496db3e72",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "Reviewed PR117 head consolidated into fork stable.",
-  "archive_sha256": "782a19012ccd898084fbafeb3a4e52cf08821b9dcf5eef9212d849ab2fdd7e75",
+  "upstream_state_at_adoption": "Reviewed PR121 actual head consolidated into fork stable.",
+  "archive_sha256": "dc7b064bd75e9aec514e5b66419af95f1cf274847d89b537d4ae3ef65bd1feea",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,12 +17,11 @@
   ],
   "changed_documents": [
     "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-    "version/3.0/ripscrip/4.3-buttons.md",
-    "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
+    "version/3.0/ripscrip/4.3-buttons.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 8039,
+  "matched_source_blocks": 8099,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -956,7 +955,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 58,
+  "upstream_issue_resolutions": 59,
   "pending_followups": [],
   "derivations": [
     {
@@ -1268,6 +1267,12 @@
       "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
       "title": "Issue #116: Button payload, validation and hit geometry",
       "role": "Read-only original-source derivation and explicitly adopted portable payload/validation/half-open input policy; no original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-118-button-keyboard-activation.md",
+      "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
+      "title": "Issue #118: Button keyboard activation",
+      "role": "Read-only source evidence distinguished from explicit portable keyboard matching/event/gate/lifetime completion. No original code executed."
     }
   ],
   "documents": [
@@ -1409,11 +1414,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "b04a5b3b68180f70ac8448c3a4ee38bd0f1aa44b1e9c1e4dc499f821b57c1554"
+      "sha256": "ea045a8269a341e4c62b3f3dd75b6100be9d075f0712fb3bfec882e654095345"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "84dd8aa212d1c686be69cbae9072a91487dacf600f349affd7aa9e0ff9038491"
+      "sha256": "a93a967d15d044082b0876616ffef80737922a3726659d6d21f90ba0deb75687"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -5225,6 +5230,126 @@
       "pending_followups": [
         "ICON/clipboard/hot/auto faces, radio/check groups, keyboard/default-Enter activation, graphical filename/label expansion, hover queries and selective deletion/table save/restore remain pending.",
         "Half-open click boundaries are connected for simple fields and plain buttons; hover must adopt the same predicate when its dispatcher is implemented."
+      ]
+    },
+    {
+      "previous_revision": "1b8ab9928a9fd9071556cf0228ea69a496db3e72",
+      "revision": "915ca0f3292d6ce4a74c98091cd15e8447251cef",
+      "archive_sha256": "dc7b064bd75e9aec514e5b66419af95f1cf274847d89b537d4ae3ef65bd1feea",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/121",
+          "revision": "073317e7f3c11b41577e5c62ebff9490cce9f6dd"
+        }
+      ],
+      "upstream_state": "Reviewed PR121 actual head consolidated into fork stable.",
+      "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
+      "prior_adoption_commit": "c4a241d3",
+      "changed_documents": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+        "version/3.0/ripscrip/4.3-buttons.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8099,
+      "moved_source_blocks": 191,
+      "new_source_blocks": 32,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:24",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:567",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:570",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:572",
+        "version/3.0/ripscrip/4.3-buttons.md:573",
+        "version/3.0/ripscrip/4.3-buttons.md:574",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/4.3-buttons.md:583",
+        "version/3.0/ripscrip/4.3-buttons.md:585",
+        "version/3.0/ripscrip/4.3-buttons.md:589",
+        "version/3.0/ripscrip/4.3-buttons.md:591",
+        "version/3.0/ripscrip/4.3-buttons.md:602",
+        "version/3.0/ripscrip/4.3-buttons.md:604",
+        "version/3.0/ripscrip/4.3-buttons.md:605",
+        "version/3.0/ripscrip/4.3-buttons.md:606",
+        "version/3.0/ripscrip/4.3-buttons.md:607",
+        "version/3.0/ripscrip/4.3-buttons.md:608",
+        "version/3.0/ripscrip/4.3-buttons.md:609",
+        "version/3.0/ripscrip/4.3-buttons.md:610",
+        "version/3.0/ripscrip/4.3-buttons.md:611",
+        "version/3.0/ripscrip/4.3-buttons.md:612",
+        "version/3.0/ripscrip/4.3-buttons.md:613",
+        "version/3.0/ripscrip/4.3-buttons.md:614",
+        "version/3.0/ripscrip/4.3-buttons.md:615",
+        "version/3.0/ripscrip/4.3-buttons.md:616",
+        "version/3.0/ripscrip/4.3-buttons.md:618"
+      ],
+      "removed_source_block_ids": [],
+      "removed_implementation_claims": [],
+      "previous_implementation_evidence": [],
+      "source_blocks_after_update": 8131,
+      "resolved_documentation_blockers": [
+        118
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-118-button-keyboard-activation.md",
+          "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
+          "title": "Issue #118: Button keyboard activation",
+          "role": "Read-only source evidence distinguished from explicit portable keyboard matching/event/gate/lifetime completion. No original code executed."
+        }
+      ],
+      "reviewed_change": "Explicit byte/ASCII folding, explicit/default/wildcard priority, immediate repeat/consumption, independent pointer/HKEY/input gates and stable keyboard feedback/FIELDID/pointer lifetime. No new emulation mode.",
+      "states_after_update": {
+        "unreviewed": 3412,
+        "context": 1294,
+        "pending": 1715,
+        "implemented": 1607,
+        "excluded": 67,
+        "blocked": 36
+      },
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:24",
+        "version/3.0/ripscrip/4.3-buttons.md:559",
+        "version/3.0/ripscrip/4.3-buttons.md:567",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:572",
+        "version/3.0/ripscrip/4.3-buttons.md:573",
+        "version/3.0/ripscrip/4.3-buttons.md:574",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:583",
+        "version/3.0/ripscrip/4.3-buttons.md:591",
+        "version/3.0/ripscrip/4.3-buttons.md:606",
+        "version/3.0/ripscrip/4.3-buttons.md:607",
+        "version/3.0/ripscrip/4.3-buttons.md:608",
+        "version/3.0/ripscrip/4.3-buttons.md:609",
+        "version/3.0/ripscrip/4.3-buttons.md:610",
+        "version/3.0/ripscrip/4.3-buttons.md:611",
+        "version/3.0/ripscrip/4.3-buttons.md:612",
+        "version/3.0/ripscrip/4.3-buttons.md:613",
+        "version/3.0/ripscrip/4.3-buttons.md:614",
+        "version/3.0/ripscrip/4.3-buttons.md:615",
+        "version/3.0/ripscrip/4.3-buttons.md:616",
+        "version/3.0/ripscrip/4.3-buttons.md:618",
+        "version/3.0/ripscrip/5.1-text-variables.md:2479",
+        "version/3.0/ripscrip/5.1-text-variables.md:2481",
+        "version/3.0/ripscrip/5.1-text-variables.md:2483",
+        "version/3.0/ripscrip/5.1-text-variables.md:2485",
+        "version/3.0/ripscrip/5.1-text-variables.md:2487",
+        "version/3.0/ripscrip/5.1-text-variables.md:2492",
+        "version/3.0/ripscrip/5.1-text-variables.md:2494",
+        "version/3.0/ripscrip/5.1-text-variables.md:2496",
+        "version/3.0/ripscrip/5.1-text-variables.md:2500"
+      ],
+      "pending_followups": [
+        "HEADER input lock and normal-forwarding suppression need the unfinished scene-header owner.",
+        "Full X/Y/M queries, hover, restored mouse tables, grouped/ICON/hot button paths and physical keyboard indicator coverage remain separate pending requirements."
       ]
     }
   ],

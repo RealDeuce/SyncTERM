@@ -983,6 +983,7 @@ st_term_session_send_key(st_term_session_t *session,
 		return IO_ERROR_INVALID_ARGUMENT;
 	*handled = false;
 	if (session->wire_owner != NULL) return 0;
+	if (st_term_rip3_key(session->rip3,event)) {*handled=true;return session->output_error;}
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 		if (session->config.encoding == ST_CTERM_ENCODING_CODEPAGE

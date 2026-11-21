@@ -765,6 +765,28 @@ world_state(void)
 }
 
 static int
+keyboard_buttons(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1B00000200ZK000F000F080700000F07000000|1U0A0A1E0U1T00ID=1:<>A<>A$FIELDID$|1U0A141E1O2P00ID=2:<>a<>a$FIELDID$\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(st_rip3_session_key(f.session,'A') && f.reply_length==2 && memcmp(f.reply,"a2",2)==0);
+	f.reply_length=0;
+	CHECK(st_rip3_session_key(f.session,'a') && f.reply_length==2 && memcmp(f.reply,"a2",2)==0);
+	CHECK(query(&f,"$HKEYOFF$","")==0 && !st_rip3_session_key(f.session,'a'));
+	CHECK(append(&f,"!|1\0330000$HKEYON(1)$\r")==0 && pump(&f)==0 && !st_rip3_session_key(f.session,'a'));
+	CHECK(query(&f,"$HKEYON$","")==0);
+	/* Reset deletes the source field before evaluating its copied action. */
+	CHECK(append(&f,"!|1B00000200ZO000F000F080700000F07000000|1U0A0A1E0U2G00ID=8:<><>$FIELDID$:$CUR(BUT)$\r")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_key(f.session,'X') && f.resets==1 && f.reply_length==3 && memcmp(f.reply,"8:0",3)==0);
+	CHECK(!st_rip3_session_mouse_active(f.session));
+	CHECK(query(&f,"alive","alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 enclosed_fields(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -885,6 +907,7 @@ construction(bool device)
 int
 main(void)
 {
+	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0);

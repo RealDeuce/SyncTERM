@@ -553,3 +553,31 @@ clipped suffixes, raw limits and geometry receive independent expected results.
 Image/clipboard faces, grouping, hotkeys and graphical macros remain pending.
 No original driver/client/probe executes and no issue receives further comments.
 The RIP1.54 freeze and the user's exclusion of a VT-102 mode remain authoritative.
+
+## PR #121: button keyboard activation
+
+Adopt fork stable `915ca0f3292d6ce4a74c98091cd15e8447251cef`, reviewed against
+PR #121 actual head `073317e7f3c11b41577e5c62ebff9490cce9f6dd`.
+Archive SHA-256:
+`dc7b064bd75e9aec514e5b66419af95f1cf274847d89b537d4ae3ef65bd1feea`.
+Two of the same 68 normative documents change. All 8099 previous source blocks
+match exactly; 191 relocate and 32 new blocks produce 8131 units. No old block
+or implemented claim is removed. All 55 previous derivation digests match;
+the new #118 note gives 56 notes. No original client/probe code executes.
+
+The reference labels its keyboard profile as portable completion, separating it
+from original input-only uppercasing/reverse-scan evidence. It defines CP437 byte
+candidates, symmetric ASCII folding, zero unbound, exact high bytes, byte-only
+wildcard, explicit/default-CR/wildcard classes and newest ties. Commitment is
+immediate per delivered translated event; key-up/raw physical notifications do
+not create extra activations. Matching empty/failing actions consume input.
+Keyboard action snapshots cancel pointer capture without synthesizing pointer
+coordinates/buttons and preserve FIELDID through reset/deletion/yields.
+
+B118's documentation answer is adopted. Connected native ownership and terminal
+input exercise the literal seven-button vectors, independent input gates,
+priority/deletion, repeated events, high bytes, noncharacter forwarding,
+self-deletion, reset and delayed FIELDID. HEADER input-lock integration, complete
+mouse-query/table-restore/playback families, native indicators and unavailable
+button face/group modes remain separate pending clauses. No new emulation mode
+or change to the RIP1.54 freeze is authorized. Existing issues receive no comments.

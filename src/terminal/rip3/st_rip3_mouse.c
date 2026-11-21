@@ -7,6 +7,8 @@
 struct field {
 	struct st_rip3_rect area;
 	enum st_rip3_mouse_kind kind;
+	struct st_rip3_mouse_binding binding;
+	uint64_t instance;
 	bool invert,reset;
 	int identity;
 	size_t length;
@@ -17,7 +19,8 @@ struct st_rip3_mouse {
 	struct field *fields[128];
 	size_t count;
 	struct field *pressed;
-	bool left, inverted;
+	uint64_t sequence;
+	bool left, inverted,hotkeys;
 };
 
 int
@@ -41,7 +44,7 @@ st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_s
 	if (result==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_mouse *mouse=calloc(1,sizeof(*mouse));
 	if (mouse==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	mouse->sink=*sink;*result=mouse;return 0;
+	mouse->sink=*sink;mouse->hotkeys=true;*result=mouse;return 0;
 }
 
 static void
@@ -90,7 +93,8 @@ st_rip3_mouse_count(const struct st_rip3_mouse *mouse)
 }
 
 int
-st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind, const struct st_rip3_rect *area,
+st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
+    const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
     bool invert, bool reset, int identity, const uint8_t *program, size_t length)
 {
 	if (mouse==NULL || area==NULL || (program==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
@@ -98,10 +102,13 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind, 
 	if (identity<-1 || identity>32767 || area->x0<0 || area->y0<0 || area->x1<=area->x0 || area->y1<=area->y0)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->count==128 || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
+	if (mouse->sequence==UINT64_MAX) return IO_ERROR_OUT_OF_RANGE;
 	if (invert && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	field->area=*area;field->kind=kind;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
+	field->binding=kind==ST_RIP3_MOUSE_BUTTON && binding!=NULL ? *binding : (struct st_rip3_mouse_binding){0};
+	field->instance=++mouse->sequence;
 	if (length!=0) memcpy(field->program,program,length);
 	mouse->fields[mouse->count++]=field;return 0;
 }
@@ -136,6 +143,60 @@ inside(const struct field *field, int32_t x, int32_t y)
 	return x>=field->area.x0 && x<field->area.x1 && y>=field->area.y0 && y<field->area.y1;
 }
 
+static void
+commit(struct st_rip3_mouse *mouse, struct field *field, bool keyboard, int32_t x, int32_t y)
+{
+	/* Snapshot before cancel/feedback and before a callback can delete the
+	 * field. Cleanup checks only the live capture's token, never field. */
+	size_t length=field->length;int identity=field->identity;bool reset=field->reset;
+	uint64_t instance=field->instance;
+	uint8_t *copy=malloc(length==0 ? 1 : length);
+	if (copy!=NULL && length!=0) memcpy(copy,field->program,length);
+	if (keyboard) st_rip3_mouse_cancel(mouse);
+	if (copy==NULL) {
+		if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
+		return;
+	}
+	if (keyboard) {mouse->pressed=field;feedback(mouse,field->invert);}
+	if (mouse->sink.activate!=NULL)
+		mouse->sink.activate(mouse->sink.context,copy,length,reset,identity,!keyboard,x,y);
+	/* Deletion clears pressed before freeing. A same-address replacement
+	 * cannot acquire that canceled capture without a fresh physical press. */
+	if (keyboard && mouse->pressed!=NULL && mouse->pressed->instance==instance) st_rip3_mouse_cancel(mouse);
+	free(copy);
+}
+
+void
+st_rip3_mouse_hotkeys(struct st_rip3_mouse *mouse, bool enabled)
+{
+	if (mouse!=NULL) mouse->hotkeys=enabled;
+}
+
+static uint8_t
+fold(uint8_t byte)
+{
+	return byte>='a' && byte<='z' ? (uint8_t)(byte-'a'+'A') : byte;
+}
+
+bool
+st_rip3_mouse_key(struct st_rip3_mouse *mouse, uint8_t byte)
+{
+	if (mouse==NULL || !mouse->hotkeys) return false;
+	struct field *winner=NULL;unsigned best=3;
+	for (size_t i=mouse->count;i>0;i--) {
+		struct field *field=mouse->fields[i-1];
+		if (field->kind!=ST_RIP3_MOUSE_BUTTON) continue;
+		unsigned rank=3;uint8_t key=field->binding.hotkey;
+		if (key!=0 && key!=255 && fold(key)==fold(byte)) rank=0;
+		else if (byte==13 && field->binding.default_enter) rank=1;
+		else if (key==255) rank=2;
+		if (rank<best) {winner=field;best=rank;}
+		if (best==0) break;
+	}
+	if (winner==NULL) return false;
+	commit(mouse,winner,true,0,0);return true;
+}
+
 bool
 st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left)
 {
@@ -152,18 +213,6 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 	feedback(mouse,left && hit && field->invert);
 	if (left) return true;
 	mouse->pressed=NULL;
-	if (hit && mouse->sink.activate!=NULL) {
-		/* An active variable may free this very field. The query evaluator also
-		 * copies its input, but this ownership boundary must stand on its own. */
-		uint8_t *copy=malloc(field->length==0 ? 1 : field->length);
-		if (copy!=NULL) {
-			size_t length=field->length;
-			int identity=field->identity;
-			bool reset=field->reset;
-			if (length!=0) memcpy(copy,field->program,length);
-			mouse->sink.activate(mouse->sink.context,copy,length,reset,identity,x,y);free(copy);
-		}
-		else if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
-	}
+	if (hit && mouse->sink.activate!=NULL) commit(mouse,field,false,x,y);
 	return true;
 }
