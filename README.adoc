@@ -11,6 +11,38 @@ for fixed download URLs and details.
 GitLab also provides link:docs/HACKING.adoc#_gitlab_development_downloads[binary-only
 ZIPs from the latest successful pipeline] for its native and cross-build jobs.
 
+== Bugs, feature requests, and support
+
+Reports and support conversations are handled through SourceForge. Choose
+the tracker that matches your question:
+
+* https://sourceforge.net/p/syncterm/tickets/[Bugs]: report crashes,
+  incorrect behaviour, and regressions. Include the SyncTERM version or
+  development build, operating system, display backend, steps to reproduce,
+  and what you expected to happen. Relevant logs, sample terminal output,
+  and screenshots help make a report reproducible.
+* https://sourceforge.net/p/syncterm/feature-requests/[Feature Requests]:
+  propose new capabilities or changes to existing behaviour. Describe the
+  problem you want to solve and the desired result. Requests are reviewed
+  for fit with SyncTERM's design; the eventual implementation and naming
+  may differ from the original suggestion.
+* https://sourceforge.net/p/syncterm/support-tickets/[Support]: ask about
+  installation, building, configuration, or using SyncTERM. If you are
+  unsure whether something is a bug or a usage question, start here.
+
+Search existing tickets, including closed ones, before opening a new topic.
+Add details to an existing matching ticket and keep each new ticket focused
+on one issue or request. Follow-up questions, implementation updates, and
+resolutions belong in the same ticket. A fix in development may precede a
+release; check the build or version mentioned in the ticket.
+
+For font artwork, use the https://font.syncterm.net/[Glyph Foundry] to draw
+or improve glyphs at SyncTERM's supported sizes and preview their appearance.
+Submissions create public
+https://sourceforge.net/p/syncterm/glyphs/[Glyph Submissions] tickets for
+review before inclusion in the bundled fonts. Use the Bugs tracker for
+rendering problems, including the affected text and a screenshot when possible.
+
 == Build
 
 Run from the repository root, using an out-of-source CMake build:
