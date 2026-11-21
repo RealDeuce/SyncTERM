@@ -5689,12 +5689,12 @@
       ],
       "reviewed_change": "Per-type image face sizes, source-read eligibility and padding; absolute half-open disjoint deletion classes and delete-before-paint COPY policy. No new emulation mode.",
       "states_after_update": {
-        "unreviewed": 3394,
-        "context": 1337,
-        "pending": 1724,
-        "implemented": 1638,
+        "unreviewed": 3366,
+        "context": 1344,
+        "pending": 1723,
+        "implemented": 1655,
         "excluded": 67,
-        "blocked": 25
+        "blocked": 30
       },
       "implemented_source_units": [
         "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:148",
@@ -5811,6 +5811,54 @@
         "implemented": 1638,
         "excluded": 67,
         "blocked": 25
+      }
+    },
+    {
+      "after_commit": "5e38ed44",
+      "revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
+      "scope": "Connect RIP3 pointer state/native shapes and restore its preference after OSC8 hover on the active text view.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:256",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:260",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:261",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:262",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:264",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:268",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:270",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:274",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:275",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:276",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:277",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:278",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:279",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:280",
+        "version/3.0/ripscrip/5.1-text-variables.md:1105",
+        "version/3.0/ripscrip/5.1-text-variables.md:1109",
+        "version/3.0/ripscrip/5.1-text-variables.md:1117"
+      ],
+      "tests": [
+        "rip3_button_create",
+        "rip3_environments",
+        "rip3_session",
+        "st_console",
+        "st_console_wayland_internal",
+        "st_console_sdl",
+        "st_console_x11",
+        "syncterm_rip3_pointer_CP437",
+        "syncterm_rip3_pointer_UTF-8"
+      ],
+      "new_documentation_blockers": [
+        124,
+        125
+      ],
+      "policy": "Use the canonical 0..6 table with native stock equivalents; retain stored MCURSOR(7) and prior presentation pending B125. No host failure disconnects, new damage layer or RIP1.54 changes.",
+      "states_after_update": {
+        "unreviewed": 3366,
+        "context": 1344,
+        "pending": 1723,
+        "implemented": 1655,
+        "excluded": 67,
+        "blocked": 30
       }
     }
   ]

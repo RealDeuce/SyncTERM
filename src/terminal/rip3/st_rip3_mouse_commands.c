@@ -69,6 +69,18 @@ int
 st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
+	if (length>=2 && command[1]=='c') {
+		if (length<4 || length>8) return IO_ERROR_INVALID_FORMAT;
+		struct st_rip3_environment env;unsigned current;
+		int status=st_rip3_command_environment(host,&current,&env);uint64_t pointer=0,reserved=0;
+		if (status==0) status=st_rip3_command_field(&pointer,command+2,2,env.base_math);
+		if (status==0 && length>4) status=st_rip3_command_field(&reserved,command+4,length-4,env.base_math);
+		if (status!=0) return status;
+		if (pointer>6) return IO_ERROR_OUT_OF_RANGE;
+		if (reserved!=0) return IO_ERROR_NOT_SUPPORTED;
+		env.mouse_pointer=(unsigned)pointer;
+		*operation=true;return st_rip3_environments_set(host->environments,current,&env);
+	}
 	if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (command[1]=='K') {
 		if (length!=2) return IO_ERROR_INVALID_FORMAT;

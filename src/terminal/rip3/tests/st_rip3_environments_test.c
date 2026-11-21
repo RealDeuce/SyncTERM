@@ -113,7 +113,7 @@ records(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 			case 3: value.coordinate_size = 1; break;
 			case 4: value.coordinate_size = 6; break;
 			case 5: value.rgb_bits = 9; break;
-			case 6: value.mouse_pointer = 7; break;
+			case 6: value.mouse_pointer = 8; break;
 			case 7: value.graphics_style = 36; break;
 			case 8: value.button_style = 36; break;
 			case 9: value.port = 36; break;

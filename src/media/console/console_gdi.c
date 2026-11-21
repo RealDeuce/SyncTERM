@@ -27,6 +27,10 @@
 #define GDI_CURSOR_ARROW 32512
 #define GDI_CURSOR_IBEAM 32513
 #define GDI_CURSOR_HAND 32649
+#define GDI_CURSOR_PROGRESS 32650
+#define GDI_CURSOR_CROSS 32515
+#define GDI_CURSOR_STOP 32648
+#define GDI_CURSOR_WAIT 32514
 
 enum command_type {
 	COMMAND_PRESENT,
@@ -105,6 +109,7 @@ pointer_cursor(enum st_console_pointer_shape shape)
 {
 	static const unsigned int cursors[] = {
 		GDI_CURSOR_ARROW, GDI_CURSOR_IBEAM, GDI_CURSOR_HAND,
+		GDI_CURSOR_PROGRESS, GDI_CURSOR_CROSS, GDI_CURSOR_STOP, GDI_CURSOR_WAIT,
 	};
 
 	return LoadCursorW(NULL, MAKEINTRESOURCEW(cursors[shape]));

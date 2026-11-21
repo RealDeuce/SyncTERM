@@ -2171,3 +2171,18 @@ check clipped RGB-complement matching and existing damage; port tests verify
 captured-context restoration after failure. No persistent scene/damage layer is
 introduced. Filename/label macro expansion, grouped/persistent selection and
 initial selected plain/clipboard images remain pending.
+
+`syncterm_rip3_pointer_CP437` and `syncterm_rip3_pointer_UTF-8` cover connected
+`1c`/`MCURSOR` shapes, unchanged pixel planes, zero WORLD, fixed cursor-field
+widths, STYLE-protection independence, invalid-input recovery, default reset and
+continued mouse-field activation. OSC8 hover reads the current RIP3 text owner
+using event pixels, including unaligned view boundaries, and restores the RIP3
+pointer after leaving a link. Ordinary ANSI hyperlink tests retain the existing
+path. Native tests cover ENV-protection differences, accepted stored value 7,
+optional reserved zero fields, all native pointer enums, distinct Wayland rasters
+and native X11 presentation on a private Xvfb display. Windows/macOS tests were
+updated but were not run locally. [Issue #125](https://github.com/bbs-land/remote-imaging-protocol/issues/125)
+tracks value 7's undefined presentation and conflicting example numbering;
+[issue #124](https://github.com/bbs-land/remote-imaging-protocol/issues/124)
+tracks remaining graphical filename/label expansion rules. RIP hover host-query
+execution and HEADER input-lock orchestration remain pending.

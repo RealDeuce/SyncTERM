@@ -60,6 +60,17 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 
 	if (host == NULL || reference == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (strcmp(reference->name,"MCURSOR")==0) {
+		if (reference->count>1) return IO_ERROR_INVALID_FORMAT;
+		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+		unsigned pointer=0;int status=0;
+		if (reference->count!=0) status=st_rip3_host_number(reference->parameters[0].text,0,7,&pointer);
+		if (status!=0) return status;
+		if (host->tables==NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live==NULL) return IO_ERROR_NOT_SUPPORTED;
+		status=st_rip3_environments_mouse(host->tables->tables[ST_RIP3_TABLE_ENV].live,pointer);
+		if (status==0) result[0]=0;
+		return status;
+	}
 	const char *name = reference->name;
 	bool base = strcmp(name, "BASEMATH") == 0;
 	bool coord = strcmp(name, "COORDSIZE") == 0;

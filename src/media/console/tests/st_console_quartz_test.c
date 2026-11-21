@@ -59,6 +59,8 @@ main(void)
 	CHECK(st_console_set_pointer_visible(first, true) == 0);
 	CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_TEXT) == 0);
 	CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_LINK) == 0);
+	for (unsigned shape=ST_CONSOLE_POINTER_WATCH;shape<ST_CONSOLE_POINTER_COUNT;shape++)
+		CHECK(st_console_set_pointer_shape(first,(enum st_console_pointer_shape)shape)==0);
 	CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_DEFAULT) == 0);
 	CHECK(st_console_set_pixel(first, 4, 5,
 	    ST_CONSOLE_COLOR_RGB_VALUE(0x12, 0x34, 0x56)) == 0);

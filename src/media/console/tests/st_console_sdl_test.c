@@ -116,6 +116,10 @@ main(int argc, char **argv)
 	if (pointer_shape_status == 0) {
 		CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_LINK)
 		    == 0);
+		for (unsigned shape=ST_CONSOLE_POINTER_WATCH;shape<ST_CONSOLE_POINTER_COUNT;shape++) {
+			int status=st_console_set_pointer_shape(first,(enum st_console_pointer_shape)shape);
+			CHECK(status==0 || status==IO_ERROR_NOT_SUPPORTED);
+		}
 		CHECK(st_console_set_pointer_shape(first, ST_CONSOLE_POINTER_DEFAULT)
 		    == 0);
 	}

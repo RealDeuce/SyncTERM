@@ -7133,6 +7133,67 @@ has 8185 units: 1638 implemented, 1724 pending, 3394 unreviewed, 1337 context,
 selected plain/clipboard images, hover and other unfinished families remain
 pending; full RIP3 compliance is not claimed.
 
+## Connected native mouse-pointer state and graphical-consumer follow-ups
+
+`1c` now stores the canonical documented styles 0..6 in current ENV using its
+protected setter; graphics STYLE protection is irrelevant. Two base-math style
+digits are independent of XY width. The corpus's omitted reserved suffix and
+partial/full zero suffixes are accepted; malformed bodies, unknown styles and
+unsupported nonzero reserved values are discarded inside the parser. `MCURSOR`
+uses an optional decimal argument, defaults to zero and bypasses ENV protection.
+It accepts stored value 7 as documented, without claiming an appearance for it.
+
+The connection resolves the seven documented styles to native arrow, watch,
+crosshair, text, pointing-link, stop/raised-hand and wait equivalents. Existing
+console pointer enum values remain unchanged. SDL/X11/GDI use stock equivalents;
+Wayland supplies distinct device rasters and Quartz adds lazy public image/path
+busy indicators alongside stock cursors. Native platform appearance is client
+rendering policy; exact original cursor pixels are not required. Shape changes
+retain pointer visibility, position, field capture and input enable; they paint
+no text/graphics pixels and work without a usable WORLD projection. SOFT resets
+presentation to the default pointer. A stored 7 diagnoses unsupported presentation
+once per transition and retains the prior native shape pending documentation.
+
+Link-hover cursor restoration now uses the RIP3 pointer preference instead of
+forcing the ANSI I-bar. Inspection exposed a related existing mismatch: link
+lookup read the display's cells while RIP3 text could have a different grid and
+pixel origin. Hover and click metadata now resolve the actual event pixels
+against the borrowed active RIP3 text owner, including view clipping and live
+font dimensions. Ordinary ANSI/RIP1 retain their display-cell path and existing
+local URL policy. No new public Wren method or separate text/damage layer is
+introduced; this completes the existing hyperlink-owner integration, not RIP's
+still-pending entry/exit host-query dispatch.
+
+Two documentation gaps were filed as new parent issues, without commenting on
+answered issues:
+
+- [B124](https://github.com/bbs-land/remote-imaging-protocol/issues/124) follows
+  #6/PR #32 and #116/PR #117: per-consumer filename/label callback permissions,
+  escaping/output bounds and prompt continuation are not fully specified by the
+  generic one-pass rule. Graphical expansion remains pending rather than borrowing
+  the two-pass host pipeline or executing the stored host slot at creation.
+- [B125](https://github.com/bbs-land/remote-imaging-protocol/issues/125) follows
+  #24/PR #57: MCURSOR explicitly accepts 7 but the shape table ends at 6; corpus
+  prose also disagrees with the canonical table for 4/6. The known table is wired,
+  while those mapping claims remain blocked. No invented eighth shape is exposed.
+
+The #6/#116/#24 derivations match their pinned hashes; the reference revision
+remains `eb346cb73cf01f66ba88c8fa0dc2a134756a2302`. Native tests cover fixed-width/
+truncated cursor commands, protected ENV versus MCURSOR bypass, stored 7, invalid
+recovery, backend enum bounds, Wayland shapes and stock X11 changes on a private
+Xvfb display. Connected CP437/UTF-8 tests cover the mapped shapes, unchanged planes,
+zero WORLD, STYLE protection, continued field input, default reset, OSC8 hand
+presentation and restoring the protocol cursor at unaligned view boundaries.
+Existing ANSI hyperlink and RIP3 mouse regressions pass. The native Release build
+is warning-free, with 17 relevant tests passing including source/contract guards
+and ANSI/RIP1/RIP3 forwarding. GDI/Quartz source and native tests are updated;
+those platforms were not executed locally. No Wine or user-display test runs.
+
+The 8185-unit queue now has 1655 implemented, 1723 pending, 3366 unreviewed,
+1344 context, 67 excluded and 30 blocked units. Full RIP3 support remains
+incomplete. The RIP1.54 freeze, entry raster policy, absence of a new VT-102 mode,
+and all unrelated user work remain unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

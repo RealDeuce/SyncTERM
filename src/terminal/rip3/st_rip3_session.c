@@ -543,6 +543,16 @@ st_rip3_session_mouse_active(const struct st_rip3_session *session)
 }
 
 bool
+st_rip3_session_mouse_pointer(const struct st_rip3_session *session,unsigned *result)
+{
+	if (session==NULL || result==NULL) return false;
+	unsigned current;struct st_rip3_environment env;
+	if (st_rip3_environments_current(session->commands.environments,&current)!=0
+	    || st_rip3_environments_get(session->commands.environments,current,&env)!=0) return false;
+	*result=env.mouse_pointer;return true;
+}
+
+bool
 st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left)
 {
 	return session!=NULL && st_rip3_mouse_event(session->commands.mouse,x,y,left);

@@ -157,6 +157,9 @@ int st_term_session_reserve_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
 /* Effective protocol, including the separate RIP3 mouse-field owner. */
 int st_term_session_mouse_mode(st_term_session_t *session);
+/* RIP3's native pointer preference for restoring link-hover presentation.
+ * False for other protocols; this does not enable input or move a pointer. */
+bool st_term_session_pointer_shape(const st_term_session_t *session, enum st_console_pointer_shape *result);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,
 	bool disabled);
 uint32_t st_term_session_throttle_speed(const st_term_session_t *session);

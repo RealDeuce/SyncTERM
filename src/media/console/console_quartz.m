@@ -48,6 +48,8 @@ struct quartz_state {
 	STConsoleQuartzView *view;
 	STConsoleQuartzDelegate *delegate;
 	NSCursor *invisible_cursor;
+	NSCursor *watch_cursor;
+	NSCursor *wait_cursor;
 	struct st_console_bitmap_presenter *presenter;
 	struct st_console_bitmap_frame frame;
 	uint32_t *pixels;
@@ -428,6 +430,14 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 			cursor = NSCursor.IBeamCursor;
 		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_LINK)
 			cursor = NSCursor.pointingHandCursor;
+		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_CROSSHAIR)
+			cursor = NSCursor.crosshairCursor;
+		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_STOP)
+			cursor = NSCursor.operationNotAllowedCursor;
+		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_WATCH)
+			cursor = consoleState->watch_cursor;
+		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_WAIT)
+			cursor = consoleState->wait_cursor;
 		[self addCursorRect:self.bounds cursor:cursor];
 	}
 	else
@@ -864,6 +874,41 @@ make_invisible_cursor(void)
 	return cursor;
 }
 
+static NSCursor *
+make_busy_cursor(bool hourglass)
+{
+	/* Draw our two busy indicators through public image/path APIs. */
+	NSImage *image = [NSImage imageWithSize:NSMakeSize(16,16) flipped:NO
+	    drawingHandler:^BOOL(NSRect rectangle) {
+		(void)rectangle;
+		[NSColor.whiteColor setFill];[NSColor.blackColor setStroke];
+		NSBezierPath *path;
+		if (hourglass) {
+			path = [NSBezierPath bezierPath];
+			[path moveToPoint:NSMakePoint(3,2)];
+			[path lineToPoint:NSMakePoint(13,2)];
+			[path lineToPoint:NSMakePoint(13,4)];
+			[path lineToPoint:NSMakePoint(9,8)];
+			[path lineToPoint:NSMakePoint(13,12)];
+			[path lineToPoint:NSMakePoint(13,14)];
+			[path lineToPoint:NSMakePoint(3,14)];
+			[path lineToPoint:NSMakePoint(3,12)];
+			[path lineToPoint:NSMakePoint(7,8)];
+			[path lineToPoint:NSMakePoint(3,4)];[path closePath];
+		}
+		else path = [NSBezierPath bezierPathWithOvalInRect:NSMakeRect(2,2,12,12)];
+		[path fill];[path stroke];
+		if (!hourglass) {
+			path = [NSBezierPath bezierPath];[path moveToPoint:NSMakePoint(8,12)];
+			[path lineToPoint:NSMakePoint(8,8)];[path lineToPoint:NSMakePoint(12,8)];[path stroke];
+		}
+		return YES;
+	}];
+	if (image == nil) return nil;
+	NSCursor *cursor = [[NSCursor alloc] initWithImage:image hotSpot:NSMakePoint(7,7)];
+	return cursor;
+}
+
 static void
 set_application_icon(struct quartz_state *state)
 {
@@ -922,10 +967,12 @@ create_state(struct quartz_state *state, uint32_t width, uint32_t height,
 	if (state->window == nil || state->view == nil || state->delegate == nil
 	    || state->invisible_cursor == nil) {
 		[state->invisible_cursor release];
+		[state->watch_cursor release];[state->wait_cursor release];
 		[state->delegate release];
 		[state->view release];
 		[state->window release];
 		state->invisible_cursor = nil;
+		state->watch_cursor = nil;state->wait_cursor = nil;
 		state->delegate = nil;
 		state->view = nil;
 		state->window = nil;
@@ -963,10 +1010,12 @@ destroy_state(struct quartz_state *state)
 	[state->window orderOut:nil];
 	[state->window close];
 	[state->invisible_cursor release];
+	[state->watch_cursor release];[state->wait_cursor release];
 	[state->delegate release];
 	[state->view release];
 	[state->window release];
 	state->invisible_cursor = nil;
+	state->watch_cursor = nil;state->wait_cursor = nil;
 	state->delegate = nil;
 	state->view = nil;
 	state->window = nil;
@@ -1093,6 +1142,14 @@ process_command(struct quartz_command *command)
 		[state->window invalidateCursorRectsForView:state->view];
 		return 0;
 	case QUARTZ_COMMAND_POINTER_SHAPE:
+		if (command->data.pointer_shape == ST_CONSOLE_POINTER_WATCH && state->watch_cursor == nil) {
+			state->watch_cursor = make_busy_cursor(false);
+			if (state->watch_cursor == nil) return IO_ERROR_OUT_OF_MEMORY;
+		}
+		if (command->data.pointer_shape == ST_CONSOLE_POINTER_WAIT && state->wait_cursor == nil) {
+			state->wait_cursor = make_busy_cursor(true);
+			if (state->wait_cursor == nil) return IO_ERROR_OUT_OF_MEMORY;
+		}
 		state->pointer_shape = command->data.pointer_shape;
 		[state->window invalidateCursorRectsForView:state->view];
 		return 0;

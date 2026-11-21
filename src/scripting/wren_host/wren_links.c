@@ -4,6 +4,7 @@
 #include "wren_host_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_term.h"
 #include "st_hyperlink.h"
 #include "string_compat.h"
 
@@ -100,20 +101,35 @@ st_wren_detect_url(st_console_t *console, const struct st_console_cell *cells,
 }
 
 static bool
-link_cell(struct st_wren_context *context, int32_t x, int32_t y,
-	struct st_console_cell *cell, struct st_console_rect *area)
+link_cell(struct st_wren_context *context, int32_t *x, int32_t *y,
+	int32_t pixel_x,int32_t pixel_y,struct st_console_cell *cell,
+	struct st_console_rect *area,st_console_t **source)
 {
 	uint32_t origin_x, origin_y, width, height;
-	if (context->cterm == NULL || context->cterm_suspended || x < 0 || y < 0
-	    || st_cterm_origin(context->cterm, &origin_x, &origin_y) != 0
-	    || st_cterm_size(context->cterm, &width, &height) != 0)
+	st_cterm_t *text=context->cterm;*source=context->console;
+	if (text==NULL || context->cterm_suspended) return false;
+	struct st_term_text_view view;
+	if (st_term_session_text_view(context->session,context->console,&view)) {
+		/* RIP3's active cell grid can use a different font/origin from the
+		 * display grid. Resolve live pixels against that borrowed owner, as
+		 * selection does; displayed graphics cells are not hyperlink metadata. */
+		if (pixel_x<0 || pixel_y<0 || (uint64_t)pixel_x<view.x || (uint64_t)pixel_y<view.y
+		    || view.cell_width==0 || view.cell_height==0) return false;
+		uint64_t column=((uint64_t)pixel_x-view.x)/view.cell_width;
+		uint64_t row=((uint64_t)pixel_y-view.y)/view.cell_height;
+		if (column>INT32_MAX || row>INT32_MAX) return false;
+		*x=(int32_t)column;*y=(int32_t)row;*source=view.console;
+		text=st_term_session_cterm(context->session);
+	}
+	if (*x<0 || *y<0 || st_cterm_origin(text, &origin_x, &origin_y) != 0
+	    || st_cterm_size(text, &width, &height) != 0)
 		return false;
 	*area = (struct st_console_rect){origin_x - 1, origin_y - 1, width, height};
-	if ((uint32_t)x < area->x || (uint32_t)y < area->y
-	    || (uint32_t)x - area->x >= width || (uint32_t)y - area->y >= height)
+	if ((uint32_t)*x < area->x || (uint32_t)*y < area->y
+	    || (uint32_t)*x - area->x >= width || (uint32_t)*y - area->y >= height)
 		return false;
-	const struct st_console_rect point = {(uint32_t)x, (uint32_t)y, 1, 1};
-	return st_console_read_cells(context->console, &point, cell, 1) == 0;
+	const struct st_console_rect point = {(uint32_t)*x, (uint32_t)*y, 1, 1};
+	return st_console_read_cells(*source, &point, cell, 1) == 0;
 }
 
 char *
@@ -122,8 +138,9 @@ st_wren_hover_uri(struct st_wren_context *context)
 	struct st_console_cell cell;
 	struct st_console_rect area;
 	struct st_hyperlink link = {0};
-	if (!context->link_hover_valid || !link_cell(context, context->link_hover_x,
-	    context->link_hover_y, &cell, &area) || cell.hyperlink == 0
+	int32_t x=context->link_hover_x,y=context->link_hover_y;st_console_t *source;
+	if (!context->link_hover_valid || !link_cell(context,&x,&y,context->link_hover_pixel_x,
+	    context->link_hover_pixel_y,&cell,&area,&source) || cell.hyperlink == 0
 	    || st_hyperlink_registry_copy(context->host->config.hyperlinks,
 	    cell.hyperlink, &link) != 0)
 		return NULL;
@@ -139,11 +156,15 @@ st_wren_link_mouse(struct st_wren_context *context,
 	if (event == ST_WREN_MOUSE_MOVE) {
 		context->link_hover_x = record->data.mouse.end_x > 0 ? record->data.mouse.end_x - 1 : -1;
 		context->link_hover_y = record->data.mouse.end_y > 0 ? record->data.mouse.end_y - 1 : -1;
+		context->link_hover_pixel_x=record->data.mouse.end_pixel_x;
+		context->link_hover_pixel_y=record->data.mouse.end_pixel_y;
 		context->link_hover_valid = true;
 		if (context->cterm != NULL && st_cterm_mouse_mode(context->cterm) == 0) {
 			char *uri = st_wren_hover_uri(context);
+			enum st_console_pointer_shape normal=ST_CONSOLE_POINTER_TEXT;
+			(void)st_term_session_pointer_shape(context->session,&normal);
 			(void)st_console_set_pointer_shape(context->console, uri == NULL
-			    ? ST_CONSOLE_POINTER_TEXT : ST_CONSOLE_POINTER_LINK);
+			    ? normal : ST_CONSOLE_POINTER_LINK);
 			free(uri);
 		}
 	}
@@ -166,7 +187,9 @@ st_wren_link_mouse(struct st_wren_context *context,
 	struct st_console_rect area;
 	int32_t x = record->data.mouse.start_x > 0 ? record->data.mouse.start_x - 1 : -1;
 	int32_t y = record->data.mouse.start_y > 0 ? record->data.mouse.start_y - 1 : -1;
-	if (!link_cell(context, x, y, &cell, &area)) return false;
+	st_console_t *source;
+	if (!link_cell(context,&x,&y,record->data.mouse.start_pixel_x,
+	    record->data.mouse.start_pixel_y,&cell,&area,&source)) return false;
 	struct st_hyperlink link = {0};
 	char *uri = NULL;
 	if (cell.hyperlink != 0 && st_hyperlink_registry_copy(
@@ -177,9 +200,9 @@ st_wren_link_mouse(struct st_wren_context *context,
 	else if (control && area.height <= SIZE_MAX / area.width / sizeof(cell)) {
 		size_t count = (size_t)area.width * area.height;
 		struct st_console_cell *cells = malloc(count * sizeof(*cells));
-		if (cells != NULL && st_console_read_cells(context->console, &area,
+		if (cells != NULL && st_console_read_cells(source, &area,
 		    cells, area.width) == 0)
-			uri = st_wren_detect_url(context->console, cells, area.width, area.height,
+			uri = st_wren_detect_url(source, cells, area.width, area.height,
 			    (uint32_t)x - area.x,
 			    (uint32_t)y - area.y);
 		free(cells);

@@ -829,6 +829,9 @@ test_resize_palette_and_errors(void)
 	    == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_console_set_pointer_shape(console,
 	    (enum st_console_pointer_shape)-1) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_set_pointer_shape(console,ST_CONSOLE_POINTER_COUNT)==IO_ERROR_INVALID_ARGUMENT);
+	for (unsigned shape=ST_CONSOLE_POINTER_WATCH;shape<ST_CONSOLE_POINTER_COUNT;shape++)
+		CHECK(st_console_set_pointer_shape(console,(enum st_console_pointer_shape)shape)==IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_console_set_fullscreen(console, true)
 	    == IO_ERROR_NOT_SUPPORTED);
 	{

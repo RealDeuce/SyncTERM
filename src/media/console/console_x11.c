@@ -336,7 +336,7 @@ struct x11_state {
 	bool key_down[256];
 	uint16_t keycode_evdev[256];
 	Cursor hidden_cursor;
-	Cursor pointer_cursors[ST_CONSOLE_POINTER_LINK + 1];
+	Cursor pointer_cursors[ST_CONSOLE_POINTER_COUNT];
 	enum st_console_pointer_shape pointer_shape;
 	Pixmap icon_pixmap;
 	Pixmap icon_mask;
@@ -2102,11 +2102,11 @@ set_pointer_shape(struct x11_state *state,
 	enum st_console_pointer_shape shape)
 {
 	static const unsigned int shapes[] = {
-		XC_left_ptr, XC_xterm, XC_hand2,
+		XC_left_ptr, XC_xterm, XC_hand2, XC_clock, XC_crosshair, XC_hand1, XC_watch,
 	};
 	Cursor cursor;
 
-	if (shape < ST_CONSOLE_POINTER_DEFAULT || shape > ST_CONSOLE_POINTER_LINK)
+	if (shape < ST_CONSOLE_POINTER_DEFAULT || shape >= ST_CONSOLE_POINTER_COUNT)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cursor = state->pointer_cursors[shape];
 	if (cursor == None) {

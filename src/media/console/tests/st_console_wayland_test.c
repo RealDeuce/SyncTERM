@@ -73,6 +73,8 @@ main(void)
 	CHECK(st_console_set_pointer_visible(peer, true) == 0);
 	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_TEXT) == 0);
 	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_LINK) == 0);
+	for (unsigned shape=ST_CONSOLE_POINTER_WATCH;shape<ST_CONSOLE_POINTER_COUNT;shape++)
+		CHECK(st_console_set_pointer_shape(peer,(enum st_console_pointer_shape)shape)==0);
 	CHECK(st_console_set_pointer_shape(peer, ST_CONSOLE_POINTER_DEFAULT) == 0);
 	{
 		st_console_t *other = NULL;

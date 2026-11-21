@@ -570,6 +570,12 @@ st_term_session_mouse_mode(st_term_session_t *session)
 	return st_cterm_mouse_mode(st_term_session_cterm(session));
 }
 
+bool
+st_term_session_pointer_shape(const st_term_session_t *session,enum st_console_pointer_shape *result)
+{
+	return session!=NULL && st_term_rip3_pointer_shape(session->rip3,result);
+}
+
 uint32_t
 st_term_session_throttle_speed(const st_term_session_t *session)
 {

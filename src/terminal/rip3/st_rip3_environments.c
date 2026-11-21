@@ -35,7 +35,7 @@ valid(const struct st_rip3_environment *value)
 	    && (value->base_math == 36 || value->base_math == 64)
 	    && value->coordinate_size >= 2 && value->coordinate_size <= 5
 	    && value->rgb_bits <= 8
-	    && value->mouse_pointer <= 6;
+	    && value->mouse_pointer <= 7;
 }
 
 int
@@ -163,6 +163,14 @@ st_rip3_environments_select(struct st_rip3_environments *environments, unsigned 
 		return IO_ERROR_NOT_FOUND;
 	environments->current = number;
 	return 0;
+}
+
+int
+st_rip3_environments_mouse(struct st_rip3_environments *environments,unsigned pointer)
+{
+	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (pointer>7) return IO_ERROR_OUT_OF_RANGE;
+	environments->entries[environments->current].data.mouse_pointer=pointer;return 0;
 }
 
 int

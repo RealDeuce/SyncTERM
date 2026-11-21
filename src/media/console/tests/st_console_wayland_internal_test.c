@@ -718,16 +718,18 @@ test_scaling_command(void)
 static int
 test_pointer_shapes(void)
 {
-	uint32_t cursors[ST_CONSOLE_POINTER_LINK + 1][16 * 16];
+	uint32_t cursors[ST_CONSOLE_POINTER_COUNT][16 * 16];
 
 	for (size_t shape = ST_CONSOLE_POINTER_DEFAULT;
-	    shape <= ST_CONSOLE_POINTER_LINK; ++shape) {
+	    shape < ST_CONSOLE_POINTER_COUNT; ++shape) {
 		draw_cursor(cursors[shape], (enum st_console_pointer_shape)shape);
 		bool visible = false;
 
 		for (size_t pixel = 0; pixel < 16 * 16; ++pixel)
 			visible = visible || cursors[shape][pixel] != 0;
 		CHECK(visible);
+		for (size_t previous=0;previous<shape;previous++)
+			CHECK(memcmp(cursors[shape],cursors[previous],sizeof(cursors[0]))!=0);
 	}
 	CHECK(memcmp(cursors[ST_CONSOLE_POINTER_DEFAULT],
 	    cursors[ST_CONSOLE_POINTER_TEXT], sizeof(cursors[0])) != 0);

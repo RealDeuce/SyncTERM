@@ -4090,7 +4090,7 @@ st_console_set_pointer_shape(st_console_t *console,
 	int result;
 
 	if (console == NULL || shape < ST_CONSOLE_POINTER_DEFAULT
-	    || shape > ST_CONSOLE_POINTER_LINK)
+	    || shape >= ST_CONSOLE_POINTER_COUNT)
 		return IO_ERROR_INVALID_ARGUMENT;
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)

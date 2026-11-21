@@ -59,6 +59,9 @@ int st_rip3_environments_set(struct st_rip3_environments *environments,
  * Selection and every other record field remain unchanged. Wire M uses set. */
 int st_rip3_environments_color(struct st_rip3_environments *environments,
 	unsigned number, unsigned bits);
+/* MCURSOR's protection-bypassing edit of the current defined ENV. The
+ * documented callback accepts 7; its presentation mapping is unresolved. */
+int st_rip3_environments_mouse(struct st_rip3_environments *environments, unsigned pointer);
 /* Select an existing record only. The future scene owner must activate its
  * references in other tables as part of a complete context transaction.
  * CUR(ENV,n)/SWITCH_ENVIRONMENT runtime activation is not implemented here. */

@@ -816,6 +816,24 @@ enclosed_fields(void)
 	st_rip3_session_destroy(f.session);return 0;
 }
 
+static int mouse_pointer(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	const char *wire="!|1c060000\r";
+	for (size_t i=0;i<strlen(wire);i++) {
+		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);st_rip3_session_process(f.session,1);
+	}
+	unsigned pointer;CHECK(f.errors==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==6);
+	CHECK(append(&f,"!|1c00\r")==0 && pump(&f)==0 && f.errors==0
+	    && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==0);
+	CHECK(query(&f,"$MCURSOR(3)$","")==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==3);
+	CHECK(query(&f,"$MCURSOR$","")==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==0);
+	CHECK(append(&f,"!|1c99\r")==0 && pump(&f)==0 && f.errors==1);
+	CHECK(query(&f,"alive","alive")==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
 static int
 plain_button(void)
 {
@@ -909,6 +927,7 @@ main(void)
 {
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
+	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0);
 	CHECK(world_state()==0);

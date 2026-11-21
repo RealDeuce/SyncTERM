@@ -240,6 +240,7 @@ struct st_wren_context {
 	bool link_gesture;
 	int32_t link_hover_x;
 	int32_t link_hover_y;
+	int32_t link_hover_pixel_x,link_hover_pixel_y;
 	bool cterm_suspended;
 	bool scrollback_requested;
 	bool cterm_mouse_disabled;

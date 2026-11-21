@@ -372,7 +372,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0]=='M') return color_mode(host,command,length,operation);
 	if (length>=2 && command[0]=='1' && command[1]=='U')
 		return st_rip3_button_create_execute(host,command,length,operation);
-	if (length>=2 && command[0]=='1' && (command[1]=='M' || command[1]=='K' || command[1]=='k'))
+	if (length>=2 && command[0]=='1' && (command[1]=='M' || command[1]=='K' || command[1]=='k' || command[1]=='c'))
 		return st_rip3_mouse_commands_execute(host,command,length,operation);
 	if (length>=2 && (command[0]=='1' || command[0]=='2') && command[1]=='B')
 		return st_rip3_button_commands_execute(host,command,length,operation);

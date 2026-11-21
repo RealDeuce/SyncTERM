@@ -163,7 +163,7 @@ struct sdl_state {
 	bool focused;
 	bool pointer_visible;
 	enum st_console_pointer_shape pointer_shape;
-	SDL_Cursor *pointer_cursors[ST_CONSOLE_POINTER_LINK + 1];
+	SDL_Cursor *pointer_cursors[ST_CONSOLE_POINTER_COUNT];
 	bool fullscreen;
 	bool maximized;
 	struct sdl_state *next;
@@ -1350,11 +1350,15 @@ process_command(struct sdl_command *command)
 			SDL_SYSTEM_CURSOR_ARROW,
 			SDL_SYSTEM_CURSOR_IBEAM,
 			SDL_SYSTEM_CURSOR_HAND,
+			SDL_SYSTEM_CURSOR_WAITARROW,
+			SDL_SYSTEM_CURSOR_CROSSHAIR,
+			SDL_SYSTEM_CURSOR_NO,
+			SDL_SYSTEM_CURSOR_WAIT,
 		};
 		enum st_console_pointer_shape shape = command->data.pointer_shape;
 
 		if (shape < ST_CONSOLE_POINTER_DEFAULT
-		    || shape > ST_CONSOLE_POINTER_LINK)
+		    || shape >= ST_CONSOLE_POINTER_COUNT)
 			return IO_ERROR_INVALID_ARGUMENT;
 		if (state->pointer_cursors[shape] == NULL) {
 			state->pointer_cursors[shape] =

@@ -216,6 +216,11 @@ enum st_console_pointer_shape {
 	ST_CONSOLE_POINTER_DEFAULT,
 	ST_CONSOLE_POINTER_TEXT,
 	ST_CONSOLE_POINTER_LINK,
+	ST_CONSOLE_POINTER_WATCH,
+	ST_CONSOLE_POINTER_CROSSHAIR,
+	ST_CONSOLE_POINTER_STOP,
+	ST_CONSOLE_POINTER_WAIT,
+	ST_CONSOLE_POINTER_COUNT,
 };
 
 /* Bitmap cursor scan lines are inclusive and expressed in range units. */

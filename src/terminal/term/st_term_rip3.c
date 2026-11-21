@@ -60,6 +60,9 @@ struct st_term_rip3 {
 	char *variable_path;
 	bool ready;
 	unsigned colors;
+	unsigned pointer_number;
+	bool pointer_known;
+	enum st_console_pointer_shape pointer_shape;
 	uint64_t pixel_budget, presented;
 	uint8_t *queue, *damage;
 	size_t position, length, capacity, pixels;
@@ -152,8 +155,32 @@ modify(void *context, const struct st_pixel_buffer *destination, struct st_conso
 }
 
 static void
+refresh_pointer(struct st_term_rip3 *rip)
+{
+	unsigned number;
+	if (!st_rip3_session_mouse_pointer(rip->session,&number)
+	    || (rip->pointer_known && number==rip->pointer_number)) return;
+	rip->pointer_number=number;rip->pointer_known=true;
+	if (number>6) {diagnostic(rip,ST_RIP3_COMMAND_UNSUPPORTED);return;}
+	static const enum st_console_pointer_shape shapes[]={ST_CONSOLE_POINTER_DEFAULT,
+	    ST_CONSOLE_POINTER_WATCH,ST_CONSOLE_POINTER_CROSSHAIR,ST_CONSOLE_POINTER_TEXT,
+	    ST_CONSOLE_POINTER_LINK,ST_CONSOLE_POINTER_STOP,ST_CONSOLE_POINTER_WAIT};
+	rip->pointer_shape=shapes[number];
+	int status=st_console_set_pointer_shape(rip->config.console,rip->pointer_shape);
+	if (status!=0 && status!=IO_ERROR_NOT_SUPPORTED) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+}
+
+bool
+st_term_rip3_pointer_shape(const struct st_term_rip3 *rip,enum st_console_pointer_shape *result)
+{
+	if (rip==NULL || result==NULL) return false;
+	*result=rip->pointer_shape;return true;
+}
+
+static void
 present(struct st_term_rip3 *rip)
 {
+	refresh_pointer(rip);
 	uint64_t revision=st_rip3_session_revision(rip->session);
 	if (revision==rip->presented) return;
 	struct st_rip3_session_capture capture={0};
@@ -1037,5 +1064,5 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	 * the text window. It must never clear a subsequently drawn RIP scene. */
 	if (status==0) status=st_cterm_start_text(ansi);
 	if (status!=0) {st_term_rip3_destroy(rip);return status;}
-	rip->ready=true;*result=rip;return 0;
+	rip->ready=true;refresh_pointer(rip);*result=rip;return 0;
 }

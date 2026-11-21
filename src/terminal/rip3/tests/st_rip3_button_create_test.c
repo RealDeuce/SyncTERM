@@ -11,6 +11,8 @@
 #include "st_rip3_mouse.h"
 #include "st_rip3_text_commands.h"
 #include "st_rip3_number.h"
+#include "st_rip3_table_host.h"
+#include "st_rip3_host_variables.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -59,6 +61,41 @@ static int payloads(void)
 	CHECK(st_rip3_button_payload_parse(&p,text,257)==0 && p.label.length==255);
 	CHECK(st_rip3_button_payload_parse(&p,text,258)!=0);
 	return 0;
+}
+
+static void variable_error(void *context,enum st_rip3_host_diagnostic kind) {(void)kind;++*(unsigned *)context;}
+static int mouse_pointers(void)
+{
+	struct st_rip3_command_host host={0};unsigned errors=0;
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	struct st_rip3_environment env;CHECK(st_rip3_environment_defaults(&env)==0);
+	env.base_math=64;env.coordinate_size=5;env.world_width=1280;
+	CHECK(st_rip3_environments_define(host.environments,35,&env)==0
+	    && st_rip3_environments_select(host.environments,35)==0);
+	struct st_rip3_table_host tables={0};tables.tables[ST_RIP3_TABLE_ENV].live=host.environments;
+	const struct st_rip3_host_variables variables={.tables=&tables};
+	const struct st_rip3_host_sink sink={.context=&errors,.diagnostic=variable_error};
+	for (unsigned pointer=0;pointer<=6;pointer++) for (unsigned res=0;res<=4;res++) {
+		char wire[9]="1c000000";wire[3]=(char)('0'+pointer);wire[4+res]=0;
+		command(&host,&errors,wire);
+		CHECK(errors==0 && st_rip3_environments_get(host.environments,35,&env)==0
+		    && env.mouse_pointer==pointer && env.base_math==64 && env.coordinate_size==5 && env.world_width==1280);
+	}
+	CHECK(st_rip3_environments_protect(host.environments,35,true)==0);
+	command(&host,&errors,"1c00");CHECK(errors==1);
+	CHECK(st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==6);
+	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR(2)$",12);
+	CHECK(errors==1 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==2);
+	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR(7)$",12);
+	CHECK(errors==1 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==7);
+	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR(8)$",12);
+	CHECK(errors==2 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==7);
+	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR$",9);
+	CHECK(errors==2 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==0);
+	CHECK(st_rip3_environments_protect(host.environments,35,false)==0);
+	command(&host,&errors,"1c07");command(&host,&errors,"1c060001");command(&host,&errors,"1c0");
+	CHECK(errors==5 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==0);
+	st_rip3_environments_destroy(host.environments);return 0;
 }
 
 static int clipboard_buttons(void)
@@ -353,7 +390,7 @@ static int autoclip_buttons(void)
 
 int main(void)
 {
-	CHECK(payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0 && deletion_paint()==0);
+	CHECK(payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0 && deletion_paint()==0 && mouse_pointers()==0);
 	struct st_rip3_command_host host={0};unsigned errors=0;
 	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
 	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);
