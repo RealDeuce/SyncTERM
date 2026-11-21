@@ -309,6 +309,10 @@ The current role registry is:
   `list.item.focused.inactive`
 | List rows, including the selected row in an unfocused pane.
 
+| `list.item.focused.indicator`, `list.item.focused.indicator.inactive`
+| Existing arrow indicators in the theme-editor atlas.  All fields inherit
+  from the corresponding selected-row cascade by default.
+
 | `input`, `input.focused`
 | Text-input fields.
 
@@ -363,6 +367,16 @@ The compiled `shadow` colours are `LegacyAttr=0x08`, `Foreground=0x202020`,
 and `Background=0x000000`.  Override this role to recolour shadowed cells
 independently of the main-menu backdrop.  Explicit `inherit` values follow
 the normal cascade to `default`; `Font` does not affect shadow rendering.
+
+`list.item.focused.indicator` separates the colours of existing selection
+arrows from their row colours.  The `focus.left` and `focus.right` glyphs
+continue to select their shapes.  Partial overrides follow
+`list.item.focused.indicator` -> `list.item.focused` -> `list.item` -> `list`
+-> `default`; the `.inactive` role follows the parallel inactive cascade.
+To place an arrow on the surrounding panel colour, set its `Background`
+explicitly; `inherit` uses the selected-row background.  Legacy backends
+use the complete `LegacyAttr` value.  These roles do not add arrows or
+reserve columns in ordinary lists, including the dialing directory.
 
 == Glyphs
 

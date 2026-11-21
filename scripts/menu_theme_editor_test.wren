@@ -2,6 +2,7 @@
 
 import "syncterm" for Font, Key, KeyEvent, Mouse, MouseEvent
 import "ui_widget" for Rect
+import "ui_style" for Style, Theme
 import "menu_settings_ui" for SettingsMenu
 import "menu_theme_editor" for ThemeAtlas, ThemeEditor, ThemeEditorModel,
     ThemeCodepointPicker, ThemeGlyphGrid, ThemeInspector, ThemeWidgetPreviewContent,
@@ -97,6 +98,42 @@ class MenuTest {
     testGridPageNavigation_()
     testAtlasPageNavigation_()
     testAtlasBoundaryNavigation_()
+    return [__pass, __fail]
+  }
+
+  static runIndicatorTests() {
+    __pass = 0
+    __fail = 0
+    var roles = {}
+    for (name in Theme.default.roles.keys) roles[name] = Theme.default.roles[name]
+    roles["list.item.focused.indicator"] = Style.new(null, null, 0x123456, null)
+    roles["list.item.focused.indicator.inactive"] = Style.new(
+        null, null, null, 0x654321)
+    var customized = Theme.new(roles, Theme.default.glyphs)
+    for (mode in ["styles", "glyphs"]) {
+      var model = model_()
+      model.mode = mode
+      var atlas = ThemeAtlas.new(model, Fn.new {}, Fn.new {})
+      atlas.bounds = Rect.new(0, 0, 40, 6)
+      for (active in [true, false]) {
+        atlas.focused = active
+        var baseRole = active ? "list.item.focused" : "list.item.focused.inactive"
+        var expected = Theme.default.style(baseRole)
+        var normal = atlas.draw().cellAt(0, 0)
+        check_(normal.ch == Theme.default.glyphs["focus.left"] &&
+            normal.fgRgb == expected.fgRgb && normal.bgRgb == expected.bgRgb,
+            "Atlas %(mode): default %(baseRole) marker appearance")
+        atlas.theme = customized
+        var sf = atlas.draw()
+        var marker = sf.cellAt(0, 0)
+        check_(marker.ch == Theme.default.glyphs["focus.left"] &&
+            marker.fgRgb == (active ? 0x123456 : expected.fgRgb) &&
+            marker.bgRgb == (active ? expected.bgRgb : 0x654321) &&
+            sf.cellAt(1, 0).fgRgb == 0xffffff && sf.cellAt(1, 0).bgRgb == 0,
+            "Atlas %(mode): indicator override preserves the row sample")
+        atlas.theme = null
+      }
+    }
     return [__pass, __fail]
   }
 

@@ -30,6 +30,7 @@ class UiStyleTest {
     testThemeCascadeToDefault_()
     testThemeUnknownRoleGetsDefault_()
     testThemeFieldWiseCascade_()
+    testIndicatorCascade_()
     testThemeGlyphsAccessor_()
     testThemeFromData_()
 
@@ -60,6 +61,28 @@ class UiStyleTest {
     check_(s.font == 0 && s.legacyAttr == 0x1F &&
            s.fgRgb == 0xFFFFFF && s.bgRgb == 0x0000A8,
            "Style.new + getters")
+  }
+
+  static testIndicatorCascade_() {
+    var t = Theme.default
+    var role = "list.item.focused.indicator"
+    check_(t.style(role) == t.style("list.item.focused") &&
+        t.style(role + ".inactive") == t.style("list.item.focused.inactive"),
+        "Indicator: compiled defaults inherit existing selection colours")
+    var roles = {}
+    for (name in t.roles.keys) roles[name] = t.roles[name]
+    roles[role] = Style.new(null, null, 0x123456, null)
+    roles[role + ".inactive"] = Style.new(null, null, null, 0x654321)
+    t = Theme.new(roles, t.glyphs)
+    var active = t.style(role)
+    var inactive = t.style(role + ".inactive")
+    check_(active.fgRgb == 0x123456 &&
+        active.bgRgb == t.style("list.item.focused").bgRgb &&
+        active.legacyAttr == t.style("list.item.focused").legacyAttr &&
+        inactive.bgRgb == 0x654321 &&
+        inactive.fgRgb == t.style("list.item.focused.inactive").fgRgb &&
+        inactive.legacyAttr == t.style("list.item.focused.inactive").legacyAttr,
+        "Indicator: partial overrides follow the parallel active and inactive cascades")
   }
 
   static testStyleComplete_() {

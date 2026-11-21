@@ -576,8 +576,8 @@ class ThemeAtlas is Widget {
     var room = (width - suffixWidth).max(1)
     Painter.text(surface, 0, y, text, sample, room)
     if (selected) Painter.text(surface, 0, y, marker,
-        focused ? style("list.item.focused") :
-            effectiveTheme.style("list.item.focused.inactive"), 1)
+        focused ? style("list.item.focused.indicator") :
+            effectiveTheme.style("list.item.focused.indicator.inactive"), 1)
     if (width > suffixWidth) {
       Painter.text(surface, width - suffixWidth, y, suffix, sample,
           suffixWidth)
@@ -595,8 +595,8 @@ class ThemeAtlas is Widget {
     var text = "%(marker) %(shownGlyph)  %(row[0])  [%(modeValue)]"
     Painter.text(surface, 0, y, text, sample, width)
     if (selected) Painter.text(surface, 0, y, marker,
-        focused ? style("list.item.focused") :
-            effectiveTheme.style("list.item.focused.inactive"), 1)
+        focused ? style("list.item.focused.indicator") :
+            effectiveTheme.style("list.item.focused.indicator.inactive"), 1)
   }
 
   handle(event) {

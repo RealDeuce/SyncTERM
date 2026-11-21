@@ -135,6 +135,8 @@ static const struct style_template default_styles[] = {
 	S("list.item.focused", -1, 0x70, 0x000000, 0xaaaaaa),
 	S("list.item.disabled", -1, 0x18, 0x808080, -1),
 	S("list.item.focused.inactive", -1, 0x3e, 0xffff55, 0x00aaaa),
+	S("list.item.focused.indicator", -1, -1, -1, -1),
+	S("list.item.focused.indicator.inactive", -1, -1, -1, -1),
 	S("input", -1, 0x70, 0x000000, 0xaaaaaa),
 	S("input.focused", -1, 0x70, 0x000000, 0xffffff),
 	S("button", -1, 0x1f, -1, -1),

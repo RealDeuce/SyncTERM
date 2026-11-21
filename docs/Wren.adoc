@@ -9175,6 +9175,10 @@ Glyph families used by the library:
   the two frame families.
 * `scrollbar.track`, `scrollbar.thumb`, `scrollbar.up`,
   `scrollbar.down`, `scrollbar.separator` — scrollbar pieces.
+* `focus.left`, `focus.right` — selection-arrow shapes.  Existing atlas
+  arrows use `list.item.focused.indicator` and its `.inactive` variant for
+  colours; these inherit the selected-row styles unless overridden.
+  Ordinary `ListView` rows do not draw these arrows.
 
 === Painter [[ui-painter]]
 

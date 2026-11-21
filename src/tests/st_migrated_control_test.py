@@ -37,6 +37,7 @@ SUITES = {
     "entry_editor": ("menu_bbs_editor_test", "MenuTest", "run"),
     "list": ("ui_list_test", "UiListTest", "run"),
     "style": ("ui_style_test", "UiStyleTest", "run"),
+    "theme_indicator": ("menu_theme_editor_test", "MenuTest", "runIndicatorTests"),
     "button": ("ui_button_test", "UiButtonTest", "run"),
     "checkbox": ("ui_checkbox_test", "UiCheckboxTest", "run"),
     "date": ("ui_date_picker_test", "UiDatePickerTest", "run"),

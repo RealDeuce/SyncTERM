@@ -628,7 +628,7 @@ if(BUILD_TESTING)
 			endforeach()
 			foreach(_case draw widget radio input form color menubar spinbox
 					popup help progress menu logview console main_menu_address settings entry_editor
-					list style button checkbox date palette statusbar pixels
+					list style theme_indicator button checkbox date palette statusbar pixels
 					terminal_cp437 terminal_utf8 cterm_reset_cp437 cterm_reset_utf8 status_cp437 status_utf8
 					rendering_cp437 rendering_utf8 scrollback_cp437 scrollback_utf8
 					profile session_modes picker menu_exit menu_position menu_shortcuts autoload

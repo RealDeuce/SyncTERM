@@ -200,7 +200,7 @@ test_cloud_theme_views(struct st_wren_host *host)
 {
 	char directory[sizeof(ST_WREN_SETTINGS_TEST_DIRECTORY) + 64];
 	char manifest[sizeof(directory) + 32], path[sizeof(directory) + 32];
-	char warning[256], source[16384];
+	char warning[256], source[32768];
 	CHECK(snprintf(directory, sizeof(directory), "%s/themes/official",
 	    ST_WREN_SETTINGS_TEST_DIRECTORY) < (int)sizeof(directory));
 	CHECK(snprintf(manifest, sizeof(manifest), "%s/manifest.lst", directory) < (int)sizeof(manifest));
