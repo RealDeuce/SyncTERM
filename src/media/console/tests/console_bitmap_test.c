@@ -140,6 +140,49 @@ edit_test_pixel(void *context, const struct st_pixel_buffer *pixels,
 }
 
 static void
+test_invert_pixels(bool full)
+{
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config={.columns=4,.rows=3,.cell_width=2,.cell_height=2,
+	    .pixel_width=10,.pixel_height=8};
+	st_console_t *console=NULL;
+	CHECK(st_console_create(&console,&display,&config)==0);
+	CHECK(st_console_set_full_surface_scroll(console,full)==0);
+	CHECK(st_console_set_cursor(console,false,ST_CONSOLE_CURSOR_BLOCK)==0);
+	CHECK(st_console_present(console)==0);
+	console->pixel_top=2;console->palette[512]=UINT32_C(0x123456);
+	for (size_t i=0;i<80;i++) {
+		console->pixels->primary[i]=512;
+		console->pixels->alternate[i]=ST_PIXEL_COLOR_RGB_VALUE(0x98,0x76,0x54);
+	}
+	for (size_t i=0;i<12;i++) st_console_cell_at(console,i)->flags&=~(ST_CONSOLE_CELL_DIRTY|ST_CONSOLE_CELL_PIXEL_GRAPHICS);
+	const struct st_console_rect area={6,4,UINT32_MAX,UINT32_MAX};
+	const struct st_console_rect capture_area={6,4,4,4};
+	struct st_pixel_buffer *saved=NULL;
+	CHECK(st_console_get_pixels(&saved,console,&capture_area,false)==0);
+	CHECK(st_console_invert_pixels(NULL,&area)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_invert_pixels(console,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_invert_pixels(console,&area)==0);
+	CHECK(console->pixel_top==2);
+	for (uint32_t y=0;y<8;y++) for (uint32_t x=0;x<10;x++) {
+		size_t at=st_console_pixel_position_locked(console,x,y);
+		bool hit=x>=6 && y>=4;
+		CHECK(console->pixels->primary[at]==(hit ? ST_PIXEL_COLOR_RGB_VALUE(0xed,0xcb,0xa9) : 512));
+		CHECK(console->pixels->alternate[at]==(hit ? ST_PIXEL_COLOR_RGB_VALUE(0x67,0x89,0xab) : ST_PIXEL_COLOR_RGB_VALUE(0x98,0x76,0x54)));
+	}
+	for (size_t i=0;i<12;i++) CHECK(((st_console_cell_at(console,i)->flags&ST_CONSOLE_CELL_PIXEL_GRAPHICS)!=0)==(i==11));
+	CHECK(st_console_restore_pixel_region(console,console->pixels,0,0)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_console_restore_pixel_region(console,saved,6,4)==0);
+	CHECK(console->pixel_top==2);
+	for (size_t i=0;i<80;i++) {
+		CHECK(console->pixels->primary[i]==512);
+		CHECK(console->pixels->alternate[i]==ST_PIXEL_COLOR_RGB_VALUE(0x98,0x76,0x54));
+	}
+	st_pixel_buffer_destroy(saved);
+	st_console_destroy(console);
+}
+
+static void
 test_modify_pixels(void)
 {
 	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
@@ -1254,6 +1297,8 @@ main(void)
 	test_upload_retry();
 	test_pixel_cursor_overlay();
 	test_modify_pixels();
+	test_invert_pixels(false);
+	test_invert_pixels(true);
 	test_pixel_raster_cache();
 	test_font_raster_variants();
 	return 0;

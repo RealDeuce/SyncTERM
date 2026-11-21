@@ -24,6 +24,11 @@ The separate [RIPscrip 3.0 implementation goal](RIP3_CONFORMANCE.md) pins its
 documentation and tracks requirements and upstream blockers. Its source guard
 freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
+`syncterm_rip3_mouse_CP437` and `syncterm_rip3_mouse_UTF-8` cover connected
+simple mouse fields, host execution, captured coordinates, deletion and native
+text/graphics press feedback. Their explicit gesture policy awaits upstream
+issue #113. Clear/zoom, identities, hover and button creation remain pending;
+see the RIP3 inventory for the exact supported subset.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
 when upstream reference documentation or a PR describes that mode. Applicable

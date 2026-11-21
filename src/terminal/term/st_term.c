@@ -556,8 +556,18 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 void
 st_term_session_set_mouse_disabled(st_term_session_t *session, bool disabled)
 {
-	if (session != NULL)
+	if (session != NULL) {
 		session->mouse_disabled = disabled;
+		if (disabled) st_term_rip3_mouse_cancel(session->rip3);
+	}
+}
+
+int
+st_term_session_mouse_mode(st_term_session_t *session)
+{
+	if (session==NULL) return 0;
+	if (st_term_rip3_mouse_active(session->rip3)) return 1;
+	return st_cterm_mouse_mode(st_term_session_cterm(session));
 }
 
 uint32_t
@@ -1036,8 +1046,10 @@ handle_event(st_term_session_t *session,
 		int status = session->config.event_hook(
 		    session->config.event_hook_context, event, &consumed);
 
-		if (status != 0 || consumed)
+		if (status != 0 || consumed) {
+			st_term_rip3_mouse_ignore(session->rip3,event);
 			return status;
+		}
 	}
 	if (local_command(session->config.console, event, disposition)) {
 		*finished = true;
@@ -1053,12 +1065,19 @@ handle_event(st_term_session_t *session,
 		return st_term_session_send_key(session, event, &handled);
 	}
 	case ST_CONSOLE_EVENT_MOUSE:
-		if (!session->mouse_disabled)
-			(void)st_cterm_handle_mouse(st_term_session_cterm(session), event);
-		else
+		if (!session->mouse_disabled) {
+			if (!st_term_rip3_mouse(session->rip3,event))
+				(void)st_cterm_handle_mouse(st_term_session_cterm(session), event);
+			else
+				st_cterm_sync_mouse_buttons(st_term_session_cterm(session),event->data.mouse.buttons);
+		}
+		else {
+			st_term_rip3_mouse_ignore(session->rip3,event);
 			st_cterm_sync_mouse_buttons(st_term_session_cterm(session), event->data.mouse.buttons);
+		}
 		return session->output_error;
 	case ST_CONSOLE_EVENT_FOCUS:
+		if (!event->data.focus.focused) st_term_rip3_mouse_cancel(session->rip3);
 		(void)st_cterm_handle_focus(st_term_session_cterm(session),
 		    event->data.focus.focused);
 		return session->output_error;

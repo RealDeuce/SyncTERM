@@ -67,6 +67,10 @@ struct st_rip3_session_sink {
 	/* Native ANSI-background EOL erase. Like ordinary ANSI text, this paints
 	 * the terminal surface rather than changing the graphics palette indices. */
 	int (*text_erase_eol)(void *context, unsigned number);
+	/* Transient mouse feedback on the shared native text/graphics raster. */
+	void (*mouse_invert)(void *context, const struct st_rip3_rect *area);
+	/* Capture the committing field event before starting its host program. */
+	void (*mouse_capture)(void *context, int32_t x, int32_t y);
 };
 
 struct st_rip3_session_config {
@@ -82,7 +86,7 @@ struct st_rip3_session_config {
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;
 	/* Optional copied external service bindings. The frame, tables, input,
-	 * templates and text_windows must be NULL: this session owns those.
+ * templates, text_windows and mouse must be NULL: this session owns those.
 	 * Identity, features, time, local
 	 * queries and an optional random/user processor remain borrowed. A supplied
 	 * user processor is reserved exclusively while a session query is pending.
@@ -110,7 +114,7 @@ struct st_rip3_session_config {
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
  * This does not select an application terminal mode or implement unbound
- * full text-window backups/reset, button/mouse fields, graphical-text preprocessing or
+ * full text-window backups, button faces, field clear/zoom, graphical-text preprocessing or
  * scene headers. Immediate host queries do include their angle preprocessor. */
 int st_rip3_session_create(struct st_rip3_session **result,
 	const struct st_rip3_session_config *config);
@@ -124,6 +128,10 @@ void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
  * The client must suppress ANSI display/side effects while this gate is off;
  * RIP identification/control handling remains independent of TTY visibility. */
 bool st_rip3_session_text_active(const struct st_rip3_session *session);
+bool st_rip3_session_mouse_active(const struct st_rip3_session *session);
+/* Input/gesture failures are absorbed internally just like wire failures. */
+bool st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left);
+void st_rip3_session_mouse_cancel(struct st_rip3_session *session);
 /* Presentation services. Revision advances after commands/host continuations;
  * it does not promise that pixels changed. Damage is borrowed through unbind
  * or destruction, one byte per canvas pixel; see surface_damage. */

@@ -743,6 +743,13 @@ int st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
  * alternate plane from primary writes or track per-plane modifications.
  * Changes are published even when edit fails; there is no rollback.
  */
+/* Invert the resolved RGB of both native planes, clipped to the raster. Uses
+ * existing cell damage and row mapping; no snapshot or separate pixel plane. */
+int st_console_invert_pixels(st_console_t *console, const struct st_console_rect *area);
+/* Restore an independent native pixel-region capture without flattening the
+ * console's circular raster. Both planes and palette indexes are retained. */
+int st_console_restore_pixel_region(st_console_t *console,
+	const struct st_pixel_buffer *source, uint32_t x, uint32_t y);
 int st_console_modify_pixels(st_console_t *console,
 	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
 	    struct st_console_rect *changed), void *context);

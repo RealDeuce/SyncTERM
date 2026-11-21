@@ -6656,6 +6656,63 @@ management does not constitute usable clickable buttons. Intra-table live-entry
 COPY and B112 state edges also remain pending. The queue now has 1448 implemented,
 1638 pending, 3528 unreviewed, 1318 context, 67 excluded and 35 blocked units.
 
+## Connected simple mouse fields
+
+`1M` fields with `clr=0` and no identity prefix now participate in real connected
+mouse input. The session owns one bounded 128-entry region list, with newest
+definitions winning overlaps. Geometry uses the current WORLD and PORT0's
+viewport, even while another screen or offscreen port is current, then remains
+in absolute DEVICE coordinates after later viewport changes. `1K`, `$MKILL$`
+and SOFT delete those records. The same owner is intended for mouse buttons;
+`1U` creation and button rendering are still pending.
+
+Clicks run an independent copy of the field program through the connected host
+evaluator, including control notation, UTF-8/CP437 transport, active variables
+and delay continuations. A program may delete its own field safely. Captured
+`XY(DEVICE)`/`XY(WORLD)` values come from the committing event and persist across
+its delay; a later click cannot overwrite a pending host program. Rejected
+definitions, unsupported operations and host failures stay below the nonfatal
+parser/input boundary. No mouse-device-presence value is invented for MSTAT.
+
+Press feedback uses the actual native text/graphics raster and both blink
+planes. Only the currently pressed rectangle has a temporary capture, preserving
+original palette indexes. Incoming drawing removes the effect, updates the
+normal shared raster, then reapplies it at the batch boundary. Individual wire
+bytes do not repeatedly capture or repaint the rectangle. Inversion follows
+the console's existing circular-row mapping and cell damage; ordinary ANSI and
+RIP1 render paths gain no damage tracking or rendering buffer. The effective
+session mouse mode reaches Wren's existing `CTerm.mouseMode`, so the default
+drag-selection hook leaves field gestures to the RIPv3 owner. Custom hooks and
+the remote-mouse gate retain precedence; consumed events cancel field capture.
+
+New [issue #113](https://github.com/bbs-land/remote-imaging-protocol/issues/113)
+requests the missing press/release/cancellation contract, identity grammar,
+FIELDID lifetime and inactive/empty geometry rules. It references earlier
+issues/PRs without commenting on them. Until resolved, the explicit client
+gesture policy captures on left press, commits release inside and cancels
+release outside. `ID=n:` definitions, inactive/wholly clipped definitions and
+reversed corners are rejected nonfatally. Clear-and-zoom (`clr=1`), identity,
+hover queries, selective deletion, mouse backups, pointer shapes, buttons and
+remaining host facilities are not complete. The queue has 1460 implemented,
+1648 pending, 3500 unreviewed, 1318 context, 67 excluded and 41 blocked units.
+
+Independent tests exercise the shared capacity, newest-first hits, self-deleting
+programs, numeric bases and coordinate widths, nonuniform WORLD projection,
+PORT0 placement with another/offscreen port selected, viewport clipping and
+retained geometry, delayed captured XY, SOFT deletion and malformed recovery.
+CP437/UTF-8 bitmap connections also verify native text/graphics feedback, both
+blink planes and incoming drawing during a press. A native console test checks
+indexed/RGB inversion, large clipped extents and preservation of circular-row
+mapping and existing cell flags. The button-style fixture's radix selector now
+uses the required base-36 `J1S` encoding for 64, correcting its earlier decimal
+test input. Rendering fixtures send no audio commands; existing ANSI music tests
+are not part of this milestone's verification.
+The native Release CMake build introduces no warnings. All 15 selected CTests
+pass, including the CP437/UTF-8 RIP1 raster oracles, existing selection/reset
+fixtures, corrected button-style fixtures and the three preservation/contract
+guards. The native bitmap test covers both text-only and full-raster scrolling,
+fixed right/bottom margins and restoration of the original indexed planes.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

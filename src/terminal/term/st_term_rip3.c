@@ -31,6 +31,11 @@ struct st_term_rip3 {
 	struct st_term_rip3_view *windows[36];
 	unsigned selected_window;
 	bool targeting;
+	bool mouse_feedback,mouse_feedback_applied;
+	unsigned mouse_feedback_depth;
+	struct st_console_rect mouse_area;
+	struct st_pixel_buffer *mouse_saved;
+	struct st_rip3_point mouse_position;
 	uint8_t tty[4096];
 	size_t tty_length;
 	bool flushing;
@@ -240,16 +245,20 @@ flush_text(void *context)
 	rip->flushing=false;
 }
 
+static void feedback_begin(struct st_term_rip3 *rip);
+static void feedback_end(struct st_term_rip3 *rip);
+
 void
 st_term_rip3_flush(struct st_term_rip3 *rip)
 {
-	if (rip!=NULL) {present(rip);flush_text(rip);}
+	if (rip!=NULL) {feedback_begin(rip);present(rip);flush_text(rip);feedback_end(rip);}
 }
 
 int
 st_term_rip3_begin_local_text(struct st_term_rip3 *rip)
 {
 	if (rip==NULL || rip->flushing) return 0;
+	st_rip3_session_mouse_cancel(rip->session);
 	rip->text_since_boundary=true;
 	flush_text(rip);
 	return rip->view==NULL ? 0 : st_term_rip3_view_begin(rip->view,rip->config.console);
@@ -744,11 +753,96 @@ process(struct st_term_rip3 *rip, bool publish)
 	if (rip->position==rip->length) rip->position=rip->length=0;
 }
 
+static void
+feedback_remove(struct st_term_rip3 *rip)
+{
+	if (st_console_restore_pixel_region(rip->config.console,rip->mouse_saved,rip->mouse_area.x,rip->mouse_area.y)!=0)
+		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	st_pixel_buffer_destroy(rip->mouse_saved);rip->mouse_saved=NULL;
+}
+
+static void
+feedback_begin(struct st_term_rip3 *rip)
+{
+	if (rip->mouse_feedback_depth++==0 && rip->mouse_feedback_applied) {
+		feedback_remove(rip);rip->mouse_feedback_applied=false;
+	}
+}
+
+static void
+feedback_end(struct st_term_rip3 *rip)
+{
+	if (--rip->mouse_feedback_depth==0 && rip->mouse_feedback) {
+		int status=st_console_get_pixels(&rip->mouse_saved,rip->config.console,&rip->mouse_area,false);
+		if (status==0) {
+			/* Keep original index values as well as both blink planes. An RGB
+			 * complement is visually reversible but loses palette identity. */
+			rip->mouse_feedback_applied=true;
+			status=st_console_invert_pixels(rip->config.console,&rip->mouse_area);
+		}
+		if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	}
+}
+
+static void
+mouse_invert(void *context, const struct st_rip3_rect *area)
+{
+	struct st_term_rip3 *rip=context;
+	/* Remove the transient effect around native writes. The graphics owner
+	 * retains normal ink, while text and graphics share the actual console.
+	 * The temporary capture contains only the pressed rectangle. */
+	feedback_begin(rip);
+	rip->mouse_feedback=!rip->mouse_feedback;
+	if (rip->mouse_feedback) rip->mouse_area=(struct st_console_rect){(uint32_t)area->x0,(uint32_t)area->y0,
+	    (uint32_t)(area->x1-area->x0)+1,(uint32_t)(area->y1-area->y0)+1};
+	feedback_end(rip);
+}
+
+bool
+st_term_rip3_mouse_active(const struct st_term_rip3 *rip)
+{
+	return rip!=NULL && st_rip3_session_mouse_active(rip->session);
+}
+
+static void
+mouse_capture(void *context, int32_t x, int32_t y)
+{
+	struct st_term_rip3 *rip=context;
+	rip->mouse_position=(struct st_rip3_point){x,y};
+	rip->local.mouse_position=&rip->mouse_position;
+}
+
+bool
+st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
+{
+	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE || event->data.mouse.action==ST_CONSOLE_MOUSE_WHEEL) return false;
+	st_term_rip3_flush(rip);feedback_begin(rip);
+	bool handled=st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
+	    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
+	present(rip);flush_text(rip);feedback_end(rip);return handled;
+}
+
+void
+st_term_rip3_mouse_cancel(struct st_term_rip3 *rip)
+{
+	if (rip!=NULL) st_rip3_session_mouse_cancel(rip->session);
+}
+
+void
+st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event)
+{
+	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return;
+	(void)st_rip3_session_mouse(rip->session,-1,-1,(event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
+	st_rip3_session_mouse_cancel(rip->session);
+}
+
 void
 st_term_rip3_poll(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
-	process(rip,true);flush_text(rip);
+	if (rip->mouse_feedback_applied && rip->position==rip->length && rip->tty_length==0
+	    && !st_rip3_session_pending(rip->session)) return;
+	feedback_begin(rip);process(rip,true);flush_text(rip);feedback_end(rip);
 }
 
 bool
@@ -774,13 +868,18 @@ st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length
 	/* The transport dispatches individual bytes to preserve its pause and
 	 * interception boundaries. Publish at its batch flush, replies, text or
 	 * explicit view operations, rather than snapshotting after each command. */
-	process(rip,false);
+	feedback_begin(rip);process(rip,false);
+	/* Keep feedback off until the transport's batch flush. Incoming bytes are
+	 * dispatched individually; repainting a held region for every byte would
+	 * turn a transient mouse effect into the rendering bottleneck. */
+	--rip->mouse_feedback_depth;
 }
 
 void
 st_term_rip3_cancel(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
+	st_rip3_session_mouse_cancel(rip->session);
 	flush_text(rip);
 	if (rip->view!=NULL) {
 		(void)st_cterm_finish(st_term_rip3_text(rip));
@@ -809,6 +908,7 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 	st_rip3_variables_destroy(rip->session_values);
 	st_rip3_variables_destroy(rip->persistent_values);
 	st_pixel_buffer_destroy(rip->previous);
+	st_pixel_buffer_destroy(rip->mouse_saved);
 	free(rip->variable_path);free(rip->queue);free(rip->damage);free(rip);
 }
 
@@ -872,7 +972,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
-	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol},
+	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
+	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

@@ -155,6 +155,8 @@ int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
 /* A RIP block-mode command ends with CR; its optional LF is framing. */
 int st_term_session_reserve_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
+/* Effective protocol, including the separate RIP3 mouse-field owner. */
+int st_term_session_mouse_mode(st_term_session_t *session);
 void st_term_session_set_mouse_disabled(st_term_session_t *session,
 	bool disabled);
 uint32_t st_term_session_throttle_speed(const st_term_session_t *session);

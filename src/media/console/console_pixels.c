@@ -1096,6 +1096,77 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 }
 
 int
+st_console_invert_pixels(st_console_t *console, const struct st_console_rect *area)
+{
+	if (console==NULL || area==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (console->raster_parent!=NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (st_rwlock_write_lock(st_console_state_lock(console))!=ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	int status=0;
+	if (console->pixels==NULL || !pixel_changes_supported(console)) status=IO_ERROR_NOT_SUPPORTED;
+	else {
+		status=console->raster_current ? 0 : st_console_rasterize_locked(console,false);
+		uint64_t right=(uint64_t)area->x+area->width,bottom=(uint64_t)area->y+area->height;
+		if (right>console->pixels->width) right=console->pixels->width;
+		if (bottom>console->pixels->height) bottom=console->pixels->height;
+		if (status==0 && right>area->x && bottom>area->y) {
+			uint32_t text_width=console->columns*console->cell_width;
+			for (uint32_t y=area->y;y<bottom;y++) {
+				size_t at=st_console_pixel_position_locked(console,area->x,y);
+				for (uint32_t x=area->x;x<right;x++,at++) {
+					/* The fixed right strip need not share the text row ring. */
+					if (x==text_width) at=st_console_pixel_position_locked(console,x,y);
+					uint32_t p=console->pixels->primary[at],a=console->pixels->alternate[at];
+					p=ST_PIXEL_COLOR_IS_RGB(p) ? p : p<=UINT16_MAX ? console->palette[p] : 0;
+					a=ST_PIXEL_COLOR_IS_RGB(a) ? a : a<=UINT16_MAX ? console->palette[a] : 0;
+					console->pixels->primary[at]=ST_PIXEL_COLOR_RGB_TAG|((~p)&UINT32_C(0xffffff));
+					console->pixels->alternate[at]=ST_PIXEL_COLOR_RGB_TAG|((~a)&UINT32_C(0xffffff));
+				}
+			}
+			mark_pixel_cells(console,area->x,area->y,(int64_t)right,(int64_t)bottom);
+			status=st_console_finish_change_locked(console);
+		}
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));return status;
+}
+
+int
+st_console_restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
+    uint32_t x, uint32_t y)
+{
+	if (console==NULL || source==NULL || source->primary==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (console->raster_parent!=NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (st_rwlock_write_lock(st_console_state_lock(console))!=ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	int status=0;
+	if (console->pixels==NULL || !pixel_changes_supported(console)) status=IO_ERROR_NOT_SUPPORTED;
+	else if (source==console->pixels || source->primary==console->pixels->primary)
+		status=IO_ERROR_INVALID_ARGUMENT;
+	else {
+		status=console->raster_current ? 0 : st_console_rasterize_locked(console,false);
+		uint64_t right=(uint64_t)x+source->width,bottom=(uint64_t)y+source->height;
+		if (right>console->pixels->width) right=console->pixels->width;
+		if (bottom>console->pixels->height) bottom=console->pixels->height;
+		if (status==0 && right>x && bottom>y) {
+			uint32_t text_width=console->columns*console->cell_width;
+			for (uint32_t row=y;row<bottom;row++) {
+				for (uint32_t left=x;left<right;) {
+					uint32_t end=left<text_width && text_width<right ? text_width : (uint32_t)right;
+					size_t to=st_console_pixel_position_locked(console,left,row);
+					size_t from=(size_t)(row-y)*source->width+left-x;
+					size_t bytes=(size_t)(end-left)*sizeof(*source->primary);
+					memcpy(console->pixels->primary+to,source->primary+from,bytes);
+					memcpy(console->pixels->alternate+to,
+					    (source->alternate!=NULL ? source->alternate : source->primary)+from,bytes);
+					left=end;
+				}
+			}
+			mark_pixel_cells(console,x,y,(int64_t)right,(int64_t)bottom);
+			status=st_console_finish_change_locked(console);
+		}
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));return status;
+}
+
+int
 st_console_modify_pixels(st_console_t *console,
 	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
 	    struct st_console_rect *changed), void *context)

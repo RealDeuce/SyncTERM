@@ -4411,7 +4411,9 @@ arguments or native resources.
 | `CTerm.mouseMode`
 | Read-only effective native mouse protocol: `0` (off), `1` (RIP),
   `2` (SkyPix), `3` (IGS), `4` (BIG pointer), `9` (X10), `1000/1002/1003` (the XTerm tracking modes).
-  Used by the default status bar to light the "M" indicator. SkyPix is
+  RIPv3 reports `1` while its separate engine owns mouse fields. The default
+  drag hook then leaves those gestures to the engine. Used by the default
+  status bar to light the "M" indicator. SkyPix is
   available without a host enable command; Alt/Command-O or Toggle Remote
   Mouse in the online menu controls `mouseDisabled`. A disabled indicator
   remains visible but dim. SkyPix sends `ESC[21;1;x;y!` on left-button down

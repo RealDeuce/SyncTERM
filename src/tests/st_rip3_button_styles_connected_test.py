@@ -43,7 +43,7 @@ def run(args, width, height):
         before=t.exchange()
         for radix in (36,64):
             for xy in range(2,6):
-                t.exchange(b"\x01|J"+str(radix).encode()+b"|n"+number(xy,1,radix)+b"\r\n"+style(radix,xy))
+                t.exchange(b"\x01|J"+number(radix,2)+b"|n"+number(xy,1,radix)+b"\r\n"+style(radix,xy))
         after=t.exchange(b"\x01|J36|n2\r\n")
         assert after.primary==before.primary and after.alternate==before.alternate
         for i in range(1,36):

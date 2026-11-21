@@ -5,6 +5,7 @@
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_button_styles.h"
+#include "st_rip3_mouse.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
@@ -13,6 +14,7 @@
 #include "st_rip3_user_variables.h"
 #include "st_rip3_stream.h"
 #include "st_rip3_query.h"
+#include "st_rip3_query_internal.h"
 #include "st_rip3_input.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_audio.h"
@@ -234,6 +236,7 @@ soft_reset(void *context)
 	if (status!=0) return status;
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
+	st_rip3_mouse_kill(session->commands.mouse);
 	status=st_rip3_ports_reset(session->commands.ports,false);
 	if (status==0 && session->clipboard.set) {
 		struct st_rip3_port_info info;
@@ -447,6 +450,7 @@ void
 st_rip3_session_cancel(struct st_rip3_session *session)
 {
 	if (session==NULL) return;
+	st_rip3_mouse_cancel(session->commands.mouse);
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
@@ -461,6 +465,7 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	/* Query destruction precedes every borrowed processor/store/table and the
 	 * input gate. Saves own independent snapshots and precede live-table teardown. */
 	st_rip3_query_destroy(session->commands.query);
+	st_rip3_mouse_destroy(session->commands.mouse);
 	st_rip3_input_destroy(session->commands.input);
 	st_rip3_stream_destroy(session->stream);
 	st_rip3_user_variables_destroy(session->owned_user);
@@ -476,6 +481,51 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	free(session);
 }
 
+static void
+mouse_invert(void *context, const struct st_rip3_rect *area)
+{
+	struct st_rip3_session *session=context;
+	if (session->sink.mouse_invert!=NULL) session->sink.mouse_invert(session->sink.context,area);
+}
+
+static void
+mouse_resource_failure(void *context)
+{
+	diagnose(context,ST_RIP3_COMMAND_RESOURCE_FAILURE);
+}
+
+static void
+mouse_activate(void *context, const uint8_t *program, size_t length, int32_t x, int32_t y)
+{
+	struct st_rip3_session *session=context;
+	if (st_rip3_query_pending(session->commands.query)) {
+		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
+	}
+	if (session->sink.mouse_capture!=NULL) session->sink.mouse_capture(session->sink.context,x,y);
+	int status=st_rip3_query_start(session->commands.query,program,length);
+	if (status!=0) diagnose(session,status==IO_ERROR_OUT_OF_MEMORY
+	    ? ST_RIP3_COMMAND_RESOURCE_FAILURE : ST_RIP3_COMMAND_OPERATION_FAILED);
+	++session->revision;
+}
+
+bool
+st_rip3_session_mouse_active(const struct st_rip3_session *session)
+{
+	return session!=NULL && st_rip3_mouse_active(session->commands.mouse);
+}
+
+bool
+st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left)
+{
+	return session!=NULL && st_rip3_mouse_event(session->commands.mouse,x,y,left);
+}
+
+void
+st_rip3_session_mouse_cancel(struct st_rip3_session *session)
+{
+	if (session!=NULL) st_rip3_mouse_cancel(session->commands.mouse);
+}
+
 int
 st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_session_config *config)
 {
@@ -484,7 +534,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL
-	    || config->services->text_windows!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	    || config->services->text_windows!=NULL || config->services->mouse!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	bool device=config->device_width!=0 || config->device_height!=0;
 	struct st_rip3_frame frame;
 	int status=device ? st_rip3_frame_init_device(&frame,config->device_width,config->device_height)
@@ -526,6 +576,11 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    : st_rip3_environments_create(&session->commands.environments,config->canvas);
 	if (status==0) status=st_rip3_styles_create(&session->commands.styles,&initial);
 	if (status==0) status=st_rip3_button_styles_create(&session->commands.button_styles);
+	const struct st_rip3_mouse_sink mouse_sink={.context=session,
+	    .invert=config->sink.mouse_invert!=NULL ? mouse_invert : NULL,
+	    .activate=mouse_activate,.resource_failure=mouse_resource_failure};
+	if (status==0) status=st_rip3_mouse_create(&session->commands.mouse,&mouse_sink);
+	session->variables.mouse=session->commands.mouse;
 	if (status==0) status=st_rip3_palettes_create(&session->commands.palettes);
 	if (status==0) status=device ? st_rip3_ports_create_device(&session->commands.ports,frame.device_width,frame.device_height)
 	    : st_rip3_ports_create(&session->commands.ports,config->canvas);

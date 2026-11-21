@@ -370,6 +370,8 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0]=='w') return normal_text_window(host,command,length,operation,sink);
 	if (command[0]=='b') return extended_text_window(host,command,length,operation);
 	if (command[0]=='M') return color_mode(host,command,length,operation);
+	if (length>=2 && command[0]=='1' && (command[1]=='M' || command[1]=='K'))
+		return st_rip3_mouse_commands_execute(host,command,length,operation);
 	if (length>=2 && (command[0]=='1' || command[0]=='2') && command[1]=='B')
 		return st_rip3_button_commands_execute(host,command,length,operation);
 	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);

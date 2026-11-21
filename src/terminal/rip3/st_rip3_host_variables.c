@@ -4,6 +4,7 @@
 #include "st_rip3_features.h"
 #include "st_rip3_geometry.h"
 #include "st_rip3_input.h"
+#include "st_rip3_mouse.h"
 #include "st_rip3_table_host.h"
 #include "io_error.h"
 
@@ -86,6 +87,12 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 			return IO_ERROR_OUT_OF_RANGE;
 		result[0] = 0;
 		return 0;
+	}
+	if (strcmp(reference->name,"MKILL")==0) {
+		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
+		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
+		st_rip3_mouse_kill(host->mouse);result[0]=0;return 0;
 	}
 	if (strcmp(reference->name,"RAND")==0)
 		return st_rip3_random_execute(host,reference,result,capacity);

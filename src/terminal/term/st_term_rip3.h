@@ -21,5 +21,9 @@ void st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t l
 void st_term_rip3_poll(struct st_term_rip3 *rip);
 void st_term_rip3_cancel(struct st_term_rip3 *rip);
 bool st_term_rip3_paused(const struct st_term_rip3 *rip);
+bool st_term_rip3_mouse_active(const struct st_term_rip3 *rip);
+bool st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event);
+void st_term_rip3_mouse_cancel(struct st_term_rip3 *rip);
+void st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event);
 
 #endif

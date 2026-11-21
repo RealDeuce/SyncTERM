@@ -1110,8 +1110,9 @@ fn_cterm_atascii_inverse(WrenVM *vm)
 static void
 fn_cterm_mouse_mode(WrenVM *vm)
 {
-	wrenSetSlotDouble(vm, 0, st_cterm_mouse_mode(
-	    st_wren_context_from_vm(vm)->cterm));
+	struct st_wren_context *context=st_wren_context_from_vm(vm);
+	wrenSetSlotDouble(vm,0,context->session!=NULL ? st_term_session_mouse_mode(context->session)
+	    : st_cterm_mouse_mode(context->cterm));
 }
 
 static void

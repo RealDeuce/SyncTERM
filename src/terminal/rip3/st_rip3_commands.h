@@ -15,6 +15,7 @@ struct st_rip3_palettes;
 struct st_rip3_ports;
 struct st_rip3_styles;
 struct st_rip3_button_styles;
+struct st_rip3_mouse;
 struct st_rip3_input;
 struct st_rip3_query;
 struct st_rip3_bitmap_destination;
@@ -60,6 +61,7 @@ struct st_rip3_command_host {
 	struct st_rip3_ports *ports;
 	struct st_rip3_styles *styles;
 	struct st_rip3_button_styles *button_styles;
+	struct st_rip3_mouse *mouse;
 	/* Borrowed input gate. The owning source retains bytes during 3D delays. */
 	struct st_rip3_input *input;
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
@@ -103,7 +105,8 @@ struct st_rip3_command_sink {
  * including font-zero @ with the context's cached outline width,
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
- * 2Y style selection, 1B/2B button-style definition/selection, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
+ * 2Y style selection, 1B/2B button-style definition/selection, simple 1M fields
+ * with clr=0 and no identity prefix, 1K, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits, ordinary w layouts/wrap/reactivation/deactivation,
