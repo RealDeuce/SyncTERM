@@ -6,7 +6,7 @@
 
 struct field {
 	struct st_rip3_rect area;
-	bool invert;
+	bool invert,reset;
 	int identity;
 	size_t length;
 	uint8_t program[];
@@ -82,18 +82,24 @@ st_rip3_mouse_active(const struct st_rip3_mouse *mouse)
 	return mouse!=NULL && mouse->count!=0;
 }
 
+size_t
+st_rip3_mouse_count(const struct st_rip3_mouse *mouse)
+{
+	return mouse==NULL ? 0 : mouse->count;
+}
+
 int
 st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area,
-    bool invert, int identity, const uint8_t *program, size_t length)
+    bool invert, bool reset, int identity, const uint8_t *program, size_t length)
 {
 	if (mouse==NULL || area==NULL || (program==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
-	if (identity<-1 || identity>32767 || area->x0<0 || area->y0<0 || area->x1<area->x0 || area->y1<area->y0)
+	if (identity<-1 || identity>32767 || area->x0<0 || area->y0<0 || area->x1<=area->x0 || area->y1<=area->y0)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->count==128 || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
 	if (invert && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	field->area=*area;field->invert=invert;field->identity=identity;field->length=length;
+	field->area=*area;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
 	if (length!=0) memcpy(field->program,program,length);
 	mouse->fields[mouse->count++]=field;return 0;
 }
@@ -101,7 +107,7 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *are
 static bool
 inside(const struct field *field, int32_t x, int32_t y)
 {
-	return x>=field->area.x0 && x<=field->area.x1 && y>=field->area.y0 && y<=field->area.y1;
+	return x>=field->area.x0 && x<field->area.x1 && y>=field->area.y0 && y<field->area.y1;
 }
 
 bool
@@ -127,8 +133,9 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 		if (copy!=NULL) {
 			size_t length=field->length;
 			int identity=field->identity;
+			bool reset=field->reset;
 			if (length!=0) memcpy(copy,field->program,length);
-			mouse->sink.activate(mouse->sink.context,copy,length,identity,x,y);free(copy);
+			mouse->sink.activate(mouse->sink.context,copy,length,reset,identity,x,y);free(copy);
 		}
 		else if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
 	}

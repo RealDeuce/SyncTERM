@@ -765,6 +765,32 @@ world_state(void)
 }
 
 static int
+plain_button(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1B00000200ZO000F000F080700000F07000000|1U0A0A1O1O0000ID=7:<><>$FIELDID$:$CUR(BUT)$\r")==0
+	    && pump(&f)==0 && f.errors==0 && f.resets==0 && st_rip3_session_mouse_active(f.session));
+	CHECK(st_rip3_session_mouse(f.session,20,20,true) && f.reply_length==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,false) && f.errors==0 && f.resets==1);
+	CHECK(f.reply_length==3 && memcmp(f.reply,"7:0",3)==0 && !st_rip3_session_mouse_active(f.session));
+	char template_wire[4200];const char *prefix="!|1\0330000[3:]";
+	size_t prefix_length=strlen(prefix);memcpy(template_wire,prefix,prefix_length);
+	memset(template_wire+prefix_length,'X',4096);template_wire[prefix_length+4096]='\r';template_wire[prefix_length+4097]=0;
+	CHECK(append(&f,template_wire)==0 && pump(&f)==0 && f.errors==0);
+	CHECK(query(&f,"$-=CLIPPED=old$","")==0);
+	CHECK(append(&f,"!|1B00000200ZK000F000F080700000F07000000|1U0A0A1O1O0000<><>$?3$$D(60)$$-=CLIPPED=changed$$RAND(\"bad\")$\r")==0
+	    && pump(&f)==0 && f.errors==0 && f.reply_length==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,true) && st_rip3_session_mouse(f.session,20,20,false));
+	CHECK(f.reply_length==4096 && f.errors==0 && !st_rip3_session_pending(f.session) && st_rip3_session_wait_ns(f.session)==0);
+	for (size_t i=0;i<f.reply_length;i++) CHECK(f.reply[i]=='X');
+	CHECK(query(&f,"$&CLIPPED$","old")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 field_context(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -830,6 +856,7 @@ int
 main(void)
 {
 	CHECK(field_context()==0);
+	CHECK(plain_button()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

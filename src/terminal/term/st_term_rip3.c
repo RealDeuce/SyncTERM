@@ -794,7 +794,7 @@ mouse_invert(void *context, const struct st_rip3_rect *area)
 	feedback_begin(rip);
 	rip->mouse_feedback=!rip->mouse_feedback;
 	if (rip->mouse_feedback) rip->mouse_area=(struct st_console_rect){(uint32_t)area->x0,(uint32_t)area->y0,
-	    (uint32_t)(area->x1-area->x0)+1,(uint32_t)(area->y1-area->y0)+1};
+	    (uint32_t)(area->x1-area->x0),(uint32_t)(area->y1-area->y0)};
 	feedback_end(rip);
 }
 

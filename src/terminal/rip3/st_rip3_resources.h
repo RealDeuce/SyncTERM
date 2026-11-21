@@ -3,7 +3,12 @@
 #define ST_RIP3_RESOURCES_H_
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
+
+/* Literal bare-name policy shared by file lookup and button filename slots.
+ * Expansion is a separate ordinary-text consumer; this never opens a file. */
+bool st_rip3_resource_name_valid(const char *name);
 
 enum st_rip3_resource_kind {
 	ST_RIP3_RESOURCE_MEDIA,

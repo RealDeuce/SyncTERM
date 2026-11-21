@@ -31,6 +31,9 @@ int st_rip3_button_style_defaults(struct st_rip3_button_style *result);
 int st_rip3_button_styles_create(struct st_rip3_button_styles **result);
 void st_rip3_button_styles_destroy(struct st_rip3_button_styles *styles);
 int st_rip3_button_styles_current(const struct st_rip3_button_styles *, unsigned *result);
+/* Creation reads stored current fields even after a reset clears in-use;
+ * unlike selection, this does not default or define that record. */
+int st_rip3_button_styles_current_value(const struct st_rip3_button_styles *, struct st_rip3_button_style *result);
 int st_rip3_button_styles_info(const struct st_rip3_button_styles *, unsigned number,
 	struct st_rip3_button_style_info *result);
 int st_rip3_button_styles_get(const struct st_rip3_button_styles *, unsigned number,

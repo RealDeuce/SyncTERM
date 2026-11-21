@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 
 from st_migrated_control_test import connection
-from st_rip3_connected_test import query
+from st_rip3_connected_test import query,pixel
 from st_terminal_conformance_test import Terminal
 
 
@@ -98,6 +98,10 @@ def run(args, width, height):
         values(b"$INUSE(BUT,5)$",b"0")
         t.exchange(b"\x01|1B0000020074000C000F080200000F07000000\r\n")
         values(b"$CUR(BUT,5)$$CUR(BUT)$:$INUSE(BUT,5)$:$ISPROT(BUT,5)$:$ISPROT(BUT,CUR)$",b"5:1:0:0")
+        frame=t.exchange(b"\x01|1U0A0A2I140000<>Style B\r\n")
+        assert any(pixel(frame,x,y)==0xff5555
+                   for y in range(10*height//350,40*height//350)
+                   for x in range(10*width//640,90*width//640))
         values(b"$RESET(BUT,TBL)$$CUR(BUT)$:$INUSE(BUT,5)$:$ISPROT(BUT,CUR)$",b"5:0:0")
         values(b"$CUR(BUT,7)$$PROT(BUT,7)$$CUR(BUT,0)$$RESET(BUT,CUR)$")
         values(b"$INUSE(BUT,7)$:$ISPROT(BUT,7)$:$ISPROT(BUT,CUR)$",b"0:-1:0")

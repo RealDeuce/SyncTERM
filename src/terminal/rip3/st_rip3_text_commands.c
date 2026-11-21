@@ -18,8 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int
-outline_font(struct st_rip3_outline_font *result, const struct st_rip3_text_context *context,
+int
+st_rip3_command_outline_font(struct st_rip3_outline_font *result, const struct st_rip3_text_context *context,
     const struct st_rip3_outline_style *style, const struct st_rip3_frame *frame, unsigned orientation)
 {
 	if (context->outline_font!=NULL) {
@@ -48,7 +48,7 @@ outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style
 	struct st_rip3_outline_layout layout;
 	struct st_rip3_outline_font font;
 	int status=st_rip3_outline_layout_prepare(&layout,&style->outline,frame);
-	if (status==0) status=outline_font(&font,host->text,&style->outline,frame,layout.font_orientation);
+	if (status==0) status=st_rip3_command_outline_font(&font,host->text,&style->outline,frame,layout.font_orientation);
 	if (status==0 && host->text->outline_cache==NULL)
 		status=st_rip3_outline_cache_create(&host->text->outline_cache);
 	if (status==0) status=st_rip3_outline_cache_prepare(host->text->outline_cache,&font,layout.spacing);
@@ -84,10 +84,11 @@ outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style
 	free(positions);free(advances);return status;
 }
 
-static int
-text_bytes(const uint8_t *text, size_t length, enum st_rip3_text_encoding encoding,
+int
+st_rip3_command_text_glyphs(const struct st_rip3_text_context *context, const uint8_t *text, size_t length,
     const uint8_t **glyphs, size_t *count, uint8_t **owned)
 {
+	enum st_rip3_text_encoding encoding=context->encoding;
 	/* Expansion/control notation is not silently printed as literal text.
 	 * The enclosing expansion/transport layer remains separate (#6/#7). */
 	for (size_t i = 0; i < length; i++) {
@@ -179,7 +180,7 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_styles_current(host->styles,&number);
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
-	status = text_bytes(arguments,count,host->text->encoding,&glyphs,&glyph_count,&owned);
+	status = st_rip3_command_text_glyphs(host->text,arguments,count,&glyphs,&glyph_count,&owned);
 	if (status != 0) return status;
 	*operation = true;
 	if (!positioned) anchor = (struct st_rip3_text_position){

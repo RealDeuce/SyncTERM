@@ -43,6 +43,13 @@ st_rip3_button_styles_current(const struct st_rip3_button_styles *styles, unsign
 }
 
 int
+st_rip3_button_styles_current_value(const struct st_rip3_button_styles *styles, struct st_rip3_button_style *result)
+{
+	if (styles==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*result=styles->entries[styles->current].value;return 0;
+}
+
+int
 st_rip3_button_styles_info(const struct st_rip3_button_styles *styles, unsigned number,
     struct st_rip3_button_style_info *result)
 {

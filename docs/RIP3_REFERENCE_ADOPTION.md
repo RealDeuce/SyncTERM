@@ -518,3 +518,38 @@ coverage includes the button-style/mouse constructors and their independent
 backup. Strict source reindexing preserves the edited ledger byte-for-byte;
 the unchanged RIP1 freeze and reference-adoption guards remain mandatory.
 No original driver, probe or UI executes, and no old issue receives comments.
+
+## PR #117: positional button payload and portable hit geometry
+
+Adopt fork stable `1b8ab9928a9fd9071556cf0228ea69a496db3e72`, containing
+reviewed PR #117 head `8b76c83c0980b44ed0c8aba6c96a0f9113ef9987`.
+Archive SHA-256:
+`782a19012ccd898084fbafeb3a4e52cf08821b9dcf5eef9212d849ab2fdd7e75`.
+Three of the same 68 normative documents change. Preserve 8039 exact source/
+heading/text matches, relocate 513, retire 32 and review 60 new source blocks,
+yielding 8099 units. No prior implemented claim is removed. Verify the 53
+unchanged previous derivations, record the old/new digest for #112's explicit
+label correction, and pin the new #116 derivation, giving 55 notes.
+
+PR #117 answers B116 with fixed icon/label/host positions, the first two literal
+`<>` delimiters, one ID scan before leading ASCII trim, source byte limits and
+opaque stored host source. Validation belongs to the stages reached at
+activation; no speculative raw-host/provider pass is permitted. The corrected
+`<>Style B` example keeps #112's numeric/state proof and now tests actual label
+rendering. `<><><>` has literal host `<>`.
+
+Its explicit portable input policy uses positive half-open stored rectangles
+for fields/buttons. Dynamic plain corners normalize before conversion and
+zero device area skips before effects. Effective destination is PORT0 for mouse
+geometry, current PORT for decorations. Empty/inactive/clipped or touching
+mouse definitions consume no slot and paint nothing. Existing field geometry
+is a creation snapshot and survives later viewport movement/deactivation. This
+policy does not claim the obsolete driver's near-edge tolerance or inclusive
+hover parity; hover dispatch itself is still pending locally.
+
+Plain buttons are connected to the session owner and tested over TCP in both
+encodings; shared capacity, reset/context lifetime, opaque malformed actions,
+clipped suffixes, raw limits and geometry receive independent expected results.
+Image/clipboard faces, grouping, hotkeys and graphical macros remain pending.
+No original driver/client/probe executes and no issue receives further comments.
+The RIP1.54 freeze and the user's exclusion of a VT-102 mode remain authoritative.

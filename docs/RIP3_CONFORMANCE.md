@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-ebd81bcbb29eeca2d2c283d40221cbabb3cee531](https://github.com/RealDeuce/remote-imaging-protocol/tree/ebd81bcbb29eeca2d2c283d40221cbabb3cee531/version/3.0)
+1b8ab9928a9fd9071556cf0228ea69a496db3e72](https://github.com/RealDeuce/remote-imaging-protocol/tree/1b8ab9928a9fd9071556cf0228ea69a496db3e72/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -6756,6 +6756,70 @@ mouse owner as well as all previous construction boundaries. Every injected
 failure retains the caller result and releases owned resources. The queue has
 1511 implemented, 1693 pending, 3497 unreviewed, 1278 context, 67 excluded and
 25 blocked units. No full RIP3 compliance claim is made.
+
+## Connected plain buttons and PR #117 payload contract
+
+The reference pin advances to fork stable
+`1b8ab9928a9fd9071556cf0228ea69a496db3e72`, including reviewed PR #117.
+B116 is answered. All 68 normative documents remain indexed: 8039 exact
+source/heading/text matches, 513 relocated blocks, 32 retired blocks and 60
+new blocks yield 8099 units. No prior implemented unit was removed. The 55
+pinned derivations include the new #116 note and the explicitly recorded
+correction of #112's label example; its style-state proof is unchanged.
+
+Plain `1U` construction is now dispatched from connected sessions. It uses the
+current button style, live ENV coordinate/radix rules and existing graphics/font
+primitives. Complete fixed dimensions remain DEVICE values; mixed-zero sizes
+use both command far corners. Nonmouse decorations draw in the current port
+without consuming mouse records; mouse buttons draw in PORT0 and share the
+existing 128-entry field owner with `1M`. Button painting preserves the current
+port and its text cursor; preparing a Dixon label does not populate the ordinary
+outline cursor-width cache. No new screen buffer or damage-tracking layer is
+introduced, and the ANSI/RIP1 drawing paths are unchanged.
+
+PR #117's pure payload parser scans one identity prefix, removes leading ASCII
+whitespace from the remaining whole payload and splits only the first two
+literal `<>` pairs into fixed icon/label/host positions. Icon source is bounded
+to 127 bytes and label source to 255 bytes before expansion. `Style B` is an icon
+slot; `<>Style B` is the label form. `<><><>` retains literal `<>` as its host.
+The corrected #112 command now visibly renders its red label in the connected
+style-state test. Invalid raw fields fail before painting or field insertion.
+
+Host source remains opaque at definition, including for preselected buttons.
+Pointer release invokes the existing staged HCL owner in the current field
+context/environment. Native tests fill template 3 with 4096 X bytes and verify
+that subsequent delay, assignment and malformed RAND suffixes are clipped
+without execution. Connected tests verify that a reached activation error keeps
+the field and prior assignment effect, and the next activation still executes.
+Reset buttons invoke outer SOFT before the copied host program; the callback's
+FIELDID survives deletion of its source. Parser diagnostics remain nonfatal.
+
+Simple fields and plain buttons now store half-open absolute DEVICE hit bounds.
+Native/connected checks cover exclusive far edges, no near halo, bevel included
+and recess excluded. Dynamic plain corners normalize in WORLD before conversion;
+zero/collapsed faces skip before bevel. Inactive/empty effective destinations,
+wholly clipped or merely touching intersections create no field. An unrelated
+inactive/offscreen current port cannot block a valid PORT0 mouse definition.
+Creation rectangles remain snapshots across later viewport movement/deactivation,
+including while a gesture is held. Generic PORT renderer bounds remain inclusive
+internally; adapters convert their far edges once.
+
+Solid/pattern/no-fill faces, bevel/recess and basic classic/outline labels have
+independent native and connected expectations. The code also renders chisel,
+sunken, label orientations/indents, drop shadow and first hot-character
+underline/highlight through existing primitives; detailed font/effect coverage
+remains pending where the ledger does not yet support a complete claim.
+ICON/clipboard/hot/auto faces, radio/check groups, keyboard/default-Enter
+activation, graphical filename/label expansion, hover and selective deletion/
+mouse-table save/restore remain unfinished. Literal filename validation is
+shared with existing resource lookup; filename expansion is not claimed.
+
+Native Release CMake builds and the affected native/CP437/UTF-8 CTests verify
+this milestone. Connected button tests cover 640x480, 800x600, 1024x768 and an
+arbitrary 720x400 raster. The ledger has 1565 implemented, 1711 pending,
+3444 unreviewed, 1287 context, 67 excluded and 25 blocked units. The frozen
+RIP1.54 implementation and fixture baseline remain unchanged. Full RIP3
+compliance is not claimed.
 
 ## Verification and acceptance
 

@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/115",
-  "revision": "ebd81bcbb29eeca2d2c283d40221cbabb3cee531",
-  "previous_revision": "568d8063c68bd009cf687fb3809f547101949727",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/117",
+  "revision": "1b8ab9928a9fd9071556cf0228ea69a496db3e72",
+  "previous_revision": "ebd81bcbb29eeca2d2c283d40221cbabb3cee531",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "Reviewed actual PR #111/#114/#115 heads consolidated into fork stable.",
-  "archive_sha256": "1b609b0c1cdf022142c854b81cedda845cd3e54ad3ceb2b10ba0bff398502af7",
+  "upstream_state_at_adoption": "Reviewed PR117 head consolidated into fork stable.",
+  "archive_sha256": "782a19012ccd898084fbafeb3a4e52cf08821b9dcf5eef9212d849ab2fdd7e75",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -16,16 +16,13 @@
     "version/baseline/techspecs/ansi-vt-support.md"
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
     "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
     "version/3.0/ripscrip/4.3-buttons.md",
-    "version/3.0/ripscrip/5.0-host-commands.md",
-    "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/7.1-data-tables.md"
+    "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 7909,
+  "matched_source_blocks": 8039,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -959,7 +956,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 57,
+  "upstream_issue_resolutions": 58,
   "pending_followups": [],
   "derivations": [
     {
@@ -1256,7 +1253,7 @@
     },
     {
       "path": "version/3.0/research/issue-112-undefined-button-style.md",
-      "sha256": "2a1d3c87ee81aaa51b7a3ddb31111d0d51372d5a85e75b72f7e81b199316be73",
+      "sha256": "44a49cd52c0fbad68d31ed8ae5eae1702f893d4fd382972247b48da16c796923",
       "title": "Issue #112: Undefined current button-style state",
       "role": "Read-only original-source derivation with explicit normative reconciliation or portable ownership/lifetime completion; no original code executed."
     },
@@ -1265,6 +1262,12 @@
       "sha256": "b93ae44ac92e7d14c2d3ad79276094b2fc7525f5239d44dd5146d13bde747880",
       "title": "Issue #113: Mouse gesture commitment and field identities",
       "role": "Read-only original-source derivation with explicit normative reconciliation or portable ownership/lifetime completion; no original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-116-button-payload-hit-geometry.md",
+      "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
+      "title": "Issue #116: Button payload, validation and hit geometry",
+      "role": "Read-only original-source derivation and explicitly adopted portable payload/validation/half-open input policy; no original code executed."
     }
   ],
   "documents": [
@@ -1406,11 +1409,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "86e50fc24e8ed3086dafd5b64e9aaf6b179c7a4e1a7f6e541b7cd158710ebf5a"
+      "sha256": "b04a5b3b68180f70ac8448c3a4ee38bd0f1aa44b1e9c1e4dc499f821b57c1554"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "65de7bd520ecf1f665de0ce4ec9ca781af46f67cc329f6b7963dda2c25195526"
+      "sha256": "84dd8aa212d1c686be69cbae9072a91487dacf600f349affd7aa9e0ff9038491"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1430,7 +1433,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "38f2c7ff2ff348ef9498714bab6fa2d918eee23120830210fa031ab1d7a31407"
+      "sha256": "dd8f46592f6029662cd26a6e9f1c7ee39b65282cb2da7cfb1bab8ea67c67f537"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -5011,6 +5014,217 @@
       "pending_followups": [
         "Hover dispatch, mouse table save/restore and nested playback require connected owners; current FIELDID evidence covers committed simple-field programs and ordinary query isolation.",
         "Inactive/wholly-clipped mouse definitions retain the current explicitly pending client handling; reconcile against existing geometry contracts before claiming those edges."
+      ]
+    },
+    {
+      "previous_revision": "ebd81bcbb29eeca2d2c283d40221cbabb3cee531",
+      "revision": "1b8ab9928a9fd9071556cf0228ea69a496db3e72",
+      "archive_sha256": "782a19012ccd898084fbafeb3a4e52cf08821b9dcf5eef9212d849ab2fdd7e75",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/117",
+          "revision": "8b76c83c0980b44ed0c8aba6c96a0f9113ef9987"
+        }
+      ],
+      "upstream_state": "Reviewed PR117 head consolidated into fork stable.",
+      "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
+      "prior_adoption_commit": "f8b100b0",
+      "changed_documents": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+        "version/3.0/ripscrip/4.3-buttons.md",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8039,
+      "moved_source_blocks": 513,
+      "new_source_blocks": 60,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:18",
+        "version/3.0/ripscrip/4.3-buttons.md:96",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:567",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:572",
+        "version/3.0/ripscrip/4.3-buttons.md:573",
+        "version/3.0/ripscrip/4.3-buttons.md:574",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:580",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/4.3-buttons.md:582",
+        "version/3.0/ripscrip/4.3-buttons.md:583",
+        "version/3.0/ripscrip/4.3-buttons.md:584",
+        "version/3.0/ripscrip/4.3-buttons.md:585",
+        "version/3.0/ripscrip/4.3-buttons.md:586",
+        "version/3.0/ripscrip/4.3-buttons.md:587",
+        "version/3.0/ripscrip/4.3-buttons.md:588",
+        "version/3.0/ripscrip/4.3-buttons.md:589",
+        "version/3.0/ripscrip/4.3-buttons.md:590",
+        "version/3.0/ripscrip/4.3-buttons.md:591",
+        "version/3.0/ripscrip/4.3-buttons.md:593",
+        "version/3.0/ripscrip/4.3-buttons.md:595",
+        "version/3.0/ripscrip/4.3-buttons.md:597",
+        "version/3.0/ripscrip/4.3-buttons.md:599",
+        "version/3.0/ripscrip/4.3-buttons.md:603",
+        "version/3.0/ripscrip/4.3-buttons.md:605",
+        "version/3.0/ripscrip/4.3-buttons.md:607",
+        "version/3.0/ripscrip/4.3-buttons.md:609",
+        "version/3.0/ripscrip/4.3-buttons.md:610",
+        "version/3.0/ripscrip/4.3-buttons.md:611",
+        "version/3.0/ripscrip/4.3-buttons.md:612",
+        "version/3.0/ripscrip/4.3-buttons.md:613",
+        "version/3.0/ripscrip/4.3-buttons.md:614",
+        "version/3.0/ripscrip/4.3-buttons.md:615",
+        "version/3.0/ripscrip/4.3-buttons.md:617",
+        "version/3.0/ripscrip/4.3-buttons.md:619",
+        "version/3.0/ripscrip/4.3-buttons.md:623",
+        "version/3.0/ripscrip/4.3-buttons.md:625",
+        "version/3.0/ripscrip/4.3-buttons.md:627",
+        "version/3.0/ripscrip/4.3-buttons.md:629",
+        "version/3.0/ripscrip/4.3-buttons.md:631",
+        "version/3.0/ripscrip/4.3-buttons.md:638",
+        "version/3.0/ripscrip/4.3-buttons.md:640",
+        "version/3.0/ripscrip/4.3-buttons.md:642",
+        "version/3.0/ripscrip/4.3-buttons.md:644",
+        "version/3.0/ripscrip/4.3-buttons.md:645",
+        "version/3.0/ripscrip/4.3-buttons.md:646",
+        "version/3.0/ripscrip/4.3-buttons.md:647",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/4.3-buttons.md:649",
+        "version/3.0/ripscrip/4.3-buttons.md:650",
+        "version/3.0/ripscrip/4.3-buttons.md:651",
+        "version/3.0/ripscrip/4.3-buttons.md:652",
+        "version/3.0/ripscrip/4.3-buttons.md:653",
+        "version/3.0/ripscrip/4.3-buttons.md:654",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:27"
+      ],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/4.3-buttons.md:96",
+        "version/3.0/ripscrip/4.3-buttons.md:563",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/4.3-buttons.md:583",
+        "version/3.0/ripscrip/4.3-buttons.md:585",
+        "version/3.0/ripscrip/4.3-buttons.md:587",
+        "version/3.0/ripscrip/4.3-buttons.md:589",
+        "version/3.0/ripscrip/4.3-buttons.md:591",
+        "version/3.0/ripscrip/4.3-buttons.md:592",
+        "version/3.0/ripscrip/4.3-buttons.md:593",
+        "version/3.0/ripscrip/4.3-buttons.md:594",
+        "version/3.0/ripscrip/4.3-buttons.md:595",
+        "version/3.0/ripscrip/4.3-buttons.md:596",
+        "version/3.0/ripscrip/4.3-buttons.md:597",
+        "version/3.0/ripscrip/4.3-buttons.md:598",
+        "version/3.0/ripscrip/4.3-buttons.md:599",
+        "version/3.0/ripscrip/4.3-buttons.md:600",
+        "version/3.0/ripscrip/4.3-buttons.md:601",
+        "version/3.0/ripscrip/4.3-buttons.md:602",
+        "version/3.0/ripscrip/4.3-buttons.md:603",
+        "version/3.0/ripscrip/4.3-buttons.md:604",
+        "version/3.0/ripscrip/4.3-buttons.md:605",
+        "version/3.0/ripscrip/4.3-buttons.md:607",
+        "version/3.0/ripscrip/4.3-buttons.md:609",
+        "version/3.0/ripscrip/4.3-buttons.md:611",
+        "version/3.0/ripscrip/4.3-buttons.md:613"
+      ],
+      "removed_implementation_claims": [],
+      "previous_implementation_evidence": [],
+      "source_blocks_after_update": 8099,
+      "resolved_documentation_blockers": [
+        116
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-116-button-payload-hit-geometry.md",
+          "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
+          "title": "Issue #116: Button payload, validation and hit geometry",
+          "role": "Read-only original-source derivation and explicitly adopted portable payload/validation/half-open input policy; no original code executed."
+        }
+      ],
+      "corrected_derivations": [
+        {
+          "path": "version/3.0/research/issue-112-undefined-button-style.md",
+          "previous_sha256": "2a1d3c87ee81aaa51b7a3ddb31111d0d51372d5a85e75b72f7e81b199316be73",
+          "sha256": "44a49cd52c0fbad68d31ed8ae5eae1702f893d4fd382972247b48da16c796923",
+          "reason": "PR117 corrects the earlier one-field label example to <>Style B and records its previous numeric-only proof."
+        }
+      ],
+      "reviewed_change": "Fixed three positional slots, one ID scan then leading ASCII trim, raw limits, opaque deferred host source, half-open stored hit geometry, normalized positive dynamic faces and effective destination/clipping snapshots. Corrected PR114 label example; no VT-102 mode.",
+      "states_after_update": {
+        "unreviewed": 3444,
+        "context": 1287,
+        "pending": 1711,
+        "implemented": 1565,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:13",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:103",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:109",
+        "version/3.0/ripscrip/4.3-buttons.md:96",
+        "version/3.0/ripscrip/4.3-buttons.md:205",
+        "version/3.0/ripscrip/4.3-buttons.md:209",
+        "version/3.0/ripscrip/4.3-buttons.md:221",
+        "version/3.0/ripscrip/4.3-buttons.md:478",
+        "version/3.0/ripscrip/4.3-buttons.md:479",
+        "version/3.0/ripscrip/4.3-buttons.md:482",
+        "version/3.0/ripscrip/4.3-buttons.md:498",
+        "version/3.0/ripscrip/4.3-buttons.md:499",
+        "version/3.0/ripscrip/4.3-buttons.md:515",
+        "version/3.0/ripscrip/4.3-buttons.md:517",
+        "version/3.0/ripscrip/4.3-buttons.md:525",
+        "version/3.0/ripscrip/4.3-buttons.md:526",
+        "version/3.0/ripscrip/4.3-buttons.md:537",
+        "version/3.0/ripscrip/4.3-buttons.md:539",
+        "version/3.0/ripscrip/4.3-buttons.md:545",
+        "version/3.0/ripscrip/4.3-buttons.md:546",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/4.3-buttons.md:582",
+        "version/3.0/ripscrip/4.3-buttons.md:583",
+        "version/3.0/ripscrip/4.3-buttons.md:584",
+        "version/3.0/ripscrip/4.3-buttons.md:585",
+        "version/3.0/ripscrip/4.3-buttons.md:586",
+        "version/3.0/ripscrip/4.3-buttons.md:587",
+        "version/3.0/ripscrip/4.3-buttons.md:588",
+        "version/3.0/ripscrip/4.3-buttons.md:589",
+        "version/3.0/ripscrip/4.3-buttons.md:590",
+        "version/3.0/ripscrip/4.3-buttons.md:591",
+        "version/3.0/ripscrip/4.3-buttons.md:612",
+        "version/3.0/ripscrip/4.3-buttons.md:613",
+        "version/3.0/ripscrip/4.3-buttons.md:614",
+        "version/3.0/ripscrip/4.3-buttons.md:615",
+        "version/3.0/ripscrip/4.3-buttons.md:617",
+        "version/3.0/ripscrip/4.3-buttons.md:619",
+        "version/3.0/ripscrip/4.3-buttons.md:625",
+        "version/3.0/ripscrip/4.3-buttons.md:629",
+        "version/3.0/ripscrip/4.3-buttons.md:631",
+        "version/3.0/ripscrip/4.3-buttons.md:640",
+        "version/3.0/ripscrip/4.3-buttons.md:646",
+        "version/3.0/ripscrip/4.3-buttons.md:647",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/4.3-buttons.md:649",
+        "version/3.0/ripscrip/4.3-buttons.md:650",
+        "version/3.0/ripscrip/4.3-buttons.md:651",
+        "version/3.0/ripscrip/4.3-buttons.md:652",
+        "version/3.0/ripscrip/4.3-buttons.md:653",
+        "version/3.0/ripscrip/4.3-buttons.md:654",
+        "version/3.0/ripscrip/4.3-buttons.md:676"
+      ],
+      "pending_followups": [
+        "ICON/clipboard/hot/auto faces, radio/check groups, keyboard/default-Enter activation, graphical filename/label expansion, hover queries and selective deletion/table save/restore remain pending.",
+        "Half-open click boundaries are connected for simple fields and plain buttons; hover must adopt the same predicate when its dispatcher is implemented."
       ]
     }
   ],

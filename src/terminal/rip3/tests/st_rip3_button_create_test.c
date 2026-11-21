@@ -1,0 +1,255 @@
+/* Independent plain-button geometry, state and input expectations. */
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_commands.h"
+#include "st_rip3_button_styles.h"
+#include "st_rip3_button_payload.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_styles.h"
+#include "st_rip3_ports.h"
+#include "st_rip3_palettes.h"
+#include "st_rip3_mouse.h"
+#include "st_rip3_text_commands.h"
+#include <stdio.h>
+#include <string.h>
+
+#define CHECK(x) do {if (!(x)) {fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1;}} while (0)
+static void diagnostic(void *context,enum st_rip3_command_diagnostic kind) {(void)kind;++*(unsigned *)context;}
+static int pixel(struct st_rip3_ports *ports,int x,int y,unsigned color)
+{
+	uint8_t value=255;CHECK(st_rip3_ports_read(ports,0,x,y,&value)==0 && value==color);return 0;
+}
+static void command(struct st_rip3_command_host *host,unsigned *errors,const char *wire)
+{
+	const struct st_rip3_command_sink sink={errors,diagnostic};
+	st_rip3_commands_process(host,&sink,(const uint8_t *)wire,strlen(wire));
+}
+
+static int payloads(void)
+{
+	static const struct {const char *text,*icon,*label,*host;int identity;} cases[]={
+	    {"icon<>label<>host","icon","label","host",-1},
+	    {"<>label<>host","","label","host",-1},{"icon<>label","icon","label","",-1},
+	    {"icon<>label<>","icon","label","",-1},{"<>label","","label","",-1},
+	    {"<>label<>","","label","",-1},{"<><>host","","","host",-1},
+	    {"icon","icon","","",-1},{"icon<>","icon","","",-1},
+	    {"icon<><>","icon","","",-1},{"<>","","","",-1},{"<><>","","","",-1},
+	    {"<><><>","","","<>",-1},{"<>label<>host<>tail","","label","host<>tail",-1},
+	    {"Style B","Style B","","",-1},{"<>Style B","","Style B","",-1},
+	    {"ID=7: \t\n\v\f\r<> label <> host ",""," label "," host ",7},
+	    {" ID=7:<>label<>host","ID=7:","label","host",-1},
+	    {"id=00007:<>label<>ID=8:host","","label","ID=8:host",7}};
+	for (size_t i=0;i<sizeof(cases)/sizeof(*cases);i++) {
+		struct st_rip3_button_payload p;
+		CHECK(st_rip3_button_payload_parse(&p,(const uint8_t *)cases[i].text,strlen(cases[i].text))==0);
+		CHECK(p.identity==cases[i].identity);
+		CHECK(p.icon.length==strlen(cases[i].icon) && memcmp(p.icon.data,cases[i].icon,p.icon.length)==0);
+		CHECK(p.label.length==strlen(cases[i].label) && memcmp(p.label.data,cases[i].label,p.label.length)==0);
+		CHECK(p.host.length==strlen(cases[i].host) && memcmp(p.host.data,cases[i].host,p.host.length)==0);
+	}
+	struct st_rip3_button_payload p={.identity=123};
+	CHECK(st_rip3_button_payload_parse(&p,(const uint8_t *)"ID=7: \t",7)!=0 && p.identity==123);
+	uint8_t text[264];memset(text,'X',sizeof(text));
+	CHECK(st_rip3_button_payload_parse(&p,text,127)==0 && p.icon.length==127);
+	CHECK(st_rip3_button_payload_parse(&p,text,128)!=0);
+	text[0]='<';text[1]='>';
+	CHECK(st_rip3_button_payload_parse(&p,text,257)==0 && p.label.length==255);
+	CHECK(st_rip3_button_payload_parse(&p,text,258)!=0);
+	return 0;
+}
+int main(void)
+{
+	CHECK(payloads()==0);
+	struct st_rip3_command_host host={0};unsigned errors=0;
+	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
+	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_ports_create(&host.ports,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_button_styles_create(&host.button_styles)==0);host.text=&text;
+	CHECK(st_rip3_palettes_create(&host.palettes)==0);
+	struct st_rip3_environment env;
+	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
+	env.world_width=640;env.world_height=480;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	struct st_rip3_button_style style;
+	CHECK(st_rip3_button_styles_get(host.button_styles,0,&style)==0);
+	style.flags=256;style.colors[ST_RIP3_BUTTON_SURFACE]=3;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");CHECK(errors==0);
+	CHECK(pixel(host.ports,10,20,3)==0 && pixel(host.ports,59,39,3)==0);
+	CHECK(pixel(host.ports,9,20,0)==0 && pixel(host.ports,60,40,0)==0);
+	/* Literal radix-64, five-digit XY input uses the live ENV, not the
+	 * button-style definition's earlier wire radix/coordinate width. */
+	env.base_math=64;env.coordinate_size=5;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	command(&host,&errors,"1U0000A0000K0000U0000e0000<><>");CHECK(errors==0);
+	env.base_math=36;env.coordinate_size=2;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	/* Raw payload failures are pure preflight: not even the face is painted. */
+	const struct st_rip3_rect preflight_area={10,20,59,39};unsigned invalid=0;
+	CHECK(st_rip3_ports_fill(host.ports,&preflight_area,6,ST_RIP3_COPY)==0);
+	command(&host,&invalid,"1U0A0K1O140000");
+	command(&host,&invalid,"1U0A0K1O140000bad/name<>label<>host");
+	char excessive[300];const char *label_prefix="1U0A0K1O140000<>";
+	size_t prefix_length=strlen(label_prefix);memcpy(excessive,label_prefix,prefix_length);
+	memset(excessive+prefix_length,'X',256);excessive[prefix_length+256]=0;
+	command(&host,&invalid,excessive);
+	CHECK(invalid==3 && pixel(host.ports,10,20,6)==0 && pixel(host.ports,59,39,6)==0);
+	/* Complete fixed size ignores both far coordinates and never rescales
+	 * stored device dimensions after a WORLD change. A mixed size is dynamic. */
+	style.width=30;style.height=10;style.colors[ST_RIP3_BUTTON_SURFACE]=4;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	env.world_width=1280;env.world_height=960;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	command(&host,&errors,"1U5K5K00000000<><>");CHECK(errors==0);
+	CHECK(pixel(host.ports,100,100,4)==0 && pixel(host.ports,129,109,4)==0 && pixel(host.ports,130,110,0)==0);
+	style.width=0;style.flags=768;style.bevel=3;style.colors[ST_RIP3_BUTTON_SURFACE]=7;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	env.world_width=640;env.world_height=480;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");CHECK(errors==0);
+	CHECK(pixel(host.ports,10,17,15)==0 && pixel(host.ports,7,20,15)==0);
+	CHECK(pixel(host.ports,62,20,8)==0 && pixel(host.ports,10,42,8)==0);
+	const struct st_rip3_rect sizing_area={400,300,559,379};
+	for (unsigned i=0;i<4;i++) {
+		style.flags=256;style.width=(i&1)!=0 ? 30 : 0;style.height=(i&2)!=0 ? 10 : 0;
+		style.colors[ST_RIP3_BUTTON_SURFACE]=4;
+		CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+		CHECK(st_rip3_ports_fill(host.ports,&sizing_area,0,ST_RIP3_COPY)==0);
+		command(&host,&errors,"1UB48CFKAK0000<><>");CHECK(errors==0);
+		CHECK(pixel(host.ports,429,309,4)==0);
+		CHECK(pixel(host.ports,559,379,i==3 ? 0 : 4)==0);
+	}
+	style.colors[ST_RIP3_BUTTON_SURFACE]=7;
+	/* Drawing permits protected configuration without editing it. */
+	CHECK(st_rip3_button_styles_select(host.button_styles,5)==0);
+	style.flags=256;style.width=style.height=0;
+	CHECK(st_rip3_button_styles_set(host.button_styles,5,&style)==0);
+	CHECK(st_rip3_button_styles_protect(host.button_styles,5,true)==0);
+	struct st_rip3_cursor cursor={123,234};
+	CHECK(st_rip3_ports_cursor(host.ports,0,&cursor)==0);
+	command(&host,&errors,"1U2S2S5K3C0000<>Label<>");CHECK(errors==0);
+	struct st_rip3_port_info port;CHECK(st_rip3_ports_info(host.ports,0,&port)==0);
+	CHECK(port.cursor.x==123 && port.cursor.y==234 && text.outline_cache==NULL);
+	struct st_rip3_button_style_info info;CHECK(st_rip3_button_styles_info(host.button_styles,5,&info)==0 && info.protected);
+	command(&host,&errors,"1Ubad");CHECK(errors==1);
+	/* All flags2 combinations on decorations accept inapplicable mouse bits.
+	 * NOFILL overrides PATTERN, whose phase stays in the drawing context. */
+	CHECK(st_rip3_button_styles_select(host.button_styles,0)==0);
+	const unsigned rows[8]={0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa,0xaa};
+	const struct st_rip3_point origin={0,0};
+	CHECK(st_rip3_fill_custom(&drawing.fill,rows,&origin)==0);
+	drawing.fill_color=2;drawing.background_color=1;
+	CHECK(st_rip3_styles_set(host.styles,0,&drawing)==0);
+	const struct st_rip3_rect area={10,20,59,39};
+	for (unsigned i=0;i<256;i++) {
+		style.flags=256;style.flags2=(uint8_t)i;
+		CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+		CHECK(st_rip3_ports_fill(host.ports,&area,6,ST_RIP3_COPY)==0);
+		command(&host,&errors,"1U0A0K1O140000<><>");CHECK(errors==1);
+		CHECK(pixel(host.ports,10,20,(i&32)!=0 ? 6 : (i&64)!=0 ? 2 : 7)==0);
+		CHECK(pixel(host.ports,11,20,(i&32)!=0 ? 6 : (i&64)!=0 ? 1 : 7)==0);
+	}
+	struct st_rip3_mouse_sink mouse_sink={0};
+	CHECK(st_rip3_mouse_create(&host.mouse,&mouse_sink)==0);
+	style.flags=256|1024|2048;style.flags2=0;style.colors[ST_RIP3_BUTTON_UNDERLINE]=14;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K1O141T00<>Aaa<>");CHECK(errors==1);
+	unsigned yellow=0;
+	for (int y=20;y<40;y++) for (int x=10;x<60;x++) {
+		uint8_t value;CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0);
+		if (value==14) {CHECK(x>=23 && x<31);yellow++;}
+	}
+	CHECK(yellow==8); /* First matching hot character only, native font width 8. */
+	style.flags=256|1024;style.flags2=2;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K1O141T00<>Aaa<>");CHECK(errors==1);
+	yellow=0;
+	for (int y=20;y<40;y++) for (int x=10;x<60;x++) {
+		uint8_t value;CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0);
+		if (value==14) {CHECK(x>=23 && x<31);yellow++;}
+	}
+	CHECK(yellow>0);
+	/* Decorations use the current screen/offscreen context; mouse buttons
+	 * always use PORT0 and restore the caller's current selection. */
+	st_rip3_mouse_kill(host.mouse);
+	const struct st_rip3_rect screen_port={100,100,199,199},bitmap_port={0,0,79,79};
+	CHECK(st_rip3_ports_define(host.ports,5,&screen_port,false)==0 && st_rip3_ports_switch(host.ports,5)==0);
+	style.flags=256;style.flags2=0;style.colors[ST_RIP3_BUTTON_SURFACE]=3;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");CHECK(errors==1);
+	unsigned current;CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==5);
+	CHECK(pixel(host.ports,110,120,3)==0);
+	style.flags=256|1024;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");CHECK(errors==1);
+	CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==5);
+	CHECK(!st_rip3_mouse_event(host.mouse,160,130,true));
+	CHECK(!st_rip3_mouse_event(host.mouse,20,30,false));
+	CHECK(st_rip3_mouse_event(host.mouse,20,30,true) && st_rip3_mouse_event(host.mouse,20,30,false));
+	CHECK(st_rip3_ports_define(host.ports,6,&bitmap_port,true)==0 && st_rip3_ports_switch(host.ports,6)==0);
+	style.flags=256;style.colors[ST_RIP3_BUTTON_SURFACE]=5;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");CHECK(errors==1);
+	uint8_t color;CHECK(st_rip3_ports_read(host.ports,6,10,20,&color)==0 && color==5);
+	CHECK(pixel(host.ports,10,20,3)==0 && st_rip3_ports_current(host.ports,&current)==0 && current==6);
+	/* PR117: normalize before conversion, and reject zero DEVICE area before
+	 * bevel can turn a line into a field. These skips consume no capacity. */
+	st_rip3_mouse_kill(host.mouse);
+	CHECK(st_rip3_ports_switch(host.ports,0)==0);
+	style.flags=256|1024|512;style.bevel=3;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U0A0K0A140000<><>");
+	command(&host,&errors,"1U0A0K00000000<><>");
+	env.world_width=1280;env.world_height=960;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	command(&host,&errors,"1U0A0K0B0L0000<><>");
+	CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
+	env.world_width=640;env.world_height=480;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	command(&host,&errors,"1U0U140A0K0000<><>");
+	CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==1);
+	CHECK(st_rip3_mouse_event(host.mouse,7,17,true) && st_rip3_mouse_event(host.mouse,32,42,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,33,20,true) && !st_rip3_mouse_event(host.mouse,33,20,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,10,43,true) && !st_rip3_mouse_event(host.mouse,10,43,false));
+	st_rip3_mouse_kill(host.mouse);
+	/* Inactive PORT0 skips while another active port is current. Reactivation
+	 * does not resurrect the skipped button. An unrelated inactive current
+	 * bitmap does not prevent a later valid PORT0 definition. */
+	CHECK(st_rip3_ports_activate(host.ports,false)==0 && st_rip3_ports_switch(host.ports,5)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");
+	CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
+	CHECK(st_rip3_ports_switch(host.ports,0)==0 && st_rip3_ports_activate(host.ports,true)==0);
+	CHECK(st_rip3_mouse_count(host.mouse)==0);
+	const struct st_rip3_rect clipped_view={100,100,149,139};
+	CHECK(st_rip3_ports_viewport_device(host.ports,&clipped_view)==0);
+	command(&host,&errors,"1U1H0A1O0K0000<><>"); /* bevel starts at exclusive right 50 */
+	command(&host,&errors,"1U2S0A3C0K0000<><>"); /* wholly clipped */
+	command(&host,&errors,"1M001E0A1O0K0000000"); /* simple field touches right */
+	CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
+	CHECK(st_rip3_ports_switch(host.ports,6)==0 && st_rip3_ports_activate(host.ports,false)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");
+	CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==1);
+	CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==6);
+	CHECK(st_rip3_mouse_event(host.mouse,107,117,true) && st_rip3_mouse_event(host.mouse,149,139,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,150,120,true) && !st_rip3_mouse_event(host.mouse,150,120,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,110,140,true) && !st_rip3_mouse_event(host.mouse,110,140,false));
+	/* Creation snapshots survive subsequent viewport motion/deactivation,
+	 * including a gesture already captured at the old absolute rectangle. */
+	CHECK(st_rip3_mouse_event(host.mouse,110,120,true));
+	CHECK(st_rip3_ports_switch(host.ports,0)==0);
+	const struct st_rip3_rect moved_view={300,300,349,339};
+	CHECK(st_rip3_ports_viewport_device(host.ports,&moved_view)==0 && st_rip3_ports_activate(host.ports,false)==0);
+	CHECK(st_rip3_mouse_event(host.mouse,110,120,false));
+	CHECK(st_rip3_mouse_event(host.mouse,110,120,true) && st_rip3_mouse_event(host.mouse,110,120,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,310,320,true) && !st_rip3_mouse_event(host.mouse,310,320,false));
+	st_rip3_mouse_kill(host.mouse);
+	CHECK(st_rip3_ports_activate(host.ports,true)==0);
+	const struct st_rip3_rect outside_view={700,500,749,539};
+	CHECK(st_rip3_ports_viewport_device(host.ports,&outside_view)==0);
+	command(&host,&errors,"1U0A0K1O140000<><>");
+	command(&host,&errors,"1M000A0K1O140000000");
+	CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
+	st_rip3_mouse_destroy(host.mouse);st_rip3_palettes_destroy(host.palettes);
+	st_rip3_button_styles_destroy(host.button_styles);st_rip3_styles_destroy(host.styles);
+	st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);return 0;
+}

@@ -79,8 +79,8 @@ open_directory(struct st_rip3_resource *result, const char *directory,
 	return status;
 }
 
-static bool
-valid_name(const char *name)
+bool
+st_rip3_resource_name_valid(const char *name)
 {
 	size_t size;
 
@@ -107,7 +107,7 @@ st_rip3_resource_open(struct st_rip3_resource *result,
 	const char *fixed[2];
 	size_t fixed_count;
 
-	if (result == NULL || paths == NULL || !valid_name(name)
+	if (result == NULL || paths == NULL || !st_rip3_resource_name_valid(name)
 	    || (kind != ST_RIP3_RESOURCE_MEDIA && kind != ST_RIP3_RESOURCE_FONT)
 	    || (paths->search_count != 0 && paths->search == NULL))
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -157,7 +157,7 @@ st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	size_t key_size;
 	int status;
 
-	if (paths == NULL || !valid_name(name) || (bytes == NULL && size != 0))
+	if (paths == NULL || !st_rip3_resource_name_valid(name) || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* A missing session directory is not authority to write into a shared
 	 * lookup tier. Its selection/confinement belongs to client setup. */

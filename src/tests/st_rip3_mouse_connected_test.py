@@ -46,7 +46,7 @@ def run(args):
             return t.input(expected) if expected else t.exchange()
 
         t.case("rip3-field-native-feedback-and-self-delete")
-        t.exchange(field((0,0,95,15),b"$MKILL$clicked^M",invert=True))
+        t.exchange(field((0,0,96,16),b"$MKILL$clicked^M",invert=True))
         before=t.exchange()
         mouse(1,1,True)
         pressed=t.exchange()
@@ -66,7 +66,7 @@ def run(args):
         click(1,1,b"")
 
         t.case("rip3-field-feedback-around-incoming-output")
-        t.exchange(field((0,0,95,15),b"drawn",invert=True))
+        t.exchange(field((0,0,96,16),b"drawn",invert=True))
         mouse(2,2,True)
         # Both ANSI text and RIP drawing arrive while pressed. Feedback must
         # surround the new scene, then release must restore that new scene.

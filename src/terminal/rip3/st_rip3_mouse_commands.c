@@ -39,21 +39,21 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_port_info port;
 	status=st_rip3_ports_info(host->ports,0,&port);
 	if (status!=0) return status;
-	if (!port.viewport_active) return IO_ERROR_NOT_SUPPORTED; /* #113 */
+	if (!port.viewport_active) return 0;
 	int64_t x0=(int64_t)(values[1]*frame.device_width/frame.world_width);
 	int64_t y0=(int64_t)(values[2]*frame.device_height/frame.world_height);
 	int64_t x1=(int64_t)(values[3]*frame.device_width/frame.world_width);
 	int64_t y1=(int64_t)(values[4]*frame.device_height/frame.world_height);
 	if (x0<port.clip.x0) x0=port.clip.x0;
 	if (y0<port.clip.y0) y0=port.clip.y0;
-	if (x1>port.clip.x1) x1=port.clip.x1;
-	if (y1>port.clip.y1) y1=port.clip.y1;
-	if (x0>x1 || y0>y1) return IO_ERROR_NOT_SUPPORTED; /* #113 */
+	if (x1>(int64_t)port.clip.x1+1) x1=(int64_t)port.clip.x1+1;
+	if (y1>(int64_t)port.clip.y1+1) y1=(int64_t)port.clip.y1+1;
+	if (x0>=x1 || y0>=y1) return 0;
 	int64_t ox=(int64_t)port.bounds.x0+port.viewport.x0;
 	int64_t oy=(int64_t)port.bounds.y0+port.viewport.y0;
 	if (ox+x0<0 || oy+y0<0 || ox+x1>INT32_MAX || oy+y1>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_rect area={(int32_t)(ox+x0),(int32_t)(oy+y0),(int32_t)(ox+x1),(int32_t)(oy+y1)};
 	const uint8_t *program=command+at;size_t program_length=length-at;
 	int identity=st_rip3_mouse_identity(&program,&program_length);
-	*operation=true;return st_rip3_mouse_define(host->mouse,&area,values[5]!=0,identity,program,program_length);
+	*operation=true;return st_rip3_mouse_define(host->mouse,&area,values[5]!=0,false,identity,program,program_length);
 }

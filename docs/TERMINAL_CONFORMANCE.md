@@ -26,9 +26,14 @@ freezes the existing RIP 1.54 implementation and historical fixtures. This is
 preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 `syncterm_rip3_mouse_CP437` and `syncterm_rip3_mouse_UTF-8` cover connected
 simple mouse fields, host execution, captured coordinates, deletion and native
-text/graphics press feedback. Their explicit gesture policy awaits upstream
-issue #113. Clear/zoom, identities, hover and button creation remain pending;
-see the RIP3 inventory for the exact supported subset.
+text/graphics press feedback and the adopted PR #115 gesture/identity policy.
+`syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise plain
+`1U` rendering, classic/Dixon labels, pointer activation, reset-before-host,
+shared capacity and deferred host failure recovery on four connection rasters.
+PR #117 defines positional payload splitting and half-open hit boundaries;
+native tests cover raw limits, reversed/degenerate faces and viewport snapshots.
+Clear/zoom, hover, image faces, groups and keyboard/default-Enter activation
+remain pending; see the RIP3 inventory for the exact supported subset.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
 when upstream reference documentation or a PR describes that mode. Applicable

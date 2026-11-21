@@ -18,15 +18,16 @@ struct st_rip3_mouse_sink {
 	void *context;
 	void (*invert)(void *context, const struct st_rip3_rect *area);
 	/* The program is an independent copy: this callback may delete fields. */
-	void (*activate)(void *context, const uint8_t *program, size_t length, int identity, int32_t x, int32_t y);
+	void (*activate)(void *context, const uint8_t *program, size_t length, bool reset, int identity, int32_t x, int32_t y);
 	void (*resource_failure)(void *context);
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
-/* Inclusive, clipped absolute DEVICE bounds. Simple fields and future button
+/* Half-open, clipped absolute DEVICE bounds. Simple fields and button
  * records share this owner's 128 entries. No drawing buffers or damage map. */
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area,
-	bool invert, int identity, const uint8_t *program, size_t length);
+	bool invert, bool reset, int identity, const uint8_t *program, size_t length);
+size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);
 bool st_rip3_mouse_active(const struct st_rip3_mouse *mouse);

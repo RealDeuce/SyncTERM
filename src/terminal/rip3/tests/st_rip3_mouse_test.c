@@ -11,10 +11,10 @@ static void flip(void *context,const struct st_rip3_rect *area)
 {
 	struct fixture *f=context;(void)area;++f->flips;
 }
-static void activate(void *context,const uint8_t *program,size_t length,int identity,int32_t x,int32_t y)
+static void activate(void *context,const uint8_t *program,size_t length,bool reset,int identity,int32_t x,int32_t y)
 {
 	struct fixture *f=context;++f->calls;
-	(void)x;(void)y;
+	(void)x;(void)y;(void)reset;
 	st_rip3_mouse_kill(f->mouse);
 	/* Deliberately read after freeing all source records. */
 	if (length==1) f->result=program[0];
@@ -66,30 +66,35 @@ int main(void)
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	struct st_rip3_rect area={10,20,30,40};
 	CHECK(!st_rip3_mouse_active(f.mouse));
-	for (unsigned i=0;i<128;i++) {uint8_t n=(uint8_t)i;CHECK(st_rip3_mouse_define(f.mouse,&area,true,-1,&n,1)==0);}
-	CHECK(st_rip3_mouse_define(f.mouse,&area,false,-1,NULL,0)!=0);
+	CHECK(st_rip3_mouse_define(f.mouse,&area,false,false,-1,NULL,0)==0);
+	CHECK(!st_rip3_mouse_event(f.mouse,30,20,true) && !st_rip3_mouse_event(f.mouse,30,20,false));
+	CHECK(!st_rip3_mouse_event(f.mouse,10,40,true) && !st_rip3_mouse_event(f.mouse,10,40,false));
+	CHECK(!st_rip3_mouse_event(f.mouse,9,20,true) && !st_rip3_mouse_event(f.mouse,9,20,false));
+	CHECK(f.calls==0);st_rip3_mouse_kill(f.mouse);
+	for (unsigned i=0;i<128;i++) {uint8_t n=(uint8_t)i;CHECK(st_rip3_mouse_define(f.mouse,&area,true,false,-1,&n,1)==0);}
+	CHECK(st_rip3_mouse_define(f.mouse,&area,false,false,-1,NULL,0)!=0);
 	CHECK(!st_rip3_mouse_event(f.mouse,9,20,true));
 	CHECK(!st_rip3_mouse_event(f.mouse,10,20,false));CHECK(f.calls==0);
 	CHECK(st_rip3_mouse_event(f.mouse,10,20,true));CHECK(f.flips==1);
 	CHECK(st_rip3_mouse_event(f.mouse,31,40,true));CHECK(f.flips==2);
-	CHECK(st_rip3_mouse_event(f.mouse,30,40,true));CHECK(f.flips==3);
-	CHECK(st_rip3_mouse_event(f.mouse,30,40,false));
+	CHECK(st_rip3_mouse_event(f.mouse,29,39,true));CHECK(f.flips==3);
+	CHECK(st_rip3_mouse_event(f.mouse,29,39,false));
 	CHECK(f.flips==4 && f.calls==1 && f.result==127 && !st_rip3_mouse_active(f.mouse));
-	CHECK(st_rip3_mouse_define(f.mouse,&area,true,-1,(const uint8_t *)"x",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,&area,true,false,-1,(const uint8_t *)"x",1)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));
 	CHECK(st_rip3_mouse_event(f.mouse,-1,-1,false));CHECK(f.calls==1 && f.flips==6);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));
 	st_rip3_mouse_kill(f.mouse);CHECK(f.flips==8);
-	CHECK(st_rip3_mouse_define(f.mouse,&area,false,-1,(const uint8_t *)"y",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,&area,false,false,-1,(const uint8_t *)"y",1)==0);
 	CHECK(!st_rip3_mouse_event(f.mouse,20,30,true));
 	CHECK(!st_rip3_mouse_event(f.mouse,20,30,false));CHECK(f.calls==1);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));CHECK(st_rip3_mouse_event(f.mouse,20,30,false));
 	CHECK(f.calls==2 && f.result=='y' && f.identity==-1);
 	/* Same public ID and rectangle do not let a newly appended instance
 	 * steal an existing press. Identity remains valid after source deletion. */
-	CHECK(st_rip3_mouse_define(f.mouse,&area,false,7,(const uint8_t *)"a",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,&area,false,false,7,(const uint8_t *)"a",1)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));
-	CHECK(st_rip3_mouse_define(f.mouse,&area,false,7,(const uint8_t *)"b",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,&area,false,false,7,(const uint8_t *)"b",1)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,false));
 	CHECK(f.calls==3 && f.result=='a' && f.identity==7);
 	st_rip3_mouse_destroy(f.mouse);return 0;

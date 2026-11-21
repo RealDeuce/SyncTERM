@@ -503,12 +503,13 @@ mouse_resource_failure(void *context)
 }
 
 static void
-mouse_activate(void *context, const uint8_t *program, size_t length, int identity, int32_t x, int32_t y)
+mouse_activate(void *context, const uint8_t *program, size_t length, bool reset, int identity, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
 	if (st_rip3_query_pending(session->commands.query)) {
 		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
 	}
+	if (reset && soft_reset(session)!=0) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
 	if (session->sink.mouse_capture!=NULL) session->sink.mouse_capture(session->sink.context,x,y);
 	struct st_rip3_field_context previous=session->field_context;
 	session->field_context=(struct st_rip3_field_context){true,identity};

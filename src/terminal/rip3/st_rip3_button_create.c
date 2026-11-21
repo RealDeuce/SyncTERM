@@ -1,0 +1,346 @@
+/* Connected plain-button construction. All statuses stay below the parser. */
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include "st_rip3_command_internal.h"
+#include "st_rip3_button_styles.h"
+#include "st_rip3_button_payload.h"
+#include "st_rip3_styles.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_ports.h"
+#include "st_rip3_mouse.h"
+#include "st_rip3_resources.h"
+#include "st_rip3_text_commands.h"
+#include "st_rip3_outline_font.h"
+#include "st_rip3_outline_layout.h"
+#include "st_rip3_outline_text.h"
+#include "io_error.h"
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct box {int64_t x0,y0,x1,y1;}; /* Half-open DEVICE edges. */
+struct label {
+	uint8_t bytes[255];size_t length;
+	struct st_rip3_classic_font classic;
+	struct st_rip3_classic_text_style classic_style;
+	struct st_rip3_outline_font outline;
+	struct st_rip3_outline_layout layout;
+	struct st_rip3_text_position positions[255];
+	int32_t advances[255];
+	bool extended;
+	double x,y,width,height,ascent,descent;
+};
+
+static int
+fill(const struct st_rip3_command_host *host,const struct st_rip3_port_info *port,
+    struct box area,uint8_t color)
+{
+	if (area.x0<port->clip.x0) area.x0=port->clip.x0;
+	if (area.y0<port->clip.y0) area.y0=port->clip.y0;
+	if (area.x1>(int64_t)port->clip.x1+1) area.x1=(int64_t)port->clip.x1+1;
+	if (area.y1>(int64_t)port->clip.y1+1) area.y1=(int64_t)port->clip.y1+1;
+	if (area.x0>=area.x1 || area.y0>=area.y1) return 0;
+	const struct st_rip3_rect clipped={(int32_t)area.x0,(int32_t)area.y0,(int32_t)(area.x1-1),(int32_t)(area.y1-1)};
+	return st_rip3_ports_fill(host->ports,&clipped,color,ST_RIP3_COPY);
+}
+
+static int
+edge(const struct st_rip3_command_host *host,const struct st_rip3_port_info *port,
+    struct box b,uint8_t top,uint8_t bottom,uint8_t corner)
+{
+	if (b.x1<=b.x0 || b.y1<=b.y0) return 0;
+	int status=fill(host,port,(struct box){b.x0,b.y0,b.x1,b.y0+1},top);
+	if (status==0) status=fill(host,port,(struct box){b.x0,b.y0,b.x0+1,b.y1},top);
+	if (status==0) status=fill(host,port,(struct box){b.x0,b.y1-1,b.x1,b.y1},bottom);
+	if (status==0) status=fill(host,port,(struct box){b.x1-1,b.y0,b.x1,b.y1},bottom);
+	if (status==0) status=fill(host,port,(struct box){b.x1-1,b.y0,b.x1,b.y0+1},corner);
+	if (status==0) status=fill(host,port,(struct box){b.x0,b.y1-1,b.x0+1,b.y1},corner);
+	return status;
+}
+
+static struct box
+expand(struct box b,int amount)
+{
+	return (struct box){b.x0-amount,b.y0-amount,b.x1+amount,b.y1+amount};
+}
+
+static bool
+descender(uint8_t c)
+{
+	static const uint8_t low[256]={
+	    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,
+	    0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,
+	    1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,
+	    0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	    0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
+	return low[c]!=0;
+}
+
+static int
+prepare_label(struct label *label,const struct st_rip3_command_host *host,
+    const struct st_rip3_style *drawing,const struct st_rip3_button_style *style,
+    const struct st_rip3_frame *frame,const uint8_t *text,size_t length)
+{
+	if (length==0) {label->length=0;return 0;}
+	memset(label,0,sizeof(*label));
+	if (host->text==NULL) return IO_ERROR_NOT_SUPPORTED;
+	const uint8_t *glyphs;uint8_t *owned=NULL;size_t count;
+	int status=st_rip3_command_text_glyphs(host->text,text,length,&glyphs,&count,&owned);
+	if (status!=0) return status;
+	if (count>sizeof(label->bytes)) {free(owned);return IO_ERROR_OUT_OF_RANGE;}
+	memcpy(label->bytes,glyphs,count);label->length=count;free(owned);
+	bool drop=false;
+	if ((style->flags&8192)!=0 && style->orientation!=1 && style->orientation!=3)
+		for (size_t i=0;i<count;i++) drop|=descender(label->bytes[i]);
+	label->extended=drawing->font_mode==ST_RIP3_FONT_OUTLINE;
+	const struct st_rip3_text_position zero={0,0};
+	if (!label->extended) {
+		label->classic_style=drawing->font;
+		/* Button orientation/justification and shadow own these attributes. */
+		label->classic_style.flags=(style->flags&32)!=0 ? 32 : 0;
+		if (host->text->font!=NULL && host->text->font->number==drawing->font.font)
+			label->classic=*host->text->font;
+		else status=st_rip3_classic_font_builtin_device(&label->classic,frame->device_width,frame->device_height,drawing->font.font);
+		struct st_rip3_classic_text_plan plan;
+		if (status==0) status=st_rip3_classic_text_plan(&label->classic,&label->classic_style,label->bytes,count,&zero,&plan);
+		if (status!=0) return status;
+		label->ascent=plan.ascent;label->descent=plan.descent;
+		double height=plan.ascent+(drop ? plan.descent : 0)+1;
+		label->width=drawing->font.direction==0 ? plan.advance : height;
+		label->height=drawing->font.direction==0 ? height : plan.advance;
+		if (drawing->font.direction!=0) label->y=1-plan.advance;
+		return 0;
+	}
+	struct st_rip3_outline_style font_style=drawing->outline;
+	font_style.flags&=~UINT32_C(0x30);
+	status=st_rip3_outline_layout_prepare(&label->layout,&font_style,frame);
+	if (status==0) status=st_rip3_command_outline_font(&label->outline,host->text,&font_style,frame,label->layout.font_orientation);
+	if (status==0) status=st_rip3_outline_font_advances(label->advances,&label->outline,font_style.string_rotation,label->bytes,count);
+	int32_t bbox=0;int64_t total;
+	if (status==0 && label->layout.bounding_box_spacing) status=st_rip3_outline_font_bbox_width(&bbox,&label->outline);
+	if (status==0) status=st_rip3_outline_layout_positions(&label->layout,&zero,label->advances,count,bbox,label->positions,&total);
+	if (status!=0) return status;
+	label->layout.shadow=(style->flags&32)!=0 ? (struct st_rip3_point){1,1} : (struct st_rip3_point){0,0};
+	double right=0,bottom=0;
+	for (size_t i=0;i<count;i++) {
+		double x0=label->positions[i].x+label->outline.bounds.xmin,x1=label->positions[i].x+label->outline.bounds.xmax;
+		double y0=label->positions[i].y+label->outline.bounds.ymin,y1=label->positions[i].y+label->outline.bounds.ymax;
+		if (!drop && label->layout.character_turns==0) y1=label->positions[i].y;
+		if (i==0 || x0<label->x) label->x=x0;
+		if (i==0 || y0<label->y) label->y=y0;
+		if (i==0 || x1>right) right=x1;
+		if (i==0 || y1>bottom) bottom=y1;
+	}
+	label->width=right-label->x;label->height=bottom-label->y;return 0;
+}
+
+static int
+decorate_label(struct label *label,const struct st_rip3_command_host *host,
+    const struct st_rip3_port_info *port,const struct st_rip3_button_style *style,
+    struct st_rip3_text_position anchor,uint8_t hotkey)
+{
+	if (hotkey==0 || hotkey==255 || !(style->flags&1024)) return 0;
+	if (hotkey>='a' && hotkey<='z') hotkey-='a'-'A';
+	size_t index=label->length;
+	for (size_t i=0;i<label->length;i++) {
+		uint8_t c=label->bytes[i];if (c>='a' && c<='z') c-='a'-'A';
+		if (c==hotkey) {index=i;break;}
+	}
+	if (index==label->length) return 0;
+	uint8_t color=style->colors[ST_RIP3_BUTTON_UNDERLINE];
+	struct st_rip3_point direction={1,0};double width=0,distance=1;
+	int status=0;
+	if (!label->extended) {
+		struct st_rip3_classic_text_plan prefix,one;const struct st_rip3_text_position zero={0,0};
+		struct st_rip3_classic_text_style font_style=label->classic_style;font_style.flags=0;
+		status=st_rip3_classic_text_plan(&label->classic,&font_style,label->bytes,index,&zero,&prefix);
+		if (status==0) status=st_rip3_classic_text_plan(&label->classic,&font_style,label->bytes+index,1,&zero,&one);
+		if (status!=0) return status;
+		if (font_style.direction!=0) direction=(struct st_rip3_point){0,-1};
+		anchor.x+=direction.x*prefix.advance;anchor.y+=direction.y*prefix.advance;width=one.advance;
+		if ((style->flags2&2)!=0) status=st_rip3_draw_classic_text(host->ports,&label->classic,&font_style,
+		    label->bytes+index,1,&anchor,color,0,ST_RIP3_COPY);
+		distance+=label->ascent+(descender(label->bytes[index]) ? label->descent : 0);
+	}
+	else {
+		anchor=label->positions[index];
+		struct st_rip3_outline_layout layout=label->layout;layout.shadow=(struct st_rip3_point){0,0};
+		if ((style->flags2&2)!=0) status=st_rip3_draw_outline_positioned(host->ports,&label->outline,&layout,
+		    label->bytes+index,1,&anchor,color,0,ST_RIP3_COPY);
+		static const struct st_rip3_point directions[]={{1,0},{0,-1},{-1,0},{0,1}};
+		direction=directions[label->layout.character_turns];int32_t advance;
+		if (status==0) status=st_rip3_outline_font_advances(&advance,&label->outline,
+		    label->layout.character_turns*900,label->bytes+index,1);
+		if (status!=0) return status;
+		width=advance;
+		if (descender(label->bytes[index])) {
+			const struct st_rip3_outline_bounds *b=&label->outline.bounds;
+			double drop=direction.x>0 ? (double)b->ymax : direction.x<0 ? -(double)b->ymin
+			    : direction.y>0 ? -(double)b->xmin : (double)b->xmax;
+			if (drop>0) distance+=drop;
+		}
+	}
+	if (status!=0 || !(style->flags&2048) || width<1) return status;
+	double x=anchor.x-direction.y*distance,y=anchor.y+direction.x*distance;
+	int64_t x0=(int64_t)floor(x+0.5),y0=(int64_t)floor(y+0.5);
+	int64_t x1=(int64_t)floor(x+direction.x*(width-1)+0.5),y1=(int64_t)floor(y+direction.y*(width-1)+0.5);
+	if (x1<x0) {int64_t swap=x0;x0=x1;x1=swap;}
+	if (y1<y0) {int64_t swap=y0;y0=y1;y1=swap;}
+	return fill(host,port,(struct box){x0,y0,x1+1,y1+1},color);
+}
+
+static int
+paint_label(struct label *label,const struct st_rip3_command_host *host,
+    const struct st_rip3_port_info *port,const struct st_rip3_button_style *style,
+    const struct st_rip3_frame *frame,struct box face,uint8_t hotkey)
+{
+	if (label->length==0) return 0;
+	double x=((double)face.x0+face.x1-label->width)/2;
+	double y=((double)face.y0+face.y1-label->height)/2;
+	if (style->orientation==0) y=face.y0-label->height-1;
+	else if (style->orientation==1) x=face.x0-label->width-1;
+	else if (style->orientation==3) x=(double)face.x1+1;
+	else if (style->orientation==4) y=(double)face.y1+1;
+	if (style->orientation!=1 && style->orientation!=3) {
+		double origin=(double)port->bounds.x0+port->viewport.x0;
+		if ((style->flags2&8)!=0) {
+			double world=floor((face.x0+origin)*frame->world_width/frame->device_width);
+			x=floor((world+((style->flags&8)!=0 ? 20 : 10))*frame->device_width/frame->world_width)-origin;
+		}
+		else if ((style->flags2&16)!=0) {
+			double world=floor((face.x1+origin)*frame->world_width/frame->device_width);
+			double width=floor(label->width*frame->world_width/frame->device_width);
+			x=floor((world-width-((style->flags&8)!=0 ? 19 : 9))*frame->device_width/frame->world_width)-origin;
+		}
+	}
+	struct st_rip3_text_position anchor={x-label->x,y-label->y};
+	uint8_t foreground=style->colors[ST_RIP3_BUTTON_LABEL_FOREGROUND];
+	uint8_t background=style->colors[ST_RIP3_BUTTON_LABEL_BACKGROUND];
+	int status;
+	if (!label->extended) status=st_rip3_draw_classic_text(host->ports,&label->classic,&label->classic_style,
+	    label->bytes,label->length,&anchor,foreground,background,ST_RIP3_COPY);
+	else {
+		for (size_t i=0;i<label->length;i++) {label->positions[i].x+=anchor.x;label->positions[i].y+=anchor.y;}
+		status=st_rip3_draw_outline_positioned(host->ports,&label->outline,&label->layout,label->bytes,label->length,
+		    label->positions,foreground,background,ST_RIP3_COPY);
+	}
+	if (status==0) status=decorate_label(label,host,port,style,anchor,hotkey);
+	return status;
+}
+
+int
+st_rip3_button_create_execute(const struct st_rip3_command_host *host,
+    const uint8_t *command,size_t length,bool *operation)
+{
+	if (host->button_styles==NULL || host->styles==NULL || host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_environment env;unsigned number;
+	int status=st_rip3_command_environment(host,&number,&env);
+	if (status!=0) return status;
+	size_t fixed=2+4*env.coordinate_size+4;
+	if (length<fixed) return IO_ERROR_INVALID_FORMAT;
+	uint64_t values[7];size_t at=2;
+	for (unsigned i=0;i<7;i++) {
+		size_t width=i<4 ? env.coordinate_size : i==4 ? 2 : 1;
+		status=st_rip3_command_field(values+i,command+at,width,env.base_math);if (status!=0) return status;at+=width;
+	}
+	if (values[4]>255) return IO_ERROR_OUT_OF_RANGE;
+	if (values[6]!=0) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_button_style style;
+	status=st_rip3_button_styles_current_value(host->button_styles,&style);
+	if (status!=0) return status;
+	bool mouse=(style.flags&1024)!=0;
+	/* Type precedence is ICON, clipboard, plain. Group and key decorations
+	 * only apply to resident mouse buttons; inapplicable flags do not reject. */
+	if ((style.flags&(1|64|128))!=0
+	    || (mouse && ((style.flags&16384)!=0 || (style.flags2&1)!=0))) return IO_ERROR_NOT_SUPPORTED;
+	if (mouse && host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_button_payload payload;
+	status=st_rip3_button_payload_parse(&payload,command+at,length-at);
+	if (status!=0) return status;
+	if (payload.icon.length!=0) {
+		char filename[128];memcpy(filename,payload.icon.data,payload.icon.length);filename[payload.icon.length]=0;
+		/* Filename expansion retains its separate rendering-stage work. */
+		if (strchr(filename,'$')!=NULL || strstr(filename,"<<")!=NULL) return IO_ERROR_NOT_SUPPORTED;
+		if (!st_rip3_resource_name_valid(filename)) return IO_ERROR_INVALID_FORMAT;
+	}
+	if (!mouse && payload.label.length==0 && !(style.width!=0 && style.height!=0) && values[2]==0 && values[3]==0) return 0;
+	struct st_rip3_frame frame;
+	status=st_rip3_environments_frame(host->environments,number,&frame);if (status!=0) return status;
+	unsigned old_port,target;
+	status=st_rip3_ports_current(host->ports,&old_port);if (status!=0) return status;
+	target=mouse ? 0 : old_port;
+	struct st_rip3_port_info port;
+	status=st_rip3_ports_info(host->ports,target,&port);if (status!=0 || !port.viewport_active) return status;
+	if (port.clip.x1<port.clip.x0 || port.clip.y1<port.clip.y0) return 0;
+	if (!(style.width!=0 && style.height!=0)) {
+		if (values[2]==0 && values[3]==0) return 0;
+		if (values[0]>values[2]) {uint64_t swap=values[0];values[0]=values[2];values[2]=swap;}
+		if (values[1]>values[3]) {uint64_t swap=values[1];values[1]=values[3];values[3]=swap;}
+	}
+	struct box face={(int64_t)(values[0]*frame.device_width/frame.world_width),
+	    (int64_t)(values[1]*frame.device_height/frame.world_height),
+	    (int64_t)(values[2]*frame.device_width/frame.world_width),
+	    (int64_t)(values[3]*frame.device_height/frame.world_height)};
+	if (style.width!=0 && style.height!=0) {face.x1=face.x0+style.width;face.y1=face.y0+style.height;}
+	if (face.x1<=face.x0 || face.y1<=face.y0) return 0;
+	struct st_rip3_style drawing;
+	status=st_rip3_styles_current(host->styles,&number);
+	if (status==0) status=st_rip3_styles_get(host->styles,number,&drawing);
+	if (status!=0) return status;
+	unsigned bevel=(style.flags&512)!=0 ? style.bevel&255u : 0;
+	struct box hit=expand(face,(int)bevel);
+	if (hit.x0<port.clip.x0) hit.x0=port.clip.x0;
+	if (hit.y0<port.clip.y0) hit.y0=port.clip.y0;
+	if (hit.x1>(int64_t)port.clip.x1+1) hit.x1=(int64_t)port.clip.x1+1;
+	if (hit.y1>(int64_t)port.clip.y1+1) hit.y1=(int64_t)port.clip.y1+1;
+	if (mouse && (hit.x0>=hit.x1 || hit.y0>=hit.y1)) return 0;
+	if (mouse && st_rip3_mouse_count(host->mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	struct label label;
+	status=prepare_label(&label,host,&drawing,&style,&frame,payload.label.data,payload.label.length);
+	if (status!=0) return status;
+	*operation=true;status=st_rip3_ports_switch(host->ports,target);
+	uint8_t bright=style.colors[ST_RIP3_BUTTON_BRIGHT],dark=style.colors[ST_RIP3_BUTTON_DARK];
+	uint8_t corner=style.colors[ST_RIP3_BUTTON_CORNER];
+	if (status==0 && (style.flags2&32)==0) {
+		if ((style.flags2&64)==0) status=fill(host,&port,face,style.colors[ST_RIP3_BUTTON_SURFACE]);
+		else {
+			struct box clipped=face;
+			if (clipped.x0<port.clip.x0) clipped.x0=port.clip.x0;
+			if (clipped.y0<port.clip.y0) clipped.y0=port.clip.y0;
+			if (clipped.x1>(int64_t)port.clip.x1+1) clipped.x1=(int64_t)port.clip.x1+1;
+			if (clipped.y1>(int64_t)port.clip.y1+1) clipped.y1=(int64_t)port.clip.y1+1;
+			uint8_t foreground,background;
+			status=st_rip3_command_ink(host,env.rgb_bits,drawing.fill_color,&foreground);
+			if (status==0) status=st_rip3_command_ink(host,env.rgb_bits,drawing.background_color,&background);
+			if (status==0 && clipped.x0<clipped.x1 && clipped.y0<clipped.y1) {
+				struct st_rip3_rect area={(int32_t)clipped.x0,(int32_t)clipped.y0,(int32_t)(clipped.x1-1),(int32_t)(clipped.y1-1)};
+				struct st_rip3_fill pattern;st_rip3_command_fill(&port,&drawing.fill,&pattern);
+				status=st_rip3_draw_bar(host->ports,&area,&pattern,foreground,background,ST_RIP3_COPY);
+			}
+		}
+	}
+	for (unsigned i=bevel;status==0 && i>0;i--) status=edge(host,&port,expand(face,(int)i),bright,dark,corner);
+	if (status==0 && (style.flags&16)!=0) status=edge(host,&port,expand(face,(int)bevel+1),0,0,0);
+	if (status==0 && (style.flags&16)!=0) status=edge(host,&port,expand(face,(int)bevel+2),dark,bright,corner);
+	if (status==0 && (style.flags&32768)!=0) status=edge(host,&port,expand(face,-1),dark,bright,corner);
+	if (status==0 && (style.flags&8)!=0) {
+		static const unsigned limits[]={12,25,40,75,150,200,250,300};
+		static const unsigned insets[][2]={{1,1},{3,3},{4,4},{6,6},{7,5},{8,6},{10,7},{11,8},{13,9}};
+		unsigned i=0;while (i<8 && (uint64_t)(face.y1-face.y0)>=limits[i]) i++;
+		struct box chisel={face.x0+insets[i][0],face.y0+insets[i][1],face.x1-insets[i][0],face.y1-insets[i][1]};
+		status=edge(host,&port,chisel,dark,bright,corner);
+	}
+	if (status==0) status=paint_label(&label,host,&port,&style,&frame,face,(uint8_t)values[4]);
+	int restored=st_rip3_ports_switch(host->ports,old_port);
+	if (status==0) status=restored;
+	if (status==0 && mouse) {
+		int64_t ox=(int64_t)port.bounds.x0+port.viewport.x0,oy=(int64_t)port.bounds.y0+port.viewport.y0;
+		struct st_rip3_rect area={(int32_t)(ox+hit.x0),(int32_t)(oy+hit.y0),
+		    (int32_t)(ox+hit.x1),(int32_t)(oy+hit.y1)};
+		status=st_rip3_mouse_define(host->mouse,&area,(style.flags&2)!=0,(style.flags&4)!=0,payload.identity,
+		    payload.host.data,payload.host.length);
+	}
+	return status;
+}
