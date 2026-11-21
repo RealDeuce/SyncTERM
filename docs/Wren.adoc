@@ -976,9 +976,11 @@ the usual list behavior, with DOS Find also matching connection columns. Enter
 connects offline and edits while connected. F2 edits, Insert adds, Delete
 removes, F5/F6 copy/paste, Ctrl-S manages sorting, and `<`/`>` cycle sort profiles.
 A single mouse click selects a directory row; double-click activates it.
-The top-row Edit, Connect/Return, and Settings controls are clickable. F4 opens
-the separate Settings screen. Tab moves from the directory to the top-row
-actions. Escape exits the directory or returns to the existing session.
+The selected entry's comment appears below the table, above the clickable
+bottom command bar. Entries without comments leave that line blank. F4 opens
+the separate Settings screen. Tab moves between the directory and command bar;
+Left/Right choose a focused command and Enter runs it. Escape exits the directory
+or returns to the existing session.
 Opening, resizing, or switching the directory does not resize the remote terminal.
 
 DOS entry settings, New Connection Defaults, and Program Settings use separate

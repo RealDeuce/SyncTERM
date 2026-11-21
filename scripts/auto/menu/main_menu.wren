@@ -13,7 +13,6 @@ import "ui_widget" for Widget, Container, Rect
 import "ui_input" for SelectOnFocusInput
 import "ui_draw" for Painter
 import "ui_pane" for Pane
-import "ui_button" for Button
 import "ui_list" for ListView
 import "ui_popup" for Alert, Confirm, Popup
 
@@ -383,7 +382,7 @@ class MainMenuApp {
       _selected = index != null && index >= 0 &&
           index < _entries.count ? _entries[index] : null
       updateWindowTitle_()
-      _footer.comment = _dos ? DosTable.details(_selected) : _selected == null ? "" : _selected.profile.comment
+      _footer.comment = _selected == null ? "" : _selected.profile.comment
     }
     _list.onSelect = Fn.new {|index, item|
       if (index == _entries.count) {
@@ -408,7 +407,7 @@ class MainMenuApp {
     _footer.helpText = directoryHelp_()
     _footer.keyHints = directoryHints_()
     _app.root.add(_footer)
-    if (_dos) _footer.focusable = false
+    if (_dos) _footer.onActivate = Fn.new {|key| activateDosHint_(key) }
 
     _settings = MainPane.new(Fn.new { focusSettings_() })
     _settings.title = "SyncTERM Settings"
@@ -431,23 +430,6 @@ class MainMenuApp {
 
     _consoleIndicator = ConsoleIndicator.new()
     _app.root.add(_consoleIndicator)
-    _dosEditButton = Button.new("Edit")
-    _dosEditButton.visible = _dos
-    _dosEditButton.focusable = _dos
-    _dosEditButton.onPress = Fn.new { edit_() }
-    _app.root.add(_dosEditButton)
-    _dosConnectButton = Button.new(_connected ? "Return" : "Connect")
-    _dosConnectButton.visible = _dos
-    _dosConnectButton.focusable = _dos
-    _dosConnectButton.onPress = Fn.new {
-      if (_connected) exit_(false) else connect_()
-    }
-    _app.root.add(_dosConnectButton)
-    _dosSettingsButton = Button.new("Settings")
-    _dosSettingsButton.visible = _dos
-    _dosSettingsButton.focusable = _dos
-    _dosSettingsButton.onPress = Fn.new { focusSettings_() }
-    _app.root.add(_dosSettingsButton)
     if (_dos) {
       _app.root.keyHints = _directory.keyHints
       _app.root.helpText = _directory.helpText
@@ -548,7 +530,7 @@ class MainMenuApp {
         "F6 / Shift-Insert\n:  Paste an entry\n" +
         "Ctrl-S\n:  Manage sort profiles\n" +
         "< / >\n:  Cycle through sort profiles\n" +
-        (_dos ? "Tab\n:  Move to the top-row actions\nF4\n:  Open full-page Settings\nMouse\n:  Click to select; double-click to activate" : "Tab\n:  Edit the selected comment, then move to settings")
+        (_dos ? "Tab\n:  Move between the directory and bottom command bar\nLeft / Right, Enter\n:  Choose and run a focused command\nF4\n:  Open full-page Settings\nMouse\n:  Click a command or select a row; double-click a row to activate" : "Tab\n:  Edit the selected comment, then move to settings")
     if (!_connected) {
       text = text + "\nCtrl-D\n:  Quick-connect to an address or URL\n" +
           "Alt-B\n:  View the scrollback from the last session"
@@ -588,8 +570,21 @@ class MainMenuApp {
     return [["F1", "Help"], ["Enter", "Open"], ["Esc", "Exit"]]
   }
 
+  activateDosHint_(label) {
+    var keys = {
+      "F1": Key.f1, "Enter": Key.enter, "F2": Key.f2,
+      "F4": Key.f4, "F5": Key.f5, "F6": Key.f6,
+      "Ctrl-F": 102, "INS": Key.insert, "DEL": Key.delete,
+      "Esc": Key.escape
+    }
+    var key = keys[label]
+    if (key == null) return
+    focusDirectory_()
+    _app.dispatchKey_(KeyEvent.new(key, label == "Ctrl-F" ? Mod.control : 0))
+  }
+
   focusDirectory_() {
-    if (_app.root.focusedChild == _footer) {
+    if (!_dos && _app.root.focusedChild == _footer) {
       var activate = _commentReturn == _directory
       finishComment_(_footer.value, -1)
       return activate
@@ -601,7 +596,7 @@ class MainMenuApp {
 
   focusComment_(fallback) {
     if (_dos) {
-      _app.root.focusedIndex = _app.root.children.indexOf(_dosEditButton)
+      _app.root.focusedIndex = _app.root.children.indexOf(_footer)
       return false
     }
     if (_selected == null || Host.safeMode) {
@@ -694,6 +689,7 @@ class MainMenuApp {
         event.event == Mouse.wheelDown) return routeWheel_(event)
     if (event.event != Mouse.button1Click) return false
     if (hit != _app.root && hit != _backdrop) return false
+    if (_dos) return true
     var focused = _app.root.focusedChild
     if (focused == _directory) {
       focusSettings_()
@@ -720,10 +716,6 @@ class MainMenuApp {
     if (_dos) {
       _backdrop.bounds = Rect.new(1, 1, width, height)
       _consoleIndicator.bounds = Rect.new(width, 1, 1, 1)
-      var actionsX = (width - 37).max(1)
-      _dosEditButton.bounds = Rect.new(actionsX, 1, 8, 1)
-      _dosConnectButton.bounds = Rect.new(actionsX + 8, 1, 12, 1)
-      _dosSettingsButton.bounds = Rect.new(actionsX + 20, 1, 16, 1)
       _settings.visible = false
       _directory.bounds = Rect.new(1, 2, width, (height - 4).max(4))
       _directory.shadow = false
@@ -1088,7 +1080,10 @@ class MainMenuApp {
     _clipboard = BbsEditor.draft_(_selected)
     _clipboardSource = _selected.source
     _directory.keyHints = directoryHints_()
-    if (_dos) _app.root.keyHints = _directory.keyHints
+    if (_dos) {
+      _app.root.keyHints = _directory.keyHints
+      _footer.keyHints = _directory.keyHints
+    }
   }
 
   paste_() {
@@ -1124,6 +1119,10 @@ class MainMenuApp {
       _clipboard = null
       _clipboardSource = null
       _directory.keyHints = directoryHints_()
+      if (_dos) {
+        _app.root.keyHints = _directory.keyHints
+        _footer.keyHints = _directory.keyHints
+      }
     }
     refresh_(name)
   }
@@ -1200,7 +1199,7 @@ class MainMenuApp {
 
   settingsAction_(picked) {
     var preferred = _selected == null ? null : _selected.name
-    var previousComment = _dos ? DosTable.details(_selected) : _selected == null ? "" : _selected.profile.comment
+    var previousComment = _selected == null ? "" : _selected.profile.comment
     SettingsMenu.begin()
     var changed = false
     if (_dos && picked == 4) {

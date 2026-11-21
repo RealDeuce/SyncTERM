@@ -1,6 +1,6 @@
 // DOS directory presentation; connection policy remains in main_menu.
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Screen, Text
+import "syncterm" for Screen, Text, Key, KeyEvent, Mouse, MouseEvent
 import "syncterm_menu" for Menu
 import "ui_widget" for Widget, Rect
 import "ui_draw" for Painter
@@ -71,11 +71,6 @@ class DosTable {
   }
   static header(width) { line(columns(width).map {|c| c[0] }.toList, width) }
   static row(entry, width) { line(values(entry), width) }
-  static details(entry) {
-    if (entry == null) return "Insert adds a personal connection. F4 opens Settings."
-    var p = entry.profile
-    return "%(p.addr)  Port %(p.port)  %(MenuUiName.connection(p.connType))  %(terminal(p))  %(entry.sourceName == null ? "Personal" : entry.sourceName)"
-  }
 }
 
 class MenuUiName {
@@ -141,22 +136,27 @@ class DosBackdrop is Widget {
   onPaint_() {
     Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", style("default"))
     Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", style("classic.header"))
-    Painter.text(surface, 2, 0, Menu.applicationTitle, style("classic.header"), (bounds.w - 42).max(0))
-    if (bounds.w >= 132) Painter.text(surface, bounds.w - 66, 0, Menu.timeText, style("classic.header"), 24)
+    var titleWidth = bounds.w - (bounds.w >= 80 ? 30 : 4)
+    Painter.text(surface, 2, 0, Menu.applicationTitle, style("classic.header"), titleWidth.max(0))
+    if (bounds.w >= 80) Painter.text(surface, bounds.w - 26, 0, Menu.timeText, style("classic.header"), 24)
   }
 }
 
 class DosFooter is Widget {
   construct new(hints, helpAvailable, onFocus, onCommit, onCancel) {
     super()
-    focusable = false
     activitySensitive = false
     _hints = hints
     _paintedHints = null
-    _details = ""
+    _comment = ""
+    _regions = []
+    _selectedHint = 0
+    _onActivate = null
   }
+  onActivate=(fn) { _onActivate = fn }
+  cursorVisible { false }
   comment=(text) {
-    _details = text
+    _comment = text
     markDirty()
   }
   draw() {
@@ -167,9 +167,8 @@ class DosFooter is Widget {
     }
     return super.draw()
   }
-  onPaint_() {
-    Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", style("classic.hint"))
-    Painter.text(surface, 1, 0, _details, style("classic.comment"), bounds.w - 2)
+  layoutHints_() {
+    _regions = []
     var x = 1
     var y = 1
     var hints = _paintedHints
@@ -181,10 +180,48 @@ class DosFooter is Widget {
         y = y + 1
       }
       if (y >= bounds.h) break
-      Painter.text(surface, x, y, hint[0], style("classic.hotkey"), bounds.w - x)
-      x = x + hint[0].count
-      Painter.text(surface, x, y, " %(hint[1])  ", style("classic.hint"), bounds.w - x)
-      x = x + hint[1].count + 3
+      _regions.add([Rect.new(x, y, (length - 2).min(bounds.w - x), 1), hint])
+      x = x + length
     }
+    _selectedHint = _selectedHint.min((_regions.count - 1).max(0))
+  }
+  onPaint_() {
+    layoutHints_()
+    Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", style("classic.hint"))
+    Painter.text(surface, 1, 0, _comment, style("classic.comment"), bounds.w - 2)
+    for (i in 0..._regions.count) {
+      var rect = _regions[i][0]
+      var hint = _regions[i][1]
+      var active = focused && i == _selectedHint
+      var labelStyle = style(active ? "button.focused" : "classic.hint")
+      var keyStyle = style(active ? "button.focused.hotkey" : "classic.hotkey")
+      Painter.text(surface, rect.x, rect.y, hint[0], keyStyle, rect.w)
+      Painter.text(surface, rect.x + hint[0].count, rect.y, " %(hint[1])", labelStyle, (rect.w - hint[0].count).max(0))
+    }
+  }
+  handle(ev) {
+    if (ev is KeyEvent && _regions.count > 0) {
+      var c = ev.shortcut_
+      if (c == Key.left || c == Key.right || c == Key.up || c == Key.down) {
+        var delta = c == Key.left || c == Key.up ? -1 : 1
+        _selectedHint = (_selectedHint + delta + _regions.count) % _regions.count
+        markDirty()
+        return true
+      }
+      if (c == Key.enter || ev.codepoint == 0x20) {
+        if (_onActivate != null) _onActivate.call(_regions[_selectedHint][1][0])
+        return true
+      }
+    }
+    if (ev is MouseEvent && ev.event == Mouse.button1Click && bounds.contains(ev.startX, ev.startY)) {
+      for (region in _regions) {
+        if (region[0].contains(ev.startX - bounds.x, ev.startY - bounds.y)) {
+          if (_onActivate != null) _onActivate.call(region[1][0])
+          return true
+        }
+      }
+      return true
+    }
+    return false
   }
 }

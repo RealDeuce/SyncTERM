@@ -49,9 +49,32 @@ def directory(executable, reports):
         Path(reports).mkdir(parents=True, exist_ok=True)
         shot.save_image(Path(reports) / "directory-80.ppm")
         assert "alpha.example" in shot.text and "2323" in shot.text and "ANSI/RIP1" in shot.text, shot.text
+        assert "original notes" in shot.lines[-3], shot.text
+        assert not any(value in shot.lines[-3] for value in ("alpha.example", "2323", "ANSI/RIP1")), shot.text
+        assert not any(label in shot.lines[0] for label in ("[ Edit ]", "[ Connect ]", "[ Settings ]")), shot.text
+        # The single command bar retains mouse and keyboard access to actions.
+        click_text(client, shot, "F4 Settings")
+        shot = client.wait_text("Program Settings")
+        click_text(client, shot, "Program Settings")
+        client.wait_text("Main Interface")
+        client.key("escape")
+        shot = client.wait_text("Term/Graphics")
+        assert "original notes" in shot.lines[-3], shot.text
+        click_text(client, shot, "F2 Edit Item")
+        client.wait_text("Edit Directory Entry")
+        client.key("escape")
+        client.wait_text("Term/Graphics")
+        client.key("tab")
+        client.key("right")
+        client.key("right")
+        client.key("enter")
+        client.wait_text("Edit Directory Entry")
+        client.key("escape")
+        client.wait_text("Term/Graphics")
         client.key("f5")
         client.wait_text("F6 Paste")
         client.key("down")
+        client.wait_for(lambda s: "Term/Graphics" in s.text and s.lines[-3].strip() == "")
         for columns, rows in ((132, 50), (40, 25), (80, 25)):
             client.grid_resize(columns, rows)
             shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "beta.example" in s.text)
@@ -60,6 +83,7 @@ def directory(executable, reports):
                 assert "Encoding" in shot.text and "Calls" in shot.text and "Last Call" in shot.text, shot.text
             if columns == 40:
                 assert "Name" in shot.text and "Address" in shot.text, shot.text
+            assert shot.lines[-3].strip() == "", shot.text
         # Search addresses independently of display clipping or name search keys.
         client.key(102, 2)
         client.text("alpha.example")
@@ -68,7 +92,8 @@ def directory(executable, reports):
         shot = client.wait_text("Edit Directory Entry")
         assert "alpha.example" in shot.text and "Connection" in shot.text, shot.text
         client.key("escape")
-        client.wait_text("Term/Graphics")
+        shot = client.wait_text("Term/Graphics")
+        assert "original notes" in shot.lines[-3], shot.text
 
 
 def forms(executable, reports):
@@ -213,7 +238,7 @@ def creation(executable, reports):
 def connected(executable, reports):
     with listener() as server:
         entries = ("[Wire]\nAddress=127.0.0.1\nConnectionType=Raw\nScreenMode=80x25\n"
-                   f"Port={server.getsockname()[1]}\nNoStatus=true\nHidePopups=true\n")
+                   f"Port={server.getsockname()[1]}\nComment=connected notes\nNoStatus=true\nHidePopups=true\n")
         with fixture(executable, entries=entries, settings="MainUI=DOS\n", reports=reports) as (client, root):
             client.wait_text("Term/Graphics")
             client.key("enter")
@@ -223,14 +248,15 @@ def connected(executable, reports):
                 client.command_key(18)
                 menu = client.wait_text("Term/Graphics")
                 assert (menu.metadata["columns"], menu.metadata["rows"]) == (80, 25)
+                assert "connected notes" in menu.lines[-3] and "127.0.0.1" not in menu.lines[-3], menu.text
                 client.key("enter")  # Connected Enter edits instead of connecting.
                 client.wait_text("Edit Directory Entry")
                 client.text("Local edit")
                 client.key("escape")
                 client.wait_text("Discard changes?")
                 client.key("enter")
-                client.wait_text("Term/Graphics")
-                client.key("escape")
+                menu = client.wait_text("Term/Graphics")
+                click_text(client, menu, "Esc Exit")
                 after = client.wait_for(lambda s: "REMOTE TERMINAL CONTENT" in s.text and "Directory:" not in s.text)
                 assert after.cells == before.cells
                 assert after.application.get("session_active") == 1
