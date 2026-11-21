@@ -558,7 +558,10 @@ class Container is Widget {
       var dx = c.bounds.x - bounds.x
       var dy = c.bounds.y - bounds.y
       s.putRect(cs, dx, dy)
-      if (c.shadow) Painter.shadow(s, dx, dy, c.bounds.w, c.bounds.h)
+      if (c.shadow) {
+        Painter.shadow(s, dx, dy, c.bounds.w, c.bounds.h,
+            c.effectiveTheme.style("shadow"))
+      }
     }
   }
 

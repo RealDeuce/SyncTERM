@@ -38,6 +38,8 @@ class UiDrawTest {
     testFrameTitleTruncated_()
     testFrameTitleNullPlain_()
     testScrollbarClickInvertsSingleCellThumb_()
+    testShadowDefault_()
+    testShadowStyleAndClipping_()
 
     // Pane.
     testPaneTitleSetter_()
@@ -79,6 +81,51 @@ class UiDrawTest {
 
   static styleB_ {
     return Style.new(0, 0x70, 0x000000, 0xAAAAAA)
+  }
+
+  static testShadowDefault_() {
+    var s = Surface.new(8, 6)
+    Painter.fill(s, Rect.new(0, 0, 8, 6), "Z", testStyle_)
+    var font = s.cellAt(0, 0).font
+    Painter.shadow(s, 1, 1, 3, 2)
+    var ok = true
+    for (y in 0...6) {
+      for (x in 0...8) {
+        var shaded = (x >= 4 && x <= 5 && y >= 2 && y <= 3) ||
+            (y == 3 && x >= 2 && x <= 5)
+        var c = s.cellAt(x, y)
+        if (c.ch != "Z" || c.font != font ||
+            c.legacyAttr != (shaded ? 0x08 : 0x1f) ||
+            c.fgRgb != (shaded ? 0x202020 : 0xffffff) ||
+            c.bgRgb != (shaded ? 0 : 0x0000a8)) ok = false
+      }
+    }
+    check_(ok, "Painter.shadow: default colours and footprint preserve glyphs")
+  }
+
+  static testShadowStyleAndClipping_() {
+    var s = Surface.new(5, 4)
+    Painter.fill(s, Rect.new(0, 0, 5, 4), "Z", testStyle_)
+    var font = s.cellAt(0, 0).font
+    var shadow = Style.new(255, 0x08, 0x123456, 0x234567)
+    Painter.shadow(s, 2, 1, 2, 2, shadow)
+    var c = s.cellAt(4, 3)
+    var ok = c.ch == "Z" && c.font == font && c.bright &&
+        c.fgRgb == 0x123456 && c.bgRgb == 0x234567 &&
+        s.cellAt(2, 2).legacyAttr == 0x1f &&
+        s.cellAt(4, 1).legacyAttr == 0x1f
+    Painter.shadow(s, 0, 0, 0, 2, shadow)
+    Painter.shadow(s, 0, 0, 2, 0, shadow)
+    check_(ok && s.cellAt(1, 1).legacyAttr == 0x1f,
+        "Painter.shadow: explicit colours, retained font, clipping and empty bounds")
+    Painter.shadow(s, 2, 1, 2, 2, Style.new(null, null, 0x654321, null))
+    check_(s.cellAt(4, 3).fgRgb == 0x654321 &&
+        s.cellAt(4, 3).bgRgb == 0x234567,
+        "Painter.shadow: partial RGB style retains the other colour")
+    Painter.shadow(s, 2, 1, 2, 2, Style.new(null, 0x27, null, null))
+    check_(s.cellAt(4, 3).legacyAttr == 0x27 &&
+        s.cellAt(4, 3).fgRgb == null && s.cellAt(4, 3).bgRgb == null,
+        "Painter.shadow: legacy-only style uses indexed colours")
   }
 
   // ----- Painter.template + applyStyle -----------------------------

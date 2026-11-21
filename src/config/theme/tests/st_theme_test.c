@@ -478,6 +478,7 @@ main(void)
 	    "; retained comment\n"
 	    "Name=Custom Theme\nAuthor=Tester\n\n"
 	    "[Style:frame]\nForeground=0x123456\n\n"
+	    "[Style:shadow]\nForeground=0x246813\nBackground=inherit\n\n"
 	    "[Glyph:arrow.up]\nASCII=65\n\n"
 	    "[Glyph:classic.backdrop]\nCP437=177\nASCII=46\n\n"
 	    "[Glyph:custom.ascii]\nASCII=63\n\n"
@@ -505,8 +506,13 @@ main(void)
 	CHECK(st_theme_manager_create(&manager, &paths, &settings, error,
 	    sizeof(error)) == 0);
 	CHECK(test_failed_document_construction(manager) == 0);
-	CHECK(st_theme_default(manager)->style_count == 48);
-	CHECK(st_theme_active(manager)->style_count == 55);
+	CHECK(st_theme_default(manager)->style_count == 49);
+	CHECK(st_theme_active(manager)->style_count == 56);
+	CHECK(style(st_theme_default(manager), "shadow") != NULL);
+	CHECK(style(st_theme_default(manager), "shadow")->font == ST_THEME_INHERIT);
+	CHECK(style(st_theme_default(manager), "shadow")->legacy_attr == 0x08);
+	CHECK(style(st_theme_default(manager), "shadow")->foreground == 0x202020);
+	CHECK(style(st_theme_default(manager), "shadow")->background == 0);
 	CHECK(glyph(st_theme_default(manager), "classic.backdrop") != NULL);
 	CHECK(glyph(st_theme_default(manager), "classic.backdrop")->cp437 == 176);
 	CHECK(glyph(st_theme_default(manager), "classic.backdrop")->ascii == ':');
@@ -523,6 +529,9 @@ main(void)
 	CHECK(st_theme_preview(manager, "custom.ini", error, sizeof(error)) == 0);
 	CHECK(st_theme_generation(manager) > generation);
 	CHECK(style(st_theme_active(manager), "frame")->foreground == 0x123456);
+	CHECK(style(st_theme_active(manager), "shadow")->foreground == 0x246813);
+	CHECK(style(st_theme_active(manager), "shadow")->background == ST_THEME_INHERIT);
+	CHECK(style(st_theme_active(manager), "shadow")->legacy_attr == 0x08);
 	CHECK(glyph(st_theme_active(manager), "arrow.up")->ascii == 'A');
 	CHECK(glyph(st_theme_active(manager), "classic.backdrop")->codepoint
 	    == 0x2592);

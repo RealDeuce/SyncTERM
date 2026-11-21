@@ -9205,7 +9205,8 @@ The most useful entry points:
 
 | `scrollbarClick(py, h, total, viewport, current)` | Resolve a click at row `py` (0-based, scrollbar-local) into a new `scrollTop`.  Top/bottom arrow rows step ±1; track clicks jump proportionally.
 
-| `shadow(s, x0, y0, w, h)` | Paint a drop shadow on the cells around the rect: 2 columns wide on the right, 1 row tall on the bottom.  Each shadow cell keeps its existing character and dims the attribute (legacy 0x08, RGB fg 0x202020 on bg 0x000000).
+| `shadow(s, x0, y0, w, h)` +
+  `shadow(s, x0, y0, w, h, style)` | Paint a drop shadow on the cells around the rect: 2 columns wide on the right, 1 row tall on the bottom.  Each shadow cell keeps its existing character and font.  The five-argument form uses the compiled `shadow` style (legacy 0x08, RGB fg 0x202020 on bg 0x000000).  The six-argument form applies non-null colour fields from `style`.  Widget composition supplies `castingWidget.effectiveTheme.style("shadow")`, independently of activity.
 
 | `applyStyle(cell, style)` | Apply a Style to an existing Cell, leaving null fields untouched.  Exposed for callers that mutate a cell view directly.
 |===

@@ -766,7 +766,8 @@ class App {
       var dy = c.bounds.y - 1
       _surface.putRect(cs, dx, dy)
       if (c.shadow) {
-        Painter.shadow(_surface, dx, dy, c.bounds.w, c.bounds.h)
+        Painter.shadow(_surface, dx, dy, c.bounds.w, c.bounds.h,
+            c.effectiveTheme.style("shadow"))
       }
     }
     // Status overlay sits above the foreground widget tree but
@@ -780,7 +781,8 @@ class App {
         var dy = _status.bounds.y - 1
         _surface.putRect(ss, dx, dy)
         if (_status.shadow) {
-          Painter.shadow(_surface, dx, dy, _status.bounds.w, _status.bounds.h)
+          Painter.shadow(_surface, dx, dy, _status.bounds.w, _status.bounds.h,
+              _status.effectiveTheme.style("shadow"))
         }
       }
     }
@@ -790,7 +792,10 @@ class App {
         var dx = m.bounds.x - 1
         var dy = m.bounds.y - 1
         _surface.putRect(ms, dx, dy)
-        if (m.shadow) Painter.shadow(_surface, dx, dy, m.bounds.w, m.bounds.h)
+        if (m.shadow) {
+          Painter.shadow(_surface, dx, dy, m.bounds.w, m.bounds.h,
+              m.effectiveTheme.style("shadow"))
+        }
       }
     }
     Screen.checked_(Screen.putRect(_surface, 1, 1))

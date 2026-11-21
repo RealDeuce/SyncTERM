@@ -15,6 +15,7 @@
 // is written to the Cell, leaving null fields at their default.
 
 import "syncterm" for Cell, Screen, Surface, Text
+import "ui_style" for Theme
 
 class Painter {
   // Apply a Style to an existing Cell, leaving null fields untouched.
@@ -265,29 +266,33 @@ class Painter {
   // x0+w+1, rows y0+1..y0+h); the bottom is 1 cell tall (row y0+h,
   // cols x0+1..x0+w+1).  Each shadow cell keeps its existing char
   // (so any painted backdrop shows through as a faded silhouette)
-  // and flips to a dim style: legacy 0x08 (bright-black on black),
-  // RGB fg 0x202020 on bg 0x000000.
+  // and font.  The five-argument form uses the compiled shadow style;
+  // widget composition supplies the casting widget's themed style.
   static shadow(surface, x0, y0, w, h) {
+    shadow(surface, x0, y0, w, h, Theme.default.style("shadow"))
+  }
+
+  static shadow(surface, x0, y0, w, h, style) {
     if (w <= 0 || h <= 0) return
     var i = 1
     var cell = Cell.new()
     while (i <= h) {
-      shadowCell_(surface, x0 + w,     y0 + i, cell)
-      shadowCell_(surface, x0 + w + 1, y0 + i, cell)
+      shadowCell_(surface, x0 + w,     y0 + i, cell, style)
+      shadowCell_(surface, x0 + w + 1, y0 + i, cell, style)
       i = i + 1
     }
     var j = 1
     while (j <= w + 1) {
-      shadowCell_(surface, x0 + j, y0 + h, cell)
+      shadowCell_(surface, x0 + j, y0 + h, cell, style)
       j = j + 1
     }
   }
 
-  static shadowCell_(surface, x, y, cell) {
+  static shadowCell_(surface, x, y, cell, style) {
     if (!surface.cellAt(x, y, cell)) return
-    cell.legacyAttr = 0x08
-    cell.fgRgb      = 0x202020
-    cell.bgRgb      = 0x000000
+    if (style.legacyAttr != null) cell.legacyAttr = style.legacyAttr
+    if (style.fgRgb != null) cell.fgRgb = style.fgRgb
+    if (style.bgRgb != null) cell.bgRgb = style.bgRgb
   }
 
 }

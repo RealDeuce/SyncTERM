@@ -123,6 +123,7 @@ theme_read_file(const char *path, char **result, size_t *result_size)
 static const struct style_template default_styles[] = {
 	S("default", 0, 0x1f, 0xffffff, 0x0000a8),
 	S("default.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
+	S("shadow", -1, 0x08, 0x202020, 0x000000),
 	S("frame", -1, 0x1e, 0xffff55, -1),
 	S("frame.inactive", -1, 0x3f, 0xffffff, 0x00aaaa),
 	S("title", -1, 0x1e, 0xffff55, -1),

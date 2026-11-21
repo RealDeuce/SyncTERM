@@ -12,7 +12,8 @@ import "ui_style"  for Style, Theme
 import "ui_widget" for Rect, Widget, Container
 import "ui_draw"   for Painter
 import "ui_app"    for App
-import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, CustomCursor, Mod
+import "ui_popup"  for PopStatus
+import "syncterm"  for KeyEvent, MouseEvent, Key, Mouse, CustomCursor, Mod, Screen
 
 // A Widget subclass that records every event it sees, optionally
 // consumes them, and counts draw() invocations.  Focus and bounds
@@ -123,6 +124,7 @@ class UiWidgetTest {
     testContainerAddSetsParent_()
     testContainerAddFocusesFirstFocusable_()
     testContainerAddSkipsNonFocusable_()
+    testShadowThemeComposition_()
     testContainerRemoveClearsParent_()
     testContainerRemoveAdjustsFocusIndex_()
 
@@ -320,6 +322,54 @@ class UiWidgetTest {
     return Theme.new({
       "default": Style.new(0, 0x07, rgb, 0x000000)
     }, {})
+  }
+
+  static testShadowThemeComposition_() {
+    var theme = Theme.new({
+      "default": Style.new(0, 0x07, 0xffffff, 0),
+      "default.inactive": Style.new(null, 0x17, 0x111111, 0x222222),
+      "shadow": Style.new(null, 0x28, 0x123456, 0x234567),
+      "shadow.inactive": Style.new(null, 0x38, 0x345678, 0x456789)
+    }, Theme.default.glyphs)
+    var child = ThemePaintProbe.new()
+    child.bounds = Rect.new(2, 2, 2, 2)
+    child.theme = theme
+    child.shadow = true
+    var parent = Container.new()
+    parent.bounds = Rect.new(1, 1, 8, 6)
+    parent.add(child)
+    var nested = parent.draw().cellAt(3, 2)
+    var ok = nested.bright && nested.fgRgb == 0x123456 &&
+        nested.bgRgb == 0x234567
+
+    var saved = Screen.save()
+    var app = App.new()
+    app.root.add(child)
+    app.drawAll_()
+    var rootShadow = Screen.checked_(Screen.readRect(4, 3, 4, 3)).cellAt(0, 0)
+    ok = ok && rootShadow.bright && rootShadow.fgRgb == 0x123456
+    // A covering modal makes the root child inactive; its shadow remains stable.
+    var modal = ThemePaintProbe.new()
+    modal.bounds = Rect.new(10, 2, 2, 2)
+    modal.theme = theme
+    modal.shadow = true
+    app.pushModal(modal)
+    app.drawAll_()
+    var image = Screen.checked_(Screen.readRect(1, 1, 14, 5))
+    ok = ok && image.cellAt(3, 2).fgRgb == 0x123456 &&
+        image.cellAt(11, 2).fgRgb == 0x123456 &&
+        image.cellAt(11, 2).bgRgb == 0x234567
+    app.popModal()
+    app.theme = theme
+    app.popStatus("Shadow test")
+    var status = PopStatus.show("Shadow test", 0)
+    var x = status.bounds.right + 1
+    var y = status.bounds.y + 1
+    var statusShadow = Screen.checked_(Screen.readRect(x, y, x, y)).cellAt(0, 0)
+    ok = ok && statusShadow.bright && statusShadow.fgRgb == 0x123456
+    app.popStatus(null)
+    Screen.restore(saved)
+    check_(ok, "Composition: child themes style nested, root, modal and status shadows")
   }
 
   static testContainerThemeRepaintsInheritedChildren_() {

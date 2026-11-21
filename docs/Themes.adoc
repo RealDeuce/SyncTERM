@@ -291,6 +291,11 @@ The current role registry is:
 | `default`, `default.inactive`
 | Cascade terminators and general screen/pane colours.
 
+| `shadow`
+| Drop-shadow colours for widgets, modals, and status overlays.  Uses the
+  casting widget's theme without an inactive variant.  The underlying
+  character and font are preserved.
+
 | `frame`, `frame.inactive`
 | Pane and dialog borders.
 
@@ -353,6 +358,11 @@ The current role registry is:
 
 Scripts may use additional role names.  A theme file may style such a role
 before it becomes part of the built-in registry.
+
+The compiled `shadow` colours are `LegacyAttr=0x08`, `Foreground=0x202020`,
+and `Background=0x000000`.  Override this role to recolour shadowed cells
+independently of the main-menu backdrop.  Explicit `inherit` values follow
+the normal cascade to `default`; `Font` does not affect shadow rendering.
 
 == Glyphs
 
