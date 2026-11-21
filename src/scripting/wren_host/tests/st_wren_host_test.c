@@ -5169,9 +5169,21 @@ exercise_theme_contract(st_wren_host_t *public_host, bool recolored)
 	struct st_wren_host *host = public_host;
 	static const char initial[] =
 	    "import \"syncterm\" for Host\n"
+	    "var defaults = Host.defaultThemeData[0]\n"
+	    "var active = Host.themeData[0]\n"
+	    "if (defaults.count != 51 || active.count != 58) Fiber.abort(\"theme roles: default=%(defaults.count), active=%(active.count)\")\n"
+	    "for (rows in [defaults, active]) {\n"
+	    "  var roles = {}\n"
+	    "  for (row in rows) roles[row[0]] = row\n"
+	    "  var shadow = roles[\"shadow\"]\n"
+	    "  if (shadow == null || shadow[1] != null || shadow[2] != 0x08 || shadow[3] != 0x202020 || shadow[4] != 0) Fiber.abort(\"shadow style\")\n"
+	    "  for (role in [\"list.item.focused.indicator\", \"list.item.focused.indicator.inactive\"]) {\n"
+	    "    var indicator = roles[role]\n"
+	    "    if (indicator == null || indicator[1] != null || indicator[2] != null || indicator[3] != null || indicator[4] != null) Fiber.abort(\"indicator inheritance: %(role)\")\n"
+	    "  }\n"
+	    "}\n"
 	    "var styles = {}\n"
-	    "for (row in Host.themeData[0]) styles[row[0]] = row[2]\n"
-	    "if (Host.defaultThemeData[0].count != 48 || Host.themeData[0].count != 55) Fiber.abort(\"theme roles\")\n"
+	    "for (row in active) styles[row[0]] = row[2]\n"
 	    "if (styles[\"default\"] != 0x1f || styles[\"frame\"] != 0x1e || styles[\"list.item.focused\"] != 0x71 || styles[\"classic.backdrop\"] != 0x13 || styles[\"classic.header\"] != 0x31 || styles[\"classic.console\"] != 0x3e) Fiber.abort(\"classic theme\")\n";
 	static const char changed[] =
 	    "import \"syncterm\" for Host\n"
