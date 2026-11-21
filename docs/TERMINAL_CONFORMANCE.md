@@ -28,12 +28,12 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 simple mouse fields, host execution, captured coordinates, deletion and native
 text/graphics press feedback and the adopted PR #115 gesture/identity policy.
 `syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise plain
-`1U` rendering, classic/Dixon labels, pointer activation, reset-before-host,
+plain/active-clipboard `1U` rendering, classic/Dixon labels, pointer activation, reset-before-host,
 shared capacity and deferred host failure recovery on four connection rasters.
 PR #117 defines positional payload splitting and half-open hit boundaries;
 native tests cover raw limits, reversed/degenerate faces and viewport snapshots.
-Clear/zoom, hover, image faces, groups and keyboard/default-Enter activation
-remain pending; see the RIP3 inventory for the exact supported subset.
+Clear/zoom, hover, ICON/hot/auto faces and groups remain pending. Keyboard
+activation and complete nonplain source sizing/eligibility await #118/#119; see the RIP3 inventory for the exact supported subset.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
 when upstream reference documentation or a PR describes that mode. Applicable

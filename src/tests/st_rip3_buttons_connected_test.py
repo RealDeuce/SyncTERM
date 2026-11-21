@@ -130,6 +130,27 @@ def run(args,width,height):
         values(b"$MKILL$")
         t.exchange(button((400,300,430,330),b"<><><>"))
         click(410,310,b"<>")
+
+        t.case(f"rip3-clipboard-button-face-{width}x{height}")
+        values(b"$MKILL$")
+        # GET_IMAGE captures the requested 4x2 uniform source into its
+        # documented 5x3 clipboard allocation. Erase the source afterward:
+        # button rendering must read the clipboard, not the old screen.
+        t.exchange(b"\x01|S0103|BDW0KDZ0L|1CDW0KDZ0L|S0100|BDW0KDZ0L\r\n")
+        frame=t.exchange(style(flags=1|256|1024,width=50,height=40,flags2=96)
+                         +button((400,300,0,0),b"ID=12:<><>clipboard:$FIELDID$"))
+        assert all(pixel(frame,x,y)==0x00aaaa for y in range(300,303) for x in range(400,405))
+        assert pixel(frame,405,300)==0xaaaaaa  # old larger face is outside this new field
+        assert pixel(frame,500,20)==0
+        click(404,302,b"clipboard:12")
+        click(405,300)
+        # The effective destination is still PORT0 with a bitmap current.
+        t.exchange(b"\x01|2P6000008081|2s600\r\n"
+                   +button((300,300,1,1),b"<><>screen-zero"))
+        frame=values(b"$CUR(PORT)$",b"6")
+        assert pixel(frame,300,300)==0x00aaaa and pixel(frame,304,302)==0x00aaaa
+        click(304,302,b"screen-zero")
+        values(b"$CUR(PORT,0)$")
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
         assert (frame.metadata["plane_width"],frame.metadata["plane_height"])==(width,height)

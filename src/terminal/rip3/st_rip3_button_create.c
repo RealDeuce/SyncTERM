@@ -1,8 +1,9 @@
-/* Connected plain-button construction. All statuses stay below the parser. */
+/* Connected plain/clipboard construction. Statuses stay below the parser. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
 #include "st_rip3_button_styles.h"
 #include "st_rip3_button_payload.h"
+#include "st_rip3_clipboard.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_ports.h"
@@ -253,9 +254,21 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	bool mouse=(style.flags&1024)!=0;
 	/* Type precedence is ICON, clipboard, plain. Group and key decorations
 	 * only apply to resident mouse buttons; inapplicable flags do not reject. */
-	if ((style.flags&(1|64|128))!=0
+	if ((style.flags&(64|128))!=0
 	    || (mouse && ((style.flags&16384)!=0 || (style.flags2&1)!=0))) return IO_ERROR_NOT_SUPPORTED;
 	if (mouse && host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
+	bool clipboard=(style.flags&1)!=0;
+	struct st_rip3_port_info source;
+	if (clipboard) {
+		if (host->clipboard==NULL || !host->clipboard->set) return IO_ERROR_NOT_FOUND;
+		status=st_rip3_ports_info(host->ports,host->clipboard->port,&source);
+		if (status!=0) return status;
+		if (!source.defined) return IO_ERROR_NOT_FOUND;
+		/* The remaining inactive/empty image-source policy is B119; keep
+		 * unsupported definitions below the parser's nonfatal boundary. */
+		if (!source.viewport_active || source.clip.x1<source.clip.x0 || source.clip.y1<source.clip.y0)
+			return IO_ERROR_NOT_SUPPORTED;
+	}
 	struct st_rip3_button_payload payload;
 	status=st_rip3_button_payload_parse(&payload,command+at,length-at);
 	if (status!=0) return status;
@@ -265,7 +278,7 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 		if (strchr(filename,'$')!=NULL || strstr(filename,"<<")!=NULL) return IO_ERROR_NOT_SUPPORTED;
 		if (!st_rip3_resource_name_valid(filename)) return IO_ERROR_INVALID_FORMAT;
 	}
-	if (!mouse && payload.label.length==0 && !(style.width!=0 && style.height!=0) && values[2]==0 && values[3]==0) return 0;
+	if (!clipboard && !mouse && payload.label.length==0 && !(style.width!=0 && style.height!=0) && values[2]==0 && values[3]==0) return 0;
 	struct st_rip3_frame frame;
 	status=st_rip3_environments_frame(host->environments,number,&frame);if (status!=0) return status;
 	unsigned old_port,target;
@@ -274,7 +287,7 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_port_info port;
 	status=st_rip3_ports_info(host->ports,target,&port);if (status!=0 || !port.viewport_active) return status;
 	if (port.clip.x1<port.clip.x0 || port.clip.y1<port.clip.y0) return 0;
-	if (!(style.width!=0 && style.height!=0)) {
+	if (!clipboard && !(style.width!=0 && style.height!=0)) {
 		if (values[2]==0 && values[3]==0) return 0;
 		if (values[0]>values[2]) {uint64_t swap=values[0];values[0]=values[2];values[2]=swap;}
 		if (values[1]>values[3]) {uint64_t swap=values[1];values[1]=values[3];values[3]=swap;}
@@ -283,7 +296,14 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	    (int64_t)(values[1]*frame.device_height/frame.world_height),
 	    (int64_t)(values[2]*frame.device_width/frame.world_width),
 	    (int64_t)(values[3]*frame.device_height/frame.world_height)};
-	if (style.width!=0 && style.height!=0) {face.x1=face.x0+style.width;face.y1=face.y0+style.height;}
+	if (clipboard) {
+		/* The whole clipboard viewport is the image, in DEVICE pixels.
+		 * Fixed style dimensions and command far corners belong to plain
+		 * buttons. Preserve source clipping/alignment in the shared blitter. */
+		face.x1=face.x0+(int64_t)source.viewport.x1-source.viewport.x0+1;
+		face.y1=face.y0+(int64_t)source.viewport.y1-source.viewport.y0+1;
+	}
+	else if (style.width!=0 && style.height!=0) {face.x1=face.x0+style.width;face.y1=face.y0+style.height;}
 	if (face.x1<=face.x0 || face.y1<=face.y0) return 0;
 	struct st_rip3_style drawing;
 	status=st_rip3_styles_current(host->styles,&number);
@@ -303,7 +323,12 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	*operation=true;status=st_rip3_ports_switch(host->ports,target);
 	uint8_t bright=style.colors[ST_RIP3_BUTTON_BRIGHT],dark=style.colors[ST_RIP3_BUTTON_DARK];
 	uint8_t corner=style.colors[ST_RIP3_BUTTON_CORNER];
-	if (status==0 && (style.flags2&32)==0) {
+	if (status==0 && clipboard) {
+		if (face.x0>INT32_MAX || face.y0>INT32_MAX) status=IO_ERROR_OUT_OF_RANGE;
+		else status=st_rip3_ports_blit(host->ports,host->clipboard->port,NULL,target,
+		    (int32_t)face.x0,(int32_t)face.y0,ST_RIP3_TRANSFER_COPY);
+	}
+	if (status==0 && !clipboard && (style.flags2&32)==0) {
 		if ((style.flags2&64)==0) status=fill(host,&port,face,style.colors[ST_RIP3_BUTTON_SURFACE]);
 		else {
 			struct box clipped=face;

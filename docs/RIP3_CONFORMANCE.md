@@ -6821,6 +6821,51 @@ arbitrary 720x400 raster. The ledger has 1565 implemented, 1711 pending,
 RIP1.54 implementation and fixture baseline remain unchanged. Full RIP3
 compliance is not claimed.
 
+## Connected clipboard button faces and remaining input/sizing questions
+
+`1U` now reads an assigned active clipboard port's positive viewport for a
+CLIPBOARD face. It precedes PLAIN when both bits are present. A missing/stale
+clipboard rejects before painting or field insertion; `other_port` remains
+ignored. The shared PORT blitter copies existing indexed pixels in COPY mode,
+including overlap, without a new button image plane. Plain-only NOFILL/PATTERN
+bits do not suppress or replace this image. Existing button effects, labels,
+PORT0 mouse ownership and copied deferred host actions use the resulting face.
+
+The inherited ALPHA 4 section 3.4.2.3 explicitly limits fixed style dimensions
+to plain buttons and describes the entire clipboard viewport as the image.
+Its immutable text digest is
+`0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982`.
+The active-source implementation takes native DEVICE viewport dimensions,
+ignores command far corners/style size and projects only the anchor through
+live WORLD. Native expectations cover a cropped 3x2 source, protected source
+contents, a 50x40 style, WORLD changes, half-open hit edges, aliased overlapping
+copy, retained clipboard/current PORT and rejection of inactive sources.
+Connected tests create a 5x3 clipboard via GET_IMAGE, erase its original screen
+source, draw/click the copied face, and use PORT0 with another bitmap current.
+
+The reconstructed size paragraph omits the inherited plain-only qualifier;
+its nonplain inactive/physically clipped source and hot-image size cases also
+need reconciliation. New parent issue [B119](https://github.com/bbs-land/remote-imaging-protocol/issues/119)
+asks for an explicit per-type table. The affected full clauses remain blocked,
+rather than treating the currently usable active viewport path as full image
+button compliance. Inactive or wholly empty clipboard sources remain explicitly
+unsupported and recover nonfatally. ICON/hot/auto faces and grouped buttons
+remain unfinished.
+
+New parent issue [B118](https://github.com/bbs-land/remote-imaging-protocol/issues/118)
+asks for keyboard matching/case, NUL/high bytes, Enter/default/any-key priority,
+consumption, commitment/repeat, callback coordinates and interaction with a held
+pointer gesture. The existing pointer contracts expressly leave keyboard rules
+separate; those buttons are not yet connected to keyboard input. Both issues
+reference earlier answered issues/PRs without adding comments to them. The
+stable pin remains `1b8ab9928a9fd9071556cf0228ea69a496db3e72`.
+
+The native Release CMake build is warning-free. Six affected CTests pass:
+the native button suite, both connected button encodings across four rasters,
+and the contract/preservation guards. The queue now has 1565 implemented,
+1710 pending, 3441 unreviewed, 1287 context, 67 excluded and 29 blocked units.
+Full compliance remains unfinished; the RIP1.54 freeze is unchanged.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

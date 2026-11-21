@@ -3,6 +3,7 @@
 #include "st_rip3_commands.h"
 #include "st_rip3_button_styles.h"
 #include "st_rip3_button_payload.h"
+#include "st_rip3_clipboard.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_ports.h"
@@ -56,9 +57,70 @@ static int payloads(void)
 	CHECK(st_rip3_button_payload_parse(&p,text,258)!=0);
 	return 0;
 }
+
+static int clipboard_buttons(void)
+{
+	struct st_rip3_command_host host={0};unsigned errors=0;
+	struct st_rip3_style drawing;struct st_rip3_button_style style;
+	struct st_rip3_clipboard_selection clipboard={0};host.clipboard=&clipboard;
+	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_ports_create(&host.ports,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_button_styles_create(&host.button_styles)==0);
+	struct st_rip3_environment env;CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
+	env.world_width=640;env.world_height=480;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	CHECK(st_rip3_button_style_defaults(&style)==0);
+	style.flags=1|256|1024;style.width=50;style.height=40;style.flags2=96;
+	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	struct st_rip3_mouse_sink sink={0};CHECK(st_rip3_mouse_create(&host.mouse,&sink)==0);
+	/* Missing assignment and a stale assignment both reject before painting
+	 * or adding a field, even with PLAIN also present. */
+	command(&host,&errors,"1U2S2S00000000<><>");CHECK(errors==1);
+	clipboard=(struct st_rip3_clipboard_selection){true,4};
+	command(&host,&errors,"1U2S2S00000000<><>");CHECK(errors==2);
+	CHECK(pixel(host.ports,100,100,0)==0 && st_rip3_mouse_count(host.mouse)==0);
+	const struct st_rip3_rect bitmap={0,0,3,2},view={1,0,3,1};
+	CHECK(st_rip3_ports_define(host.ports,4,&bitmap,true)==0 && st_rip3_ports_switch(host.ports,4)==0);
+	for (int y=0;y<3;y++) for (int x=0;x<4;x++)
+		CHECK(st_rip3_ports_plot(host.ports,x,y,(uint8_t)(1+x+4*y),ST_RIP3_COPY)==0);
+	CHECK(st_rip3_ports_viewport(host.ports,&view)==0 && st_rip3_ports_protect(host.ports,4,true)==0);
+	CHECK(st_rip3_ports_switch(host.ports,0)==0);
+	command(&host,&errors,"1U2S2S00000000<><>");CHECK(errors==2);
+	/* Native 3x2 viewport, not fixed 50x40 or WORLD-projected dimensions.
+	 * PLAIN/no-fill/pattern bits cannot replace the clipboard face. */
+	CHECK(pixel(host.ports,100,100,2)==0 && pixel(host.ports,102,101,8)==0);
+	CHECK(pixel(host.ports,103,100,0)==0 && pixel(host.ports,100,102,0)==0);
+	CHECK(st_rip3_mouse_event(host.mouse,100,100,true) && st_rip3_mouse_event(host.mouse,102,101,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,103,100,true) && !st_rip3_mouse_event(host.mouse,103,100,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,100,102,true) && !st_rip3_mouse_event(host.mouse,100,102,false));
+	env.world_width=1280;env.world_height=960;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	command(&host,&errors,"1U5K5K01010000<><>");CHECK(errors==2);
+	CHECK(pixel(host.ports,100,100,2)==0 && pixel(host.ports,102,101,8)==0 && st_rip3_mouse_count(host.mouse)==2);
+	/* Nonmouse destination may alias the source. Copy reads original pixels
+	 * on overlap and preserves the current selection and source cursor. */
+	CHECK(st_rip3_ports_protect(host.ports,4,false)==0 && st_rip3_ports_switch(host.ports,4)==0);
+	const struct st_rip3_rect full={0,0,3,2};
+	CHECK(st_rip3_ports_viewport(host.ports,&full)==0);
+	style.flags=1;CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U020200000000<><>");CHECK(errors==2);
+	uint8_t value;CHECK(st_rip3_ports_read(host.ports,4,1,1,&value)==0 && value==1);
+	CHECK(st_rip3_ports_read(host.ports,4,3,2,&value)==0 && value==7);
+	unsigned current;CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==4);
+	CHECK(clipboard.set && clipboard.port==4 && st_rip3_mouse_count(host.mouse)==2);
+	/* B119's unsupported inactive source never installs an invisible field. */
+	CHECK(st_rip3_ports_activate(host.ports,false)==0 && st_rip3_ports_switch(host.ports,0)==0);
+	style.flags=1|1024;CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
+	command(&host,&errors,"1U5K5K00000000<><>");
+	CHECK(errors==3 && st_rip3_mouse_count(host.mouse)==2);
+	st_rip3_mouse_destroy(host.mouse);st_rip3_button_styles_destroy(host.button_styles);
+	st_rip3_styles_destroy(host.styles);st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);
+	return 0;
+}
 int main(void)
 {
-	CHECK(payloads()==0);
+	CHECK(payloads()==0 && clipboard_buttons()==0);
 	struct st_rip3_command_host host={0};unsigned errors=0;
 	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
 	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);
