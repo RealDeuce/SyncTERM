@@ -107,6 +107,8 @@ static const char *output_modes[] = {
 	"WaylandFullscreen", "Quartz", "QuartzFullscreen", NULL
 };
 
+static const char *main_uis[] = {"Classic", "DOS", NULL};
+
 static const char *cursor_types[] = {
 	"Default", "BlinkingUnderline", "SolidUnderline", "BlinkingBlock",
 	"SolidBlock", NULL
@@ -149,6 +151,7 @@ struct setting_key {
 };
 
 static const struct setting_key known_keys[] = {
+	{ "SyncTERM", "MainUI" },
 	{ "SyncTERM", "ConfirmClose" },
 	{ "SyncTERM", "PromptSave" },
 	{ "SyncTERM", "ScreenMode" },
@@ -357,6 +360,10 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 		return IO_ERROR_OUT_OF_MEMORY;
 	section = ini_document_find_section(document, "SyncTERM");
 	if (section != NULL) {
+		size_t main_ui = ini_section_get_enum_names(section, "MainUI",
+		    ENUM_NAMES(main_uis), ST_MAIN_UI_CLASSIC);
+		value->main_ui = main_ui < ENUM_COUNT(main_uis)
+		    ? (enum st_main_ui)main_ui : ST_MAIN_UI_CLASSIC;
 		value->confirm_close = ini_section_get_bool(section, "ConfirmClose",
 		    value->confirm_close);
 		value->prompt_save = ini_section_get_bool(section, "PromptSave",
@@ -693,6 +700,8 @@ encode_settings(ini_document_t *document, const struct st_settings *value)
 	int status;
 
 	SET(ensure_section(document, "SyncTERM", &section));
+	SET(ini_section_set_enum_names(section, "MainUI", ENUM_NAMES(main_uis),
+	    (size_t)value->main_ui, &ini_default_style));
 	SET(ini_section_set_bool(section, "ConfirmClose", value->confirm_close,
 	    &ini_default_style));
 	SET(ini_section_set_bool(section, "PromptSave", value->prompt_save,

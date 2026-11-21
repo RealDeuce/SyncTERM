@@ -79,7 +79,10 @@ class Menu {
   foreign static defaults
   foreign static defaultsDirty
   foreign static saveDefaults()
+  foreign static saveDefaults(profile)
+  foreign static createFromProfile(name, profile, sortOrder)
   foreign static settings
+  foreign static mainUiChoices
   foreign static nameAvailable(name)
   // create/copy insert an unsaved personal record into the working model.
   foreign static create(name)
@@ -278,6 +281,8 @@ foreign class ThemeDocument {
 // C-owned editable snapshot of program settings.  apply() updates the
 // running program; save() also writes syncterm.ini.
 foreign class Settings {
+  foreign mainUi
+  foreign mainUi=(value)
   foreign dirty
   foreign apply()
   foreign save()
@@ -355,6 +360,7 @@ foreign class Settings {
 // Entry identity survives unrelated insertion/deletion. Reload and removal
 // invalidate this entry and its profile views.
 foreign class DirectoryEntry {
+  foreign saveDraft(profile, name, sortOrder)
   foreign name
   foreign searchKey
   foreign rename(name)
@@ -367,6 +373,7 @@ foreign class DirectoryEntry {
   foreign id
   foreign added
   foreign connected
+  foreign lastCallText
   foreign calls
   foreign dirty
   foreign save()

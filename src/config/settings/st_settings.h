@@ -47,7 +47,13 @@ enum st_cursor_type {
 	ST_CURSOR_SOLID_BLOCK,
 };
 
+enum st_main_ui {
+	ST_MAIN_UI_CLASSIC,
+	ST_MAIN_UI_DOS,
+};
+
 struct st_settings {
+	enum st_main_ui main_ui;
 	/* These path fields are owned; NULL represents an absent path. */
 	char *modem_device;
 	char *list_path;

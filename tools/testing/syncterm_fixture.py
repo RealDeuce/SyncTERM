@@ -172,10 +172,13 @@ class TestCompletion {
     # Keep the shipped classes available to tests that import main_menu helpers.
     menu = (SOURCE / "scripts/auto/menu/main_menu.wren").read_text(encoding="utf-8")
     original = '''    if (!prepare()) return null
-    var menu = MainMenuApp.new(current, connected)
-    var result = menu.run()
-    rememberView_(connected, menu.view_)
-    return result'''
+    while (true) {
+      var menu = MainMenuApp.new(current, connected)
+      var result = menu.run()
+      rememberView_(connected, menu.view_)
+      if (!menu.switchingUI) return result
+      current = menu.view_[0]
+    }'''
     assert menu.count(original) == 1, "MainMenu fixture entry needs updating"
     menu = menu.replace(original, '    import "test_case"\n    return null')
     write_script(root, "main_menu", menu, "menu")

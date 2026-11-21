@@ -6,11 +6,14 @@ import "menu_bbs_editor" for BbsEditor
 import "menu_settings_ui" for SettingsMenu
 import "menu_scrollback" for OfflineScrollbackView
 import "menu_sort_profiles" for SortProfiles
+import "menu_dos" for DosTable, DosHeading, DosSettingsPane, DosBackdrop, DosFooter
+import "menu_dos_forms" for DosForms
 import "ui_app" for App
 import "ui_widget" for Widget, Container, Rect
 import "ui_input" for SelectOnFocusInput
 import "ui_draw" for Painter
 import "ui_pane" for Pane
+import "ui_button" for Button
 import "ui_list" for ListView
 import "ui_popup" for Alert, Confirm, Popup
 
@@ -291,6 +294,41 @@ class MainList is ListView {
   }
 }
 
+class DosMainList is MainList {
+  construct new(onFocus, onCycle, onComment, commentKey, onSwitchPane, onInsert, onDelete) {
+    super(onFocus, onCycle, onComment, commentKey, onSwitchPane, onInsert, onDelete)
+    _records = {}
+    _focus = onFocus
+  }
+  handle(event) {
+    if (event is MouseEvent && bounds != null && bounds.contains(event.startX, event.startY) &&
+        (event.event == Mouse.button1Click || event.event == Mouse.button1DblClick)) {
+      var x = event.startX - bounds.x
+      if (!scrollbarVisible_ || (x != scrollbarColumn_ && x != separatorColumn_)) {
+        _focus.call()
+        var index = scrollTop + event.startY - bounds.y
+        if (index >= 0 && index < count) {
+          selected = index
+          if (event.event == Mouse.button1DblClick) super.handle(KeyEvent.new(Key.enter))
+        }
+        return true
+      }
+    }
+    return super.handle(event)
+  }
+  entries=(entries) {
+    _records = {}
+    for (entry in entries) _records[entry.name] = entry
+    markDirty()
+  }
+  formatItem(item, width) {
+    return _records.containsKey(item) ? DosTable.row(_records[item], width) : item
+  }
+  searchTextFor_(item) {
+    return _records.containsKey(item) ? DosTable.values(_records[item]).join(" ") : item
+  }
+}
+
 class MainMenuEventApp is App {
   construct new(afterDispatch) {
     super()
@@ -306,6 +344,8 @@ class MainMenuEventApp is App {
 
 class MainMenuApp {
   construct new(current, connected) {
+    _dos = Menu.settings.mainUi == 1
+    _switchUI = false
     var view = MainMenu.view_(connected)
     if (connected && MainMenu.view_(false) != null) view = MainMenu.view_(false)
     _app = MainMenuEventApp.new(Fn.new { _consoleIndicator.refresh() })
@@ -322,8 +362,9 @@ class MainMenuApp {
     _centerCurrent = false
     _settingRows = SettingsMenu.rows(_connected)
 
-    _backdrop = ClassicBackdrop.new()
-    _backdrop.visible = !_connected
+    var backdropClass = _dos ? DosBackdrop : ClassicBackdrop
+    _backdrop = backdropClass.new()
+    _backdrop.visible = _dos || !_connected
     _app.root.add(_backdrop)
 
     _directory = MainPane.new(Fn.new { focusDirectory_() })
@@ -332,7 +373,8 @@ class MainMenuApp {
     _directory.onClose = Fn.new { exit_(false) }
     _app.root.add(_directory)
 
-    _list = MainList.new(Fn.new { focusDirectory_() },
+    var listClass = _dos ? DosMainList : MainList
+    _list = listClass.new(Fn.new { focusDirectory_() },
         Fn.new {|delta| cycleSort_(delta) },
         Fn.new { focusComment_(1) }, Key.tab,
         Fn.new { focusSettings_() }, Fn.new { add_() },
@@ -341,7 +383,7 @@ class MainMenuApp {
       _selected = index != null && index >= 0 &&
           index < _entries.count ? _entries[index] : null
       updateWindowTitle_()
-      _footer.comment = _selected == null ? "" : _selected.profile.comment
+      _footer.comment = _dos ? DosTable.details(_selected) : _selected == null ? "" : _selected.profile.comment
     }
     _list.onSelect = Fn.new {|index, item|
       if (index == _entries.count) {
@@ -353,8 +395,12 @@ class MainMenuApp {
       }
     }
     _directory.add(_list)
+    _heading = DosHeading.new(_list)
+    _heading.visible = _dos
+    _directory.add(_heading)
 
-    _footer = ClassicFooter.new(Fn.new { _app.keyHints },
+    var footerClass = _dos ? DosFooter : ClassicFooter
+    _footer = footerClass.new(Fn.new { _app.keyHints },
         Fn.new { _app.helpAvailable },
         Fn.new { focusComment_(0) },
         Fn.new {|value, destination| finishComment_(value, destination) },
@@ -362,9 +408,11 @@ class MainMenuApp {
     _footer.helpText = directoryHelp_()
     _footer.keyHints = directoryHints_()
     _app.root.add(_footer)
+    if (_dos) _footer.focusable = false
 
     _settings = MainPane.new(Fn.new { focusSettings_() })
     _settings.title = "SyncTERM Settings"
+    if (_dos) _settings.focusable = false
     _settings.helpText = SettingsMenu.helpText(_connected)
     _settings.keyHints = settingsHints_()
     _settings.onClose = Fn.new { exit_(false) }
@@ -383,6 +431,27 @@ class MainMenuApp {
 
     _consoleIndicator = ConsoleIndicator.new()
     _app.root.add(_consoleIndicator)
+    _dosEditButton = Button.new("Edit")
+    _dosEditButton.visible = _dos
+    _dosEditButton.focusable = _dos
+    _dosEditButton.onPress = Fn.new { edit_() }
+    _app.root.add(_dosEditButton)
+    _dosConnectButton = Button.new(_connected ? "Return" : "Connect")
+    _dosConnectButton.visible = _dos
+    _dosConnectButton.focusable = _dos
+    _dosConnectButton.onPress = Fn.new {
+      if (_connected) exit_(false) else connect_()
+    }
+    _app.root.add(_dosConnectButton)
+    _dosSettingsButton = Button.new("Settings")
+    _dosSettingsButton.visible = _dos
+    _dosSettingsButton.focusable = _dos
+    _dosSettingsButton.onPress = Fn.new { focusSettings_() }
+    _app.root.add(_dosSettingsButton)
+    if (_dos) {
+      _app.root.keyHints = _directory.keyHints
+      _app.root.helpText = _directory.helpText
+    }
     _app.onError = Fn.new {|fiber|
       System.print("menu UI error: " + fiber.error)
       REPL.printTrace_(fiber)
@@ -398,6 +467,7 @@ class MainMenuApp {
       backgroundMouse_(event, hit)
     }
     bind_(Key.escape, Fn.new { exit_(false) })
+    if (_dos) bind_(Key.f4, Fn.new { focusSettings_() })
     var openConsole = Fn.new {|event| console_() }
     _app.bind(96, Mod.control, openConsole)
     if (Screen.checked_(Host.localControlKeys)) _app.bind(113, Mod.control, openConsole)
@@ -427,7 +497,10 @@ class MainMenuApp {
         _selected.name == current
   }
 
+  switchingUI { _switchUI }
+
   view_ {
+    if (_switchUI) return [_switchName, _list.selected, _list.scrollTop]
     var name = _selected == null ? null : _selected.name
     return [name, _list.selected, _list.scrollTop]
   }
@@ -446,7 +519,7 @@ class MainMenuApp {
 
   bindDirectory_(key, fn) {
     bind_(key, Fn.new {
-      if (_app.root.focusedChild == _directory) fn.call()
+      if (_dos || _app.root.focusedChild == _directory) fn.call()
     })
   }
 
@@ -475,7 +548,7 @@ class MainMenuApp {
         "F6 / Shift-Insert\n:  Paste an entry\n" +
         "Ctrl-S\n:  Manage sort profiles\n" +
         "< / >\n:  Cycle through sort profiles\n" +
-        "Tab\n:  Edit the selected comment, then move to settings"
+        (_dos ? "Tab\n:  Move to the top-row actions\nF4\n:  Open full-page Settings\nMouse\n:  Click to select; double-click to activate" : "Tab\n:  Edit the selected comment, then move to settings")
     if (!_connected) {
       text = text + "\nCtrl-D\n:  Quick-connect to an address or URL\n" +
           "Alt-B\n:  View the scrollback from the last session"
@@ -499,6 +572,11 @@ class MainMenuApp {
     var hints = [
       ["F1", "Help"], ["F2", "Edit Item"], ["F5", "Copy"]
     ]
+    if (_dos) {
+      hints.insert(1, ["Enter", _connected ? "Edit" : "Connect"])
+      hints.add(["F4", "Settings"])
+      hints.add(["Ctrl-F", "Find"])
+    }
     if (_clipboard != null) hints.add(["F6", "Paste"])
     hints.add(["INS", "Add"])
     hints.add(["DEL", "Delete"])
@@ -522,6 +600,10 @@ class MainMenuApp {
   }
 
   focusComment_(fallback) {
+    if (_dos) {
+      _app.root.focusedIndex = _app.root.children.indexOf(_dosEditButton)
+      return false
+    }
     if (_selected == null || Host.safeMode) {
       if (fallback == 0) return false
       if (fallback > 0) {
@@ -541,6 +623,14 @@ class MainMenuApp {
   }
 
   focusSettings_() {
+    if (_dos) {
+      var pane = DosSettingsPane.new(_app, _connected)
+      pane.rows = SettingsMenu.rows(_connected)
+      pane.helpText = SettingsMenu.helpText(_connected)
+      _app.modal(pane)
+      if (pane.result != null) settingsAction_(pane.result)
+      return false
+    }
     if (_app.root.focusedChild == _footer) {
       var activate = _commentReturn == _settings
       finishComment_(_footer.value, 1)
@@ -627,6 +717,27 @@ class MainMenuApp {
   }
 
   layout_(width, height) {
+    if (_dos) {
+      _backdrop.bounds = Rect.new(1, 1, width, height)
+      _consoleIndicator.bounds = Rect.new(width, 1, 1, 1)
+      var actionsX = (width - 37).max(1)
+      _dosEditButton.bounds = Rect.new(actionsX, 1, 8, 1)
+      _dosConnectButton.bounds = Rect.new(actionsX + 8, 1, 12, 1)
+      _dosSettingsButton.bounds = Rect.new(actionsX + 20, 1, 16, 1)
+      _settings.visible = false
+      _directory.bounds = Rect.new(1, 2, width, (height - 4).max(4))
+      _directory.shadow = false
+      var inner = _directory.innerBounds
+      _heading.bounds = Rect.new(inner.x, inner.y, inner.w, 1)
+      _list.bounds = Rect.new(inner.x, inner.y + 1, inner.w, (inner.h - 1).max(1))
+      _footer.bounds = Rect.new(1, height - 2, width, 3)
+      if (_restoreScrollTop != null) {
+        _list.scrollTop = _restoreScrollTop
+        _list.ensureVisible_()
+        _restoreScrollTop = null
+      }
+      return
+    }
     _backdrop.bounds = Rect.new(1, 1, width, height)
     _consoleIndicator.bounds = Rect.new(width, 1, 1, 1)
     _footer.bounds = Rect.new(1, height - 1, width, 2)
@@ -688,6 +799,7 @@ class MainMenuApp {
 
   refresh_(preferred, fallback) {
     _entries = Menu.entries
+    if (_dos) _list.entries = _entries
     var labels = []
     var searchKeys = []
     var selected = fallback.max(0)
@@ -702,7 +814,7 @@ class MainMenuApp {
       searchKeys.add("")
     }
     _list.items = labels
-    _list.searchKeys = searchKeys
+    _list.searchKeys = _dos ? null : searchKeys
     if (labels.count > 0) _list.selected = selected.min(labels.count - 1)
     if (_entries.count == 0) {
       _selected = null
@@ -781,6 +893,10 @@ class MainMenuApp {
   }
 
   editEntry_(first, isNew) {
+    if (_dos) {
+      var result = DosForms.entry(_app, first, false, isNew)
+      return result == null ? first.name : result.name
+    }
     var current = first
     var currentIsNew = isNew
     var finalName = first.name
@@ -812,6 +928,12 @@ class MainMenuApp {
     }
     if (!mutable_("edit")) return
     var bbs = _selected
+    if (_dos) {
+      if (bbs.readOnly && !Confirm.show(_app, "Copy from system directory?", systemCopyHelp_())) return
+      var result = DosForms.entry(_app, bbs, false, false)
+      refresh_(result == null ? bbs.name : result.name)
+      return
+    }
     if (bbs.readOnly) {
       if (!Confirm.show(_app, "Copy from system directory?",
           systemCopyHelp_())) return
@@ -873,6 +995,11 @@ class MainMenuApp {
     }
     if (!mutable_("add")) return
     var preferred = _selected == null ? null : _selected.name
+    if (_dos) {
+      var result = DosForms.entry(_app, Menu.defaults, false, true)
+      refresh_(result == null ? preferred : result.name)
+      return
+    }
     var name = ""
     while (true) {
       name = MenuUi.prompt(_app, "New Entry", "Entry name", name, 30,
@@ -961,6 +1088,7 @@ class MainMenuApp {
     _clipboard = BbsEditor.draft_(_selected)
     _clipboardSource = _selected.source
     _directory.keyHints = directoryHints_()
+    if (_dos) _app.root.keyHints = _directory.keyHints
   }
 
   paste_() {
@@ -1072,10 +1200,24 @@ class MainMenuApp {
 
   settingsAction_(picked) {
     var preferred = _selected == null ? null : _selected.name
-    var previousComment = _selected == null ? "" : _selected.profile.comment
+    var previousComment = _dos ? DosTable.details(_selected) : _selected == null ? "" : _selected.profile.comment
     SettingsMenu.begin()
-    var changed = SettingsMenu.runAction(_app, picked, _connected,
-        Fn.new {|value| _footer.comment = value })
+    var changed = false
+    if (_dos && picked == 4) {
+      changed = DosForms.program(_app, _connected)
+    } else if (_dos && picked == 1) {
+      var result = DosForms.entry(_app, Menu.defaults, true, false)
+      changed = !Host.safeMode && result != null
+    } else {
+      changed = SettingsMenu.runAction(_app, picked, _connected,
+          Fn.new {|value| _footer.comment = value })
+    }
+    if ((Menu.settings.mainUi == 1) != _dos) {
+      _switchName = preferred
+      _switchUI = true
+      _app.quit()
+      return
+    }
     _footer.comment = previousComment
     if (!changed) return
     if (SettingsMenu.passwordChanged) {
@@ -1175,7 +1317,8 @@ class MainMenu {
 
   static drawBackdrop_() {
     var app = App.new()
-    var backdrop = ClassicBackdrop.new()
+    var backdropClass = Menu.settings.mainUi == 1 ? DosBackdrop : ClassicBackdrop
+    var backdrop = backdropClass.new()
     var size = Screen.checked_(Screen.size)
     backdrop.bounds = Rect.new(1, 1, size[0], size[1])
     app.root.add(backdrop)
@@ -1284,6 +1427,7 @@ class MainMenu {
         BbsEditor.showNameErrorStandaloneAtExit("Save Directory Entry", name)
       }
     }
+    if (Menu.settings.mainUi == 1) return DosForms.offerSave(source, name)
     var bbs = Menu.copy(source, name)
     if (bbs is MenuError) {
       MenuUi.alertStandaloneAtExit("Save Directory Entry",
@@ -1295,10 +1439,13 @@ class MainMenu {
 
   static run(current, connected) {
     if (!prepare()) return null
-    var menu = MainMenuApp.new(current, connected)
-    var result = menu.run()
-    rememberView_(connected, menu.view_)
-    return result
+    while (true) {
+      var menu = MainMenuApp.new(current, connected)
+      var result = menu.run()
+      rememberView_(connected, menu.view_)
+      if (!menu.switchingUI) return result
+      current = menu.view_[0]
+    }
   }
 }
 

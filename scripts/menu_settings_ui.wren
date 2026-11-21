@@ -561,11 +561,13 @@ class SettingsMenu {
     return "%(term)\n:  %(description)\n"
   }
 
-  static programHelp_(connected) {
+  static programHelp_(connected) { programHelp_(connected, false) }
+
+  static programHelp_(connected, draft) {
     var text = "# Program Settings\n\n" +
-        "Accepted changes update the running configuration immediately. " +
-        "Startup screen and video output choices take effect at the next " +
-        "startup. The configuration file is written when you leave this screen.\n\n" +
+        (draft ? "Changes remain in a private draft until Save/F10. Cancel/Escape discards unaccepted changes. " : "Accepted changes update the running configuration immediately. The configuration file is written when you leave this screen. ") +
+        "Startup screen and video output choices take effect at the next startup.\n\n" +
+        helpItem_("Main Interface", "Select the built-in Classic or DOS directory and settings layout; the accepted choice is used without restarting") +
         helpItem_("Confirm Program Exit", "Prompt before exiting SyncTERM") +
         helpItem_("Prompt to Save", "Offer to save temporary URL entries") +
         helpItem_("Startup Screen Mode", "The initial screen size and mode") +
@@ -605,6 +607,9 @@ class SettingsMenu {
   }
 
   static settingHelp_(title) {
+    if (title == "Main Interface") {
+      return "# Main Interface\n\nClassic keeps the original directory and settings panes. DOS uses a wide table and full-page forms. The choice applies when Program Settings closes and is remembered for subsequent launches. Custom main-menu script overrides take precedence."
+    }
     if (title == "Startup Screen Mode") {
       return "# Startup Screen Mode\n\nSelect the initial screen size and mode used at startup."
     }
@@ -840,6 +845,7 @@ class SettingsMenu {
     var view = ChoiceViewState.new()
     while (true) {
       var rows = []
+      rows.add([24, settingsLine_("Main Interface", MenuUi.rowName(Menu.mainUiChoices, s.mainUi))])
       rows.add([1, settingsLine_("Confirm Program Exit", yesNo_(s.confirmClose))])
       rows.add([2, settingsLine_("Prompt to Save", yesNo_(s.promptSave))])
       rows.add([3, settingsLine_("Startup Screen Mode", Menu.screenModes[s.startupMode])])
@@ -875,6 +881,9 @@ class SettingsMenu {
         if (command == "clear") {
           if (value == 19) s.tlsClientCert = ""
           if (value == 20) s.tlsClientKey = ""
+        } else if (value == 24) {
+          var next = pickSetting_(app, "Main Interface", Menu.mainUiChoices, s.mainUi)
+          if (next != null) s.mainUi = next
         } else if (value == 1) {
           s.confirmClose = !s.confirmClose
         } else if (value == 2) {

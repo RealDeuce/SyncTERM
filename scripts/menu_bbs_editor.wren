@@ -383,7 +383,7 @@ class BbsEditor {
     var updateClear = Fn.new {
       var index = state["selected"]
       if (index >= 0 && index < currentRows.count &&
-          currentRows[index].count > 2) {
+          currentRows[index].count > 2 && currentRows[index][2] != null) {
         pane.onClear = Fn.new {
           currentRows[state["selected"]][2].call()
           update_(app, bbs, draft, isDefaults)
@@ -506,8 +506,11 @@ class BbsEditor {
 
   static yesNo_(value) { value ? "Yes" : "No" }
 
+  // The first three slots retain the Classic label/action/clear contract.
+  // Typed metadata lets the DOS form render the same field definitions.
   static row_(label, value, action) {
-    return [line_(label, value), action]
+    return [line_(label, value), action, null,
+        [label, "action", null, null, false, value]]
   }
 
   static fileRow_(app, d, key, label) {
@@ -528,7 +531,8 @@ class BbsEditor {
               FilePickerOptions.maskLocked, label)
       app.restoreFocus()
       if (file != null) changed.call(file.path)
-    }, Fn.new { changed.call("") }]
+    }, Fn.new { changed.call("") },
+        [label, "action", key, null, false, d[key]]]
   }
 
   static textRow_(app, d, key, label, maxLen, masked) {
@@ -538,12 +542,14 @@ class BbsEditor {
   static textRow_(app, d, key, label, maxLen, displayMasked, inputMasked) {
     var shown = d[key]
     if (displayMasked) shown = shown.count > 0 ? "********" : "<none>"
-    return row_(label, shown,
+    var row = row_(label, shown,
         Fn.new {
       var value = MenuUi.promptBytes(app, label, label, d[key], maxLen,
           inputMasked, fieldHelp_(key, d))
       if (value != null) d[key] = value
     })
+    row[3] = [label, "text", key, maxLen, displayMasked, shown]
+    return row
   }
 
   static nameRow_(app, b, d) {
@@ -572,7 +578,9 @@ class BbsEditor {
   }
 
   static boolRow_(d, key, label) {
-    return row_(label, yesNo_(d[key]), Fn.new { d[key] = !d[key] })
+    var row = row_(label, yesNo_(d[key]), Fn.new { d[key] = !d[key] })
+    row[3] = [label, "bool", key, null, false, d[key]]
+    return row
   }
 
   static choiceRow_(app, d, key, label, choices) {
@@ -602,12 +610,12 @@ class BbsEditor {
     return "%(term)\n:  %(description)\n"
   }
 
-  static editorHelp_(d, defaults) {
+  static editorHelp_(d, defaults) { editorHelp_(d, defaults, false) }
+
+  static editorHelp_(d, defaults, draft) {
     var heading = "# Edit Default Connection\n\n"
     if (!defaults) heading = "# Edit Directory Entry\n\n"
-    var text = heading + "Accepted field changes update the working " +
-        "entry immediately. The directory file is written when you " +
-        "leave the editor.\n\n"
+    var text = heading + (draft ? "Changes remain in the private draft across pages. F10 saves the complete draft; Escape cancels without accepting it.\n\n" : "Accepted field changes update the working entry immediately. The directory file is written when you leave the editor.\n\n")
     if (!defaults) {
       text = text + helpItem_("Name", "The name shown in the directory")
       var address = "The network address to connect to"
@@ -721,9 +729,11 @@ class BbsEditor {
     if (!defaults) {
       text = text + helpItem_("Wren Scripts",
           "The ordered scripts loaded only for this connection")
-      text = text + helpItem_("Ctrl-S",
-          "Edit the explicit numeric directory sort order") +
-          helpItem_("[ / ]", "Edit the previous or next directory entry")
+      if (!draft) {
+        text = text + helpItem_("Ctrl-S",
+            "Edit the explicit numeric directory sort order") +
+            helpItem_("[ / ]", "Edit the previous or next directory entry")
+      }
     }
     return text
   }
@@ -1582,14 +1592,14 @@ class BbsEditor {
   }
 
   static update_(app, b, d, defaults) {
-    var p = defaults ? b : b.profile
+    var p = defaults || b is Profile ? b : b.profile
     if (sameDraft_(draft_(b), d)) return true
     var tlsIdentityChanged = d["addr"] != p.addr || d["port"] != p.port ||
         d["connType"] != p.connType ||
         d["tlsTrustWebPki"] != p.tlsTrustWebPki ||
         d["tlsTrustedCert"] != p.tlsTrustedCert
     if (tlsIdentityChanged) d["tlsVersionFloor"] = TLSVersion.unknown
-    if (!defaults && d["name"] != b.name) {
+    if (b is DirectoryEntry && !defaults && d["name"] != b.name) {
       var error = b.rename(d["name"])
       if (error != null) {
         Alert.show(app, "Entry Name", error.message)
@@ -1646,7 +1656,7 @@ class BbsEditor {
     p.sshFingerprint = d["sshFingerprint"]
     if (!defaults) p.wrenScripts = d["wrenScripts"]
     p.palette = d["palette"]
-    if (!defaults) b.sortOrder = d["sortOrder"]
+    if (!defaults && b is DirectoryEntry) b.sortOrder = d["sortOrder"]
     return true
   }
 

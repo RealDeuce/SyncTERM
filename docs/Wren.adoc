@@ -953,6 +953,49 @@ objects where that VM has them.  The auto-load embeds run when their
 owning VM is created: once per application for `menu` and `picker`, and
 once per BBS session for `connected`.
 
+=== Built-in main interfaces [[main-interfaces]]
+
+Program Settings → Main Interface selects *Classic* or *DOS*. Classic remains
+the default when `MainUI` is absent or unrecognized. The accepted choice is
+stored as `MainUI=Classic` or `MainUI=DOS` under `[SyncTERM]` and takes effect
+when Program Settings closes, without restarting or reconnecting. It selects
+both the offline directory and the existing edit-only connected directory.
+Custom `main_menu` script overrides retain precedence over this built-in choice.
+The layout and selected colour theme are independent.
+
+DOS opens on a full-width calling table with Name, Address, Port, Type, and
+Term/Graphics columns at 80 columns. Wider screens add Encoding, Calls, and
+Last Call; narrow screens retain Name and Address. Term/Graphics describes the
+saved emulation and enabled graphics, such as `ANSI/RIP1`, `ANSI/RIP3`,
+`ANSI/Sky1.3`, `ANSI/Sky3.1`, `VT52/IGS`, or `ANSI/BIG`; it does not report
+live protocol negotiation or use the advertised TERM string as an emulator name.
+The last-call date uses local time. Long text is clipped on grapheme boundaries.
+
+Arrow and paging keys select entries; type-to-search and Ctrl-F/Ctrl-G retain
+the usual list behavior, with DOS Find also matching connection columns. Enter
+connects offline and edits while connected. F2 edits, Insert adds, Delete
+removes, F5/F6 copy/paste, Ctrl-S manages sorting, and `<`/`>` cycle sort profiles.
+A single mouse click selects a directory row; double-click activates it.
+The top-row Edit, Connect/Return, and Settings controls are clickable. F4 opens
+the separate Settings screen. Tab moves from the directory to the top-row
+actions. Escape exits the directory or returns to the existing session.
+Opening, resizing, or switching the directory does not resize the remote terminal.
+
+DOS entry settings, New Connection Defaults, and Program Settings use separate
+full-page forms. Category buttons and Ctrl-PageUp/PageDown move through pages;
+Previous/Next also reach overflow fields on small screens. Tab/Shift-Tab move
+between controls. F1 opens contextual help. Specialized palette, script, font,
+and file selectors remain available. Edits stay in a private draft across page
+changes and resizing. Save/F10 accepts the complete draft; Cancel/Escape asks
+before discarding changed drafts. A failed save retains the form and its draft
+for retry. In safe mode, allowed program changes use Apply without persistence;
+existing directory write restrictions still apply. Existing native partial-effect
+errors, such as a saved configuration followed by a runtime-application failure,
+are reported without claiming that completed effects were rolled back.
+
+Classic retains its two-pane layout, field-list editors, immediate application
+of accepted program fields, and existing Escape/save conventions.
+
 === Overriding Embedded Scripts
 
 A user script whose basename and role match an embedded module
@@ -1116,7 +1159,9 @@ the indicator is refreshed, and the main menu continues running.  This
 boundary does not hide layout or painting failures, which still abort
 `MainMenu.run` rather than repeatedly failing during every redraw.
 
-The shipped controller defines the main-menu interaction contract.
+The Classic controller defines the following main-menu interaction contract.
+The DOS presentation shares its directory operations and host entry point, with
+the navigation and draft-editing differences described in <<main-interfaces>>.
 After a connection or failed connection attempt, the offline directory restores
 its selected entry and viewport rather than returning to the first row. The
 selection follows the entry's name across reloads and sort changes; if that
@@ -1137,7 +1182,7 @@ settings action from the settings pane.  F2/Ctrl-E, Insert, Delete, F5/F6,
 Ctrl-S, `<`/`>`, Ctrl-D, and Alt-B invoke their documented commands.  F2 does
 nothing on the blank append row; Ctrl-E invokes the row's add operation.  The
 comment row is also clickable for direct editing.  An override may present the
-model differently, but it must provide this user-visible behavior.
+model differently while preserving the host entry-point and ownership contracts.
 
 The comment is edited only in the main screen's footer.  It is not a field in
 the full directory-entry editor.  F1 and Ctrl-Z in the footer display the
@@ -4879,13 +4924,17 @@ dialogs, even when all retained warnings are from web lists. There are no
 automatic retries.
 
 A DirectoryEntry owns `name`, `searchKey`, `source`, `sourceName`, `shadowed`, `id`, `added`,
-`connected` (persisted LastConnected timestamp), `calls`, `readOnly`, `dirty`,
+`connected` (persisted LastConnected timestamp), `lastCallText`, `calls`, `readOnly`, `dirty`,
 `profile` and `cache`. Only `sortOrder` has a property setter. `rename(name)`,
 `save()` and `delete()` return null/MenuError; `toString` returns its name.
 `id` survives sorting, rename, save and unrelated model edits. An unsaved draft
 has -1 until its first successful save. IDs are local to a load and are not
 serialized. Native ownership also distinguishes replaced records independently
 of their names, addresses or numeric IDs.
+
+`lastCallText` formats the persisted last-connected timestamp as a local-time
+`YYYY-MM-DD` date, `Never` for zero, or `Unknown` if it cannot be represented.
+It performs no I/O and follows the entry handle's ordinary lifetime.
 
 `source` preserves the native list source using `BBSListSource.personal` (0),
 `shared` (1), `webSystem` (2), or `webNamed` (3). `sourceName` returns null for
@@ -5026,7 +5075,7 @@ if (failure != null) {
 === Menu operation results [[menu-errors]]
 
 In v2, BBS and Settings mutation actions return null on success or a host-created,
-immutable `MenuError`. Creators (`Menu.create`, `copy`, `createFont`) return their
+immutable `MenuError`. Creators (`Menu.create`, `copy`, `createFromProfile`, `createFont`) return their
 object or MenuError. This covers entry rename/save/delete, defaults/encryption/sort,
 Settings apply/save/reload, font/web/sort collection actions, Menu.load, and
 theme operations described below.
@@ -5066,6 +5115,38 @@ including saveSortProfiles, which formerly reported a successful no-op.
 var error = entry.save()
 if (error != null) System.print(error.message)
 ----
+
+=== Saving detached menu drafts [[menu-drafts]]
+
+The DOS editors use the existing `Profile.copy()` to keep profile changes out
+of the working directory until Save. The following menu-only additions accept
+an owned, editable, detached Profile; passing another foreign type or a borrowed
+profile view aborts. They do not consume the supplied Profile.
+
+[cols="2m,4",options="header"]
+|===
+| Operation | Result and behavior
+| entry.saveDraft(profile, name, sortOrder)
+| Update an existing personal entry and persist it, returning null/MenuError.
+  Preserve entry identity, provenance, call statistics, and other entries.
+  `name` follows the existing entry-name rules and `sortOrder` is a signed
+  32-bit integer. Stale receivers abort; read-only targets return IOErr.readOnly.
+| Menu.createFromProfile(name, profile, sortOrder)
+| Persist a new personal entry and return its DirectoryEntry or MenuError.
+  Reset call statistics using the same rules as Menu.copy; normal name,
+  capacity, and shadowing rules apply. A failed creation leaves no unsaved entry.
+| Menu.saveDefaults(profile)
+| Persist replacement new-connection defaults, returning null/MenuError.
+  The existing zero-argument overload still saves the mutable working defaults.
+|===
+
+Preparation and persistence are serialized on the menu thread. No application
+callback observes a partially prepared record. Failure restores the working
+record and preserves its views; success publishes the replacement and reapplies
+sorting. Existing native write-error and secondary-cache semantics remain:
+a failed write can partially modify the file, and cache maintenance is separate
+from primary mutation success. These operations do not create a general-purpose
+transaction or filesystem rollback facility. Safe mode returns IOErr.readOnly.
 
 === Menu Program Settings [[menu-program-settings]]
 
@@ -5114,7 +5195,7 @@ any other outstanding `Settings` handles become stale and abort when
 used.  Reacquire a snapshot from `Menu.settings` after another component
 applies or saves settings.
 
-The shipped Program Settings editor calls `apply()` after each accepted
+The Classic Program Settings editor calls `apply()` after each accepted
 setting and calls `save()` once when the editor closes.  Thus settings
 with immediate effects change at field-confirmation time while the INI
 write remains grouped at the Program Settings screen-exit boundary.
@@ -5124,7 +5205,7 @@ If the write fails, the screen remains open so saving can be retried.
 application exits. The offer is suppressed in safe mode, when that entry has
 `hidePopups` set, and for entries already saved in the directory.
 
-The editor keeps Classic Theme Colours and Custom Screen Mode as nested groups instead
+The Classic editor keeps Classic Theme Colours and Custom Screen Mode as nested groups instead
 of flattening their fields into Program Settings.  A connected invocation
 omits Custom Screen Mode.  The connected settings list also omits Current
 Screen Mode and List Encryption; List Encryption is omitted in every mode
@@ -5139,6 +5220,12 @@ when `Menu.encryptionAvailable` is false.
   of the terminal bell and remote sound effects. The Program Settings row
   toggles on selection and applies immediately, including during a connection.
   Persists as `AtariSTKeyClicks` under `[SyncTERM]`.
+
+| `mainUi`
+| Built-in main interface: 0 is Classic (default), 1 is DOS. Other assignments
+  abort. `Menu.mainUiChoices` supplies `[value, label]` rows. This uses the normal
+  settings snapshot, apply/save, merge, generation, and safe-mode contracts.
+  The built-in controller changes presentation after Program Settings returns.
 
 | `confirmClose`, `promptSave`, `invertWheel`, `colorEmoji`
 | Bool program options. `colorEmoji` defaults to true and enables intrinsic

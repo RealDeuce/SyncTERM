@@ -32,6 +32,8 @@ set(_st_wren_scripts
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/menu_ui.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/ui.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/ui_app.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/menu_dos.wren
+	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/menu_dos_forms.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/ui_button.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/ui_checkbox.wren
 	${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/ui_color_picker.wren
@@ -447,3 +449,14 @@ int main(void)
 endif()
 
 target_link_libraries(st_wren_host PRIVATE st_amiga_font)
+
+if(BUILD_TESTING AND NOT WIN32 AND NOT CMAKE_CROSSCOMPILING
+    AND Python3_Interpreter_FOUND AND ST_CONSOLE_TEST AND CMAKE_PROJECT_NAME STREQUAL "SyncTERM")
+	foreach(_st_dos_case contracts directory forms switching failures creation connected safe offer)
+		add_test(NAME syncterm_dos_${_st_dos_case}
+			COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/src/tests/st_dos_ui_test.py
+				$<TARGET_FILE:syncterm_app> ${_st_dos_case}
+				--reports ${PROJECT_BINARY_DIR}/reports/dos-ui)
+		set_tests_properties(syncterm_dos_${_st_dos_case} PROPERTIES TIMEOUT 120)
+	endforeach()
+endif()

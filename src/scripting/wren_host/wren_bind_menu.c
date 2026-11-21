@@ -1724,6 +1724,13 @@ fn_menu_music_modes(WrenVM *vm)
 }
 
 static void
+fn_menu_main_ui_choices(WrenVM *vm)
+{
+	static const char *const names[] = {"Classic", "DOS"};
+	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
+}
+
+static void
 fn_menu_graphics_modes(WrenVM *vm)
 {
 	static const char *const names[] = {"None", "RIP v1", "RIP v3", "SkyPix (Kick 1.3)", "SkyPix (Kick 3.1)", "IGS (2.21)", "BIG (1.03)"};
@@ -3980,6 +3987,7 @@ fn_menu_settings(WrenVM *vm)
 		} \
 	}
 
+SETTINGS_NUM_PROPERTY(main_ui, main_ui, enum st_main_ui, ST_MAIN_UI_CLASSIC, ST_MAIN_UI_DOS)
 SETTINGS_BOOL_PROPERTY(confirm_close, confirm_close)
 SETTINGS_BOOL_PROPERTY(prompt_save, prompt_save)
 SETTINGS_BOOL_PROPERTY(invert_wheel, invert_wheel)
@@ -4912,6 +4920,21 @@ fn_bbs_shadowed(WrenVM *vm)
 }
 
 static void
+fn_bbs_last_call_text(WrenVM *vm)
+{
+	struct foreign_bbs *bbs = bbs_value(vm, 0);
+	struct tm local;
+	char text[32] = "Never";
+	if (bbs == NULL) return;
+	if (bbs->record->profile.connected != 0) {
+		if (!value_convert_localtime(bbs->record->profile.connected, &local)
+		    || strftime(text, sizeof(text), "%Y-%m-%d", &local) == 0)
+			(void)snprintf(text, sizeof(text), "Unknown");
+	}
+	wrenSetSlotString(vm, 0, text);
+}
+
+static void
 fn_bbs_comment(WrenVM *vm)
 {
 	struct foreign_bbs *bbs = bbs_value(vm, 0);
@@ -5004,6 +5027,125 @@ fn_menu_save_defaults(WrenVM *vm)
 	save_record(vm, &bbs);
 }
 
+/* Draft publication is synchronous: no application callback can observe the
+ * candidate while save_record prepares/persists it. Restore the working record
+ * on failure so cancelling the form never leaves accepted field edits behind. */
+static void
+save_profile_draft(WrenVM *vm, struct foreign_bbs *target, int profile_slot,
+    const char *name, int32_t sort_order)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct foreign_bbs *draft = bbs_value(vm, profile_slot);
+	struct st_profile replacement;
+	char *key = NULL;
+	size_t key_size = 0;
+	if (target == NULL || draft == NULL) return;
+	if (!draft->owned || draft->read_only) {
+		st_wren_abort(vm, "expected a detached editable Profile");
+		return;
+	}
+	if (target->owned || target->read_only || host->config.safe_mode
+	    || (target->kind != ST_WREN_BBS_DEFAULTS
+	    && target->record->source != ST_BBS_SOURCE_PERSONAL)) {
+		menu_error(vm, IO_ERROR_READ_ONLY, 0, "The directory is read-only.");
+		return;
+	}
+	if (target->kind != ST_WREN_BBS_DEFAULTS
+	    && (!st_bbs_name_valid_normalized(name)
+	    || (!st_bbs_name_equal(name, target->record->profile.name)
+	    && !st_wren_bbs_model_name_available(&host->bbs_model, name)))) {
+		menu_error(vm, IO_ERROR_INVALID_ARGUMENT, 0, "The entry name is invalid or already in use.");
+		return;
+	}
+	st_profile_init(&replacement);
+	if (!st_profile_copy(&replacement, &draft->record->profile)
+	    || (target->kind != ST_WREN_BBS_DEFAULTS
+	    && st_unicode_caseless_key(&key, &key_size, name, strlen(name)) != 0)) {
+		st_profile_dispose(&replacement);
+		menu_error(vm, IO_ERROR_OUT_OF_MEMORY, 0, "The draft could not be prepared.");
+		return;
+	}
+	struct st_wren_bbs_record *record = target->record;
+	replacement.identifier = record->profile.identifier;
+	replacement.source = record->profile.source;
+	replacement.added = record->profile.added;
+	replacement.connected = record->profile.connected;
+	replacement.calls = record->profile.calls;
+	replacement.sort_order = sort_order;
+	(void)snprintf(replacement.name, sizeof(replacement.name), "%s", name);
+	struct st_profile previous = record->profile;
+	char *previous_key = record->name_key;
+	size_t previous_key_size = record->name_key_size;
+	bool previous_dirty = record->dirty;
+	record->profile = replacement;
+	if (key != NULL) { record->name_key = key; record->name_key_size = key_size; }
+	record->dirty = true;
+	save_record(vm, target);
+	if (wrenGetSlotType(vm, 0) == WREN_TYPE_NULL) {
+		st_profile_dispose(&previous);
+		if (key != NULL) free(previous_key);
+	} else {
+		st_profile_dispose(&record->profile);
+		record->profile = previous;
+		record->name_key = previous_key;
+		record->name_key_size = previous_key_size;
+		record->dirty = previous_dirty;
+		free(key);
+	}
+}
+
+static void
+fn_bbs_save_draft(WrenVM *vm)
+{
+	struct foreign_bbs *target = bbs_value(vm, 0);
+	char name[ST_PROFILE_NAME_MAX + 1];
+	int64_t order;
+	if (target != NULL && slot_fixed_string(vm, 2, name, sizeof(name))
+	    && slot_integer(vm, 3, INT32_MIN, INT32_MAX, &order))
+		save_profile_draft(vm, target, 1, name, (int32_t)order);
+}
+
+static void
+fn_menu_save_defaults_draft(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	struct foreign_bbs target = {.record = &host->bbs_model.defaults,
+	    .kind = ST_WREN_BBS_DEFAULTS};
+	if (!host->bbs_model.loaded) { menu_error(vm, 0, 0, "No directory is loaded."); return; }
+	save_profile_draft(vm, &target, 1, target.record->profile.name,
+	    target.record->profile.sort_order);
+}
+
+static void
+fn_menu_create_from_profile(WrenVM *vm)
+{
+	struct st_wren_host *host = st_wren_host_from_vm(vm);
+	char name[ST_PROFILE_NAME_MAX + 1];
+	struct foreign_bbs *draft = bbs_value(vm, 2);
+	int64_t order;
+	int fields[32];
+	if (draft == NULL || !slot_fixed_string(vm, 1, name, sizeof(name))
+	    || !slot_integer(vm, 3, INT32_MIN, INT32_MAX, &order)) return;
+	if (!host->bbs_model.loaded || host->bbs_list == NULL) { menu_error(vm, 0, 0, "No directory is loaded."); return; }
+	if (!draft->owned || draft->read_only) { st_wren_abort(vm, "expected a detached editable Profile"); return; }
+	if (!menu_writable(vm, "The directory is read-only.")) return;
+	size_t count = configured_sort_fields(fields);
+	struct st_wren_bbs_record *record = st_wren_bbs_model_create(
+	    &host->bbs_model, name, &draft->record->profile, fields, count);
+	if (record == NULL) { menu_error(vm, 0, 0, "The directory entry could not be created."); return; }
+	record->profile.sort_order = (int32_t)order;
+	struct foreign_bbs target = {.record = record, .kind = ST_WREN_BBS_MODEL_ENTRY};
+	uint64_t shadowed_identity = record->shadowed == NULL ? 0 : record->shadowed->identity;
+	struct st_wren_bbs_record *shadowed = record->shadowed;
+	save_record(vm, &target);
+	if (wrenGetSlotType(vm, 0) == WREN_TYPE_NULL)
+		(void)push_bbs(vm, 0, record, ST_WREN_BBS_MODEL_ENTRY);
+	else {
+		(void)st_wren_bbs_model_delete(&host->bbs_model, record, fields, count);
+		if (shadowed != NULL) shadowed->identity = shadowed_identity;
+	}
+}
+
 static void
 fn_menu_defaults_dirty(WrenVM *vm)
 {
@@ -5091,7 +5233,10 @@ static const struct binding bindings[] = {
 	{"Menu", true, "defaults", fn_menu_defaults},
 	{"Menu", true, "defaultsDirty", fn_menu_defaults_dirty},
 	{"Menu", true, "saveDefaults()", fn_menu_save_defaults},
+	{"Menu", true, "saveDefaults(_)", fn_menu_save_defaults_draft},
+	{"Menu", true, "createFromProfile(_,_,_)", fn_menu_create_from_profile},
 	{"Menu", true, "settings", fn_menu_settings},
+	{"Menu", true, "mainUiChoices", fn_menu_main_ui_choices},
 	{"Menu", true, "nameAvailable(_)", fn_menu_name_available},
 	{"Menu", true, "create(_)", fn_menu_create},
 	{"Menu", true, "copy(_,_)", fn_menu_copy},
@@ -5238,6 +5383,7 @@ static const struct binding bindings[] = {
 	{"Settings", false, "apply()", fn_settings_apply},
 	{"Settings", false, "save()", fn_settings_save},
 	{"Settings", false, "reload()", fn_settings_reload},
+	BIND_GETSET("Settings", "mainUi", settings_main_ui),
 	BIND_GETSET("Settings", "confirmClose", settings_confirm_close),
 	BIND_GETSET("Settings", "promptSave", settings_prompt_save),
 	BIND_GETSET("Settings", "invertWheel", settings_invert_wheel),
@@ -5280,6 +5426,7 @@ static const struct binding bindings[] = {
 	    settings_lightbar_background_color),
 
 	{"DirectoryEntry", false, "profile", fn_entry_profile},
+	{"DirectoryEntry", false, "saveDraft(_,_,_)", fn_bbs_save_draft},
 	{"DirectoryEntry", false, "readOnly", fn_profile_read_only},
 	{"Profile", false, "readOnly", fn_profile_read_only},
 	{"Profile", false, "copy()", fn_profile_copy},
@@ -5292,6 +5439,7 @@ static const struct binding bindings[] = {
 	{"DirectoryEntry", false, "cache", fn_bbs_cache},
 	{"DirectoryEntry", false, "id", fn_bbs_id},
 	{"DirectoryEntry", false, "added", fn_bbs_added},
+	{"DirectoryEntry", false, "lastCallText", fn_bbs_last_call_text},
 	{"DirectoryEntry", false, "connected", fn_bbs_connected},
 	{"DirectoryEntry", false, "calls", fn_bbs_calls},
 	{"Profile", false, "sshFingerprint", fn_bbs_fingerprint},

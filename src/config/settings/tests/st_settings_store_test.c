@@ -81,6 +81,38 @@ read_document(const char *path, ini_document_t **document)
 }
 
 static int
+test_main_ui(const char *path)
+{
+	const char *values[] = {"", "MainUI=DOS\n", "MainUI=Classic\n", "MainUI=unknown\n",
+	    "MainUI=2\n", "MainUI=-1\n", "MainUI=18446744073709551615\n"};
+	for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
+		char text[128];
+		(void)snprintf(text, sizeof(text), "[SyncTERM]\n%sUnknown=preserve\n", values[i]);
+		CHECK(write_text(path, text) == 0);
+		CHECK(st_settings_reload() == 0);
+		CHECK(st_settings.main_ui == (i == 1 ? ST_MAIN_UI_DOS : ST_MAIN_UI_CLASSIC));
+	}
+	struct st_settings draft;
+	st_settings_init(&draft);
+	CHECK(st_settings_copy(&draft, &st_settings));
+	draft.main_ui = ST_MAIN_UI_DOS;
+	CHECK(st_settings.main_ui == ST_MAIN_UI_CLASSIC);
+	CHECK(rewrite_value(path, "ScrollBackLines", 987) == 0);
+	CHECK(st_settings_save_value(&draft) == 0);
+	CHECK(st_settings.main_ui == ST_MAIN_UI_DOS);
+	CHECK(st_settings_reload() == 0 && st_settings.main_ui == ST_MAIN_UI_DOS);
+	CHECK(st_settings.scrollback_lines == 987);
+	ini_document_t *document = NULL;
+	CHECK(read_document(path, &document) == 0);
+	ini_section_t *section = ini_document_find_section(document, "SyncTERM");
+	CHECK(strcmp(ini_section_get_string(section, "MainUI", ""), "DOS") == 0);
+	CHECK(strcmp(ini_section_get_string(section, "Unknown", ""), "preserve") == 0);
+	ini_document_free(&document);
+	st_settings_dispose(&draft);
+	return 0;
+}
+
+static int
 test_font_draft(const char *path)
 {
 	struct st_settings_font_draft first;
@@ -534,7 +566,8 @@ main(void)
 	CHECK(strcmp(st_settings.sort_order, "") == 0);
 	CHECK(st_settings_sort_profile_count() == 1);
 	CHECK(st_settings_active_sort_profile() == 0);
-	int failure = test_font_draft(settings_path);
+	int failure = test_main_ui(settings_path);
+	failure += test_font_draft(settings_path);
 	failure += test_classic_color_bounds(settings_path);
 	failure += test_classic_per_key_fallback(settings_path);
 	failure += test_classic_external_migration(settings_path);
