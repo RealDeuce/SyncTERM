@@ -984,9 +984,14 @@ or returns to the existing session.
 Opening, resizing, or switching the directory does not resize the remote terminal.
 
 DOS entry settings, New Connection Defaults, and Program Settings use separate
-full-page forms. Category buttons and Ctrl-PageUp/PageDown move through pages;
-Previous/Next also reach overflow fields on small screens. Tab/Shift-Tab move
-between controls. F1 opens contextual help. Specialized palette, script, font,
+full-page forms. The active category stays highlighted and bracketed in the
+top tab row while keyboard focus moves through its fields. Click a tab or use
+Ctrl-PageUp/PageDown to change categories. Labels sit beside their controls;
+text and number editors retain shaded, bracketed rectangles when unfocused.
+Wide screens balance fields across two columns. PageUp/PageDown and the
+Previous/Next controls beside the tabs reach overflow fields within the current
+category on small screens. Tab/Shift-Tab move between controls. F1 opens
+contextual help. Specialized palette, script, font,
 and file selectors remain available. Edits stay in a private draft across page
 changes and resizing. Save/F10 accepts the complete draft; Cancel/Escape asks
 before discarding changed drafts. A failed save retains the form and its draft

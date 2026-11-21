@@ -34,6 +34,64 @@ def open_program(client):
     return client.wait_text("Main Interface")
 
 
+def program_layout(client, shot, reports):
+    def selected_tab(snapshot, name):
+        assert f"[{name}]" in "\n".join(snapshot.lines[:6]), snapshot.text
+        assert name not in "\n".join(snapshot.lines[-4:]), snapshot.text
+
+    def boxed_number(snapshot, value):
+        y = next(y for y, line in enumerate(snapshot.lines) if "Scrollback Buffer" in line)
+        line = snapshot.lines[y]
+        assert value in line, snapshot.text  # Label and editor share one row.
+        x = line.index(value)
+        assert "[" in line[:x] and "]" in line[x + len(value):], line
+        right = line.index("]", x)
+        assert cell_at(snapshot, x, y).background == cell_at(snapshot, right - 1, y).background
+        assert cell_at(snapshot, x, y).background != cell_at(snapshot, 0, y).background
+
+    selected_tab(shot, "General")
+    boxed_number(shot, "2000")  # The unfocused editor has a visible rectangle.
+    y = next(y for y, line in enumerate(shot.lines) if "[General]" in line)
+    assert cell_at(shot, shot.lines[y].index("General"), y).background != cell_at(shot, shot.lines[y].index("Display"), y).background
+    click_text(client, shot, "2000")
+    client.text("4096")
+    client.key("tab")
+    shot = client.wait_text("4096")
+    boxed_number(shot, "4096")  # Losing focus keeps the entire field visible.
+    for columns, rows in ((132, 50), (40, 25), (40, 14), (80, 25)):
+        client.grid_resize(columns, rows)
+        shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "[General]" in s.text)
+        if rows == 14:
+            # A pending edit hidden by reflow still requires discard approval.
+            client.key("escape")
+            client.wait_text("Discard changes?")
+            client.key("escape")
+            shot = client.wait_text("[General]")
+            # Overflow navigation stays beside the tabs, within this category.
+            click_text(client, shot, "Next")
+            shot = client.wait_text("4096")
+            y = next(y for y, line in enumerate(shot.lines) if "Prev" in line)
+            assert y < 7, shot.text
+            client.key("page_up")
+            shot = client.wait_text("Main Interface")
+            selected_tab(shot, "General")
+        else:
+            boxed_number(shot, "4096")
+            shot.save_image(Path(reports) / f"program-form-{columns}.ppm")
+        selected_tab(shot, "General")
+    click_text(client, shot, "Display")
+    shot = client.wait_text("Startup Screen Mode")
+    selected_tab(shot, "Display")
+    client.key("page_up", 2)
+    shot = client.wait_text("Main Interface")
+    selected_tab(shot, "General")
+    boxed_number(shot, "4096")
+    click_text(client, shot, "4096")
+    client.text("2000")
+    client.key("tab")
+    return client.wait_text("2000")
+
+
 def contracts(executable, reports):
     def prepare(root):
         write_script(root, "menu_dos_test", (SOURCE / "scripts/menu_dos_test.wren").read_text())
@@ -105,7 +163,7 @@ def forms(executable, reports):
         Path(reports).mkdir(parents=True, exist_ok=True)
         y = next(y for y, line in enumerate(shot.lines) if "Alpha" in line)
         x = shot.lines[y].index("Alpha")
-        assert cell_at(shot, x, y).background != cell_at(shot, 70, y).background, "focused field uses the active form palette"
+        assert cell_at(shot, x, y).background != cell_at(shot, 0, y).background, "focused field uses the input palette"
         shot.save_image(Path(reports) / "entry-form.ppm")
         # Name is the first field after the category buttons.
         client.text("Changed")
@@ -121,6 +179,7 @@ def forms(executable, reports):
         client.wait_for(lambda s: "Term/Graphics" in s.text and "Renamed" in s.text)
         assert "[Renamed]" in (root / "syncterm.lst").read_text()
         shot = open_program(client)
+        shot = program_layout(client, shot, reports)
         shot.save_image(Path(reports) / "program-form.ppm")
         # Cancelling program settings must not apply its draft.
         click_text(client, shot, "Confirm Program Exit")
@@ -129,6 +188,33 @@ def forms(executable, reports):
         client.key("enter")
         client.wait_text("Term/Graphics")
         assert "ConfirmClose=false" in (root / "syncterm.ini").read_text()
+        # Saving includes an editor moved out of view by a smaller grid.
+        shot = open_program(client)
+        original_ini = (root / "syncterm.ini").read_bytes()
+        click_text(client, shot, "2000")
+        client.key("delete")
+        shot = client.wait_for(lambda s: "2000" not in s.text)
+        y = next(y for y, line in enumerate(shot.lines) if "Scrollback Buffer Lines" in line)
+        line = shot.lines[y]
+        left, right = line.index("["), line.index("]")
+        assert not line[left + 1:right].strip(), line
+        assert cell_at(shot, left + 1, y).background != cell_at(shot, 0, y).background
+        client.text("0")
+        client.grid_resize(40, 14)
+        client.wait_for(lambda s: s.metadata["rows"] == 14 and "[General]" in s.text)
+        client.key("f10")
+        client.wait_text("Enter an integer")
+        assert (root / "syncterm.ini").read_bytes() == original_ini
+        client.key("enter")
+        client.wait_text("Scrollback Buffer")
+        client.text("8192")
+        client.grid_resize(80, 25)
+        client.wait_for(lambda s: s.metadata["columns"] == 80 and "8192" in s.text)
+        client.grid_resize(40, 14)
+        client.wait_for(lambda s: s.metadata["rows"] == 14 and "Main Interface" in s.text)
+        client.key("f10")
+        client.wait_text("Directory:")
+        assert "ScrollBackLines=8192" in (root / "syncterm.ini").read_text()
 
 
 def switching(executable, reports):

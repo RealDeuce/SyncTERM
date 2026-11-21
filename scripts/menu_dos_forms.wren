@@ -1,6 +1,6 @@
 // Full-page draft editors for the built-in DOS interface.
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
-import "syncterm" for Host, Screen, Key, KeyEvent, Mod, Profile, Text
+import "syncterm" for Host, Screen, Key, KeyEvent, Mouse, MouseEvent, Mod, Profile, Text
 import "syncterm_menu" for Menu, MenuError, DirectoryEntry
 import "ui_widget" for Rect
 import "ui_pane" for Pane
@@ -15,11 +15,82 @@ import "menu_ui" for MenuUi
 import "menu_bbs_editor" for BbsEditor
 import "menu_settings_ui" for SettingsMenu
 
+// Selection belongs to the tab; keyboard focus can move into its fields.
+class DosFormTab is Button {
+  construct new(label, selected) {
+    super(label)
+    _selected = selected
+    hotkeyIdx = -1
+  }
+  onPaint_() {
+    var st = style(_selected || focused ? "button.focused" : "button")
+    Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", st)
+    var text = "%(focused ? ">" : " ")%(_selected ? "[" : " ")%(label)%(_selected ? "]" : " ") "
+    Painter.text(surface, 0, 0, text, st, bounds.w)
+  }
+}
+
+class DosFormInput is SelectOnFocusInput {
+  construct new() { super() }
+  paintStyle_ { style(allSelected ? "input.focused" : "input") }
+  fillStyle_ { style("input") }
+  handle(event) {
+    if (event is MouseEvent && bounds.contains(event.startX, event.startY)) {
+      var gaining = !focused
+      if (event.event == Mouse.button1Click || event.event == Mouse.button2Click || event.event == Mouse.button3Click) {
+        parent.focusedIndex = parent.children.indexOf(this)
+        if (gaining && event.event == Mouse.button1Click) return true
+      }
+    }
+    return super.handle(event)
+  }
+}
+
+class DosFormChoice is Button {
+  construct new(label, value, valueX) {
+    super(label)
+    _value = value == null || value.toString.count == 0 ? "Open" : value.toString
+    _valueX = valueX
+    hotkeyIdx = -1
+  }
+  onPaint_() {
+    Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", style("default"))
+    Painter.text(surface, 0, 0, label, style("default"), _valueX - 1)
+    var st = style(focused ? "button.focused" : "button")
+    var width = bounds.w - _valueX
+    Painter.fill(surface, Rect.new(_valueX, 0, width, 1), " ", st)
+    Painter.text(surface, _valueX, 0, "[ %(_value)", st, width - 2)
+    Painter.text(surface, bounds.w - 1, 0, "]", st, 1)
+  }
+  handle(event) {
+    if (event is MouseEvent && event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY)) parent.focusedIndex = parent.children.indexOf(this)
+    return super.handle(event)
+  }
+}
+
+class DosFormCheckbox is Checkbox {
+  construct new(label, valueX) {
+    super(label)
+    _valueX = valueX
+  }
+  onPaint_() {
+    var st = style(focused ? "checkbox.focused" : "checkbox")
+    Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", st)
+    Painter.text(surface, 0, 0, label, st, _valueX - 1)
+    Painter.text(surface, _valueX, 0, "[%(value ? glyph("check.on") : " ")]", st, 3)
+  }
+  handle(event) {
+    if (event is MouseEvent && event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY)) parent.focusedIndex = parent.children.indexOf(this)
+    return super.handle(event)
+  }
+}
+
 class DosFormPane is Pane {
   construct new(app, heading, pages, fields, save, dirty) {
     super()
     _app = app
     title = heading
+    titleAsBar = false
     focused = true
     _pages = pages
     _fields = fields
@@ -31,13 +102,18 @@ class DosFormPane is Pane {
     _pending = {}
     _inputs = []
     _labels = []
+    _fieldStart = 0
+    _pagingRow = null
+    _tabBottom = 0
     _saved = false
     _onFinish = null
     _size = null
     onClose = Fn.new { cancel_() }
     keyHints = [["F1", "Help"], ["F10", "Save"], ["Esc", "Cancel"]]
     helpText = "# %(heading)\n\nTab and Shift-Tab move between controls. " +
-        "Ctrl-PageUp/Down changes pages. F10 saves the complete draft. " +
+        "Click a tab or use Ctrl-PageUp/Down to change categories. " +
+        "PageUp/Down and Previous/Next reach additional fields in the same category. " +
+        "F10 saves the complete draft. " +
         "Escape cancels; changes are not accepted when moving between pages."
     resize_()
   }
@@ -77,7 +153,7 @@ class DosFormPane is Pane {
     var w = bounds.w
     var h = bounds.h
     var x = 2
-    var y = 4
+    var y = 2
     for (i in 0..._pages.count) {
       var page = i
       var width = (_pages[i].count + 4).min((w - 2).max(1))
@@ -85,27 +161,50 @@ class DosFormPane is Pane {
         x = 2
         y = y + 1
       }
-      button_(_pages[i], Fn.new { selectPage_(page) }, x, y, width)
+      var tab = DosFormTab.new(_pages[i], page == _page)
+      tab.onPress = Fn.new { selectPage_(page) }
+      add(tab)
+      tab.bounds = Rect.new(x, y, width, 1)
       x = x + width
     }
+    _tabBottom = y
     var top = y + 2
-    var columns = w >= 80 ? 2 : 1
-    var rows = ((h - top - 4) / 2).floor.max(1)
-    _capacity = rows * columns
+    var columns = w >= 120 ? 2 : 1
     var fields = _fields.call(_page)
+    var rows = (h - top - 3).max(1)
+    _pagingRow = null
+    if (fields.count > rows * columns) {
+      _pagingRow = top
+      top = top + 1
+      rows = (h - top - 3).max(1)
+    }
+    _capacity = rows * columns
     if (_offset >= fields.count) _offset = 0
+    _offset = (_offset / _capacity).floor * _capacity
     var pitch = ((w - 4) / columns).floor.max(1)
     var end = (_offset + _capacity).min(fields.count)
+    // Balance short categories across wide screens instead of filling the
+    // entire first column before using the second.
+    rows = ((end - _offset) / columns).ceil.max(1)
+    var labelWidth = 0
+    for (f in fields) labelWidth = labelWidth.max(Screen.checked_(Screen.textWidth(f[0], 0)))
+    labelWidth = labelWidth.min(((pitch - 2) / 2).floor)
+    var valueX = labelWidth + 1
+    if (_pagingRow != null) {
+      if (_offset > 0) button_(w >= 60 ? "Previous" : "Prev", Fn.new { moveFields_(-1) }, w - 24, _pagingRow, 13)
+      if (end < fields.count) button_("Next", Fn.new { moveFields_(1) }, w - 10, _pagingRow, 9)
+    }
+    _fieldStart = children.count
     for (i in _offset...end) {
       var f = fields[i]
       var index = i - _offset
       var col = (index / rows).floor
       var left = 3 + col * pitch
-      var row = top + (index % rows) * 2
+      var row = top + (index % rows)
       var width = (pitch - 2).max(1)
       var widget = null
       if (f[1] == "text" || f[1] == "number") {
-        widget = SelectOnFocusInput.new()
+        widget = DosFormInput.new()
         var input = widget
         var value = _pending.containsKey(f[0]) ? _pending[f[0]] : f[2].call().toString
         input.value = value
@@ -114,16 +213,14 @@ class DosFormPane is Pane {
         input.onChange = Fn.new {|text| _pending[f[0]] = text }
         input.onSubmit = Fn.new {|text| focusNext() }
         _inputs.add([input, f])
-        _labels.add([left - 1, row - 2, f[0]])
+        _labels.add([left - 1, row - 1, f[0], valueX, width])
       } else if (f[1] == "bool") {
-        widget = Checkbox.new(f[0])
+        widget = DosFormCheckbox.new(f[0], valueX)
         widget.value = f[2].call()
         widget.onChange = Fn.new {|value| f[3].call(value) }
       } else {
         var value = f[2].call()
-        var label = value == null || value.toString.count == 0 ? f[0] : "%(f[0]): %(value)"
-        widget = Button.new(label)
-        widget.hotkeyIdx = -1
+        widget = DosFormChoice.new(f[0], value, valueX)
         widget.onPress = Fn.new {
           if (!flush_()) return
           f[6].call()
@@ -132,33 +229,48 @@ class DosFormPane is Pane {
       }
       widget.helpText = f[9]
       add(widget)
-      widget.bounds = Rect.new(left, row, width, 1)
+      if (f[1] == "text" || f[1] == "number") {
+        widget.bounds = Rect.new(left + valueX + 1, row, (width - valueX - 2).max(1), 1)
+      } else {
+        widget.bounds = Rect.new(left, row, width, 1)
+      }
     }
     var saveLabel = Host.safeMode ? "Apply" : "Save"
-    button_(saveLabel, Fn.new { save_() }, 2, h - 3, 8)
-    button_("Cancel", Fn.new { cancel_() }, 10, h - 3, 10)
-    button_(w >= 60 ? "Previous" : "Prev", Fn.new { move_(-1) }, w >= 60 ? w - 27 : w - 19, h - 3, w >= 60 ? 13 : 9)
-    button_("Next", Fn.new { move_(1) }, w - 10, h - 3, 9)
-    focusedIndex = focus != null && focus >= _pages.count && focus < children.count ? focus : _pages.count
+    button_(saveLabel, Fn.new { save_() }, 2, h - 1, 8)
+    button_("Cancel", Fn.new { cancel_() }, 10, h - 1, 10)
+    focusedIndex = focus != null && focus >= _fieldStart && focus < children.count ? focus : _fieldStart
     markDirty()
   }
 
   onPaint_() {
     super.onPaint_()
+    Painter.hline(surface, 1, _tabBottom, bounds.w - 2, glyph("frame.display.separator"), style("frame"))
     for (label in _labels) {
-      Painter.text(surface, label[0], label[1], label[2], style("default"),
-          (bounds.w >= 80 ? ((bounds.w - 4) / 2).floor : bounds.w - 4) - 2)
+      Painter.text(surface, label[0], label[1], label[2], style("default"), label[3] - 1)
+      Painter.text(surface, label[0] + label[3], label[1], "[", style("frame"), 1)
+      Painter.text(surface, label[0] + label[4] - 1, label[1], "]", style("frame"), 1)
     }
-    var fields = _fields.call(_page)
-    var text = "%(_pages[_page])  %(_offset + 1)-%((_offset + _capacity).min(fields.count))/%(fields.count)"
-    Painter.text(surface, 2, bounds.h - 3, text, style("statusbar"), bounds.w - 4)
+    if (_pagingRow != null) {
+      var count = _fields.call(_page).count
+      var text = "Fields %(_offset + 1)-%((_offset + _capacity).min(count))/%(count)"
+      Painter.text(surface, 2, _pagingRow - 1, text, style("statusbar"), bounds.w - 28)
+    }
+    Painter.hline(surface, 1, bounds.h - 4, bounds.w - 2, glyph("frame.display.separator"), style("frame"))
+    Painter.text(surface, 2, bounds.h - 3, "Tab/Shift-Tab Fields  Ctrl-PgUp/PgDn Tabs  F1 Help", style("statusbar"), bounds.w - 4)
   }
 
   flush_() {
-    for (pair in _inputs) {
+    var fields = _fields.call(_page)
+    var inputs = _inputs.toList
+    // Resizing can move an edited field onto another overflow page. Its
+    // pending value still participates in validation and saving.
+    for (f in fields) {
+      if (_pending.containsKey(f[0]) && !_inputs.any {|pair| pair[1][0] == f[0] }) inputs.add([null, f])
+    }
+    for (pair in inputs) {
       var input = pair[0]
       var f = pair[1]
-      var text = input.value
+      var text = input == null ? _pending[f[0]] : input.value
       var value = text
       var error = null
       if (f[1] == "number") {
@@ -170,6 +282,12 @@ class DosFormPane is Pane {
         error = "The value may contain at most %(f[4]) UTF-8 bytes."
       }
       if (error != null) {
+        if (input == null) {
+          _offset = fields.indexOf(f)
+          focusedIndex = null
+          rebuild_()
+          input = _inputs.where {|pair| pair[1][0] == f[0] }.toList[0][0]
+        }
         focusedIndex = children.indexOf(input)
         Alert.show(_app, f[0], error, f[9])
         return false
@@ -184,21 +302,15 @@ class DosFormPane is Pane {
     if (!flush_()) return
     _page = page
     _offset = 0
+    focusedIndex = null
     rebuild_()
   }
 
-  move_(delta) {
+  moveFields_(delta) {
     if (!flush_()) return
     var count = _fields.call(_page).count
-    if (delta > 0 && _offset + _capacity < count) {
-      _offset = _offset + _capacity
-    } else if (delta < 0 && _offset > 0) {
-      _offset = (_offset - _capacity).max(0)
-    } else {
-      _page = ((_page + delta) % _pages.count + _pages.count) % _pages.count
-      count = _fields.call(_page).count
-      _offset = delta < 0 ? (((count - 1).max(0) / _capacity).floor * _capacity) : 0
-    }
+    _offset = (_offset + delta * _capacity).max(0).min(((count - 1).max(0) / _capacity).floor * _capacity)
+    focusedIndex = null
     rebuild_()
   }
 
@@ -218,7 +330,7 @@ class DosFormPane is Pane {
   }
 
   cancel_() {
-    var pending = _inputs.any {|pair| pair[0].value != pair[1][2].call().toString }
+    var pending = _fields.call(_page).any {|f| _pending.containsKey(f[0]) && _pending[f[0]] != f[2].call().toString }
     if ((_dirty.call() || pending) && !Confirm.show(_app, "Discard changes?",
         "The changes on all pages will be discarded.")) return
     _app.popModal()
@@ -236,11 +348,15 @@ class DosFormPane is Pane {
         return true
       }
       if (event.shortcut_ == Key.chord_(Key.pageDown, Mod.control)) {
-        move_(1)
+        selectPage_((_page + 1) % _pages.count)
         return true
       }
       if (event.shortcut_ == Key.chord_(Key.pageUp, Mod.control)) {
-        move_(-1)
+        selectPage_((_page + _pages.count - 1) % _pages.count)
+        return true
+      }
+      if (event.shortcut_ == Key.pageDown || event.shortcut_ == Key.pageUp) {
+        moveFields_(event.shortcut_ == Key.pageDown ? 1 : -1)
         return true
       }
     }
