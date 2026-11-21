@@ -47,22 +47,29 @@ class DosFormInput is SelectOnFocusInput {
 }
 
 class DosFormChoice is Button {
-  construct new(label, value, valueX) {
+  construct new(label, value, valueX, dropdown) {
     super(label)
     _value = value == null || value.toString.count == 0 ? "Open" : value.toString
     _valueX = valueX
+    _dropdown = dropdown
     hotkeyIdx = -1
   }
+  valueBounds_ { Rect.new(bounds.x + _valueX, bounds.y, bounds.w - _valueX, 1) }
+  dropdown { _dropdown }
   onPaint_() {
     Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", style("default"))
     Painter.text(surface, 0, 0, label, style("default"), _valueX - 1)
     var st = style(focused ? "button.focused" : "button")
     var width = bounds.w - _valueX
     Painter.fill(surface, Rect.new(_valueX, 0, width, 1), " ", st)
-    Painter.text(surface, _valueX, 0, "[ %(_value)", st, width - 2)
-    Painter.text(surface, bounds.w - 1, 0, "]", st, 1)
+    Painter.text(surface, _valueX, 0, "[ %(_value)", st, width - (_dropdown ? 4 : 2))
+    Painter.text(surface, bounds.w - (_dropdown ? 3 : 1), 0, _dropdown ? " v]" : "]", st, _dropdown ? 3 : 1)
   }
   handle(event) {
+    if (_dropdown && event is KeyEvent && event.shortcut_ == Key.chord_(Key.down, Mod.alt)) {
+      activate_()
+      return true
+    }
     if (event is MouseEvent && event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY)) parent.focusedIndex = parent.children.indexOf(this)
     return super.handle(event)
   }
@@ -122,6 +129,19 @@ class DosFormPane is Pane {
   onFinish=(fn) { _onFinish = fn }
   page { _page }
   controls { children }
+  choiceAnchor_ {
+    var field = focusedChild
+    if (!(field is DosFormChoice) || !field.dropdown) return null
+    var label = field.label
+    // Resolve by field identity after reflow; child indexes can change when
+    // overflow navigation appears or disappears.
+    return Fn.new {
+      for (child in children) {
+        if (child is DosFormChoice && child.dropdown && child.label == label) return child.valueBounds_
+      }
+      return null
+    }
+  }
 
   button_(label, action, x, y, width) {
     var b = Button.new(label)
@@ -147,6 +167,7 @@ class DosFormPane is Pane {
 
   rebuild_() {
     var focus = focusedIndex
+    var choice = focusedChild is DosFormChoice ? focusedChild.label : null
     for (c in children.toList) remove(c)
     _inputs = []
     _labels = []
@@ -220,7 +241,7 @@ class DosFormPane is Pane {
         widget.onChange = Fn.new {|value| f[3].call(value) }
       } else {
         var value = f[2].call()
-        widget = DosFormChoice.new(f[0], value, valueX)
+        widget = DosFormChoice.new(f[0], value, valueX, f[1] == "enum")
         widget.onPress = Fn.new {
           if (!flush_()) return
           f[6].call()
@@ -239,6 +260,11 @@ class DosFormPane is Pane {
     button_(saveLabel, Fn.new { save_() }, 2, h - 1, 8)
     button_("Cancel", Fn.new { cancel_() }, 10, h - 1, 10)
     focusedIndex = focus != null && focus >= _fieldStart && focus < children.count ? focus : _fieldStart
+    if (choice != null) {
+      for (i in 0...children.count) {
+        if (children[i] is DosFormChoice && children[i].label == choice) focusedIndex = i
+      }
+    }
     markDirty()
   }
 
@@ -403,6 +429,7 @@ class DosForms {
       if (key == "name" || key == "termName") kind = "text"
       if (key == "port") kind = "number"
       if (key == "tlsTrustWebPki") kind = "bool"
+      if (["connType", "addressFamily", "flowControl", "bpsRate", "parity", "tlsPskVersion", "screenMode", "encoding", "font", "graphics", "music", "xferLogLevel", "protocolLogLevel", "ctermLogLevel"].contains(key)) kind = "enum"
       var get = Fn.new { meta[5] }
       var set = null
       var limit = meta[3]
@@ -516,7 +543,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Main Interface", Menu.mainUiChoices, s.mainUi, "# Main Interface\n\nClassic keeps the original layout. DOS uses a wide directory and full-page forms. The choice applies when Program Settings closes. Custom main-menu script overrides take precedence.")
         if (value != null && value != s.mainUi) s.mainUi = value
       }
-      fields.add(field_("Main Interface", "action", get, set, null, false, choose, null, null, "# Main Interface\n\nClassic keeps the original layout. DOS uses a wide directory and full-page forms. The choice applies when Program Settings closes. Custom main-menu script overrides take precedence."))
+      fields.add(field_("Main Interface", "enum", get, set, null, false, choose, null, null, "# Main Interface\n\nClassic keeps the original layout. DOS uses a wide directory and full-page forms. The choice applies when Program Settings closes. Custom main-menu script overrides take precedence."))
     }
     if (page == 0) {
       var get = Fn.new { s.confirmClose }
@@ -570,7 +597,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Startup Screen Mode", Menu.screenModeChoices, s.startupMode, settingHelp_("Startup Screen Mode"))
         if (value != null && value != s.startupMode) s.startupMode = value
       }
-      fields.add(field_("Startup Screen Mode", "action", get, set, null, false, choose, null, null, settingHelp_("Startup Screen Mode")))
+      fields.add(field_("Startup Screen Mode", "enum", get, set, null, false, choose, null, null, settingHelp_("Startup Screen Mode")))
     }
     if (page == 1) {
       var get = Fn.new { s.outputMode }
@@ -582,7 +609,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Video Output Mode", Menu.outputModes, s.outputMode, settingHelp_("Video Output Mode"))
         if (value != null && value != s.outputMode) s.outputMode = value
       }
-      fields.add(field_("Video Output Mode", "action", get, set, null, false, choose, null, null, settingHelp_("Video Output Mode")))
+      fields.add(field_("Video Output Mode", "enum", get, set, null, false, choose, null, null, settingHelp_("Video Output Mode")))
     }
     if (page == 1) {
       var get = Fn.new { s.cursorStyle }
@@ -594,7 +621,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Default Cursor Style", Menu.cursorStyles, s.cursorStyle, settingHelp_("Default Cursor Style"))
         if (value != null && value != s.cursorStyle) s.cursorStyle = value
       }
-      fields.add(field_("Default Cursor Style", "action", get, set, null, false, choose, null, null, settingHelp_("Default Cursor Style")))
+      fields.add(field_("Default Cursor Style", "enum", get, set, null, false, choose, null, null, settingHelp_("Default Cursor Style")))
     }
     if (page == 1) {
       var get = Fn.new { s.scalingMode }
@@ -606,7 +633,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Scaling", Menu.scalingModes, s.scalingMode, settingHelp_("Scaling"))
         if (value != null && value != s.scalingMode) s.scalingMode = value
       }
-      fields.add(field_("Scaling", "action", get, set, null, false, choose, null, null, settingHelp_("Scaling")))
+      fields.add(field_("Scaling", "enum", get, set, null, false, choose, null, null, settingHelp_("Scaling")))
     }
     if (page == 1 && !connected) {
       var get = Fn.new { s.customColumns }
@@ -688,7 +715,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Modem/Comm Rate", Menu.serialRates(s.modemDevice), s.modemRate, settingHelp_("Modem/Comm Rate"))
         if (value != null && value != s.modemRate) s.modemRate = value
       }
-      fields.add(field_("Modem/Comm Rate", "action", get, set, null, false, choose, null, null, settingHelp_("Modem/Comm Rate")))
+      fields.add(field_("Modem/Comm Rate", "enum", get, set, null, false, choose, null, null, settingHelp_("Modem/Comm Rate")))
     }
     if (page == 4) {
       var get = Fn.new { s.modemInit }
@@ -721,7 +748,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Frame Colour", Menu.colors, s.frameColor, settingHelp_("Frame Colour"))
         if (value != null && value != s.frameColor) s.frameColor = value
       }
-      fields.add(field_("Frame Colour", "action", get, set, null, false, choose, null, null, settingHelp_("Frame Colour")))
+      fields.add(field_("Frame Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Frame Colour")))
     }
     if (page == 6) {
       var get = Fn.new { s.textColor }
@@ -733,7 +760,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Text Colour", Menu.colors, s.textColor, settingHelp_("Text Colour"))
         if (value != null && value != s.textColor) s.textColor = value
       }
-      fields.add(field_("Text Colour", "action", get, set, null, false, choose, null, null, settingHelp_("Text Colour")))
+      fields.add(field_("Text Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Text Colour")))
     }
     if (page == 6) {
       var get = Fn.new { s.backgroundColor }
@@ -745,7 +772,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Background Colour", Menu.backgroundColors, s.backgroundColor, settingHelp_("Background Colour"))
         if (value != null && value != s.backgroundColor) s.backgroundColor = value
       }
-      fields.add(field_("Background Colour", "action", get, set, null, false, choose, null, null, settingHelp_("Background Colour")))
+      fields.add(field_("Background Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Background Colour")))
     }
     if (page == 6) {
       var get = Fn.new { s.inverseColor }
@@ -757,7 +784,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Inverse Colour", Menu.backgroundColors, s.inverseColor, settingHelp_("Inverse Colour"))
         if (value != null && value != s.inverseColor) s.inverseColor = value
       }
-      fields.add(field_("Inverse Colour", "action", get, set, null, false, choose, null, null, settingHelp_("Inverse Colour")))
+      fields.add(field_("Inverse Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Inverse Colour")))
     }
     if (page == 6) {
       var get = Fn.new { s.lightbarColor }
@@ -769,7 +796,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Lightbar Colour", Menu.colors, s.lightbarColor, settingHelp_("Lightbar Colour"))
         if (value != null && value != s.lightbarColor) s.lightbarColor = value
       }
-      fields.add(field_("Lightbar Colour", "action", get, set, null, false, choose, null, null, settingHelp_("Lightbar Colour")))
+      fields.add(field_("Lightbar Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Lightbar Colour")))
     }
     if (page == 6) {
       var get = Fn.new { s.lightbarBackgroundColor }
@@ -781,7 +808,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Lightbar Background", Menu.backgroundColors, s.lightbarBackgroundColor, settingHelp_("Lightbar Background"))
         if (value != null && value != s.lightbarBackgroundColor) s.lightbarBackgroundColor = value
       }
-      fields.add(field_("Lightbar Background", "action", get, set, null, false, choose, null, null, settingHelp_("Lightbar Background")))
+      fields.add(field_("Lightbar Background", "enum", get, set, null, false, choose, null, null, settingHelp_("Lightbar Background")))
     }
     if (page == 2) {
       for (mode in Menu.audioModes) {

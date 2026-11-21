@@ -988,6 +988,13 @@ full-page forms. The active category stays highlighted and bracketed in the
 top tab row while keyboard focus moves through its fields. Click a tab or use
 Ctrl-PageUp/PageDown to change categories. Labels sit beside their controls;
 text and number editors retain shaded, bracketed rectangles when unfocused.
+Enum fields have a down-arrow marker and open an attached dropdown with Enter,
+Space, Alt-Down, or a click. The list opens below the field, or above when space
+is limited; long lists scroll. Arrows, paging keys, Home/End, and typing navigate
+choices. Enter or a click accepts; Tab accepts and moves to the next control.
+Escape or an outside click cancels without changing the draft. Resizing keeps
+the list attached, or closes it if the field moves out of view. Opening a
+dropdown retains the form's active colours.
 Wide screens balance fields across two columns. PageUp/PageDown and the
 Previous/Next controls beside the tabs reach overflow fields within the current
 category on small screens. Tab/Shift-Tab move between controls. F1 opens

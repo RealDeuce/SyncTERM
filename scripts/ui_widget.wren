@@ -96,6 +96,14 @@ class Widget {
     markDirty()
   }
 
+  // A form may provide a callable resolving its enum field's current Rect
+  // for MenuUi.choice. Other menus keep the centred choice presentation.
+  choiceAnchor_ { null }
+
+  // Attached dropdowns share their form's visual activity while owning
+  // input. Ordinary modal dialogs leave the layer behind them inactive.
+  activeOwner_ { null }
+
   // Drop-shadow flag.  When true, the widget's parent (or App, for
   // modals) paints a darkened band on the cells immediately right
   // of and below the widget's bounds.  Pane defaults this to true
@@ -109,8 +117,8 @@ class Widget {
   // True when this widget should render in its *active* theme variant.
   // Two reasons a widget can land in the inactive layer:
   //
-  //   1. It isn't part of the App's modal-top subtree (a modal is on
-  //      top, and this widget is in the layer behind it).
+  //   1. It isn't part of the App's modal-top subtree or that modal's
+  //      shared activity owner (used for attached field dropdowns).
   //   2. An ancestor that gates focus visibility (e.g. a Pane in a
   //      multi-pane layout) has `focused == false` — the whole
   //      subtree of an unfocused gate goes inactive.
@@ -133,10 +141,11 @@ class Widget {
     }
     if (app != null) {
       var top  = app.modalTop
+      var owner = top is Widget ? top.activeOwner_ : null
       var x    = this
       var inTop = false
       while (x is Widget) {
-        if (x == top) {
+        if (x == top || x == owner) {
           inTop = true
           break
         }

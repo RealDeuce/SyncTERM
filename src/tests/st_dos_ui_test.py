@@ -217,6 +217,119 @@ def forms(executable, reports):
         assert "ScrollBackLines=8192" in (root / "syncterm.ini").read_text()
 
 
+def dropdowns(executable, reports):
+    def field(snapshot, label):
+        y = next(y for y, line in enumerate(snapshot.lines) if label in line)
+        line = snapshot.lines[y]
+        left = line.index("[", line.index(label) + len(label))
+        return left, y, line.index("]", left)
+
+    def attached(snapshot, label, above=False):
+        left, y, right = field(snapshot, label)
+        row = y - 1 if above else y + 1
+        assert snapshot.lines[row][left] == ("└" if above else "┌"), snapshot.text
+        assert snapshot.lines[row][right] == ("┘" if above else "┐"), snapshot.text
+
+    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+        client.wait_text("Term/Graphics")
+        original_ini = (root / "syncterm.ini").read_bytes()
+        shot = open_program(client)
+        left, y, right = field(shot, "Main Interface")
+        assert shot.lines[y][right - 1] == "v", shot.text
+        form_background = cell_at(shot, 2, 20).background
+        click_text(client, shot, "Main Interface")
+        shot = client.wait_text("Classic")
+        attached(shot, "Main Interface")
+        assert cell_at(shot, 2, 20).background == form_background, shot.text
+        assert cell_at(shot, left + 1, y + 2).background != cell_at(shot, left + 1, y + 3).background, shot.text
+        Path(reports).mkdir(parents=True, exist_ok=True)
+        shot.save_image(Path(reports) / "program-dropdown.ppm")
+        client.key("f1")
+        client.wait_text("Classic keeps the original layout")
+        client.key("escape")
+        shot = client.wait_for(lambda s: "Classic" in s.text and "keeps the original layout" not in s.text)
+        attached(shot, "Main Interface")
+        # Navigation is a preview; Escape and outside clicks leave the draft alone.
+        client.key("up")
+        client.key("escape")
+        shot = client.wait_for(lambda s: "Main Interface" in s.text and "Classic" not in s.text)
+        assert "DOS" in shot.lines[field(shot, "Main Interface")[1]], shot.text
+        client.key("down", 4)  # Alt-Down opens the focused enum.
+        shot = client.wait_text("Classic")
+        attached(shot, "Main Interface")
+        for columns, rows in ((132, 50), (40, 14), (80, 25)):
+            client.grid_resize(columns, rows)
+            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "Classic" in s.text)
+            attached(shot, "Main Interface")
+        click_text(client, shot, "Scrollback Buffer Lines")
+        shot = client.wait_for(lambda s: "Main Interface" in s.text and "Classic" not in s.text)
+        click_text(client, shot, "Main Interface")
+        shot = client.wait_text("Classic")
+        click_text(client, shot, "Classic")
+        shot = client.wait_for(lambda s: "Classic" in s.text and "┌" not in s.text)
+        assert "Classic" in shot.lines[field(shot, "Main Interface")[1]], shot.text
+        assert (root / "syncterm.ini").read_bytes() == original_ini
+        client.key("escape")
+        client.wait_text("Discard changes?")
+        client.key("enter")
+        client.wait_text("Term/Graphics")
+        shot = open_program(client)
+        click_text(client, shot, "Colours")
+        client.wait_text("Frame Colour")
+        client.grid_resize(40, 14)
+        shot = client.wait_for(lambda s: s.metadata["rows"] == 14 and "Inverse Colour" in s.text)
+        click_text(client, shot, "Inverse Colour")
+        shot = client.wait_for(lambda s: "└" in s.text and "Inverse Colour" in s.text)
+        attached(shot, "Inverse Colour", above=True)
+        client.grid_resize(80, 25)
+        shot = client.wait_for(lambda s: s.metadata["columns"] == 80 and "┌" in s.text)
+        attached(shot, "Inverse Colour")
+        client.grid_resize(40, 14)
+        shot = client.wait_for(lambda s: s.metadata["rows"] == 14 and "└" in s.text)
+        attached(shot, "Inverse Colour", above=True)
+        client.key("home")
+        client.wait_text("Black")
+        client.key("end")
+        shot = client.wait_for(lambda s: "Light Gray" in s.text and "Black" not in s.text)
+        left, y, right = field(shot, "Inverse Colour")
+        # Default is the last background-colour option, after the eight colours.
+        assert "Default" in shot.lines[y - 2][left:right + 1], shot.text
+        client.key("escape")
+        client.wait_for(lambda s: "Inverse Colour" in s.text and "┌" not in s.text)
+        client.grid_resize(80, 25)
+        shot = client.wait_for(lambda s: s.metadata["columns"] == 80 and "Lightbar Background" in s.text)
+        click_text(client, shot, "Lightbar Background")
+        client.wait_for(lambda s: "┌" in s.text)
+        client.grid_resize(40, 14)
+        client.wait_for(lambda s: s.metadata["rows"] == 14 and "[Colours]" in s.text and "┌" not in s.text)
+        client.key("escape")
+        client.wait_text("Directory:")
+        assert (root / "syncterm.ini").read_bytes() == original_ini
+
+    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+        client.wait_text("Term/Graphics")
+        original_list = (root / "syncterm.lst").read_bytes()
+        client.key("f2")
+        shot = client.wait_text("Edit Directory Entry")
+        click_text(client, shot, "Connection Type")
+        shot = client.wait_text("RLogin")
+        attached(shot, "Connection Type")
+        shot.save_image(Path(reports) / "entry-dropdown.ppm")
+        client.text("ssh")
+        client.key("tab")
+        shot = client.wait_for(lambda s: "Edit Directory Entry" in s.text and "┌" not in s.text)
+        assert "SSH" in shot.lines[field(shot, "Connection Type")[1]] and "22" in shot.text, shot.text
+        client.text(" ")  # Tab accepted the choice and moved to Address Family.
+        client.wait_text("IPv4")
+        client.key("escape")
+        client.wait_for(lambda s: "Edit Directory Entry" in s.text and "┌" not in s.text)
+        assert (root / "syncterm.lst").read_bytes() == original_list
+        client.key("f10")
+        client.wait_text("Term/Graphics")
+        contents = (root / "syncterm.lst").read_text()
+        assert "ConnectionType=SSH" in contents and "Port=22" in contents, contents
+
+
 def switching(executable, reports):
     with fixture(executable, entries=ENTRIES, reports=reports) as (client, root):
         shot = client.wait_text("Program Settings")
@@ -407,7 +520,7 @@ def offer(executable, reports):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("executable")
-    p.add_argument("case", choices=("contracts", "directory", "forms", "switching", "failures", "creation", "connected", "safe", "offer"))
+    p.add_argument("case", choices=("contracts", "directory", "forms", "dropdowns", "switching", "failures", "creation", "connected", "safe", "offer"))
     p.add_argument("--reports", default="reports/dos-ui")
     args = p.parse_args()
     globals()[args.case](args.executable, args.reports)

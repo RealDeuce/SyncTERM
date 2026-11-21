@@ -216,6 +216,77 @@ class ModalPane is Pane {
   }
 }
 
+// A titleless choice list joined to a form field's value rectangle.
+class AttachedChoice is ModalPane {
+  construct new(app, owner, labels, selected, helpText) {
+    super(Fn.new { app.popModal() })
+    _app = app
+    _owner = owner
+    _anchorFor = owner.choiceAnchor_
+    _anchor = _anchorFor.call()
+    _result = null
+    focused = true
+    shadow = false
+    frameKind = "display"
+    titleAsBar = false
+    closeable = false
+    helpable = false
+    this.helpText = helpText
+    keyHints = [["Up/Down", "Choose"], ["Enter", "Accept"], ["Esc", "Cancel"]]
+    _list = ListView.new()
+    _list.items = labels
+    _list.selected = selected
+    _list.onSelect = Fn.new {|index, item| accept_(index) }
+    add(_list)
+    layout_()
+  }
+
+  result { _result }
+  activeOwner_ { _owner }
+  accept_(index) {
+    _result = index
+    _app.popModal()
+  }
+
+  layout_() {
+    var anchor = _anchorFor.call()
+    if (anchor != null) _anchor = anchor
+    var size = Screen.checked_(Screen.size)
+    var below = size[1] - _anchor.bottom
+    var above = _anchor.y - 1
+    var height = _list.count.min(8) + 2
+    var upwards = below < height && above > below
+    height = height.min(upwards ? above : below).max(3).min(size[1])
+    var width = _anchor.w.max(3).min(size[0])
+    var x = _anchor.x.max(1).min(size[0] - width + 1)
+    var y = upwards ? _anchor.y - height : _anchor.bottom + 1
+    var rect = Rect.new(x, y.max(1).min(size[1] - height + 1), width, height)
+    if (bounds == rect) return
+    bounds = rect
+    _list.bounds = innerBounds
+  }
+
+  draw() {
+    // The form is drawn first and has already reflowed on resize. If its
+    // enum moved out of view, close instead of leaving a detached list.
+    if (_anchorFor.call() == null && _app.modalTop == this) {
+      _app.popModal()
+      return null
+    }
+    layout_()
+    return super.draw()
+  }
+
+  handle(event) {
+    if (event is KeyEvent && (event.shortcut_ == Key.tab || event.shortcut_ == Key.chord_(Key.tab, Mod.shift))) {
+      accept_(_list.selected)
+      _owner.handle(event)
+      return true
+    }
+    return super.handle(event)
+  }
+}
+
 class CommandPane is ModalPane {
   construct new(onDismiss, commands, onCommand) {
     super(onDismiss)
@@ -454,6 +525,14 @@ class MenuUi {
   }
 
   static choice(app, title, rows, current, helpText, onSelect, viewState) {
+    if (app is App && onSelect == null && viewState == null && app.modalTop.choiceAnchor_ != null) {
+      if (rows.count == 0) return null
+      var labels = rows.map {|row| row is List ? row[1] : row }.toList
+      var selected = current == null ? 0 : rows[0] is List ? rowIndex(rows, current) : current
+      var pane = AttachedChoice.new(app, app.modalTop, labels, selected, helpText)
+      app.modal(pane)
+      return pane.result == null ? null : rowValue_(rows, pane.result)
+    }
     var onResult = null
     if (onSelect != null) {
       onResult = Fn.new {|picked| onSelect.call(picked[1]) }
