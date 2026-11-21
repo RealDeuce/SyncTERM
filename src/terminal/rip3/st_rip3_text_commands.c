@@ -84,14 +84,14 @@ outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style
 	free(positions);free(advances);return status;
 }
 
-int
-st_rip3_command_text_glyphs(const struct st_rip3_text_context *context, const uint8_t *text, size_t length,
-    const uint8_t **glyphs, size_t *count, uint8_t **owned)
+static int
+text_glyphs(const struct st_rip3_text_context *context, const uint8_t *text, size_t length,
+    const uint8_t **glyphs, size_t *count, uint8_t **owned, bool expanded)
 {
 	enum st_rip3_text_encoding encoding=context->encoding;
 	/* Expansion/control notation is not silently printed as literal text.
 	 * The enclosing expansion/transport layer remains separate (#6/#7). */
-	for (size_t i = 0; i < length; i++) {
+	for (size_t i = 0; !expanded && i < length; i++) {
 		uint8_t c = text[i];
 		if (c == '$' || c == '[' || c == '\\' || c == '^' || c == '`'
 		    || (i+1 < length && ((c == '<' && text[i+1] == '<') || (c == '(' && text[i+1] == '('))))
@@ -118,8 +118,36 @@ st_rip3_command_text_glyphs(const struct st_rip3_text_context *context, const ui
 }
 
 int
-st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation)
+st_rip3_command_text_glyphs(const struct st_rip3_text_context *context, const uint8_t *text, size_t length,
+    const uint8_t **glyphs, size_t *count, uint8_t **owned)
+{
+	return text_glyphs(context,text,length,glyphs,count,owned,false);
+}
+
+int
+st_rip3_text_argument_prepare(const struct st_rip3_command_host *host, const uint8_t *command,
+    size_t length, struct st_rip3_text_argument *argument, size_t *offset)
+{
+	if (length==0 || (command[0]!='T' && command[0]!='@')) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_text_argument value={.positioned=command[0]=='@'};
+	size_t at=1;
+	if (value.positioned) {
+		struct st_rip3_environment environment;unsigned number;
+		int status=st_rip3_command_environment(host,&number,&environment);
+		if (status!=0) return status;
+		size_t width=environment.coordinate_size;at+=2*width;
+		if (length<=at) return IO_ERROR_INVALID_FORMAT;
+		status=st_rip3_command_field(&value.x,command+1,width,environment.base_math);
+		if (status==0) status=st_rip3_command_field(&value.y,command+1+width,width,environment.base_math);
+		if (status!=0) return status;
+		if (value.x>INT32_MAX || value.y>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	}
+	*argument=value;*offset=at;return 0;
+}
+
+static int
+text_execute(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_text_argument *prepared)
 {
 	struct st_rip3_environment environment;
 	struct st_rip3_frame frame;
@@ -131,29 +159,31 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_classic_text_plan plan;
 	struct st_rip3_style style;
 	unsigned environment_number, number, port_number;
-	const uint8_t *arguments = command+1, *glyphs;
-	size_t count = length-1, glyph_count;
+	char kind=prepared==NULL ? (char)command[0] : prepared->positioned ? '@' : 'T';
+	const uint8_t *arguments = prepared==NULL ? command+1 : command, *glyphs;
+	size_t count = prepared==NULL ? length-1 : length, glyph_count;
 	uint8_t *owned = NULL, foreground = 0, background = 0;
 	int status = st_rip3_command_environment(host,&environment_number,&environment);
 	if (status != 0) return status;
-	bool positioned = command[0] != 'T';
+	bool positioned = kind != 'T';
 	if (positioned) {
-		size_t width = environment.coordinate_size;
-		uint64_t x, y;
-		if (command[0] == 'm' ? (count <= width || count > 2*width) : count < 2*width)
-			return IO_ERROR_INVALID_FORMAT;
-		status = st_rip3_command_field(&x,arguments,width,environment.base_math);
-		if (status == 0) status = st_rip3_command_field(&y,arguments+width,
-		    command[0] == 'm' ? count-width : width,environment.base_math);
-		if (status != 0) return status;
-		if (x > INT32_MAX || y > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+		uint64_t x,y;
+		size_t width=environment.coordinate_size;
+		if (prepared!=NULL) {x=prepared->x;y=prepared->y;}
+		else {
+			if (kind=='m' ? (count<=width || count>2*width) : count<2*width) return IO_ERROR_INVALID_FORMAT;
+			status=st_rip3_command_field(&x,arguments,width,environment.base_math);
+			if (status==0) status=st_rip3_command_field(&y,arguments+width,kind=='m' ? count-width : width,environment.base_math);
+			if (status!=0) return status;
+			if (x>INT32_MAX || y>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+		}
 		if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 		status = st_rip3_command_frame(host,environment_number,&frame);
 		if (status != 0) return status;
 		anchor = (struct st_rip3_text_position){(double)(x*frame.device_width/frame.world_width),
 		    (double)(y*frame.device_height/frame.world_height)};
 		raw_x = x; raw_y = y;
-		if (command[0] == '@') {
+		if (kind=='@' && prepared==NULL) {
 			arguments += 2*width; count -= 2*width;
 			if (count == 0) return IO_ERROR_INVALID_FORMAT;
 		}
@@ -169,7 +199,7 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	port_number = number;
 	int64_t origin_x = (int64_t)port.bounds.x0+port.viewport.x0;
 	int64_t origin_y = (int64_t)port.bounds.y0+port.viewport.y0;
-	if (command[0] == 'm') {
+	if (kind == 'm') {
 		next = (struct st_rip3_cursor){(int64_t)anchor.x+origin_x,(int64_t)anchor.y+origin_y};
 		*operation = true;
 		return st_rip3_ports_cursor(host->ports,port_number,&next);
@@ -180,7 +210,7 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_styles_current(host->styles,&number);
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
-	status = st_rip3_command_text_glyphs(host->text,arguments,count,&glyphs,&glyph_count,&owned);
+	status = text_glyphs(host->text,arguments,count,&glyphs,&glyph_count,&owned,prepared!=NULL);
 	if (status != 0) return status;
 	*operation = true;
 	if (!positioned) anchor = (struct st_rip3_text_position){
@@ -230,4 +260,18 @@ st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_ports_cursor(host->ports,port_number,&next);
 done:
 	free(owned); return status;
+}
+
+int
+st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	return text_execute(host,command,length,operation,NULL);
+}
+
+int
+st_rip3_text_commands_expanded(const struct st_rip3_command_host *host,
+    const struct st_rip3_text_argument *argument, const uint8_t *text, size_t length, bool *operation)
+{
+	return text_execute(host,text,length,operation,argument);
 }

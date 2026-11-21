@@ -24,6 +24,13 @@ struct st_rip3_angle_request {
  * The owner supplies the consumer's permitted provider classes and owns its
  * input gate, user operation, cancellation and callback diagnostics. */
 int st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length);
+/* Graphical consumers enforce their prefix limit at entry and each splice;
+ * the ordinary host factory above retains its existing unbounded policy. */
+int st_rip3_angle_create_bounded(struct st_rip3_angle **result, const uint8_t *bytes,
+	size_t length, size_t limit);
+/* Same bounded policy for a terminal-normalized single-byte codepage source. */
+int st_rip3_angle_create_graphical(struct st_rip3_angle **result, const uint8_t *bytes,
+	size_t length, size_t limit, bool converted_codepage);
 void st_rip3_angle_destroy(struct st_rip3_angle *angle);
 /* At most budget scanner/reduction steps. Stop at each provider request; no
  * callback, sleep or thread. Source/storage/structure failures become FAILED

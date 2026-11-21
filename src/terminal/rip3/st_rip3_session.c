@@ -14,6 +14,8 @@
 #include "st_rip3_user_variables.h"
 #include "st_rip3_stream.h"
 #include "st_rip3_query.h"
+#include "st_rip3_graphical.h"
+#include "st_rip3_command_internal.h"
 #include "st_rip3_query_internal.h"
 #include "st_rip3_input.h"
 #include "st_rip3_table_host.h"
@@ -33,6 +35,9 @@ struct st_rip3_session {
 	struct st_rip3_table_host tables;
 	struct st_rip3_host_sink host_sink;
 	struct st_rip3_text_context text;
+	struct st_rip3_graphical *graphical;
+	struct st_rip3_text_argument text_argument;
+	bool text_job;
 	struct st_rip3_template_host templates;
 	struct st_rip3_clipboard_selection clipboard;
 	struct st_rip3_random random;
@@ -420,14 +425,27 @@ static bool
 prepare(void *context)
 {
 	struct st_rip3_session *session=context;
-	bool pending=st_rip3_query_pending(session->commands.query);
+	bool pending=st_rip3_query_pending(session->commands.query) || session->text_job;
 	struct st_rip3_field_context previous=session->field_context;
 	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
 	st_rip3_query_process(session->commands.query,64);
 	session->field_context=previous;
 	if (!st_rip3_query_pending(session->commands.query)) session->field_program=false;
+	if (session->text_job) {
+		st_rip3_graphical_process(session->graphical,64);
+		if (!st_rip3_graphical_pending(session->graphical)) {
+			const struct st_rip3_condition_bytes *result=st_rip3_graphical_result(session->graphical);
+			if (result!=NULL) {
+				bool operation=false;
+				const struct st_rip3_command_sink sink={session,diagnose};
+				int status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,result->bytes,result->length,&operation);
+				st_rip3_command_result(&sink,status,operation);
+			}
+			st_rip3_graphical_cancel(session->graphical);session->text_job=false;
+		}
+	}
 	if (pending) ++session->revision;
-	return !st_rip3_query_pending(session->commands.query);
+	return !st_rip3_query_pending(session->commands.query) && !session->text_job;
 }
 
 static void
@@ -436,7 +454,16 @@ command(void *context, const uint8_t *bytes, size_t length)
 	struct st_rip3_session *session=context;
 	if (session->sink.before_command!=NULL) session->sink.before_command(session->sink.context);
 	const struct st_rip3_command_sink sink={session,diagnose};
-	st_rip3_commands_process(&session->commands,&sink,bytes,length);
+	if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
+		size_t offset;
+		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);
+		if (status!=0) st_rip3_command_result(&sink,status,false);
+		else {
+			st_rip3_graphical_start(session->graphical,ST_RIP3_GRAPHICAL_TEXT,bytes+offset,length-offset);
+			session->text_job=true;
+		}
+	}
+	else st_rip3_commands_process(&session->commands,&sink,bytes,length);
 	++session->revision;
 }
 
@@ -459,6 +486,7 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	if (session==NULL) return;
 	st_rip3_mouse_cancel(session->commands.mouse);
 	st_rip3_query_cancel(session->commands.query);
+	st_rip3_graphical_cancel(session->graphical);session->text_job=false;
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
@@ -473,6 +501,7 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	/* Query destruction precedes every borrowed processor/store/table and the
 	 * input gate. Saves own independent snapshots and precede live-table teardown. */
 	st_rip3_query_destroy(session->commands.query);
+	st_rip3_graphical_destroy(session->graphical);
 	st_rip3_mouse_destroy(session->commands.mouse);
 	st_rip3_input_destroy(session->commands.input);
 	st_rip3_stream_destroy(session->stream);
@@ -520,7 +549,7 @@ static void
 mouse_activate(void *context, const uint8_t *program, size_t length, bool reset, int identity, bool pointer, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
-	if (st_rip3_query_pending(session->commands.query)) {
+	if (st_rip3_query_pending(session->commands.query) || session->text_job) {
 		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
 	}
 	if (reset && soft_reset(session)!=0) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
@@ -573,7 +602,8 @@ st_rip3_session_mouse_cancel(struct st_rip3_session *session)
 int
 st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_session_config *config)
 {
-	if (result==NULL || config==NULL || config->source.now_ns==NULL || config->source.next==NULL
+	if (result==NULL || config==NULL || (config->graphical_codepage_converted && config->encoding!=ST_RIP3_TEXT_UTF8)
+	    || config->source.now_ns==NULL || config->source.next==NULL
 	    || config->default_text_font>=5
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
@@ -660,6 +690,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_input_create(&session->commands.input,&source);
 	session->variables.input=session->commands.input;
 	if (status==0) status=st_rip3_query_create(&session->commands.query,&session->variables,&session->host_sink);
+	if (status==0) status=st_rip3_graphical_create(&session->graphical,&session->variables,&session->host_sink,config->graphical_codepage_converted);
 	const struct st_rip3_stream_sink sink={.context=session,.text=text,.command=command,.at_line_start=line_start,.diagnostic=stream_diagnostic};
 	if (status==0) status=st_rip3_stream_create(&session->stream,&sink);
 	if (status!=0) {st_rip3_session_destroy(session);return status;}
@@ -679,15 +710,29 @@ st_rip3_session_wait_ns(const struct st_rip3_session *session)
 }
 
 bool
+st_rip3_session_graphical_pending(const struct st_rip3_session *session)
+{
+	return session!=NULL && session->text_job;
+}
+
+void
+st_rip3_session_graphical_cancel(struct st_rip3_session *session)
+{
+	if (session==NULL) return;
+	st_rip3_graphical_cancel(session->graphical);session->text_job=false;++session->revision;
+}
+
+bool
 st_rip3_session_pending(const struct st_rip3_session *session)
 {
-	return session!=NULL && st_rip3_query_pending(session->commands.query);
+	return session!=NULL && (st_rip3_query_pending(session->commands.query) || session->text_job);
 }
 
 bool
 st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_session_prompt *result)
 {
-	if (session==NULL || result==NULL || !st_rip3_query_prompt_pending(session->commands.query)) return false;
+	if (session==NULL || result==NULL || (!st_rip3_query_prompt_pending(session->commands.query)
+	    && st_rip3_graphical_state(session->graphical)!=ST_RIP3_GRAPHICAL_PROMPT)) return false;
 	const struct st_rip3_variable_reference *reference=st_rip3_user_variables_prompt(session->variables.user_variables);
 	if (reference==NULL) return false;
 	*result=(struct st_rip3_session_prompt){reference,st_rip3_user_variables_initial(session->variables.user_variables)};
@@ -727,7 +772,7 @@ st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_se
 	if (status==0) status=st_rip3_ports_snapshot(session->commands.ports,&palette,&value.pixels);
 	if (status!=0) return status;
 	value.cursor_x=port.cursor.x;value.cursor_y=port.cursor.y;value.viewport_active=port.viewport_active;
-	value.query_pending=st_rip3_query_pending(session->commands.query);value.wait_ns=st_rip3_session_wait_ns(session);
+	value.query_pending=st_rip3_session_pending(session);value.wait_ns=st_rip3_session_wait_ns(session);
 	value.outline_cache_valid=st_rip3_outline_cache_valid(session->text.outline_cache);
 	*result=value;return 0;
 }

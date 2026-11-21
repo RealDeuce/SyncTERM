@@ -86,6 +86,9 @@ struct st_rip3_session_config {
 	unsigned default_text_font;
 	bool default_text_wrap;
 	enum st_rip3_text_encoding encoding;
+	/* The terminal normalized a single-byte wire codepage to UTF-8. Graphical
+	 * limits still count original bytes; standalone byte parsers leave false. */
+	bool graphical_codepage_converted;
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;
 	/* Optional copied external service bindings. The frame, tables, input,
@@ -118,8 +121,9 @@ struct st_rip3_session_config {
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
  * This does not select an application terminal mode or implement unbound
- * full text-window backups, button faces, field clear/zoom, graphical-text preprocessing or
- * scene headers. Immediate host queries do include their angle preprocessor. */
+ * full text-window backups, grouped buttons, field zoom, button graphical-text
+ * continuations or complete scene headers. T/@ use the bounded graphical
+ * preprocessor. Immediate host queries include their angle preprocessor. */
 int st_rip3_session_create(struct st_rip3_session **result,
 	const struct st_rip3_session_config *config);
 void st_rip3_session_destroy(struct st_rip3_session *session);
@@ -148,6 +152,10 @@ int st_rip3_session_damage(struct st_rip3_session *session,
 uint64_t st_rip3_session_wait_ns(const struct st_rip3_session *session);
 /* Local host work remains, independently of source availability. If ready
  * and not waiting for a prompt, schedule another pump even without new bytes. */
+/* Consumer-only gate; host queries retain their existing scheduling policy. */
+bool st_rip3_session_graphical_pending(const struct st_rip3_session *session);
+/* Abandon only a failed render continuation; preserve stream framing/stores. */
+void st_rip3_session_graphical_cancel(struct st_rip3_session *session);
 bool st_rip3_session_pending(const struct st_rip3_session *session);
 /* EOF/transport cancellation: discard incomplete framing and owned host/prompt
  * work, cancel the delay and stop the exclusive player. Never take queued bytes

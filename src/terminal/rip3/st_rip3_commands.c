@@ -527,6 +527,12 @@ st_rip3_commands_process(const struct st_rip3_command_host *host,
 {
 	bool operation;
 	int status = execute(host, command, length, &operation, sink);
+	st_rip3_command_result(sink,status,operation);
+}
+
+void
+st_rip3_command_result(const struct st_rip3_command_sink *sink, int status, bool operation)
+{
 	enum st_rip3_command_diagnostic kind;
 
 	if (status == 0)

@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* Consume a private decoder/renderer status below the void parser boundary. */
+void st_rip3_command_result(const struct st_rip3_command_sink *sink, int status, bool operation);
 struct st_rip3_environment;
 struct st_rip3_frame;
 struct st_rip3_port_info;

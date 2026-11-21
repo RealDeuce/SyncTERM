@@ -42,4 +42,7 @@ struct st_rip3_builtin_reference {
  * user lookup or prompt occurs. Prefix forms must be handled before lookup. */
 bool st_rip3_builtin_known(const char *name, size_t length);
 
+/* Complete graphical registration-class gate; not an implementation claim. */
+bool st_rip3_builtin_graphical(const char *name, size_t length);
+
 #endif

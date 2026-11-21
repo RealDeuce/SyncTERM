@@ -7233,6 +7233,62 @@ Full RIP3 remains incomplete; graphical provider and
 prompt continuations, grouped buttons and other pending families are not
 claimed by this cursor milestone.
 
+## Connected graphical text expansion
+
+Ordinary connected `T` and `@` now run the PR126 angle preprocessor followed
+by one ordinary expansion pass. The numeric `@` prefix is decoded before any
+provider can change COORDSIZE/Base Math; the remaining text uses live permitted
+setter effects and the existing font/port rendering paths. Text that survives
+expansion literally, including disabled references and quoted dollar signs,
+reaches glyph conversion without being rejected as unexpanded syntax.
+
+The shared worker uses the complete 84-name class-1/class-3 registration gate.
+Active-only WORLD/MKILL and other recognized blocked, rejected or unavailable
+ordinary callbacks remain literal with no user fallback. Ordinary template-slot
+embedding and playback remain literal; angle templates and permitted conditional
+providers retain their existing scanner behavior. User results are skipped after
+insertion, outer quotes are consumed once, trailing backslashes disappear, and
+host control-pair decoding is disabled. This never executes a button host slot.
+
+The 1022-byte text prefix is enforced on entry and every angle/ordinary
+replacement, permanently discarding suffixes before scanning them. Each value's
+NUL terminates that value alone. Native byte input and actual UTF-8 wire input
+count bytes directly. The terminal's normalized codepage source recovers the
+original single-byte budget from its UTF-8 representation, including quote and
+angle insertion; this prevents non-ASCII CP437 from consuming twice its budget.
+Plain strings use the reusable owned string buffer and skip angle allocation.
+No scene buffer or console damage layer is introduced.
+
+Permitted prompts suspend the owned continuation without renderer/table locks.
+The input source retains later wire bytes. The terminal retains physical events
+in their original order until rendering settles, while local exit stays usable.
+If saving an event fails, it abandons only the render before removing that event
+from the console queue; provider effects and the original input order survive.
+Completion/cancellation resumes once; shutdown releases the worker and saved
+events. Hard expansion failures paint none of that argument and never return a
+connection error. Earlier user-variable effects are retained after a hard abort.
+
+Independent worker tests cover the permission matrix, all four consumer policies,
+angle/template versus ordinary rescanning, escaping, byte bounds, value NULs,
+prompt outcomes, cancellation and nontransactional hard failure. Those tests are
+policy evidence: only T/@ are connected by this milestone. Live CP437/UTF-8
+bitmap sessions verify cursor advances and ink, original-encoding byte boundaries,
+setters after decoded coordinates, discarded effects, and unchanged pixels/field
+activation after preprocessing failure. Native session tests split every byte;
+receive-pump tests retain ordered physical keys across a required prompt and
+keep local hangup usable with a queued event. Existing host-query and literal
+text-command regressions cover the preserved paths.
+
+Button filename/label creation/redraw continuations, their captured destination/
+instance lifetime and post-auto-stamp labels remain pending. TEXT_METRIC and its
+TEXTDATA ownership/bypass also remain pending; their private worker policies are
+not advertised as connected features. Existing unsupported editor/provider modes
+and separate storage/parameter limits are not completed by this milestone.
+The native Release build is warning-free. Fifteen relevant tests pass, including
+ordinary ANSI control checks and RIP1.54 preservation guards.
+The 8250-unit queue has 1670 implemented, 1769 pending, 3365 unreviewed,
+1354 context, 67 excluded and 25 blocked units. Full RIP3 remains incomplete.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

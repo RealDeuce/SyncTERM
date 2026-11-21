@@ -2,6 +2,10 @@
 #ifndef ST_RIP3_TEXT_COMMANDS_H_
 #define ST_RIP3_TEXT_COMMANDS_H_
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+
 struct st_rip3_classic_font;
 struct st_rip3_outline_cache;
 struct st_rip3_rff;
@@ -29,5 +33,14 @@ struct st_rip3_text_context {
 	 * The client owns file lookup/loading and the view's backing bytes. */
 	const struct st_rip3_rff *outline_font;
 };
+
+/* Numeric prefix is decoded once before providers can change BASEMATH/COORDSIZE.
+ * Parser-owned continuation; private statuses never leave the void session API. */
+struct st_rip3_text_argument {bool positioned;uint64_t x,y;};
+struct st_rip3_command_host;
+int st_rip3_text_argument_prepare(const struct st_rip3_command_host *host,
+	const uint8_t *command, size_t length, struct st_rip3_text_argument *argument, size_t *offset);
+int st_rip3_text_commands_expanded(const struct st_rip3_command_host *host,
+	const struct st_rip3_text_argument *argument, const uint8_t *text, size_t length, bool *operation);
 
 #endif

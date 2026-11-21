@@ -835,6 +835,41 @@ static int mouse_pointer(void)
 }
 
 static int
+graphical_text(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	const char *wire="!|Y00000100|@0A0A$COORDSIZE(CUR,5)$A\r";
+	for (size_t i=0;i<strlen(wire);i++) {
+		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);st_rip3_session_process(f.session,1);
+	}
+	CHECK(pump(&f)==0 && !st_rip3_session_pending(f.session) && f.errors==0);
+	CHECK(query(&f,"$TEXTXY$:$COORDSIZE$","10:10:5")==0);
+	CHECK(query(&f,"$COORDSIZE(CUR,2)$","")==0);
+	CHECK(append(&f,"!|T\\$V$\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$TEXTXY$","34:10")==0);
+	struct st_rip3_session_capture before={0},after={0};
+	CHECK(st_rip3_session_capture(f.session,&before)==0);
+	CHECK(append(&f,"!|Tbefore<<MKILL>>suffix\r")==0 && pump(&f)==0 && f.errors==1);
+	CHECK(st_rip3_session_capture(f.session,&after)==0 && after.cursor_x==before.cursor_x
+	    && after.cursor_y==before.cursor_y && after.pixels->width==before.pixels->width
+	    && after.pixels->height==before.pixels->height
+	    && memcmp(after.pixels->primary,before.pixels->primary,(size_t)after.pixels->width*after.pixels->height*sizeof(*after.pixels->primary))==0);
+	st_rip3_session_capture_dispose(&before);st_rip3_session_capture_dispose(&after);
+	CHECK(append(&f,"!|TP$&NAME$Z\rnext\r\n")==0 && pump(&f)==0 && st_rip3_session_pending(f.session));
+	struct st_rip3_session_prompt prompt;CHECK(st_rip3_session_prompt(f.session,&prompt) && strcmp(prompt.reference->name,"NAME")==0);
+	size_t stopped=f.read;CHECK(pump(&f)==0 && f.read==stopped);
+	st_rip3_session_respond(f.session,(const uint8_t *)"Ready",5,false);
+	CHECK(f.read==stopped && !st_rip3_session_pending(f.session));
+	CHECK(pump(&f)==0 && query(&f,"$TEXTXY$","90:10")==0 && f.text_length==6 && memcmp(f.text,"next\r\n",6)==0);
+	CHECK(append(&f,"!|T$-=SIDE=Y$$&CANCEL$\r")==0 && pump(&f)==0 && st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_cancel(f.session);
+	CHECK(!st_rip3_session_pending(f.session) && query(&f,"$&SIDE$","Y")==0 && query(&f,"alive","alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 plain_button(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -929,7 +964,7 @@ main(void)
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
-	CHECK(plain_button()==0);
+	CHECK(plain_button()==0 && graphical_text()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

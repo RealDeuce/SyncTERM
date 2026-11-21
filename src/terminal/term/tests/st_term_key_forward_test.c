@@ -40,12 +40,30 @@ limited_pointer(st_console_display_t *display, enum st_console_pointer_shape sha
 	return 0;
 }
 
+struct graphical_prompt {bool ready;unsigned calls;};
+static int
+render_prompt(void *context, const char *question, const char *initial, size_t width, bool reject_blank, char **result)
+{
+	struct graphical_prompt *prompt=context;
+	(void)question;(void)initial;(void)width;(void)reject_blank;
+	prompt->calls++;*result=NULL;
+	if (prompt->ready) {
+		*result=malloc(6);
+		if (*result==NULL) return IO_ERROR_OUT_OF_MEMORY;
+		memcpy(*result,"Ready",6);
+	}
+	return 0;
+}
+
+static char observed_order[8];
 static int
 observe_event(void *context, const struct st_console_event *event, bool *consumed)
 {
 	unsigned *calls = context;
 	(void)event;
 	++*calls;
+	if (event->type==ST_CONSOLE_EVENT_TEXT && *calls<=sizeof(observed_order))
+		observed_order[*calls-1]=(char)event->data.text.codepoint;
 	*consumed = true;
 	return 0;
 }
@@ -75,6 +93,7 @@ st_term_key_forward_test_main(void)
 	st_console_t *console = NULL;
 	st_font_catalog_t *fonts = NULL;
 	unsigned hook_calls = 0;
+	struct graphical_prompt graphical_prompt={0};
 
 	/* No worker consumes the ring, so output is independent of network timing. */
 	atomic_init(&connection.connected, true);
@@ -101,6 +120,7 @@ st_term_key_forward_test_main(void)
 			.codepage = ST_CODEPAGE_CP437,
 			.graphics_mode = mode >= 4 ? ST_CTERM_GRAPHICS_RIP_3 : rip ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF,
 			.event_hook = observe_event, .event_hook_context = &hook_calls,
+			.rip_prompt=render_prompt,.rip_prompt_context=&graphical_prompt,
 		};
 		CHECK(st_term_session_create(&session, &config) == 0);
 		struct st_console_event event = {
@@ -189,6 +209,23 @@ st_term_key_forward_test_main(void)
 			CHECK(st_term_session_send_key(session,&event,&handled)==0 && handled);
 			CHECK(expect_output(&connection,"H",1)==0);
 			st_term_session_set_mouse_disabled(session,false);
+			graphical_prompt=(struct graphical_prompt){0};
+			static const char prompt_program[]="!|T$*MISSING$|1\0330000after\r";
+			memcpy(connection.input.data,prompt_program,sizeof(prompt_program)-1);
+			connection.input.head=0;connection.input.count=sizeof(prompt_program)-1;
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished && graphical_prompt.calls==1);
+			CHECK(connection.output.count==0 && hook_calls==0);
+			event=(struct st_console_event){.type=ST_CONSOLE_EVENT_TEXT,.data.text.codepoint='a'};
+			CHECK(st_console_post_event(console,&event)==0);
+			event.data.text.codepoint='b';CHECK(st_console_post_event(console,&event)==0);
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished && hook_calls==0);
+			CHECK(connection.output.count==0);
+			graphical_prompt.ready=true;
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished && hook_calls==2);
+			/* The text continuation paints once, then later wire bytes and the
+			 * saved event resume through their original owners. */
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished && hook_calls==2);
+			CHECK(expect_output(&connection,"after",5)==0 && memcmp(observed_order,"ab",2)==0);
 			hook_calls=0;
 		}
 		connection.output.stopped = true;
@@ -196,6 +233,24 @@ st_term_key_forward_test_main(void)
 		    .data.key.code = '\r'};
 		CHECK(st_term_session_send_key(session, &event, &handled) == IO_ERROR_NOT_CONNECTED);
 		CHECK(handled && connection.output.count == 0);
+		st_term_session_destroy(&session);
+		connection.output.stopped=false;
+		if (mode>=4) {
+			CHECK(st_term_session_create(&session,&config)==0);
+			connection.output.stopped=false;graphical_prompt=(struct graphical_prompt){0};
+			static const char pending[]="!|T$*SHUTDOWN$\r";
+			memcpy(connection.input.data,pending,sizeof(pending)-1);
+			connection.input.head=0;connection.input.count=sizeof(pending)-1;
+			enum st_term_disposition disposition=ST_TERM_RETURN_TO_PICKER;bool finished=false;
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished);
+			event=(struct st_console_event){.type=ST_CONSOLE_EVENT_TEXT,.data.text.codepoint='c'};
+			CHECK(st_console_post_event(console,&event)==0);
+			event=(struct st_console_event){.type=ST_CONSOLE_EVENT_KEY_CODE,
+			    .data.key={.code='x',.modifiers=ST_CONSOLE_MODIFIER_ALT}};
+			CHECK(st_console_post_event(console,&event)==0);
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && finished
+			    && disposition==ST_TERM_EXIT_APPLICATION && hook_calls==0);
+		}
 		st_term_session_destroy(&session);
 		connection.output.stopped = false;
 	}

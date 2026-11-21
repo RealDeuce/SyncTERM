@@ -930,6 +930,20 @@ st_term_rip3_poll(struct st_term_rip3 *rip)
 }
 
 bool
+st_term_rip3_graphical_pending(const struct st_term_rip3 *rip)
+{
+	return rip!=NULL && st_rip3_session_graphical_pending(rip->session);
+}
+
+void
+st_term_rip3_graphical_failure(struct st_term_rip3 *rip)
+{
+	if (rip==NULL) return;
+	st_rip3_session_graphical_cancel(rip->session);
+	diagnostic(rip,ST_RIP3_COMMAND_RESOURCE_FAILURE);
+}
+
+bool
 st_term_rip3_paused(const struct st_term_rip3 *rip)
 {
 	return rip!=NULL && (rip->position<rip->length || st_rip3_session_pending(rip->session)
@@ -1053,7 +1067,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,
 	    .device_width=width,.device_height=height,
 	    .default_text_font=0,.default_text_wrap=true,
-	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
+	    .encoding=ST_RIP3_TEXT_UTF8,.graphical_codepage_converted=config->encoding==ST_CTERM_ENCODING_CODEPAGE,
+	    .source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,

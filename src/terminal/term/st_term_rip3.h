@@ -20,6 +20,8 @@ void st_term_rip3_destroy(struct st_term_rip3 *rip);
 void st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length);
 void st_term_rip3_poll(struct st_term_rip3 *rip);
 void st_term_rip3_cancel(struct st_term_rip3 *rip);
+bool st_term_rip3_graphical_pending(const struct st_term_rip3 *rip);
+void st_term_rip3_graphical_failure(struct st_term_rip3 *rip);
 bool st_term_rip3_paused(const struct st_term_rip3 *rip);
 bool st_term_rip3_mouse_active(const struct st_term_rip3 *rip);
 bool st_term_rip3_pointer_shape(const struct st_term_rip3 *rip, enum st_console_pointer_shape *result);

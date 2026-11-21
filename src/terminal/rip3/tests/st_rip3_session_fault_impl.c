@@ -13,6 +13,7 @@
 #include "st_rip3_user_variables.h"
 #include "st_rip3_stream.h"
 #include "st_rip3_query.h"
+#include "st_rip3_graphical.h"
 #include "st_rip3_input.h"
 #include "st_rip3_audio.h"
 #include "io_error.h"
@@ -71,6 +72,7 @@ FACTORY(st_rip3_variables_create,(struct st_rip3_variables **p),(p))
 FACTORY(st_rip3_user_variables_create,(struct st_rip3_user_variables **p,const struct st_rip3_user_variable_host *h),(p,h))
 FACTORY(st_rip3_input_create,(struct st_rip3_input **p,const struct st_rip3_input_source *s),(p,s))
 FACTORY(st_rip3_query_create,(struct st_rip3_query **p,const struct st_rip3_host_variables *v,const struct st_rip3_host_sink *s),(p,v,s))
+FACTORY(st_rip3_graphical_create,(struct st_rip3_graphical **p,const struct st_rip3_host_variables *v,const struct st_rip3_host_sink *s,bool c),(p,v,s,c))
 FACTORY(st_rip3_stream_create,(struct st_rip3_stream **p,const struct st_rip3_stream_sink *s),(p,s))
 RELEASE(st_rip3_environments_destroy,st_rip3_environments)
 RELEASE(st_rip3_styles_destroy,st_rip3_styles)
@@ -85,6 +87,7 @@ RELEASE(st_rip3_variables_destroy,st_rip3_variables)
 RELEASE(st_rip3_user_variables_destroy,st_rip3_user_variables)
 RELEASE(st_rip3_input_destroy,st_rip3_input)
 RELEASE(st_rip3_query_destroy,st_rip3_query)
+RELEASE(st_rip3_graphical_destroy,st_rip3_graphical)
 RELEASE(st_rip3_stream_destroy,st_rip3_stream)
 
 static int
@@ -114,6 +117,7 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_user_variables_create test_st_rip3_user_variables_create
 #define st_rip3_input_create test_st_rip3_input_create
 #define st_rip3_query_create test_st_rip3_query_create
+#define st_rip3_graphical_create test_st_rip3_graphical_create
 #define st_rip3_stream_create test_st_rip3_stream_create
 #define st_rip3_environments_destroy test_st_rip3_environments_destroy
 #define st_rip3_styles_destroy test_st_rip3_styles_destroy
@@ -128,6 +132,7 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_user_variables_destroy test_st_rip3_user_variables_destroy
 #define st_rip3_input_destroy test_st_rip3_input_destroy
 #define st_rip3_query_destroy test_st_rip3_query_destroy
+#define st_rip3_graphical_destroy test_st_rip3_graphical_destroy
 #define st_rip3_stream_destroy test_st_rip3_stream_destroy
 #define st_rip3_audio_stop test_audio_stop
 #include "../st_rip3_session.c"

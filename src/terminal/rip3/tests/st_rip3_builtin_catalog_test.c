@@ -35,7 +35,10 @@ main(int argc, char **argv)
 		CHECK(st_rip3_builtin_known(present[i], strlen(present[i])));
 	/* The separate contract CTest passes the full pinned-reference inventory,
 	 * independently extracted from source blocks rather than this C table. */
-	for (int i = 1; i < argc; i++) {
+	bool denied=argc>1 && strcmp(argv[1],"--graphical-denied")==0;
+	bool graphical=denied || (argc>1 && strcmp(argv[1],"--graphical")==0);
+	CHECK(!st_rip3_builtin_graphical("WORLD",5) && !st_rip3_builtin_graphical("MKILL",5));
+	for (int i = graphical ? 2 : 1; i < argc; i++) {
 		char mixed[21];
 		size_t length = strlen(argv[i]);
 
@@ -47,6 +50,7 @@ main(int argc, char **argv)
 			mixed[j] = (j % 2 == 0 && argv[i][j] >= 'A' && argv[i][j] <= 'Z')
 			    ? (char)(argv[i][j] - 'A' + 'a') : argv[i][j];
 		CHECK(st_rip3_builtin_known(mixed, length));
+		if (graphical) CHECK(st_rip3_builtin_graphical(argv[i],length)!=denied && st_rip3_builtin_graphical(mixed,length)!=denied);
 	}
 	return 0;
 }

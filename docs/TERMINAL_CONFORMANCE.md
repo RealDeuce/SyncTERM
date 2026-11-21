@@ -2190,3 +2190,17 @@ issue #125 with canonical 0..7 mapping, including raised palm 5 and prohibited 7
 issue #124's graphical-expansion contract; its unfinished runtime consumers
 remain pending. RIP hover host-query execution and HEADER input-lock
 orchestration remain pending.
+
+`syncterm_rip3_graphical_CP437` and `syncterm_rip3_graphical_UTF-8` cover
+connected T/@ angle preprocessing and one ordinary graphical expansion pass,
+provider eligibility/literal rejection, quoted/control spellings, template
+rescanning, decoded coordinate prefixes, discarded suffix effects, original
+wire-byte budgets after codepage normalization, ink/cursor updates and nonfatal
+failure preserving existing fields. `rip3_graphical` supplies independent policy,
+NUL, prompt/cancellation and retained-effect vectors; `rip3_angle` preserves host
+scanner coverage, and `rip3_builtin_inventory` checks all 84 published eligible
+names plus known ineligible names. `term_key_forward` exercises the real receive
+pump's required render prompt, ordered deferred events and local shutdown.
+Filename/label and metric bindings remain pending; their private worker modes
+are not connected-feature claims. Existing ANSI/RIP1 rendering uses its prior
+paths and console damage/scroll tracking.

@@ -6423,6 +6423,65 @@
         "excluded": 67,
         "blocked": 30
       }
+    },
+    {
+      "after_commit": "f25b1d47",
+      "revision": "a8570522e02f4b6753afea9cb9a6de3565009f1a",
+      "scope": "Connect bounded graphical T/@ angle and one-pass variable expansion with suspended prompts and ordered physical input.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:72",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:73",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:74",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:76",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:78",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:52"
+      ],
+      "tests": [
+        "rip3_graphical",
+        "rip3_angle",
+        "rip3_session",
+        "rip3_text_commands",
+        "rip3_query_commands",
+        "rip3_builtin_inventory",
+        "term_key_forward",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8"
+      ],
+      "policy": "All parser/provider/font/resource failures stay below void session processing. Plain strings use an owned reusable text buffer and no angle allocation. Count original codepage wire bytes despite UTF-8 normalization; actual UTF-8 wire input retains byte limits. Ordinary host-query stages, entry raster, RIP1.54 sources and existing console damage/scroll machinery are unchanged.",
+      "pending_followups": [
+        "Connect the same worker to filename/label creation and redraw with captured drawing state, destination/instance generations and post-auto-stamp label continuations.",
+        "Connect TEXT_METRIC and its retained TEXTDATA sentinel; complete grouped/persistent button selection, selected plain/clipboard images, hover and remaining table/playback families.",
+        "Existing frontend editor/format modes and normalized transport storage/parameter limits retain their separate incomplete scope."
+      ],
+      "states_after_update": {
+        "unreviewed": 3365,
+        "context": 1354,
+        "pending": 1769,
+        "implemented": 1670,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc, single CMake build tree build.",
+        "passed_tests": [
+          "rip3_graphical",
+          "rip3_angle",
+          "rip3_session",
+          "rip3_query_commands",
+          "rip3_builtin_catalog",
+          "rip3_builtin_inventory",
+          "rip3_text_commands",
+          "term_key_forward",
+          "syncterm_rip3_graphical_CP437",
+          "syncterm_rip3_graphical_UTF-8",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "rip154_source_freeze",
+          "rip3_contract",
+          "rip3_preservation_guard"
+        ],
+        "scope": "Fifteen distinct relevant native/connected checks pass. Final builds are warning-free. Connected original-byte-boundary cases cover normalized CP437 and actual UTF-8; native tests cover suspension, hard failure, ordered events and local shutdown. Existing host query/scanner and literal text tests retain their paths. ANSI controls and RIP1.54 freeze pass; no graphical user display or additional toolchain configuration is used."
+      }
     }
   ]
 }

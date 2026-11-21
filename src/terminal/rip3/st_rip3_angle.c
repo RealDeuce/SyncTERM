@@ -1,6 +1,7 @@
 /* The outer scanner deliberately has different escapes from its operand lexer. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_angle.h"
+#include "st_rip3_graphical_bytes.h"
 #include "st_rip3_condition_internal.h"
 #include "st_rip3_host_internal.h"
 #include "io_error.h"
@@ -11,8 +12,9 @@
 struct branch {bool parent,selected,seen_else,active;};
 
 struct st_rip3_angle {
-	uint8_t *bytes;size_t length,capacity,cursor,consumed;
-	unsigned pass,depth;bool changed;
+	uint8_t *bytes;size_t length,capacity,cursor,consumed,limit;
+	unsigned pass,depth;bool changed,converted;
+	size_t inserted;
 	struct branch branches[16];
 	struct st_rip3_condition_evaluation *condition;
 	struct st_rip3_angle_request request;
@@ -38,8 +40,18 @@ active(const struct st_rip3_angle *angle)
 static bool
 splice(struct st_rip3_angle *angle, size_t count, const uint8_t *bytes, size_t length)
 {
-	if (length>SIZE_MAX-1-(angle->length-count)) {fail(angle,ST_RIP3_ANGLE_RESOURCE);return false;}
-	size_t needed=angle->length-count+length+1;
+	/* The working text includes processed prefix, insertion and unread suffix.
+	 * Clip before moving/scanning so a later shrink cannot reveal discarded data. */
+	size_t remaining=angle->limit-st_rip3_graphical_units(angle->bytes,angle->cursor,angle->converted);
+	length=st_rip3_graphical_prefix(bytes,length,remaining,angle->converted);
+	remaining-=st_rip3_graphical_units(bytes,length,angle->converted);
+	size_t suffix=st_rip3_graphical_prefix(angle->bytes+angle->cursor+count,
+	    angle->length-angle->cursor-count,remaining,angle->converted);
+	if (length>SIZE_MAX-1-angle->cursor || suffix>SIZE_MAX-1-angle->cursor-length) {
+		fail(angle,ST_RIP3_ANGLE_RESOURCE);return false;
+	}
+	angle->inserted=length;
+	size_t needed=angle->cursor+length+suffix+1;
 	if (needed>angle->capacity) {
 		size_t capacity=angle->capacity;
 		while (capacity<needed) capacity=capacity>SIZE_MAX/2 ? needed : capacity*2;
@@ -48,7 +60,7 @@ splice(struct st_rip3_angle *angle, size_t count, const uint8_t *bytes, size_t l
 		angle->bytes=replacement;angle->capacity=capacity;
 	}
 	memmove(angle->bytes+angle->cursor+length,angle->bytes+angle->cursor+count,
-	    angle->length-angle->cursor-count);
+	    suffix);
 	if (length!=0) memcpy(angle->bytes+angle->cursor,bytes,length);
 	angle->length=needed-1;angle->bytes[angle->length]=0;angle->changed=true;return true;
 }
@@ -89,18 +101,31 @@ reference_valid(const uint8_t *bytes, size_t length)
 }
 
 int
-st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length)
+st_rip3_angle_create_graphical(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, size_t limit, bool converted_codepage)
 {
-	if (result==NULL || (bytes==NULL && length!=0) || length==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
+	if (result==NULL || (bytes==NULL && length!=0) || length==SIZE_MAX || limit==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);
+	length=st_rip3_graphical_prefix(bytes,length,limit,converted_codepage);
 	struct st_rip3_angle *angle=calloc(1,sizeof(*angle));
 	if (angle==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	angle->bytes=malloc(length+1);
 	if (angle->bytes==NULL) {free(angle);return IO_ERROR_OUT_OF_MEMORY;}
 	if (length!=0) memcpy(angle->bytes,bytes,length);
-	angle->bytes[length]=0;angle->length=length;angle->capacity=length+1;angle->pass=1;
+	angle->bytes[length]=0;angle->length=length;angle->capacity=length+1;angle->pass=1;angle->limit=limit;angle->converted=converted_codepage;
 	*result=angle;return 0;
+}
+
+int
+st_rip3_angle_create_bounded(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, size_t limit)
+{
+	return st_rip3_angle_create_graphical(result,bytes,length,limit,false);
+}
+
+int
+st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length)
+{
+	return st_rip3_angle_create_bounded(result,bytes,length,SIZE_MAX-1);
 }
 
 void
@@ -148,7 +173,7 @@ st_rip3_angle_supply(struct st_rip3_angle *angle, const struct st_rip3_condition
 	if (end!=NULL) length=(size_t)(end-value->bytes);
 	bool deferred=angle->request.kind==ST_RIP3_ANGLE_TEMPLATE;
 	if (deferred && !active(angle)) length=0;
-	if (splice(angle,angle->consumed,value->bytes,length) && deferred) angle->cursor+=length;
+	if (splice(angle,angle->consumed,value->bytes,length) && deferred) angle->cursor+=angle->inserted;
 }
 
 static void

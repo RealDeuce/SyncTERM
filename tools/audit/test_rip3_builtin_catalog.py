@@ -44,6 +44,20 @@ def main():
     if "P" in names or "excluded as a predefined alias" not in source:
         raise ValueError("review changed P user-variable classification")
     subprocess.run([str(args.executable.resolve()), *sorted(names)], check=True)
+    graphical = "".join(row["text"] for row in ledger["requirements"]
+                        if row["source"] == prefix + "5.2-templates-and-conditionals.md"
+                        and row["heading"] == "Eligible Providers and Rejected Codes")
+    allowed = set()
+    for count, label in ((64, "Data-capable"), (20, "Mixed data/active")):
+        line = next(line for line in graphical.splitlines()
+                    if line.startswith("| " + label))
+        group = line.split("|")[2].strip().split(", ")
+        if len(group) != count:
+            raise ValueError("review changed graphical registration set")
+        allowed.update(group)
+    subprocess.run([str(args.executable.resolve()), "--graphical", *sorted(allowed)], check=True)
+    subprocess.run([str(args.executable.resolve()), "--graphical-denied", *sorted(names-allowed)], check=True)
+    print(f"Compiled graphical gate accepts all {len(allowed)} pinned eligible names")
     print(f"Compiled RIP3 recognizer accepts {len(names)} pinned built-in names")
 
 

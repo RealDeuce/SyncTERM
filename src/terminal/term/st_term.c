@@ -19,11 +19,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Physical event order is retained while a graphical provider suspends.
+ * Ordinary ANSI/RIP1 and completed RIP3 output do not use this queue. */
+struct deferred_event {struct st_console_event event;struct deferred_event *next;};
+
 struct st_term_session {
 	struct st_term_config config;
 	st_cterm_t *cterm;
 	st_ooii_t *ooii;
 	struct st_term_rip3 *rip3;
+	struct deferred_event *deferred_head,*deferred_tail;
 	int output_error;
 	bool end_requested;
 	bool exit_requested;
@@ -479,6 +484,10 @@ st_term_session_destroy(st_term_session_t **session)
 	st_term_rip3_destroy((*session)->rip3);
 	st_cterm_destroy(&(*session)->cterm);
 	free((*session)->returned_wire);
+	while ((*session)->deferred_head!=NULL) {
+		struct deferred_event *event=(*session)->deferred_head;
+		(*session)->deferred_head=event->next;free(event);
+	}
 	free(*session);
 	*session = NULL;
 }
@@ -1294,8 +1303,37 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	/* Publish the consumed text batch before local keys/scripts inspect it. */
 	st_term_rip3_flush(session->rip3);
-	while ((status = st_console_event_try(session->config.console,
-	    &event)) == 0) {
+	for (;;) {
+		if (st_term_rip3_graphical_pending(session->rip3)) {
+			/* Reserve before removing the next event. Allocation failure can
+			 * abandon rendering and drain the original FIFO without losing a
+			 * release/cancel or turning resource failure into disconnection. */
+			struct deferred_event *saved=malloc(sizeof(*saved));
+			if (saved==NULL) {st_term_rip3_graphical_failure(session->rip3);continue;}
+			status=st_console_event_try(session->config.console,&saved->event);
+			if (status!=0) {free(saved);break;}
+			if (saved->event.type==ST_CONSOLE_EVENT_CLOSE
+			    || local_command(session->config.console,&saved->event,disposition)) {
+				event=saved->event;free(saved);
+				if (event.type!=ST_CONSOLE_EVENT_CLOSE) {*finished=true;return 0;}
+			}
+			else {
+				saved->next=NULL;
+				if (session->deferred_tail!=NULL) session->deferred_tail->next=saved;
+				else session->deferred_head=saved;
+				session->deferred_tail=saved;continue;
+			}
+		}
+		else if (session->deferred_head!=NULL) {
+			struct deferred_event *saved=session->deferred_head;
+			event=saved->event;session->deferred_head=saved->next;
+			if (session->deferred_head==NULL) session->deferred_tail=NULL;
+			free(saved);
+		}
+		else {
+			status=st_console_event_try(session->config.console,&event);
+			if (status!=0) break;
+		}
 		status = handle_event(session, &event, disposition, finished);
 		if (status != 0 || *finished)
 			return status;

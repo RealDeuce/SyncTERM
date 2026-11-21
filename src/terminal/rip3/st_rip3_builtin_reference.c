@@ -33,6 +33,10 @@ static const char *const builtin_names[] = {
 	"BAUDEMUL",
 	"BEEP",
 	"BLIP",
+	"BSMODE",
+	"BSXMIT",
+	"CDCS",
+	"CHARSET",
 	"CLS",
 	"COFF",
 	"COLORMODE",
@@ -50,6 +54,7 @@ static const char *const builtin_names[] = {
 	"DATE",
 	"DATETIME",
 	"DAY",
+	"DCS",
 	"DOW",
 	"DOY",
 	"DTW",
@@ -60,6 +65,7 @@ static const char *const builtin_names[] = {
 	"ETW",
 	"FIELDID",
 	"FILEDEL",
+	"FILEEXISTS",
 	"FYEAR",
 	"GOTOURL",
 	"HKEYOFF",
@@ -72,6 +78,7 @@ static const char *const builtin_names[] = {
 	"ISEXTWIN",
 	"ISPALETTE",
 	"ISPROT",
+	"LANG",
 	"M",
 	"MCURSOR",
 	"MHOUR",
@@ -144,6 +151,7 @@ static const char *const builtin_names[] = {
 	"SBS",
 	"SCB",
 	"SCP",
+	"SDCS",
 	"SEC",
 	"SENV",
 	"SGS",
@@ -185,6 +193,7 @@ static const char *const builtin_names[] = {
 	"XYM",
 	"Y",
 	"YEAR",
+
 };
 
 static uint8_t
@@ -312,6 +321,106 @@ st_rip3_builtin_known(const char *name, size_t length)
 			high = mid;
 		else
 			low = mid + 1;
+	}
+	return false;
+}
+
+bool
+st_rip3_builtin_graphical(const char *name, size_t length)
+{
+	/* PR126 registration classes 1 and 3, independent of callback effects. */
+	static const char *const names[]={
+		"ADOW",
+		"AMPM",
+		"BACKSTAT",
+		"BASEMATH",
+		"BAUDEMUL",
+		"BSMODE",
+		"BSXMIT",
+		"CDCS",
+		"CHARSET",
+		"COLORMODE",
+		"COLORS",
+		"COORDSIZE",
+		"CTRL",
+		"CUR",
+		"CURSOR",
+		"CURX",
+		"CURY",
+		"DATE",
+		"DATETIME",
+		"DAY",
+		"DCS",
+		"DOW",
+		"DOY",
+		"FIELDID",
+		"FILEEXISTS",
+		"FYEAR",
+		"HOSTDIR",
+		"HOUR",
+		"IFS",
+		"IMGSTYLE",
+		"INUSE",
+		"ISEXTWIN",
+		"ISPALETTE",
+		"ISPROT",
+		"LANG",
+		"M",
+		"MCURSOR",
+		"MHOUR",
+		"MIN",
+		"MONTH",
+		"MONTHNUM",
+		"MSTAT",
+		"NULL",
+		"OFFSCREEN",
+		"OPTION",
+		"OVERFLOW",
+		"PALENTRY",
+		"PORTH",
+		"PORTW",
+		"PORTX0",
+		"PORTX1",
+		"PORTY0",
+		"PORTY1",
+		"RAND",
+		"RESX",
+		"RESY",
+		"RIPVER",
+		"SDCS",
+		"SEC",
+		"SHIFT",
+		"STATBAR",
+		"TERMINFO",
+		"TEXTXY",
+		"TIME",
+		"TIMEZONE",
+		"TWFONT",
+		"TWGOTO",
+		"TWH",
+		"TWIN",
+		"TWW",
+		"TWX0",
+		"TWX1",
+		"TWY0",
+		"TWY1",
+		"WDAY",
+		"WORLDH",
+		"WORLDW",
+		"WOY",
+		"WOYM",
+		"X",
+		"XY",
+		"XYM",
+		"Y",
+		"YEAR",
+	};
+	if (!st_rip3_builtin_known(name,length)) return false;
+	for (size_t i=0;i<sizeof(names)/sizeof(*names);i++) {
+		if (strlen(names[i])!=length) continue;
+		size_t j=0;
+		while (j<length && upper((uint8_t)name[j])==(uint8_t)names[i][j]) j++;
+		if (j==length) return true;
 	}
 	return false;
 }
