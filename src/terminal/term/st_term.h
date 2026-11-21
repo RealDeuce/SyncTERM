@@ -122,6 +122,16 @@ void st_term_session_destroy(st_term_session_t **session);
 /* Borrowed active parser. Reacquire after remote output can select/redefine a
  * RIP3 text window; do not cache across pumps. Bracket local writes below. */
 st_cterm_t *st_term_session_cterm(st_term_session_t *session);
+/* Borrowed positioned text grid for local selection on the session display.
+ * False means the display is not the session's, or its entry grid is current.
+ * Reacquire after any pump; the owner must keep the session alive during use. */
+struct st_term_text_view {
+	st_console_t *console;
+	uint64_t x,y;
+	uint32_t cell_width,cell_height;
+};
+bool st_term_session_text_view(st_term_session_t *session, st_console_t *display,
+	struct st_term_text_view *view);
 /* Bracket local operations on that borrowed parser (such as script writes).
  * RIP3 imports/presents its virtual TTY surface; other modes are no-ops.
  * These are local renderer services, not incoming protocol processing. */

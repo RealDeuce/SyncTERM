@@ -671,6 +671,12 @@ st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
 }
 
 int
+st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports)
+{
+	return ports==NULL ? IO_ERROR_INVALID_ARGUMENT : st_rip3_surface_clear_black(ports->screen);
+}
+
+int
 st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
     const struct st_rip3_rect *area, uint8_t color)
 {

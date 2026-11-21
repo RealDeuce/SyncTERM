@@ -9,7 +9,9 @@
 #include <string.h>
 
 struct st_rip3_surface {
-	uint8_t *pixels;
+	/* Index values, plus the palette-independent RGB-black reset value.
+	 * COPY/clone retain that value; indexed logical writes replace it. */
+	uint32_t *pixels;
 	uint8_t *damage;
 	uint32_t width;
 	uint32_t height;
@@ -153,12 +155,12 @@ st_rip3_surface_create(struct st_rip3_surface **result,
 	if (result == NULL || width == 0 || height == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (width > INT32_MAX || height > INT32_MAX
-	    || (uint64_t)width * height > SIZE_MAX)
+	    || (uint64_t)width * height > SIZE_MAX / sizeof(*surface->pixels))
 		return IO_ERROR_OUT_OF_RANGE;
 	surface = calloc(1, sizeof(*surface));
 	if (surface == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	surface->pixels = calloc((size_t)width * height, 1);
+	surface->pixels = calloc((size_t)width * height, sizeof(*surface->pixels));
 	if (surface->pixels == NULL) {
 		free(surface);
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -181,7 +183,7 @@ st_rip3_surface_clone(struct st_rip3_surface **result,
 	status = st_rip3_surface_create(&copy, surface->width, surface->height);
 	if (status != 0)
 		return status;
-	memcpy(copy->pixels, surface->pixels, (size_t)surface->width * surface->height);
+	memcpy(copy->pixels, surface->pixels, (size_t)surface->width * surface->height * sizeof(*surface->pixels));
 	*result = copy;
 	return 0;
 }
@@ -215,20 +217,30 @@ st_rip3_surface_get(const struct st_rip3_surface *surface,
 	if (x < 0 || y < 0 || (uint32_t)x >= surface->width
 	    || (uint32_t)y >= surface->height)
 		return IO_ERROR_OUT_OF_RANGE;
-	*result = surface->pixels[(size_t)y * surface->width + (uint32_t)x];
+	*result = (uint8_t)surface->pixels[(size_t)y * surface->width + (uint32_t)x];
 	return 0;
 }
 
-static uint8_t
-write_pixel(uint8_t destination, uint8_t source, enum st_rip3_write_mode mode)
+static uint32_t
+write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode)
 {
 	switch (mode) {
-		case ST_RIP3_XOR: return destination ^ source;
-		case ST_RIP3_OR: return destination | source;
-		case ST_RIP3_AND: return destination & source;
+		case ST_RIP3_XOR: return (uint8_t)(destination ^ source);
+		case ST_RIP3_OR: return (uint8_t)(destination | source);
+		case ST_RIP3_AND: return (uint8_t)(destination & source);
 		case ST_RIP3_NOT: return (uint8_t)~destination;
 		default: return source;
 	}
+}
+
+int
+st_rip3_surface_clear_black(struct st_rip3_surface *surface)
+{
+	if (surface==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	size_t count=(size_t)surface->width*surface->height;
+	for (size_t i=0;i<count;i++) surface->pixels[i]=ST_PIXEL_COLOR_RGB_TAG;
+	if (surface->damage!=NULL) memset(surface->damage,1,count);
+	return 0;
 }
 
 int
@@ -321,7 +333,7 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 	struct st_rip3_rect src;
 	struct st_rip3_rect dst;
 	size_t sw, sh, dw, dh;
-	uint8_t *saved = NULL;
+	uint32_t *saved = NULL;
 
 	if (destination == NULL || source == NULL || destination_area == NULL
 	    || source_area == NULL || !rect_valid(source_area)
@@ -340,13 +352,13 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 	dw = (size_t)(dst.x1 - dst.x0) + 1;
 	dh = (size_t)(dst.y1 - dst.y0) + 1;
 	if (source == destination) {
-		saved = malloc(sw * sh);
+		saved = malloc(sw * sh * sizeof(*saved));
 		if (saved == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
 		for (size_t y = 0; y < sh; y++)
 			memcpy(saved + y * sw,
 			    source->pixels + ((size_t)src.y0 + y) * source->width
-			    + (uint32_t)src.x0, sw);
+			    + (uint32_t)src.x0, sw * sizeof(*saved));
 	}
 	for (size_t y = 0; y < dh; y++) {
 		size_t sy = (size_t)(((uint64_t)y * 2 + 1) * sh / (2 * (uint64_t)dh));
@@ -355,7 +367,7 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 			size_t sx = (size_t)(((uint64_t)x * 2 + 1) * sw / (2 * (uint64_t)dw));
 			size_t offset = ((size_t)dst.y0 + y) * destination->width
 			    + (uint32_t)dst.x0 + x;
-			uint8_t pixel = saved != NULL ? saved[sy * sw + sx]
+			uint32_t pixel = saved != NULL ? saved[sy * sw + sx]
 			    : source->pixels[((size_t)src.y0 + sy) * source->width
 			    + (uint32_t)src.x0 + sx];
 
@@ -379,7 +391,7 @@ st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
     const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode)
 {
 	struct st_rip3_rect src, dst;
-	uint8_t *saved = NULL;
+	uint32_t *saved = NULL;
 	if (source == NULL || destination == NULL || source_area == NULL || destination_area == NULL
 	    || !rect_valid(source_area) || !rect_valid(destination_area)
 	    || source_area->x0 < 0 || source_area->y0 < 0
@@ -395,10 +407,10 @@ st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 	size_t saved_width = (size_t)(src.x1-src.x0)+1;
 	if (source == destination) {
 		size_t saved_height = (size_t)(src.y1-src.y0)+1;
-		saved = malloc(saved_width*saved_height);
+		saved = malloc(saved_width*saved_height*sizeof(*saved));
 		if (saved == NULL) return IO_ERROR_OUT_OF_MEMORY;
 		for (size_t y = 0; y < saved_height; y++)
-			memcpy(saved+y*saved_width,source->pixels+((size_t)src.y0+y)*source->width+(uint32_t)src.x0,saved_width);
+			memcpy(saved+y*saved_width,source->pixels+((size_t)src.y0+y)*source->width+(uint32_t)src.x0,saved_width*sizeof(*saved));
 	}
 	/* Nonnegative int32 endpoints bound every span to 2^31, so the doubled
 	 * center-sampling products fit uint64_t. Clip output without refitting.
@@ -409,7 +421,7 @@ st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 		for (int32_t x = dst.x0; x <= dst.x1; x++) {
 			uint64_t sx = (uint64_t)source_area->x0+((2*(uint64_t)(x-destination_area->x0)+1)*sw/(2*dw));
 			if (sx < (uint32_t)src.x0 || sx > (uint32_t)src.x1) continue;
-			uint8_t pixel = saved != NULL ? saved[(size_t)(sy-src.y0)*saved_width+(size_t)(sx-src.x0)]
+			uint32_t pixel = saved != NULL ? saved[(size_t)(sy-src.y0)*saved_width+(size_t)(sx-src.x0)]
 			    : source->pixels[(size_t)sy*source->width+(size_t)sx];
 			size_t offset = (size_t)y*destination->width+(uint32_t)x;
 			destination->pixels[offset] = mode == ST_RIP3_TRANSFER_INVERT ? (uint8_t)~pixel
@@ -488,8 +500,8 @@ st_rip3_surface_snapshot(const struct st_rip3_surface *surface,
 	if (status != 0)
 		return status;
 	for (size_t i = 0; i < (size_t)surface->width * surface->height; i++)
-		snapshot->primary[i] = ST_PIXEL_COLOR_RGB_TAG
-		    | palette->rgb[surface->pixels[i]];
+		snapshot->primary[i] = ST_PIXEL_COLOR_IS_RGB(surface->pixels[i]) ? surface->pixels[i]
+		    : ST_PIXEL_COLOR_RGB_TAG | palette->rgb[surface->pixels[i]];
 	*result = snapshot;
 	return 0;
 }

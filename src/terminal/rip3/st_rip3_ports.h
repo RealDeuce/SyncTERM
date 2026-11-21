@@ -184,6 +184,8 @@ int st_rip3_ports_screen_damage(struct st_rip3_ports *ports,
  * Record damage even when the stored indexes already equal the paint. */
 int st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, uint8_t color);
+/* Outer-reset physical RGB-black clear, independent of PAL/PORT/STYLE. */
+int st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports);
 
 /* Backup the device port definitions/current selection and owned offscreen
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore

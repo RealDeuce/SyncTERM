@@ -362,6 +362,11 @@ execute(const struct st_rip3_command_host *host,
 		return 0;
 	if (command[0] == '(' || command[0] == ')')
 		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
+	if (command[0]=='*') {
+		if (length!=1) return IO_ERROR_INVALID_FORMAT;
+		if (host->soft_reset==NULL) return IO_ERROR_NOT_SUPPORTED;
+		*operation=true;return host->soft_reset(host->reset_context);
+	}
 	if (command[0]=='w') return normal_text_window(host,command,length,operation,sink);
 	if (command[0]=='b') return extended_text_window(host,command,length,operation);
 	if (command[0]=='M') return color_mode(host,command,length,operation);

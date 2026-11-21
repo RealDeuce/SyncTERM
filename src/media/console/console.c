@@ -309,7 +309,7 @@ presentation_worker(void *argument)
 		    memory_order_acquire);
 		display->presentation_active = console;
 		(void)st_mutex_unlock(&display->presentation_mutex);
-		if (console != NULL && st_rwlock_write_lock(&console->state_lock)
+		if (console != NULL && st_rwlock_write_lock(st_console_state_lock(console))
 		    == ST_THREAD_SUCCESS) {
 			if (st_time_monotonic_ms(&now) == 0) {
 				(void)st_mutex_lock(&display->presentation_mutex);
@@ -334,7 +334,7 @@ presentation_worker(void *argument)
 				present_status = st_console_present_locked(console,
 				    repaint || animation_due);
 			}
-			(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(console));
 		}
 		(void)st_mutex_lock(&display->presentation_mutex);
 		display->presentation_active = NULL;
@@ -978,17 +978,17 @@ activate_console(st_console_display_t *display, st_console_t *console)
 	int status;
 
 	previous = atomic_load_explicit(&display->active, memory_order_acquire);
-	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (previous != NULL && previous != console
-	    && st_rwlock_write_lock(&previous->state_lock) != ST_THREAD_SUCCESS) {
-		(void)st_rwlock_unlock(&console->state_lock);
+	    && st_rwlock_write_lock(st_console_state_lock(previous)) != ST_THREAD_SUCCESS) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_IO;
 	}
 	if (st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS) {
 		if (previous != NULL && previous != console)
-			(void)st_rwlock_unlock(&previous->state_lock);
-		(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(previous));
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_IO;
 	}
 	bool setup = previous != console || display->backend_failed;
@@ -1011,8 +1011,8 @@ activate_console(st_console_display_t *display, st_console_t *console)
 	}
 	(void)st_mutex_unlock(&display->backend_mutex);
 	if (previous != NULL && previous != console)
-		(void)st_rwlock_unlock(&previous->state_lock);
-	(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(previous));
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	if (status == 0)
 		free_retired_consoles(display);
 	return status;
@@ -1188,6 +1188,12 @@ st_console_destroy(st_console_t *console)
 static void
 free_console(st_console_t *console)
 {
+	if (console->raster_parent!=NULL) {
+		st_console_t *parent=console->raster_parent;
+		(void)st_rwlock_write_lock(st_console_state_lock(parent));
+		--parent->raster_children;
+		(void)st_rwlock_unlock(st_console_state_lock(parent));
+	}
 	st_condition_destroy(&console->event_ready);
 	st_mutex_destroy(&console->event_mutex);
 	(void)st_rwlock_destroy(&console->state_lock);
@@ -1195,7 +1201,8 @@ free_console(st_console_t *console)
 	for (size_t i = 0; i < array_list_count(console->fonts); ++i)
 		font_registration_free(console->fonts[i]);
 	array_list_free(&console->fonts);
-	st_pixel_buffer_destroy(console->pixels);
+	if (console->raster_parent==NULL) st_pixel_buffer_destroy(console->pixels);
+	else free(console->pixels);
 	free(console->raster_rows);
 	free(console->drawn_cells);
 	free(console->cells);
@@ -1497,6 +1504,8 @@ st_console_invalidate_text_locked(st_console_t *console)
 static int
 present_locked(st_console_t *console, bool forced, bool backend_locked)
 {
+	if (console->raster_parent!=NULL)
+		return console->raster_enabled ? st_console_publish_raster_view_locked(console) : 0;
 	st_console_display_t *display = console->display;
 	size_t count;
 	size_t i;
@@ -1543,6 +1552,9 @@ st_console_present_locked(st_console_t *console, bool forced)
 int
 st_console_finish_change_locked(st_console_t *console)
 {
+	if (console->raster_parent!=NULL)
+		return !console->raster_enabled || console->update_depth!=0 ? 0
+		    : st_console_publish_raster_view_locked(console);
 	return request_presentation_locked(console);
 }
 
@@ -1553,12 +1565,12 @@ st_console_size(st_console_t *console, uint32_t *columns, uint32_t *rows)
 
 	if (console == NULL || columns == NULL || rows == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_read_lock(&console->state_lock);
+	status = st_rwlock_read_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	*columns = console->columns;
 	*rows = console->rows;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -1570,12 +1582,12 @@ st_console_cell_pixel_size(st_console_t *console, uint32_t *width,
 
 	if (console == NULL || width == NULL || height == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_read_lock(&console->state_lock);
+	status = st_rwlock_read_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	*width = console->cell_width;
 	*height = console->cell_height;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -1587,7 +1599,7 @@ st_console_capabilities(st_console_t *console, uint32_t *capabilities)
 
 	if (console == NULL || capabilities == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_read_lock(&console->state_lock);
+	status = st_rwlock_read_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels != NULL) {
@@ -1621,7 +1633,7 @@ st_console_capabilities(st_console_t *console, uint32_t *capabilities)
 			value |= ST_CONSOLE_CAP_OPEN_URL;
 	}
 	*capabilities = value;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -1679,13 +1691,18 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 			return result;
 		}
 	}
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS) {
 		st_pixel_buffer_destroy(pixels);
 		free(raster_rows);
 		free(drawn_cells);
 		free(cells);
 		return IO_ERROR_IO;
+	}
+	if (console->raster_parent!=NULL || console->raster_children!=0) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		st_pixel_buffer_destroy(pixels);free(raster_rows);free(drawn_cells);free(cells);
+		return IO_ERROR_BUSY;
 	}
 	if (atomic_load_explicit(&console->display->active,
 	    memory_order_acquire) == console && console->display->backend_ops != NULL
@@ -1697,7 +1714,7 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 		    : console->display->backend_ops->resize(console, columns, rows)) : 0;
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 		if (result != 0) {
-			(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(console));
 			st_pixel_buffer_destroy(pixels);
 			free(raster_rows);
 			free(drawn_cells);
@@ -1745,7 +1762,7 @@ st_console_resize(st_console_t *console, uint32_t columns, uint32_t rows)
 	console->pixel_surface_dirty = pixels != NULL;
 	st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -1777,10 +1794,14 @@ st_console_regrid_preserve_pixels(st_console_t *console,
 		free(cells);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS) {
 		result = IO_ERROR_IO;
 		goto discard;
+	}
+	if (console->raster_parent!=NULL) {
+		result=IO_ERROR_BUSY;
+		goto unlock;
 	}
 	if (console->pixels == NULL) {
 		result = IO_ERROR_NOT_SUPPORTED;
@@ -1847,10 +1868,10 @@ st_console_regrid_preserve_pixels(st_console_t *console,
 	console->pixel_surface_dirty = true;
 	console->changed = true;
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 unlock:
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 discard:
 	free(raster_rows);
 	free(drawn_cells);
@@ -1920,13 +1941,18 @@ st_console_reconfigure(st_console_t *console,
 			return result;
 		}
 	}
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS) {
 		st_pixel_buffer_destroy(pixels);
 		free(raster_rows);
 		free(drawn_cells);
 		free(cells);
 		return IO_ERROR_IO;
+	}
+	if (console->raster_parent!=NULL || console->raster_children!=0) {
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		st_pixel_buffer_destroy(pixels);free(raster_rows);free(drawn_cells);free(cells);
+		return IO_ERROR_BUSY;
 	}
 	old_cell_width = console->cell_width;
 	old_cell_height = console->cell_height;
@@ -1964,7 +1990,7 @@ st_console_reconfigure(st_console_t *console,
 		console->aspect_width = old_aspect_width;
 		console->aspect_height = old_aspect_height;
 		console->preserve_window_size = old_preserve_window_size;
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		st_pixel_buffer_destroy(pixels);
 		free(raster_rows);
 		free(drawn_cells);
@@ -2030,7 +2056,7 @@ st_console_reconfigure(st_console_t *console,
 	 * the zero-initialized contents of the drawn-cell allocation. */
 	st_console_invalidate_text_locked(console);
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2045,18 +2071,18 @@ st_console_write_cells(st_console_t *console,
 
 	if (console == NULL || destination == NULL || cells == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (!st_console_rect_valid(console, destination)
 	    || stride < destination->width) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	for (y = 0; y < destination->height; ++y) {
 		if (!row_cells_valid_locked(console, &cells[(size_t)y * stride],
 		    destination->width)) {
-			(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(console));
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
 	}
@@ -2069,7 +2095,7 @@ st_console_write_cells(st_console_t *console,
 		}
 	}
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2082,18 +2108,18 @@ st_console_write_complete_cells(st_console_t *console,
 
 	if (console == NULL || destination == NULL || cells == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (!st_console_rect_valid(console, destination)
 	    || stride < destination->width) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	for (uint32_t y = 0; y < destination->height; ++y) {
 		if (!complete_row_valid_locked(console,
 		    &cells[(size_t)y * stride], destination->width)) {
-			(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(console));
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
 	}
@@ -2111,7 +2137,7 @@ st_console_write_complete_cells(st_console_t *console,
 		}
 	}
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2126,11 +2152,11 @@ st_console_read_cells(st_console_t *console,
 
 	if (console == NULL || source == NULL || cells == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (!st_console_rect_valid(console, source) || stride < source->width) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	for (y = 0; y < source->height; ++y) {
@@ -2155,7 +2181,7 @@ st_console_read_cells(st_console_t *console,
 			cells[(size_t)y * stride + x].flags &=
 			    ST_CONSOLE_CELL_PUBLIC_FLAGS;
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -2170,11 +2196,11 @@ st_console_fill(st_console_t *console,
 
 	if (console == NULL || destination == NULL || cell == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (!st_console_rect_valid(console, destination)) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	{
@@ -2183,7 +2209,7 @@ st_console_fill(st_console_t *console,
 		if ((value.flags & ST_CONSOLE_CELL_CONTINUATION) != 0
 		    || cell_is_wide_locked(console, &value)
 		    || !complete_cell_valid_locked(console, &value)) {
-			(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(console));
 			return IO_ERROR_INVALID_ARGUMENT;
 		}
 	}
@@ -2193,7 +2219,7 @@ st_console_fill(st_console_t *console,
 			    (size_t)(destination->y + y)
 			    * console->columns + destination->x + x, cell);
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2204,7 +2230,7 @@ st_console_begin_update(st_console_t *console)
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->update_depth == UINT32_MAX)
@@ -2213,7 +2239,7 @@ st_console_begin_update(st_console_t *console)
 		++console->update_depth;
 		result = 0;
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2224,7 +2250,7 @@ st_console_end_update(st_console_t *console)
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->update_depth == 0)
@@ -2233,7 +2259,7 @@ st_console_end_update(st_console_t *console)
 		--console->update_depth;
 		result = st_console_finish_change_locked(console);
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2244,11 +2270,11 @@ st_console_present(st_console_t *console)
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	result = st_console_present_locked(console, true);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2263,7 +2289,7 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 	if (console == NULL || rgb == NULL || count == 0
 	    || count > UINT32_C(65536) - first)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	for (uint32_t i = 0; i < count; ++i) {
@@ -2277,7 +2303,7 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 		last_changed = i;
 	}
 	if (first_changed == count) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return 0;
 	}
 	console->palette_dirty = true;
@@ -2297,11 +2323,11 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 			    changed_count);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
-	if (console->color_emoji)
+	if (console->color_emoji || console->raster_parent!=NULL)
 		st_console_invalidate_text_locked(console);
 	st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -2314,11 +2340,11 @@ st_console_get_palette(st_console_t *console, uint16_t first,
 	if (console == NULL || rgb == NULL || count == 0
 	    || count > UINT32_C(65536) - first)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	memcpy(rgb, &console->palette[first], (size_t)count * sizeof(*rgb));
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -2980,7 +3006,7 @@ register_font(st_console_t *console, const struct st_console_font *font,
 	registration = font_registration_create(font, copy);
 	if (registration == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS) {
 		font_registration_free(registration);
 		return IO_ERROR_IO;
@@ -3013,7 +3039,7 @@ register_font(st_console_t *console, const struct st_console_font *font,
 		console->fonts[index] = registration;
 	else if (!array_list_append(&console->fonts, registration)) {
 		--console->next_font_identifier;
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		font_registration_free(registration);
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
@@ -3037,7 +3063,7 @@ register_font(st_console_t *console, const struct st_console_font *font,
 			}
 		}
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	font_registration_free(evicted);
 	*identifier = assigned;
 	return result;
@@ -3063,7 +3089,7 @@ st_console_copy_font(st_console_t *destination, st_console_t *source,
 {
 	if (destination == NULL || source == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_read_lock(&source->state_lock) != ST_THREAD_SUCCESS)
+	if (st_rwlock_read_lock(st_console_state_lock(source)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	size_t index;
 	struct st_console_font_registration *copy = NULL;
@@ -3072,7 +3098,7 @@ st_console_copy_font(st_console_t *destination, st_console_t *source,
 		const struct st_console_font_registration *registration=source->fonts[index];
 		copy = font_registration_create(&registration->font, true);
 	}
-	(void)st_rwlock_unlock(&source->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(source));
 	if (!found)
 		return IO_ERROR_NOT_FOUND;
 	if (destination == source) {
@@ -3097,11 +3123,11 @@ st_console_font_registered(st_console_t *console, uint16_t identifier,
 
 	if (console == NULL || registered == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	*registered = find_font(console, identifier, &index);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -3110,7 +3136,7 @@ st_console_set_fallback_font(st_console_t *console, uint16_t identifier)
 {
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	size_t index;
 	int result = IO_ERROR_NOT_FOUND;
@@ -3124,7 +3150,7 @@ st_console_set_fallback_font(st_console_t *console, uint16_t identifier)
 		}
 		result = 0;
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -3134,13 +3160,13 @@ st_console_get_fallback_font(st_console_t *console, uint32_t width,
 {
 	if (console == NULL || identifier == NULL || width == 0 || height == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+	if (st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	const struct st_console_font_registration *registration = explicit_fallback_locked(
 	    console, width, height);
 	if (registration != NULL) *identifier = registration->identifier;
 	bool found = registration != NULL;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }
 
@@ -3179,12 +3205,12 @@ st_console_font_lookup(st_console_t *console, uint16_t identifier,
 	    || codepoint > UINT32_C(0x10ffff)
 	    || (codepoint >= UINT32_C(0xd800) && codepoint <= UINT32_C(0xdfff)))
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	found = st_console_font_lookup_locked(console, identifier, codepoint,
 	    glyph_font, glyph, columns);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }
 
@@ -3197,11 +3223,11 @@ st_console_font_lookup_fallback(st_console_t *console, uint16_t identifier,
 	if (console == NULL || glyph_font == NULL || glyph == NULL
 	    || (columns != 1 && columns != 2))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+	if (st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	found = font_lookup_fallback_locked(console, identifier, columns,
 	    glyph_font, glyph);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }
 
@@ -3212,13 +3238,13 @@ st_console_font_lookup_decode_error(st_console_t *console, uint32_t *glyph)
 	bool found;
 	if (console == NULL || glyph == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+	if (st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	font = st_console_font_locked(console, 0);
 	found = font != NULL;
 	if (found)
 		*glyph = font->decode_error_glyph;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }
 
@@ -3243,12 +3269,12 @@ st_console_font_lookup_cluster_ex(st_console_t *console, uint16_t identifier,
 	    || text_size == 0 || (columns != 1 && columns != 2)
 	    || glyph_font == NULL || glyph == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	found = st_console_font_lookup_cluster_locked(console, identifier,
 	    text, text_size, columns, glyph_font, glyph, missing);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return found ? 0 : IO_ERROR_NOT_FOUND;
 }
 
@@ -3263,12 +3289,12 @@ st_console_font_glyph_text(st_console_t *console, uint16_t identifier,
 	if (console == NULL || required == NULL
 	    || (text == NULL && text_size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	found = st_console_font_glyph_text_locked(console, identifier, glyph,
 	    text, text_size, &needed);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	*required = needed;
 	if (!found)
 		return IO_ERROR_NOT_FOUND;
@@ -3287,7 +3313,7 @@ st_console_font_glyph_columns(st_console_t *console, uint16_t identifier,
 
 	if (console == NULL || columns == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_read_lock(&console->state_lock);
+	result = st_rwlock_read_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	font = st_console_font_locked(console, identifier);
@@ -3298,7 +3324,7 @@ st_console_font_glyph_columns(st_console_t *console, uint16_t identifier,
 		*columns = width == font->width * 2 ? 2 : 1;
 		result = 0;
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -3312,38 +3338,46 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 
 	if (result == NULL || console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_write_lock(&console->state_lock);
+	status = st_rwlock_write_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	/* A snapshot is a presentation boundary, including inside a batch. */
 	status = st_console_rasterize_locked(console, false);
 	if (status != 0) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return status;
 	}
 	status = st_console_present_locked(console, true);
 	if (status != 0) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return status;
 	}
 	count = (size_t)console->columns * console->rows;
 	snapshot = calloc(1, sizeof(*snapshot));
 	if (snapshot == NULL) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	snapshot->cells = malloc(count * sizeof(snapshot->cells[0]));
 	if (snapshot->cells == NULL) {
 		free(snapshot);
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	if (console->pixels != NULL) {
-		status = st_pixel_buffer_clone(&snapshot->pixels, console->pixels);
+		if (console->raster_parent==NULL) status = st_pixel_buffer_clone(&snapshot->pixels, console->pixels);
+		else {
+			status=st_pixel_buffer_create(&snapshot->pixels,console->pixels->width,console->pixels->height,true);
+			if (status==0) {
+				const struct st_console_rect area={0,0,console->pixels->width,console->pixels->height};
+				st_console_copy_pixels_locked(console,snapshot->pixels->primary,snapshot->pixels->width,false,&area);
+				st_console_copy_pixels_locked(console,snapshot->pixels->alternate,snapshot->pixels->width,true,&area);
+			}
+		}
 		if (status != 0) {
 			free(snapshot->cells);
 			free(snapshot);
-			(void)st_rwlock_unlock(&console->state_lock);
+			(void)st_rwlock_unlock(st_console_state_lock(console));
 			return status;
 		}
 	}
@@ -3373,7 +3407,7 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 		    (size_t)console->columns * sizeof(snapshot->cells[0]));
 	for (size_t i = 0; i < count; ++i)
 		snapshot->cells[i].flags &= ~ST_CONSOLE_CELL_DIRTY;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	*result = snapshot;
 	return 0;
 }
@@ -3391,7 +3425,7 @@ st_console_snapshot_restore(st_console_t *console,
 		*restored = false;
 	if (console == NULL || snapshot == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (snapshot->owner != console
@@ -3401,7 +3435,7 @@ st_console_snapshot_restore(st_console_t *console,
 	    || (snapshot->pixels != NULL
 	    && (snapshot->pixels->width != console->pixels->width
 	    || snapshot->pixels->height != console->pixels->height))) {
-		(void)st_rwlock_unlock(&console->state_lock);
+		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_RANGE;
 	}
 	count = (size_t)console->columns * console->rows;
@@ -3448,10 +3482,20 @@ st_console_snapshot_restore(st_console_t *console,
 		size_t pixels_count = (size_t)console->pixels->width
 		    * console->pixels->height;
 
-		memcpy(console->pixels->primary, snapshot->pixels->primary,
-		    pixels_count * sizeof(console->pixels->primary[0]));
-		memcpy(console->pixels->alternate, snapshot->pixels->alternate,
-		    pixels_count * sizeof(console->pixels->alternate[0]));
+		if (console->raster_parent==NULL) {
+			memcpy(console->pixels->primary, snapshot->pixels->primary,
+			    pixels_count * sizeof(console->pixels->primary[0]));
+			memcpy(console->pixels->alternate, snapshot->pixels->alternate,
+			    pixels_count * sizeof(console->pixels->alternate[0]));
+		}
+		else {
+			uint32_t width=st_console_raster_visible_width(console),height=st_console_raster_visible_height(console);
+			for (uint32_t y=0;width!=0 && y<height;y++) {
+				size_t to=st_console_pixel_position_locked(console,0,y),from=(size_t)y*snapshot->pixels->width;
+				memcpy(console->pixels->primary+to,snapshot->pixels->primary+from,width*sizeof(*console->pixels->primary));
+				memcpy(console->pixels->alternate+to,snapshot->pixels->alternate+from,width*sizeof(*console->pixels->alternate));
+			}
+		}
 		memcpy(console->drawn_cells, snapshot->cells,
 		    count * sizeof(console->drawn_cells[0]));
 		console->pixel_top = snapshot->pixel_top;
@@ -3464,7 +3508,7 @@ st_console_snapshot_restore(st_console_t *console,
 	if (restored != NULL)
 		*restored = true;
 	result = st_console_finish_change_locked(console);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -3954,7 +3998,7 @@ st_console_set_title(st_console_t *console, const char *title)
 	    strlen(title), NULL);
 	if (result != 0)
 		return result;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS) {
 		free(copy);
 		return IO_ERROR_IO;
@@ -3972,7 +4016,7 @@ st_console_set_title(st_console_t *console, const char *title)
 			    : console->display->backend_ops->set_title(console->display, copy);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -4007,9 +4051,9 @@ int
 st_console_get_pointer_visible(st_console_t *console, bool *visible)
 {
 	if (console == NULL || visible == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_read_lock(&console->state_lock) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
+	if (st_rwlock_read_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS) return IO_ERROR_IO;
 	*visible = console->pointer_visible;
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return 0;
 }
 
@@ -4020,7 +4064,7 @@ st_console_set_pointer_visible(st_console_t *console, bool visible)
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	console->pointer_visible = visible;
@@ -4035,7 +4079,7 @@ st_console_set_pointer_visible(st_console_t *console, bool visible)
 			    : console->display->backend_ops->set_pointer_visible(console->display, visible);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 
@@ -4048,7 +4092,7 @@ st_console_set_pointer_shape(st_console_t *console,
 	if (console == NULL || shape < ST_CONSOLE_POINTER_DEFAULT
 	    || shape > ST_CONSOLE_POINTER_LINK)
 		return IO_ERROR_INVALID_ARGUMENT;
-	result = st_rwlock_write_lock(&console->state_lock);
+	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	console->pointer_shape = shape;
@@ -4064,7 +4108,7 @@ st_console_set_pointer_shape(st_console_t *console,
 			    console->display, shape);
 		(void)st_mutex_unlock(&console->display->backend_mutex);
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
 }
 

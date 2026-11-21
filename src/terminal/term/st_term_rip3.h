@@ -11,6 +11,7 @@ int st_term_rip3_create(struct st_term_rip3 **result,
 	const struct st_term_config *config, st_cterm_t *text,
 	const struct st_cterm_config *text_config);
 st_cterm_t *st_term_rip3_text(struct st_term_rip3 *rip);
+bool st_term_rip3_text_view(struct st_term_rip3 *rip, struct st_term_text_view *view);
 void st_term_rip3_flush(struct st_term_rip3 *rip);
 int st_term_rip3_begin_local_text(struct st_term_rip3 *rip);
 int st_term_rip3_end_local_text(struct st_term_rip3 *rip);

@@ -263,6 +263,40 @@ damage_test(void)
 	st_rip3_surface_destroy(copy);st_rip3_surface_destroy(surface);return 0;
 }
 
+static int
+black_clear(void)
+{
+	struct st_rip3_surface *surface=NULL,*copy=NULL,*saved=NULL;
+	struct st_rip3_palette palette;struct st_pixel_buffer *pixels=NULL;
+	CHECK(st_rip3_palette_defaults(&palette)==0);
+	palette.rgb[0]=0xff0000;
+	CHECK(st_rip3_surface_create(&surface,4,2)==0 && st_rip3_surface_create(&copy,4,2)==0);
+	uint8_t damage[8]={0};const struct st_rip3_rect all={0,0,3,1};
+	CHECK(st_rip3_surface_damage(surface,damage,sizeof(damage))==0);
+	CHECK(st_rip3_surface_clear_black(NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_surface_clear_black(surface)==0 && st_rip3_surface_clone(&saved,surface)==0);
+	for (size_t i=0;i<8;i++) CHECK(damage[i]==1);
+	CHECK(st_rip3_surface_plot(surface,NULL,0,0,0,ST_RIP3_COPY)==0);
+	CHECK(st_rip3_surface_copy(copy,NULL,&all,surface,NULL,&all,ST_RIP3_TRANSFER_COPY)==0);
+	CHECK(st_rip3_surface_snapshot(copy,&palette,&pixels)==0);
+	for (size_t i=0;i<8;i++) CHECK(pixels->primary[i]==(ST_PIXEL_COLOR_RGB_TAG|(i==0 ? 0xff0000 : 0)));
+	st_pixel_buffer_destroy(pixels);pixels=NULL;
+	palette.rgb[0]=0x00ff00;
+	CHECK(st_rip3_surface_snapshot(saved,&palette,&pixels)==0);
+	for (size_t i=0;i<8;i++) CHECK(pixels->primary[i]==ST_PIXEL_COLOR_RGB_TAG);
+	st_pixel_buffer_destroy(pixels);pixels=NULL;
+	/* Overlap and projected copies preserve literal pixels independently of
+	 * subsequent palette uploads. Ordinary index-zero COPY still uses PAL. */
+	const struct st_rip3_rect from={0,0,2,0},to={1,0,3,0};
+	CHECK(st_rip3_surface_copy_projected(copy,&to,copy,&from,ST_RIP3_TRANSFER_COPY)==0);
+	CHECK(st_rip3_surface_snapshot(copy,&palette,&pixels)==0);
+	CHECK(pixels->primary[0]==(ST_PIXEL_COLOR_RGB_TAG|0x00ff00)
+	    && pixels->primary[1]==(ST_PIXEL_COLOR_RGB_TAG|0x00ff00)
+	    && pixels->primary[2]==ST_PIXEL_COLOR_RGB_TAG && pixels->primary[3]==ST_PIXEL_COLOR_RGB_TAG);
+	st_pixel_buffer_destroy(pixels);st_rip3_surface_destroy(saved);
+	st_rip3_surface_destroy(copy);st_rip3_surface_destroy(surface);return 0;
+}
+
 int
 main(void)
 {
@@ -270,5 +304,6 @@ main(void)
 	CHECK(surface_test() == 0);
 	CHECK(tiers_test() == 0);
 	CHECK(damage_test() == 0);
+	CHECK(black_clear() == 0);
 	return 0;
 }

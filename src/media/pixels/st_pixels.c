@@ -251,8 +251,8 @@ st_pixel_buffer_fill(struct st_pixel_buffer *buffer, uint32_t primary,
 	return 0;
 }
 
-static int
-validate_blit(const struct st_pixel_buffer *destination,
+int
+st_pixel_buffer_validate_blit(const struct st_pixel_buffer *destination,
 	const struct st_pixel_buffer *source, const struct st_pixel_mask *mask,
 	const struct st_pixel_blit *blit, int64_t *right, int64_t *bottom)
 {
@@ -260,7 +260,7 @@ validate_blit(const struct st_pixel_buffer *destination,
 	uint64_t scaled_height;
 	size_t ignored;
 
-	if (destination == NULL || destination->primary == NULL || source == NULL
+	if (right==NULL || bottom==NULL || destination == NULL || destination->primary == NULL || source == NULL
 	    || source->primary == NULL || blit == NULL || blit->width == 0
 	    || blit->height == 0 || blit->scale_x == 0 || blit->scale_y == 0
 	    || (blit->flags & ~(ST_PIXEL_BLIT_FLIP_X | ST_PIXEL_BLIT_FLIP_Y))
@@ -315,7 +315,7 @@ st_pixel_buffer_blit(struct st_pixel_buffer *destination,
 	int64_t top;
 	int status;
 
-	status = validate_blit(destination, source, mask, blit, &right, &bottom);
+	status = st_pixel_buffer_validate_blit(destination, source, mask, blit, &right, &bottom);
 	if (status != 0)
 		return status;
 	if (source->alternate != NULL && destination->alternate == NULL) {

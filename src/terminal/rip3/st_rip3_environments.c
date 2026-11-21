@@ -166,6 +166,19 @@ st_rip3_environments_select(struct st_rip3_environments *environments, unsigned 
 }
 
 int
+st_rip3_environments_soft_reset(struct st_rip3_environments *environments)
+{
+	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_environment *old=&environments->entries[environments->current].data;
+	old->base_math=36;old->coordinate_size=2;old->rgb_bits=0;
+	for (unsigned i=0;i<36;i++) if (!environments->entries[i].info.protected) {
+		(void)st_rip3_environment_defaults(&environments->entries[i].data);
+		environments->entries[i].info.defined=i==0;
+	}
+	environments->current=0;return 0;
+}
+
+int
 st_rip3_environments_protect(struct st_rip3_environments *environments,
     unsigned number, bool protect)
 {

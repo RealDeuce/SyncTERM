@@ -23,6 +23,9 @@ size_t
 st_console_pixel_position_locked(const st_console_t *console,
 	uint32_t x, uint32_t y)
 {
+	if (console->raster_parent!=NULL)
+		return st_console_pixel_position_locked(console->raster_parent,
+		    (uint32_t)console->raster_x+x,(uint32_t)console->raster_y+y);
 	uint32_t text_width = console->columns * console->cell_width;
 	uint32_t text_height = console->rows * console->cell_height;
 	uint32_t physical_y = y;
@@ -46,6 +49,17 @@ st_console_copy_pixels_locked(const st_console_t *console,
 {
 	const uint32_t *plane = alternate && console->pixels->alternate != NULL
 	    ? console->pixels->alternate : console->pixels->primary;
+	if (console->raster_parent!=NULL) {
+		uint32_t width=st_console_raster_visible_width(console),height=st_console_raster_visible_height(console);
+		for (uint32_t y=0;y<rectangle->height;y++) {
+			uint32_t *row=destination+(size_t)y*destination_stride;
+			memset(row,0,rectangle->width*sizeof(*row));
+			if (rectangle->y+y>=height || rectangle->x>=width) continue;
+			uint32_t count=rectangle->width<width-rectangle->x ? rectangle->width : width-rectangle->x;
+			memcpy(row,plane+st_console_pixel_position_locked(console,rectangle->x,rectangle->y+y),count*sizeof(*row));
+		}
+		return;
+	}
 	uint32_t text_width = console->columns * console->cell_width;
 	uint32_t text_height = console->rows * console->cell_height;
 
@@ -93,7 +107,7 @@ st_console_normalize_raster_locked(st_console_t *console)
 	uint32_t *primary;
 	uint32_t *alternate;
 
-	if (console->pixels == NULL || console->pixel_top == 0)
+	if (console->pixels == NULL || console->pixel_top == 0 || console->raster_parent!=NULL)
 		return 0;
 	width = console->full_surface_scroll ? console->pixels->width
 	    : console->columns * console->cell_width;
@@ -138,7 +152,7 @@ st_console_set_full_surface_scroll(st_console_t *console, bool enabled)
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_write_lock(&console->state_lock);
+	status = st_rwlock_write_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels == NULL)
@@ -150,7 +164,7 @@ st_console_set_full_surface_scroll(st_console_t *console, bool enabled)
 		if (status == 0)
 			console->full_surface_scroll = enabled;
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }
 
@@ -225,8 +239,8 @@ prepare_fast_cell(st_console_t *console, const struct st_console_cell *cell,
 	}
 	state->glyph = glyph;
 	state->row_stride = row_stride;
-	state->foreground = foreground;
-	state->background = background;
+	state->foreground = st_console_raster_colour(console,foreground);
+	state->background = st_console_raster_colour(console,background);
 	state->flags = cell->flags;
 	state->hyperlink = cell->hyperlink != 0;
 	state->hidden = (cell->flags & ST_CONSOLE_CELL_CONCEAL) != 0
@@ -240,6 +254,12 @@ render_fast_cells(st_console_t *console, uint32_t x, uint32_t y,
 {
 	struct fast_cell states[FAST_CELL_COUNT];
 	size_t prepared = 0;
+	if (console->raster_parent!=NULL) {
+		uint32_t width=st_console_raster_visible_width(console),height=st_console_raster_visible_height(console);
+		if (x*console->cell_width>=width || (y+1)*console->cell_height>height) return 0;
+		size_t visible=(width-x*console->cell_width)/console->cell_width;
+		if (count>visible) count=visible;
+	}
 
 	if (count > FAST_CELL_COUNT)
 		count = FAST_CELL_COUNT;
@@ -327,7 +347,7 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 	const struct st_console_cell *source, const struct st_console_font *font,
 	const struct st_console_color_glyph *color, uint32_t glyph_width,
 	uint32_t glyph_x, uint32_t first_y, uint32_t y_span, bool expanded,
-	bool repeat_last, uint32_t foreground, uint32_t background)
+	bool repeat_last, uint32_t foreground, uint32_t background, uint32_t draw_width, uint32_t draw_height)
 {
 	uint32_t width = color->width == 0 ? glyph_width : color->width;
 	uint32_t split = width / 2;
@@ -343,7 +363,7 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 	uint32_t x_step = font->width / console->cell_width;
 	uint32_t x_remainder = font->width % console->cell_width;
 
-	for (uint32_t py = 0; py < console->cell_height; ++py) {
+	for (uint32_t py = 0; py < draw_height; ++py) {
 		if (font_y == previous_y) {
 			cursors[0] = row_cursors[0];
 			cursors[1] = row_cursors[1];
@@ -356,7 +376,7 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 		size_t pixel = st_console_pixel_position_locked(console,
 		    x * console->cell_width, y * console->cell_height + py);
 		uint32_t font_x = glyph_x, x_accumulator = 0;
-		for (uint32_t px = 0; px < console->cell_width; ++px) {
+		for (uint32_t px = 0; px < draw_width; ++px) {
 			bool gap = expanded && px == font->width && !repeat_last;
 			uint32_t value = background;
 
@@ -419,6 +439,9 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	bool hidden;
 	uint16_t glyph_font;
 	uint32_t glyph_index;
+	uint32_t draw_width,draw_height;
+	st_console_raster_cell_clip(console,x,y,&draw_width,&draw_height);
+	if (draw_width==0 || draw_height==0) goto finished;
 
 	if (row_scale == ROW_SCALE_BOTTOM) {
 		if ((cell->flags & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
@@ -447,8 +470,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		selected_color.size = color->tall_size;
 		color = &selected_color;
 	}
-	foreground = source->foreground;
-	background = source->background;
+	foreground = st_console_raster_colour(console,source->foreground);
+	background = st_console_raster_colour(console,source->background);
 	if ((source->flags & ST_CONSOLE_CELL_REVERSE) != 0) {
 		uint32_t swap = foreground;
 
@@ -458,11 +481,11 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	hidden = !draw_glyph || ((source->flags & ST_CONSOLE_CELL_CONCEAL) != 0
 	    && (source->flags & ST_CONSOLE_CELL_REVEAL) == 0);
 	if (hidden) {
-		for (uint32_t py = 0; py < console->cell_height; ++py) {
+		for (uint32_t py = 0; py < draw_height; ++py) {
 			size_t pixel = st_console_pixel_position_locked(console,
 			    x * console->cell_width, y * console->cell_height + py);
 
-			for (uint32_t px = 0; px < console->cell_width; ++px) {
+			for (uint32_t px = 0; px < draw_width; ++px) {
 				console->pixels->primary[pixel + px] = background;
 				console->pixels->alternate[pixel + px] = background;
 			}
@@ -470,11 +493,11 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		goto finished;
 	}
 	if (font == NULL) {
-		for (uint32_t py = 0; py < console->cell_height; ++py) {
+		for (uint32_t py = 0; py < draw_height; ++py) {
 			size_t pixel = st_console_pixel_position_locked(console,
 			    x * console->cell_width, y * console->cell_height + py);
 
-			for (uint32_t px = 0; px < console->cell_width; ++px) {
+			for (uint32_t px = 0; px < draw_width; ++px) {
 				bool set = py + 1 == console->cell_height
 				    && (((source->flags
 				    & ST_CONSOLE_CELL_UNDERLINE) != 0)
@@ -496,7 +519,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	    && (source->flags & ST_CONSOLE_CELL_SEPARATED) == 0) {
 		bool blink = (source->flags & ST_CONSOLE_CELL_BLINK) != 0;
 
-		for (uint32_t py = 0; py < console->cell_height; ++py) {
+		for (uint32_t py = 0; py < draw_height; ++py) {
 			uint8_t bits = glyph[(size_t)py * glyph_row_stride];
 			size_t pixel = st_console_pixel_position_locked(console,
 			    x * console->cell_width, y * console->cell_height + py);
@@ -509,7 +532,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 				if (source->hyperlink != 0)
 					bits |= UINT8_C(0x88);
 			}
-			for (uint32_t px = 0; px < 8; ++px) {
+			for (uint32_t px = 0; px < draw_width; ++px) {
 				bool set = (bits & (UINT8_C(0x80) >> px)) != 0;
 
 				console->pixels->primary[pixel + px]
@@ -554,19 +577,19 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 		}
 		if (color != NULL && color->row_stride == 0) {
 			render_color_rll(console, x, y, source, font, color, glyph_width,
-			    glyph_x, font_y, y_span, expanded, repeat_last, foreground, background);
+			    glyph_x, font_y, y_span, expanded, repeat_last, foreground, background,draw_width,draw_height);
 			goto finished;
 		}
 		y_step = y_span / console->cell_height;
 		y_remainder = y_span % console->cell_height;
-		for (uint32_t py = 0; py < console->cell_height; ++py) {
+		for (uint32_t py = 0; py < draw_height; ++py) {
 			const uint8_t *font_row = font_y < font->height
 			    ? glyph + (size_t)font_y * glyph_row_stride : NULL;
 			size_t pixel = st_console_pixel_position_locked(console,
 			    x * console->cell_width, y * console->cell_height + py);
 			uint32_t font_x = glyph_x;
 			uint32_t x_accumulator = 0;
-			for (uint32_t px = 0; px < console->cell_width; ++px) {
+			for (uint32_t px = 0; px < draw_width; ++px) {
 				bool expansion_gap = expanded && px == font->width
 				    && !repeat_last;
 				bool set;
@@ -650,7 +673,7 @@ st_console_rasterize_locked(st_console_t *console, bool force)
 	bool previous_top = false;
 	struct font_cache font_cache = {0};
 
-	if (console->pixels == NULL)
+	if (console->pixels == NULL || (console->raster_parent!=NULL && !console->raster_enabled))
 		return 0;
 	/* Choose the nearer of square pixels and 6:5 tall pixels. The midpoint
 	 * is 11:10; use the whole native raster, including mode margins. */
@@ -770,6 +793,35 @@ move_raster_locked(st_console_t *console,
 	cell_bytes = (size_t)source->width * sizeof(console->drawn_cells[0]);
 	pixel_bytes = (size_t)source->width * console->cell_width
 	    * sizeof(console->pixels->primary[0]);
+	if (console->raster_parent!=NULL) {
+		uint32_t width=st_console_raster_visible_width(console),height=st_console_raster_visible_height(console);
+		uint32_t source_x=source->x*console->cell_width,target_x=destination_x*console->cell_width;
+		size_t span=(size_t)source->width*console->cell_width;
+		if (source_x>=width || target_x>=width) span=0;
+		else {
+			if (span>width-source_x) span=width-source_x;
+			if (span>width-target_x) span=width-target_x;
+		}
+		for (uint32_t i=0;i<source->height;i++) {
+			uint32_t row=backwards ? source->height-i-1 : i;
+			uint32_t sy=source->y+row,dy=destination_y+row;
+			if (metadata) {
+				memmove(st_console_drawn_at(console,(size_t)dy*console->columns+destination_x),
+				    st_console_drawn_at(console,(size_t)sy*console->columns+source->x),cell_bytes);
+				if (source->x==0 && destination_x==0 && source->width==console->columns)
+					console->raster_rows[st_console_row_index(console,dy)]=console->raster_rows[st_console_row_index(console,sy)];
+			}
+			for (uint32_t py=0;span!=0 && py<console->cell_height;py++) {
+				uint32_t from_y=sy*console->cell_height+py,to_y=dy*console->cell_height+py;
+				if (from_y>=height || to_y>=height) continue;
+				size_t from=st_console_pixel_position_locked(console,source_x,from_y);
+				size_t to=st_console_pixel_position_locked(console,target_x,to_y);
+				memmove(console->pixels->primary+to,console->pixels->primary+from,span*sizeof(*console->pixels->primary));
+				memmove(console->pixels->alternate+to,console->pixels->alternate+from,span*sizeof(*console->pixels->alternate));
+			}
+		}
+		return;
+	}
 	full_scroll_up = source->x == 0 && destination_x == 0
 	    && source->width == console->columns && destination_y == 0
 	    && source->y > 0
@@ -904,7 +956,7 @@ st_console_pixel_size(st_console_t *console, uint32_t *width,
 
 	if (console == NULL || width == NULL || height == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_read_lock(&console->state_lock);
+	status = st_rwlock_read_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels == NULL)
@@ -914,7 +966,7 @@ st_console_pixel_size(st_console_t *console, uint32_t *width,
 		*height = console->pixels->height;
 		status = 0;
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }
 
@@ -970,6 +1022,46 @@ mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
 }
 
 int
+st_console_publish_raster_view_locked(st_console_t *console)
+{
+	int status=console->raster_current ? 0 : st_console_rasterize_locked(console,false);
+	if (status!=0) return status;
+	uint32_t left=console->columns,top=console->rows,right=0,bottom=0;
+	/* Rasterization, pixel writes and optimized scrolling already mark cells
+	 * or row ranges dirty. Translate that existing state once for the display;
+	 * the parent presenter continues to own/consume its own dirty bits. */
+	for (uint32_t y=0;y<console->rows;y++) {
+		bool row_dirty=console->pixel_surface_dirty || st_console_row_dirty(console,y);
+		for (uint32_t x=0;x<console->columns;x++) {
+			struct st_console_cell *cell=st_console_cell_at(console,(size_t)y*console->columns+x);
+			if (row_dirty || (cell->flags&ST_CONSOLE_CELL_DIRTY)) {
+				if (left>x) left=x;
+				if (top>y) top=y;
+				if (right<x+1) right=x+1;
+				if (bottom<y+1) bottom=y+1;
+			}
+			cell->flags&=~ST_CONSOLE_CELL_DIRTY;
+		}
+	}
+	if (right>left && bottom>top) {
+		uint32_t x=left*console->cell_width,y=top*console->cell_height;
+		uint32_t width=st_console_raster_visible_width(console),height=st_console_raster_visible_height(console);
+		uint32_t end_x=right*console->cell_width,end_y=bottom*console->cell_height;
+		if (end_x>width) end_x=width;
+		if (end_y>height) end_y=height;
+		if (x<end_x && y<end_y) {
+			st_console_t *parent=console->raster_parent;
+			mark_pixel_cells(parent,(int64_t)console->raster_x+x,(int64_t)console->raster_y+y,
+			    (int64_t)console->raster_x+end_x,(int64_t)console->raster_y+end_y);
+			status=st_console_finish_change_locked(parent);
+		}
+	}
+	console->changed=false;console->dirty_row_end=0;console->pixel_surface_dirty=false;
+	console->palette_dirty=false;
+	return status;
+}
+
+int
 st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 	uint32_t colour)
 {
@@ -978,26 +1070,28 @@ st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 
 	if (console == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_write_lock(&console->state_lock);
+	status = st_rwlock_write_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels == NULL || !pixel_changes_supported(console))
 		status = IO_ERROR_NOT_SUPPORTED;
 	else if (x >= console->pixels->width || y >= console->pixels->height)
 		status = IO_ERROR_OUT_OF_RANGE;
+	else if (x>=st_console_raster_visible_width(console) || y>=st_console_raster_visible_height(console))
+		status=0;
 	else {
 		status = console->raster_current ? 0
 		    : st_console_rasterize_locked(console, false);
 		if (status == 0) {
 			position = st_console_pixel_position_locked(console, x, y);
-			console->pixels->primary[position] = colour;
-			console->pixels->alternate[position] = colour;
+			console->pixels->primary[position] = st_console_raster_colour(console,colour);
+			console->pixels->alternate[position] = st_console_raster_colour(console,colour);
 			mark_pixel_cells(console, x, y, (int64_t)x + 1,
 			    (int64_t)y + 1);
 			status = st_console_finish_change_locked(console);
 		}
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }
 
@@ -1010,7 +1104,10 @@ st_console_modify_pixels(st_console_t *console,
 
 	if (console == NULL || edit == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_rwlock_write_lock(&console->state_lock) != ST_THREAD_SUCCESS)
+	/* Positioned views are not flat buffers. Their native cell/blit APIs map
+	 * rows through the parent's circular raster instead of exporting aliases. */
+	if (console->raster_parent!=NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels == NULL || !pixel_changes_supported(console))
 		status = IO_ERROR_NOT_SUPPORTED;
@@ -1033,7 +1130,7 @@ st_console_modify_pixels(st_console_t *console,
 			}
 		}
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }
 
@@ -1046,7 +1143,7 @@ st_console_get_pixels(struct st_pixel_buffer **result, st_console_t *console,
 
 	if (result == NULL || console == NULL || source == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_write_lock(&console->state_lock);
+	status = st_rwlock_write_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels == NULL)
@@ -1070,12 +1167,47 @@ st_console_get_pixels(struct st_pixel_buffer **result, st_console_t *console,
 			    copy->width, true, source);
 		}
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	if (status != 0) {
 		st_pixel_buffer_destroy(copy);
 		return status;
 	}
 	*result = copy;
+	return 0;
+}
+
+static int
+blit_view_locked(st_console_t *console, const struct st_pixel_buffer *source,
+    const struct st_pixel_mask *mask, const struct st_pixel_blit *blit)
+{
+	int64_t right,bottom;
+	int status=st_pixel_buffer_validate_blit(console->pixels,source,mask,blit,&right,&bottom);
+	if (status!=0) return status;
+	uint32_t width=st_console_raster_visible_width(console),height=st_console_raster_visible_height(console);
+	int64_t left=blit->destination_x<0 ? 0 : blit->destination_x;
+	int64_t top=blit->destination_y<0 ? 0 : blit->destination_y;
+	if (right>width) right=width;
+	if (bottom>height) bottom=height;
+	for (int64_t y=top;y<bottom;y++) {
+		uint32_t sy=(uint32_t)((y-blit->destination_y)/blit->scale_y);
+		if (blit->flags&ST_PIXEL_BLIT_FLIP_Y) sy=blit->height-1-sy;
+		for (int64_t x=left;x<right;x++) {
+			uint32_t sx=(uint32_t)((x-blit->destination_x)/blit->scale_x);
+			if (blit->flags&ST_PIXEL_BLIT_FLIP_X) sx=blit->width-1-sx;
+			if (mask!=NULL) {
+				bool set;
+				status=st_pixel_mask_get(mask,blit->mask_x+sx,blit->mask_y+sy,&set);
+				if (status!=0) return status;
+				if (!set) continue;
+			}
+			size_t from=(size_t)(blit->source_y+sy)*source->width+blit->source_x+sx;
+			size_t to=st_console_pixel_position_locked(console,(uint32_t)x,(uint32_t)y);
+			console->pixels->primary[to]=st_console_raster_colour(console,source->primary[from]);
+			console->pixels->alternate[to]=st_console_raster_colour(console,
+			    source->alternate==NULL ? source->primary[from] : source->alternate[from]);
+		}
+	}
+	if (right>left && bottom>top) mark_pixel_cells(console,left,top,right,bottom);
 	return 0;
 }
 
@@ -1090,7 +1222,7 @@ st_console_blit_pixels(st_console_t *console,
 
 	if (console == NULL || source == NULL || blit == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rwlock_write_lock(&console->state_lock);
+	status = st_rwlock_write_lock(st_console_state_lock(console));
 	if (status != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
 	if (console->pixels == NULL || !pixel_changes_supported(console))
@@ -1100,9 +1232,8 @@ st_console_blit_pixels(st_console_t *console,
 		    : st_console_rasterize_locked(console, false);
 		if (status == 0)
 			status = st_console_normalize_raster_locked(console);
-		if (status == 0)
-			status = st_pixel_buffer_blit(console->pixels, source, mask,
-			    blit);
+		if (status == 0) status=console->raster_parent!=NULL ? blit_view_locked(console,source,mask,blit)
+		    : st_pixel_buffer_blit(console->pixels, source, mask, blit);
 		if (status == 0) {
 			width = (uint64_t)blit->width * blit->scale_x;
 			height = (uint64_t)blit->height * blit->scale_y;
@@ -1113,6 +1244,6 @@ st_console_blit_pixels(st_console_t *console,
 			status = st_console_finish_change_locked(console);
 		}
 	}
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
 }

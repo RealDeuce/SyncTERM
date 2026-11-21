@@ -96,6 +96,75 @@ that conversion step. This does not include X server or compositor CPU.
 
 == Correctness and profiling
 
+=== 2026-11-20 RIP3 shared-raster comparison
+
+Native FreeBSD amd64, `/usr/bin/cc`, CMake Release, Unifont enabled. Baseline
+`d66edaf5` and the modified tree use the same compiler/configuration. Each
+reported value is the median of three alternating baseline/modified runs.
+All console and ANSI final-cell/both-plane checksums match across revisions.
+
+[cols="3,1,1",options="header"]
+|===
+| Console workload | Baseline CPU ms | Shared-raster CPU ms
+| 200 retained-cell updates | 25.282 | 23.441
+| 200 narrow-font rasters | 100.440 | 99.394
+| 200 wide-font rasters | 410.747 | 396.626
+| 2000 full scroll-and-render operations | 76.246 | 72.664
+| 2000 scroll-and-render operations with a stationary row | 90.292 | 85.364
+|===
+
+All eight ANSI streaming workloads (CP437/UTF-8, status on/off, 4096-byte and
+one-byte input) had lower median process CPU in this comparison, by about
+2–6%. This is evidence against a regression in these workloads; small timing
+differences are not a claim of a general ANSI speed improvement.
+
+`tools/testing/benchmark_rip3_render.py` additionally runs the actual X11
+application against a real Shell PTY. It owns a private Xvfb, configuration,
+profile, shell and cache, clears inherited desktop environment variables and
+verifies each RIP identification reply before timing. Its streams contain no
+sound commands. DSR replies fence parsing, but do not fence the X server's
+final presentation. These are wall-clock reply
+latencies, distinct from the CPU measurements above.
+
+[cols="3,1,1",options="header"]
+|===
+| Native X11/Shell workload | Baseline ms | Shared-raster ms
+| ANSI single cell and reply | 0.0351 | 0.0337
+| RIP1 single text cell and reply | 0.0363 | 0.0371
+| RIP3 entry-grid single cell and reply | 0.0404 | 0.0397
+| RIP3 MicroANSI single cell and reply | 16.654 | 0.240
+| ANSI 500-line stream | 105.613 | 112.742
+| RIP1 500-line text stream | 155.404 | 153.835
+| RIP3 entry-grid 500-line stream | 135.884 | 112.230
+| RIP3 MicroANSI line and scroll | 121.941 | 2.805
+| RIP1 batch of 200 graphical lines | 1.953 | 1.928
+| RIP3 batch of 200 graphical lines | 235.835 | 16.793
+|===
+
+ANSI 500-line samples ranged from 98–116 ms before and 97–115 ms after;
+the overlapping variation does not establish a consistent native slowdown.
+The larger RIP3 reductions come from sharing the native raster and batching
+graphics publication. There are no extra per-cell damage hooks, accumulators
+or invalidation counters in the ordinary ANSI/RIP1 paths. Positioned windows
+publish through existing dirty-cell and dirty-row state.
+
+The MicroANSI workload sends the `showrips.pl` reset prologue, then explicitly
+defines an ordinary 80x25 font-0 window so the pre-reset baseline can be compared.
+It tests a single-byte reply-fenced stream and a line at the bottom of that
+window. It does not replay existing art or claim full RIP3 conformance.
+
+[source,sh]
+----
+python3 -B tools/testing/benchmark_rip3_render.py /path/to/baseline/syncterm build/bin/syncterm
+python3 -B tools/testing/benchmark_rip3_render.py /path/to/baseline/syncterm build/bin/syncterm --graphics-only
+----
+
+Temporary displays, applications and helper PTYs terminate before their
+directories are removed. The comparison source worktree and its build are
+temporary too; retain the measurements here, not those generated artifacts.
+
+=== Circular storage invariants
+
 Circular storage is private: retained cells, drawn metadata, and row-scale
 state share a logical-row mapping. Public rectangles and snapshots remain
 linear in logical screen order. Resize and snapshot restoration canonicalize

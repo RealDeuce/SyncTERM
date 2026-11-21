@@ -66,6 +66,10 @@ int st_rip3_environments_select(struct st_rip3_environments *environments,
 	unsigned number);
 int st_rip3_environments_protect(struct st_rip3_environments *environments,
 	unsigned number, bool protect);
+/* Outer SOFT: default unprotected records, discard their nonzero definitions
+ * and select zero. Departing protected current retains WORLD/pointer but gets
+ * base 36, width 2 and RGB precision 0. Independent backups are untouched. */
+int st_rip3_environments_soft_reset(struct st_rip3_environments *environments);
 /* Resolve a usable projection frame. Zero stored WORLD dimensions reject
  * here before any caller can divide by them; the record itself stays valid. */
 int st_rip3_environments_frame(const struct st_rip3_environments *environments,

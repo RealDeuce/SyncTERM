@@ -262,7 +262,7 @@ int st_console_test_capture(st_console_display_t *display, struct st_console_tes
 	(void)st_mutex_lock(&display->lifecycle_mutex);
 	st_console_t *console = atomic_load_explicit(&display->active, memory_order_acquire);
 	if (console == NULL) { (void)st_mutex_unlock(&display->lifecycle_mutex); free(capture); return IO_ERROR_NOT_CONNECTED; }
-	(void)st_rwlock_write_lock(&console->state_lock);
+	(void)st_rwlock_write_lock(st_console_state_lock(console));
 	int status = st_console_present_locked(console, true);
 	(void)st_mutex_lock(&display->backend_mutex);
 	struct st_console_test_state *state = st_console_test_state(display);
@@ -317,7 +317,7 @@ int st_console_test_capture(st_console_display_t *display, struct st_console_tes
 	if (status == 0) status = capture->application.error;
 finished:
 	(void)st_mutex_unlock(&display->backend_mutex);
-	(void)st_rwlock_unlock(&console->state_lock);
+	(void)st_rwlock_unlock(st_console_state_lock(console));
 	(void)st_mutex_unlock(&display->lifecycle_mutex);
 	if (status != 0) st_console_test_capture_destroy(capture);
 	else *result = capture;

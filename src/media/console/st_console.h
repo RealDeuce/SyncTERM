@@ -549,6 +549,14 @@ int st_console_regrid_preserve_pixels(st_console_t *console,
  */
 int st_console_reconfigure(st_console_t *console,
 	const struct st_console_config *config);
+/* A positioned text grid over an existing console's raster. Owns cells/font
+ * registrations, but no pixel planes. Parent must outlive it; parent raster
+ * replacement is busy while views exist. Initial text setup is hidden until
+ * adopt, which retains the visible pixels and enables native rendering. */
+int st_console_create_raster_view(st_console_t **result, st_console_t *parent,
+	uint32_t columns, uint32_t rows, uint32_t cell_width, uint32_t cell_height,
+	uint64_t x, uint64_t y);
+int st_console_raster_view_adopt(st_console_t *console);
 
 /* Writes resolved cells.  Wide glyphs require matching continuation cells. */
 int st_console_write_cells(st_console_t *console,

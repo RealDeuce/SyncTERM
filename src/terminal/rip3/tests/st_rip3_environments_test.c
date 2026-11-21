@@ -402,6 +402,38 @@ host_variables(void)
 	return 0;
 }
 
+static int
+soft_reset(void)
+{
+	struct st_rip3_environments *env=NULL;struct st_rip3_backup *backup=NULL;
+	struct st_rip3_environment original=custom(),actual,defaults;
+	CHECK(st_rip3_environments_create(&env,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_environments_backup_create(&backup)==0);
+	CHECK(st_rip3_environment_defaults(&defaults)==0);
+	for (unsigned i=1;i<36;i++) {
+		CHECK(st_rip3_environments_define(env,i,&original)==0);
+		if (i%2) CHECK(st_rip3_environments_protect(env,i,true)==0);
+	}
+	CHECK(st_rip3_environments_select(env,5)==0);
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,env)==0);
+	CHECK(st_rip3_environments_soft_reset(NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_environments_soft_reset(env)==0);
+	unsigned current=99;CHECK(st_rip3_environments_current(env,&current)==0 && current==0);
+	for (unsigned i=0;i<36;i++) {
+		struct st_rip3_environment_info info;
+		CHECK(st_rip3_environments_info(env,i,&info)==0 && info.defined==(i==0 || i%2) && info.protected==(i%2!=0));
+		if (!info.defined) continue;
+		struct st_rip3_environment expected=i==0 ? defaults : original;
+		if (i==5) {expected.base_math=36;expected.coordinate_size=2;expected.rgb_bits=0;}
+		CHECK(st_rip3_environments_get(env,i,&actual)==0 && same(&actual,&expected));
+	}
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,env)==0);
+	CHECK(st_rip3_environments_current(env,&current)==0 && current==5);
+	CHECK(st_rip3_environments_get(env,5,&actual)==0 && same(&actual,&original));
+	CHECK(st_rip3_environments_get(env,6,&actual)==0 && same(&actual,&original));
+	st_rip3_backup_destroy(backup);st_rip3_environments_destroy(env);return 0;
+}
+
 int
 main(void)
 {
@@ -411,5 +443,6 @@ main(void)
 	CHECK(records(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(records(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
 	CHECK(host_variables() == 0);
+	CHECK(soft_reset() == 0);
 	return 0;
 }

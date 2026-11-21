@@ -9,8 +9,9 @@
 struct st_pixel_buffer;
 struct st_rip3_surface;
 
-/* Palette values are untagged 0xRRGGBB. The surface stores 8-bit indexes,
- * so palette changes affect existing pixels when the next snapshot is made. */
+/* Palette values are untagged 0xRRGGBB. Surfaces normally store indexes, so
+ * palette changes affect indexed pixels. The outer reset's literal RGB-black
+ * pixels are independent of that palette; COPY and backups preserve them. */
 struct st_rip3_palette {
 	uint32_t rgb[256];
 };
@@ -66,6 +67,10 @@ int st_rip3_surface_size(const struct st_rip3_surface *surface,
 	uint32_t *width, uint32_t *height);
 int st_rip3_surface_get(const struct st_rip3_surface *surface,
 	int32_t x, int32_t y, uint8_t *result);
+/* Full physical-surface COPY of literal black, independent of PAL. Raw index
+ * reads use zero for these pixels; indexed logical writes replace the literal
+ * value using the existing eight-bit backend arithmetic. No allocation. */
+int st_rip3_surface_clear_black(struct st_rip3_surface *surface);
 /* Optional borrowed presentation damage plane, one byte per physical pixel.
  * Writes set bytes even when the resulting index is unchanged. The owner
  * clears it after presentation and must unbind it before freeing storage. */

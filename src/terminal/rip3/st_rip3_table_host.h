@@ -24,6 +24,8 @@ struct st_rip3_table_binding {
  * both alive and invoke this dispatcher on their single owner thread. */
 struct st_rip3_table_host {
 	struct st_rip3_table_binding tables[ST_RIP3_TABLE_COUNT];
+	void *reset_context;
+	int (*soft_reset)(void *context);
 };
 
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,

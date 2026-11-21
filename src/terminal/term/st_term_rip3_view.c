@@ -14,7 +14,6 @@ struct st_term_rip3_view {
 	st_cterm_t *text;
 	struct st_rip3_text_window_layout layout;
 	st_console_t *parent;
-	uint32_t *palette;
 	st_cterm_output_callback_t output;
 	void *output_context;
 	bool active;
@@ -57,7 +56,7 @@ st_term_rip3_view_destroy(struct st_term_rip3_view *view)
 {
 	if (view==NULL) return;
 	st_cterm_destroy(&view->text);st_font_catalog_destroy(view->fonts);
-	st_console_destroy(view->console);free(view->palette);free(view);
+	st_console_destroy(view->console);free(view);
 }
 
 int
@@ -73,7 +72,7 @@ st_term_rip3_view_create(struct st_term_rip3_view **result,
 	uint64_t budget=(uint64_t)device_width*device_height;
 	budget=budget>UINT64_MAX/36 ? UINT64_MAX : budget*36;
 	/* Match the session's finite offscreen resource policy before allocating
-	 * a private pixel plane. Valid but oversized requests fail nonfatally. */
+	 * logical cells. Valid but oversized requests fail nonfatally. */
 	if (pixel_width>UINT32_MAX || pixel_height>UINT32_MAX || pixel_width*pixel_height>budget)
 		return IO_ERROR_OUT_OF_MEMORY;
 	struct st_term_rip3_view *view=calloc(1,sizeof(*view));
@@ -81,12 +80,9 @@ st_term_rip3_view_create(struct st_term_rip3_view **result,
 	view->layout=*layout;
 	view->output=text_config->output;view->output_context=text_config->output_context;
 	view->active=!layout->extended || !(layout->flags&4);
-	view->palette=calloc(UINT16_MAX+1u,sizeof(*view->palette));
-	if (view->palette==NULL) {st_term_rip3_view_destroy(view);return IO_ERROR_OUT_OF_MEMORY;}
-	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config screen={.columns=layout->columns,.rows=layout->rows,
-	    .cell_width=layout->cell_width,.cell_height=layout->cell_height};
-	int status=st_console_create(&view->console,&display,&screen);
+	view->parent=text_config->console;
+	int status=st_console_create_raster_view(&view->console,view->parent,layout->columns,layout->rows,
+	    layout->cell_width,layout->cell_height,layout->x,layout->y);
 	if (status==0) status=st_font_catalog_create(&view->fonts,view->console);
 	if (status==0) status=bitmap_font(view->fonts,device_width,device_height,layout->font);
 	struct st_cterm_config config=*text_config;
@@ -97,8 +93,6 @@ st_term_rip3_view_create(struct st_term_rip3_view **result,
 	if (status==0) status=st_cterm_create(&view->text,&config);
 	if (status==0) status=st_cterm_start_text(view->text);
 	if (status==0) status=st_cterm_set_text_wrap(view->text,layout->wrap);
-	if (status==0) status=st_console_get_palette(text_config->console,0,view->palette,UINT16_MAX+1u);
-	if (status==0) status=st_console_set_palette(view->console,0,view->palette,UINT16_MAX+1u);
 	if (status!=0) {st_term_rip3_view_destroy(view);return status;}
 	*result=view;return 0;
 }
@@ -109,79 +103,45 @@ st_term_rip3_view_text(struct st_term_rip3_view *view)
 	return view==NULL ? NULL : view->text;
 }
 
+st_console_t *
+st_term_rip3_view_console(struct st_term_rip3_view *view)
+{
+	return view==NULL ? NULL : view->console;
+}
+
 const struct st_rip3_text_window_layout *
 st_term_rip3_view_layout(const struct st_term_rip3_view *view)
 {
 	return view==NULL ? NULL : &view->layout;
 }
 
-static int
-rgb(struct st_term_rip3_view *view, struct st_pixel_buffer *pixels, st_console_t *console)
-{
-	int status=st_console_get_palette(console,0,view->palette,UINT16_MAX+1u);
-	if (status!=0) return status;
-	for (size_t i=0;i<(size_t)pixels->width*pixels->height;i++) {
-		uint32_t *planes[]={pixels->primary,pixels->alternate};
-		for (unsigned p=0;p<2;p++) if (planes[p]!=NULL && !ST_PIXEL_COLOR_IS_RGB(planes[p][i])) {
-			if (planes[p][i]>UINT16_MAX) return IO_ERROR_OUT_OF_RANGE;
-			planes[p][i]=ST_PIXEL_COLOR_RGB_TAG|view->palette[planes[p][i]];
-		}
-	}
-	return 0;
-}
-
 int
 st_term_rip3_view_begin(struct st_term_rip3_view *view, st_console_t *parent)
 {
-	if (view==NULL || parent==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	view->parent=parent;
-	uint32_t width,height;
-	int status=st_console_pixel_size(parent,&width,&height);
-	if (status!=0) return status;
-	if (view->layout.x>=width || view->layout.y>=height) return 0;
-	struct st_console_rect area={(uint32_t)view->layout.x,(uint32_t)view->layout.y,
-	    view->layout.columns*view->layout.cell_width,view->layout.rows*view->layout.cell_height};
-	if (area.width>width-area.x) area.width=width-area.x;
-	if (area.height>height-area.y) area.height=height-area.y;
-	struct st_pixel_buffer *pixels=NULL;
-	status=st_console_get_pixels(&pixels,parent,&area,false);
-	if (status==0) status=rgb(view,pixels,parent);
-	const struct st_pixel_blit blit={.width=area.width,.height=area.height,.scale_x=1,.scale_y=1};
-	if (status==0) status=st_console_blit_pixels(view->console,pixels,NULL,&blit);
-	st_pixel_buffer_destroy(pixels);return status;
+	if (view==NULL || parent==NULL || parent!=view->parent) return IO_ERROR_INVALID_ARGUMENT;
+	return st_console_raster_view_adopt(view->console);
 }
 
 int
 st_term_rip3_view_present(struct st_term_rip3_view *view, st_console_t *parent, bool active)
 {
-	if (view==NULL || parent==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (view==NULL || parent==NULL || parent!=view->parent) return IO_ERROR_INVALID_ARGUMENT;
 	uint32_t width,height;
-	int status=st_console_pixel_size(parent,&width,&height);
+	int status=st_console_present(view->console);
+	if (status==0) status=st_console_pixel_size(parent,&width,&height);
 	if (status!=0) return status;
-	if (view->layout.x<width && view->layout.y<height) {
-		struct st_console_rect area={0,0,view->layout.columns*view->layout.cell_width,
-		    view->layout.rows*view->layout.cell_height};
-		if (area.width>width-(uint32_t)view->layout.x) area.width=width-(uint32_t)view->layout.x;
-		if (area.height>height-(uint32_t)view->layout.y) area.height=height-(uint32_t)view->layout.y;
-		struct st_pixel_buffer *pixels=NULL;
-		status=st_console_get_pixels(&pixels,view->console,&area,false);
-		if (status==0) status=rgb(view,pixels,view->console);
-		const struct st_pixel_blit blit={.width=area.width,.height=area.height,.scale_x=1,.scale_y=1,
-		    .destination_x=(int32_t)view->layout.x,.destination_y=(int32_t)view->layout.y};
-		if (status==0) status=st_console_blit_pixels(parent,pixels,NULL,&blit);
-		st_pixel_buffer_destroy(pixels);
-	}
 	uint32_t x,y;bool visible;enum st_console_cursor_shape shape;
 	if (status==0) status=st_console_get_position(view->console,&x,&y);
 	if (status==0) status=st_console_get_cursor(view->console,&visible,&shape);
 	if (status!=0) return status;
-	uint64_t cursor_x=view->layout.x+(uint64_t)x*view->layout.cell_width;
-	uint64_t cursor_y=view->layout.y+(uint64_t)y*view->layout.cell_height;
+	uint64_t cursor_x=(uint64_t)x*view->layout.cell_width;
+	uint64_t cursor_y=(uint64_t)y*view->layout.cell_height;
 	if (shape==ST_CONSOLE_CURSOR_UNDERLINE) cursor_y+=view->layout.cell_height-1;
 	struct st_console_pixel_cursor cursor={.enabled=true,.colour=ST_PIXEL_COLOR_RGB_VALUE(255,255,255)};
-	if (cursor_x<width && cursor_y<height) {
+	if (view->layout.x<width && view->layout.y<height
+	    && cursor_x<width-view->layout.x && cursor_y<height-view->layout.y) {
 		cursor.visible=active && visible;
-		cursor.rectangle=(struct st_console_rect){(uint32_t)cursor_x,(uint32_t)cursor_y,
+		cursor.rectangle=(struct st_console_rect){(uint32_t)(view->layout.x+cursor_x),(uint32_t)(view->layout.y+cursor_y),
 		    shape==ST_CONSOLE_CURSOR_BAR ? 1 : view->layout.cell_width,
 		    shape==ST_CONSOLE_CURSOR_UNDERLINE ? 1 : view->layout.cell_height};
 		if (cursor.rectangle.width>width-cursor.rectangle.x) cursor.rectangle.width=width-cursor.rectangle.x;

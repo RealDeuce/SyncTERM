@@ -1131,6 +1131,8 @@ collect_mouse_events(struct st_wren_context *context,
 				continue;
 			gesture->end_x = source->data.mouse.x;
 			gesture->end_y = source->data.mouse.y;
+			gesture->end_pixel_x = source->data.mouse.pixel_x;
+			gesture->end_pixel_y = source->data.mouse.pixel_y;
 			record = mouse_record(source, (int)(i * 9 +
 			    (gesture->dragging ? 8 : 7)), gesture->start_x,
 			    gesture->start_y, gesture->start_pixel_x,
@@ -1159,6 +1161,8 @@ collect_mouse_events(struct st_wren_context *context,
 					.start_pixel_y = source->data.mouse.pixel_y,
 					.end_x = source->data.mouse.x,
 					.end_y = source->data.mouse.y,
+					.end_pixel_x = source->data.mouse.pixel_x,
+					.end_pixel_y = source->data.mouse.pixel_y,
 					.modifiers = source->data.mouse.modifiers,
 					.pressed = true,
 				};

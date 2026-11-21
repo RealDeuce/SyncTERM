@@ -311,6 +311,11 @@ int st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source
 /* CUR first use: fresh per-window defaults and empty explicit tabs, retaining
  * only connection-owned ordinary ANSI syntax. Target must be fresh and idle. */
 int st_cterm_default_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
+/* Outer RIP3 SOFT's preliminary reset of the old current TW, even protected:
+ * normal ANSI 7/0, full vertical margins, saved home and default tabs. Home
+ * the live cursor only if active. Retain parser, visibility and other modes;
+ * do not clear pixels, history, font resources or stop audio. */
+int st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active);
 /* Restore physical cursor presentation from the retained native state. */
 int st_cterm_present_text_cursor(st_cterm_t *terminal);
 /* Zero-based local cursor placement. A RIP3 session owner uses full-window

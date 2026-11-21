@@ -34,6 +34,7 @@ struct st_term_rip3 {
 	uint8_t tty[4096];
 	size_t tty_length;
 	bool flushing;
+	bool text_since_boundary;
 	/* Suppress the entry TTY's cursor without discarding its requested shape,
 	 * scan lines or visibility. Positioned views keep their own cursor state. */
 	bool root_cursor_saved,root_cursor_hidden;
@@ -67,6 +68,16 @@ st_cterm_t *
 st_term_rip3_text(struct st_term_rip3 *rip)
 {
 	return rip==NULL ? NULL : rip->view==NULL ? rip->text : st_term_rip3_view_text(rip->view);
+}
+
+bool
+st_term_rip3_text_view(struct st_term_rip3 *rip, struct st_term_text_view *view)
+{
+	if (rip==NULL || rip->view==NULL || view==NULL) return false;
+	const struct st_rip3_text_window_layout *layout=st_term_rip3_view_layout(rip->view);
+	*view=(struct st_term_text_view){.console=st_term_rip3_view_console(rip->view),
+	    .x=layout->x,.y=layout->y,.cell_width=layout->cell_width,.cell_height=layout->cell_height};
+	return true;
 }
 
 static void
@@ -163,6 +174,7 @@ static void
 ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 {
 	if (!st_rip3_session_text_active(rip->session)) return;
+	if (length!=0) rip->text_since_boundary=true;
 	for (size_t i=0;i<length;i++) {
 		if (rip->tty_length==sizeof(rip->tty)) flush_text(rip);
 		rip->tty[rip->tty_length++]=bytes[i];
@@ -231,13 +243,14 @@ flush_text(void *context)
 void
 st_term_rip3_flush(struct st_term_rip3 *rip)
 {
-	if (rip!=NULL) flush_text(rip);
+	if (rip!=NULL) {present(rip);flush_text(rip);}
 }
 
 int
 st_term_rip3_begin_local_text(struct st_term_rip3 *rip)
 {
 	if (rip==NULL || rip->flushing) return 0;
+	rip->text_since_boundary=true;
 	flush_text(rip);
 	return rip->view==NULL ? 0 : st_term_rip3_view_begin(rip->view,rip->config.console);
 }
@@ -281,14 +294,15 @@ paint_window_bounds(st_console_t *console, const struct st_rip3_rect *area, uint
 }
 
 static int
-window_budget(struct st_term_rip3 *rip, const struct st_rip3_text_window_layout *layout, unsigned replacing)
+window_budget(struct st_term_rip3 *rip, const struct st_rip3_text_window_layout *layout,
+    unsigned replacing, const bool *keep)
 {
 	uint64_t width=(uint64_t)layout->columns*layout->cell_width;
 	uint64_t height=(uint64_t)layout->rows*layout->cell_height;
 	if (width>UINT32_MAX || height>UINT32_MAX || width*height>rip->pixel_budget)
 		return IO_ERROR_OUT_OF_MEMORY;
 	uint64_t remaining=rip->pixel_budget-width*height;
-	for (unsigned i=0;i<36;i++) if (i!=replacing && rip->windows[i]!=NULL) {
+	for (unsigned i=0;i<36;i++) if (i!=replacing && rip->windows[i]!=NULL && (keep==NULL || keep[i])) {
 		const struct st_rip3_text_window_layout *other=st_term_rip3_view_layout(rip->windows[i]);
 		uint64_t pixels=(uint64_t)other->columns*other->cell_width*other->rows*other->cell_height;
 		if (pixels>remaining) return IO_ERROR_OUT_OF_MEMORY;
@@ -308,7 +322,7 @@ text_window(void *context, const struct st_rip3_text_window_layout *layout, bool
 	}
 	uint32_t width,height;
 	int status=st_console_pixel_size(rip->config.console,&width,&height);
-	if (status==0) status=window_budget(rip,layout,rip->selected_window);
+	if (status==0) status=window_budget(rip,layout,rip->selected_window,NULL);
 	bool visible=true;
 	if (status==0 && layout->extended) status=st_cterm_get_text_cursor_visible(st_term_rip3_text(rip),&visible);
 	struct st_term_rip3_view *view=NULL;
@@ -407,7 +421,7 @@ text_select(void *context, unsigned number, bool first, bool active,
 			    .x=(uint64_t)(x-1)*cw,.y=(uint64_t)(y-1)*ch,.bound_x=(uint64_t)(x-1)*cw,.bound_y=(uint64_t)(y-1)*ch,
 			    .bound_width=(uint64_t)columns*cw,.bound_height=(uint64_t)rows*ch};
 		}
-		if (status==0) status=window_budget(rip,&layout,number);
+		if (status==0) status=window_budget(rip,&layout,number,NULL);
 		if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,&layout,width,height);
 		if (status==0) status=fresh!=NULL
 		    ? st_cterm_default_window_interpreter(st_term_rip3_view_text(candidate),source)
@@ -433,10 +447,47 @@ text_select(void *context, unsigned number, bool first, bool active,
 	return 0;
 }
 
+static int
+text_reset(void *context, const struct st_rip3_text_window_layout *layout,
+    const bool keep[36], bool old_active)
+{
+	struct st_term_rip3 *rip=context;
+	st_cterm_t *source=st_term_rip3_text(rip);
+	int status=st_cterm_rip3_ansi_reset(source,old_active);
+	uint32_t width,height;
+	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status==0) status=window_budget(rip,layout,0,keep);
+	struct st_term_rip3_view *candidate=NULL;
+	if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,layout,width,height);
+	st_cterm_t *zero=rip->windows[0]==NULL ? rip->text : st_term_rip3_view_text(rip->windows[0]);
+	/* Ordinary redefinition retains TW0's tabs. Pending ANSI syntax belongs
+	 * to the connection and comes from the old current owner instead. */
+	if (status==0) status=st_cterm_inherit_window_interpreter(st_term_rip3_view_text(candidate),zero,true);
+	if (status==0) status=st_cterm_select_window_interpreter(st_term_rip3_view_text(candidate),source);
+	if (status==0) {
+		st_cterm_t *target=st_term_rip3_view_text(candidate);
+		st_cterm_set_music_mode(target,st_cterm_music_mode(source));
+		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(source));
+		struct st_term_rip3_view *previous=rip->view;
+		rip->view=candidate;status=present_window(rip,true);
+		if (status!=0) rip->view=previous;
+	}
+	if (status!=0) {st_term_rip3_view_destroy(candidate);return status;}
+	for (unsigned i=0;i<36;i++) if (i==0 || !keep[i]) {
+		st_term_rip3_view_destroy(rip->windows[i]);rip->windows[i]=NULL;
+	}
+	rip->windows[0]=candidate;rip->selected_window=0;
+	if (rip->text_config.size_changed!=NULL)
+		rip->text_config.size_changed(rip->text_config.size_context,layout->columns,layout->rows,
+		    layout->columns*layout->cell_width,layout->rows*layout->cell_height);
+	return 0;
+}
+
 static void
 before_command(void *context)
 {
 	struct st_term_rip3 *rip=context;
+	if (!rip->text_since_boundary) return;
 	flush_text(rip);
 	int status=rip->view!=NULL && st_rip3_session_text_active(rip->session)
 	    ? st_term_rip3_view_begin(rip->view,rip->config.console) : 0;
@@ -444,6 +495,7 @@ before_command(void *context)
 	if (status==0 && rip->view!=NULL && st_rip3_session_text_active(rip->session))
 		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
 	if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	else rip->text_since_boundary=false;
 }
 
 static int
@@ -680,12 +732,14 @@ prompt(struct st_term_rip3 *rip)
 }
 
 static void
-process(struct st_term_rip3 *rip)
+process(struct st_term_rip3 *rip, bool publish)
 {
 	if (rip==NULL) return;
 	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	st_rip3_session_process(rip->session,4096);
-	present(rip);prompt(rip);present(rip);
+	if (publish) present(rip);
+	prompt(rip);
+	if (publish) present(rip);
 	if (text_visibility(rip)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	if (rip->position==rip->length) rip->position=rip->length=0;
 }
@@ -694,7 +748,7 @@ void
 st_term_rip3_poll(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
-	process(rip);flush_text(rip);
+	process(rip,true);flush_text(rip);
 }
 
 bool
@@ -717,7 +771,10 @@ st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length
 	}
 	if (length!=0) memcpy(rip->queue+rip->length,bytes,length);
 	rip->length+=length;
-	process(rip);
+	/* The transport dispatches individual bytes to preserve its pause and
+	 * interception boundaries. Publish at its batch flush, replies, text or
+	 * explicit view operations, rather than snapshotting after each command. */
+	process(rip,false);
 }
 
 void
@@ -814,7 +871,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .default_text_font=0,.default_text_wrap=true,
 	    .encoding=ST_RIP3_TEXT_UTF8,.source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
-	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
+	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};

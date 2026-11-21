@@ -50,6 +50,8 @@ struct st_rip3_bitmap_error_sink {
  * session thread processes commands and owns these objects; its audio engine
  * may concurrently pull PCM under the audio adapter's synchronization. */
 struct st_rip3_command_host {
+	void *reset_context;
+	int (*soft_reset)(void *context);
 	struct st_rip3_environments *environments;
 	struct st_rip3_audio *audio;
 	const struct st_rip3_resource_paths *resources;
@@ -67,7 +69,7 @@ struct st_rip3_command_host {
 	const struct st_rip3_bitmap_error_sink *bitmap_errors;
 	struct st_rip3_text_context *text;
 	/* Current text-window output gate. The session owns slot selection,
-	 * definition/activation/protection; backups and full reset remain pending. */
+	 * definition/activation/protection and represented SOFT reset; backups remain pending. */
 	bool *text_active;
 	const struct st_rip3_text_window_host *text_window;
 };

@@ -225,9 +225,28 @@ default_window(void)
 	destroy(&next);return 0;
 }
 
+static int
+soft_ansi_reset(void)
+{
+	for (unsigned active=0;active<2;active++) {
+		struct fixture f={0};CHECK(create(&f,17)==0);
+		const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[2;4r\x1b[?6h\x1b[?7l\x1b[?25l\x1b[2;3H\x1b[s\x1b[7;32;44m\x1b[3";
+		CHECK(feed(&f,setup,sizeof(setup)-1)==0);
+		CHECK(st_cterm_rip3_ansi_reset(f.text,active!=0)==0 && position(&f,active ? 1 : 3,active ? 1 : 3)==0);
+		CHECK(f.text->attr==7 && !f.text->negative && f.text->save_xpos==1 && f.text->save_ypos==1
+		    && f.text->top_margin==1 && f.text->bottom_margin==5 && f.text->default_tabs
+		    && (f.text->extattr&CTERM_EXTATTR_ORIGINMODE) && !(f.text->extattr&CTERM_EXTATTR_AUTOWRAP));
+		bool visible=true;CHECK(st_cterm_get_text_cursor_visible(f.text,&visible)==0 && !visible);
+		CHECK(feed(&f,"1m",2)==0 && f.text->attr==4);
+		CHECK(st_cterm_position_text(f.text,0,0)==0 && feed(&f,"\t",1)==0 && position(&f,9,1)==0);
+		destroy(&f);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
 	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
-	    && window_copy()==0 && selection_continuations()==0 && default_window()==0);return 0;
+	    && window_copy()==0 && selection_continuations()==0 && default_window()==0 && soft_ansi_reset()==0);return 0;
 }

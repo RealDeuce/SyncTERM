@@ -380,6 +380,32 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	return 0;
 }
 
+static int
+soft_reset(void)
+{
+	struct st_rip3_styles *styles=NULL;struct st_rip3_backup *backup=NULL;
+	struct st_rip3_style boot=defaults();
+	CHECK(st_rip3_styles_create(&styles,&boot)==0 && st_rip3_styles_backup_create(&backup)==0);
+	for (unsigned i=1;i<36;i++) {
+		struct st_rip3_style custom=value(i);
+		CHECK(st_rip3_styles_define(styles,i,&custom)==0);
+		if (i%2) CHECK(st_rip3_styles_protect(styles,i,true)==0);
+	}
+	CHECK(st_rip3_styles_switch(styles,5)==0);
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,styles)==0);
+	CHECK(st_rip3_styles_soft_reset(NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_styles_soft_reset(styles)==0);
+	unsigned current=99;CHECK(st_rip3_styles_current(styles,&current)==0 && current==0);
+	for (unsigned i=0;i<36;i++) {
+		struct st_rip3_style_info info;
+		CHECK(st_rip3_styles_info(styles,i,&info)==0 && info.defined==(i==0 || i%2) && info.protected==(i%2!=0));
+		if (info.defined) {struct st_rip3_style expected=i==0 ? boot : value(i);CHECK(expect(styles,i,&expected)==0);}
+	}
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,styles)==0);
+	struct st_rip3_style before=value(6);CHECK(expect(styles,6,&before)==0);
+	st_rip3_backup_destroy(backup);st_rip3_styles_destroy(styles);return 0;
+}
+
 int
 main(void)
 {
@@ -387,6 +413,7 @@ main(void)
 	CHECK(errors() == 0);
 	CHECK(snapshots() == 0);
 	CHECK(host_metadata() == 0);
+	CHECK(soft_reset() == 0);
 	CHECK(render(ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(render(ST_RIP3_CANVAS_800_600, 800,600) == 0);
 	CHECK(render(ST_RIP3_CANVAS_1024_768, 1024,768) == 0);

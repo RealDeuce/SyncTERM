@@ -32,7 +32,26 @@ struct text_selection {
 	int32_t end_x;
 	int32_t end_y;
 	bool rectangular;
+	struct st_term_text_view view;
 };
+
+static int32_t
+window_coordinate(int32_t pixel, uint64_t origin, uint32_t cell_size)
+{
+	if (pixel<0 || (uint64_t)pixel<origin) return 0;
+	uint64_t cell=((uint64_t)pixel-origin)/cell_size;
+	return cell>INT32_MAX ? INT32_MAX : (int32_t)cell;
+}
+
+static void
+selection_end(struct text_selection *selection, int32_t x, int32_t y,
+    int32_t pixel_x, int32_t pixel_y)
+{
+	selection->end_x=selection->view.console==NULL ? x
+	    : window_coordinate(pixel_x,selection->view.x,selection->view.cell_width);
+	selection->end_y=selection->view.console==NULL ? y
+	    : window_coordinate(pixel_y,selection->view.y,selection->view.cell_height);
+}
 
 static uint32_t
 colour_value(const struct text_selection *selection, uint32_t colour)
@@ -211,7 +230,9 @@ append_cell(st_console_t *console, char **text, size_t *capacity,
 	*nonspace = false;
 	if ((cell->flags & ST_CONSOLE_CELL_CONTINUATION) != 0)
 		return 0;
-	broken = copy_broken_bar(context, cell);
+	/* Font identifiers belong to their console. A positioned RIP3 grid's
+	 * bitmap mapping must not be interpreted through the entry font catalog. */
+	broken = console==context->console && copy_broken_bar(context, cell);
 	if (broken) {
 		status = 0;
 		amount = sizeof(broken_bar) - 1;
@@ -314,7 +335,7 @@ copy_selection(struct text_selection *selection)
 	}
 	text[length] = '\0';
 	/* A console without a host clipboard simply cannot publish the result. */
-	(void)st_console_set_clipboard_text(selection->console, text);
+	(void)st_console_set_clipboard_text(selection->context->console, text);
 
 done:
 	free(text);
@@ -345,7 +366,10 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	/* The gesture keeps press-time modifiers, so the mode stays fixed. */
 	selection.rectangular = rectangular
 	    != ((gesture->modifiers & ST_CONSOLE_MODIFIER_ALT) != 0);
-	result = st_console_size(context->console, &selection.columns,
+	if (!context->cterm_suspended
+	    && st_term_session_text_view(context->session,context->console,&selection.view))
+		selection.console=selection.view.console;
+	result = st_console_size(selection.console, &selection.columns,
 	    &selection.rows);
 	if (result != 0 || selection.columns == 0 || selection.rows == 0)
 		return result != 0 ? result : IO_ERROR_OUT_OF_RANGE;
@@ -353,7 +377,7 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 	    * sizeof(selection.palette[0]));
 	if (selection.palette == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	result = st_console_get_palette(context->console, 0, selection.palette,
+	result = st_console_get_palette(selection.console, 0, selection.palette,
 	    UINT16_MAX + 1U);
 	if (result != 0)
 		goto done;
@@ -375,21 +399,23 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		goto done;
 	}
 	screen = (struct st_console_rect){0, 0, selection.columns, selection.rows};
-	result = st_console_read_cells(context->console, &screen,
+	result = st_console_read_cells(selection.console, &screen,
 	    selection.original, selection.columns);
 	if (result != 0)
 		goto done;
 	/* Repainting text replaces pixel graphics, including unselected cells
 	 * in the same row. Retain both raster planes for the cleanup path. */
-	result = st_console_snapshot_create(&snapshot, context->console);
+	result = st_console_snapshot_create(&snapshot, selection.console);
 	if (result != 0)
 		goto done;
 	for (size_t index = 0; index < count; ++index)
 		selection.displayed[index] = selection.original[index];
-	selection.start_x = gesture->start_x;
-	selection.start_y = gesture->start_y;
-	selection.end_x = gesture->end_x;
-	selection.end_y = gesture->end_y;
+	selection_end(&selection,gesture->start_x,gesture->start_y,
+	    gesture->start_pixel_x,gesture->start_pixel_y);
+	selection.start_x = selection.end_x;
+	selection.start_y = selection.end_y;
+	selection_end(&selection,gesture->end_x,gesture->end_y,
+	    gesture->end_pixel_x,gesture->end_pixel_y);
 	result = paint_selection(&selection);
 	while (result == 0) {
 		result = st_console_event_wait(context->console, &event);
@@ -403,21 +429,25 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		if (event.data.mouse.action == ST_CONSOLE_MOUSE_MOVE
 		    && (event.data.mouse.buttons
 		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0) {
-			selection.end_x = event.data.mouse.x;
-			selection.end_y = event.data.mouse.y;
+			selection_end(&selection,event.data.mouse.x,event.data.mouse.y,
+			    event.data.mouse.pixel_x,event.data.mouse.pixel_y);
 			gesture->end_x = event.data.mouse.x;
 			gesture->end_y = event.data.mouse.y;
+			gesture->end_pixel_x = event.data.mouse.pixel_x;
+			gesture->end_pixel_y = event.data.mouse.pixel_y;
 			result = paint_selection(&selection);
 		}
 		else if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 		    && (event.data.mouse.buttons
 		    & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0) {
-			st_cterm_sync_mouse_buttons(context->cterm,
+			st_cterm_sync_mouse_buttons(context->session==NULL ? context->cterm : st_term_session_cterm(context->session),
 			    event.data.mouse.buttons);
-			selection.end_x = event.data.mouse.x;
-			selection.end_y = event.data.mouse.y;
+			selection_end(&selection,event.data.mouse.x,event.data.mouse.y,
+			    event.data.mouse.pixel_x,event.data.mouse.pixel_y);
 			gesture->end_x = event.data.mouse.x;
 			gesture->end_y = event.data.mouse.y;
+			gesture->end_pixel_x = event.data.mouse.pixel_x;
+			gesture->end_pixel_y = event.data.mouse.pixel_y;
 			gesture->pressed = false;
 			gesture->dragging = false;
 			copy = true;
@@ -425,7 +455,7 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		}
 	}
 	{
-		int restore_result = st_console_snapshot_restore(context->console,
+		int restore_result = st_console_snapshot_restore(selection.console,
 		    snapshot, NULL);
 
 		if (result == 0)

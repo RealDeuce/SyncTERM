@@ -489,6 +489,14 @@ st_term_session_cterm(st_term_session_t *session)
 	return session == NULL ? NULL : session->rip3==NULL ? session->cterm : st_term_rip3_text(session->rip3);
 }
 
+bool
+st_term_session_text_view(st_term_session_t *session, st_console_t *display,
+    struct st_term_text_view *view)
+{
+	return session!=NULL && session->config.console==display
+	    && st_term_rip3_text_view(session->rip3,view);
+}
+
 int
 st_term_session_begin_local_text(st_term_session_t *session)
 {

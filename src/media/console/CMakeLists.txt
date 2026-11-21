@@ -546,6 +546,7 @@ set(_st_console_sources
 	console_text.c
 	console_text_terminal.c
 	console_pixels.c
+	console_raster_view.c
 	console_bitmap.c
 	console_libretro.c
 	console_ansi.c

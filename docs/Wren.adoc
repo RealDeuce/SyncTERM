@@ -2981,6 +2981,8 @@ Unified blocking and nonblocking reader for keyboard and mouse events.
 | `Input.mousedrag()`, `Input.mousedrag(forceRect)`
 | Hand off to SyncTERM's full-screen drag-select gesture.  This uses the
   current screen dimensions and does not depend on a connected terminal.
+  In a live RIP3 connection, selection uses the selected text window's grid,
+  font and pixel origin. Suspended terminal UI continues to use its own screen.
   The default is line selection; `forceRect=true` makes rectangular selection
   the default for Wren UI chrome.  Holding Alt when pressing button one
   inverts that default for the drag, so Alt+Drag selects a block in line mode

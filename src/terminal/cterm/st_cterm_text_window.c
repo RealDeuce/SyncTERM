@@ -119,6 +119,34 @@ st_cterm_default_window_interpreter(st_cterm_t *destination, const st_cterm_t *s
 }
 
 int
+st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
+{
+	if (terminal==NULL || terminal->input_depth!=0 || !terminal->started || terminal->width<1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (terminal->emulation!=CTERM_EMULATION_ANSI_BBS || terminal->graphics_mode!=ST_CTERM_GRAPHICS_RIP_3
+	    || terminal->rip_engine!=NULL) return IO_ERROR_NOT_SUPPORTED;
+	size_t count=(size_t)(terminal->width-1)/8+1;
+	if (count>SIZE_MAX/sizeof(int)) return IO_ERROR_OUT_OF_RANGE;
+	int *tabs=malloc(count*sizeof(*tabs));
+	if (tabs==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i=0;i<count;i++) tabs[i]=(int)(1+8*i);
+	free(terminal->tabs);free(terminal->vtabs);
+	terminal->tabs=tabs;terminal->tab_count=(int)count;terminal->tab_width=terminal->width;
+	terminal->default_tabs=true;terminal->vtabs=NULL;terminal->vtab_count=0;
+	free(terminal->fg_tc_str);free(terminal->bg_tc_str);
+	terminal->fg_tc_str=terminal->bg_tc_str=NULL;
+	terminal->attr=7;terminal->negative=false;terminal->cell_flags=0;
+	cterm_render_attribute_colours(terminal,7,&terminal->fg_color,&terminal->bg_color);
+	terminal->save_xpos=terminal->save_ypos=1;
+	terminal->top_margin=1;terminal->bottom_margin=terminal->height;
+	cterm_apply_window(terminal);
+	cterm_render_set_attribute(terminal,terminal->attr);
+	cterm_render_set_colours(terminal,terminal->fg_color,terminal->bg_color);
+	int status=active ? st_cterm_position_text(terminal,0,0) : 0;
+	return status!=0 ? status : cterm_render_take_error(terminal);
+}
+
+int
 st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 {
 	if (destination==NULL || source==NULL || destination->width!=source->width || destination->height!=source->height)

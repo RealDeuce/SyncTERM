@@ -117,5 +117,10 @@ int st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 int st_pixel_buffer_blit(struct st_pixel_buffer *destination,
 	const struct st_pixel_buffer *source, const struct st_pixel_mask *mask,
 	const struct st_pixel_blit *blit);
+/* Validate before a positioned destination maps the same blit into its shared
+ * raster. Successful right/bottom outputs are exclusive destination edges. */
+int st_pixel_buffer_validate_blit(const struct st_pixel_buffer *destination,
+	const struct st_pixel_buffer *source, const struct st_pixel_mask *mask,
+	const struct st_pixel_blit *blit, int64_t *right, int64_t *bottom);
 
 #endif

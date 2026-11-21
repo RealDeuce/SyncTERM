@@ -127,6 +127,12 @@ struct st_console_snapshot {
 
 struct st_console {
 	st_rwlock_t state_lock;
+	/* Positioned text views share their parent's raster and state lock. Their
+	 * own lock is initialized/destroyed normally but is never the raster lock. */
+	st_console_t *raster_parent;
+	uint64_t raster_x,raster_y;
+	size_t raster_children;
+	bool raster_enabled;
 	st_mutex_t event_mutex;
 	st_condition_t event_ready;
 	st_console_display_t *display;
@@ -222,6 +228,52 @@ static inline struct st_console_cell *
 st_console_drawn_at(const st_console_t *console, size_t index)
 {
 	return console->drawn_cells + st_console_cell_index(console, index);
+}
+
+static inline st_rwlock_t *
+st_console_state_lock(st_console_t *console)
+{
+	return console->raster_parent==NULL ? &console->state_lock : &console->raster_parent->state_lock;
+}
+
+static inline uint32_t
+st_console_raster_visible_width(const st_console_t *console)
+{
+	if (console->raster_parent==NULL) return console->pixels->width;
+	const struct st_pixel_buffer *parent=console->raster_parent->pixels;
+	if (console->raster_x>=parent->width) return 0;
+	uint32_t visible=parent->width-(uint32_t)console->raster_x;
+	return console->pixels->width<visible ? console->pixels->width : visible;
+}
+
+static inline uint32_t
+st_console_raster_visible_height(const st_console_t *console)
+{
+	if (console->raster_parent==NULL) return console->pixels->height;
+	const struct st_pixel_buffer *parent=console->raster_parent->pixels;
+	if (console->raster_y>=parent->height) return 0;
+	uint32_t visible=parent->height-(uint32_t)console->raster_y;
+	return console->pixels->height<visible ? console->pixels->height : visible;
+}
+
+static inline uint32_t
+st_console_raster_colour(const st_console_t *console, uint32_t colour)
+{
+	return console->raster_parent==NULL || ST_CONSOLE_COLOR_IS_RGB(colour) ? colour
+	    : ST_CONSOLE_COLOR_RGB_TAG|(colour<=UINT16_MAX ? console->palette[colour] : 0);
+}
+
+static inline void
+st_console_raster_cell_clip(const st_console_t *console, uint32_t x, uint32_t y,
+    uint32_t *width, uint32_t *height)
+{
+	*width=console->cell_width;*height=console->cell_height;
+	if (console->raster_parent==NULL) return;
+	uint32_t visible_width=st_console_raster_visible_width(console),visible_height=st_console_raster_visible_height(console);
+	x*=console->cell_width;y*=console->cell_height;
+	if (x>=visible_width || y>=visible_height) {*width=*height=0;return;}
+	if (*width>visible_width-x) *width=visible_width-x;
+	if (*height>visible_height-y) *height=visible_height-y;
 }
 
 static inline bool
@@ -374,6 +426,7 @@ bool st_console_rect_valid(const st_console_t *console,
 struct st_console_cell st_console_blank_locked(const st_console_t *console,
 	uint32_t codepoint);
 int st_console_finish_change_locked(st_console_t *console);
+int st_console_publish_raster_view_locked(st_console_t *console);
 void st_console_set_cell_locked(st_console_t *console, size_t index,
 	const struct st_console_cell *source);
 const struct st_console_font *st_console_font_locked(st_console_t *console,

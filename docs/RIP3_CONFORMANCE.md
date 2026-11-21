@@ -45,9 +45,11 @@ RGB precision values retain the old mode. Both numeric fields use current
 Base Math; malformed fields and protected writes recover nonfatally. This
 wire gate is distinct from the now-connected 1..8-bit COLORMODE variable
 contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
-it does not clear the screen. The scene reset `*` remains unimplemented;
-[PR #109](https://github.com/bbs-land/remote-imaging-protocol/pull/109) now
-answers its outer reset/clear contract. Connected orchestration remains pending.
+it does not clear the screen. Scene reset `*` and `$RESET(SOFT)$` now clear the
+physical canvas to palette-independent RGB black and reset the represented
+TW/STYLE/PAL/PORT/ENV families on connected sessions. The complete reset contract
+still awaits button/mouse/header/resident-query and remaining ANSI state work.
+The entry-versus-default-MicroANSI policy remains a separate open client decision.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
 0..65535 per dimension; `$WORLD$` preserves the documented asymmetric overflow
@@ -6533,6 +6535,75 @@ and all 51 derivation hashes match. The queue is 1394 implemented, 1645 pending,
 All 93 frozen files and 41 helpers match the unchanged baseline and its two
 historical exceptions. Task-owned archives, extraction, scripts, logs and failure
 fixtures are removed; no code is pushed or PR published.
+
+## Connected SOFT reset and native shared text raster
+
+Wire `*` and `$RESET(SOFT)$` now invoke one connected reset service. It discards
+unprotected live nonzero ports and text windows, preserves protected survivors,
+selects TW/STYLE/PORT/ENV 0 and retains PAL selection, even when the selected PAL
+becomes undefined. The physical screen clear is literal RGB black before PAL
+defaults are applied. A protected current PAL with red entry 0 therefore leaves
+a black cleared canvas; later indexed drawing still uses its red entry 0.
+The private v3 graphics surface retains the literal clear across palette uploads,
+COPY and backups. Indexed writes replace it normally; this does not claim general
+RGB raster-operation support.
+
+The old-current native ANSI window receives represented color/rendition, full
+vertical margins, saved-coordinate and default-tab resets before TW0 is defined.
+An inactive old-current window keeps its live cursor; protected noncurrent
+windows keep their state. Pending ordinary ANSI syntax follows the connection
+into TW0; its existing explicit tabs survive redefinition when it was noncurrent.
+STYLE protection follows the portable contract, and protected departing ENV and
+old-current PORT image-style exceptions are applied. Named variables, templates
+and separately owned represented backups survive. A deleted clipboard loses its
+assignment; a protected clipboard and its pixels survive. Invalid reset fields
+recover inside RIP3 and leave the connection usable.
+
+Positioned text windows now use the existing console rasterizer directly over
+the display's two pixel planes. They own their logical cells, fonts and ANSI
+state, without another pair of pixel buffers or a full-image import/export on
+each write. All raster access uses the parent's state lock and circular pixel-row
+mapping. The existing cell graphics/dirty flags and dirty-row range publish
+changed cells to the parent; there is no second damage accumulator or revision
+counter. Plain ANSI and RIP1 cell writes have no added damage-tracking hook.
+Parent raster replacement is busy while a view borrows it; views are destroyed
+before the parent. Positioned scrolling clips both planes without changing the
+parent's existing full-screen/status-row scrolling optimizations.
+
+Local drag selection reads the current native grid and font mapping, translating
+mouse pixels using its origin and cell size. Host input and clipboard ownership
+stay on the display console. Selection completion and interruption restore both
+pixel planes. Suspended terminal UI keeps its existing screen selection path.
+The application bell remains unchanged. Rendering vectors send no sound commands;
+test fixture audio policy is independent of the application's bell behavior.
+
+Independent connected reset captures cover CP437 and UTF-8 on 640x480, 800x600,
+1024x768 and 720x400, including unused physical edge space, protected active and
+inactive windows, selected PAL retention, old-current image style, surviving
+backups/templates/variables, clipboard deletion and split ANSI continuation.
+Connected selection captures include non-ASCII text, a literal pipe, reset from
+an entry grid, an arbitrary pixel origin, completion and cancellation. A native
+test checks existing dirty bits, clipped partial cells, offscreen 64-bit origins,
+both planes across parent circular wrap, scrolling, snapshots and raster
+replacement rejection.
+
+The native Release CMake configure/build and 25 distinct affected CTests pass,
+including the native X11 test on a private Xvfb, ANSI stream consistency, RIP1
+historical live/wire pixel expectations and both preservation guards. Native
+STYLE/ENV/surface reset checks also pass. All 93 frozen files and 41 helpers
+still match the unchanged baseline and its two historical exceptions. No new
+compiler warnings are present. Paired measurements against `d66edaf5` show
+MicroANSI single-cell reply latency falling from 16.65 ms to 0.24 ms, with no
+detected console CPU or RIP1 graphics slowdown in the measured workloads.
+Full measurements, native reply-fence limits and reproduction commands are in
+[`performance.adoc`](performance.adoc#_2026_11_20_rip3_shared_raster_comparison).
+
+Full `*` compliance is not claimed: button styles/instances, mouse fields,
+HEADER revision/input lock, resident queries, charset/insert-mode state and the
+client's default font/wrap selection remain pending where applicable. No VT-102
+mode is introduced. The source queue now has 1406 implemented, 1632 pending,
+3578 unreviewed, 1318 context, 67 excluded and 33 blocked units. Incomplete clauses
+retain their implemented subset and test evidence without being marked complete.
 
 ## Verification and acceptance
 

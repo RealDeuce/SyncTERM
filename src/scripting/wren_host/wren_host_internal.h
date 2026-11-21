@@ -170,6 +170,8 @@ struct st_wren_mouse_gesture {
 	int32_t start_pixel_y;
 	int32_t end_x;
 	int32_t end_y;
+	int32_t end_pixel_x;
+	int32_t end_pixel_y;
 	uint32_t modifiers;
 	bool pressed;
 	bool dragging;

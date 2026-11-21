@@ -222,6 +222,46 @@ select_default_window(void *context, unsigned number)
 	return select_text_window(context,number,false);
 }
 
+static int
+soft_reset(void *context)
+{
+	struct st_rip3_session *session=context;
+	if (session->sink.text_reset==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_text_window_layout layout;
+	int status=st_rip3_text_window_normal(&layout,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
+	    session->default_text_wrap,session->default_text_font);
+	if (status!=0) return status;
+	/* These services neither replace nor clear their independent save areas.
+	 * The physical black clear precedes PAL reset and keeps PAL selection. */
+	status=st_rip3_ports_reset(session->commands.ports,false);
+	if (status==0 && session->clipboard.set) {
+		struct st_rip3_port_info info;
+		status=st_rip3_ports_info(session->commands.ports,session->clipboard.port,&info);
+		if (status==0 && !info.defined) session->clipboard=(struct st_rip3_clipboard_selection){0};
+	}
+	if (status==0) status=st_rip3_ports_screen_clear_black(session->commands.ports);
+	if (status==0) status=st_rip3_palettes_reset(session->commands.palettes,false);
+	if (status==0) status=st_rip3_styles_soft_reset(session->commands.styles);
+	if (status==0) status=st_rip3_environments_soft_reset(session->commands.environments);
+	if (status!=0) return status;
+	st_rip3_outline_cache_reset(session->text.outline_cache);
+	bool keep[36]={false};
+	for (unsigned i=1;i<36;i++) keep[i]=session->windows[i].info.protected;
+	status=session->sink.text_reset(session->sink.context,&layout,keep,session->text_active);
+	if (status!=0) return status;
+	session->windows[session->current_window].info.active=session->text_active;
+	for (unsigned i=1;i<36;i++) if (!keep[i]) {
+		session->windows[i].info=(struct st_rip3_text_window_info){0};
+		session->windows[i].has_layout=false;
+	}
+	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
+	session->windows[0].layout=layout;session->windows[0].has_layout=true;
+	session->current_window=0;session->text_active=true;
+	/* Query/template/variable owners and the borrowed audio player are separate
+	 * from live drawing state. Do not cancel the query invoking RESET(SOFT). */
+	return 0;
+}
+
 static bool
 window_active(struct st_rip3_session *session, unsigned number)
 {
@@ -449,6 +489,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	struct st_rip3_session *session=calloc(1,sizeof(*session));
 	if (session==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
+	session->commands.reset_context=session;session->commands.soft_reset=soft_reset;
+	session->tables.reset_context=session;session->tables.soft_reset=soft_reset;
 	session->default_text_font=config->default_text_font;session->default_text_wrap=config->default_text_wrap;
 	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};

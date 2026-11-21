@@ -79,6 +79,9 @@ int st_rip3_styles_set(struct st_rip3_styles *styles,
  * PORT/ENV/cursor/image state. Extended-font activation remains separate. */
 int st_rip3_styles_switch(struct st_rip3_styles *styles, unsigned number);
 int st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool protect);
+/* Outer SOFT defaults unprotected records, clears nonzero in-use flags and
+ * selects zero. All protected configuration and independent backups survive. */
+int st_rip3_styles_soft_reset(struct st_rip3_styles *styles);
 /* Owned snapshots of every attribute stored here and table metadata.
  * Whole restore bypasses live protection and retains the immutable snapshot.
  * The shipping restore retains the LIVE current index, reselecting/defaulting

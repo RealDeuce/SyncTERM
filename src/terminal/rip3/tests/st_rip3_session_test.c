@@ -42,6 +42,8 @@ struct fixture {
 	bool erase_whole;
 	uint32_t erase_rgb;
 	bool identical;
+	unsigned resets;
+	bool reset_keep[36],reset_old_active;
 	bool selected_first,selected_fresh,selected_active;
 	uint32_t clear_rgb;
 	struct st_rip3_text_window_layout window;
@@ -382,6 +384,49 @@ select_text(void *context, unsigned number, bool first, bool active,
 	f->selected_first=first;f->selected_fresh=fresh!=NULL;f->selected_active=active;
 	if (fresh!=NULL) f->window=*fresh;
 	return f->window_status;
+}
+
+static int
+reset_text(void *context, const struct st_rip3_text_window_layout *layout,
+    const bool keep[36], bool old_active)
+{
+	struct fixture *f=context;f->resets++;f->window=*layout;
+	memcpy(f->reset_keep,keep,sizeof(f->reset_keep));f->reset_old_active=old_active;
+	return f->window_status;
+}
+
+static int
+soft_reset(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;options.sink.text_window=window;options.sink.text_reset=reset_text;
+	options.default_text_font=2;options.default_text_wrap=true;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$-=KEPT=value$","")==0 && query(&f,"[5:]held","")==0);
+	CHECK(append(&f,"!|2Y10|c02|2Y20|c03\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$PROT(STYLE,1)$$CUR(PAL,5)$","")==0);
+	CHECK(append(&f,"!|a0010\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$PROT(PAL,5)$$CUR(PORT,5)$$PROT(PORT,5)$$CUR(PORT,6)$$CUR(TW,1)$$PROT(TW,1)$$CUR(TW,2)$","")==0);
+	CHECK(query(&f,"$COPY(PAL,TBL,BASE,S0,PUSH)$$COPY(PORT,TBL,BASE)$$COPY(STYLE,TBL,BASE)$$COPY(ENV,TBL,BASE)$","")==0);
+	CHECK(query(&f,"$WORLD(CUR,0,0)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$","")==0);
+	CHECK(append(&f,"!|*\r")==0 && pump(&f)==0 && f.resets==1 && f.reset_old_active && f.reset_keep[1]
+	    && !f.reset_keep[2] && f.window.font==2 && f.window.columns==80 && f.window.rows==25 && f.window.wrap);
+	CHECK(query(&f,"$CUR(TW)$:$CUR(STYLE)$:$CUR(PORT)$:$CUR(ENV)$:$CUR(PAL)$","0:0:0:0:5")==0);
+	CHECK(query(&f,"$INUSE(TW,1)$$INUSE(TW,2)$$INUSE(STYLE,1)$$INUSE(STYLE,2)$$INUSE(PORT,5)$$INUSE(PORT,6)$$INUSE(PAL,5)$","1010101")==0);
+	CHECK(query(&f,"$WORLD$:$BASEMATH$:$COORDSIZE$","640:350:36:2")==0);
+	CHECK(query(&f,"$&KEPT$:$INUSE(PAL,BASE)$$INUSE(PAL,S0)$$INUSE(PAL,STACK)$$INUSE(PORT,BASE)$$INUSE(STYLE,BASE)$$INUSE(ENV,BASE)$","value:111111")==0);
+	CHECK(query(&f,"[5]","held")==0);
+	struct st_rip3_session_capture capture={0};CHECK(st_rip3_session_capture(f.session,&capture)==0);
+	for (size_t i=0;i<640*480;i++) CHECK(capture.pixels->primary[i]==ST_PIXEL_COLOR_RGB_TAG);
+	st_rip3_session_capture_dispose(&capture);
+	/* SOFT inside a query must not cancel that query or its following reply. */
+	CHECK(query(&f,"$RESET(SOFT)$alive","alive")==0 && f.resets==2);
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|*\r")==0 && pump(&f)==0 && f.errors==1 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	f.window_status=0;
+	CHECK(append(&f,"!|*x\r")==0 && pump(&f)==0 && f.errors==2 && f.resets==3);
+	CHECK(query(&f,"$RESET(SOFT)$alive","alive")==0 && f.resets==4);
+	st_rip3_session_destroy(f.session);return 0;
 }
 
 static int
@@ -758,6 +803,7 @@ int
 main(void)
 {
 	CHECK(world_state()==0);
+	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0

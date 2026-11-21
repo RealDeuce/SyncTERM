@@ -51,6 +51,17 @@ st_rip3_style_defaults(struct st_rip3_style *result)
 }
 
 int
+st_rip3_styles_soft_reset(struct st_rip3_styles *styles)
+{
+	if (styles==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	for (unsigned i=0;i<36;i++) if (!styles->entries[i].info.protected) {
+		(void)st_rip3_style_defaults(&styles->entries[i].value);
+		styles->entries[i].info.defined=i==0;
+	}
+	styles->current=0;return 0;
+}
+
+int
 st_rip3_styles_create(struct st_rip3_styles **result, const struct st_rip3_style *initial)
 {
 	struct st_rip3_styles *styles;

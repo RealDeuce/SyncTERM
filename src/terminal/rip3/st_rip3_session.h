@@ -49,6 +49,12 @@ struct st_rip3_session_sink {
 	 * fresh default geometry instead. Neither path copies pixels/history. */
 	int (*text_select)(void *context, unsigned number, bool first, bool active,
 		const struct st_rip3_text_window_layout *fresh);
+	/* Preliminary ANSI reset on the old current TW, then replace TW0 with
+	 * the supplied defaults and discard unprotected nonzero views. Protected
+	 * views retain their definitions/activation. Preserve connection ANSI syntax
+	 * and TW0 tabs; preserve only protected nonzero views from keep[]. */
+	int (*text_reset)(void *context, const struct st_rip3_text_window_layout *layout,
+		const bool keep[36], bool old_active);
 	/* Observe the specified native owner without selecting it or presenting. */
 	int (*text_snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
 	/* Native text-window cursor movement, without synthesized received bytes. */
