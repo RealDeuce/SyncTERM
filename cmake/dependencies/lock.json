@@ -57,10 +57,11 @@
       "license": "LGPL-2.0-or-later"
     },
     "JXL": {
-      "version": "0.12.0",
-      "url": "https://github.com/libjxl/libjxl/archive/refs/tags/v0.12.0.tar.gz",
-      "sha256": "03e9be69a30be4011f559da75328b6d7cea8ad921fabfbd551ce10bf45cdc992",
-      "license": "BSD-3-Clause"
+      "version": "0.13.0",
+      "url": "https://github.com/libjxl/libjxl/archive/refs/tags/v0.13.0.tar.gz",
+      "sha256": "24d18c9af2d1f5a17730b3f8d3f70a5c16e5ac303f5d9d5fe9dc00cf7ca82af2",
+      "license": "BSD-3-Clause",
+      "provenance": "Official libjxl GitHub release tag archive; SHA-256 computed locally."
     },
     "BROTLI": {
       "version": "1.2.1",
@@ -75,10 +76,11 @@
       "license": "Apache-2.0 OR BSD-3-Clause"
     },
     "LCMS2": {
-      "version": "2.19.1",
-      "url": "https://downloads.sourceforge.net/project/lcms/lcms/2.19.1/lcms2-2.19.1.tar.gz",
-      "sha256": "bfc54f7bab59fbc921012014a8032e4cba4abd46db47d46b76416a8c0b2815c8",
-      "license": "MIT"
+      "version": "2.20",
+      "url": "https://github.com/mm2/Little-CMS/releases/download/lcms2.20/lcms2-2.20.tar.gz",
+      "sha256": "18ff5504fa9cc8a2b1f3591180d90ead16c8a2ea78e530523b46eab70e1ca6b9",
+      "license": "MIT",
+      "provenance": "Official Little CMS GitHub release asset digest; archive verified locally."
     },
     "PORTAUDIO": {
       "version": "19.7.0",
@@ -153,10 +155,11 @@
       "license": "X11-distribute-modifications-variant"
     },
     "FFI": {
-      "version": "3.8.0",
-      "url": "https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz",
-      "sha256": "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4",
-      "license": "MIT"
+      "version": "3.8.1",
+      "url": "https://github.com/libffi/libffi/releases/download/v3.8.1/libffi-3.8.1.tar.gz",
+      "sha256": "81e879c094cc5ec3186c48510c6385ac6b3e866192e8bc71a35245703757ee40",
+      "license": "MIT",
+      "provenance": "Official libffi GitHub release asset digest; archive verified locally."
     },
     "EXPAT": {
       "version": "2.10.0",
@@ -232,9 +235,9 @@
       "provenance": "Pinned FluidSynth cmake_admin/FindGCEM.cmake; upstream kthohr/gcem commit"
     },
     "JPEG": {
-      "version": "3.1.4.1",
-      "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4.1/libjpeg-turbo-3.1.4.1.tar.gz",
-      "sha256": "ecae8008e2cc9ade2f2c1bb9d5e6d4fb73e7c433866a056bd82980741571a022",
+      "version": "3.2.1",
+      "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.1/libjpeg-turbo-3.2.1.tar.gz",
+      "sha256": "c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f",
       "license": "IJG AND BSD-3-Clause AND Zlib",
       "provenance": "Official libjpeg-turbo GitHub release asset digest; archive verified locally."
     }
