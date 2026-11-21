@@ -5689,10 +5689,10 @@
       ],
       "reviewed_change": "Per-type image face sizes, source-read eligibility and padding; absolute half-open disjoint deletion classes and delete-before-paint COPY policy. No new emulation mode.",
       "states_after_update": {
-        "unreviewed": 3401,
+        "unreviewed": 3394,
         "context": 1337,
-        "pending": 1730,
-        "implemented": 1625,
+        "pending": 1724,
+        "implemented": 1638,
         "excluded": 67,
         "blocked": 25
       },
@@ -5725,7 +5725,7 @@
         "version/3.0/ripscrip/4.3-buttons.md:727"
       ],
       "pending_followups": [
-        "ICON/hot creation-WORLD image sizing and retained redraw geometry; image/label macro expansion and grouped buttons.",
+        "Image filename and label macro expansion, grouped buttons and selected plain/clipboard images.",
         "Hover, restored mouse tables, scene HEADER input lock and complete playback/mouse query families remain pending."
       ]
     }
@@ -5773,5 +5773,45 @@
   "initial_repository": "https://github.com/bbs-land/remote-imaging-protocol",
   "repository": "https://github.com/RealDeuce/remote-imaging-protocol",
   "reference_branch": "stable",
-  "issue_repository": "https://github.com/bbs-land/remote-imaging-protocol"
+  "issue_repository": "https://github.com/bbs-land/remote-imaging-protocol",
+  "implementation_updates": [
+    {
+      "after_commit": "996a17e4",
+      "revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
+      "scope": "Connect ICON/HOT faces and captured redraw lifetime to pointer and keyboard sessions.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:150",
+        "version/3.0/ripscrip/4.3-buttons.md:152",
+        "version/3.0/ripscrip/4.3-buttons.md:191",
+        "version/3.0/ripscrip/4.3-buttons.md:215",
+        "version/3.0/ripscrip/4.3-buttons.md:225",
+        "version/3.0/ripscrip/4.3-buttons.md:501",
+        "version/3.0/ripscrip/4.3-buttons.md:539",
+        "version/3.0/ripscrip/4.3-buttons.md:629",
+        "version/3.0/ripscrip/4.3-buttons.md:631",
+        "version/3.0/ripscrip/4.3-buttons.md:637",
+        "version/3.0/ripscrip/4.3-buttons.md:639",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:701"
+      ],
+      "tests": [
+        "rip3_mouse",
+        "rip3_surface",
+        "rip3_ports",
+        "rip3_button_create",
+        "rip3_session",
+        "syncterm_rip3_icon_buttons_CP437",
+        "syncterm_rip3_icon_buttons_UTF-8"
+      ],
+      "policy": "RGB complement is nearest-matched back into the existing indexed surface; no second raster/damage layer or RIP1.54 changes.",
+      "states_after_update": {
+        "unreviewed": 3394,
+        "context": 1337,
+        "pending": 1724,
+        "implemented": 1638,
+        "excluded": 67,
+        "blocked": 25
+      }
+    }
+  ]
 }

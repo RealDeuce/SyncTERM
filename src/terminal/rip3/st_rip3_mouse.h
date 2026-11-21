@@ -11,6 +11,12 @@
 struct st_rip3_mouse;
 enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
 struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;};
+struct st_rip3_mouse_visual {
+	void *context;
+	/* Synchronous redraw; may not mutate/reenter the mouse owner. */
+	int (*select)(void *context, bool selected);
+	void (*destroy)(void *context);
+};
 /* Scoped callback value; an inactive context has no numeric fallback. */
 struct st_rip3_field_context {bool active;int identity;};
 /* Parse one definition-time prefix. Failure leaves both payload views intact
@@ -23,6 +29,8 @@ struct st_rip3_mouse_sink {
 	void (*activate)(void *context, const uint8_t *program, size_t length, bool reset, int identity,
 	    bool pointer, int32_t x, int32_t y);
 	void (*resource_failure)(void *context);
+	void (*render_failure)(void *context);
+	void (*changed)(void *context);
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
@@ -30,7 +38,10 @@ void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
  * records share this owner's 128 entries. No drawing buffers or damage map. */
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
-	bool invert, bool reset, int identity, const uint8_t *program, size_t length);
+	bool invert, bool reset, int identity, const uint8_t *program, size_t length,
+	const struct st_rip3_mouse_visual *visual);
+/* A supplied visual transfers ownership only on successful definition.
+ * Its destructor runs after capture cancellation, on deletion/reset/shutdown. */
 struct st_rip3_mouse_paint {
 	void *context;
 	/* Borrowed, synchronous half-open absolute DEVICE rectangle. All selected

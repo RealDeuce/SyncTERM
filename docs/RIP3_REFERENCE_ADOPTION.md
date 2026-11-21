@@ -622,3 +622,12 @@ UTF-8 tests cover four entry rasters, palette remapping, current/offscreen/inact
 viewport independence and both feedback planes. Strict reference reindex retains
 the reviewed ledger byte for byte. RIP1.54's freeze remains unchanged. No VT-102
 mode is added; existing upstream issues receive no comments.
+
+
+The subsequent ICON/HOT implementation milestone uses this same pin and the
+unchanged #27/#119 derivations. Literal ICON/HOT creation, captured geometry,
+paired fallback, field-owned redraw and pre-label auto-stamp are now connected
+and tested in both encodings on four rasters. The implementation ledger records
+that follow-up separately from documentary adoption. Image/label macro expansion,
+grouped selection and other unfinished families remain pending; the earlier
+adoption-time ICON/HOT limitation is superseded by this runtime milestone.

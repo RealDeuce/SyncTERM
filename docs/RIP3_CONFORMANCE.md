@@ -7071,6 +7071,68 @@ incomplete RIP3 implementation, with 58 pinned derivation notes and 68 normative
 documents. Existing source/provenance history is retained above; this milestone
 supersedes the earlier provisional `1k` and inactive-clipboard limitations.
 
+## Connected ICON and HOT button images
+
+Literal ICON `1U` definitions now load through the trusted existing media loader.
+ICON wins the effective face-type choice; its filename is required and raw payload/
+name constraints remain preflight. Normal images use the existing default `.BMP`
+rule; selected HOT images try the paired `.BMH` quietly before normal fallback.
+All images are opaque COPY with nearest current-palette matching; flags2 bit 128
+adds no transparency. Failure stays inside the void processing/input boundary.
+No file, font or redraw error becomes a transport/session return status.
+
+The first successfully chosen creation image supplies natural dimensions scaled
+through the captured WORLD. Style dimensions and transmitted far values do not
+fit/reorder an ICON face. A successful initially selected hot image can choose a
+larger initial face without requiring an unused normal image. Every subsequent
+normal/hot redraw fits that stored face, preserving hit bounds, effects, label,
+creation WORLD and PORT0 viewport geometry after live context changes. A later
+redraw restores current port, viewport/activation, cursor and configuration on
+both success and failure. RECESS paints only during initial creation; later
+redraws leave that surrounding scene alone.
+
+The field owner takes an optional visual only on successful definition. Its
+synchronous redraw happens on selection transitions, not every pointer move or
+received byte. Deletion/reset/shutdown cancels selected feedback before destroying
+the owned context. Keyboard commitment publishes momentary image changes before
+running its action; renderer failure diagnoses nonfatally without losing the
+field, its host source or release cleanup. The session revision advances for
+visual redraws so the existing presenter actually publishes them.
+
+Successful hot fallback clears HOT and sets INVERT only in that field. A later
+hot file does not re-enable it; new fields still read the unchanged style. RGB
+complement is nearest-matched into the existing indexed palette, with first-index
+ties, as client rendering policy. It is separate from the indexed drawing NOT
+operator. This preserves indexed capture/export and uses the existing surface and
+damage planes, without adding a persistent raster, damage tracker or alternate
+ANSI path. Plain/simple native feedback keeps its existing implementation.
+
+Auto-stamp also accepts ICON/initial-HOT faces: existing capture/style mutation
+runs before label realization, then later buttons use the converted clipboard
+style. Existing budget/protection/label failure boundaries remain intact.
+
+Independent generated BMP fixtures and explicit expected colors/geometry run on
+640x480, 800x600, 1024x768 and 720x400 connections in CP437 and UTF-8. They cover
+COPY despite other W modes, no transparent key, collapsed natural dimensions,
+preflight preservation, captured WORLD/viewport/font state, differently sized hot
+images, selected/fallback behavior, malformed-hot fallback, field-local flags,
+initial-only recess, pre-label exports, keyboard actions, deletion while held and
+a normal-load failure after a valid hot-only creation. Native tests cover ownership
+rejection, failed redraw recovery, callback self-deletion, shutdown, palette/clip/
+damage and context restoration after failure. A fixture correction accounts for
+WORLD conversion of bevel and the explicitly configured corner index 7; expected
+scene colors are derived from fixture inputs, not emulator-generated rasters.
+
+Seventeen relevant native/connected tests pass in the native Release configuration,
+including ordinary ANSI/RIP1/RIP3 key forwarding and the RIP1.54 source/contract
+guards. No frozen RIP1.54 source/fixture changes or VT-102 mode are introduced.
+The reference remains stable `eb346cb73cf01f66ba88c8fa0dc2a134756a2302`; the #27
+derivation read for this milestone matches its pinned digest. The reviewed queue
+has 8185 units: 1638 implemented, 1724 pending, 3394 unreviewed, 1337 context,
+67 excluded and 25 blocked. Filename/label macro expansion, grouped selection,
+selected plain/clipboard images, hover and other unfinished families remain
+pending; full RIP3 compliance is not claimed.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

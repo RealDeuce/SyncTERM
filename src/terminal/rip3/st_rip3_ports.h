@@ -193,6 +193,15 @@ int st_rip3_ports_screen_pattern(struct st_rip3_ports *ports,
  * native dimensions and pad unavailable pixels with index 0. COPY preserves
  * overlapping source pixels before padding. No selection/source mutation. */
 int st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports, unsigned source, int32_t x, int32_t y);
+/* Selected image inversion within the current drawing viewport. */
+int st_rip3_ports_invert_rgb(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
+	const struct st_rip3_palette *palette);
+/* Redraw a resident button with its captured PORT0 geometry even after later
+ * viewport movement/deactivation. Restore live PORT0/current selection on all
+ * returns. Callback may draw/read assets, but must not mutate port definitions,
+ * selection, cursor or viewport state, or reenter input processing. */
+int st_rip3_ports_button_view(struct st_rip3_ports *ports, const struct st_rip3_port_info *view,
+	int (*draw)(void *context), void *context);
 /* Outer-reset physical RGB-black clear, independent of PAL/PORT/STYLE. */
 int st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports);
 

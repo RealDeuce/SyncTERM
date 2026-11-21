@@ -813,6 +813,13 @@ mouse_capture(void *context, int32_t x, int32_t y)
 	rip->local.mouse_position=&rip->mouse_position;
 }
 
+static void
+mouse_redraw(void *context)
+{
+	struct st_term_rip3 *rip=context;
+	present(rip);flush_text(rip);
+}
+
 bool
 st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
@@ -1018,7 +1025,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
-	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture},
+	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

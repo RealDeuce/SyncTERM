@@ -39,7 +39,8 @@ outside classes, absolute normalized WORLD selectors, deletion before painting,
 COPY index-0 cleanup, opaque screen-phase patterns and once-only selector paint.
 They retain surviving captures, cancel deleted ones, continue failed paint attempts
 and reject unsupported flags nonfatally. PR #122 supplies clipboard eligibility/
-padding and per-type geometry; ICON/hot image implementation remains pending.
+padding and per-type geometry. Literal ICON/hot rendering is covered below;
+filename/label macro expansion remains pending.
 Auto-stamp captures implemented plain/clipboard faces before their label, mutates
 protected live style flags only on success, and recovers after capture/font
 failures. Tests verify exported dimensions/colors and current-clipboard replacement.
@@ -47,7 +48,7 @@ failures. Tests verify exported dimensions/colors and current-clipboard replacem
 byte/default/wildcard vectors, event consumption, HKEY gates, pointer cancellation
 and reset/delayed FIELDID lifetime through real keyboard events. Native forwarding
 checks cover ANSI/RIP1/RIP3 and pointer-only disable. HEADER input lock, full mouse
-queries/restore/playback, physical indicators, clear/zoom, hover, ICON/hot faces
+queries/restore/playback, physical indicators, clear/zoom, hover, grouped buttons
 and groups remain pending. Complete nonplain sizing/eligibility and enclosed
 painting await #119/#120; see the RIP3 inventory for exact scope.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
@@ -2157,3 +2158,16 @@ records the complete command review, approved adaptations and manual audio
 checklist; earlier paragraphs retain their historical progress statements.
 
 Final BIG native acceptance commit: `0390c49`.
+
+`syncterm_rip3_icon_buttons_CP437` and `syncterm_rip3_icon_buttons_UTF-8` use
+independently encoded BMP/BMH files on four entry rasters. They cover ICON COPY/
+current-palette matching, ignored style/far geometry, creation-WORLD scaling,
+normal/hot size retention, captured viewport/font/label state, initially selected
+hot images, quiet fallback with field-local flags, selected inversion, auto-stamp
+before labels, initial-only recess, keyboard activation, held deletion and
+nonfatal later asset failure. Mouse-owner tests verify visual ownership through
+rejection, failed redraw, cancellation, self-deletion and shutdown. Surface tests
+check clipped RGB-complement matching and existing damage; port tests verify
+captured-context restoration after failure. No persistent scene/damage layer is
+introduced. Filename/label macro expansion, grouped/persistent selection and
+initial selected plain/clipboard images remain pending.

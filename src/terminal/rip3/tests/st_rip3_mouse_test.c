@@ -77,7 +77,7 @@ static int enclosed(void)
 	const unsigned removed[]={0,2,2,4,2,4,4,6};
 	for (unsigned flags=0;flags<256;flags++) {
 		for (unsigned kind=0;kind<2;kind++) for (unsigned i=0;i<6;i++)
-			CHECK(st_rip3_mouse_define(f.mouse,(enum st_rip3_mouse_kind)kind,NULL,&regions[i],false,false,-1,NULL,0)==0);
+			CHECK(st_rip3_mouse_define(f.mouse,(enum st_rip3_mouse_kind)kind,NULL,&regions[i],false,false,-1,NULL,0,NULL)==0);
 		struct paint_count count={0};const struct st_rip3_mouse_paint paint={&count,count_paint};
 		CHECK(st_rip3_mouse_remove(f.mouse,&selector,flags,&paint)==0);
 		unsigned types=((flags&8)==0)+((flags&16)==0);
@@ -89,16 +89,16 @@ static int enclosed(void)
 		st_rip3_mouse_kill(f.mouse);
 	}
 	const struct st_rip3_rect other={30,30,40,40};
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&other,false,false,8,(const uint8_t *)"b",1)==0);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"a",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&other,false,false,8,(const uint8_t *)"b",1,NULL)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"a",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && f.flips==1);
 	CHECK(st_rip3_mouse_remove(f.mouse,&other,1,NULL)==0 && st_rip3_mouse_count(f.mouse)==1 && f.flips==1);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,false));
 	CHECK(f.flips==2 && f.calls==1 && f.result=='a' && f.identity==7);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"a",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"a",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && f.flips==3);
 	CHECK(st_rip3_mouse_remove(f.mouse,&selector,1,NULL)==0 && !st_rip3_mouse_active(f.mouse) && f.flips==4);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"c",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"c",1,NULL)==0);
 	CHECK(!st_rip3_mouse_event(f.mouse,15,15,true) && !st_rip3_mouse_event(f.mouse,15,15,false));
 	CHECK(f.calls==1);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && st_rip3_mouse_event(f.mouse,15,15,false));
@@ -122,10 +122,10 @@ static int paint_failure(void)
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	f.input.mouse=f.mouse;
 	const struct st_rip3_rect selector={10,10,20,20},a={12,12,13,13},b={14,14,15,15};
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&a,false,false,-1,NULL,0)==0);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&b,false,false,-1,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&a,false,false,-1,NULL,0,NULL)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&b,false,false,-1,NULL,0,NULL)==0);
 	const struct st_rip3_rect survivor={40,40,50,50};
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&survivor,true,false,9,(const uint8_t *)"e",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&survivor,true,false,9,(const uint8_t *)"e",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,45,45,true) && f.input.flips==1);
 	const struct st_rip3_mouse_paint paint={&f,failed_paint};
 	CHECK(st_rip3_mouse_remove(f.mouse,&selector,1|64,&paint)==IO_ERROR_OUT_OF_MEMORY);
@@ -152,11 +152,11 @@ static int keyboard(void)
 		CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 		for (unsigned i=0;i<7;i++) if ((cases[test].omitted&(1u<<i))==0) {
 			uint8_t data=(uint8_t)(i+1);
-			CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&bindings[i],&area,false,false,(int)i+1,&data,1)==0);
+			CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&bindings[i],&area,false,false,(int)i+1,&data,1,NULL)==0);
 		}
 		if (cases[test].extra!=0) {
 			const struct st_rip3_mouse_binding binding={cases[test].extra,cases[test].default_enter};
-			CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,8,NULL,0)==0);
+			CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,8,NULL,0,NULL)==0);
 		}
 		bool handled=st_rip3_mouse_key(f.mouse,cases[test].key);
 		CHECK(handled==(cases[test].identity!=0));
@@ -167,8 +167,8 @@ static int keyboard(void)
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	const struct st_rip3_mouse_binding binding={'B',false};
 	const struct st_rip3_rect other={30,30,40,40};
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,1,NULL,0)==0);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&other,true,false,2,(const uint8_t *)"k",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,1,NULL,0,NULL)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&other,true,false,2,(const uint8_t *)"k",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && f.flips==1);
 	CHECK(!st_rip3_mouse_key(f.mouse,'z') && f.flips==1 && f.calls==0);
 	st_rip3_mouse_hotkeys(f.mouse,false);
@@ -176,25 +176,68 @@ static int keyboard(void)
 	st_rip3_mouse_hotkeys(f.mouse,true);
 	CHECK(st_rip3_mouse_key(f.mouse,'b') && f.flips==4 && f.calls==1 && !f.pointer && f.identity==2 && f.result=='k');
 	CHECK(!st_rip3_mouse_event(f.mouse,15,15,false) && f.calls==1);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&other,true,false,2,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&other,true,false,2,NULL,0,NULL)==0);
 	CHECK(st_rip3_mouse_key(f.mouse,'B') && f.flips==6 && f.calls==2);
 	st_rip3_mouse_destroy(f.mouse);return 0;
 }
 
+struct visual_fixture {struct fixture input;unsigned selected,cleared,destroyed,changed,errors;};
+static int select_visual(void *context,bool selected)
+{
+	struct visual_fixture *f=context;
+	if (selected) f->selected++;else f->cleared++;
+	return selected && f->selected==1 ? IO_ERROR_OUT_OF_MEMORY : 0;
+}
+static void destroy_visual(void *context) {++((struct visual_fixture *)context)->destroyed;}
+static void changed_visual(void *context) {++((struct visual_fixture *)context)->changed;}
+static void error_visual(void *context) {++((struct visual_fixture *)context)->errors;}
+static void activate_visual(void *context,const uint8_t *program,size_t length,bool reset,int identity,bool pointer,int32_t x,int32_t y)
+{
+	struct visual_fixture *f=context;
+	activate(&f->input,program,length,reset,identity,pointer,x,y);
+}
+static int visuals(void)
+{
+	struct visual_fixture f={0};const struct st_rip3_mouse_sink sink={.context=&f,
+	    .activate=activate_visual,.changed=changed_visual,.render_failure=error_visual};
+	CHECK(st_rip3_mouse_create(&f.input.mouse,&sink)==0);
+	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding binding={'A',false};
+	const struct st_rip3_mouse_visual visual={&f,select_visual,destroy_visual};
+	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0,&visual)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(f.destroyed==0); /* Rejection never takes ownership. */
+	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,7,(const uint8_t *)"v",1,&visual)==0);
+	CHECK(st_rip3_mouse_event(f.input.mouse,15,15,true) && f.selected==1 && f.errors==1 && f.changed==1);
+	CHECK(st_rip3_mouse_event(f.input.mouse,15,15,true) && f.selected==1);
+	CHECK(st_rip3_mouse_event(f.input.mouse,25,25,true) && f.cleared==1);
+	CHECK(st_rip3_mouse_event(f.input.mouse,15,15,true) && f.selected==2);
+	st_rip3_mouse_kill(f.input.mouse);
+	CHECK(f.cleared==2 && f.destroyed==1 && f.changed==4 && f.input.calls==0);
+	CHECK(!st_rip3_mouse_event(f.input.mouse,15,15,false));
+	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,8,(const uint8_t *)"k",1,&visual)==0);
+	/* The keyboard action deletes its own selected visual. Cancellation must
+	 * redraw once before destruction; post-callback cleanup cannot touch it. */
+	CHECK(st_rip3_mouse_key(f.input.mouse,'a'));
+	CHECK(f.selected==3 && f.cleared==3 && f.destroyed==2 && f.changed==6 && f.input.result=='k');
+	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,9,NULL,0,&visual)==0);
+	CHECK(st_rip3_mouse_event(f.input.mouse,15,15,true));
+	st_rip3_mouse_destroy(f.input.mouse);
+	CHECK(f.selected==4 && f.cleared==4 && f.destroyed==3);return 0;
+}
+
 int main(void)
 {
-	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0);
+	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0 && visuals()==0);
 	struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	struct st_rip3_rect area={10,20,30,40};
 	CHECK(!st_rip3_mouse_active(f.mouse));
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0,NULL)==0);
 	CHECK(!st_rip3_mouse_event(f.mouse,30,20,true) && !st_rip3_mouse_event(f.mouse,30,20,false));
 	CHECK(!st_rip3_mouse_event(f.mouse,10,40,true) && !st_rip3_mouse_event(f.mouse,10,40,false));
 	CHECK(!st_rip3_mouse_event(f.mouse,9,20,true) && !st_rip3_mouse_event(f.mouse,9,20,false));
 	CHECK(f.calls==0);st_rip3_mouse_kill(f.mouse);
-	for (unsigned i=0;i<128;i++) {uint8_t n=(uint8_t)i;CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,-1,&n,1)==0);}
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0)!=0);
+	for (unsigned i=0;i<128;i++) {uint8_t n=(uint8_t)i;CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,-1,&n,1,NULL)==0);}
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0,NULL)!=0);
 	CHECK(!st_rip3_mouse_event(f.mouse,9,20,true));
 	CHECK(!st_rip3_mouse_event(f.mouse,10,20,false));CHECK(f.calls==0);
 	CHECK(st_rip3_mouse_event(f.mouse,10,20,true));CHECK(f.flips==1);
@@ -202,21 +245,21 @@ int main(void)
 	CHECK(st_rip3_mouse_event(f.mouse,29,39,true));CHECK(f.flips==3);
 	CHECK(st_rip3_mouse_event(f.mouse,29,39,false));
 	CHECK(f.flips==4 && f.calls==1 && f.result==127 && !st_rip3_mouse_active(f.mouse));
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,-1,(const uint8_t *)"x",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,-1,(const uint8_t *)"x",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));
 	CHECK(st_rip3_mouse_event(f.mouse,-1,-1,false));CHECK(f.calls==1 && f.flips==6);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));
 	st_rip3_mouse_kill(f.mouse);CHECK(f.flips==8);
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,(const uint8_t *)"y",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,(const uint8_t *)"y",1,NULL)==0);
 	CHECK(!st_rip3_mouse_event(f.mouse,20,30,true));
 	CHECK(!st_rip3_mouse_event(f.mouse,20,30,false));CHECK(f.calls==1);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));CHECK(st_rip3_mouse_event(f.mouse,20,30,false));
 	CHECK(f.calls==2 && f.result=='y' && f.identity==-1);
 	/* Same public ID and rectangle do not let a newly appended instance
 	 * steal an existing press. Identity remains valid after source deletion. */
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,7,(const uint8_t *)"a",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,7,(const uint8_t *)"a",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,true));
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,7,(const uint8_t *)"b",1)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,7,(const uint8_t *)"b",1,NULL)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,20,30,false));
 	CHECK(f.calls==3 && f.result=='a' && f.identity==7);
 	st_rip3_mouse_destroy(f.mouse);return 0;

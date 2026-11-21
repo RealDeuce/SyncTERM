@@ -8,6 +8,7 @@ struct field {
 	struct st_rip3_rect area;
 	enum st_rip3_mouse_kind kind;
 	struct st_rip3_mouse_binding binding;
+	struct st_rip3_mouse_visual visual;
 	uint64_t instance;
 	bool invert,reset;
 	int identity;
@@ -51,7 +52,12 @@ static void
 feedback(struct st_rip3_mouse *mouse, bool inverted)
 {
 	if (mouse->inverted==inverted) return;
-	if (mouse->sink.invert!=NULL) mouse->sink.invert(mouse->sink.context,&mouse->pressed->area);
+	if (mouse->pressed->visual.select!=NULL) {
+		int status=mouse->pressed->visual.select(mouse->pressed->visual.context,inverted);
+		if (status!=0 && mouse->sink.render_failure!=NULL) mouse->sink.render_failure(mouse->sink.context);
+		if (mouse->sink.changed!=NULL) mouse->sink.changed(mouse->sink.context);
+	}
+	else if (mouse->sink.invert!=NULL) mouse->sink.invert(mouse->sink.context,&mouse->pressed->area);
 	mouse->inverted=inverted;
 }
 
@@ -64,12 +70,19 @@ st_rip3_mouse_cancel(struct st_rip3_mouse *mouse)
 	 * field merely because its old definition was removed. */
 }
 
+static void
+destroy_field(struct field *field)
+{
+	if (field->visual.destroy!=NULL) field->visual.destroy(field->visual.context);
+	free(field);
+}
+
 void
 st_rip3_mouse_kill(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
 	st_rip3_mouse_cancel(mouse);
-	for (size_t i=0;i<mouse->count;i++) free(mouse->fields[i]);
+	for (size_t i=0;i<mouse->count;i++) destroy_field(mouse->fields[i]);
 	mouse->count=0;
 }
 
@@ -95,7 +108,8 @@ st_rip3_mouse_count(const struct st_rip3_mouse *mouse)
 int
 st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
     const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
-    bool invert, bool reset, int identity, const uint8_t *program, size_t length)
+    bool invert, bool reset, int identity, const uint8_t *program, size_t length,
+    const struct st_rip3_mouse_visual *visual)
 {
 	if (mouse==NULL || area==NULL || (program==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	if (kind!=ST_RIP3_MOUSE_SIMPLE && kind!=ST_RIP3_MOUSE_BUTTON) return IO_ERROR_INVALID_ARGUMENT;
@@ -103,11 +117,13 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->count==128 || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->sequence==UINT64_MAX) return IO_ERROR_OUT_OF_RANGE;
-	if (invert && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (visual!=NULL && (kind!=ST_RIP3_MOUSE_BUTTON || visual->select==NULL || visual->destroy==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if (invert && visual==NULL && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	field->area=*area;field->kind=kind;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
 	field->binding=kind==ST_RIP3_MOUSE_BUTTON && binding!=NULL ? *binding : (struct st_rip3_mouse_binding){0};
+	field->visual=visual!=NULL ? *visual : (struct st_rip3_mouse_visual){0};
 	field->instance=++mouse->sequence;
 	if (length!=0) memcpy(field->program,program,length);
 	mouse->fields[mouse->count++]=field;return 0;
@@ -141,7 +157,7 @@ st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *are
 	size_t kept=0;
 	for (size_t i=0;i<mouse->count;i++) {
 		struct field *field=mouse->fields[i];
-		if (selected[i]) free(field);
+		if (selected[i]) destroy_field(field);
 		else mouse->fields[kept++]=field;
 	}
 	mouse->count=kept;
@@ -176,7 +192,7 @@ commit(struct st_rip3_mouse *mouse, struct field *field, bool keyboard, int32_t 
 		if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
 		return;
 	}
-	if (keyboard) {mouse->pressed=field;feedback(mouse,field->invert);}
+	if (keyboard) {mouse->pressed=field;feedback(mouse,field->invert || field->visual.select!=NULL);}
 	if (mouse->sink.activate!=NULL)
 		mouse->sink.activate(mouse->sink.context,copy,length,reset,identity,!keyboard,x,y);
 	/* Deletion clears pressed before freeing. A same-address replacement
@@ -229,7 +245,7 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 	struct field *field=mouse->pressed;
 	if (field==NULL) return false;
 	bool hit=inside(field,x,y);
-	feedback(mouse,left && hit && field->invert);
+	feedback(mouse,left && hit && (field->invert || field->visual.select!=NULL));
 	if (left) return true;
 	mouse->pressed=NULL;
 	if (hit && mouse->sink.activate!=NULL) commit(mouse,field,false,x,y);

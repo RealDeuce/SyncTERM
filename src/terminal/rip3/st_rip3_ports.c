@@ -724,6 +724,28 @@ st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports)
 }
 
 int
+st_rip3_ports_invert_rgb(struct st_rip3_ports *ports,const struct st_rip3_rect *area,
+    const struct st_rip3_palette *palette)
+{
+	if (ports==NULL || area==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	const struct port *port=&ports->entries[ports->current];struct st_rip3_rect visible;
+	if (!port->info.viewport_active || !translate(port,area,&visible)) return 0;
+	return st_rip3_surface_invert_rgb(port_surface(ports,ports->current),NULL,&visible,palette);
+}
+
+int
+st_rip3_ports_button_view(struct st_rip3_ports *ports,const struct st_rip3_port_info *view,
+    int (*draw)(void *context),void *context)
+{
+	if (ports==NULL || view==NULL || draw==NULL || !view->defined || view->offscreen) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_port_info saved=ports->entries[0].info;unsigned current=ports->current;
+	ports->entries[0].info=*view;ports->current=0;
+	int status=draw(context);
+	ports->entries[0].info=saved;ports->current=current;
+	return status;
+}
+
+int
 st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
     const struct st_rip3_rect *area, uint8_t color)
 {

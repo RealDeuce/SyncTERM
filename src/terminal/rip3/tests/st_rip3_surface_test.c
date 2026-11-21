@@ -100,6 +100,33 @@ palette_test(void)
 }
 
 static int
+button_inverse(void)
+{
+	struct st_rip3_surface *surface=NULL;struct st_rip3_palette palette={0};
+	palette.rgb[1]=0x00aa00;palette.rgb[2]=0xff55ff;palette.rgb[3]=0xffffff;
+	CHECK(st_rip3_surface_create(&surface,4,3)==0);
+	const struct st_rip3_rect all={0,0,3,2},area={0,0,2,2},clip={1,1,3,1};
+	uint8_t damage[12]={0};CHECK(st_rip3_surface_damage(surface,damage,sizeof(damage))==0);
+	CHECK(st_rip3_surface_fill(surface,NULL,&all,1,ST_RIP3_COPY)==0);
+	memset(damage,0,sizeof(damage));
+	CHECK(st_rip3_surface_invert_rgb(surface,&clip,&area,&palette)==0);
+	for (int y=0;y<3;y++) for (int x=0;x<4;x++) {
+		uint8_t value;bool changed=y==1 && x>=1 && x<=2;
+		CHECK(st_rip3_surface_get(surface,x,y,&value)==0 && value==(changed ? 2 : 1));
+		CHECK(damage[y*4+x]==changed);
+	}
+	CHECK(st_rip3_surface_invert_rgb(surface,&clip,&area,&palette)==0);
+	uint8_t value;CHECK(st_rip3_surface_get(surface,1,1,&value)==0 && value==1);
+	palette.rgb[255]=0x1000000;
+	CHECK(st_rip3_surface_invert_rgb(surface,NULL,&all,&palette)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_surface_get(surface,1,1,&value)==0 && value==1);
+	palette.rgb[255]=0;CHECK(st_rip3_surface_clear_black(surface)==0);
+	CHECK(st_rip3_surface_invert_rgb(surface,&clip,&area,&palette)==0);
+	CHECK(st_rip3_surface_get(surface,1,1,&value)==0 && value==3);
+	st_rip3_surface_destroy(surface);return 0;
+}
+
+static int
 surface_test(void)
 {
 	struct st_rip3_surface *surface = NULL;
@@ -305,5 +332,6 @@ main(void)
 	CHECK(tiers_test() == 0);
 	CHECK(damage_test() == 0);
 	CHECK(black_clear() == 0);
+	CHECK(button_inverse() == 0);
 	return 0;
 }

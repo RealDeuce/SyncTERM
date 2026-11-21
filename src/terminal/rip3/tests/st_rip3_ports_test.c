@@ -41,6 +41,31 @@ screen_fill(void)
 	st_rip3_ports_destroy(ports);return 0;
 }
 
+static int draw_captured(void *context)
+{
+	struct st_rip3_ports *ports=context;unsigned current;
+	if (st_rip3_ports_current(ports,&current)!=0 || current!=0) return IO_ERROR_CONFLICT;
+	const struct st_rip3_rect pixel={0,0,0,0};
+	int status=st_rip3_ports_fill(ports,&pixel,7,ST_RIP3_COPY);
+	return status==0 ? IO_ERROR_OUT_OF_MEMORY : status;
+}
+static int captured_view(void)
+{
+	struct st_rip3_ports *ports=NULL;struct st_rip3_port_info original,after;
+	CHECK(st_rip3_ports_create_device(&ports,4,3)==0 && st_rip3_ports_info(ports,0,&original)==0);
+	const struct st_rip3_rect view={1,1,2,2},bitmap={0,0,1,1};
+	CHECK(st_rip3_ports_viewport_device(ports,&view)==0 && st_rip3_ports_activate(ports,false)==0);
+	CHECK(st_rip3_ports_define(ports,6,&bitmap,true)==0 && st_rip3_ports_switch(ports,6)==0);
+	CHECK(st_rip3_ports_button_view(ports,&original,draw_captured,ports)==IO_ERROR_OUT_OF_MEMORY);
+	unsigned current;uint8_t value;
+	CHECK(st_rip3_ports_current(ports,&current)==0 && current==6);
+	CHECK(st_rip3_ports_info(ports,0,&after)==0 && !after.viewport_active
+	    && after.viewport.x0==1 && after.viewport.y0==1 && after.viewport.x1==2 && after.viewport.y1==2);
+	CHECK(st_rip3_ports_read(ports,0,0,0,&value)==0 && value==7);
+	CHECK(st_rip3_ports_read(ports,0,1,1,&value)==0 && value==0);
+	st_rip3_ports_destroy(ports);return 0;
+}
+
 static int
 layout(void)
 {
@@ -326,5 +351,6 @@ main(void)
 	CHECK(copies() == 0);
 	CHECK(boundaries() == 0 && install_bitmap() == 0);
 	CHECK(screen_fill()==0);
+	CHECK(captured_view()==0);
 	return 0;
 }

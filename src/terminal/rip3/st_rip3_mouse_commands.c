@@ -115,5 +115,5 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_rect area={(int32_t)(ox+x0),(int32_t)(oy+y0),(int32_t)(ox+x1),(int32_t)(oy+y1)};
 	const uint8_t *program=command+at;size_t program_length=length-at;
 	int identity=st_rip3_mouse_identity(&program,&program_length);
-	*operation=true;return st_rip3_mouse_define(host->mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,values[5]!=0,false,identity,program,program_length);
+	*operation=true;return st_rip3_mouse_define(host->mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,values[5]!=0,false,identity,program,program_length,NULL);
 }

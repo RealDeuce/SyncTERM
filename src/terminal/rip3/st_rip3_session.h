@@ -69,6 +69,9 @@ struct st_rip3_session_sink {
 	int (*text_erase_eol)(void *context, unsigned number);
 	/* Transient mouse feedback on the shared native text/graphics raster. */
 	void (*mouse_invert)(void *context, const struct st_rip3_rect *area);
+	/* Publish completed owned-button redraws, including momentary keyboard
+	 * feedback before its action runs. No additional raster ownership. */
+	void (*mouse_redraw)(void *context);
 	/* Capture the committing field event before starting its host program. */
 	void (*mouse_capture)(void *context, int32_t x, int32_t y);
 };

@@ -164,7 +164,7 @@ static int deletion_paint(void)
 	for (unsigned flags=0;flags<256;flags++) {
 		CHECK(st_rip3_ports_screen_fill(host.ports,&screen,9)==0);
 		for (unsigned i=0;i<6;i++) CHECK(st_rip3_mouse_define(host.mouse,
-		    i%2==0 ? ST_RIP3_MOUSE_SIMPLE : ST_RIP3_MOUSE_BUTTON,NULL,&regions[i],false,false,(int)i,NULL,0)==0);
+		    i%2==0 ? ST_RIP3_MOUSE_SIMPLE : ST_RIP3_MOUSE_BUTTON,NULL,&regions[i],false,false,(int)i,NULL,0,NULL)==0);
 		unsigned mask=selections[flags&7];
 		if ((flags&8)!=0) mask&=~21u;
 		if ((flags&16)!=0) mask&=~42u;
@@ -200,17 +200,17 @@ static int deletion_paint(void)
 	command(&host,&errors,"1k0K142S3C0061");CHECK(errors==0 && pixel(host.ports,10,20,1)==0);
 	memset(drawing.fill.rows,255,8);
 	CHECK(st_rip3_styles_set(host.styles,0,&drawing)==0);
-	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0,NULL)==0);
 	command(&host,&errors,"1k0K142S3C001T");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==1);
 	st_rip3_mouse_kill(host.mouse);errors=0;
 	/* Reverse/empty/collapsed selectors, flag validation before emptiness,
 	 * and outside selection beyond the physical canvas. */
-	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0,NULL)==0);
 	command(&host,&errors,"1k0K140K3C0073");CHECK(errors==0 && st_rip3_mouse_count(host.mouse)==1);
 	command(&host,&errors,"1k0K140L3C0073");CHECK(errors==0 && st_rip3_mouse_count(host.mouse)==1);
 	command(&host,&errors,"1k000000000074");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==1);
 	command(&host,&errors,"1k2S3C0K140003");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
-	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0,NULL)==0);
 	command(&host,&errors,"1kZUZUZZZZ004K");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
 	st_rip3_mouse_destroy(host.mouse);st_rip3_palettes_destroy(host.palettes);
 	st_rip3_styles_destroy(host.styles);st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);

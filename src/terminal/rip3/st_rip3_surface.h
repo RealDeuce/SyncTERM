@@ -85,6 +85,12 @@ int st_rip3_surface_plot(struct st_rip3_surface *surface,
 int st_rip3_surface_fill(struct st_rip3_surface *surface,
 	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
 	uint8_t color, enum st_rip3_write_mode mode);
+/* RGB complement for a rendered button's selected image, matched to the
+ * current palette (first nearest tie), not the indexed drawing NOT operator.
+ * Reuse existing indexed pixels/damage, without allocating a backing layer. */
+int st_rip3_surface_invert_rgb(struct st_rip3_surface *surface,
+	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
+	const struct st_rip3_palette *palette);
 /* Clip both rectangles first, then scale the remaining source to fill the
  * remaining destination. Nearest source pixel centers preserve palette indexes.
  * Overlapping copies read a snapshot, including when the write mode combines

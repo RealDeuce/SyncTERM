@@ -311,6 +311,27 @@ st_rip3_surface_plot(struct st_rip3_surface *surface,
 	return st_rip3_surface_fill(surface, clip, &point, color, mode);
 }
 
+int
+st_rip3_surface_invert_rgb(struct st_rip3_surface *surface,
+    const struct st_rip3_rect *clip,const struct st_rip3_rect *area,const struct st_rip3_palette *palette)
+{
+	if (surface==NULL || area==NULL || palette==NULL || !rect_valid(area) || !rect_valid(clip)) return IO_ERROR_INVALID_ARGUMENT;
+	for (size_t i=0;i<256;i++) if (palette->rgb[i]>0xffffff) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_rect visible=*area,bounds={0,0,(int32_t)surface->width-1,(int32_t)surface->height-1};
+	if (!intersect(&visible,&bounds) || (clip!=NULL && !intersect(&visible,clip))) return 0;
+	uint8_t inverse[256];
+	for (size_t i=0;i<256;i++) (void)st_rip3_palette_color(palette,true,palette->rgb[i]^0xffffff,&inverse[i]);
+	for (int32_t y=visible.y0;y<=visible.y1;y++) for (int32_t x=visible.x0;x<=visible.x1;x++) {
+		size_t at=(size_t)y*surface->width+(uint32_t)x;uint32_t pixel=surface->pixels[at];
+		uint8_t color;
+		if (ST_PIXEL_COLOR_IS_RGB(pixel)) (void)st_rip3_palette_color(palette,true,(pixel&0xffffff)^0xffffff,&color);
+		else color=inverse[pixel];
+		surface->pixels[at]=color;
+		if (surface->damage!=NULL) surface->damage[at]=1;
+	}
+	return 0;
+}
+
 static bool
 surface_clip(const struct st_rip3_surface *surface,
     struct st_rip3_rect *area, const struct st_rip3_rect *clip)

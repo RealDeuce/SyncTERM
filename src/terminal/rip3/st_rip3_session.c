@@ -503,6 +503,20 @@ mouse_resource_failure(void *context)
 }
 
 static void
+mouse_render_failure(void *context)
+{
+	diagnose(context,ST_RIP3_COMMAND_OPERATION_FAILED);
+}
+
+static void
+mouse_changed(void *context)
+{
+	struct st_rip3_session *session=context;
+	++session->revision;
+	if (session->sink.mouse_redraw!=NULL) session->sink.mouse_redraw(session->sink.context);
+}
+
+static void
 mouse_activate(void *context, const uint8_t *program, size_t length, bool reset, int identity, bool pointer, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
@@ -600,7 +614,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_button_styles_create(&session->commands.button_styles);
 	const struct st_rip3_mouse_sink mouse_sink={.context=session,
 	    .invert=config->sink.mouse_invert!=NULL ? mouse_invert : NULL,
-	    .activate=mouse_activate,.resource_failure=mouse_resource_failure};
+	    .activate=mouse_activate,.resource_failure=mouse_resource_failure,
+	    .render_failure=mouse_render_failure,.changed=mouse_changed};
 	if (status==0) status=st_rip3_mouse_create(&session->commands.mouse,&mouse_sink);
 	session->variables.mouse=session->commands.mouse;
 	if (status==0) status=st_rip3_palettes_create(&session->commands.palettes);
