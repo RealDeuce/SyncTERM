@@ -374,6 +374,7 @@ The built-in glyph registry is:
 | Name | CP437 | ASCII
 
 | `background` | `32` | `32`
+| `classic.backdrop` | `176` | `58`
 | `frame.display.topLeft` | `218` | `43`
 | `frame.display.top` | `196` | `45`
 | `frame.display.topRight` | `191` | `43`
@@ -427,6 +428,11 @@ The built-in glyph registry is:
 
 Scripts may define and use additional glyph names, subject to the requirement
 that a new name supplies both byte values.
+
+`classic.backdrop` selects the main menu's background pattern independently
+of its `[Style:classic.backdrop]` colours.  For example, a solid background
+uses `[Glyph:classic.backdrop]` with `CP437=32` and `ASCII=32`.  The general
+`background` glyph retains its space default.
 
 == Compatibility
 

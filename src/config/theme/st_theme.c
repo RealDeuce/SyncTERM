@@ -177,6 +177,7 @@ static const struct style_template default_styles[] = {
 
 static const struct glyph_template default_glyphs[] = {
 	G("background", 0x20, ' '),
+	G("classic.backdrop", 0xb0, ':'),
 	G("frame.display.topLeft", 0xda, '+'),
 	G("frame.display.top", 0xc4, '-'),
 	G("frame.display.topRight", 0xbf, '+'),

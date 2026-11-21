@@ -23,7 +23,7 @@ class ClassicBackdrop is Widget {
 
   onPaint_() {
     var sf = surface
-    Painter.fill(sf, Rect.new(0, 0, bounds.w, bounds.h), "\u2591",
+    Painter.fill(sf, Rect.new(0, 0, bounds.w, bounds.h), glyph("classic.backdrop"),
         style("classic.backdrop"))
     Painter.fill(sf, Rect.new(0, 0, bounds.w, 1), " ",
         style("classic.header"))

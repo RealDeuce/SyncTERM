@@ -479,6 +479,7 @@ main(void)
 	    "Name=Custom Theme\nAuthor=Tester\n\n"
 	    "[Style:frame]\nForeground=0x123456\n\n"
 	    "[Glyph:arrow.up]\nASCII=65\n\n"
+	    "[Glyph:classic.backdrop]\nCP437=177\nASCII=46\n\n"
 	    "[Glyph:custom.ascii]\nASCII=63\n\n"
 	    "[Glyph:custom.cp437]\nCP437=16\nASCII=62\n\n"
 	    "[Glyph:custom.unicode]\nCodepoint=9731\nCP437=16\nASCII=42\n\n"
@@ -506,6 +507,11 @@ main(void)
 	CHECK(test_failed_document_construction(manager) == 0);
 	CHECK(st_theme_default(manager)->style_count == 48);
 	CHECK(st_theme_active(manager)->style_count == 55);
+	CHECK(glyph(st_theme_default(manager), "classic.backdrop") != NULL);
+	CHECK(glyph(st_theme_default(manager), "classic.backdrop")->cp437 == 176);
+	CHECK(glyph(st_theme_default(manager), "classic.backdrop")->ascii == ':');
+	CHECK(glyph(st_theme_active(manager), "classic.backdrop")->codepoint
+	    == 0x2591);
 	CHECK(style(st_theme_active(manager), "default")->legacy_attr == 0x1f);
 	CHECK(style(st_theme_active(manager), "classic.header")->legacy_attr
 	    == 0x31);
@@ -518,6 +524,9 @@ main(void)
 	CHECK(st_theme_generation(manager) > generation);
 	CHECK(style(st_theme_active(manager), "frame")->foreground == 0x123456);
 	CHECK(glyph(st_theme_active(manager), "arrow.up")->ascii == 'A');
+	CHECK(glyph(st_theme_active(manager), "classic.backdrop")->codepoint
+	    == 0x2592);
+	CHECK(glyph(st_theme_active(manager), "classic.backdrop")->ascii == '.');
 	CHECK(glyph(st_theme_active(manager), "arrow.up")->codepoint == 0x2191);
 	CHECK(glyph(st_theme_active(manager), "custom.ascii")->cp437 == '?');
 	CHECK(glyph(st_theme_active(manager), "custom.ascii")->codepoint == '?');
