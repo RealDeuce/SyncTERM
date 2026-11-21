@@ -184,6 +184,15 @@ int st_rip3_ports_screen_damage(struct st_rip3_ports *ports,
  * Record damage even when the stored indexes already equal the paint. */
 int st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, uint8_t color);
+/* Same physical-screen COPY scope, with an opaque MSB-left 8x8 mask
+ * anchored at screen (0,0). Uses existing surface writes/damage storage. */
+int st_rip3_ports_screen_pattern(struct st_rip3_ports *ports,
+	const struct st_rip3_rect *area, const uint8_t rows[8], uint8_t foreground, uint8_t background);
+/* Button clipboard image into the current destination, at viewport-relative
+ * DEVICE x/y. Read inactive/protected sources; retain their whole viewport's
+ * native dimensions and pad unavailable pixels with index 0. COPY preserves
+ * overlapping source pixels before padding. No selection/source mutation. */
+int st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports, unsigned source, int32_t x, int32_t y);
 /* Outer-reset physical RGB-black clear, independent of PAL/PORT/STYLE. */
 int st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports);
 

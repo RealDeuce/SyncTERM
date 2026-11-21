@@ -3,8 +3,24 @@
 #include "st_rip3_mouse.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_styles.h"
 #include "io_error.h"
 #include <limits.h>
+
+struct cleanup {
+	struct st_rip3_ports *ports;
+	struct st_rip3_fill fill;
+	uint8_t foreground,background;
+};
+
+static int
+paint_removed(void *context,const struct st_rip3_rect *area,bool pattern)
+{
+	struct cleanup *paint=context;
+	const struct st_rip3_rect inclusive={area->x0,area->y0,area->x1-1,area->y1-1};
+	return pattern ? st_rip3_ports_screen_pattern(paint->ports,&inclusive,paint->fill.rows,paint->foreground,paint->background)
+	    : st_rip3_ports_screen_fill(paint->ports,&inclusive,0);
+}
 
 static int
 remove_fields(const struct st_rip3_command_host *host,
@@ -19,24 +35,34 @@ remove_fields(const struct st_rip3_command_host *host,
 		if (status!=0) return status;
 		at+=width;
 	}
-	/* Optional erase/pattern context and selector edge policy are B120.
-	 * Reject these requests before deleting or changing press feedback. */
-	if ((values[4]&96)!=0) return IO_ERROR_NOT_SUPPORTED;
-	if (values[0]>values[2] || values[1]>values[3]) return IO_ERROR_OUT_OF_RANGE;
-	struct st_rip3_frame frame;struct st_rip3_port_info port;
+	if (values[4]>255) return IO_ERROR_OUT_OF_RANGE;
+	if (values[0]>values[2]) {uint64_t swap=values[0];values[0]=values[2];values[2]=swap;}
+	if (values[1]>values[3]) {uint64_t swap=values[1];values[1]=values[3];values[3]=swap;}
+	struct st_rip3_frame frame;
 	int status=st_rip3_environments_frame(host->environments,number,&frame);
-	if (status==0) status=st_rip3_ports_info(host->ports,0,&port);
 	if (status!=0) return status;
-	/* Read PORT0's stored origin without changing selection, clipping the
-	 * selector, or relocating existing creation-time global hit rectangles. */
-	int64_t ox=(int64_t)port.bounds.x0+port.viewport.x0,oy=(int64_t)port.bounds.y0+port.viewport.y0;
-	int64_t x0=ox+(int64_t)(values[0]*frame.device_width/frame.world_width);
-	int64_t y0=oy+(int64_t)(values[1]*frame.device_height/frame.world_height);
-	int64_t x1=ox+(int64_t)(values[2]*frame.device_width/frame.world_width);
-	int64_t y1=oy+(int64_t)(values[3]*frame.device_height/frame.world_height);
-	if (x0<0 || y0<0 || x1>INT32_MAX || y1>INT32_MAX || x0>=x1 || y0>=y1) return IO_ERROR_OUT_OF_RANGE;
+	int64_t x0=(int64_t)(values[0]*frame.device_width/frame.world_width);
+	int64_t y0=(int64_t)(values[1]*frame.device_height/frame.world_height);
+	int64_t x1=(int64_t)(values[2]*frame.device_width/frame.world_width);
+	int64_t y1=(int64_t)(values[3]*frame.device_height/frame.world_height);
+	if (x1>INT32_MAX || y1>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+	if (x0>=x1 || y0>=y1 || (values[4]&7)==0) return 0;
 	const struct st_rip3_rect area={(int32_t)x0,(int32_t)y0,(int32_t)x1,(int32_t)y1};
-	*operation=true;return st_rip3_mouse_remove(host->mouse,&area,(unsigned)values[4]&31u);
+	struct cleanup cleanup={.ports=host->ports};
+	if ((values[4]&64)!=0) {
+		struct st_rip3_style style;unsigned selected;
+		status=st_rip3_styles_current(host->styles,&selected);
+		if (status==0) status=st_rip3_styles_get(host->styles,selected,&style);
+		if (status!=0) return status;
+		bool foreground=false,background=false;
+		for (size_t i=0;i<8;i++) {foreground|=style.fill.rows[i]!=0;background|=style.fill.rows[i]!=255;}
+		if (foreground) status=st_rip3_command_ink(host,env->rgb_bits,style.fill_color,&cleanup.foreground);
+		if (status==0 && background) status=st_rip3_command_ink(host,env->rgb_bits,style.background_color,&cleanup.background);
+		if (status!=0) return status;
+		cleanup.fill=style.fill;
+	}
+	const struct st_rip3_mouse_paint paint={&cleanup,paint_removed};
+	*operation=true;return st_rip3_mouse_remove(host->mouse,&area,(unsigned)values[4],&paint);
 }
 
 int

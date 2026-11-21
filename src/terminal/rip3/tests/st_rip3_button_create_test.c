@@ -10,6 +10,7 @@
 #include "st_rip3_palettes.h"
 #include "st_rip3_mouse.h"
 #include "st_rip3_text_commands.h"
+#include "st_rip3_number.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -111,12 +112,107 @@ static int clipboard_buttons(void)
 	CHECK(st_rip3_ports_read(host.ports,4,3,2,&value)==0 && value==7);
 	unsigned current;CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==4);
 	CHECK(clipboard.set && clipboard.port==4 && st_rip3_mouse_count(host.mouse)==2);
-	/* B119's unsupported inactive source never installs an invisible field. */
+	/* PR122 permits an inactive source, independently of destination gates. */
 	CHECK(st_rip3_ports_activate(host.ports,false)==0 && st_rip3_ports_switch(host.ports,0)==0);
 	style.flags=1|1024;CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
 	command(&host,&errors,"1U5K5K00000000<><>");
-	CHECK(errors==3 && st_rip3_mouse_count(host.mouse)==2);
+	CHECK(errors==2 && st_rip3_mouse_count(host.mouse)==3);
+	CHECK(pixel(host.ports,100,100,1)==0 && pixel(host.ports,103,102,7)==0);
+	const struct st_rip3_rect small={0,0,1,1},oversized={0,0,3,2},unavailable={5,5,8,7};
+	CHECK(st_rip3_ports_define(host.ports,6,&small,true)==0 && st_rip3_ports_switch(host.ports,6)==0);
+	for (int y=0;y<2;y++) for (int x=0;x<2;x++) CHECK(st_rip3_ports_plot(host.ports,x,y,(uint8_t)(2+x+2*y),ST_RIP3_COPY)==0);
+	CHECK(st_rip3_ports_viewport_device(host.ports,&oversized)==0 && st_rip3_ports_activate(host.ports,false)==0
+	    && st_rip3_ports_protect(host.ports,6,true)==0 && st_rip3_ports_switch(host.ports,0)==0);
+	clipboard.port=6;
+	const struct st_rip3_rect old_ink={200,200,210,210};CHECK(st_rip3_ports_screen_fill(host.ports,&old_ink,9)==0);
+	command(&host,&errors,"1UB4B401010000<><>");CHECK(errors==2 && st_rip3_mouse_count(host.mouse)==4);
+	for (int y=0;y<3;y++) for (int x=0;x<4;x++)
+		CHECK(pixel(host.ports,200+x,200+y,x<2 && y<2 ? (unsigned)(2+x+2*y) : 0)==0);
+	CHECK(pixel(host.ports,204,200,9)==0 && pixel(host.ports,200,203,9)==0);
+	CHECK(st_rip3_mouse_event(host.mouse,203,202,true) && st_rip3_mouse_event(host.mouse,203,202,false));
+	CHECK(!st_rip3_mouse_event(host.mouse,204,202,true) && !st_rip3_mouse_event(host.mouse,204,202,false));
+	/* Changing source geometry never reflows the existing hit rectangle. */
+	CHECK(st_rip3_ports_protect(host.ports,6,false)==0 && st_rip3_ports_switch(host.ports,6)==0
+	    && st_rip3_ports_viewport_device(host.ports,&unavailable)==0 && st_rip3_ports_switch(host.ports,0)==0);
+	command(&host,&errors,"1UB4B400000000<><>");CHECK(errors==3 && st_rip3_mouse_count(host.mouse)==4);
+	CHECK(st_rip3_mouse_event(host.mouse,203,202,true) && st_rip3_mouse_event(host.mouse,203,202,false));
 	st_rip3_mouse_destroy(host.mouse);st_rip3_button_styles_destroy(host.button_styles);
+	st_rip3_styles_destroy(host.styles);st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);
+	return 0;
+}
+/* PR123 literal C/P/O fixture and all 256 independent flag results. */
+static int deletion_paint(void)
+{
+	struct st_rip3_command_host host={0};unsigned errors=0;
+	struct st_rip3_style drawing;CHECK(st_rip3_style_defaults(&drawing)==0);
+	drawing.fill_color=2;drawing.background_color=1;drawing.write_mode=ST_RIP3_XOR;
+	memset(drawing.fill.rows,0,8);drawing.fill.rows[0]=0x80;
+	drawing.fill.origin=(struct st_rip3_point){3,5}; /* Stored origin must not leak. */
+	CHECK(st_rip3_styles_create(&host.styles,&drawing)==0);
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_ports_create(&host.ports,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_palettes_create(&host.palettes)==0);
+	const struct st_rip3_mouse_sink sink={0};CHECK(st_rip3_mouse_create(&host.mouse,&sink)==0);
+	struct st_rip3_environment env;CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
+	env.world_width=1280;env.world_height=960;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	const struct st_rip3_rect regions[]={{15,25,25,35},{10,20,50,60},{40,30,70,50},
+	    {5,15,55,65},{50,25,60,35},{80,80,90,90}};
+	const unsigned selections[]={0,3,12,15,48,51,60,63};
+	const struct st_rip3_rect screen={0,0,639,479},view={100,100,199,199},offscreen={0,0,7,7};
+	CHECK(st_rip3_ports_viewport(host.ports,&view)==0 && st_rip3_ports_activate(host.ports,false)==0);
+	CHECK(st_rip3_ports_define(host.ports,4,&offscreen,true)==0 && st_rip3_ports_switch(host.ports,4)==0);
+	for (unsigned flags=0;flags<256;flags++) {
+		CHECK(st_rip3_ports_screen_fill(host.ports,&screen,9)==0);
+		for (unsigned i=0;i<6;i++) CHECK(st_rip3_mouse_define(host.mouse,
+		    i%2==0 ? ST_RIP3_MOUSE_SIMPLE : ST_RIP3_MOUSE_BUTTON,NULL,&regions[i],false,false,(int)i,NULL,0)==0);
+		unsigned mask=selections[flags&7];
+		if ((flags&8)!=0) mask&=~21u;
+		if ((flags&16)!=0) mask&=~42u;
+		char wire[]="1k0K142S3C0000";
+		CHECK(st_rip3_number_encode(wire+10,4,flags,4,36)==0);
+		command(&host,&errors,wire);CHECK(errors==0);
+		unsigned deleted=0;for (unsigned i=0;i<6;i++) deleted+=(mask>>i)&1;
+		CHECK(st_rip3_mouse_count(host.mouse)==6-deleted);
+		for (int y=0;y<100;y++) for (int x=0;x<100;x++) {
+			bool painted=false;
+			if ((flags&7)!=0 && (flags&96)!=0) {
+				if ((flags&128)!=0) painted=x>=10 && x<50 && y>=20 && y<60;
+				else for (unsigned i=0;i<6;i++) if ((mask&(1u<<i))!=0
+				    && x>=regions[i].x0 && x<regions[i].x1 && y>=regions[i].y0 && y<regions[i].y1) painted=true;
+			}
+			unsigned color=9;
+			if (painted) color=(flags&64)!=0 ? (x%8==0 && y%8==0 ? 2 : 1) : 0;
+			CHECK(pixel(host.ports,x,y,color)==0); /* Raw read ignores the inactive viewport. */
+		}
+		unsigned current;struct st_rip3_style after;
+		CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==4);
+		CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.write_mode==ST_RIP3_XOR
+		    && after.fill.origin.x==3 && after.fill.origin.y==5);
+		st_rip3_mouse_kill(host.mouse);
+	}
+	/* Only inks reached by mask bits need palette conversion. A real
+	 * binding failure is preflight, before deleting an otherwise eligible field. */
+	memset(drawing.fill.rows,255,8);drawing.background_color=0xffffff;
+	CHECK(st_rip3_styles_set(host.styles,0,&drawing)==0);
+	command(&host,&errors,"1k0K142S3C0061");CHECK(errors==0 && pixel(host.ports,10,20,2)==0);
+	memset(drawing.fill.rows,0,8);drawing.fill_color=0xffffff;drawing.background_color=1;
+	CHECK(st_rip3_styles_set(host.styles,0,&drawing)==0);
+	command(&host,&errors,"1k0K142S3C0061");CHECK(errors==0 && pixel(host.ports,10,20,1)==0);
+	memset(drawing.fill.rows,255,8);
+	CHECK(st_rip3_styles_set(host.styles,0,&drawing)==0);
+	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0)==0);
+	command(&host,&errors,"1k0K142S3C001T");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==1);
+	st_rip3_mouse_kill(host.mouse);errors=0;
+	/* Reverse/empty/collapsed selectors, flag validation before emptiness,
+	 * and outside selection beyond the physical canvas. */
+	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0)==0);
+	command(&host,&errors,"1k0K140K3C0073");CHECK(errors==0 && st_rip3_mouse_count(host.mouse)==1);
+	command(&host,&errors,"1k0K140L3C0073");CHECK(errors==0 && st_rip3_mouse_count(host.mouse)==1);
+	command(&host,&errors,"1k000000000074");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==1);
+	command(&host,&errors,"1k2S3C0K140003");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
+	CHECK(st_rip3_mouse_define(host.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&regions[0],false,false,-1,NULL,0)==0);
+	command(&host,&errors,"1kZUZUZZZZ004K");CHECK(errors==1 && st_rip3_mouse_count(host.mouse)==0);
+	st_rip3_mouse_destroy(host.mouse);st_rip3_palettes_destroy(host.palettes);
 	st_rip3_styles_destroy(host.styles);st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);
 	return 0;
 }
@@ -257,7 +353,7 @@ static int autoclip_buttons(void)
 
 int main(void)
 {
-	CHECK(payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0);
+	CHECK(payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0 && deletion_paint()==0);
 	struct st_rip3_command_host host={0};unsigned errors=0;
 	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
 	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);

@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/121",
-  "revision": "915ca0f3292d6ce4a74c98091cd15e8447251cef",
-  "previous_revision": "1b8ab9928a9fd9071556cf0228ea69a496db3e72",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/123",
+  "revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
+  "previous_revision": "915ca0f3292d6ce4a74c98091cd15e8447251cef",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "Reviewed PR121 actual head consolidated into fork stable.",
-  "archive_sha256": "dc7b064bd75e9aec514e5b66419af95f1cf274847d89b537d4ae3ef65bd1feea",
+  "upstream_state_at_adoption": "Reviewed PR122 and PR123 actual heads consolidated into fork stable.",
+  "archive_sha256": "6187979304b66c6f565f7fa8157c5fb3d0da46ec556a9d2f84dd872c2abd6f66",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -16,12 +16,20 @@
     "version/baseline/techspecs/ansi-vt-support.md"
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-    "version/3.0/ripscrip/4.3-buttons.md"
+    {
+      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+      "previous_sha256": "ea045a8269a341e4c62b3f3dd75b6100be9d075f0712fb3bfec882e654095345",
+      "sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104"
+    },
+    {
+      "path": "version/3.0/ripscrip/4.3-buttons.md",
+      "previous_sha256": "a93a967d15d044082b0876616ffef80737922a3726659d6d21f90ba0deb75687",
+      "sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b"
+    }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 8099,
+  "matched_source_blocks": 8105,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -955,7 +963,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 59,
+  "upstream_issue_resolutions": 61,
   "pending_followups": [],
   "derivations": [
     {
@@ -1273,6 +1281,18 @@
       "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
       "title": "Issue #118: Button keyboard activation",
       "role": "Read-only source evidence distinguished from explicit portable keyboard matching/event/gate/lifetime completion. No original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-119-image-button-sizing.md",
+      "sha256": "5c7a6b08273db380f934b4d5025c296c1efe989d9f932963e777c83b67036a83",
+      "title": "Issue #119: Image-button face sizing",
+      "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-120-selective-field-deletion.md",
+      "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
+      "title": "Issue #120: Selective mouse-field deletion and painting",
+      "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
     }
   ],
   "documents": [
@@ -1414,11 +1434,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "ea045a8269a341e4c62b3f3dd75b6100be9d075f0712fb3bfec882e654095345"
+      "sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "a93a967d15d044082b0876616ffef80737922a3726659d6d21f90ba0deb75687"
+      "sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -5350,6 +5370,363 @@
       "pending_followups": [
         "HEADER input lock and normal-forwarding suppression need the unfinished scene-header owner.",
         "Full X/Y/M queries, hover, restored mouse tables, grouped/ICON/hot button paths and physical keyboard indicator coverage remain separate pending requirements."
+      ]
+    },
+    {
+      "previous_revision": "915ca0f3292d6ce4a74c98091cd15e8447251cef",
+      "revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
+      "archive_sha256": "6187979304b66c6f565f7fa8157c5fb3d0da46ec556a9d2f84dd872c2abd6f66",
+      "pull_requests": [
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/122",
+          "revision": "4a7f8d69701b653fea6296cc727f377c8d357d4f"
+        },
+        {
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/123",
+          "revision": "8852ffa3c6f786f65aac54f6326838913738f38c"
+        }
+      ],
+      "upstream_state": "Reviewed PR122 and PR123 actual heads consolidated into fork stable.",
+      "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
+      "prior_adoption_commit": "b033b5ad",
+      "changed_documents": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+        "version/3.0/ripscrip/4.3-buttons.md"
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8105,
+      "moved_source_blocks": 93,
+      "new_source_blocks": 80,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:152",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:156",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:160",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:162",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:164",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:166",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:167",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:168",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:169",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:170",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:172",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:174",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:178",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:180",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:181",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:183",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:184",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:185",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:187",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:189",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:191",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:195",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:197",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:208",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:210",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:214",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:215",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:216",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:217",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:218",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:219",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:220",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:221",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:223",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:225",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:226",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:227",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:228",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:229",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:230",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:231",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:232",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:233",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:234",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:236",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:238",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:239",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:240",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:241",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:242",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:243",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:244",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:245",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:246",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:247",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:248",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:250",
+        "version/3.0/ripscrip/4.3-buttons.md:160",
+        "version/3.0/ripscrip/4.3-buttons.md:539",
+        "version/3.0/ripscrip/4.3-buttons.md:622",
+        "version/3.0/ripscrip/4.3-buttons.md:624",
+        "version/3.0/ripscrip/4.3-buttons.md:625",
+        "version/3.0/ripscrip/4.3-buttons.md:626",
+        "version/3.0/ripscrip/4.3-buttons.md:627",
+        "version/3.0/ripscrip/4.3-buttons.md:628",
+        "version/3.0/ripscrip/4.3-buttons.md:629",
+        "version/3.0/ripscrip/4.3-buttons.md:631",
+        "version/3.0/ripscrip/4.3-buttons.md:633",
+        "version/3.0/ripscrip/4.3-buttons.md:635",
+        "version/3.0/ripscrip/4.3-buttons.md:637",
+        "version/3.0/ripscrip/4.3-buttons.md:639",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:645",
+        "version/3.0/ripscrip/4.3-buttons.md:647",
+        "version/3.0/ripscrip/4.3-buttons.md:654",
+        "version/3.0/ripscrip/4.3-buttons.md:656",
+        "version/3.0/ripscrip/4.3-buttons.md:658",
+        "version/3.0/ripscrip/4.3-buttons.md:663",
+        "version/3.0/ripscrip/4.3-buttons.md:727"
+      ],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:152",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:156",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:158",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:160",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:161",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:162",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:163",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:164",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:166",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:168",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:170",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:171",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:172",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:173",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:175",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:177",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:179",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:180",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:181",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:183",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:185",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:187",
+        "version/3.0/ripscrip/4.3-buttons.md:160",
+        "version/3.0/ripscrip/4.3-buttons.md:539",
+        "version/3.0/ripscrip/4.3-buttons.md:682"
+      ],
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:166",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:172",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:173",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:175",
+        "version/3.0/ripscrip/4.3-buttons.md:539",
+        "version/3.0/ripscrip/4.3-buttons.md:682"
+      ],
+      "previous_implementation_evidence": [
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:166",
+          "heading": "RIP_KILL_ENCLOSED_MOUSE_FIELDS",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            166,
+            166
+          ],
+          "text": "> If 1, 2 and 4 are not present, then NO fields are deleted. One of these flags must be supplied for any mouse fields to be deleted.\n",
+          "sha256": "169c3c25ada85a45ac1b5f4b0b2f93777543b3a31f1fdf5db455750c94ac561c",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_button_create.c"
+          ],
+          "tests": [
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "Connected deletion-only 1k retains immutable field kinds and surviving instance pointers while compacting the table. Native region/type matrices and connected held-feedback/replacement tests cover exclusions, no-region no-op, survivor capture and canceled deletion without pixel erasure. Full selector/painting policy remains B120."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:172",
+          "heading": "RIP_KILL_ENCLOSED_MOUSE_FIELDS",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            172,
+            172
+          ],
+          "text": "| 8     | Don't destroy simple Mouse Fields        |\n",
+          "sha256": "736a8408e7f49ce6057d45dec2f26ec965a6da66726e186c35e79b5bdca90e56",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_button_create.c"
+          ],
+          "tests": [
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "Connected deletion-only 1k retains immutable field kinds and surviving instance pointers while compacting the table. Native region/type matrices and connected held-feedback/replacement tests cover exclusions, no-region no-op, survivor capture and canceled deletion without pixel erasure. Full selector/painting policy remains B120."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:173",
+          "heading": "RIP_KILL_ENCLOSED_MOUSE_FIELDS",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            173,
+            173
+          ],
+          "text": "| 16    | Don't destroy active Mouse Button fields |\n",
+          "sha256": "85ec979bf2b1ecd41a6e20746a6709cfeda5e356adf912d2189b6add59085d85",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_button_create.c"
+          ],
+          "tests": [
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "Connected deletion-only 1k retains immutable field kinds and surviving instance pointers while compacting the table. Native region/type matrices and connected held-feedback/replacement tests cover exclusions, no-region no-op, survivor capture and canceled deletion without pixel erasure. Full selector/painting policy remains B120."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:175",
+          "heading": "RIP_KILL_ENCLOSED_MOUSE_FIELDS",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            175,
+            175
+          ],
+          "text": "> If 8 and 16 are not present, then all types of mouse fields are destroyed.\n",
+          "sha256": "65083e9172c0152ef2e7b4ef73cbbad6f0483d3aa51dcba4527e2c7e7616e023",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_button_create.c"
+          ],
+          "tests": [
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "Connected deletion-only 1k retains immutable field kinds and surviving instance pointers while compacting the table. Native region/type matrices and connected held-feedback/replacement tests cover exclusions, no-region no-op, survivor capture and canceled deletion without pixel erasure. Full selector/painting policy remains B120."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.3-buttons.md:539",
+          "heading": "RIP_BUTTON",
+          "source": "version/3.0/ripscrip/4.3-buttons.md",
+          "lines": [
+            539,
+            539
+          ],
+          "text": "The `<x1>` and `<y1>` parameters are only used for Plain Buttons when you have not specified a specific Height and Width in the RIP_BUTTON_STYLE command. These parameters are used in Dynamically Sized Buttons. If the Height and Width in the RIP_BUTTON_STYLE are non-zero, then these two parameters are set to zero.\n",
+          "sha256": "06533c62f9e883be734e370ae52f3df4086017715dcb62aa06b717369889c2c4",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_button_payload.c",
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "Connected plain 1U construction and shared mouse owner, verified by independent payload, geometry, raw preflight, live ENV, style/port context, pointer/reset, capacity and deferred-host tests. This source unit is covered; image faces, groups, keyboard activation, hover and graphical macros are tracked separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.3-buttons.md:682",
+          "source": "version/3.0/ripscrip/4.3-buttons.md",
+          "heading": "Face Extents and Input Eligibility",
+          "lines": [
+            682,
+            682
+          ],
+          "text": "For dynamic plain `1U`, order each WORLD corner pair first, then convert once and add the effective viewport origin under the existing rules. Reversed corners are accepted by reordering, not by interpreting negative dimensions. If both stored style dimensions are nonzero, the command's far coordinates remain ignored; if either is zero, use the command's corners for both axes. Both far coordinates zero without a complete fixed size are omitted/empty geometry, not a full-viewport shorthand. Reject a nonpositive **device face** width/height, including a positive WORLD span that collapses under conversion, **before** effects can inflate it into a clickable line. This positive-area/empty guard is the portable completion; original degenerate recovery paths are not required.\n",
+          "sha256": "9a268ba40f0049c9e39c5992daa06417c161a50e74a10f7fb59257fb60278d21",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_button_payload.c",
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "Connected plain 1U construction and shared mouse owner, verified by independent payload, geometry, raw preflight, live ENV, style/port context, pointer/reset, capacity and deferred-host tests. This source unit is covered; image faces, groups, keyboard activation, hover and graphical macros are tracked separately."
+        }
+      ],
+      "source_blocks_after_update": 8185,
+      "resolved_documentation_blockers": [
+        119,
+        120
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-119-image-button-sizing.md",
+          "sha256": "5c7a6b08273db380f934b4d5025c296c1efe989d9f932963e777c83b67036a83",
+          "title": "Issue #119: Image-button face sizing",
+          "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
+        },
+        {
+          "path": "version/3.0/research/issue-120-selective-field-deletion.md",
+          "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
+          "title": "Issue #120: Selective mouse-field deletion and painting",
+          "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
+        }
+      ],
+      "reviewed_change": "Per-type image face sizes, source-read eligibility and padding; absolute half-open disjoint deletion classes and delete-before-paint COPY policy. No new emulation mode.",
+      "states_after_update": {
+        "unreviewed": 3401,
+        "context": 1337,
+        "pending": 1730,
+        "implemented": 1625,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:148",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:149",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:150",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:152",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:156",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:160",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:162",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:164",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:168",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:169",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:170",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:172",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:174",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:183",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:184",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:185",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:187",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:189",
+        "version/3.0/ripscrip/4.3-buttons.md:160",
+        "version/3.0/ripscrip/4.3-buttons.md:626",
+        "version/3.0/ripscrip/4.3-buttons.md:627",
+        "version/3.0/ripscrip/4.3-buttons.md:628",
+        "version/3.0/ripscrip/4.3-buttons.md:633",
+        "version/3.0/ripscrip/4.3-buttons.md:635",
+        "version/3.0/ripscrip/4.3-buttons.md:727"
+      ],
+      "pending_followups": [
+        "ICON/hot creation-WORLD image sizing and retained redraw geometry; image/label macro expansion and grouped buttons.",
+        "Hover, restored mouse tables, scene HEADER input lock and complete playback/mouse query families remain pending."
       ]
     }
   ],

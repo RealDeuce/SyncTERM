@@ -581,3 +581,44 @@ self-deletion, reset and delayed FIELDID. HEADER input-lock integration, complet
 mouse-query/table-restore/playback families, native indicators and unavailable
 button face/group modes remain separate pending clauses. No new emulation mode
 or change to the RIP1.54 freeze is authorized. Existing issues receive no comments.
+
+
+## PRs #122 and #123: image geometry and selective cleanup
+
+Adopt fork stable `eb346cb73cf01f66ba88c8fa0dc2a134756a2302`, containing
+PR #122 actual head `4a7f8d69701b653fea6296cc727f377c8d357d4f` and PR #123
+actual head `8852ffa3c6f786f65aac54f6326838913738f38c`. Both source heads are
+ancestors of stable (behind zero). Archive SHA-256:
+`6187979304b66c6f565f7fa8157c5fb3d0da46ec556a9d2f84dd872c2abd6f66`.
+Two of the same 68 normative documents change. Preserve 8105 exact source/
+heading/text matches, relocate 93, retire 26 and review 80 new units, giving
+8185 source blocks. Retain the six retired implementation claims and evidence
+in adoption history, reopening their replacements until tested. All 56 previous
+derivation hashes match; the #119/#120 notes give 58. No original code executes.
+
+[PR #122](https://github.com/bbs-land/remote-imaging-protocol/pull/122) answers
+B119: style sizes apply only to PLAIN; clipboard faces use the whole native
+source viewport, with inactive/protected reads and palette-index-0 padding.
+ICON dimensions scale through captured creation WORLD; the first chosen image
+fixes later normal/hot geometry. The clipboard correction is connected and tested.
+ICON/hot rendering remains pending, with those complete clauses left open in the
+runtime ledger. Internal inclusive viewport rectangles adapt the reference's
+half-open stored extents without changing the wire viewport endpoint rule.
+
+[PR #123](https://github.com/bbs-land/remote-imaging-protocol/pull/123) answers
+B120: contained/crossing/outside are disjoint; selector corners normalize in
+current WORLD and convert to absolute DEVICE coordinates, without a viewport
+origin. Empty selectors do nothing; unsupported flag bits reject before mutation.
+The whole selection is deleted before per-field newest-first paint, or one
+selector-interior paint with 128 regardless of match count/type exclusions.
+64 wins 32; cleanup uses physical-screen COPY, index 0 or opaque fill/background
+at absolute device pattern phase. Paint failures do not restore fields, suppress
+remaining paints or steal a survivor's capture. This explicit portable completion
+replaces the earlier provisional overlap/origin/paint-rejection behavior.
+
+Native tests cover all 256 flag combinations, callback ordering/failure, capture
+identity, source eligibility/padding and nonfatal wire recovery. Connected CP437/
+UTF-8 tests cover four entry rasters, palette remapping, current/offscreen/inactive
+viewport independence and both feedback planes. Strict reference reindex retains
+the reviewed ledger byte for byte. RIP1.54's freeze remains unchanged. No VT-102
+mode is added; existing upstream issues receive no comments.

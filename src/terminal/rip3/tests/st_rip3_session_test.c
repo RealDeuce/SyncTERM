@@ -804,13 +804,13 @@ enclosed_fields(void)
 	CHECK(f.errors==0 && !st_rip3_session_mouse(f.session,35,35,true) && !st_rip3_session_mouse(f.session,35,35,false));
 	CHECK(st_rip3_session_mouse(f.session,15,15,true) && st_rip3_session_mouse(f.session,15,15,false));
 	CHECK(f.reply_length==6 && memcmp(f.reply,"simple",6)==0);f.reply_length=0;
-	/* Malformed bodies, degenerate selectors and deferred painting flags
-	 * leave the usable field intact and cannot terminate the owner. */
-	CHECK(append(&f,"!|1kbad|1k000000000001|1k00001E1E000X\r")==0 && pump(&f)==0 && f.errors==3);
+	/* Malformed bodies and unsupported flags fail inside RIP. Empty
+	 * selectors are successful no-ops, preserving a usable field/session. */
+	CHECK(append(&f,"!|1kbad|1k000000000001|1k00001E1E0074\r")==0 && pump(&f)==0 && f.errors==2);
 	CHECK(st_rip3_session_mouse(f.session,15,15,true) && st_rip3_session_mouse(f.session,15,15,false));
 	CHECK(f.reply_length==6 && memcmp(f.reply,"simple",6)==0);f.reply_length=0;
 	CHECK(query(&f,"$COORDSIZE(CUR,5)$$BASEMATH(CUR,64)$","")==0);
-	CHECK(append(&f,"!|1k00000000000000e0000e0001\r")==0 && pump(&f)==0 && f.errors==3);
+	CHECK(append(&f,"!|1k00000000000000e0000e0001\r")==0 && pump(&f)==0 && f.errors==2);
 	CHECK(!st_rip3_session_mouse_active(f.session));
 	CHECK(query(&f,"alive","alive")==0);
 	st_rip3_session_destroy(f.session);return 0;

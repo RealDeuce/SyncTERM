@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-915ca0f3292d6ce4a74c98091cd15e8447251cef](https://github.com/RealDeuce/remote-imaging-protocol/tree/915ca0f3292d6ce4a74c98091cd15e8447251cef/version/3.0)
+eb346cb73cf01f66ba88c8fa0dc2a134756a2302](https://github.com/RealDeuce/remote-imaging-protocol/tree/eb346cb73cf01f66ba88c8fa0dc2a134756a2302/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -7021,6 +7021,55 @@ Native Release CMake is warning-free and thirteen distinct affected CTests pass,
 including the source/contract guards. The queue has 1607 implemented, 1715 pending,
 3412 unreviewed, 1294 context, 67 excluded and 36 blocked units. Full RIP3
 compliance is unfinished; RIP1.54's recorded baseline remains unchanged.
+
+## Image-source eligibility and selective field cleanup (PRs #122/#123)
+
+Adopt stable `eb346cb73cf01f66ba88c8fa0dc2a134756a2302` and both reviewed
+source heads; the [adoption record](RIP3_REFERENCE_ADOPTION.md) pins archive,
+document and derivation hashes. B119/B120 are documentary answers, not continuing
+blockers. Runtime work is tracked separately: ICON/hot sizing, retained redraw,
+image/label expansion, groups and hover are still pending.
+
+Connected clipboard buttons now read inactive/protected defined sources with a
+positive, partly backed viewport. Their full native viewport determines the face,
+effects, label and hit bounds, ignoring complete/mixed style dimensions and all
+far values. Available pixels keep their viewport-relative offset; missing pixels
+are COPY palette-index-0 padding. The existing surface transfer snapshots aliasing
+before padding, avoiding source corruption; no persistent raster or damage layer
+is added. Existing fields keep their creation geometry after source changes.
+
+Connected `1k` now uses normalized current-WORLD corners as absolute DEVICE
+coordinates, independent of PORT0 origin/activation or an unrelated current port.
+Contained, crossing (overlapping but not contained), and outside classes are
+disjoint; region flags union them before simple/button exclusions. Empty/collapsed
+selectors do nothing, including flag 4, and unsupported bits reject before changes.
+
+The owner snapshots selected rectangles, removes selected temporary depression,
+cancels only selected capture and deletes the complete selection. Painting follows:
+64 overrides 32; individual rectangles paint newest first, while 128 paints the
+selector interior exactly once even with no matches or both type exclusions.
+No region bits means no painting. Index-0 clear and opaque pattern use COPY,
+physical-screen clipping and absolute eight-device-pixel phase. Current PORT,
+STYLE, write mode and graphics cursor remain intact. All later paint attempts run
+after a failure; no field is restored and surviving capture stays with its instance.
+Every status remains below the void parser/session processing boundary.
+
+Independent native tests cover all 256 flag combinations, covering/touching/equal
+rectangles, reversed/empty/collapsed/offscreen selectors, mask/color preflight,
+newest-first failure continuation and surviving held capture. Connected CP437 and
+UTF-8 tests on 640x480, 800x600, 1024x768 and 720x400 check inactive source reads,
+logical padding/hits, capture survival through painting, remapped palette index 0,
+COPY despite XOR W and absolute patterned cleanup with unrelated current ports.
+Native session tests retain every-byte split input and nonfatal malformed recovery.
+The release build is warning-free; seven relevant native/guard tests and six
+connected mouse/button/keyboard tests pass. The ordinary ANSI/RIP1 rendering code
+and frozen RIP1.54 sources/fixtures are unchanged.
+
+The reviewed queue now has 8185 units: 1625 implemented, 1730 pending,
+3401 unreviewed, 1337 context, 67 excluded and 25 blocked. This remains an
+incomplete RIP3 implementation, with 58 pinned derivation notes and 68 normative
+documents. Existing source/provenance history is retained above; this milestone
+supersedes the earlier provisional `1k` and inactive-clipboard limitations.
 
 ## Verification and acceptance
 

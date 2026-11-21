@@ -586,6 +586,53 @@ st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
 	    port_surface(ports, source), NULL, &from, mode);
 }
 
+static int
+clipboard_padding(struct st_rip3_surface *surface,const struct st_rip3_rect *visible,
+    int64_t x0,int64_t y0,int64_t x1,int64_t y1)
+{
+	if (x0<visible->x0) x0=visible->x0;
+	if (y0<visible->y0) y0=visible->y0;
+	if (x1>visible->x1) x1=visible->x1;
+	if (y1>visible->y1) y1=visible->y1;
+	if (x0>x1 || y0>y1) return 0;
+	const struct st_rip3_rect area={(int32_t)x0,(int32_t)y0,(int32_t)x1,(int32_t)y1};
+	return st_rip3_surface_fill(surface,NULL,&area,0,ST_RIP3_COPY);
+}
+
+int
+st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports,unsigned source,int32_t x,int32_t y)
+{
+	struct st_rip3_port_info info;
+	int status=st_rip3_ports_info(ports,source,&info);
+	if (status!=0) return status;
+	if (!info.defined || !rect_valid(&info.viewport) || !rect_valid(&info.clip)) return IO_ERROR_NOT_FOUND;
+	const struct port *dst=&ports->entries[ports->current];
+	if (!dst->info.viewport_active) return 0;
+	struct st_rip3_rect from=viewport_absolute(&ports->entries[source]);
+	struct st_rip3_rect to=viewport_absolute(dst),visible=to;
+	struct st_rip3_surface *surface=port_surface(ports,ports->current);
+	uint32_t width,height;
+	status=st_rip3_surface_size(surface,&width,&height);
+	if (status!=0) return status;
+	const struct st_rip3_rect physical={0,0,(int32_t)width-1,(int32_t)height-1};
+	if (!clip(&visible,&physical)) return 0;
+	int64_t ox=(int64_t)to.x0+x,oy=(int64_t)to.y0+y;
+	if (ox>INT32_MAX || oy>INT32_MAX || ox<INT32_MIN || oy<INT32_MIN) return 0;
+	/* Copy first, using the existing overlap snapshot. Padding before this
+	 * transfer could corrupt a shared screen/source or self-aliased bitmap. */
+	status=st_rip3_surface_blit(surface,&visible,(int32_t)ox,(int32_t)oy,
+	    port_surface(ports,source),NULL,&from,ST_RIP3_TRANSFER_COPY);
+	if (status!=0) return status;
+	int64_t right=ox+(int64_t)from.x1-from.x0,bottom=oy+(int64_t)from.y1-from.y0;
+	int64_t left=ox+info.clip.x0,top=oy+info.clip.y0;
+	int64_t backed_right=ox+info.clip.x1,backed_bottom=oy+info.clip.y1;
+	status=clipboard_padding(surface,&visible,ox,oy,right,top-1);
+	if (status==0) status=clipboard_padding(surface,&visible,ox,backed_bottom+1,right,bottom);
+	if (status==0) status=clipboard_padding(surface,&visible,ox,top,left-1,backed_bottom);
+	if (status==0) status=clipboard_padding(surface,&visible,backed_right+1,top,right,backed_bottom);
+	return status;
+}
+
 int
 st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
     int32_t x, int32_t y, uint8_t *result)
@@ -682,6 +729,30 @@ st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
 {
 	if (ports==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	return st_rip3_surface_fill(ports->screen,NULL,area,color,ST_RIP3_COPY);
+}
+
+int
+st_rip3_ports_screen_pattern(struct st_rip3_ports *ports,
+    const struct st_rip3_rect *area, const uint8_t rows[8], uint8_t foreground, uint8_t background)
+{
+	if (ports==NULL || rows==NULL || !rect_valid(area)) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_rect visible=*area;
+	if (!clip(&visible,&ports->screen_bounds)) return 0;
+	for (int32_t y=visible.y0;y<=visible.y1;y++) {
+		int32_t start=visible.x0;
+		while (start<=visible.x1) {
+			bool on=(rows[(unsigned)y&7]&(UINT8_C(0x80)>>((unsigned)start&7)))!=0;
+			int32_t end=start;
+			/* Coalesce equal mask bits before the existing surface kernel;
+			 * solid rows take one fill rather than one port lookup per pixel. */
+			while (end<visible.x1 && ((rows[(unsigned)y&7]&(UINT8_C(0x80)>>((unsigned)(end+1)&7)))!=0)==on) end++;
+			const struct st_rip3_rect span={start,y,end,y};
+			int status=st_rip3_surface_fill(ports->screen,NULL,&span,on ? foreground : background,ST_RIP3_COPY);
+			if (status!=0) return status;
+			start=end+1;
+		}
+	}
+	return 0;
 }
 
 int

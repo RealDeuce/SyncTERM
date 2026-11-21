@@ -31,14 +31,21 @@ void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
 	bool invert, bool reset, int identity, const uint8_t *program, size_t length);
-/* Current delete-only policy, pending B120's normative reconciliation:
- * low bits 1/2/4 select contained,
- * overlapping or disjoint half-open rectangles; 8/16 exclude simple/button
- * fields. Union selected predicates. Retain each surviving instance and its
- * capture across compaction; deleting the captured instance cancels first.
- * Painting belongs to the command layer and is not performed here. */
+struct st_rip3_mouse_paint {
+	void *context;
+	/* Borrowed, synchronous half-open absolute DEVICE rectangle. All selected
+	 * instances have already been deleted. Failures do not stop later paints.
+	 * The callback must not reenter the mouse owner. */
+	int (*apply)(void *context, const struct st_rip3_rect *area, bool pattern);
+};
+/* Bits 1/2/4 union disjoint contained/crossing/outside classes; 8/16 exclude
+ * simple/button fields. Preserve surviving capture across compaction. Delete
+ * the whole selection before optional newest-first paint (64 wins 32);
+ * 128 paints the selector once, regardless of matches/type exclusions.
+ * No region bits or an empty selector is a complete no-op. Unsupported bits
+ * fail before mutation. Paint bindings must already be snapshotted. */
 int st_rip3_mouse_remove(struct st_rip3_mouse *mouse,
-	const struct st_rip3_rect *area, unsigned flags);
+	const struct st_rip3_rect *area, unsigned flags, const struct st_rip3_mouse_paint *paint);
 size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);

@@ -266,10 +266,10 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 		status=st_rip3_ports_info(host->ports,host->clipboard->port,&source);
 		if (status!=0) return status;
 		if (!source.defined) return IO_ERROR_NOT_FOUND;
-		/* The remaining inactive/empty image-source policy is B119; keep
-		 * unsupported definitions below the parser's nonfatal boundary. */
-		if (!source.viewport_active || source.clip.x1<source.clip.x0 || source.clip.y1<source.clip.y0)
-			return IO_ERROR_NOT_SUPPORTED;
+		/* Activation/protection gate writes, not clipboard reads. The whole
+		 * positive viewport must have at least some physical backing. */
+		if (source.viewport.x1<source.viewport.x0 || source.viewport.y1<source.viewport.y0
+		    || source.clip.x1<source.clip.x0 || source.clip.y1<source.clip.y0) return IO_ERROR_NOT_FOUND;
 	}
 	struct st_rip3_button_payload payload;
 	status=st_rip3_button_payload_parse(&payload,command+at,length-at);
@@ -325,8 +325,7 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	uint8_t corner=style.colors[ST_RIP3_BUTTON_CORNER];
 	if (status==0 && clipboard) {
 		if (face.x0>INT32_MAX || face.y0>INT32_MAX) status=IO_ERROR_OUT_OF_RANGE;
-		else status=st_rip3_ports_blit(host->ports,host->clipboard->port,NULL,target,
-		    (int32_t)face.x0,(int32_t)face.y0,ST_RIP3_TRANSFER_COPY);
+		else status=st_rip3_ports_clipboard_blit(host->ports,host->clipboard->port,(int32_t)face.x0,(int32_t)face.y0);
 	}
 	if (status==0 && !clipboard && (style.flags2&32)==0) {
 		if ((style.flags2&64)==0) status=fill(host,&port,face,style.colors[ST_RIP3_BUTTON_SURFACE]);

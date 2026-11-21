@@ -60,40 +60,77 @@ static int identities(void)
 	return 0;
 }
 
+struct paint_count {unsigned calls;bool pattern;struct st_rip3_rect area;};
+static int count_paint(void *context,const struct st_rip3_rect *area,bool pattern)
+{
+	struct paint_count *f=context;f->calls++;f->pattern=pattern;f->area=*area;return 0;
+}
 static int enclosed(void)
 {
 	struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	const struct st_rip3_rect selector={10,10,20,20};
 	const struct st_rip3_rect regions[]={{12,12,18,18},{10,10,20,20},
-	    {15,15,25,25},{20,10,30,20},{30,30,40,40}};
-	/* Independent counts for contained/equal/partial/touching/disjoint.
-	 * The pending B120 normative reconciliation is kept separate from this
-	 * explicit half-open geometric predicate table. */
-	const unsigned removed[]={0,2,3,3,2,4,5,5};
-	for (unsigned flags=0;flags<32;flags++) {
-		for (unsigned kind=0;kind<2;kind++) for (unsigned i=0;i<5;i++)
+	    {15,15,25,25},{5,5,25,25},{20,10,30,20},{30,30,40,40}};
+	/* PR123's disjoint C/P/O classes: contained/equal, partial/covering,
+	 * touching/disjoint. Each class has two independently chosen rectangles. */
+	const unsigned removed[]={0,2,2,4,2,4,4,6};
+	for (unsigned flags=0;flags<256;flags++) {
+		for (unsigned kind=0;kind<2;kind++) for (unsigned i=0;i<6;i++)
 			CHECK(st_rip3_mouse_define(f.mouse,(enum st_rip3_mouse_kind)kind,NULL,&regions[i],false,false,-1,NULL,0)==0);
-		CHECK(st_rip3_mouse_remove(f.mouse,&selector,flags)==0);
+		struct paint_count count={0};const struct st_rip3_mouse_paint paint={&count,count_paint};
+		CHECK(st_rip3_mouse_remove(f.mouse,&selector,flags,&paint)==0);
 		unsigned types=((flags&8)==0)+((flags&16)==0);
-		CHECK(st_rip3_mouse_count(f.mouse)==10-types*removed[flags&7]);
+		CHECK(st_rip3_mouse_count(f.mouse)==12-types*removed[flags&7]);
+		unsigned paints=(flags&7)!=0 && (flags&96)!=0 ? ((flags&128)!=0 ? 1 : types*removed[flags&7]) : 0;
+		CHECK(count.calls==paints);
+		if (paints!=0) CHECK(count.pattern==((flags&64)!=0));
+		if (paints!=0 && (flags&128)!=0) CHECK(memcmp(&count.area,&selector,sizeof(selector))==0);
 		st_rip3_mouse_kill(f.mouse);
 	}
 	const struct st_rip3_rect other={30,30,40,40};
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&other,false,false,8,(const uint8_t *)"b",1)==0);
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"a",1)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && f.flips==1);
-	CHECK(st_rip3_mouse_remove(f.mouse,&other,1)==0 && st_rip3_mouse_count(f.mouse)==1 && f.flips==1);
+	CHECK(st_rip3_mouse_remove(f.mouse,&other,1,NULL)==0 && st_rip3_mouse_count(f.mouse)==1 && f.flips==1);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,false));
 	CHECK(f.flips==2 && f.calls==1 && f.result=='a' && f.identity==7);
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"a",1)==0);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && f.flips==3);
-	CHECK(st_rip3_mouse_remove(f.mouse,&selector,1)==0 && !st_rip3_mouse_active(f.mouse) && f.flips==4);
+	CHECK(st_rip3_mouse_remove(f.mouse,&selector,1,NULL)==0 && !st_rip3_mouse_active(f.mouse) && f.flips==4);
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&selector,true,false,7,(const uint8_t *)"c",1)==0);
 	CHECK(!st_rip3_mouse_event(f.mouse,15,15,true) && !st_rip3_mouse_event(f.mouse,15,15,false));
 	CHECK(f.calls==1);
 	CHECK(st_rip3_mouse_event(f.mouse,15,15,true) && st_rip3_mouse_event(f.mouse,15,15,false));
 	CHECK(f.flips==6 && f.calls==2 && f.result=='c' && f.identity==7);
+	st_rip3_mouse_destroy(f.mouse);return 0;
+}
+
+struct paint_fixture {struct st_rip3_mouse *mouse;struct fixture input;unsigned calls;bool valid;};
+static int failed_paint(void *context,const struct st_rip3_rect *area,bool pattern)
+{
+	struct paint_fixture *f=context;
+	/* Both fields must be gone before even the first failed paint. Newest
+	 * rectangle first; failure must not suppress the second attempt. */
+	f->valid&=st_rip3_mouse_count(f->mouse)==1 && pattern
+	    && area->x0==(f->calls==0 ? 14 : 12);
+	return ++f->calls==1 ? IO_ERROR_OUT_OF_MEMORY : 0;
+}
+static int paint_failure(void)
+{
+	struct paint_fixture f={.valid=true};const struct st_rip3_mouse_sink sink={.context=&f.input,.invert=flip,.activate=activate};
+	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
+	f.input.mouse=f.mouse;
+	const struct st_rip3_rect selector={10,10,20,20},a={12,12,13,13},b={14,14,15,15};
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&a,false,false,-1,NULL,0)==0);
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,NULL,&b,false,false,-1,NULL,0)==0);
+	const struct st_rip3_rect survivor={40,40,50,50};
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&survivor,true,false,9,(const uint8_t *)"e",1)==0);
+	CHECK(st_rip3_mouse_event(f.mouse,45,45,true) && f.input.flips==1);
+	const struct st_rip3_mouse_paint paint={&f,failed_paint};
+	CHECK(st_rip3_mouse_remove(f.mouse,&selector,1|64,&paint)==IO_ERROR_OUT_OF_MEMORY);
+	CHECK(f.valid && f.calls==2 && st_rip3_mouse_count(f.mouse)==1 && f.input.flips==1);
+	CHECK(st_rip3_mouse_event(f.mouse,45,45,false) && f.input.flips==2 && f.input.calls==1 && f.input.identity==9 && f.input.result=='e');
 	st_rip3_mouse_destroy(f.mouse);return 0;
 }
 
@@ -146,7 +183,7 @@ static int keyboard(void)
 
 int main(void)
 {
-	CHECK(identities()==0 && enclosed()==0 && keyboard()==0);
+	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0);
 	struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	struct st_rip3_rect area={10,20,30,40};

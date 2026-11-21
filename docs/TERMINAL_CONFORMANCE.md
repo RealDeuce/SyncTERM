@@ -28,15 +28,18 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 simple mouse fields, host execution, captured coordinates, deletion and native
 text/graphics press feedback and the adopted PR #115 gesture/identity policy.
 `syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise
-plain `1U` buttons, active clipboard faces, classic/Dixon labels, pointer
+plain `1U` buttons, native clipboard faces (including inactive/protected reads
+and partial-viewport padding), classic/Dixon labels, pointer
 activation, reset-before-host, shared capacity and deferred host failure
 recovery on four connection rasters.
 PR #117 defines positional payload splitting and half-open hit boundaries;
 native tests cover raw limits, reversed/degenerate faces and viewport snapshots.
-Deletion-only `1k` tests distinguish simple fields/buttons, retain a captured
-instance across compaction, remove feedback before captured deletion, and prevent
-a same-ID replacement from inheriting the held gesture. Full region/painting
-policy awaits #120; paint requests remain nonfatal and preserve existing fields.
+PR #123 `1k` tests cover all 256 flag combinations, disjoint contained/crossing/
+outside classes, absolute normalized WORLD selectors, deletion before painting,
+COPY index-0 cleanup, opaque screen-phase patterns and once-only selector paint.
+They retain surviving captures, cancel deleted ones, continue failed paint attempts
+and reject unsupported flags nonfatally. PR #122 supplies clipboard eligibility/
+padding and per-type geometry; ICON/hot image implementation remains pending.
 Auto-stamp captures implemented plain/clipboard faces before their label, mutates
 protected live style flags only on success, and recovers after capture/font
 failures. Tests verify exported dimensions/colors and current-clipboard replacement.

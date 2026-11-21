@@ -156,6 +156,20 @@ def run(args,width,height):
         click(304,302,b"screen-zero")
         values(b"$CUR(PORT,0)$")
 
+        t.case(f"rip3-clipboard-inactive-source-padding-{width}x{height}")
+        # The clipboard allocation is 5x3. Expand its viewport to 7x5,
+        # deactivate and protect it, then retain that logical image size.
+        frame=values(b"$CUR(PORT)$",b"0")
+        values(b"$CUR(PORT,1)$")
+        t.exchange(b"\x01|v00000604|v00000000\r\n")
+        values(b"$PROT(PORT,1)$$CUR(PORT,0)$")
+        frame=t.exchange(button((250,300,1,1),b"<><>padded"))
+        assert pixel(frame,250,300)==0x00aaaa and pixel(frame,254,302)==0x00aaaa
+        assert pixel(frame,255,300)==0 and pixel(frame,250,303)==0 and pixel(frame,256,304)==0
+        click(256,304,b"padded")
+        click(257,304)
+        values(b"$UNPROT(PORT,1)$")
+
         t.case(f"rip3-enclosed-field-types-and-capture-{width}x{height}")
         values(b"$MKILL$")
         definitions=(field((10,100,50,140),b"simple",invert=True)
@@ -186,14 +200,46 @@ def run(args,width,height):
         mouse(110,110,True,move=True);mouse(110,110)
         t.exchange()
         click(110,110,b"replacement:7")
-        # Pending paint flags and malformed bodies are rejected inside RIP,
+        # Unsupported flags and malformed bodies are rejected inside RIP,
         # leaving a usable held button and connection intact.
         mouse(110,110,True)
         pressed=t.exchange()
-        after=t.exchange(remove_fields((0,0,200,200),1|32)+b"\x01|1kbad\r\n")
+        after=t.exchange(remove_fields((0,0,200,200),256)+b"\x01|1kbad\r\n")
         assert after.primary==pressed.primary and after.alternate==pressed.alternate
         mouse(110,110)
         t.input(b"replacement:7")
+
+        t.case(f"rip3-enclosed-field-copy-cleanup-{width}x{height}")
+        values(b"$MKILL$")
+        far=number(width-1,2)+number(height-1,2)
+        t.exchange(b"\x01|S0103|B0000"+far+b"|W1\r\n"
+                   +field((100,100,140,140),b"survivor",invert=True))
+        # No matches after both exclusions: 128 still paints exactly S.
+        # A surviving held gesture retains its instance through that paint.
+        mouse(110,110,True)
+        t.exchange(remove_fields((105,105,135,135),1|8|16|32|128))
+        mouse(110,110)
+        frame=t.input(b"survivor")
+        assert pixel(frame,110,110)==0 and pixel(frame,104,110)==0x00aaaa
+        # No region bits suppress both deletion and painting.
+        before=frame
+        frame=t.exchange(remove_fields((0,0,200,200),32|128))
+        assert frame.primary==before.primary and frame.alternate==before.alternate
+        # Absolute selector ignores a changed/inactive PORT0 viewport and an
+        # unrelated current bitmap port; COPY also ignores the active XOR W.
+        t.exchange(b"\x01|a0009|vB4B4DWAM|v00000000|2s600\r\n")
+        frame=t.exchange(remove_fields((140,140,100,100),1|32|128))
+        assert pixel(frame,100,100)==0x0000ff and pixel(frame,139,139)==0x0000ff and pixel(frame,140,140)==0x00aaaa
+        click(110,110)
+        values(b"$CUR(PORT)$",b"6")
+        # 64 wins 32 and uses absolute 8-pixel mask phase even while the
+        # destination port is an inactive bitmap. No field match is needed.
+        t.exchange(b"\x01|k01|s3K0000000000000002\r\n")
+        frame=t.exchange(remove_fields((11,21,30,40),1|8|16|32|64|128))
+        assert pixel(frame,16,24)==0x00aa00 and pixel(frame,17,24)==0x0000aa
+        assert pixel(frame,16,25)==0x0000aa and pixel(frame,10,24)==0x00aaaa
+        values(b"$CUR(PORT,0)$")
+        t.exchange(b"\x01|a0000|v0000"+far+b"|W0\r\n")
 
         t.case(f"rip3-auto-stamp-protected-style-{width}x{height}")
         values(b"$MKILL$$CUR(BUT,5)$")

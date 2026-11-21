@@ -114,12 +114,17 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 }
 
 int
-st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area, unsigned flags)
+st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area, unsigned flags,
+    const struct st_rip3_mouse_paint *paint)
 {
-	if (mouse==NULL || area==NULL || area->x0<0 || area->y0<0 || area->x1<=area->x0 || area->y1<=area->y0)
+	if (mouse==NULL || area==NULL || area->x0<0 || area->y0<0 || (flags&~255u)!=0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if ((flags&~31u)!=0) return IO_ERROR_INVALID_ARGUMENT;
-	size_t kept=0;
+	if ((flags&7)==0 || area->x1<=area->x0 || area->y1<=area->y0) return 0;
+	bool painting=(flags&96)!=0;
+	if (painting && (paint==NULL || paint->apply==NULL)) return IO_ERROR_NOT_SUPPORTED;
+	/* Bounded command-local snapshots, not another resident damage/scene
+	 * layer. Stable pointers identify the selection until feedback is gone. */
+	bool selected[128];struct st_rip3_rect removed[128];size_t count=0;
 	for (size_t i=0;i<mouse->count;i++) {
 		struct field *field=mouse->fields[i];
 		bool excluded=(flags&(field->kind==ST_RIP3_MOUSE_SIMPLE ? 8u : 16u))!=0;
@@ -127,14 +132,28 @@ st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *are
 		    && field->area.x1<=area->x1 && field->area.y1<=area->y1;
 		bool overlap=field->area.x0<area->x1 && field->area.y0<area->y1
 		    && field->area.x1>area->x0 && field->area.y1>area->y0;
-		bool selected=((flags&1)!=0 && contained) || ((flags&2)!=0 && overlap) || ((flags&4)!=0 && !overlap);
-		if (!excluded && selected) {
-			if (mouse->pressed==field) st_rip3_mouse_cancel(mouse);
-			free(field);
-		}
+		selected[i]=!excluded && (((flags&1)!=0 && contained)
+		    || ((flags&2)!=0 && overlap && !contained) || ((flags&4)!=0 && !overlap));
+		if (selected[i]) removed[count++]=field->area;
+	}
+	for (size_t i=0;i<mouse->count;i++)
+		if (selected[i] && mouse->pressed==mouse->fields[i]) st_rip3_mouse_cancel(mouse);
+	size_t kept=0;
+	for (size_t i=0;i<mouse->count;i++) {
+		struct field *field=mouse->fields[i];
+		if (selected[i]) free(field);
 		else mouse->fields[kept++]=field;
 	}
-	mouse->count=kept;return 0;
+	mouse->count=kept;
+	if (!painting) return 0;
+	bool pattern=(flags&64)!=0;
+	if ((flags&128)!=0) return paint->apply(paint->context,area,pattern);
+	int status=0;
+	while (count!=0) {
+		int result=paint->apply(paint->context,&removed[--count],pattern);
+		if (status==0) status=result;
+	}
+	return status;
 }
 
 static bool
