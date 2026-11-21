@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 struct st_rip3_mouse;
+enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
 /* Scoped callback value; an inactive context has no numeric fallback. */
 struct st_rip3_field_context {bool active;int identity;};
 /* Parse one definition-time prefix. Failure leaves both payload views intact
@@ -25,8 +26,16 @@ int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mou
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
 /* Half-open, clipped absolute DEVICE bounds. Simple fields and button
  * records share this owner's 128 entries. No drawing buffers or damage map. */
-int st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area,
+int st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind, const struct st_rip3_rect *area,
 	bool invert, bool reset, int identity, const uint8_t *program, size_t length);
+/* Current delete-only policy, pending B120's normative reconciliation:
+ * low bits 1/2/4 select contained,
+ * overlapping or disjoint half-open rectangles; 8/16 exclude simple/button
+ * fields. Union selected predicates. Retain each surviving instance and its
+ * capture across compaction; deleting the captured instance cancels first.
+ * Painting belongs to the command layer and is not performed here. */
+int st_rip3_mouse_remove(struct st_rip3_mouse *mouse,
+	const struct st_rip3_rect *area, unsigned flags);
 size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);

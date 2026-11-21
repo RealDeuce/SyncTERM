@@ -6866,6 +6866,49 @@ and the contract/preservation guards. The queue now has 1565 implemented,
 1710 pending, 3441 unreviewed, 1287 context, 67 excluded and 29 blocked units.
 Full compliance remains unfinished; the RIP1.54 freeze is unchanged.
 
+## Connected deletion-only enclosed fields
+
+`1k` now reaches the shared field owner from connected sessions. Definitions
+retain whether they came from a simple `1M` field or a mouse-active `1U` button;
+exclusion bits 8/16 therefore work independently of public IDs. Mouse-table
+compaction retains allocated surviving instances. Deleting another field does
+not remove or move a held field's feedback/capture; deleting the captured
+instance removes feedback and cancels before freeing it. A replacement with
+the same ID/rectangle must receive a fresh physical press. Nonmouse decorations
+remain outside the shared field table.
+
+The currently implemented deletion-only policy uses positive half-open selectors
+and contained/positive-overlap/disjoint predicates, combining region bits 1/2/4
+as a union. Touching edges have no positive overlap; an equal rectangle is
+contained. No region bits means no deletion. Selector coordinates project through
+current ENV and PORT0's stored viewport origin without clipping or relocating
+existing global hit rectangles, and without changing current PORT/STYLE/cursors.
+Deletion leaves scene pixels intact apart from removing transient press feedback.
+
+New parent issue [B120](https://github.com/bbs-land/remote-imaging-protocol/issues/120)
+requests explicit reconciliation of the old “non-intersecting” description,
+region combinations and edges, selector origin/empty/inactive behavior, unknown
+flags and optional paint context/order. The corresponding full clauses remain
+blocked; the local predicate policy above is not claimed as a resolved reference
+answer. Bits 32/64 still reject nonfatally before deleting or touching feedback.
+Bit 128 alone has no visual effect. Complete painting remains unfinished.
+No prior issue receives further comments, and the stable reference pin remains
+`1b8ab9928a9fd9071556cf0228ea69a496db3e72`.
+
+Native tests cover all 32 region/type combinations over contained, equal,
+partially overlapping, touching and disjoint fields of both kinds, plus deletion
+and replacement during a held gesture. Session tests deliver the wire operation
+one byte at a time, use literal radix-64/XY5 input, and recover after malformed,
+collapsed and unsupported-paint requests. Connected CP437/UTF-8 tests verify
+unchanged complete pixel planes on deletion, survivor capture during compaction,
+feedback removal on captured deletion, no gesture inheritance and subsequent
+host replies across four device rasters. Native Release CMake is warning-free
+and ten affected CTests pass, including the contract/preservation guards.
+RIP1.54 sources/fixtures remain frozen;
+no new damage layer or normal ANSI/RIP1 rendering operation is introduced.
+
+The review queue is 1574 implemented, 1709 pending, 3424 unreviewed, 1287 context, 67 excluded, 38 blocked units. Full RIP3 compliance remains unfinished.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

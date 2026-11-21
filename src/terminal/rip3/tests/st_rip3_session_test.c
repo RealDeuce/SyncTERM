@@ -765,6 +765,36 @@ world_state(void)
 }
 
 static int
+enclosed_fields(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1M000A0A0K0K0000000simple|1B00000200ZK000F000F080700000F07000000|1U0U0U14140000<><>button\r")==0
+	    && pump(&f)==0 && f.errors==0);
+	/* Every byte passes the public void stream boundary independently. Flag
+	 * 8 retains simple fields and removes only the enclosed button. */
+	const char *wire="!|1k00001E1E0009\r";
+	for (size_t i=0;i<strlen(wire);i++) {
+		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);
+		st_rip3_session_process(f.session,1);
+	}
+	CHECK(f.errors==0 && !st_rip3_session_mouse(f.session,35,35,true) && !st_rip3_session_mouse(f.session,35,35,false));
+	CHECK(st_rip3_session_mouse(f.session,15,15,true) && st_rip3_session_mouse(f.session,15,15,false));
+	CHECK(f.reply_length==6 && memcmp(f.reply,"simple",6)==0);f.reply_length=0;
+	/* Malformed bodies, degenerate selectors and deferred painting flags
+	 * leave the usable field intact and cannot terminate the owner. */
+	CHECK(append(&f,"!|1kbad|1k000000000001|1k00001E1E000X\r")==0 && pump(&f)==0 && f.errors==3);
+	CHECK(st_rip3_session_mouse(f.session,15,15,true) && st_rip3_session_mouse(f.session,15,15,false));
+	CHECK(f.reply_length==6 && memcmp(f.reply,"simple",6)==0);f.reply_length=0;
+	CHECK(query(&f,"$COORDSIZE(CUR,5)$$BASEMATH(CUR,64)$","")==0);
+	CHECK(append(&f,"!|1k00000000000000e0000e0001\r")==0 && pump(&f)==0 && f.errors==3);
+	CHECK(!st_rip3_session_mouse_active(f.session));
+	CHECK(query(&f,"alive","alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 plain_button(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -855,6 +885,7 @@ construction(bool device)
 int
 main(void)
 {
+	CHECK(enclosed_fields()==0);
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0);
 	CHECK(world_state()==0);

@@ -32,6 +32,10 @@ plain/active-clipboard `1U` rendering, classic/Dixon labels, pointer activation,
 shared capacity and deferred host failure recovery on four connection rasters.
 PR #117 defines positional payload splitting and half-open hit boundaries;
 native tests cover raw limits, reversed/degenerate faces and viewport snapshots.
+Deletion-only `1k` tests distinguish simple fields/buttons, retain a captured
+instance across compaction, remove feedback before captured deletion, and prevent
+a same-ID replacement from inheriting the held gesture. Full region/painting
+policy awaits #120; paint requests remain nonfatal and preserve existing fields.
 Clear/zoom, hover, ICON/hot/auto faces and groups remain pending. Keyboard
 activation and complete nonplain source sizing/eligibility await #118/#119; see the RIP3 inventory for the exact supported subset.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector

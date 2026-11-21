@@ -6,6 +6,7 @@
 
 struct field {
 	struct st_rip3_rect area;
+	enum st_rip3_mouse_kind kind;
 	bool invert,reset;
 	int identity;
 	size_t length;
@@ -89,19 +90,44 @@ st_rip3_mouse_count(const struct st_rip3_mouse *mouse)
 }
 
 int
-st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area,
+st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind, const struct st_rip3_rect *area,
     bool invert, bool reset, int identity, const uint8_t *program, size_t length)
 {
 	if (mouse==NULL || area==NULL || (program==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
+	if (kind!=ST_RIP3_MOUSE_SIMPLE && kind!=ST_RIP3_MOUSE_BUTTON) return IO_ERROR_INVALID_ARGUMENT;
 	if (identity<-1 || identity>32767 || area->x0<0 || area->y0<0 || area->x1<=area->x0 || area->y1<=area->y0)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->count==128 || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
 	if (invert && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	field->area=*area;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
+	field->area=*area;field->kind=kind;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
 	if (length!=0) memcpy(field->program,program,length);
 	mouse->fields[mouse->count++]=field;return 0;
+}
+
+int
+st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area, unsigned flags)
+{
+	if (mouse==NULL || area==NULL || area->x0<0 || area->y0<0 || area->x1<=area->x0 || area->y1<=area->y0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if ((flags&~31u)!=0) return IO_ERROR_INVALID_ARGUMENT;
+	size_t kept=0;
+	for (size_t i=0;i<mouse->count;i++) {
+		struct field *field=mouse->fields[i];
+		bool excluded=(flags&(field->kind==ST_RIP3_MOUSE_SIMPLE ? 8u : 16u))!=0;
+		bool contained=field->area.x0>=area->x0 && field->area.y0>=area->y0
+		    && field->area.x1<=area->x1 && field->area.y1<=area->y1;
+		bool overlap=field->area.x0<area->x1 && field->area.y0<area->y1
+		    && field->area.x1>area->x0 && field->area.y1>area->y0;
+		bool selected=((flags&1)!=0 && contained) || ((flags&2)!=0 && overlap) || ((flags&4)!=0 && !overlap);
+		if (!excluded && selected) {
+			if (mouse->pressed==field) st_rip3_mouse_cancel(mouse);
+			free(field);
+		}
+		else mouse->fields[kept++]=field;
+	}
+	mouse->count=kept;return 0;
 }
 
 static bool

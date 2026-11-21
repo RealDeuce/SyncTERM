@@ -364,7 +364,7 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 		int64_t ox=(int64_t)port.bounds.x0+port.viewport.x0,oy=(int64_t)port.bounds.y0+port.viewport.y0;
 		struct st_rip3_rect area={(int32_t)(ox+hit.x0),(int32_t)(oy+hit.y0),
 		    (int32_t)(ox+hit.x1),(int32_t)(oy+hit.y1)};
-		status=st_rip3_mouse_define(host->mouse,&area,(style.flags&2)!=0,(style.flags&4)!=0,payload.identity,
+		status=st_rip3_mouse_define(host->mouse,ST_RIP3_MOUSE_BUTTON,&area,(style.flags&2)!=0,(style.flags&4)!=0,payload.identity,
 		    payload.host.data,payload.host.length);
 	}
 	return status;

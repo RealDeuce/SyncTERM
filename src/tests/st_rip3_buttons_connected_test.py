@@ -25,6 +25,10 @@ def button(area,payload=b"<><>",hotkey=0,flags=0,radix=36,xy=2):
             +number(hotkey,2,radix)+number(flags,1,radix)+b"0"+payload+b"\r\n")
 
 
+def remove_fields(area,flags):
+    return b"\x01|1k"+b"".join(number(v,2) for v in area)+number(flags,4)+b"\r\n"
+
+
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -151,6 +155,45 @@ def run(args,width,height):
         assert pixel(frame,300,300)==0x00aaaa and pixel(frame,304,302)==0x00aaaa
         click(304,302,b"screen-zero")
         values(b"$CUR(PORT,0)$")
+
+        t.case(f"rip3-enclosed-field-types-and-capture-{width}x{height}")
+        values(b"$MKILL$")
+        definitions=(field((10,100,50,140),b"simple",invert=True)
+                     +style(flags=256|1024|2)
+                     +button((100,100,140,140),b"ID=7:<><>button:$FIELDID$"))
+        before=t.exchange(definitions)
+        after=t.exchange(remove_fields((0,0,200,200),1|16))
+        assert after.primary==before.primary and after.alternate==before.alternate
+        click(20,110)
+        click(110,110,b"button:7")
+        # Removing an older field compacts the table but preserves the held
+        # button instance and both native feedback planes exactly.
+        values(b"$MKILL$")
+        before=t.exchange(definitions)
+        mouse(110,110,True)
+        pressed=t.exchange()
+        after=t.exchange(remove_fields((0,0,60,150),1|16))
+        assert after.primary==pressed.primary and after.alternate==pressed.alternate
+        mouse(110,110)
+        after=t.input(b"button:7")
+        assert after.primary==before.primary and after.alternate==before.alternate
+        # Deleting that captured button removes feedback before freeing it.
+        # A replacement with the same ID/rectangle cannot inherit the press.
+        mouse(110,110,True)
+        after=t.exchange(remove_fields((0,0,200,200),1|8))
+        assert after.primary==before.primary and after.alternate==before.alternate
+        t.exchange(button((100,100,140,140),b"ID=7:<><>replacement:$FIELDID$"))
+        mouse(110,110,True,move=True);mouse(110,110)
+        t.exchange()
+        click(110,110,b"replacement:7")
+        # Pending paint flags and malformed bodies are rejected inside RIP,
+        # leaving a usable held button and connection intact.
+        mouse(110,110,True)
+        pressed=t.exchange()
+        after=t.exchange(remove_fields((0,0,200,200),1|32)+b"\x01|1kbad\r\n")
+        assert after.primary==pressed.primary and after.alternate==pressed.alternate
+        mouse(110,110)
+        t.input(b"replacement:7")
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
         assert (frame.metadata["plane_width"],frame.metadata["plane_height"])==(width,height)
