@@ -619,6 +619,9 @@ does not dump terminal input/output or subnegotiation payloads.
 | st_connection_connect_ssh(result, profile, current_screen, hooks, error)
 | Accepts SSH or SSH_NO_AUTH profiles. SSH probes none, then uses an Ed25519
 client key, password, or keyboard-interactive authentication as offered.
+Each completed authentication response supplies the current continuation
+methods. Partial success advances to the next offered factor; only explicit
+authentication success opens the shell. Operation errors stop authentication.
 SSH_NO_AUTH sends only none authentication. Opens a PTY shell using the
 terminal name, usable geometry, legacy terminal modes, and encoding-derived
 IUTF8 flag. CBC and early channel data follow their profile opt-ins.
@@ -632,6 +635,9 @@ messages are shown through owner-thread notices. Keyboard-interactive
 instructions are shown separately from the challenge. Only the exact
 single, non-echoing `Password: ` challenge uses a saved password, once per
 authentication attempt; OTP and subsequent prompts require user input.
+Keyboard-interactive responses remain owned by SyncTERM until DeuceSSH
+releases their result lease, including on cancellation or failure. Zero-prompt
+rounds send an empty response without requesting user input.
 The profile's protocol-log threshold is applied to DeuceSSH before the
 handshake: ERROR and lower select errors, WARNING through INFO select
 warnings, and DEBUG enables successful handshakes (including negotiated

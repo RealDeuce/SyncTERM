@@ -66,10 +66,16 @@ auth_none(const uint8_t *user, size_t size, void *context)
 }
 static int
 auth_password(const uint8_t *user, size_t user_size, const uint8_t *password,
-	size_t password_size, uint8_t **change, size_t *change_size, void *context)
+	size_t password_size, struct dssh_bytes_result *change, void *context)
 {
-	(void)change; (void)change_size; (void)context;
+	(void)change;
 	if (strcmp(mode, "retry") == 0 && ++password_attempts <= 2) return DSSH_AUTH_FAILURE;
+	if (strcmp(mode, "partial") == 0 && user_size == 5 && memcmp(user, "guest", 5) == 0
+	    && password_size == 6 && memcmp(password, "secret", 6) == 0) {
+		struct dssh_auth_server_cbs *auth = context;
+		auth->methods_str = "keyboard-interactive";
+		return ++password_attempts == 1 ? DSSH_AUTH_PARTIAL : DSSH_AUTH_DISCONNECT;
+	}
 	return user_size == 5 && memcmp(user, "guest", 5) == 0
 	    && password_size == 6 && memcmp(password, "secret", 6) == 0
 	    ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
@@ -88,35 +94,38 @@ auth_publickey(const uint8_t *user, size_t user_size, const char *algorithm,
 	return strncmp(authorized_line + 12, encoded, length) == 0
 	    && authorized_line[12 + length] == ' ' ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
 }
-static char *
-copy_text(const char *text)
+static void
+release_static(void *context)
 {
-	size_t size = strlen(text) + 1;
-	char *copy = malloc(size);
-	if (copy != NULL) memcpy(copy, text, size);
-	return copy;
+	(void)context;
 }
 static int
 auth_keyboard(const uint8_t *user, size_t user_size, uint32_t count,
-	const uint8_t **responses, const size_t *sizes, char **name,
-	char **instruction, uint32_t *prompt_count, char ***prompts, bool **echo,
-	void *context)
+	const uint8_t **responses, const size_t *sizes,
+	struct dssh_auth_challenge *out, void *context)
 {
 	(void)user; (void)user_size; (void)context;
+	static const struct dssh_auth_prompt prompts[] = {
+		{{(const uint8_t *)"Password: ", 10}, false},
+		{{(const uint8_t *)"OTP: ", 5}, false},
+	};
+	bool multi = strncmp(mode, "keyboard-multi", 14) == 0;
+	if (strcmp(mode, "keyboard-zero") == 0 && auth_round++ != 0)
+		return count == 0 ? DSSH_AUTH_SUCCESS : DSSH_AUTH_FAILURE;
 	if (count != 0) {
-		const char *expected = strcmp(mode, "keyboard-otp") == 0 || auth_round != 0 ? "654321" : "secret";
-		if (count != 1 || sizes[0] != 6 || memcmp(responses[0], expected, 6) != 0)
+		const char *expected = strcmp(mode, "keyboard-otp") == 0
+		    || strcmp(mode, "partial") == 0 || auth_round != 0 ? "654321" : "secret";
+		if (count != (multi ? 2u : 1u) || sizes[0] != 6 || memcmp(responses[0], expected, 6) != 0
+		    || (multi && (sizes[1] != 6 || memcmp(responses[1], "654321", 6) != 0)))
 			return DSSH_AUTH_FAILURE;
 		if (strcmp(mode, "keyboard-repeat") != 0 || auth_round++ != 0) return DSSH_AUTH_SUCCESS;
 	}
-	*name = copy_text("Fixture");
-	*instruction = copy_text("Authentication");
-	*prompts = calloc(1, sizeof(**prompts));
-	*echo = calloc(1, sizeof(**echo));
-	if (*prompts != NULL) (*prompts)[0] = copy_text(strcmp(mode, "keyboard-otp") == 0 ? "OTP: " : "Password: ");
-	*prompt_count = 1;
-	return *name != NULL && *instruction != NULL && *prompts != NULL
-	    && (*prompts)[0] != NULL && *echo != NULL ? DSSH_AUTH_KBI_PROMPT : DSSH_AUTH_FAILURE;
+	out->name = (struct dssh_bytes){(const uint8_t *)"Fixture", 7};
+	out->instruction = (struct dssh_bytes){(const uint8_t *)"Authentication", 14};
+	out->prompts = prompts + (strcmp(mode, "keyboard-otp") == 0 || strcmp(mode, "partial") == 0);
+	out->count = strcmp(mode, "keyboard-zero") == 0 ? 0 : multi ? 2 : 1;
+	out->lease.release = release_static;
+	return DSSH_AUTH_KBI_PROMPT;
 }
 static int
 pty(dssh_channel ch, const struct dssh_chan_params *p, void *context)
@@ -192,6 +201,7 @@ main(int argc, char **argv)
 		.publickey_cb = auth_publickey,
 		.keyboard_interactive_cb = auth_keyboard,
 	};
+	auth.cbdata = &auth;
 	const struct dssh_chan_accept_cbs accept_callbacks = {
 		.pty_req = pty, .env = environment, .shell = shell,
 	};

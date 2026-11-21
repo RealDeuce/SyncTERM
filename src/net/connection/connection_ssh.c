@@ -125,6 +125,8 @@ static st_once_flag_t init_once = ST_ONCE_FLAG_INIT;
 static st_mutex_t init_mutex;
 static bool init_mutex_valid, algorithms_ready;
 static int initialization_status;
+static int ssh_tx(uint8_t *, size_t, dssh_session, void *);
+static int ssh_rx(uint8_t *, size_t, dssh_session, void *);
 
 static int
 ssh_error(int status)
@@ -134,8 +136,7 @@ ssh_error(int status)
 	case DSSH_ERROR_ALLOC: return IO_ERROR_OUT_OF_MEMORY;
 	case DSSH_ERROR_TIMEOUT: return IO_ERROR_TIMED_OUT;
 	case DSSH_ERROR_TERMINATED: return IO_ERROR_CONNECTION_RESET;
-	case DSSH_ERROR_REJECTED:
-	case DSSH_ERROR_AUTH_REJECTED: return IO_ERROR_PERMISSION_DENIED;
+	case DSSH_ERROR_REJECTED: return IO_ERROR_PERMISSION_DENIED;
 	case DSSH_ERROR_INIT: return IO_ERROR_IO;
 	default: return IO_ERROR_PROTOCOL;
 	}
@@ -166,6 +167,7 @@ initialize_algorithms(const char *key_file)
 		};
 		for (size_t i = 0; i < sizeof(functions) / sizeof(functions[0])
 		    && status == 0; ++i) status = functions[i]();
+		if (status == 0) status = dssh_transport_set_callbacks(ssh_tx, ssh_rx, NULL, NULL);
 		if (status == 0 && (key_file == NULL
 		    || dssh_ed25519_load_key_file(key_file, NULL, NULL) != 0)) {
 			status = dssh_ed25519_generate_key();
@@ -460,15 +462,45 @@ prompt(struct ssh_transport *t, const char *title, const char *message,
 	return 0;
 }
 
+struct ssh_auth_responses {
+	uint32_t count;
+	struct dssh_bytes *items;
+};
+
+static void
+release_auth_responses(void *context)
+{
+	struct ssh_auth_responses *responses = context;
+	for (uint32_t i = 0; i < responses->count; ++i) {
+		if (responses->items[i].data != NULL) {
+			st_crypto_clear((void *)responses->items[i].data, responses->items[i].len + 1);
+			free((void *)responses->items[i].data);
+		}
+	}
+	free(responses->items);
+	free(responses);
+}
+
 static int
 keyboard_interactive(const uint8_t *name, size_t name_size,
 	const uint8_t *instruction, size_t instruction_size, uint32_t count,
 	const uint8_t **prompts, const size_t *prompt_sizes, const bool *echo,
-	uint8_t **responses, size_t *response_sizes, void *context)
+	struct dssh_auth_responses *out, void *context)
 {
 	struct ssh_transport *t = context;
+	struct ssh_auth_responses *responses = NULL;
 	(void)name;
 	(void)name_size;
+	if (count != 0) {
+		responses = calloc(1, sizeof(*responses));
+		if (responses == NULL) return DSSH_ERROR_ALLOC;
+		responses->items = calloc(count, sizeof(*responses->items));
+		if (responses->items == NULL) { free(responses); return DSSH_ERROR_ALLOC; }
+		responses->count = count;
+		out->items = responses->items;
+		out->count = count;
+		out->lease = (struct dssh_result_lease){release_auth_responses, responses};
+	}
 	if (instruction_size != 0)
 		ssh_notice(t, "SSH Keyboard-Interactive", instruction, instruction_size);
 	for (uint32_t i = 0; i < count; ++i) {
@@ -484,18 +516,39 @@ keyboard_interactive(const uint8_t *name, size_t name_size,
 		} else {
 			status = prompt(t, "SSH Keyboard-Interactive", question, ST_PROFILE_PASSWORD_MAX, !echo[i], &answer);
 			if (status != 0) {
-				for (uint32_t j = 0; j < i; ++j) {
-					st_crypto_clear(responses[j], response_sizes[j]);
-					free(responses[j]); responses[j] = NULL; response_sizes[j] = 0;
-				}
-				return DSSH_ERROR_AUTH_REJECTED;
+				if (answer != NULL) { st_crypto_clear(answer, strlen(answer) + 1); free(answer); }
+				return status == IO_ERROR_OUT_OF_MEMORY ? DSSH_ERROR_ALLOC : DSSH_ERROR_REJECTED;
 			}
 		}
 		if (answer == NULL) return DSSH_ERROR_ALLOC;
-		responses[i] = (uint8_t *)answer;
-		response_sizes[i] = strlen(answer);
+		responses->items[i] = (struct dssh_bytes){(const uint8_t *)answer, strlen(answer)};
 	}
 	return 0;
+}
+
+static bool
+auth_method(const char *methods, const char *name)
+{
+	size_t length = strlen(name);
+	while (*methods != '\0') {
+		size_t size = strcspn(methods, ",");
+		if (size == length && memcmp(methods, name, size) == 0) return true;
+		methods += size;
+		if (*methods == ',') ++methods;
+	}
+	return false;
+}
+
+static int
+auth_methods(struct ssh_transport *t, int status, char *methods, size_t size, bool credential)
+{
+	if (status != DSSH_AUTH_CONTINUE && status != DSSH_AUTH_PARTIAL) return status;
+	if (credential && status == DSSH_AUTH_CONTINUE
+	    && t->profile->protocol_log_level >= ST_PROFILE_LOG_WARNING)
+		st_connection_log_hooks(t->hooks, "SSH", ST_CONNECTION_LOG_WARNING,
+		    "Authentication credentials were not accepted");
+	int64_t required = dssh_auth_get_methods(t->session, methods, size);
+	return required < 0 ? (int)required : status;
 }
 
 static int
@@ -516,33 +569,36 @@ authenticate(struct ssh_transport *t)
 	if (username[0] == '\0' && t->profile->connection_type != ST_CONNECTION_SSH_NO_AUTH) {
 		free(username); t->cancelled = true; return IO_ERROR_CANCELLED;
 	}
-	status = dssh_auth_get_methods(t->session, username, methods, sizeof(methods));
-	if (status == DSSH_AUTH_NONE_ACCEPTED) { free(username); return 0; }
+	status = dssh_auth_begin(t->session, username);
+	if (status == DSSH_AUTH_SUCCESS) { free(username); return 0; }
+	status = auth_methods(t, status, methods, sizeof(methods), false);
 	if (status < 0 || t->profile->connection_type == ST_CONNECTION_SSH_NO_AUTH) {
 		free(username);
-		return IO_ERROR_PERMISSION_DENIED;
+		return status < 0 ? ssh_error(status) : IO_ERROR_PERMISSION_DENIED;
 	}
-	status = DSSH_ERROR_AUTH_REJECTED;
-	if (strstr(methods, "publickey") != NULL)
-		status = dssh_auth_publickey(t->session, username, "ssh-ed25519");
-	if (status != 0 && strstr(methods, "password") != NULL) {
+	if (auth_method(methods, "publickey"))
+		status = auth_methods(t, dssh_auth_publickey(t->session, username, "ssh-ed25519"), methods, sizeof(methods), true);
+	if (status > 0 && auth_method(methods, "password")) {
 		password = strdup(t->profile->password);
 		if (password == NULL) { free(username); return IO_ERROR_OUT_OF_MEMORY; }
 		if (password[0] != '\0')
-			status = dssh_auth_password(t->session, username, password, NULL, NULL);
-		for (int attempt = 0; attempt < 3 && status != 0; ++attempt) {
+			status = auth_methods(t, dssh_auth_password(t->session, username, password, NULL, NULL), methods, sizeof(methods), true);
+		for (int attempt = 0; attempt < 3 && status == DSSH_AUTH_CONTINUE
+		    && auth_method(methods, "password"); ++attempt) {
 			st_crypto_clear(password, strlen(password)); free(password); password = NULL;
 			if (prompt(t, "SSH Password", attempt == 0 ? "Enter password."
 			    : "Incorrect password. Try again.", ST_PROFILE_PASSWORD_MAX, true, &password) != 0) break;
 			if (password[0] == '\0') { t->cancelled = true; break; }
-			status = dssh_auth_password(t->session, username, password, NULL, NULL);
+			status = auth_methods(t, dssh_auth_password(t->session, username, password, NULL, NULL), methods, sizeof(methods), true);
 		}
 		if (password != NULL) { st_crypto_clear(password, strlen(password)); free(password); }
 	}
-	if (status != 0 && !t->cancelled && strstr(methods, "keyboard-interactive") != NULL)
-		status = dssh_auth_keyboard_interactive(t->session, username, keyboard_interactive, t);
+	if (status > 0 && !t->cancelled && auth_method(methods, "keyboard-interactive"))
+		status = auth_methods(t, dssh_auth_keyboard_interactive(t->session, username,
+		    keyboard_interactive, t), methods, sizeof(methods), true);
 	free(username);
-	return status == 0 ? 0 : t->cancelled ? IO_ERROR_CANCELLED : IO_ERROR_PERMISSION_DENIED;
+	return status == DSSH_AUTH_SUCCESS ? 0 : t->cancelled ? IO_ERROR_CANCELLED
+	    : status < 0 ? ssh_error(status) : IO_ERROR_PERMISSION_DENIED;
 }
 
 static int
@@ -765,9 +821,6 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	status = initialize_algorithms(hooks == NULL ? NULL : hooks->ssh_key_file);
 	if (status != 0) return st_connection_fail(error, IO_ERROR_IO,
 	    ST_CONNECTION_SETUP_NONE, "DeuceSSH initialization failed");
-	/* Callback registration is immutable once sessions exist. */
-	status = dssh_transport_set_callbacks(ssh_tx, ssh_rx, NULL, NULL);
-	if (status != 0 && status != DSSH_ERROR_TOOLATE) return IO_ERROR_IO;
 	t = calloc(1, sizeof(*t));
 	if (t == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (st_mutex_init(&t->request_mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {

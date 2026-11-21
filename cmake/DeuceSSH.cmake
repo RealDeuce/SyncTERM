@@ -18,7 +18,7 @@ if(NOT TARGET deucessh::deucessh_static AND NOT TARGET deucessh::deucessh_shared
 	endif()
 	FetchContent_Declare(deucessh
 		GIT_REPOSITORY https://github.com/RealDeuce/DeuceSSH.git
-		GIT_TAG 66c896ee659628282a68105b44a99b26e5a7cffa
+		GIT_TAG 79c3bc8150974bb3019e9f8f6f6c1fab40aa962d
 		PATCH_COMMAND "${CMAKE_COMMAND}" "-DSOURCE=<SOURCE_DIR>"
 			-P "${CMAKE_CURRENT_LIST_DIR}/PatchDeuceSSH.cmake")
 	FetchContent_MakeAvailable(deucessh)

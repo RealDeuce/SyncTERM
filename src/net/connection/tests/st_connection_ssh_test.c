@@ -67,10 +67,13 @@ prompt(void *context, const char *title, const char *message, const char *initia
 	(void)initial; (void)limit;
 	++ui->prompts;
 	if (!masked) ui->invalid = true;
-	if (ui->test == 9 || ui->test == 10) {
+	if (ui->test == 9 || ui->test == 10 || (ui->test >= 23 && ui->test <= 25)) {
+		const char *expected = ui->test == 10 || ((ui->test == 24 || ui->test == 25)
+		    && ui->prompts == 1) ? "Password: " : "OTP: ";
 		if (strcmp(title, "SSH Keyboard-Interactive") != 0
-		    || strcmp(message, ui->test == 9 ? "OTP: " : "Password: ") != 0) ui->invalid = true;
-		*result = strdup("654321");
+		    || strcmp(message, expected) != 0) ui->invalid = true;
+		if (ui->test == 25 && ui->prompts == 2) return IO_ERROR_CANCELLED;
+		*result = strdup((ui->test == 24 || ui->test == 25) && ui->prompts == 1 ? "secret" : "654321");
 	} else if (ui->test == 14) {
 		if (strcmp(title, "SSH Password") != 0 || strcmp(message, ui->prompts == 1
 		    ? "Enter password." : "Incorrect password. Try again.") != 0) ui->invalid = true;
@@ -285,7 +288,9 @@ run(const char *fixture, unsigned test, int log_level)
 		    : test == 14 ? "retry" : test == 16 ? "bad-handshake"
 		    : test == 17 ? "sftp" : test == 18 ? "sftp-shell-close"
 		    : test == 19 ? "sftp-unsupported" : test == 20 ? "sftp-no-version"
-		    : test == 21 ? "sftp-drop" : test == 22 ? "bulk" : "password", (char *)NULL);
+		    : test == 21 ? "sftp-drop" : test == 22 ? "bulk" : test == 23 ? "partial"
+		    : test == 24 ? "keyboard-multi" : test == 25 ? "keyboard-multi-cancel"
+		    : test == 26 ? "keyboard-zero" : "password", (char *)NULL);
 		_exit(127);
 	}
 	fixture_child = child;
@@ -311,7 +316,8 @@ run(const char *fixture, unsigned test, int log_level)
 		profile.ssh_fingerprint_size = 32;
 	}
 	int status = st_connection_connect_ssh(&connection, &profile, &screen, &hooks, &error);
-	if ((test >= 5 && test <= 7) || test == 13 || test == 15 || test == 16)
+	if (test == 25) CHECK(status == IO_ERROR_CANCELLED && connection == NULL);
+	else if ((test >= 5 && test <= 7) || test == 13 || test == 15 || test == 16)
 		CHECK(status < 0 && connection == NULL);
 	else {
 		if (status != 0) fprintf(stderr, "connect %u: %d %s\n", test, status, error.detail);
@@ -341,8 +347,9 @@ run(const char *fixture, unsigned test, int log_level)
 	CHECK(!ui.invalid);
 	CHECK(ui.choices == ((test >= 3 && test <= 5) || test == 12 || test == 13 ? 1 : 0));
 	CHECK(ui.saves == (test == 3 || test == 5 || test == 13 || test == 15 || test == 16 ? 0 : 1));
-	CHECK(ui.prompts == (test == 9 || test == 10 ? 1 : test == 14 ? 2 : test == 6 ? 1 : 0));
-	CHECK(ui.alerts == (test == 2 || test == 9 || test == 11 ? 1 : test == 10 ? 2 : 0));
+	CHECK(ui.prompts == (test == 9 || test == 10 || test == 23 ? 1
+	    : test == 14 || test == 24 || test == 25 ? 2 : test == 6 ? 1 : 0));
+	CHECK(ui.alerts == (test == 2 || test == 9 || test == 11 || test >= 23 ? 1 : test == 10 ? 2 : 0));
 	CHECK(ui.errors == (test == 6 || test == 7 || test == 16 ? 1 : 0));
 	CHECK(!atomic_load(&log.invalid));
 	if (log_level < ST_PROFILE_LOG_DEBUG) CHECK(atomic_load(&log.debug) == 0);
@@ -363,7 +370,8 @@ main(int argc, char **argv)
 		CHECK(strcmp(argv[2], "bulk") == 0);
 		return run(argv[1], 22, ST_PROFILE_LOG_DEBUG);
 	}
-	for (unsigned test = 0; test < 22; ++test) {
+	for (unsigned test = 0; test < 27; ++test) {
+		if (test == 22) continue; /* Dedicated bulk-transfer CTest. */
 		fprintf(stderr, "SSH fixture %u\n", test);
 		CHECK(run(argv[1], test, ST_PROFILE_LOG_DEBUG) == 0);
 	}
