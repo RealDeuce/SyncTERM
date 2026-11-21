@@ -963,21 +963,25 @@ both the offline directory and the existing edit-only connected directory.
 Custom `main_menu` script overrides retain precedence over this built-in choice.
 The layout and selected colour theme are independent.
 
-DOS opens on a full-width calling table with Name, Address, Port, Type, and
-Term/Graphics columns at 80 columns. Wider screens add Encoding, Calls, and
-Last Call; narrow screens retain Name and Address. Term/Graphics describes the
+DOS opens on a full-width calling table. Its fixed 45-cell Name column fits
+the longest legal name under the 30-scalar / 60-byte UTF-8 limits, including
+wide characters. Address uses the remaining space; Port, Type, Term/Graphics,
+Encoding, Calls, and Last Call appear as space permits. At 80 columns the table
+shows Name, Address, Port, and Type. Narrow screens pan the table with Left/Right
+instead of shrinking or truncating the Name column. Term/Graphics describes the
 saved emulation and enabled graphics, such as `ANSI/RIP1`, `ANSI/RIP3`,
 `ANSI/Sky1.3`, `ANSI/Sky3.1`, `VT52/IGS`, or `ANSI/BIG`; it does not report
 live protocol negotiation or use the advertised TERM string as an emulator name.
 The last-call date uses local time. Long text is clipped on grapheme boundaries.
 
-Arrow and paging keys select entries; type-to-search and Ctrl-F/Ctrl-G retain
+Up/Down and paging keys select entries; type-to-search and Ctrl-F/Ctrl-G retain
 the usual list behavior, with DOS Find also matching connection columns. Enter
 connects offline and edits while connected. F2 edits, Insert adds, Delete
 removes, F5/F6 copy/paste, Ctrl-S manages sorting, and `<`/`>` cycle sort profiles.
 A single mouse click selects a directory row; double-click activates it.
-The selected entry's comment appears below the table, above the clickable
-bottom command bar. Entries without comments leave that line blank. F4 opens
+The selected entry's comment is centred below the table, above the clickable
+bottom command bar, with the same full-line styling and long-text clipping as
+Classic. Entries without comments leave that line blank. F4 opens
 the separate Settings screen. Tab moves between the directory and command bar;
 Left/Right choose a focused command and Enter runs it. Escape exits the directory
 or returns to the existing session.
@@ -987,6 +991,11 @@ DOS entry settings, New Connection Defaults, and Program Settings use separate
 full-page forms. The active category stays highlighted and bracketed in the
 top tab row while keyboard focus moves through its fields. Click a tab or use
 Ctrl-PageUp/PageDown to change categories.
+Tab/Shift-Tab move between three control groups: the tab bar, form fields, and
+Save/Cancel. Entering the tab bar focuses the current page. Home/End jump to
+the first/last tab. Arrow keys move within each group; Left/Right stay on the
+same row, and Up/Down stay in the same field column. Text editors retain cursor
+movement; at either end, Left/Right can cross to an adjacent field column.
 `tab.selected` styles the current page independently of `tab.focused` for
 keyboard focus; `tab.selected.focused` styles the combined state. Brackets
 mark the current tab and `>` marks keyboard focus, including when colours match.
@@ -995,13 +1004,13 @@ bracketed rectangles when unfocused.
 Enum fields have a down-arrow marker and open an attached dropdown with Enter,
 Space, Alt-Down, or a click. The list opens below the field, or above when space
 is limited; long lists scroll. Arrows, paging keys, Home/End, and typing navigate
-choices. Enter or a click accepts; Tab accepts and moves to the next control.
+choices. Enter or a click accepts; Tab accepts and moves to the next control group.
 Escape or an outside click cancels without changing the draft. Resizing keeps
 the list attached, or closes it if the field moves out of view. Opening a
 dropdown retains the form's active colours.
 Wide screens balance fields across two columns. PageUp/PageDown and the
 Previous/Next controls beside the tabs reach overflow fields within the current
-category on small screens. Tab/Shift-Tab move between controls. F1 opens
+category on small screens. F1 opens
 contextual help. Specialized palette, script, font,
 and file selectors remain available. Edits stay in a private draft across page
 changes and resizing. Save/F10 accepts the complete draft; Cancel/Escape asks

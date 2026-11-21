@@ -8,6 +8,10 @@ import "ui_pane" for Pane
 import "ui_list" for ListView
 
 class DosTable {
+  // Names allow 30 Unicode scalars / 60 UTF-8 bytes. Fifteen ASCII
+  // scalars plus fifteen three-byte wide scalars occupy 45 cells.
+  static nameWidth { 45 }
+  static minimumWidth { nameWidth + 1 + 8 }
   static fit(text, width) {
     if (width <= 0) return ""
     text = text.toString
@@ -40,20 +44,32 @@ class DosTable {
   }
 
   static columns(width) {
-    if (width < 60) return [["Name", (width * 0.42).floor], ["Address", width - (width * 0.42).floor - 1]]
-    var columns = [["Name", 18], ["Address", 23], ["Port", 5], ["Type", 7], ["Term/Graphics", 14]]
-    if (width >= 96) columns.add(["Encoding", 10])
-    if (width >= 110) columns.add(["Calls", 6])
-    if (width >= 126) columns.add(["Last Call", 10])
-    var used = columns.count - 1
-    for (c in columns) used = used + c[1]
-    var extra = width - used
-    columns[1][1] = columns[1][1] + extra
-    if (columns[1][1] < 8) {
-      columns[0][1] = columns[0][1] - (8 - columns[1][1])
-      columns[1][1] = 8
+    width = width.max(minimumWidth)
+    var columns = [["Name", nameWidth], ["Address", 8]]
+    var used = minimumWidth
+    for (column in [["Port", 5], ["Type", 7], ["Term/Graphics", 14], ["Encoding", 10], ["Calls", 6], ["Last Call", 10]]) {
+      if (used + column[1] + 1 > width) break
+      columns.add(column)
+      used = used + column[1] + 1
     }
+    columns[1][1] = columns[1][1] + width - used
     return columns
+  }
+
+  static viewport(text, offset, width) {
+    var out = ""
+    var x = 0
+    for (part in Text.graphemes(text)) {
+      var n = Screen.checked_(Screen.textWidth(part, 0))
+      if (x >= offset + width) break
+      if (x >= offset) {
+        out = out + part
+      } else if (x + n > offset) {
+        out = out + fit("", x + n - offset)
+      }
+      x = x + n
+    }
+    return fit(out, width)
   }
 
   static values(entry) {
@@ -88,11 +104,21 @@ class DosHeading is Widget {
   construct new(list) {
     super()
     _list = list
+    _offset = null
     focusable = false
+  }
+  draw() {
+    var offset = _list.horizontalOffset
+    if (offset != _offset) {
+      _offset = offset
+      markDirty()
+    }
+    return super.draw()
   }
   onPaint_() {
     Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", style("title"))
-    Painter.text(surface, _list.contentX_, 0, DosTable.header(_list.innerWidth), style("title"), _list.innerWidth)
+    var text = DosTable.viewport(DosTable.header(_list.innerWidth), _list.horizontalOffset, _list.innerWidth)
+    Painter.text(surface, _list.contentX_, 0, text, style("title"), _list.innerWidth)
   }
 }
 
@@ -188,7 +214,11 @@ class DosFooter is Widget {
   onPaint_() {
     layoutHints_()
     Painter.fill(surface, Rect.new(0, 0, bounds.w, bounds.h), " ", style("classic.hint"))
-    Painter.text(surface, 1, 0, _comment, style("classic.comment"), bounds.w - 2)
+    Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", style("classic.comment"))
+    var width = Screen.checked_(Screen.textWidth(_comment, 0))
+    var available = (bounds.w - 4).max(1)
+    var offset = 2 + ((available - width) / 2).floor.max(0)
+    Painter.text(surface, offset, 0, _comment, style("classic.comment"), available - (offset - 2))
     for (i in 0..._regions.count) {
       var rect = _regions[i][0]
       var hint = _regions[i][1]

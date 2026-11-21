@@ -297,9 +297,24 @@ class DosMainList is MainList {
   construct new(onFocus, onCycle, onComment, commentKey, onSwitchPane, onInsert, onDelete) {
     super(onFocus, onCycle, onComment, commentKey, onSwitchPane, onInsert, onDelete)
     _records = {}
+    _horizontalOffset = 0
     _focus = onFocus
   }
+  horizontalOffset { _horizontalOffset.min((DosTable.minimumWidth - innerWidth).max(0)) }
+  draw() {
+    if (_horizontalOffset != horizontalOffset) {
+      _horizontalOffset = horizontalOffset
+      markDirty()
+    }
+    return super.draw()
+  }
   handle(event) {
+    if (event is KeyEvent && (event.shortcut_ == Key.left || event.shortcut_ == Key.right) && innerWidth < DosTable.minimumWidth) {
+      var delta = event.shortcut_ == Key.left ? -8 : 8
+      _horizontalOffset = (horizontalOffset + delta).max(0).min(DosTable.minimumWidth - innerWidth)
+      markDirty()
+      return true
+    }
     if (event is MouseEvent && bounds != null && bounds.contains(event.startX, event.startY) &&
         (event.event == Mouse.button1Click || event.event == Mouse.button1DblClick)) {
       var x = event.startX - bounds.x
@@ -321,7 +336,8 @@ class DosMainList is MainList {
     markDirty()
   }
   formatItem(item, width) {
-    return _records.containsKey(item) ? DosTable.row(_records[item], width) : item
+    var text = _records.containsKey(item) ? DosTable.row(_records[item], width) : item
+    return DosTable.viewport(text, horizontalOffset, width)
   }
   searchTextFor_(item) {
     return _records.containsKey(item) ? DosTable.values(_records[item]).join(" ") : item

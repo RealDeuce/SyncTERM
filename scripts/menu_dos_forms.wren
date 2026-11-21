@@ -112,6 +112,11 @@ class DosFormPane is Pane {
     _inputs = []
     _labels = []
     _fieldStart = 0
+    _actionsStart = 0
+    _fieldLabels = []
+    _fieldColumns = []
+    _lastField = null
+    _lastAction = 0
     _pagingRow = null
     _tabBottom = 0
     _saved = false
@@ -119,7 +124,10 @@ class DosFormPane is Pane {
     _size = null
     onClose = Fn.new { cancel_() }
     keyHints = [["F1", "Help"], ["F10", "Save"], ["Esc", "Cancel"]]
-    helpText = "# %(heading)\n\nTab and Shift-Tab move between controls. " +
+    helpText = "# %(heading)\n\nTab and Shift-Tab move between the tab bar, fields, and Save/Cancel. " +
+        "Arrow keys move within each group; Left/Right never wrap into another row. " +
+        "Text inputs retain cursor movement; at either end, Left/Right can cross to an adjacent column. " +
+        "Home/End choose the first/last tab. Enter activates a tab or edits a field. " +
         "Click a tab or use Ctrl-PageUp/Down to change categories. " +
         "PageUp/Down and Previous/Next reach additional fields in the same category. " +
         "F10 saves the complete draft. " +
@@ -131,6 +139,58 @@ class DosFormPane is Pane {
   onFinish=(fn) { _onFinish = fn }
   page { _page }
   controls { children }
+  focusGroup_ {
+    if (focusedChild is DosFormTab) return 0
+    return focusedIndex != null && focusedIndex >= _actionsStart ? 2 : 1
+  }
+
+  cycleFocusGroup_(delta) {
+    var group = focusGroup_
+    if (group == 1 && focusedIndex != null && focusedIndex >= _fieldStart && focusedIndex < _actionsStart) _lastField = _fieldLabels[focusedIndex - _fieldStart]
+    if (group == 2) _lastAction = focusedIndex - _actionsStart
+    group = (group + delta + 3) % 3
+    if (group == 1 && _fieldStart == _actionsStart) group = (group + delta + 3) % 3
+    if (group == 0) {
+      focusedIndex = _page
+    } else if (group == 1) {
+      var index = _lastField == null ? -1 : _fieldLabels.indexOf(_lastField)
+      focusedIndex = _fieldStart + index.max(0)
+    } else {
+      focusedIndex = _actionsStart + _lastAction.min(children.count - _actionsStart - 1)
+    }
+  }
+
+  moveWithinGroup_(key) {
+    if (focusedChild == null) return false
+    var group = focusGroup_
+    var first = group == 0 ? 0 : group == 1 ? _fieldStart : _actionsStart
+    var end = group == 0 ? _pages.count : group == 1 ? _actionsStart : children.count
+    var horizontal = key == Key.left || key == Key.right
+    var direction = key == Key.left || key == Key.up ? -1 : 1
+    var current = focusedChild.bounds
+    var best = null
+    var distance = 0
+    var across = 0
+    for (i in first...end) {
+      if (i == focusedIndex) continue
+      var rect = children[i].bounds
+      var dx = (rect.x + rect.w / 2) - (current.x + current.w / 2)
+      var dy = rect.y - current.y
+      if (horizontal && (dy != 0 || dx * direction <= 0)) continue
+      if (!horizontal && dy * direction <= 0) continue
+      if (!horizontal && group == 1 && _fieldColumns[i - _fieldStart] != _fieldColumns[focusedIndex - _fieldStart]) continue
+      var primary = horizontal ? dx.abs : dy.abs
+      var secondary = horizontal ? 0 : dx.abs
+      if (best == null || primary < distance || (primary == distance && secondary < across)) {
+        best = i
+        distance = primary
+        across = secondary
+      }
+    }
+    if (best == null) return false
+    focusedIndex = best
+    return true
+  }
   choiceAnchor_ {
     var field = focusedChild
     if (!(field is DosFormChoice) || !field.dropdown) return null
@@ -169,10 +229,14 @@ class DosFormPane is Pane {
 
   rebuild_() {
     var focus = focusedIndex
-    var choice = focusedChild is DosFormChoice ? focusedChild.label : null
+    var tab = focusedChild is DosFormTab ? focus : null
+    var action = focus != null && _actionsStart > 0 && focus >= _actionsStart ? focus - _actionsStart : null
+    var field = focus != null && focus >= _fieldStart && focus < _actionsStart ? _fieldLabels[focus - _fieldStart] : null
     for (c in children.toList) remove(c)
     _inputs = []
     _labels = []
+    _fieldLabels = []
+    _fieldColumns = []
     var w = bounds.w
     var h = bounds.h
     var x = 2
@@ -214,14 +278,16 @@ class DosFormPane is Pane {
     labelWidth = labelWidth.min(((pitch - 2) / 2).floor)
     var valueX = labelWidth + 1
     if (_pagingRow != null) {
-      if (_offset > 0) button_(w >= 60 ? "Previous" : "Prev", Fn.new { moveFields_(-1) }, w - 24, _pagingRow, 13)
-      if (end < fields.count) button_("Next", Fn.new { moveFields_(1) }, w - 10, _pagingRow, 9)
+      if (_offset > 0) button_(w >= 60 ? "Previous" : "Prev", Fn.new { moveFields_(-1) }, w - 24, _pagingRow, 13).focusable = false
+      if (end < fields.count) button_("Next", Fn.new { moveFields_(1) }, w - 10, _pagingRow, 9).focusable = false
     }
     _fieldStart = children.count
     for (i in _offset...end) {
       var f = fields[i]
       var index = i - _offset
       var col = (index / rows).floor
+      _fieldLabels.add(f[0])
+      _fieldColumns.add(col)
       var left = 3 + col * pitch
       var row = top + (index % rows)
       var width = (pitch - 2).max(1)
@@ -234,7 +300,7 @@ class DosFormPane is Pane {
         input.maxLen = f[0] == "Name" ? 30 : f[4]
         if (f[5]) input.mask = "*"
         input.onChange = Fn.new {|text| _pending[f[0]] = text }
-        input.onSubmit = Fn.new {|text| focusNext() }
+        input.onSubmit = Fn.new {|text| moveWithinGroup_(Key.down) }
         _inputs.add([input, f])
         _labels.add([left - 1, row - 1, f[0], valueX, width])
       } else if (f[1] == "bool") {
@@ -259,14 +325,13 @@ class DosFormPane is Pane {
       }
     }
     var saveLabel = Host.safeMode ? "Apply" : "Save"
+    _actionsStart = children.count
     button_(saveLabel, Fn.new { save_() }, 2, h - 1, 8)
     button_("Cancel", Fn.new { cancel_() }, 10, h - 1, 10)
-    focusedIndex = focus != null && focus >= _fieldStart && focus < children.count ? focus : _fieldStart
-    if (choice != null) {
-      for (i in 0...children.count) {
-        if (children[i] is DosFormChoice && children[i].label == choice) focusedIndex = i
-      }
-    }
+    focusedIndex = _fieldStart
+    if (tab != null) focusedIndex = tab
+    if (action != null) focusedIndex = _actionsStart + action.min(children.count - _actionsStart - 1)
+    if (field != null && _fieldLabels.contains(field)) focusedIndex = _fieldStart + _fieldLabels.indexOf(field)
     markDirty()
   }
 
@@ -284,7 +349,7 @@ class DosFormPane is Pane {
       Painter.text(surface, 2, _pagingRow - 1, text, style("statusbar"), bounds.w - 28)
     }
     Painter.hline(surface, 1, bounds.h - 4, bounds.w - 2, glyph("frame.display.separator"), style("frame"))
-    Painter.text(surface, 2, bounds.h - 3, "Tab/Shift-Tab Fields  Ctrl-PgUp/PgDn Tabs  F1 Help", style("statusbar"), bounds.w - 4)
+    Painter.text(surface, 2, bounds.h - 3, "Tab Groups  Arrows Move  Ctrl-PgUp/PgDn Tabs  F1 Help", style("statusbar"), bounds.w - 4)
   }
 
   flush_() {
@@ -329,6 +394,7 @@ class DosFormPane is Pane {
   selectPage_(page) {
     if (!flush_()) return
     _page = page
+    _lastField = null
     _offset = 0
     focusedIndex = null
     rebuild_()
@@ -367,6 +433,25 @@ class DosFormPane is Pane {
 
   handle(event) {
     if (event is KeyEvent) {
+      var key = event.shortcut_
+      if (key == Key.tab || key == Key.chord_(Key.tab, Mod.shift)) {
+        cycleFocusGroup_(key == Key.tab ? 1 : -1)
+        return true
+      }
+      if (focusGroup_ == 0 && (key == Key.home || key == Key.end)) {
+        focusedIndex = key == Key.home ? 0 : _pages.count - 1
+        return true
+      }
+      if (key == Key.left || key == Key.right || key == Key.up || key == Key.down) {
+        var field = focusedChild
+        if (field is DosFormInput && !field.allSelected &&
+            ((key == Key.left && field.cursor == 0) || (key == Key.right && field.cursor == field.count))) {
+          if (moveWithinGroup_(key)) return true
+        }
+        if (field != null && field.handle(event)) return true
+        moveWithinGroup_(key)
+        return true
+      }
       if (event.shortcut_ == Key.f10) {
         save_()
         return true

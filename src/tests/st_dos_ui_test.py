@@ -56,12 +56,21 @@ def program_layout(client, shot, reports):
     selected_background = cell_at(shot, shot.lines[y].index("General"), y).background
     # Keyboard focus can visit another tab without changing the current page.
     client.key("tab", 1)
+    shot = client.wait_text(">[General]")
+    client.key("end")
     shot = client.wait_text("> Colours")
     assert "[General]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
     focus_background = cell_at(shot, shot.lines[y].index("Colours"), y).background
     assert selected_background == cell_at(shot, shot.lines[y].index("General"), y).background, shot.text
     assert focus_background != selected_background, shot.text
     shot.save_image(Path(reports) / "program-tabs.ppm")
+    client.key("home")
+    shot = client.wait_text(">[General]")
+    client.key("right")
+    shot = client.wait_text("> Display")
+    assert "[General]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
+    client.key("end")
+    client.wait_text("> Colours")
     client.key("enter")
     shot = client.wait_text("[Colours]")
     assert "Frame Colour" in shot.text, shot.text
@@ -100,6 +109,29 @@ def program_layout(client, shot, reports):
     click_text(client, shot, "Display")
     shot = client.wait_text("Startup Screen Mode")
     selected_tab(shot, "Display")
+    client.key("tab", 1)
+    client.wait_text(">[Display]")
+    # Wrapped tabs keep focus on the same tab across reflow. Home/End act
+    # on the complete strip, rather than just the current visual row.
+    client.grid_resize(40, 25)
+    client.wait_for(lambda s: s.metadata["columns"] == 40 and ">[Display]" in s.text)
+    client.key("home")
+    shot = client.wait_text("> General")
+    assert "[Display]" in shot.text, shot.text
+    client.key("end")
+    shot = client.wait_text("> Colours")
+    assert "[Display]" in shot.text, shot.text
+    client.grid_resize(80, 25)
+    client.wait_for(lambda s: s.metadata["columns"] == 80 and "> Colours" in s.text)
+    # Tab leaves the strip as one stop; either direction re-enters at Display.
+    client.key("tab")
+    client.wait_for(lambda s: "> Colours" not in s.text and "Startup Screen Mode" in s.text)
+    client.key("tab", 1)
+    client.wait_text(">[Display]")
+    client.key("tab", 1)  # Back out to Save/Cancel.
+    client.wait_for(lambda s: ">[Display]" not in s.text and "Startup Screen Mode" in s.text)
+    client.key("tab")
+    client.wait_text(">[Display]")
     client.key("page_up", 2)
     shot = client.wait_text("Main Interface")
     selected_tab(shot, "General")
@@ -119,12 +151,123 @@ def contracts(executable, reports):
         assert b"DOS-CONTRACTS-PASS" in client.stderr
 
 
+def keyboard(executable, reports):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+        client.wait_text("Directory:")
+        original_ini = (root / "syncterm.ini").read_bytes()
+        shot = open_program(client)
+        y = next(y for y, line in enumerate(shot.lines) if "Main Interface" in line)
+        highlight = cell_at(shot, shot.lines[y].index("DOS"), y).background
+
+        def focused(snapshot, label):
+            if label in ("Save", "Cancel"):
+                label = "[ " + label + " ]"
+            for y, line in enumerate(snapshot.lines):
+                if label in line:
+                    return cell_at(snapshot, line.index(label), y).background == highlight
+            return False
+
+        # In one column, Right on a choice must not move down the form.
+        client.key("right")
+        client.text(" ")
+        client.wait_text("Classic")
+        client.key("escape")
+        client.wait_for(lambda s: "Main Interface" in s.text and "Classic" not in s.text)
+        client.key("down")
+        client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
+        client.key("right")
+        client.key("down")
+        client.wait_for(lambda s: focused(s, "Prompt to Save"))
+        client.key("up")
+        client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
+        # Tab skips the remaining fields and visits the actions as one group.
+        client.key("tab")
+        client.wait_for(lambda s: focused(s, "Save"))
+        client.key("right")
+        client.wait_for(lambda s: focused(s, "Cancel"))
+        client.key("down")
+        client.key("right")
+        client.key("left")
+        client.wait_for(lambda s: focused(s, "Save"))
+        client.key("tab")
+        client.wait_text(">[General]")
+        client.key("tab")
+        client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
+        client.key("up")
+        client.grid_resize(132, 50)
+        client.wait_for(lambda s: s.metadata["columns"] == 132 and "Main Interface" in s.text)
+        # The two columns form a grid, with no vertical wrapping on Left/Right.
+        client.key("right")
+        client.wait_for(lambda s: focused(s, "Invert Mouse Wheel"))
+        client.key("down")
+        client.wait_for(lambda s: focused(s, "Atari ST Key Clicks"))
+        client.key("left")
+        client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
+        client.key("down")
+        client.wait_for(lambda s: focused(s, "Prompt to Save"))
+        client.key("right")
+        client.wait_for(lambda s: s.metadata["cursor_visible"] == 1)
+        client.key("home")
+        client.key("left")  # At the start of an editor, cross back to its row mate.
+        client.wait_for(lambda s: focused(s, "Prompt to Save"))
+        client.key("down")
+        client.wait_for(lambda s: focused(s, "Colour Emoji"))
+        client.key("right")  # There is no right-hand field on this row.
+        client.key("up")
+        client.wait_for(lambda s: focused(s, "Prompt to Save"))
+        client.key("tab")
+        client.wait_for(lambda s: focused(s, "Save"))
+        client.key("tab", 1)
+        client.wait_for(lambda s: focused(s, "Prompt to Save"))
+        client.key("escape")
+        client.wait_text("Directory:")
+        assert (root / "syncterm.ini").read_bytes() == original_ini
+
+
+def names(executable, reports):
+    ordinary = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"
+    wide = "ABCDEFGHIJKLMNO" + "界" * 15
+    long_comment = "Long" + "-" * 96
+    entries = (f"[{ordinary}]\nAddress=ascii.example\nComment=centred note\n"
+               f"[{wide}]\nAddress=wide.example\nComment=界note\n"
+               f"[Z]\nAddress=z.example\nComment={long_comment}\n")
+    with fixture(executable, entries=entries, settings="MainUI=DOS\n", reports=reports) as (client, root):
+        Path(reports).mkdir(parents=True, exist_ok=True)
+        for columns, rows in ((80, 25), (132, 50), (40, 25)):
+            client.grid_resize(columns, rows)
+            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and ordinary in s.text)
+            assert shot.lines[-3].index("centred note") == (columns - len("centred note")) // 2, shot.text
+            comment_y = rows - 3
+            assert cell_at(shot, 0, comment_y).foreground == cell_at(shot, columns - 1, comment_y).foreground == cell_at(shot, (columns - 12) // 2, comment_y).foreground
+            if columns >= 80:
+                assert wide in shot.text, shot.text
+                header_y = next(y for y, line in enumerate(shot.lines) if "Name" in line and "Address" in line)
+                address_x = shot.lines[header_y].index("Address")
+                assert address_x - shot.lines[header_y].index("Name") == 46, shot.text
+                entry_y = next(y for y, line in enumerate(shot.lines) if wide in line)
+                assert shot.cell_text(cell_at(shot, address_x, entry_y)) == "w", shot.text
+                shot.save_image(Path(reports) / f"names-{columns}.ppm")
+            else:
+                for _ in range(3):
+                    client.key("right")
+                shot = client.wait_text("Address")
+                assert "界" * 12 in shot.text and "wide.exa" in shot.text, shot.text
+        client.grid_resize(80, 25)
+        client.wait_for(lambda s: s.metadata["columns"] == 80 and ordinary in s.text)
+        client.key("down")
+        shot = client.wait_for(lambda s: "界note" in s.lines[-3])
+        assert shot.lines[-3].index("界note") == (80 - 6) // 2, shot.text
+        client.key("down")
+        shot = client.wait_for(lambda s: s.lines[-3].startswith("  Long"))
+        assert shot.lines[-3] == "  " + long_comment[:76] + "  ", shot.text
+
+
 def directory(executable, reports):
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
-        shot = client.wait_text("Term/Graphics")
+        shot = client.wait_text("Directory:")
         Path(reports).mkdir(parents=True, exist_ok=True)
         shot.save_image(Path(reports) / "directory-80.ppm")
-        assert "alpha.example" in shot.text and "2323" in shot.text and "ANSI/RIP1" in shot.text, shot.text
+        assert "alpha.example" in shot.text and "2323" in shot.text and "Telnet" in shot.text, shot.text
         assert "original notes" in shot.lines[-3], shot.text
         assert not any(value in shot.lines[-3] for value in ("alpha.example", "2323", "ANSI/RIP1")), shot.text
         assert not any(label in shot.lines[0] for label in ("[ Edit ]", "[ Connect ]", "[ Settings ]")), shot.text
@@ -134,31 +277,35 @@ def directory(executable, reports):
         click_text(client, shot, "Program Settings")
         client.wait_text("Main Interface")
         client.key("escape")
-        shot = client.wait_text("Term/Graphics")
+        shot = client.wait_text("Directory:")
         assert "original notes" in shot.lines[-3], shot.text
         click_text(client, shot, "F2 Edit Item")
         client.wait_text("Edit Directory Entry")
         client.key("escape")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         client.key("tab")
         client.key("right")
         client.key("right")
         client.key("enter")
         client.wait_text("Edit Directory Entry")
         client.key("escape")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         client.key("f5")
         client.wait_text("F6 Paste")
         client.key("down")
-        client.wait_for(lambda s: "Term/Graphics" in s.text and s.lines[-3].strip() == "")
+        client.wait_for(lambda s: "Directory:" in s.text and s.lines[-3].strip() == "")
         for columns, rows in ((132, 50), (40, 25), (80, 25)):
             client.grid_resize(columns, rows)
-            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "beta.example" in s.text)
+            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "Beta" in s.text)
             if columns == 132:
                 shot.save_image(Path(reports) / "directory-132.ppm")
                 assert "Encoding" in shot.text and "Calls" in shot.text and "Last Call" in shot.text, shot.text
             if columns == 40:
-                assert "Name" in shot.text and "Address" in shot.text, shot.text
+                assert "Name" in shot.text and "Beta" in shot.text, shot.text
+                for _ in range(3):
+                    client.key("right")
+                shot = client.wait_text("Address")
+                assert "beta.exa" in shot.text, shot.text
             assert shot.lines[-3].strip() == "", shot.text
         # Search addresses independently of display clipping or name search keys.
         client.key(102, 2)
@@ -168,13 +315,13 @@ def directory(executable, reports):
         shot = client.wait_text("Edit Directory Entry")
         assert "alpha.example" in shot.text and "Connection" in shot.text, shot.text
         client.key("escape")
-        shot = client.wait_text("Term/Graphics")
+        shot = client.wait_text("Directory:")
         assert "original notes" in shot.lines[-3], shot.text
 
 
 def forms(executable, reports):
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         original = (root / "syncterm.lst").read_bytes()
         client.key("f2")
         shot = client.wait_text("Edit Directory Entry")
@@ -188,13 +335,13 @@ def forms(executable, reports):
         client.key("escape")
         client.wait_text("Discard changes?")
         client.key("enter")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         assert (root / "syncterm.lst").read_bytes() == original
         client.key("f2")
         client.wait_text("Edit Directory Entry")
         client.text("Renamed")
         client.key("f10")
-        client.wait_for(lambda s: "Term/Graphics" in s.text and "Renamed" in s.text)
+        client.wait_for(lambda s: "Directory:" in s.text and "Renamed" in s.text)
         assert "[Renamed]" in (root / "syncterm.lst").read_text()
         shot = open_program(client)
         shot = program_layout(client, shot, reports)
@@ -204,7 +351,7 @@ def forms(executable, reports):
         client.key("escape")
         client.wait_text("Discard changes?")
         client.key("enter")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         assert "ConfirmClose=false" in (root / "syncterm.ini").read_text()
         # Saving includes an editor moved out of view by a smaller grid.
         shot = open_program(client)
@@ -249,7 +396,7 @@ def dropdowns(executable, reports):
         assert snapshot.lines[row][right] == ("┘" if above else "┐"), snapshot.text
 
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         original_ini = (root / "syncterm.ini").read_bytes()
         shot = open_program(client)
         left, y, right = field(shot, "Main Interface")
@@ -290,7 +437,7 @@ def dropdowns(executable, reports):
         client.key("escape")
         client.wait_text("Discard changes?")
         client.key("enter")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         shot = open_program(client)
         click_text(client, shot, "Colours")
         client.wait_text("Frame Colour")
@@ -325,7 +472,7 @@ def dropdowns(executable, reports):
         assert (root / "syncterm.ini").read_bytes() == original_ini
 
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         original_list = (root / "syncterm.lst").read_bytes()
         client.key("f2")
         shot = client.wait_text("Edit Directory Entry")
@@ -337,13 +484,15 @@ def dropdowns(executable, reports):
         client.key("tab")
         shot = client.wait_for(lambda s: "Edit Directory Entry" in s.text and "┌" not in s.text)
         assert "SSH" in shot.lines[field(shot, "Connection Type")[1]] and "22" in shot.text, shot.text
-        client.text(" ")  # Tab accepted the choice and moved to Address Family.
+        client.key("tab", 1)  # Return from Save/Cancel to Connection Type.
+        client.key("down")
+        client.text(" ")
         client.wait_text("IPv4")
         client.key("escape")
         client.wait_for(lambda s: "Edit Directory Entry" in s.text and "┌" not in s.text)
         assert (root / "syncterm.lst").read_bytes() == original_list
         client.key("f10")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         contents = (root / "syncterm.lst").read_text()
         assert "ConnectionType=SSH" in contents and "Port=22" in contents, contents
 
@@ -359,24 +508,24 @@ def switching(executable, reports):
         client.key("down")
         client.key("enter")
         client.key("escape")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         assert "MainUI" in (root / "syncterm.ini").read_text()
         # The saved preference selects DOS again on a fresh process.
         client.close()
         with application(executable, root, reports=reports) as second:
-            second.wait_text("Term/Graphics")
+            second.wait_text("Directory:")
             shot = open_program(second)
             click_text(second, shot, "Main Interface")
             second.key("home")
             second.key("enter")
             second.key("f10")
             second.wait_text("SyncTERM Settings")
-            assert "Term/Graphics" not in second.capture().text
+            assert "SyncTERM Settings" in second.capture().text
 
 
 def failures(executable, reports):
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         original = (root / "syncterm.lst").read_bytes()
         for cancel in (True, False):
             client.key("f2")
@@ -400,11 +549,11 @@ def failures(executable, reports):
                 client.key("escape")
                 client.wait_text("Discard changes?")
                 client.key("enter")
-                shot = client.wait_text("Term/Graphics")
+                shot = client.wait_text("Directory:")
                 assert "Retry Name" not in shot.text and path.read_bytes() == original
             else:
                 client.key("f10")
-                client.wait_for(lambda s: "Term/Graphics" in s.text and "Retry Name" in s.text)
+                client.wait_for(lambda s: "Directory:" in s.text and "Retry Name" in s.text)
                 assert "[Retry Name]" in path.read_text()
         shot = open_program(client)
         click_text(client, shot, "Main Interface")
@@ -423,31 +572,31 @@ def failures(executable, reports):
         client.key("escape")
         client.wait_text("Discard changes?")
         client.key("enter")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         assert "MainUI=DOS" in path.read_text()
 
 
 def creation(executable, reports):
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         original = (root / "syncterm.lst").read_bytes()
         client.key("insert")
         client.wait_text("New Directory Entry")
         client.text("Gamma")
-        client.key("tab")
+        client.key("down")
         client.text("gamma.example")
         client.key("escape")
         client.wait_text("Discard changes?")
         client.key("enter")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         assert (root / "syncterm.lst").read_bytes() == original
         client.key("insert")
         client.wait_text("New Directory Entry")
         client.text("Gamma")
-        client.key("tab")
+        client.key("down")
         client.text("gamma.example")
         client.key("f10")
-        shot = client.wait_for(lambda s: "Term/Graphics" in s.text and "Gamma" in s.text)
+        shot = client.wait_for(lambda s: "Directory:" in s.text and "Gamma" in s.text)
         assert "gamma.example" in shot.text
         assert "[Gamma]" in (root / "syncterm.lst").read_text()
 
@@ -457,13 +606,13 @@ def connected(executable, reports):
         entries = ("[Wire]\nAddress=127.0.0.1\nConnectionType=Raw\nScreenMode=80x25\n"
                    f"Port={server.getsockname()[1]}\nComment=connected notes\nNoStatus=true\nHidePopups=true\n")
         with fixture(executable, entries=entries, settings="MainUI=DOS\n", reports=reports) as (client, root):
-            client.wait_text("Term/Graphics")
+            client.wait_text("Directory:")
             client.key("enter")
             with server.accept()[0] as peer:
                 peer.sendall(b"\x1b[2J\x1b[HREMOTE TERMINAL CONTENT")
                 before = client.wait_text("REMOTE TERMINAL CONTENT")
                 client.command_key(18)
-                menu = client.wait_text("Term/Graphics")
+                menu = client.wait_text("Directory:")
                 assert (menu.metadata["columns"], menu.metadata["rows"]) == (80, 25)
                 assert "connected notes" in menu.lines[-3] and "127.0.0.1" not in menu.lines[-3], menu.text
                 client.key("enter")  # Connected Enter edits instead of connecting.
@@ -472,7 +621,7 @@ def connected(executable, reports):
                 client.key("escape")
                 client.wait_text("Discard changes?")
                 client.key("enter")
-                menu = client.wait_text("Term/Graphics")
+                menu = client.wait_text("Directory:")
                 click_text(client, menu, "Esc Exit")
                 after = client.wait_for(lambda s: "REMOTE TERMINAL CONTENT" in s.text and "Directory:" not in s.text)
                 assert after.cells == before.cells
@@ -485,7 +634,7 @@ def connected(executable, reports):
                 assert received == b"", received
                 # The selected UI can also be changed in the connected directory.
                 client.command_key(18)
-                client.wait_text("Term/Graphics")
+                client.wait_text("Directory:")
                 shot = open_program(client)
                 click_text(client, shot, "Main Interface")
                 client.wait_text("Classic")
@@ -499,13 +648,13 @@ def connected(executable, reports):
 
 def safe(executable, reports):
     with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", extra=("-S",), reports=reports) as (client, root):
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         original_ini = (root / "syncterm.ini").read_bytes()
         original_list = (root / "syncterm.lst").read_bytes()
         client.key("insert")
         client.wait_text("Cannot edit list in safe mode")
         client.key("enter")
-        client.wait_text("Term/Graphics")
+        client.wait_text("Directory:")
         shot = open_program(client)
         click_text(client, shot, "Main Interface")
         client.wait_text("Classic")
@@ -538,7 +687,7 @@ def offer(executable, reports):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("executable")
-    p.add_argument("case", choices=("contracts", "directory", "forms", "dropdowns", "switching", "failures", "creation", "connected", "safe", "offer"))
+    p.add_argument("case", choices=("contracts", "directory", "forms", "keyboard", "names", "dropdowns", "switching", "failures", "creation", "connected", "safe", "offer"))
     p.add_argument("--reports", default="reports/dos-ui")
     args = p.parse_args()
     globals()[args.case](args.executable, args.reports)

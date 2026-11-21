@@ -1,5 +1,5 @@
 // Independent draft, metadata and formatting contracts for the DOS interface.
-import "syncterm" for Host, Key, KeyEvent, Mod, Mouse, MouseEvent
+import "syncterm" for Host, Key, KeyEvent, Mod, Mouse, MouseEvent, Screen
 import "syncterm_menu" for Menu, MenuError
 import "menu_dos" for DosTable
 import "menu_dos_forms" for DosForms, DosFormTab
@@ -67,6 +67,12 @@ class DosTests {
       check(DosTable.terminal(p) == ["ANSI", "ANSI/RIP1", "ANSI/RIP3", "ANSI/Sky1.3", "ANSI/Sky3.1", "ANSI/IGS", "ANSI/BIG"][i], "graphics label %(i)")
     }
     check(DosTable.fit("一Z", 2) == "一", "wide clipping")
+    var widestName = "ABCDEFGHIJKLMNO界界界界界界界界界界界界界界界"
+    check(Screen.checked_(Screen.textWidth(widestName, 0)) == 45, "maximum-width legal name")
+    for (width in [34, 74, 126]) check(DosTable.columns(width)[0][1] == 45, "fixed legal name column")
+    var cells = [widestName, "wide.example", 23, "Telnet", "ANSI", "CP437", 0, "Never"]
+    check(DosTable.line(cells, 74).startsWith(widestName + " "), "name is not truncated")
+    check(DosTable.viewport("界ABC", 1, 3) == " AB", "pan through a wide glyph safely")
     var tabTheme = Theme.new({
       "default": Style.new(0, 0x1f, 0xffffff, 0x0000aa),
       "button.focused": Style.new(null, 0x4f, 0xffffff, 0xaa0000),
