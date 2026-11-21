@@ -308,6 +308,7 @@ class UiStyleTest {
       "title", "title.inactive",
       "menu.item", "menu.item.focused", "menu.item.disabled",
       "input", "input.focused",
+      "tab", "tab.selected", "tab.focused", "tab.selected.focused",
       "statusbar", "disconnected", "scrollbar.track", "scrollbar.thumb",
       "help", "popup", "popup.frame", "popup.frame.inactive"
     ]

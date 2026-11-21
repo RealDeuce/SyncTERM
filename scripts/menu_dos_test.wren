@@ -2,10 +2,11 @@
 import "syncterm" for Host, Key, KeyEvent, Mod, Mouse, MouseEvent
 import "syncterm_menu" for Menu, MenuError
 import "menu_dos" for DosTable
-import "menu_dos_forms" for DosForms
+import "menu_dos_forms" for DosForms, DosFormTab
 import "menu_bbs_editor" for BbsEditor
 import "ui_app" for App
 import "ui_widget" for Rect
+import "ui_style" for Style, Theme
 import "main_menu" for DosMainList
 
 class DosTests {
@@ -66,6 +67,26 @@ class DosTests {
       check(DosTable.terminal(p) == ["ANSI", "ANSI/RIP1", "ANSI/RIP3", "ANSI/Sky1.3", "ANSI/Sky3.1", "ANSI/IGS", "ANSI/BIG"][i], "graphics label %(i)")
     }
     check(DosTable.fit("一Z", 2) == "一", "wide clipping")
+    var tabTheme = Theme.new({
+      "default": Style.new(0, 0x1f, 0xffffff, 0x0000aa),
+      "button.focused": Style.new(null, 0x4f, 0xffffff, 0xaa0000),
+      "tab": Style.new(null, 0x1f, 0xffffff, 0x0000aa),
+      "tab.selected": Style.new(null, 0x30, 0x000000, 0x00aaaa),
+      "tab.focused": Style.new(null, 0x70, 0x000000, 0xaaaaaa),
+      "tab.selected.focused": Style.new(null, 0x60, 0x000000, 0xaaaa00)
+    }, Theme.default.glyphs)
+    var currentTab = DosFormTab.new("Current", true)
+    currentTab.theme = tabTheme
+    currentTab.bounds = Rect.new(1, 1, 14, 1)
+    check(currentTab.draw().cellAt(2, 0).bgRgb == 0x00aaaa, "current tab has its own theme role")
+    currentTab.focused = true
+    check(currentTab.draw().cellAt(2, 0).bgRgb == 0xaaaa00, "focused current tab has its own theme role")
+    var otherTab = DosFormTab.new("Other", false)
+    otherTab.theme = tabTheme
+    otherTab.bounds = Rect.new(1, 1, 14, 1)
+    check(otherTab.draw().cellAt(2, 0).bgRgb == 0x0000aa, "ordinary tab has its own theme role")
+    otherTab.focused = true
+    check(otherTab.draw().cellAt(2, 0).bgRgb == 0xaaaaaa, "tab focus is independent of current tab and button focus")
     var app = App.new()
     for (type in 1..13) {
       var d = BbsEditor.draft_(p)

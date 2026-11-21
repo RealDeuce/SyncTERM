@@ -143,6 +143,10 @@ static const struct style_template default_styles[] = {
 	S("button.hotkey", -1, 0x1e, 0xffff55, -1),
 	S("button.focused", -1, 0x70, 0x000000, 0xaaaaaa),
 	S("button.focused.hotkey", -1, 0x78, 0x555555, -1),
+	S("tab", -1, 0x1f, -1, -1),
+	S("tab.selected", -1, 0x30, 0x000000, 0x00aaaa),
+	S("tab.focused", -1, 0x70, 0x000000, 0xaaaaaa),
+	S("tab.selected.focused", -1, 0x70, 0x000000, 0xaaaaaa),
 	S("statusbar", -1, 0x30, 0x000000, 0x00aaaa),
 	S("disconnected", -1, 0x4f, 0xffffff, 0xaa0000),
 	S("checkbox", -1, 0x1f, -1, -1),
@@ -475,7 +479,7 @@ build_classic_theme(const struct st_theme *default_theme,
 {
 	static const char *const normal[] = {
 		"default", "menu.item", "list.item", "button", "checkbox",
-		"radio.item", "help", "help.bullet",
+		"radio.item", "help", "help.bullet", "tab",
 	};
 	static const char *const inactive[] = {
 		"default.inactive", "frame.inactive", "title.inactive",
@@ -484,7 +488,7 @@ build_classic_theme(const struct st_theme *default_theme,
 		"menu.item.focused", "list.item.focused", "input",
 		"input.focused", "button.focused", "button.focused.hotkey",
 		"checkbox.focused", "radio.item.focused", "spinbox",
-		"spinbox.focused",
+		"spinbox.focused", "tab.focused", "tab.selected.focused",
 	};
 	struct st_theme *theme = theme_clone(default_theme);
 	int frame = classic_colour(settings->theme_frame_color, 16, 14);
@@ -515,6 +519,7 @@ build_classic_theme(const struct st_theme *default_theme,
 	    || !set_complete_style(theme, "frame", frame, background)
 	    || !set_complete_style(theme, "title", frame, background)
 	    || !set_complete_style(theme, "button.hotkey", frame, background)
+	    || !set_complete_style(theme, "tab.selected", 0, inverse)
 	    || !set_complete_style(theme, "statusbar", 0, inverse)
 	    || !set_complete_style(theme, "classic.backdrop", inverse, background)
 	    || !set_complete_style(theme, "classic.header", background, inverse)

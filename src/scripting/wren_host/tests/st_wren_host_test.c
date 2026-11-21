@@ -5171,7 +5171,7 @@ exercise_theme_contract(st_wren_host_t *public_host, bool recolored)
 	    "import \"syncterm\" for Host\n"
 	    "var defaults = Host.defaultThemeData[0]\n"
 	    "var active = Host.themeData[0]\n"
-	    "if (defaults.count != 51 || active.count != 58) Fiber.abort(\"theme roles: default=%(defaults.count), active=%(active.count)\")\n"
+	    "if (defaults.count != 55 || active.count != 62) Fiber.abort(\"theme roles: default=%(defaults.count), active=%(active.count)\")\n"
 	    "for (rows in [defaults, active]) {\n"
 	    "  var roles = {}\n"
 	    "  for (row in rows) roles[row[0]] = row\n"

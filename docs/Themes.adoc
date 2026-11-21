@@ -319,6 +319,12 @@ The current role registry is:
 | `button`, `button.hotkey`, `button.focused`, `button.focused.hotkey`
 | Button labels and their shortcut character.
 
+| `tab`, `tab.selected`, `tab.focused`, `tab.selected.focused`
+| Ordinary tabs, the current page, keyboard focus on another tab, and keyboard
+  focus on the current tab, respectively. These roles are independent of button,
+  list-selection, and input styles. Classic Theme uses its inverse background
+  for the current page and its Lightbar colours for keyboard focus.
+
 | `statusbar`
 | Status and help bars.
 

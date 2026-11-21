@@ -986,8 +986,12 @@ Opening, resizing, or switching the directory does not resize the remote termina
 DOS entry settings, New Connection Defaults, and Program Settings use separate
 full-page forms. The active category stays highlighted and bracketed in the
 top tab row while keyboard focus moves through its fields. Click a tab or use
-Ctrl-PageUp/PageDown to change categories. Labels sit beside their controls;
-text and number editors retain shaded, bracketed rectangles when unfocused.
+Ctrl-PageUp/PageDown to change categories.
+`tab.selected` styles the current page independently of `tab.focused` for
+keyboard focus; `tab.selected.focused` styles the combined state. Brackets
+mark the current tab and `>` marks keyboard focus, including when colours match.
+Labels sit beside their controls; text and number editors retain shaded,
+bracketed rectangles when unfocused.
 Enum fields have a down-arrow marker and open an attached dropdown with Enter,
 Space, Alt-Down, or a click. The list opens below the field, or above when space
 is limited; long lists scroll. Arrows, paging keys, Home/End, and typing navigate

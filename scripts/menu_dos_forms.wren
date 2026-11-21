@@ -23,7 +23,9 @@ class DosFormTab is Button {
     hotkeyIdx = -1
   }
   onPaint_() {
-    var st = style(_selected || focused ? "button.focused" : "button")
+    var role = _selected ? "tab.selected" : "tab"
+    if (focused) role = role + ".focused"
+    var st = style(role)
     Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", st)
     var text = "%(focused ? ">" : " ")%(_selected ? "[" : " ")%(label)%(_selected ? "]" : " ") "
     Painter.text(surface, 0, 0, text, st, bounds.w)

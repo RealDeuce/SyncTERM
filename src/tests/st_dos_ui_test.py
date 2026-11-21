@@ -53,6 +53,24 @@ def program_layout(client, shot, reports):
     boxed_number(shot, "2000")  # The unfocused editor has a visible rectangle.
     y = next(y for y, line in enumerate(shot.lines) if "[General]" in line)
     assert cell_at(shot, shot.lines[y].index("General"), y).background != cell_at(shot, shot.lines[y].index("Display"), y).background
+    selected_background = cell_at(shot, shot.lines[y].index("General"), y).background
+    # Keyboard focus can visit another tab without changing the current page.
+    client.key("tab", 1)
+    shot = client.wait_text("> Colours")
+    assert "[General]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
+    focus_background = cell_at(shot, shot.lines[y].index("Colours"), y).background
+    assert selected_background == cell_at(shot, shot.lines[y].index("General"), y).background, shot.text
+    assert focus_background != selected_background, shot.text
+    shot.save_image(Path(reports) / "program-tabs.ppm")
+    client.key("enter")
+    shot = client.wait_text("[Colours]")
+    assert "Frame Colour" in shot.text, shot.text
+    client.key("tab", 1)
+    shot = client.wait_text(">[Colours]")
+    assert cell_at(shot, shot.lines[y].index("Colours"), y).background == focus_background, shot.text
+    client.key("page_down", 2)
+    shot = client.wait_text("Main Interface")
+    selected_tab(shot, "General")
     click_text(client, shot, "2000")
     client.text("4096")
     client.key("tab")

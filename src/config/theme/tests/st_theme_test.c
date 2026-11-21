@@ -479,6 +479,9 @@ main(void)
 	    "Name=Custom Theme\nAuthor=Tester\n\n"
 	    "[Style:frame]\nForeground=0x123456\n\n"
 	    "[Style:shadow]\nForeground=0x246813\nBackground=inherit\n\n"
+	    "[Style:tab.selected]\nBackground=0x112233\n\n"
+	    "[Style:tab.focused]\nBackground=0x445566\n\n"
+	    "[Style:tab.selected.focused]\nBackground=0x778899\n\n"
 	    "[Style:list.item.focused.indicator]\nForeground=0x123456\n\n"
 	    "[Style:list.item.focused.indicator.inactive]\nBackground=0x654321\n\n"
 	    "[Glyph:arrow.up]\nASCII=65\n\n"
@@ -508,8 +511,18 @@ main(void)
 	CHECK(st_theme_manager_create(&manager, &paths, &settings, error,
 	    sizeof(error)) == 0);
 	CHECK(test_failed_document_construction(manager) == 0);
-	CHECK(st_theme_default(manager)->style_count == 51);
-	CHECK(st_theme_active(manager)->style_count == 58);
+	CHECK(st_theme_default(manager)->style_count == 55);
+	CHECK(st_theme_active(manager)->style_count == 62);
+	static const char *const tab_roles[] = {
+		"tab", "tab.selected", "tab.focused", "tab.selected.focused",
+	};
+	for (size_t i = 0; i < sizeof(tab_roles) / sizeof(tab_roles[0]); ++i)
+		CHECK(style(st_theme_default(manager), tab_roles[i]) != NULL);
+	CHECK(style(st_theme_default(manager), "tab.selected")->legacy_attr == 0x30);
+	CHECK(style(st_theme_default(manager), "tab.focused")->legacy_attr == 0x70);
+	CHECK(style(st_theme_active(manager), "tab.selected")->legacy_attr == 0x30);
+	CHECK(style(st_theme_active(manager), "tab.focused")->legacy_attr == 0x71);
+	CHECK(style(st_theme_active(manager), "tab.selected.focused")->legacy_attr == 0x71);
 	CHECK(style(st_theme_default(manager), "list.item.focused.indicator") != NULL);
 	CHECK(style(st_theme_default(manager), "list.item.focused.indicator")->foreground
 	    == ST_THEME_INHERIT);
@@ -537,6 +550,10 @@ main(void)
 	CHECK(st_theme_preview(manager, "custom.ini", error, sizeof(error)) == 0);
 	CHECK(st_theme_generation(manager) > generation);
 	CHECK(style(st_theme_active(manager), "frame")->foreground == 0x123456);
+	CHECK(style(st_theme_active(manager), "tab.selected")->background == 0x112233);
+	CHECK(style(st_theme_active(manager), "tab.focused")->background == 0x445566);
+	CHECK(style(st_theme_active(manager), "tab.selected.focused")->background == 0x778899);
+	CHECK(style(st_theme_active(manager), "button.focused")->background == 0xaaaaaa);
 	CHECK(style(st_theme_active(manager), "shadow")->foreground == 0x246813);
 	CHECK(style(st_theme_active(manager), "shadow")->background == ST_THEME_INHERIT);
 	CHECK(style(st_theme_active(manager), "shadow")->legacy_attr == 0x08);
@@ -576,6 +593,18 @@ main(void)
 
 	CHECK(st_theme_document_open(&document, manager, "custom.ini", error,
 	    sizeof(error)) == 0);
+	for (size_t role = 0; role < sizeof(tab_roles) / sizeof(tab_roles[0]); ++role) {
+		bool found = false;
+		for (size_t i = 0; i < st_theme_document_style_count(document); ++i) {
+			struct st_theme_document_style editable_style;
+			CHECK(st_theme_document_style_at(document, i, &editable_style));
+			if (strcmp(editable_style.role, tab_roles[role]) == 0) {
+				CHECK(editable_style.builtin);
+				found = true;
+			}
+		}
+		CHECK(found);
+	}
 	struct st_theme_document_glyph editable_glyph;
 	CHECK(document_glyph(document, "custom.unicode", &editable_glyph));
 	CHECK(editable_glyph.values[ST_THEME_GLYPH_CODEPOINT] == 0x2603);
@@ -634,6 +663,12 @@ main(void)
 	    "2") == 0);
 	CHECK(style(st_theme_document_preview(document), "custom.notice")
 	    ->foreground == 0xabcdef);
+	CHECK(style(st_theme_document_preview(document), "tab.selected")
+	    ->background == 0x112233);
+	CHECK(style(st_theme_document_preview(document), "tab.focused")
+	    ->background == 0x445566);
+	CHECK(style(st_theme_document_preview(document), "tab.selected.focused")
+	    ->background == 0x778899);
 	CHECK(write_text(saved, "Name=Externally changed\n") == 0);
 	CHECK(st_theme_document_save(document, NULL, false, error, sizeof(error))
 	    == ST_THEME_DOCUMENT_CONFLICT);
@@ -675,6 +710,10 @@ main(void)
 	CHECK(style(st_theme_active(manager), "frame")->legacy_attr == 0x01);
 	CHECK(style(st_theme_active(manager), "list.item.focused")->legacy_attr
 	    == 0x1f);
+	CHECK(style(st_theme_active(manager), "tab")->legacy_attr == 0x07);
+	CHECK(style(st_theme_active(manager), "tab.selected")->legacy_attr == 0x70);
+	CHECK(style(st_theme_active(manager), "tab.focused")->legacy_attr == 0x1f);
+	CHECK(style(st_theme_active(manager), "tab.selected.focused")->legacy_attr == 0x1f);
 	CHECK(style(st_theme_active(manager), "classic.header")->legacy_attr
 	    == 0x70);
 	CHECK(style(st_theme_active(manager), "classic.console")->legacy_attr
