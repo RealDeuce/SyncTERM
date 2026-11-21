@@ -735,6 +735,12 @@ test_pointer_shapes(void)
 	    cursors[ST_CONSOLE_POINTER_TEXT], sizeof(cursors[0])) != 0);
 	CHECK(memcmp(cursors[ST_CONSOLE_POINTER_TEXT],
 	    cursors[ST_CONSOLE_POINTER_LINK], sizeof(cursors[0])) != 0);
+	/* Circle and diagonal remain distinct from the raised, separated fingers. */
+	CHECK(cursors[ST_CONSOLE_POINTER_PROHIBITED][7*16+7]==UINT32_C(0xff000000));
+	CHECK(cursors[ST_CONSOLE_POINTER_PROHIBITED][2*16+7]==UINT32_C(0xff000000));
+	CHECK(cursors[ST_CONSOLE_POINTER_PROHIBITED][5*16+9]!=UINT32_C(0xff000000));
+	CHECK(cursors[ST_CONSOLE_POINTER_STOP][3*16+5]==UINT32_C(0xff000000));
+	CHECK(cursors[ST_CONSOLE_POINTER_STOP][3*16+6]!=UINT32_C(0xff000000));
 	return 0;
 }
 

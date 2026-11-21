@@ -11,6 +11,7 @@
 #include <shellapi.h>
 
 #include "console_internal.h"
+#include "console_pointer_pixels.h"
 #include "io_error.h"
 #include "st_time.h"
 #include "st_windows_utf.h"
@@ -93,6 +94,7 @@ struct gdi_state {
 	bool have_damage;
 	bool pointer_visible;
 	enum st_console_pointer_shape pointer_shape;
+	HCURSOR palm_cursor;
 	bool fullscreen;
 	bool maximized;
 	WINDOWPLACEMENT placement;
@@ -105,13 +107,26 @@ static st_once_flag_t class_once = ST_ONCE_FLAG_INIT;
 static ATOM window_class;
 
 static HCURSOR
-pointer_cursor(enum st_console_pointer_shape shape)
+pointer_cursor(struct gdi_state *state, enum st_console_pointer_shape shape)
 {
 	static const unsigned int cursors[] = {
 		GDI_CURSOR_ARROW, GDI_CURSOR_IBEAM, GDI_CURSOR_HAND,
-		GDI_CURSOR_PROGRESS, GDI_CURSOR_CROSS, GDI_CURSOR_STOP, GDI_CURSOR_WAIT,
+		GDI_CURSOR_PROGRESS, GDI_CURSOR_CROSS, GDI_CURSOR_STOP, GDI_CURSOR_WAIT, GDI_CURSOR_STOP,
 	};
 
+	if (shape == ST_CONSOLE_POINTER_STOP) {
+		if (state->palm_cursor == NULL) {
+			uint32_t pixels[256];unsigned char and_bits[32]={0},xor_bits[32]={0};
+			st_console_pointer_pixels(pixels,shape);
+			for (unsigned i=0;i<256;i++) {
+				unsigned char bit=(unsigned char)(0x80u>>(i%8));
+				if (pixels[i]==0) and_bits[i/8]|=bit;
+				if (pixels[i]==UINT32_C(0xffffffff)) xor_bits[i/8]|=bit;
+			}
+			state->palm_cursor=CreateCursor(NULL,7,7,16,16,and_bits,xor_bits);
+		}
+		return state->palm_cursor;
+	}
 	return LoadCursorW(NULL, MAKEINTRESOURCEW(cursors[shape]));
 }
 
@@ -912,15 +927,17 @@ process_command(struct gdi_state *state, struct command *command)
 	case COMMAND_POINTER:
 		state->pointer_visible = command->data.enabled;
 		(void)SetCursor(state->pointer_visible
-		    ? pointer_cursor(state->pointer_shape) : NULL);
+		    ? pointer_cursor(state,state->pointer_shape) : NULL);
 		command->result = 0;
 		break;
-	case COMMAND_POINTER_SHAPE:
+	case COMMAND_POINTER_SHAPE: {
+		HCURSOR cursor=pointer_cursor(state,command->data.pointer_shape);
+		if (cursor == NULL) {command->result=IO_ERROR_IO;break;}
 		state->pointer_shape = command->data.pointer_shape;
-		(void)SetCursor(state->pointer_visible
-		    ? pointer_cursor(state->pointer_shape) : NULL);
+		(void)SetCursor(state->pointer_visible ? cursor : NULL);
 		command->result = 0;
 		break;
+	}
 	case COMMAND_FULLSCREEN:
 		command->result = set_fullscreen(state, command->data.enabled)
 		    ? 0 : IO_ERROR_IO;
@@ -1059,7 +1076,7 @@ window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 	}
 	case WM_SETCURSOR:
 		(void)SetCursor(state->pointer_visible
-		    ? pointer_cursor(state->pointer_shape) : NULL);
+		    ? pointer_cursor(state,state->pointer_shape) : NULL);
 		return TRUE;
 	case GDI_COMMAND:
 		return process_command(state, (struct command *)lparam);
@@ -1151,6 +1168,8 @@ worker(void *argument)
 	}
 	if (state->icon != NULL)
 		(void)DestroyIcon(state->icon);
+	if (state->palm_cursor != NULL)
+		(void)DestroyCursor(state->palm_cursor);
 	return 0;
 }
 

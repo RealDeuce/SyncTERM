@@ -79,6 +79,9 @@ int main(void)
 {
 	WNDCLASSEXW window_class = {sizeof(window_class)};
 	BITMAPINFO bitmap = {0};
+	unsigned char cursor_mask[32] = {0};
+	HCURSOR cursor = CreateCursor(NULL, 7, 7, 16, 16, cursor_mask, cursor_mask);
+	(void)DestroyCursor(cursor);
 	(void)RegisterClassExW(&window_class);
 	(void)StretchDIBits(NULL, 0, 0, 1, 1, 0, 0, 1, 1, NULL, &bitmap,
 	    DIB_RGB_COLORS, SRCCOPY);

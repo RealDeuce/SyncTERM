@@ -5,6 +5,7 @@
 
 #include "st_term.h"
 #include "connection_internal.h"
+#include "console_internal.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -19,6 +20,25 @@
 		return EXIT_FAILURE; \
 	} \
 } while (0)
+
+static int
+headless_present(st_console_t *console)
+{
+	(void)console;
+	return 0;
+}
+
+static unsigned prohibited_requests;
+static int
+limited_pointer(st_console_display_t *display, enum st_console_pointer_shape shape)
+{
+	(void)display;
+	if (shape==ST_CONSOLE_POINTER_PROHIBITED) {
+		prohibited_requests++;
+		return IO_ERROR_NOT_SUPPORTED;
+	}
+	return 0;
+}
 
 static int
 observe_event(void *context, const struct st_console_event *event, bool *consumed)
@@ -66,6 +86,10 @@ st_term_key_forward_test_main(void)
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_console_backend_ops *original_ops=console->display->backend_ops;
+	struct st_console_backend_ops limited_ops={.present=headless_present};
+	if (original_ops!=NULL) limited_ops=*original_ops;
+	limited_ops.set_pointer_shape=limited_pointer;
 	for (unsigned mode = 0; mode < 6; ++mode) {
 		bool utf8 = (mode & 1) == 0;
 		bool rip = mode >= 2;
@@ -141,6 +165,25 @@ st_term_key_forward_test_main(void)
 			enum st_term_disposition disposition=ST_TERM_RETURN_TO_PICKER;bool finished=false;
 			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished);
 			CHECK(expect_output(&connection,"ready",5)==0);
+			/* A missing native cursor must replace a prior wait cursor with
+			 * arrow, without changing the requested protocol number or closing. */
+			CHECK(st_mutex_lock(&console->display->backend_mutex)==ST_THREAD_SUCCESS);
+			console->display->backend_ops=&limited_ops;
+			CHECK(st_mutex_unlock(&console->display->backend_mutex)==ST_THREAD_SUCCESS);
+			static const char pointer_program[]="!|1c06|1c07|1\0330000pointer\r";
+			unsigned before_requests=prohibited_requests;
+			memcpy(connection.input.data,pointer_program,sizeof(pointer_program)-1);
+			connection.input.head=0;connection.input.count=sizeof(pointer_program)-1;
+			CHECK(st_term_session_pump(session,&disposition,&finished)==0 && !finished);
+			CHECK(expect_output(&connection,"pointer",7)==0);
+			enum st_console_pointer_shape preference=ST_CONSOLE_POINTER_WAIT;
+			CHECK(st_term_session_pointer_shape(session,&preference)
+			    && preference==ST_CONSOLE_POINTER_DEFAULT
+			    && console->pointer_shape==ST_CONSOLE_POINTER_DEFAULT
+			    && prohibited_requests==before_requests+1);
+			CHECK(st_mutex_lock(&console->display->backend_mutex)==ST_THREAD_SUCCESS);
+			console->display->backend_ops=original_ops;
+			CHECK(st_mutex_unlock(&console->display->backend_mutex)==ST_THREAD_SUCCESS);
 			st_term_session_set_mouse_disabled(session,true);
 			event=(struct st_console_event){.type=ST_CONSOLE_EVENT_TEXT,.data.text.codepoint='a'};
 			CHECK(st_term_session_send_key(session,&event,&handled)==0 && handled);

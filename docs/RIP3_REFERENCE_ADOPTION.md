@@ -631,3 +631,38 @@ and tested in both encodings on four rasters. The implementation ledger records
 that follow-up separately from documentary adoption. Image/label macro expansion,
 grouped selection and other unfinished families remain pending; the earlier
 adoption-time ICON/HOT limitation is superseded by this runtime milestone.
+
+## PRs #126 and #127: graphical consumers and canonical cursors
+
+Adopt fork stable `a8570522e02f4b6753afea9cb9a6de3565009f1a`, containing
+reviewed PR #126 head `c76013469772e7f5e4ea5fca0255e761f9952ffe` and
+PR #127 head `635d3f095360cf66e545a54ffed57ddd798bbc6a`. Archive SHA-256:
+`a655f4c3e9a778a78767f9223b9fe825c3f6c63d41744cdbb6aa3fc211c8bd0e`.
+Both actual PR heads are ancestors of this selected stable revision; the PRs
+remain open upstream. Six of the same 68 normative documents change. Preserve
+8170 exact source/heading/text blocks, relocate 2288, retire 15 and review
+80 new blocks, yielding 8250 units. Retired implementation evidence is retained
+in the machine-readable adoption history; replacement cursor claims are tied
+to this milestone's independent tests. Verify all 58 prior derivation hashes
+and add the two #124/#125 notes, for 60 pinned derivations.
+
+PR #126 resolves documentation blocker B124. Filename/label/T/@ and metric
+have explicit angle and one-pass ordinary stages, the complete 84-name callback
+gate, per-stage prefix/NUL/escaping rules, redraw timing and suspended prompt
+ownership. This adoption does not mark those unfinished rendering consumers
+implemented. The already connected positional `1U` splitter remains unchanged:
+only the first two literal delimiters split the raw payload, and the host
+remainder stays opaque during rendering.
+
+PR #127 resolves B125 and defines one shared 0..7 mapping. Value 5 is a raised
+palm; value 7 is a visible prohibited symbol, with default-arrow fallback while
+retaining the requested logical value. Wire validation now accepts 7. Native
+adapters and connected tests use that contract, including held field capture,
+link-hover restoration and a failing backend. Windows/macOS artwork is selected
+in source and left to native CI; only the native POSIX configuration is run
+locally. No original executable or downloaded code is executed. No comments
+are added to existing issues, and no upstream state is modified.
+
+The resulting queue has 1664 implemented, 1775 pending, 3365 unreviewed,
+1354 context, 67 excluded and 25 blocked source units. The RIP1.54 baseline,
+entry-selected raster and explicit absence of a new VT-102 mode remain intact.

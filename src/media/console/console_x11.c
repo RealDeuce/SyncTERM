@@ -6,6 +6,7 @@
  */
 
 #include "console_internal.h"
+#include "console_pointer_pixels.h"
 #include "console_posix_url.h"
 #include "console_config.h"
 #include "console_x11_keys.h"
@@ -2102,7 +2103,7 @@ set_pointer_shape(struct x11_state *state,
 	enum st_console_pointer_shape shape)
 {
 	static const unsigned int shapes[] = {
-		XC_left_ptr, XC_xterm, XC_hand2, XC_clock, XC_crosshair, XC_hand1, XC_watch,
+		XC_left_ptr, XC_xterm, XC_hand2, XC_clock, XC_crosshair, XC_hand1, XC_watch, XC_circle,
 	};
 	Cursor cursor;
 
@@ -2110,7 +2111,23 @@ set_pointer_shape(struct x11_state *state,
 		return IO_ERROR_INVALID_ARGUMENT;
 	cursor = state->pointer_cursors[shape];
 	if (cursor == None) {
-		cursor = state->api.create_font_cursor(state->display, shapes[shape]);
+		if (shape == ST_CONSOLE_POINTER_STOP || shape == ST_CONSOLE_POINTER_PROHIBITED) {
+			uint32_t pixels[256];unsigned char source[32]={0},mask[32]={0};
+			st_console_pointer_pixels(pixels,shape);
+			for (unsigned i=0;i<256;i++) {
+				unsigned char bit=(unsigned char)(1u<<(i%8));
+				if (pixels[i]!=0) mask[i/8]|=bit;
+				if (pixels[i]==UINT32_C(0xff000000)) source[i/8]|=bit;
+			}
+			Pixmap image=state->api.create_bitmap_from_data(state->display,state->window,(const char *)source,16,16);
+			Pixmap alpha=state->api.create_bitmap_from_data(state->display,state->window,(const char *)mask,16,16);
+			XColor black={0},white={.red=65535,.green=65535,.blue=65535};
+			if (image!=None && alpha!=None)
+				cursor=state->api.create_pixmap_cursor(state->display,image,alpha,&black,&white,7,7);
+			if (image!=None) state->api.free_pixmap(state->display,image);
+			if (alpha!=None) state->api.free_pixmap(state->display,alpha);
+		}
+		else cursor = state->api.create_font_cursor(state->display, shapes[shape]);
 		if (cursor == None)
 			return IO_ERROR_IO;
 		state->pointer_cursors[shape] = cursor;

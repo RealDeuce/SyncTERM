@@ -2178,11 +2178,15 @@ widths, STYLE-protection independence, invalid-input recovery, default reset and
 continued mouse-field activation. OSC8 hover reads the current RIP3 text owner
 using event pixels, including unaligned view boundaries, and restores the RIP3
 pointer after leaving a link. Ordinary ANSI hyperlink tests retain the existing
-path. Native tests cover ENV-protection differences, accepted stored value 7,
-optional reserved zero fields, all native pointer enums, distinct Wayland rasters
-and native X11 presentation on a private Xvfb display. Windows/macOS tests were
-updated but were not run locally. [Issue #125](https://github.com/bbs-land/remote-imaging-protocol/issues/125)
-tracks value 7's undefined presentation and conflicting example numbering;
-[issue #124](https://github.com/bbs-land/remote-imaging-protocol/issues/124)
-tracks remaining graphical filename/label expansion rules. RIP hover host-query
-execution and HEADER input-lock orchestration remain pending.
+path. Native tests cover ENV-protection differences, optional reserved zero
+fields, all eight wire/variable cursor numbers, invalid ranges, distinct Wayland
+rasters, and missing-shape arrow fallback through the real receive pump. Connected
+tests select prohibited cursor 7 during a held press and retain valid release and
+link-hover restoration. Native X11 presentation runs on a private Xvfb display.
+Windows/macOS sources and tests are updated but were not run locally. Reviewed
+[PR #127](https://github.com/bbs-land/remote-imaging-protocol/pull/127) answers
+issue #125 with canonical 0..7 mapping, including raised palm 5 and prohibited 7.
+[PR #126](https://github.com/bbs-land/remote-imaging-protocol/pull/126) answers
+issue #124's graphical-expansion contract; its unfinished runtime consumers
+remain pending. RIP hover host-query execution and HEADER input-lock
+orchestration remain pending.

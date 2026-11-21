@@ -161,13 +161,18 @@ refresh_pointer(struct st_term_rip3 *rip)
 	if (!st_rip3_session_mouse_pointer(rip->session,&number)
 	    || (rip->pointer_known && number==rip->pointer_number)) return;
 	rip->pointer_number=number;rip->pointer_known=true;
-	if (number>6) {diagnostic(rip,ST_RIP3_COMMAND_UNSUPPORTED);return;}
+	if (number>7) {diagnostic(rip,ST_RIP3_COMMAND_UNSUPPORTED);return;}
 	static const enum st_console_pointer_shape shapes[]={ST_CONSOLE_POINTER_DEFAULT,
 	    ST_CONSOLE_POINTER_WATCH,ST_CONSOLE_POINTER_CROSSHAIR,ST_CONSOLE_POINTER_TEXT,
-	    ST_CONSOLE_POINTER_LINK,ST_CONSOLE_POINTER_STOP,ST_CONSOLE_POINTER_WAIT};
+	    ST_CONSOLE_POINTER_LINK,ST_CONSOLE_POINTER_STOP,ST_CONSOLE_POINTER_WAIT,ST_CONSOLE_POINTER_PROHIBITED};
 	rip->pointer_shape=shapes[number];
 	int status=st_console_set_pointer_shape(rip->config.console,rip->pointer_shape);
-	if (status!=0 && status!=IO_ERROR_NOT_SUPPORTED) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	if (status!=0) {
+		/* Keep the requested ENV number; hover restores the actual fallback. */
+		rip->pointer_shape=ST_CONSOLE_POINTER_DEFAULT;
+		(void)st_console_set_pointer_shape(rip->config.console,rip->pointer_shape);
+		if (status!=IO_ERROR_NOT_SUPPORTED) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	}
 }
 
 bool

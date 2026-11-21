@@ -19,7 +19,7 @@ def run(args):
             return t.exchange(query(program,at_cursor=True),expected)
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
         before=t.exchange(b'\x01|*\r\n\x1b[?25l')
-        expected=(0,3,4,1,2,5,6)  # RIP numbers -> public native pointer enum.
+        expected=(0,3,4,1,2,5,6,7)  # RIP numbers -> public native pointer enum.
         t.case('rip3-wire-pointer-shapes-and-no-raster-effects')
         for number,shape in enumerate(expected):
             frame=t.exchange(f'\x01|1c{number:02d}\r\n'.encode())
@@ -34,12 +34,10 @@ def run(args):
         for number,shape in enumerate(expected):
             frame=values(f'$MCURSOR({number})$'.encode())
             assert frame.metadata['pointer_shape']==shape
-        frame=t.exchange(b'\x01|1c07|1cZZ|1c060001|1c0\r\n'+query(b'$MCURSOR(8)$',at_cursor=True))
-        assert frame.metadata['pointer_shape']==6 and frame.application['connected']==1
-        # The pin accepts stored MCURSOR value 7 but leaves its mapping unclear.
-        # Retain the previous native shape; this is not a mapping/compliance claim.
+        frame=t.exchange(b'\x01|1c08|1cZZ|1c060001|1c0\r\n'+query(b'$MCURSOR(8)$',at_cursor=True))
+        assert frame.metadata['pointer_shape']==7 and frame.application['connected']==1
         frame=values(b'$MCURSOR(7)$')
-        assert frame.metadata['pointer_shape']==6
+        assert frame.metadata['pointer_shape']==7
         frame=values(b'$MCURSOR$')
         assert frame.metadata['pointer_shape']==0
         values(b'$UNPROT(STYLE,5)$$CUR(STYLE,0)$$WORLD(CUR,640,480)$$COORDSIZE(CUR,5)$$BASEMATH(CUR,64)$')
@@ -55,14 +53,17 @@ def run(args):
             before_count=client.capture().metadata['events_dequeued']
             client.mouse(px,py,action=0 if move else 1,buttons=int(left))
             client.wait_for(lambda s:s.metadata['events_dequeued']>before_count)
-        mouse(40,40,True);mouse(40,40)
-        frame=t.input(b'click');assert frame.metadata['pointer_shape']==6
+        mouse(40,40,True)
+        frame=t.exchange(b'\x01|1c07\r\n')
+        assert frame.metadata['pointer_shape']==7 and frame.metadata['pointer_visible']
+        mouse(40,40)
+        frame=t.input(b'click');assert frame.metadata['pointer_shape']==7
         t.case('rip3-link-hover-restores-protocol-pointer')
         frame=t.exchange(b'\x1b[2;2H\x1b]8;;https://example.invalid/\x1b\\Link\x1b]8;;\x1b\\')
         mouse(10,13,move=True);frame=t.exchange()
         assert frame.metadata['pointer_shape']==2
         mouse(150,100,move=True);frame=t.exchange()
-        assert frame.metadata['pointer_shape']==6
+        assert frame.metadata['pointer_shape']==7
         # An unaligned text view must use actual pixels and its own cells,
         # including when adjacent inside/outside pixels share a display cell.
         frame=t.exchange(window((19,23,99,56),10,3,0,0)
@@ -70,9 +71,9 @@ def run(args):
         mouse(20,24,move=True);frame=t.exchange()
         assert frame.metadata['pointer_shape']==2
         mouse(18,24,move=True);frame=t.exchange()
-        assert frame.metadata['pointer_shape']==6
+        assert frame.metadata['pointer_shape']==7
         mouse(20,22,move=True);frame=t.exchange()
-        assert frame.metadata['pointer_shape']==6
+        assert frame.metadata['pointer_shape']==7
         t.case('rip3-soft-reset-pointer-default')
         frame=t.exchange(b'\x01|*\r\n')
         assert frame.metadata['pointer_shape']==0

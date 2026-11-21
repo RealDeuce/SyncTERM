@@ -21,7 +21,7 @@ if(NOT ST_CONSOLE_SDL STREQUAL "OFF" AND NOT ((WIN32 OR APPLE) AND ST_CONSOLE_SD
 		SDL_SetHint SDL_CreateRenderer SDL_DestroyRenderer SDL_GetRendererOutputSize
 		SDL_SetRenderDrawColor SDL_RenderClear SDL_RenderCopy SDL_RenderPresent
 		SDL_CreateTexture SDL_DestroyTexture SDL_LockTexture SDL_UnlockTexture SDL_PollEvent
-		SDL_GetTicks SDL_ShowCursor SDL_CreateSystemCursor SDL_SetCursor SDL_FreeCursor
+		SDL_GetTicks SDL_ShowCursor SDL_CreateSystemCursor SDL_CreateCursor SDL_SetCursor SDL_FreeCursor
 		SDL_StartTextInput SDL_StopTextInput SDL_SetClipboardText SDL_GetClipboardText SDL_free ${linked_symbols})
 	if(ST_DEP_SDL2_TARGET)
 		set(ST_CONSOLE_HAVE_SDL 1)

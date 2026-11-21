@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-eb346cb73cf01f66ba88c8fa0dc2a134756a2302](https://github.com/RealDeuce/remote-imaging-protocol/tree/eb346cb73cf01f66ba88c8fa0dc2a134756a2302/version/3.0)
+a8570522e02f4b6753afea9cb9a6de3565009f1a](https://github.com/RealDeuce/remote-imaging-protocol/tree/a8570522e02f4b6753afea9cb9a6de3565009f1a/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -7193,6 +7193,45 @@ The 8185-unit queue now has 1655 implemented, 1723 pending, 3366 unreviewed,
 1344 context, 67 excluded and 30 blocked units. Full RIP3 support remains
 incomplete. The RIP1.54 freeze, entry raster policy, absence of a new VT-102 mode,
 and all unrelated user work remain unchanged.
+
+## PR126/127 adoption and connected cursor 7
+
+The current pin is fork stable `a8570522e02f4b6753afea9cb9a6de3565009f1a`,
+containing both actual reviewed PR heads. The [adoption record](RIP3_REFERENCE_ADOPTION.md)
+retains the archive digest, exact source migration and original derivation hashes.
+B124/B125 are answered documentation; their earlier open-gap descriptions above
+are historical. Graphical expansion now has explicit permissions, prefix bounds,
+escaping and prompt/redraw lifetime rules, with unfinished runtime work remaining
+pending. Positional raw `1U` splitting already matches PR117 and is unchanged.
+
+Connected wire `1c` and MCURSOR now select all eight documented logical values.
+Seven is the visible prohibited symbol and never suppresses input or cancels an
+existing press. Five uses a raised palm, separately from the pointing finger
+and prohibited shape. X11/Wayland share monochrome equivalents; SDL/GDI use a
+custom palm and native prohibited cursor; Quartz uses openHand/not-allowed.
+The existing arrow, I-bar and link artwork is unchanged. Native cursors are
+owned by their existing backend and released on shutdown. No scene or damage
+buffer is added.
+
+A backend failure selects the default arrow while the ENV retains its logical
+request. The terminal's hover preference follows that actual presentation.
+Native receive-pump tests inject a backend lacking cursor 7 and verify arrow
+fallback and continued connection operation. Independent connected CP437/UTF-8
+captures verify all eight values, invalid-input recovery, unchanged pixel planes,
+prohibited selection during a held press, a successful inside release, default
+reset and OSC8 hover restoring cursor 7. Every-byte split parser tests cover
+`1c070000`; native checks retain protection/default/range behavior and distinct
+Wayland glyphs. X11 runs on a private Xvfb display. GDI/Quartz are not executed
+locally. The RIP1.54 source freeze and ordinary ANSI/RIP1 forwarding remain
+covered by their existing focused guards/tests.
+
+The 8250-unit queue now has 1664 implemented, 1775 pending, 3365 unreviewed,
+1354 context, 67 excluded and 25 blocked units, with 60 pinned derivations and
+68 normative documents. The native Release build is warning-free, and twelve
+relevant native/connected tests pass, including the nonfatal fallback case.
+Full RIP3 remains incomplete; graphical provider and
+prompt continuations, grouped buttons and other pending families are not
+claimed by this cursor milestone.
 
 ## Verification and acceptance
 

@@ -76,7 +76,7 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 		if (status==0) status=st_rip3_command_field(&pointer,command+2,2,env.base_math);
 		if (status==0 && length>4) status=st_rip3_command_field(&reserved,command+4,length-4,env.base_math);
 		if (status!=0) return status;
-		if (pointer>6) return IO_ERROR_OUT_OF_RANGE;
+		if (pointer>7) return IO_ERROR_OUT_OF_RANGE;
 		if (reserved!=0) return IO_ERROR_NOT_SUPPORTED;
 		env.mouse_pointer=(unsigned)pointer;
 		*operation=true;return st_rip3_environments_set(host->environments,current,&env);

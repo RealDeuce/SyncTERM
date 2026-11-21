@@ -433,6 +433,8 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_CROSSHAIR)
 			cursor = NSCursor.crosshairCursor;
 		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_STOP)
+			cursor = NSCursor.openHandCursor;
+		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_PROHIBITED)
 			cursor = NSCursor.operationNotAllowedCursor;
 		else if (consoleState->pointer_shape == ST_CONSOLE_POINTER_WATCH)
 			cursor = consoleState->watch_cursor;

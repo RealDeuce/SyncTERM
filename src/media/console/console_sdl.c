@@ -6,6 +6,7 @@
  */
 
 #include "console_internal.h"
+#include "console_pointer_pixels.h"
 
 #include "console_config.h"
 #include "dynamic_library.h"
@@ -70,6 +71,7 @@ typedef int (SDLCALL *sdl_poll_event_fn)(SDL_Event *);
 typedef Uint32 (SDLCALL *sdl_get_ticks_fn)(void);
 typedef int (SDLCALL *sdl_show_cursor_fn)(int);
 typedef SDL_Cursor *(SDLCALL *sdl_create_system_cursor_fn)(SDL_SystemCursor);
+typedef SDL_Cursor *(SDLCALL *sdl_create_cursor_fn)(const Uint8 *, const Uint8 *, int, int, int, int);
 typedef void (SDLCALL *sdl_set_cursor_fn)(SDL_Cursor *);
 typedef void (SDLCALL *sdl_free_cursor_fn)(SDL_Cursor *);
 typedef void (SDLCALL *sdl_start_text_input_fn)(void);
@@ -125,6 +127,7 @@ struct sdl_api {
 	Uint32 (SDLCALL *get_ticks)(void);
 	int (SDLCALL *show_cursor)(int);
 	SDL_Cursor *(SDLCALL *create_system_cursor)(SDL_SystemCursor);
+	SDL_Cursor *(SDLCALL *create_cursor)(const Uint8 *, const Uint8 *, int, int, int, int);
 	void (SDLCALL *set_cursor)(SDL_Cursor *);
 	void (SDLCALL *free_cursor)(SDL_Cursor *);
 	void (SDLCALL *start_text_input)(void);
@@ -292,6 +295,7 @@ load_sdl(void)
 	manager.api.get_ticks = SDL_GetTicks;
 	manager.api.show_cursor = SDL_ShowCursor;
 	manager.api.create_system_cursor = SDL_CreateSystemCursor;
+	manager.api.create_cursor = SDL_CreateCursor;
 	manager.api.set_cursor = SDL_SetCursor;
 	manager.api.free_cursor = SDL_FreeCursor;
 	manager.api.start_text_input = SDL_StartTextInput;
@@ -382,6 +386,8 @@ load_sdl(void)
 	    "SDL_ShowCursor")
 	    || !LOAD_REQUIRED(&manager.api, manager.library,
 	    create_system_cursor, "SDL_CreateSystemCursor")
+	    || !LOAD_REQUIRED(&manager.api, manager.library, create_cursor,
+	    "SDL_CreateCursor")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, set_cursor,
 	    "SDL_SetCursor")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, free_cursor,
@@ -1354,6 +1360,7 @@ process_command(struct sdl_command *command)
 			SDL_SYSTEM_CURSOR_CROSSHAIR,
 			SDL_SYSTEM_CURSOR_NO,
 			SDL_SYSTEM_CURSOR_WAIT,
+			SDL_SYSTEM_CURSOR_NO,
 		};
 		enum st_console_pointer_shape shape = command->data.pointer_shape;
 
@@ -1361,7 +1368,17 @@ process_command(struct sdl_command *command)
 		    || shape >= ST_CONSOLE_POINTER_COUNT)
 			return IO_ERROR_INVALID_ARGUMENT;
 		if (state->pointer_cursors[shape] == NULL) {
-			state->pointer_cursors[shape] =
+			if (shape == ST_CONSOLE_POINTER_STOP) {
+				uint32_t pixels[256];Uint8 data[32]={0},mask[32]={0};
+				st_console_pointer_pixels(pixels,shape);
+				for (unsigned i=0;i<256;i++) {
+					Uint8 bit=(Uint8)(0x80u>>(i%8));
+					if (pixels[i]!=0) mask[i/8]|=bit;
+					if (pixels[i]==UINT32_C(0xff000000)) data[i/8]|=bit;
+				}
+				state->pointer_cursors[shape]=manager.api.create_cursor(data,mask,16,16,7,7);
+			}
+			else state->pointer_cursors[shape] =
 			    manager.api.create_system_cursor(cursors[shape]);
 			if (state->pointer_cursors[shape] == NULL)
 				return IO_ERROR_NOT_SUPPORTED;

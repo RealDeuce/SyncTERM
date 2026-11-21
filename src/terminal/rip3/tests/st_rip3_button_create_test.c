@@ -75,7 +75,7 @@ static int mouse_pointers(void)
 	struct st_rip3_table_host tables={0};tables.tables[ST_RIP3_TABLE_ENV].live=host.environments;
 	const struct st_rip3_host_variables variables={.tables=&tables};
 	const struct st_rip3_host_sink sink={.context=&errors,.diagnostic=variable_error};
-	for (unsigned pointer=0;pointer<=6;pointer++) for (unsigned res=0;res<=4;res++) {
+	for (unsigned pointer=0;pointer<=7;pointer++) for (unsigned res=0;res<=4;res++) {
 		char wire[9]="1c000000";wire[3]=(char)('0'+pointer);wire[4+res]=0;
 		command(&host,&errors,wire);
 		CHECK(errors==0 && st_rip3_environments_get(host.environments,35,&env)==0
@@ -83,7 +83,7 @@ static int mouse_pointers(void)
 	}
 	CHECK(st_rip3_environments_protect(host.environments,35,true)==0);
 	command(&host,&errors,"1c00");CHECK(errors==1);
-	CHECK(st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==6);
+	CHECK(st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==7);
 	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR(2)$",12);
 	CHECK(errors==1 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==2);
 	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR(7)$",12);
@@ -93,7 +93,7 @@ static int mouse_pointers(void)
 	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR$",9);
 	CHECK(errors==2 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==0);
 	CHECK(st_rip3_environments_protect(host.environments,35,false)==0);
-	command(&host,&errors,"1c07");command(&host,&errors,"1c060001");command(&host,&errors,"1c0");
+	command(&host,&errors,"1c08");command(&host,&errors,"1c060001");command(&host,&errors,"1c0");
 	CHECK(errors==5 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==0);
 	st_rip3_environments_destroy(host.environments);return 0;
 }

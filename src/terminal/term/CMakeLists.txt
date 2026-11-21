@@ -56,7 +56,7 @@ if(BUILD_TESTING)
 		COMMAND st_terminal_tests st_term_rip_encoding_consistency)
 
 	syncterm_add_test_case(st_terminal_tests st_term_key_forward_test tests/st_term_key_forward_test.c)
-	target_link_libraries(st_term_key_forward_test PRIVATE st_term)
+	target_link_libraries(st_term_key_forward_test PRIVATE st_term syncterm_array_list)
 	syncterm_target_atomics(st_term_key_forward_test)
 	set_target_properties(st_term_key_forward_test PROPERTIES
 		C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/123",
-  "revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
-  "previous_revision": "915ca0f3292d6ce4a74c98091cd15e8447251cef",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/127",
+  "revision": "a8570522e02f4b6753afea9cb9a6de3565009f1a",
+  "previous_revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "Reviewed PR122 and PR123 actual heads consolidated into fork stable.",
-  "archive_sha256": "6187979304b66c6f565f7fa8157c5fb3d0da46ec556a9d2f84dd872c2abd6f66",
+  "upstream_state_at_adoption": "Both actual open PR heads consolidated into selected fork stable.",
+  "archive_sha256": "a655f4c3e9a778a78767f9223b9fe825c3f6c63d41744cdbb6aa3fc211c8bd0e",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,19 +17,39 @@
   ],
   "changed_documents": [
     {
+      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+      "previous_sha256": "147a7322ffdd5b26040bbd0cc53c893e8e0f2525202da4304bc6201ddb386798",
+      "sha256": "2da34fb5ea79d65a2d9f10511def40a3820803c22331f1dd8f4dc6a75dfc00b8"
+    },
+    {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "previous_sha256": "ea045a8269a341e4c62b3f3dd75b6100be9d075f0712fb3bfec882e654095345",
-      "sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104"
+      "previous_sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104",
+      "sha256": "a1a88c37781b38c449cafd96e3b8c4a0d64e006d340e0366306a75936b6b2a56"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "previous_sha256": "a93a967d15d044082b0876616ffef80737922a3726659d6d21f90ba0deb75687",
-      "sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b"
+      "previous_sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b",
+      "sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.1-text-variables.md",
+      "previous_sha256": "fc3e33d018af5e1eb9572813055ad7c64f8cb1591ae0eeea8a936a8c849e9f02",
+      "sha256": "abaef97374d8188ed8e7674a1e1bb5a141a87f37a7c59fe9153af1b9bf55aec5"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+      "previous_sha256": "dd8f46592f6029662cd26a6e9f1c7ee39b65282cb2da7cfb1bab8ea67c67f537",
+      "sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+      "previous_sha256": "b82f9164fe415f53094c64db83950bad4e8fbe405894e57ceacd251621d3a465",
+      "sha256": "23c0c2f7352ed8c53ce4ed65515d2dd1ffd9b34120bef4d97152d7e52dfe8268"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 8105,
+  "matched_source_blocks": 8170,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -963,8 +983,11 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 61,
-  "pending_followups": [],
+  "upstream_issue_resolutions": 63,
+  "pending_followups": [
+    "Connect graphical filename/label/T/@/metric expansion, bounded angle processing and serialized prompt continuations under the newly specified contract.",
+    "Complete grouped/persistent button selection, selected plain/clipboard images, mouse hover and remaining table/playback families."
+  ],
   "derivations": [
     {
       "path": "version/3.0/research/issue-10-port-geometry.md",
@@ -1293,6 +1316,18 @@
       "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
       "title": "Issue #120: Selective mouse-field deletion and painting",
       "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-124-graphical-expansion.md",
+      "sha256": "0506e6ecec4e588ccd43bbe4f2a6431df94c1064e12f31932f03d3607f8c0035",
+      "title": "Issue #124: Graphical expansion permissions, bounds and continuation lifetime",
+      "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-125-cursor-number-mapping.md",
+      "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
+      "title": "Issue #125: Canonical cursor numbering and prohibited cursor 7",
+      "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
     }
   ],
   "documents": [
@@ -1418,7 +1453,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "147a7322ffdd5b26040bbd0cc53c893e8e0f2525202da4304bc6201ddb386798"
+      "sha256": "2da34fb5ea79d65a2d9f10511def40a3820803c22331f1dd8f4dc6a75dfc00b8"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1434,11 +1469,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104"
+      "sha256": "a1a88c37781b38c449cafd96e3b8c4a0d64e006d340e0366306a75936b6b2a56"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b"
+      "sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1454,11 +1489,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "fc3e33d018af5e1eb9572813055ad7c64f8cb1591ae0eeea8a936a8c849e9f02"
+      "sha256": "abaef97374d8188ed8e7674a1e1bb5a141a87f37a7c59fe9153af1b9bf55aec5"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "dd8f46592f6029662cd26a6e9f1c7ee39b65282cb2da7cfb1bab8ea67c67f537"
+      "sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1502,7 +1537,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "b82f9164fe415f53094c64db83950bad4e8fbe405894e57ceacd251621d3a465"
+      "sha256": "23c0c2f7352ed8c53ce4ed65515d2dd1ffd9b34120bef4d97152d7e52dfe8268"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -5728,6 +5763,534 @@
         "Image filename and label macro expansion, grouped buttons and selected plain/clipboard images.",
         "Hover, restored mouse tables, scene HEADER input lock and complete playback/mouse query families remain pending."
       ]
+    },
+    {
+      "previous_revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
+      "revision": "a8570522e02f4b6753afea9cb9a6de3565009f1a",
+      "archive_sha256": "a655f4c3e9a778a78767f9223b9fe825c3f6c63d41744cdbb6aa3fc211c8bd0e",
+      "pull_requests": [
+        {
+          "number": 126,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/126",
+          "head": "c76013469772e7f5e4ea5fca0255e761f9952ffe"
+        },
+        {
+          "number": 127,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/127",
+          "head": "635d3f095360cf66e545a54ffed57ddd798bbc6a"
+        }
+      ],
+      "upstream_state": "Both actual open PR heads consolidated into selected fork stable.",
+      "authorization": "User selected fork stable as reference; reviewed source changes adopted without publishing or commenting on existing issues.",
+      "prior_adoption_commit": "133bef73",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "147a7322ffdd5b26040bbd0cc53c893e8e0f2525202da4304bc6201ddb386798",
+          "sha256": "2da34fb5ea79d65a2d9f10511def40a3820803c22331f1dd8f4dc6a75dfc00b8"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104",
+          "sha256": "a1a88c37781b38c449cafd96e3b8c4a0d64e006d340e0366306a75936b6b2a56"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b",
+          "sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "fc3e33d018af5e1eb9572813055ad7c64f8cb1591ae0eeea8a936a8c849e9f02",
+          "sha256": "abaef97374d8188ed8e7674a1e1bb5a141a87f37a7c59fe9153af1b9bf55aec5"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "dd8f46592f6029662cd26a6e9f1c7ee39b65282cb2da7cfb1bab8ea67c67f537",
+          "sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "b82f9164fe415f53094c64db83950bad4e8fbe405894e57ceacd251621d3a465",
+          "sha256": "23c0c2f7352ed8c53ce4ed65515d2dd1ffd9b34120bef4d97152d7e52dfe8268"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8170,
+      "moved_source_blocks": 2288,
+      "new_source_blocks": 80,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:588",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:270",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:272",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:273",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:274",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:275",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:276",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:277",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:278",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:279",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:280",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:281",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:283",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:285",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:287",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:297",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:299",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:301",
+        "version/3.0/ripscrip/4.3-buttons.md:703",
+        "version/3.0/ripscrip/5.1-text-variables.md:51",
+        "version/3.0/ripscrip/5.1-text-variables.md:484",
+        "version/3.0/ripscrip/5.1-text-variables.md:1111",
+        "version/3.0/ripscrip/5.1-text-variables.md:1123",
+        "version/3.0/ripscrip/5.1-text-variables.md:1125",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:29",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:46",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:48",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:49",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:50",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:51",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:52",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:53",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:55",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:59",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:61",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:62",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:63",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:64",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:66",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:68",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:69",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:70",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:71",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:72",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:73",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:74",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:75",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:76",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:77",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:78",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:79",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:81",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:85",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:87",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:89",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:91",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:95",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:97",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:102",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:104",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:106",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:110",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:112",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:113",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:114",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:115",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:116",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:117",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:118",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:119",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:120",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:121",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:122",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:123",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:124",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:126",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:128",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:130",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:9",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:74"
+      ],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:270",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:272",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:273",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:274",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:275",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:276",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:277",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:278",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:279",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:280",
+        "version/3.0/ripscrip/5.1-text-variables.md:51",
+        "version/3.0/ripscrip/5.1-text-variables.md:1109",
+        "version/3.0/ripscrip/5.1-text-variables.md:1121",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:29",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:72"
+      ],
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:270",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:274",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:275",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:276",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:277",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:278",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:279",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:280",
+        "version/3.0/ripscrip/5.1-text-variables.md:1109"
+      ],
+      "previous_implementation_evidence": [
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:270",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            270,
+            270
+          ],
+          "text": "The `<cursor_style>` parameter is an ID number that specifies which cursor style should be activated. The possible values for this parameter are: _(v2.A4)_\n",
+          "sha256": "1d04955aa1158756cda8d8d389db9598fddd7fe2f045cdcddbf0dd4b61441035",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:274",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            274,
+            274
+          ],
+          "text": "| 00    | Standard \"left-leaning\" arrow cursor (default) |\n",
+          "sha256": "a72ff446fad7514cd4d181a40aa26dfedd4aea4c9bef0faa76a1407d953e1ca3",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:275",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            275,
+            275
+          ],
+          "text": "| 01    | Wrist watch cursor                             |\n",
+          "sha256": "059751b7e0b275915f1db3e67c62b1e5ea994e14c92f630bae1e4a786d725cb2",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:276",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            276,
+            276
+          ],
+          "text": "| 02    | Cross-hair cursor                              |\n",
+          "sha256": "2deca1e62b6e0877fbe3015fcbeece3e275a1ec5028a7e578be0e0d426ee236d",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:277",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            277,
+            277
+          ],
+          "text": "| 03    | I-bar cursor (for text editing)                |\n",
+          "sha256": "c9eceba92917ffe94dd7350a917a32c0f28773c759438c7e771394f9a78cdb02",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:278",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            278,
+            278
+          ],
+          "text": "| 04    | Pointing finger cursor                         |\n",
+          "sha256": "2856bf56c32e66c59f931aa1416e319434eacfc98220b287a3a68f354caf7875",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:279",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            279,
+            279
+          ],
+          "text": "| 05    | Hand held up cursor                            |\n",
+          "sha256": "bb3cfcb25eb016297b837813bf4641111910faaf416e5161e4d055024f55e3f6",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:280",
+          "heading": "RIP_SET_MOUSE_CURSOR",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            280,
+            280
+          ],
+          "text": "| 06    | Hourglass cursor                               |\n",
+          "sha256": "8134f39a9e99711fdf995af5019f0d3ff51d7677eee2c9cd5ee9f53dfdb2d98a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "Connected wire 1c uses two base-math style digits independent of XY width, optional zero reserved suffix, current ENV protection and the canonical 0..6 table. Native stock/custom pointer equivalents change no raster, cursor position, input enable or capture. Unknown mapping/corpus conflicts remain B125."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:1109",
+          "heading": "$MCURSOR$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            1109,
+            1115
+          ],
+          "text": "```text\n$MCURSOR(opt:CURSOR_NO)$\n             ─────────\n             0-6\n             ─────────\n         def=0\n```\n",
+          "sha256": "ea354e706b81aeec4d6978d872817bb3368549e3be41bcec0733eca0dc90b042",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/scripting/wren_host/wren_links.c",
+            "src/media/console/st_console.h"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "rip3_environments",
+            "rip3_session",
+            "st_console",
+            "st_console_wayland_internal",
+            "st_console_sdl",
+            "st_console_x11",
+            "syncterm_rip3_pointer_CP437",
+            "syncterm_rip3_pointer_UTF-8"
+          ],
+          "reason": "MCURSOR optional decimal argument defaults to zero; 0..7 stores in current ENV bypassing protection, with known 0..6 native shapes and no raster/input side effects. Value 7 presentation and contradictory examples remain blocked under B125."
+        }
+      ],
+      "source_blocks_after_update": 8250,
+      "resolved_documentation_blockers": [
+        124,
+        125
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-124-graphical-expansion.md",
+          "sha256": "0506e6ecec4e588ccd43bbe4f2a6431df94c1064e12f31932f03d3607f8c0035",
+          "title": "Issue #124: Graphical expansion permissions, bounds and continuation lifetime",
+          "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
+        },
+        {
+          "path": "version/3.0/research/issue-125-cursor-number-mapping.md",
+          "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
+          "title": "Issue #125: Canonical cursor numbering and prohibited cursor 7",
+          "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
+        }
+      ],
+      "reviewed_change": "Adopt four graphical consumers, complete 84-name permission gate, prefix/NUL/escaping and prompt/creation/redraw lifetime contract. Implement shared 0..7 cursor numbers, distinct palm/prohibited presentation and arrow fallback while retaining logical request. Preserve existing positional 1U splitting, RIP1.54 and entry raster policy.",
+      "states_after_update": {
+        "unreviewed": 3365,
+        "context": 1354,
+        "pending": 1775,
+        "implemented": 1664,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:270",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:274",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:275",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:276",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:277",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:278",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:279",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:280",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:281",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:283",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:285",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:287",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:297",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:301",
+        "version/3.0/ripscrip/5.1-text-variables.md:1111",
+        "version/3.0/ripscrip/5.1-text-variables.md:1123",
+        "version/3.0/ripscrip/5.1-text-variables.md:1125",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:74"
+      ],
+      "pending_followups": [
+        "Connect graphical filename/label/T/@/metric expansion, bounded angle processing and serialized prompt continuations under the newly specified contract.",
+        "Complete grouped/persistent button selection, selected plain/clipboard images, mouse hover and remaining table/playback families."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; CMake build tree build.",
+        "passed_tests": [
+          "rip3_button_create",
+          "rip3_session",
+          "st_console",
+          "st_console_sdl",
+          "st_console_wayland_internal",
+          "st_console_x11",
+          "term_key_forward",
+          "rip154_source_freeze",
+          "rip3_contract",
+          "rip3_preservation_guard",
+          "syncterm_rip3_pointer_CP437",
+          "syncterm_rip3_pointer_UTF-8"
+        ],
+        "scope": "X11 used a private Xvfb after clearing inherited display/session variables. Cursor fallback test runs through the actual receive pump with a backend rejecting the requested shape. CP437/UTF-8 bitmap captures verify live sessions. GDI/Quartz were not executed locally; existing ANSI/RIP1 forwarding and RIP1.54 freeze passed.",
+        "correction": "The new fixture initially lacked its private header dependency and installed its mock too early; both fixture-only defects were fixed, and only the failing case was rerun. The final build is warning-free."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
