@@ -486,3 +486,35 @@ The ledger is 1394 implemented, 1645 pending, 3578 unreviewed, 1317 context,
 67 excluded and 33 blocked; source indexing is not a full compliance claim.
 Temporary owned artifacts are cleaned, original RIP1.54 remains frozen, and
 no existing issue, code push or PR publication is performed.
+
+## PR #111/#114/#115: geometry, style state and mouse identities
+
+Adopt fork stable `ebd81bcbb29eeca2d2c283d40221cbabb3cee531`, consolidating
+reviewed actual heads `153e5a333533b09367421c3f7be988325e41d243` (PR #111),
+`ff10494927f32cbbdaaa0161fd7801998012214a` (PR #114) and
+`9f398ede336649d2a6f655d85b6b4ef262322ae8` (PR #115). Archive SHA-256:
+`1b609b0c1cdf022142c854b81cedda845cd3e54ad3ceb2b10ba0bff398502af7`.
+Six of the same 68 normative documents change. Preserve 7909 exact
+source/heading/text matches, relocate 1664, and review 162 new blocks, yielding
+8071 units. Record the retired text and its 63 previous implementation claims;
+reconcile replacement claims against the new runtime expectations. All 51
+previous derivation hashes remain unchanged; pin the three new derivations.
+
+PR #111 explicitly reconciles intended geometry-query grammar rather than
+copying the obsolete decoder's acceptance errors. Explicit TEXT corner queries
+default to WORLD, position queries never accept COLS/ROWS, ordinary legacy far
+cells are inclusive and graphical far edges exclusive. PR #114 defines successful
+1B writes into unused current records, first-use clearing of stale protection
+and raw-current versus numeric ISPROT gates. PR #115 supplies shared gesture
+ownership, exact one-prefix ASCII identity grammar, callback-scoped FIELDID and
+separate hover/mutation policy. Documentation resolutions are recorded for
+B108/B112/B113; runtime acceptance remains clause-specific. Hover, restored
+mouse tables, nested playback and incomplete geometry edges remain pending.
+
+Connected tests now execute the literal ordinary/extended geometry tables,
+undefined-style redefine/reselect and stale-protection sequences, identity
+boundaries, self-deletion and field-program isolation. Native session fault
+coverage includes the button-style/mouse constructors and their independent
+backup. Strict source reindexing preserves the edited ledger byte-for-byte;
+the unchanged RIP1 freeze and reference-adoption guards remain mandatory.
+No original driver, probe or UI executes, and no old issue receives comments.

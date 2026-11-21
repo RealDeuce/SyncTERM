@@ -765,6 +765,33 @@ world_state(void)
 }
 
 static int
+field_context(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1M000A0A1O1O0000000ID=7:$FIELDID$:$D(3)$$MKILL$$FIELDID$\r")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,true) && f.reply_length==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,false) && st_rip3_session_pending(f.session));
+	/* A logical handler resumes with its captured identity. A separate wire
+	 * query queued during its wait has no callback context when it executes. */
+	CHECK(append(&f,"!|1\0330000$FIELDID$outside\r")==0);
+	f.now=UINT64_C(100000000);
+	CHECK(pump(&f)==0 && !st_rip3_session_pending(f.session) && f.errors==1);
+	CHECK(f.reply_length==10 && memcmp(f.reply,"7:7outside",10)==0);
+	CHECK(!st_rip3_session_mouse_active(f.session));
+	f.reply_length=0;
+	CHECK(append(&f,"!|1M000A0A1O1O0000000ID=8:$D(3)$$FIELDID$\r")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,true));
+	CHECK(st_rip3_session_mouse(f.session,20,20,false) && st_rip3_session_pending(f.session));
+	st_rip3_session_cancel(f.session);
+	CHECK(!st_rip3_session_pending(f.session));
+	CHECK(append(&f,"!|1\0330000$FIELDID$outside\r")==0 && pump(&f)==0 && f.errors==2);
+	CHECK(f.reply_length==7 && memcmp(f.reply,"outside",7)==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 construction(bool device)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -802,6 +829,7 @@ construction(bool device)
 int
 main(void)
 {
+	CHECK(field_context()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

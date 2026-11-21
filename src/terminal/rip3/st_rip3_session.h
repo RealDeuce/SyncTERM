@@ -86,7 +86,8 @@ struct st_rip3_session_config {
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;
 	/* Optional copied external service bindings. The frame, tables, input,
- * templates, text_windows and mouse must be NULL: this session owns those.
+ * templates, text_windows, mouse and field_context must be NULL: this session
+ * owns those.
 	 * Identity, features, time, local
 	 * queries and an optional random/user processor remain borrowed. A supplied
 	 * user processor is reserved exclusively while a session query is pending.

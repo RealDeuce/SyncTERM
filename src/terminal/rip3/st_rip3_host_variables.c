@@ -94,6 +94,14 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
 		st_rip3_mouse_kill(host->mouse);result[0]=0;return 0;
 	}
+	if (strcmp(reference->name,"FIELDID")==0) {
+		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
+		if (host->field_context==NULL || !host->field_context->active) return IO_ERROR_NOT_SUPPORTED;
+		char text[16];int length=snprintf(text,sizeof(text),"%d",host->field_context->identity);
+		if (length<0 || (size_t)length>=sizeof(text)) return IO_ERROR_IO;
+		if ((size_t)length>=capacity) return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result,text,(size_t)length+1);return 0;
+	}
 	if (strcmp(reference->name,"RAND")==0)
 		return st_rip3_random_execute(host,reference,result,capacity);
 	{

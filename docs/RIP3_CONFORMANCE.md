@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-568d8063c68bd009cf687fb3809f547101949727](https://github.com/RealDeuce/remote-imaging-protocol/tree/568d8063c68bd009cf687fb3809f547101949727/version/3.0)
+ebd81bcbb29eeca2d2c283d40221cbabb3cee531](https://github.com/RealDeuce/remote-imaging-protocol/tree/ebd81bcbb29eeca2d2c283d40221cbabb3cee531/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -6712,6 +6712,50 @@ pass, including the CP437/UTF-8 RIP1 raster oracles, existing selection/reset
 fixtures, corrected button-style fixtures and the three preservation/contract
 guards. The native bitmap test covers both text-only and full-raster scrolling,
 fixed right/bottom margins and restoration of the original indexed planes.
+
+## PR #111/#114/#115 implementation follow-through
+
+The pin now advances to fork stable
+`ebd81bcbb29eeca2d2c283d40221cbabb3cee531`. The adoption record retains the
+reviewed PR heads, complete source/claim migration and 54 derivation digests.
+Documentation answers for B108/B112/B113 are adopted without treating unfinished
+runtime clauses as complete.
+
+Explicit TEXT far-edge queries now use WORLD by default. COLS/ROWS are syntax
+errors for position queries; dimension queries retain only their matching count
+domain. CP437/UTF-8 connections run the PR111 literal 800x600 ordinary and
+extended definitions and all published position/dimension result combinations,
+querying noncurrent windows without changing pixels or cursor state. Native
+checks retain invalid-call and inactive/undefined behavior.
+
+Successful `1B` defines an unprotected current slot even after a numeric/table
+reset made it unused. Invalid definitions leave it unused. Selection of an
+undefined stale-protected slot installs all fixed defaults, defines it and
+clears protection; defined protected records retain their state. ISPROT(BUT,CUR)
+reads raw protection independently of definition, while numeric ISPROT retains
+its undefined sentinel. Native tests verify retained supplied fields; connected
+queries run the published state sequences. The examples' final `1U` rendering
+remains pending and is not claimed by those style tests.
+
+Simple fields parse exactly one case-insensitive `ID=` prefix, one to five ASCII
+decimal digits and range 0..32767. Invalid prefixes retain their entire original
+payload with identity -1. Duplicate IDs do not merge instances or retarget an
+existing press. FIELDID reads an immutable callback snapshot, survives deletion
+of its source field and is unavailable in unrelated queries. The logical host
+program carries that snapshot across its internal budget/delay/prompt yields;
+each execution pump restores the caller context before returning. Later wire
+work does not inherit it. Cancellation discards pending field-program context.
+Hover dispatch and nested playback still require their respective owners and
+remain pending; primitive context save/restore is not full playback coverage.
+
+The native Release CMake build is warning-free. Fifteen distinct affected
+CTests pass: native owner/state/command/geometry/session tests, CP437/UTF-8
+connected mouse/style/geometry suites and preservation/contract guards. Session
+allocation fault injection now covers the button-style owner, its backup and
+mouse owner as well as all previous construction boundaries. Every injected
+failure retains the caller result and releases owned resources. The queue has
+1511 implemented, 1693 pending, 3497 unreviewed, 1278 context, 67 excluded and
+25 blocked units. No full RIP3 compliance claim is made.
 
 ## Verification and acceptance
 

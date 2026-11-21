@@ -90,6 +90,19 @@ def run(args, width, height):
         frame=values(b"$CUR(BUT)$:alive",b"1:alive")
         assert frame.application["connected"]==1
 
+        t.case(f"rip3-button-style-undefined-definition-{width}x{height}")
+        values(b"$CUR(BUT,5)$$UNPROT(BUT,5)$$RESET(BUT,5)$")
+        values(b"$CUR(BUT)$:$INUSE(BUT,5)$:$ISPROT(BUT,5)$:$ISPROT(BUT,CUR)$",b"5:0:-1:0")
+        # Literal style B from PR114; a failed definition leaves it unused.
+        t.exchange(b"\x01|1Bbad\r\n")
+        values(b"$INUSE(BUT,5)$",b"0")
+        t.exchange(b"\x01|1B0000020074000C000F080200000F07000000\r\n")
+        values(b"$CUR(BUT,5)$$CUR(BUT)$:$INUSE(BUT,5)$:$ISPROT(BUT,5)$:$ISPROT(BUT,CUR)$",b"5:1:0:0")
+        values(b"$RESET(BUT,TBL)$$CUR(BUT)$:$INUSE(BUT,5)$:$ISPROT(BUT,CUR)$",b"5:0:0")
+        values(b"$CUR(BUT,7)$$PROT(BUT,7)$$CUR(BUT,0)$$RESET(BUT,CUR)$")
+        values(b"$INUSE(BUT,7)$:$ISPROT(BUT,7)$:$ISPROT(BUT,CUR)$",b"0:-1:0")
+        values(b"$CUR(BUT,7)$$CUR(BUT)$:$INUSE(BUT,7)$:$ISPROT(BUT,7)$:$ISPROT(BUT,CUR)$",b"7:1:0:0")
+
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)

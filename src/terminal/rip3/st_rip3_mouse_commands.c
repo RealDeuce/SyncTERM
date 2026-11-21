@@ -5,7 +5,6 @@
 #include "st_rip3_ports.h"
 #include "io_error.h"
 #include <limits.h>
-#include <string.h>
 
 int
 st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
@@ -33,7 +32,6 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	/* Clear/zoom needs its own native text-window lifecycle; it must not be
 	 * approximated by SOFT (which resets unrelated tables and mouse fields). */
 	if (values[6]!=0) return IO_ERROR_NOT_SUPPORTED;
-	if (length-at>=3 && memcmp(command+at,"ID=",3)==0) return IO_ERROR_NOT_SUPPORTED; /* #113 */
 	if (values[1]>values[3] || values[2]>values[4]) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_frame frame;
 	status=st_rip3_environments_frame(host->environments,number,&frame);
@@ -55,5 +53,7 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	int64_t oy=(int64_t)port.bounds.y0+port.viewport.y0;
 	if (ox+x0<0 || oy+y0<0 || ox+x1>INT32_MAX || oy+y1>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_rect area={(int32_t)(ox+x0),(int32_t)(oy+y0),(int32_t)(ox+x1),(int32_t)(oy+y1)};
-	*operation=true;return st_rip3_mouse_define(host->mouse,&area,values[5]!=0,command+at,length-at);
+	const uint8_t *program=command+at;size_t program_length=length-at;
+	int identity=st_rip3_mouse_identity(&program,&program_length);
+	*operation=true;return st_rip3_mouse_define(host->mouse,&area,values[5]!=0,identity,program,program_length);
 }

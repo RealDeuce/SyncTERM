@@ -68,10 +68,10 @@ st_rip3_button_styles_set(struct st_rip3_button_styles *styles, unsigned number,
 {
 	if (styles==NULL || value==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (number>=36 || value->orientation>4 || value->group>=36 || !(value->flags&0x181)) return IO_ERROR_OUT_OF_RANGE;
-	if (!styles->entries[number].in_use) return IO_ERROR_NOT_FOUND;
 	if (styles->entries[number].protected) return IO_ERROR_PERMISSION_DENIED;
 	styles->entries[number].value=*value;
 	if (!(value->flags&512)) styles->entries[number].value.bevel=0;
+	styles->entries[number].in_use=1;
 	return 0;
 }
 
@@ -82,11 +82,8 @@ st_rip3_button_styles_select(struct st_rip3_button_styles *styles, unsigned numb
 	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
 	struct button_entry *entry=&styles->entries[number];
 	if (!entry->in_use) {
-		/* A protected-but-undefined record is possible after the shipped CUR
-		 * reset. Its subsequent selection is not specified yet (#112). */
-		if (entry->protected) return IO_ERROR_NOT_SUPPORTED;
 		(void)st_rip3_button_style_defaults(&entry->value);
-		entry->in_use=1;
+		entry->in_use=1;entry->protected=false;
 	}
 	styles->current=number;return 0;
 }

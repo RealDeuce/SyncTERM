@@ -35,8 +35,8 @@ int st_rip3_button_styles_info(const struct st_rip3_button_styles *, unsigned nu
 	struct st_rip3_button_style_info *result);
 int st_rip3_button_styles_get(const struct st_rip3_button_styles *, unsigned number,
 	struct st_rip3_button_style *result);
-/* Explicit edits require a defined, unprotected record. The undefined-current
- * write boundary remains unsupported under documentation issue #112. */
+/* Explicit edits check raw protection, then define the record on success.
+ * An undefined current record does not require implicit first-use selection. */
 int st_rip3_button_styles_set(struct st_rip3_button_styles *, unsigned number,
 	const struct st_rip3_button_style *value);
 int st_rip3_button_styles_select(struct st_rip3_button_styles *, unsigned number);

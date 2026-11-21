@@ -3,6 +3,8 @@
 #include "st_rip3_session.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
+#include "st_rip3_button_styles.h"
+#include "st_rip3_mouse.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
@@ -53,11 +55,14 @@ static void test_##name(struct type *object) { \
 FACTORY(st_rip3_environments_create,(struct st_rip3_environments **p,enum st_rip3_canvas c),(p,c))
 FACTORY(st_rip3_environments_create_device,(struct st_rip3_environments **p,uint32_t w,uint32_t h),(p,w,h))
 FACTORY(st_rip3_styles_create,(struct st_rip3_styles **p,const struct st_rip3_style *s),(p,s))
+FACTORY(st_rip3_button_styles_create,(struct st_rip3_button_styles **p),(p))
+FACTORY(st_rip3_mouse_create,(struct st_rip3_mouse **p,const struct st_rip3_mouse_sink *s),(p,s))
 FACTORY(st_rip3_palettes_create,(struct st_rip3_palettes **p),(p))
 FACTORY(st_rip3_ports_create,(struct st_rip3_ports **p,enum st_rip3_canvas c),(p,c))
 FACTORY(st_rip3_ports_create_device,(struct st_rip3_ports **p,uint32_t w,uint32_t h),(p,w,h))
 FACTORY(st_rip3_environments_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_styles_backup_create,(struct st_rip3_backup **p),(p))
+FACTORY(st_rip3_button_styles_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_palettes_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_ports_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_outline_cache_create,(struct st_rip3_outline_cache **p),(p))
@@ -69,6 +74,8 @@ FACTORY(st_rip3_query_create,(struct st_rip3_query **p,const struct st_rip3_host
 FACTORY(st_rip3_stream_create,(struct st_rip3_stream **p,const struct st_rip3_stream_sink *s),(p,s))
 RELEASE(st_rip3_environments_destroy,st_rip3_environments)
 RELEASE(st_rip3_styles_destroy,st_rip3_styles)
+RELEASE(st_rip3_button_styles_destroy,st_rip3_button_styles)
+RELEASE(st_rip3_mouse_destroy,st_rip3_mouse)
 RELEASE(st_rip3_palettes_destroy,st_rip3_palettes)
 RELEASE(st_rip3_ports_destroy,st_rip3_ports)
 RELEASE(st_rip3_backup_destroy,st_rip3_backup)
@@ -91,11 +98,14 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_environments_create test_st_rip3_environments_create
 #define st_rip3_environments_create_device test_st_rip3_environments_create_device
 #define st_rip3_styles_create test_st_rip3_styles_create
+#define st_rip3_button_styles_create test_st_rip3_button_styles_create
+#define st_rip3_mouse_create test_st_rip3_mouse_create
 #define st_rip3_palettes_create test_st_rip3_palettes_create
 #define st_rip3_ports_create test_st_rip3_ports_create
 #define st_rip3_ports_create_device test_st_rip3_ports_create_device
 #define st_rip3_environments_backup_create test_st_rip3_environments_backup_create
 #define st_rip3_styles_backup_create test_st_rip3_styles_backup_create
+#define st_rip3_button_styles_backup_create test_st_rip3_button_styles_backup_create
 #define st_rip3_palettes_backup_create test_st_rip3_palettes_backup_create
 #define st_rip3_ports_backup_create test_st_rip3_ports_backup_create
 #define st_rip3_outline_cache_create test_st_rip3_outline_cache_create
@@ -107,6 +117,8 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_stream_create test_st_rip3_stream_create
 #define st_rip3_environments_destroy test_st_rip3_environments_destroy
 #define st_rip3_styles_destroy test_st_rip3_styles_destroy
+#define st_rip3_button_styles_destroy test_st_rip3_button_styles_destroy
+#define st_rip3_mouse_destroy test_st_rip3_mouse_destroy
 #define st_rip3_palettes_destroy test_st_rip3_palettes_destroy
 #define st_rip3_ports_destroy test_st_rip3_ports_destroy
 #define st_rip3_backup_destroy test_st_rip3_backup_destroy

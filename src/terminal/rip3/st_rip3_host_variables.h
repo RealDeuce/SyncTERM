@@ -15,6 +15,7 @@ struct st_rip3_template_host;
 struct st_rip3_local_queries;
 struct st_rip3_text_window_operations;
 struct st_rip3_mouse;
+struct st_rip3_field_context;
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -75,6 +76,9 @@ struct st_rip3_host_variables {
 	 * policy. Parameter lists are validated completely before any callback. */
 	const struct st_rip3_text_window_operations *text_windows;
 	struct st_rip3_mouse *mouse;
+	/* Callback-scoped numeric snapshot. Logical field programs retain their
+	 * identity across interpreter yields; unrelated work never inherits it. */
+	const struct st_rip3_field_context *field_context;
 };
 
 enum st_rip3_host_diagnostic {
@@ -102,7 +106,8 @@ struct st_rip3_host_sink {
  * command error to the terminal/session caller. Decoder/executor statuses are
  * private and must not be used as connection errors.
  *
- * Supports NULL, IFS, TERMINFO, RESX/RESY, D, RAND, MKILL, SHIFT/CTRL, MSTAT, COLORS,
+ * Supports NULL, IFS, TERMINFO, RESX/RESY, D, RAND, MKILL, scoped FIELDID,
+ * SHIFT/CTRL, MSTAT, COLORS,
  * captured XY, ATW/DTW through the bound text-window owner,
  * the resolved date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH

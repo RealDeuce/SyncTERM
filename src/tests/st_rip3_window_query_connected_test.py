@@ -83,7 +83,8 @@ def run(args, width, height, ox, oy, cw, ch, bcw, bch, bx, by):
         frame = values(f"$WORLD(CUR,{2*width},{2*height})$$TWW(CUR,BOUND)$:$TWH(CUR,BOUND)$:$TWX0(CUR,TEXT)$:$TWY0(CUR,TEXT)$".encode(),
                        f"1200:880:{2*bx}:{2*by}".encode())
         assert frame.primary == before.primary and frame.application["cterm.last_column_flag.set"] == 1
-        values(b"$TWX1(CUR,TEXT)$bad-default:$TWX1(CUR,TEXT,COLS)$bad-cell", b"bad-default:bad-cell")
+        values(b"$TWX1(CUR,TEXT)$:$TWY1(CUR,TEXT)$:$TWX1(CUR,TEXT,COLS)$bad-cell",
+               f"{2*(bx+20*bcw)}:{2*(by+15*bch)}:bad-cell".encode())
         values(b"$TWH(CUR,TEXT,COLS)$bad-syntax", b"bad-syntax")
         values(b"$PROT(TW,1)$$CURX$:$CURY$:$CURSOR$", b"20:15:YES")
         values(b"$UNPROT(TW,1)$$DTW(1)$$CURSOR$:$CURX$:$CURY$:$TWFONT$:$TWW$:$TWH$:$TWX0$:$TWY1(CUR,BOUND,DEVICE)$",
@@ -106,6 +107,46 @@ def run(args, width, height, ox, oy, cw, ch, bcw, bch, bx, by):
         assert frame.application["connected"] == 1
         assert (frame.metadata["plane_width"], frame.metadata["plane_height"],
                 frame.metadata["columns"], frame.metadata["rows"]) == (width, height, width//8, height//8)
+        if width == 800:
+            t.case("rip3-window-query-pr111-literal-tables")
+            # Literal definitions/results from the published reconciliation,
+            # independent of observed emulator geometry.
+            values(b"$WORLD(CUR,1600,1200)$$CUR(TW,7)$",b"")
+            capture(b"\x01|J10|n2|w0A0F0K0O12\r\n")
+            values(b"$CUR(TW,8)$",b"")
+            capture(b"\x01|b2S5KJGGO0K0520001000\r\n")
+            before=values(b"$CUR(TW,0)$",b"")
+            positions=(
+                (b"",(10,15,20,24),(-1,-1,-1,-1)),
+                (b",TEXT",(200,720,420,1200),(200,280,600,520)),
+                (b",TEXT,WORLD",(200,720,420,1200),(200,280,600,520)),
+                (b",TEXT,DEVICE",(100,360,210,600),(100,140,300,260)),
+                (b",BOUND",(200,720,420,1200),(100,200,700,600)),
+                (b",BOUND,WORLD",(200,720,420,1200),(100,200,700,600)),
+                (b",BOUND,DEVICE",(100,360,210,600),(50,100,350,300)))
+            for suffix,ordinary,extended in positions:
+                for slot,expected in ((b"7",ordinary),(b"8",extended)):
+                    expression=b":".join(b"$"+name+b"("+slot+suffix+b")$"
+                                          for name in (b"TWX0",b"TWY0",b"TWX1",b"TWY1"))
+                    values(expression,":".join(map(str,expected)).encode())
+            dimensions=(
+                (b"",(11,10),(20,5)),(b",TEXT",(11,10),(20,5)),
+                (b",TEXT,WORLD",(220,480),(400,240)),
+                (b",TEXT,DEVICE",(110,240),(200,120)),
+                (b",BOUND",(220,480),(600,400)),
+                (b",BOUND,WORLD",(220,480),(600,400)),
+                (b",BOUND,DEVICE",(110,240),(300,200)),
+                (b",CELL",(20,48),(20,48)),(b",CELL,WORLD",(20,48),(20,48)),
+                (b",CELL,DEVICE",(10,24),(10,24)))
+            for suffix,ordinary,extended in dimensions:
+                for slot,expected in ((b"7",ordinary),(b"8",extended)):
+                    values(b"$TWW("+slot+suffix+b")$:$TWH("+slot+suffix+b")$",
+                           f"{expected[0]}:{expected[1]}".encode())
+            values(b"$TWW(7,TEXT,COLS)$:$TWH(7,TEXT,ROWS)$:$TWW(8,TEXT,COLS)$:$TWH(8,TEXT,ROWS)$",b"11:10:20:5")
+            after=values(b"$CUR(TW)$",b"0")
+            assert after.primary==before.primary and after.alternate==before.alternate
+            assert (after.application["cterm.x"],after.application["cterm.y"]) == (
+                before.application["cterm.x"],before.application["cterm.y"])
 
 
 def main():

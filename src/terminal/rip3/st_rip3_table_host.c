@@ -426,10 +426,8 @@ objects(const struct st_rip3_table_host *host,
 					single_defined = info.slot_used[i]; single_protected = info.slot_protected[i];
 				}
 			}
-			if (isprot && type==ST_RIP3_TABLE_BUT && selected==CURRENT && !single_defined)
-				return IO_ERROR_NOT_SUPPORTED; /* Undefined-current rule, #112. */
 			if (isprot)
-				return reply_number(result, capacity, !single_defined && !(type==ST_RIP3_TABLE_PAL && selected==CURRENT)
+				return reply_number(result, capacity, !single_defined && !((type==ST_RIP3_TABLE_PAL || type==ST_RIP3_TABLE_BUT) && selected==CURRENT)
 				    ? -1 : single_protected);
 			return reply_number(result, capacity, (selected == ALL || selected == ALLSLOTS) ? used == total : used != 0);
 		}

@@ -113,26 +113,20 @@ window_query(const struct st_rip3_host_variables *host,
 	if (status!=0) return status;
 	enum { TEXT,BOUND,CELL } type=TEXT;
 	enum { CELLS,WORLD,DEVICE } domain=size ? CELLS : WORLD;
-	bool unresolved=false;
 	if (words->count>=2) {
 		const char *word=words->parameters[1].text;
 		if (strcmp(word,"BOUND")==0) type=BOUND;
 		else if (size && strcmp(word,"CELL")==0) type=CELL;
 		else if (strcmp(word,"TEXT")!=0) return IO_ERROR_INVALID_FORMAT;
 		domain=type==TEXT && size ? CELLS : WORLD;
-		/* TWX1's syntax and prose disagree about explicit TEXT's omitted
-		 * domain; TWY1 cross-references it. Do not invent the answer (#108). */
-		unresolved=corner && far && type==TEXT && words->count==2;
 	}
 	if (words->count==3) {
 		const char *word=words->parameters[2].text;
 		if (strcmp(word,"WORLD")==0) domain=WORLD;
 		else if (strcmp(word,"DEVICE")==0) domain=DEVICE;
 		else if (type==TEXT && size && strcmp(word,vertical ? "ROWS" : "COLS")==0) domain=CELLS;
-		else if (type==TEXT && corner && far && strcmp(word,vertical ? "ROWS" : "COLS")==0) unresolved=true;
 		else return IO_ERROR_INVALID_FORMAT;
 	}
-	if (unresolved) return IO_ERROR_NOT_SUPPORTED;
 	const struct st_rip3_text_window_operations *windows=host->text_windows;
 	if (windows==NULL || windows->info==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (current) status=current_number(windows,&number);

@@ -9,11 +9,16 @@
 #include <stdint.h>
 
 struct st_rip3_mouse;
+/* Scoped callback value; an inactive context has no numeric fallback. */
+struct st_rip3_field_context {bool active;int identity;};
+/* Parse one definition-time prefix. Failure leaves both payload views intact
+ * and returns -1, which differs from valid identity zero. */
+int st_rip3_mouse_identity(const uint8_t **program, size_t *length);
 struct st_rip3_mouse_sink {
 	void *context;
 	void (*invert)(void *context, const struct st_rip3_rect *area);
 	/* The program is an independent copy: this callback may delete fields. */
-	void (*activate)(void *context, const uint8_t *program, size_t length, int32_t x, int32_t y);
+	void (*activate)(void *context, const uint8_t *program, size_t length, int identity, int32_t x, int32_t y);
 	void (*resource_failure)(void *context);
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
@@ -21,12 +26,12 @@ void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
 /* Inclusive, clipped absolute DEVICE bounds. Simple fields and future button
  * records share this owner's 128 entries. No drawing buffers or damage map. */
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area,
-	bool invert, const uint8_t *program, size_t length);
+	bool invert, int identity, const uint8_t *program, size_t length);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);
 bool st_rip3_mouse_active(const struct st_rip3_mouse *mouse);
-/* Client gesture policy pending upstream #113: capture on left press, invert
- * while inside, commit on release inside, cancel release outside. */
+/* Capture on left press, invert while inside, commit on release inside and
+ * cancel release outside. Captured instances cannot be stolen by appends. */
 bool st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left);
 
 #endif

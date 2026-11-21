@@ -106,7 +106,8 @@ struct st_rip3_command_sink {
  * axis-aligned A/V/O/I/i/_ curves, &/-/]/+/[ skewed contours,
  * Z/z/t/x integer Beziers and P/l/p/< polygon paths,
  * 2Y style selection, 1B/2B button-style definition/selection, simple 1M fields
- * with clr=0 and no identity prefix, 1K, N, U/u, s, all S presets 00..0B, 1w, v, 2p, 2s,
+ * with clr=0, including definition-time ID prefixes, 1K, N, U/u, s,
+ * all S presets 00..0B, 1w, v, 2p, 2s,
  * rectangle-copy 2C, screen/offscreen 2P, clipboard 1C/1P/1W, 2W bitmap export,
  * ordinary/transparent 1b bitmap loads, ordinary 1I icons, wire 1i and literal 1p JPEGs,
  * 3D delays, 3e record edits, ordinary w layouts/wrap/reactivation/deactivation,

@@ -36,6 +36,9 @@ struct st_rip3_session {
 	struct st_rip3_template_host templates;
 	struct st_rip3_clipboard_selection clipboard;
 	struct st_rip3_random random;
+	struct st_rip3_field_context field_context;
+	bool field_program;
+	int field_program_id;
 	struct st_rip3_frame frame;
 	struct st_rip3_stream *stream;
 	struct st_rip3_variables *session_values,*persistent_values;
@@ -418,7 +421,11 @@ prepare(void *context)
 {
 	struct st_rip3_session *session=context;
 	bool pending=st_rip3_query_pending(session->commands.query);
+	struct st_rip3_field_context previous=session->field_context;
+	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
 	st_rip3_query_process(session->commands.query,64);
+	session->field_context=previous;
+	if (!st_rip3_query_pending(session->commands.query)) session->field_program=false;
 	if (pending) ++session->revision;
 	return !st_rip3_query_pending(session->commands.query);
 }
@@ -452,6 +459,7 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	if (session==NULL) return;
 	st_rip3_mouse_cancel(session->commands.mouse);
 	st_rip3_query_cancel(session->commands.query);
+	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
 	if (session->ready && session->commands.audio!=NULL) (void)st_rip3_audio_stop(session->commands.audio);
@@ -495,14 +503,19 @@ mouse_resource_failure(void *context)
 }
 
 static void
-mouse_activate(void *context, const uint8_t *program, size_t length, int32_t x, int32_t y)
+mouse_activate(void *context, const uint8_t *program, size_t length, int identity, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
 	if (st_rip3_query_pending(session->commands.query)) {
 		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
 	}
 	if (session->sink.mouse_capture!=NULL) session->sink.mouse_capture(session->sink.context,x,y);
+	struct st_rip3_field_context previous=session->field_context;
+	session->field_context=(struct st_rip3_field_context){true,identity};
 	int status=st_rip3_query_start(session->commands.query,program,length);
+	session->field_context=previous;
+	session->field_program=status==0 && st_rip3_query_pending(session->commands.query);
+	session->field_program_id=identity;
 	if (status!=0) diagnose(session,status==IO_ERROR_OUT_OF_MEMORY
 	    ? ST_RIP3_COMMAND_RESOURCE_FAILURE : ST_RIP3_COMMAND_OPERATION_FAILED);
 	++session->revision;
@@ -534,7 +547,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL
-	    || config->services->text_windows!=NULL || config->services->mouse!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	    || config->services->text_windows!=NULL || config->services->mouse!=NULL
+	    || config->services->field_context!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	bool device=config->device_width!=0 || config->device_height!=0;
 	struct st_rip3_frame frame;
 	int status=device ? st_rip3_frame_init_device(&frame,config->device_width,config->device_height)
@@ -557,6 +571,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->text.encoding=config->encoding;session->text.font=config->classic_font;session->text.outline_font=config->outline_font;
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
+	session->variables.field_context=&session->field_context;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
 	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
 	    .protect=protect_window,.activate=activate_text_windows,
@@ -654,7 +669,7 @@ st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, s
 	struct st_rip3_session_prompt prompt;
 	if (!st_rip3_session_prompt(session,&prompt)) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
 	st_rip3_user_variables_respond(session->variables.user_variables,bytes,length,cancelled);
-	st_rip3_query_process(session->commands.query,64);
+	(void)prepare(session);
 	++session->revision;
 }
 

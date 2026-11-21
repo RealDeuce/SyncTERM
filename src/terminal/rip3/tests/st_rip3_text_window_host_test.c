@@ -72,7 +72,7 @@ queries(void)
 	    {"$TWW(7,TEXT,DEVICE)$","240"},{"$TWH(7,TEXT,WORLD)$","117"},
 	    {"$TWW(7,CELL)$","12"},{"$TWH(7,CELL,DEVICE)$","24"},
 	    {"$TWX0(7,BOUND,DEVICE)$","100"},{"$TWY0(7,BOUND)$","35"},
-	    {"$TWX1(7,TEXT,DEVICE)$","371"},{"$TWY1(7,TEXT,WORLD)$","163"},
+	    {"$TWX1(CUR,TEXT)$","237"},{"$TWY1(7,TEXT)$","163"},{"$TWX1(7,TEXT,DEVICE)$","371"},{"$TWY1(7,TEXT,WORLD)$","163"},
 	    {"$TWX0$","-1"},{"$TWY1(7)$","-1"},{"$CURX(35)$","0"},{"$TWW(35)$","0"},
 	    {"$CURSOR(35)$","NO"},{"$TWX1(35,TEXT,DEVICE)$","-1"}};
 	for (size_t i=0;i<sizeof(cases)/sizeof(*cases);i++) CHECK(query_value(&host,cases[i].source,cases[i].expected)==0);
@@ -88,7 +88,7 @@ queries(void)
 	for (unsigned i=0;i<5;i++) {f.observation.layout.font=i;char expected[2]={(char)('1'+i),0};
 		CHECK(query_value(&host,"$TWFONT$",expected)==0);}
 	const char *const invalid[]={"$CURX(ALL)$","$CURY(36)$","$CURSOR(CUR,0)$","$TWFONT(0,1)$",
-	    "$TWW(7,CELL,COLS)$","$TWH(7,TEXT,COLS)$","$TWX0(7,CELL)$","$TWX0(7,TEXT,COLS)$",
+	    "$TWW(7,CELL,COLS)$","$TWH(7,TEXT,COLS)$","$TWX0(7,CELL)$","$TWX0(7,TEXT,COLS)$","$TWX1(7,TEXT,COLS)$","$TWY1(7,TEXT,ROWS)$",
 	    "$TWW(7,,WORLD)$","$TWW(7,TEXT,WORLD,DEVICE)$"};
 	for (size_t i=0;i<sizeof(invalid)/sizeof(*invalid);i++) {
 		struct st_rip3_builtin_reference parsed;
@@ -98,13 +98,6 @@ queries(void)
 		    && output[0]=='Q' && f.current_calls==calls && f.observations==reads);
 	}
 	struct st_rip3_builtin_reference parsed;
-	const char *const unresolved[]={"$TWX1(CUR,TEXT)$","$TWY1(7,TEXT)$","$TWX1(7,TEXT,COLS)$"};
-	for (size_t i=0;i<sizeof(unresolved)/sizeof(*unresolved);i++) {
-		CHECK(st_rip3_builtin_reference_parse(&parsed,(const uint8_t *)unresolved[i],strlen(unresolved[i]))==0);
-		char output[8]="KEEP";unsigned calls=f.current_calls,reads=f.observations;
-		CHECK(st_rip3_host_variables_execute(&host,&parsed,output,sizeof(output))==IO_ERROR_NOT_SUPPORTED
-		    && strcmp(output,"KEEP")==0 && f.current_calls==calls && f.observations==reads);
-	}
 	CHECK(st_rip3_builtin_reference_parse(&parsed,(const uint8_t *)"$TWFONT$",8)==0);
 	f.observation.font_known=false;char output[32]="KEEP";
 	CHECK(st_rip3_host_variables_execute(&host,&parsed,output,sizeof(output))==IO_ERROR_NOT_SUPPORTED && strcmp(output,"KEEP")==0);

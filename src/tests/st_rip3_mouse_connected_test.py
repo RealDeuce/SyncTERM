@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Live RIPv3 simple fields: hit geometry, host commands and native feedback.
 
-Gesture commitment is a client policy pending upstream issue 113. This is not
-an oracle for undocumented RIPtel press/release behavior or for button faces.
+Gesture commitment and identity scope follow the adopted PR115 contract. This
+does not claim button faces or hover-query integration.
 """
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
@@ -103,6 +103,24 @@ def run(args):
         click(100,100,b"scaled:0200:0100:0100:0100")
         values(b"$MKILL$$WORLD(CUR,640,480)$")
 
+        t.case("rip3-field-identity-grammar-and-scoped-expansion")
+        prefixes=((b"ID=0:",0,b""),(b"id=00007:",7,b""),(b"Id=32767:",32767,b""),
+                  (b"ID=32768:",-1,b"ID=32768:"),(b"ID=000001:",-1,b"ID=000001:"),
+                  (b"ID=+7:",-1,b"ID=+7:"),(b"ID= 7:",-1,b"ID= 7:"),
+                  (b"ID=7 :",-1,b"ID=7 :"),(b" ID=7:",-1,b" ID=7:"),
+                  (b"ID=0x7:",-1,b"ID=0x7:"),(b"ID=7:ID=8:",7,b"ID=8:"),(b"",-1,b""))
+        for prefix,identity,retained in prefixes:
+            values(b"$MKILL$")
+            t.exchange(field((100,100,120,120),prefix+b"$FIELDID$:$MKILL$$FIELDID$"))
+            expected=str(identity).encode()
+            click(110,110,retained+expected+b":"+expected)
+            # Outside callback context, this is unavailable, never a user
+            # prompt or a persistent last-field value.
+            values(b"$FIELDID$outside",b"outside")
+        t.exchange(field((100,100,120,120),b"ID=7:$D(3)$id:$FIELDID$"))
+        click(110,110,b"id:7")
+        values(b"$MKILL$$FIELDID$outside",b"outside")
+
         t.case("rip3-field-screen-zero-with-other-current-port")
         for select in (query(b"$CUR(PORT,5)$",at_cursor=True),
                        b"\x01|2P1000002021|2s100\r\n"):
@@ -126,7 +144,6 @@ def run(args):
         values(b"$WORLD(CUR,640,480)$")
         t.exchange(field((10,20,20,30),b"valid")
                    +field((10,20,20,30),b"clear-pending",clear=True)
-                   +field((10,20,20,30),b"ID=1:identity-pending")
                    +b"\x01|1Mbad|1Kbad\r\n")
         click(15,25,b"valid")
         frame=values(b"alive",b"alive")

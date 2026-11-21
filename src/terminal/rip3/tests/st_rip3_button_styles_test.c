@@ -61,7 +61,7 @@ main(void)
 	unsigned current;
 	CHECK(st_rip3_button_styles_current(styles,&current)==0 && current==7);
 	CHECK(st_rip3_button_styles_get(styles,7,&actual)==IO_ERROR_NOT_FOUND);
-	CHECK(st_rip3_button_styles_set(styles,7,&boot)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_button_styles_set(styles,7,&boot)==0);
 	CHECK(st_rip3_button_styles_select(styles,7)==0);
 	CHECK(st_rip3_button_styles_get(styles,7,&actual)==0 && same(&actual,&boot));
 	CHECK(st_rip3_button_styles_protect(styles,7,true)==0);
@@ -90,5 +90,19 @@ main(void)
 			CHECK(st_rip3_button_styles_get(styles,i,&actual)==0 && actual.width==i+10);
 		}
 	}
+	/* PR114: selecting a protected record hidden by CUR reset defaults it
+	 * and clears stale protection. A nonzero in-use byte retains protection. */
+	CHECK(st_rip3_button_styles_info(styles,7,&protected_info)==0 && !protected_info.defined && protected_info.protected);
+	CHECK(st_rip3_button_styles_set(styles,7,&boot)==IO_ERROR_PERMISSION_DENIED);
+	CHECK(st_rip3_button_styles_select(styles,7)==0);
+	CHECK(st_rip3_button_styles_info(styles,7,&protected_info)==0 && protected_info.defined && !protected_info.protected);
+	CHECK(st_rip3_button_styles_get(styles,7,&actual)==0 && same(&actual,&boot));
+	CHECK(st_rip3_button_styles_reset_entry(styles,7)==0);
+	value=boot;value.flags=0;
+	CHECK(st_rip3_button_styles_set(styles,7,&value)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_button_styles_info(styles,7,&protected_info)==0 && !protected_info.defined);
+	value=boot;value.width=77;
+	CHECK(st_rip3_button_styles_set(styles,7,&value)==0 && st_rip3_button_styles_select(styles,7)==0);
+	CHECK(st_rip3_button_styles_get(styles,7,&actual)==0 && actual.width==77);
 	st_rip3_backup_destroy(backup);st_rip3_button_styles_destroy(styles);return 0;
 }

@@ -7,6 +7,7 @@
 struct field {
 	struct st_rip3_rect area;
 	bool invert;
+	int identity;
 	size_t length;
 	uint8_t program[];
 };
@@ -17,6 +18,21 @@ struct st_rip3_mouse {
 	struct field *pressed;
 	bool left, inverted;
 };
+
+int
+st_rip3_mouse_identity(const uint8_t **program, size_t *length)
+{
+	if (program==NULL || length==NULL || *program==NULL || *length<5) return -1;
+	const uint8_t *text=*program;size_t size=*length;
+	if ((text[0]!='I' && text[0]!='i') || (text[1]!='D' && text[1]!='d') || text[2]!='=') return -1;
+	unsigned value=0;size_t at=3;
+	while (at<size && text[at]>='0' && text[at]<='9') {
+		if (at==8) return -1;
+		value=value*10+(unsigned)(text[at++]-'0');
+	}
+	if (at==3 || at==size || text[at]!=':' || value>32767) return -1;
+	*program=text+at+1;*length=size-at-1;return (int)value;
+}
 
 int
 st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink)
@@ -68,16 +84,16 @@ st_rip3_mouse_active(const struct st_rip3_mouse *mouse)
 
 int
 st_rip3_mouse_define(struct st_rip3_mouse *mouse, const struct st_rip3_rect *area,
-    bool invert, const uint8_t *program, size_t length)
+    bool invert, int identity, const uint8_t *program, size_t length)
 {
 	if (mouse==NULL || area==NULL || (program==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
-	if (area->x0<0 || area->y0<0 || area->x1<area->x0 || area->y1<area->y0)
+	if (identity<-1 || identity>32767 || area->x0<0 || area->y0<0 || area->x1<area->x0 || area->y1<area->y0)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->count==128 || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
 	if (invert && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	field->area=*area;field->invert=invert;field->length=length;
+	field->area=*area;field->invert=invert;field->identity=identity;field->length=length;
 	if (length!=0) memcpy(field->program,program,length);
 	mouse->fields[mouse->count++]=field;return 0;
 }
@@ -110,8 +126,9 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 		uint8_t *copy=malloc(field->length==0 ? 1 : field->length);
 		if (copy!=NULL) {
 			size_t length=field->length;
+			int identity=field->identity;
 			if (length!=0) memcpy(copy,field->program,length);
-			mouse->sink.activate(mouse->sink.context,copy,length,x,y);free(copy);
+			mouse->sink.activate(mouse->sink.context,copy,length,identity,x,y);free(copy);
 		}
 		else if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
 	}
