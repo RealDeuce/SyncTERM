@@ -94,13 +94,22 @@ class DosTests {
     otherTab.focused = true
     check(otherTab.draw().cellAt(2, 0).bgRgb == 0xaaaaaa, "tab focus is independent of current tab and button focus")
     var app = App.new()
-    for (type in 1..13) {
+    for (defaults in [false, true]) for (type in 1..13) {
       var d = BbsEditor.draft_(p)
       BbsEditor.changeConnection_(d, type)
-      var rows = BbsEditor.rows_(app, p, d, false)
+      var rows = BbsEditor.rows_(app, p, d, defaults)
+      var pages = DosForms.entryPages_(defaults)
+      check(pages.count == 3, "three entry tabs")
+      var tabWidth = 0
+      for (label in pages) tabWidth = tabWidth + Screen.checked_(Screen.textWidth(label, 0)) + 4
+      check(tabWidth <= 78, "entry tabs fit one row at 80 columns")
       var labels = []
-      for (page in 0...6) for (f in DosForms.entryFields_(app, p, d, false, page)) labels.add(f[0])
-      for (row in rows) check(row[3][0] == "Log Configuration" || labels.contains(row[3][0]), "missing entry field %(row[3][0]) type %(type)")
+      for (page in 0...pages.count) for (f in DosForms.entryFields_(app, p, d, defaults, page)) labels.add(f[0])
+      for (row in rows) check(row[3][0] == "Log Configuration" || labels.where {|label| label == row[3][0] }.count == 1, "missing or duplicated entry field %(row[3][0]) type %(type)")
+      check(labels.where {|label| label == "Comment" }.count == (defaults ? 0 : 1), "notes only belong to personal entries")
+      for (label in ["Log File", "Append Log File", "File Transfer Log Level", "Protocol Log Level", "CTerm Log Level"]) {
+        check(labels.where {|field| field == label }.count == 1, "missing or duplicated log field %(label)")
+      }
     }
     var activation = 0
     var list = DosMainList.new(Fn.new { true }, null, null, null, null, null, null)

@@ -478,6 +478,9 @@ class DosFormPane is Pane {
 }
 
 class DosForms {
+  static entryPages_(defaults) {
+    return ["Connection", "Terminal", defaults ? "Files" : "Files & Notes"]
+  }
   // [label, kind, getter, setter, limit, masked, action, min, max, help]
   static field_(label, kind, get, set, limit, masked, action, min, max, help) {
     return [label, kind, get, set, limit, masked, action, min, max, help]
@@ -485,18 +488,16 @@ class DosForms {
 
   static entryPage_(key, label) {
     if (["name", "addr", "connType", "addressFamily", "port", "flowControl", "bpsRate", "stopBits", "dataBits", "parity", "sortOrder"].contains(key)) return 0
-    if (["user", "password", "syspass", "sftpPublicKey", "sshAllowAes128Cbc", "sshAcceptEarlyData", "telnetNoBinary", "deferTelnetNegotiation", "tlsTrustWebPki", "tlsTrustedCert", "tlsClientCert", "tlsClientKey", "tlsPskIdentity", "tlsPsk", "tlsPskVersion"].contains(key)) return 2
-    if (["dlDir", "ulDir", "logFile", "appendLogFile", "xferLogLevel", "protocolLogLevel", "ctermLogLevel"].contains(key) || label == "Log Configuration") return 3
-    if (label == "Wren Scripts" || label == "Palette") return 4
-    if (key == "comment") return 5
+    if (["user", "password", "syspass", "sftpPublicKey", "sshAllowAes128Cbc", "sshAcceptEarlyData", "telnetNoBinary", "deferTelnetNegotiation", "tlsTrustWebPki", "tlsTrustedCert", "tlsClientCert", "tlsClientKey", "tlsPskIdentity", "tlsPsk", "tlsPskVersion"].contains(key)) return 0
+    if (["dlDir", "ulDir", "logFile", "appendLogFile", "xferLogLevel", "protocolLogLevel", "ctermLogLevel", "comment"].contains(key) || label == "Log Configuration") return 2
     return 1
   }
 
   static entryFields_(app, profile, draft, defaults, page) {
     var fields = []
-    var keys = {"Name": "name", "Connection Type": "connType", "Address Family": "addressFamily", "Flow Control": "flowControl", "Comm Rate": "bpsRate", "Stop Bits": "stopBits", "Data Bits": "dataBits", "Parity": "parity", "TCP Port": "port", "Trust Web PKI": "tlsTrustWebPki", "TLS PSK Version": "tlsPskVersion", "Screen Mode": "screenMode", "Encoding": "encoding", "Font": "font", "Terminal Type": "termName", "Graphics": "graphics", "ANSI Music": "music", "Fake Comm Rate": "bpsRate"}
+    var keys = {"Name": "name", "Connection Type": "connType", "Address Family": "addressFamily", "Flow Control": "flowControl", "Comm Rate": "bpsRate", "Stop Bits": "stopBits", "Data Bits": "dataBits", "Parity": "parity", "TCP Port": "port", "Trust Web PKI": "tlsTrustWebPki", "TLS PSK Version": "tlsPskVersion", "Screen Mode": "screenMode", "Encoding": "encoding", "Font": "font", "Terminal Type": "termName", "Graphics": "graphics", "ANSI Music": "music", "Fake Comm Rate": "bpsRate", "File Transfer Log Level": "xferLogLevel", "Protocol Log Level": "protocolLogLevel", "CTerm Log Level": "ctermLogLevel"}
     var rows = BbsEditor.rows_(app, profile, draft, defaults)
-    if (page == 3) {
+    if (page == 2) {
       rows = rows.where {|row| row[3][0] != "Log Configuration" }.toList
       rows.add(BbsEditor.textRow_(app, draft, "logFile", "Log File", Menu.maxPathLength, false))
       rows.add(BbsEditor.boolRow_(draft, "appendLogFile", "Append Log File"))
@@ -534,7 +535,7 @@ class DosForms {
       fields.add(field_(label, kind, get, set, limit, meta[4], row[1], key == "port" ? 1 : null, key == "port" ? 65535 : null, help))
     }
     if (page == 0 && !defaults) fields.add(field_("Explicit Sort Order", "number", Fn.new { draft["sortOrder"] }, Fn.new {|v| draft["sortOrder"] = v }, 12, false, null, -2147483648, 2147483647, BbsEditor.explicitSortHelp_()))
-    if (page == 5) fields.add(field_("Comment", "text", Fn.new { draft["comment"] }, Fn.new {|v| draft["comment"] = v }, 1023, false, null, null, null, "# Comment\n\nPersonal notes for this connection."))
+    if (page == 2 && !defaults) fields.add(field_("Comment", "text", Fn.new { draft["comment"] }, Fn.new {|v| draft["comment"] = v }, 1023, false, null, null, null, "# Comment\n\nPersonal notes for this connection."))
     return fields
   }
 
@@ -554,7 +555,7 @@ class DosForms {
     if (isNew && !(original is DirectoryEntry)) draft["sortOrder"] = 2147483647
     var savedEntry = original
     var pane = DosFormPane.new(app, defaults ? "New Connection Defaults" : isNew ? "New Directory Entry" : "Edit Directory Entry",
-        defaults ? ["Connection", "Terminal", "Login/Security", "Files/Logging", "Scripts/Palette"] : ["Connection", "Terminal", "Login/Security", "Files/Logging", "Scripts/Palette", "Notes"],
+        entryPages_(defaults),
         Fn.new {|page| entryFields_(app, profile, draft, defaults, page) }, Fn.new {
       if (!defaults && draft["addr"].count == 0) {
         Alert.show(app, "Address Required", "Enter an address, phone number, device, or command on the Connection page.")

@@ -326,10 +326,32 @@ def forms(executable, reports):
         client.key("f2")
         shot = client.wait_text("Edit Directory Entry")
         Path(reports).mkdir(parents=True, exist_ok=True)
+        assert all(label in shot.lines[1] for label in ("[Connection]", "Terminal", "Files & Notes")), shot.text
+        assert "Username" in shot.text and "Password" in shot.text, shot.text
         y = next(y for y, line in enumerate(shot.lines) if "Alpha" in line)
         x = shot.lines[y].index("Alpha")
         assert cell_at(shot, x, y).background != cell_at(shot, 0, y).background, "focused field uses the input palette"
         shot.save_image(Path(reports) / "entry-form.ppm")
+        click_text(client, shot, "Terminal")
+        shot = client.wait_text("Screen Mode")
+        assert "Palette" in shot.text and "Wren Scripts" in shot.text, shot.text
+        click_text(client, shot, "Files & Notes")
+        shot = client.wait_text("Comment")
+        assert "Download Path" in shot.text and "File Transfer Log Level" in shot.text, shot.text
+        click_text(client, shot, "original notes")
+        client.text("draft notes")
+        client.key("page_up", 2)
+        client.wait_text("Screen Mode")
+        client.key("page_down", 2)
+        shot = client.wait_text("draft notes")
+        assert "[Files & Notes]" in shot.lines[1], shot.text
+        client.key("escape")
+        client.wait_text("Discard changes?")
+        client.key("enter")
+        client.wait_text("Directory:")
+        assert (root / "syncterm.lst").read_bytes() == original
+        client.key("f2")
+        client.wait_text("Edit Directory Entry")
         # Name is the first field after the category buttons.
         client.text("Changed")
         client.key("escape")
@@ -340,9 +362,15 @@ def forms(executable, reports):
         client.key("f2")
         client.wait_text("Edit Directory Entry")
         client.text("Renamed")
+        shot = client.capture()
+        click_text(client, shot, "Files & Notes")
+        shot = client.wait_text("Comment")
+        click_text(client, shot, "original notes")
+        client.text("saved notes")
         client.key("f10")
         client.wait_for(lambda s: "Directory:" in s.text and "Renamed" in s.text)
         assert "[Renamed]" in (root / "syncterm.lst").read_text()
+        assert "Comment=saved notes" in (root / "syncterm.lst").read_text()
         shot = open_program(client)
         shot = program_layout(client, shot, reports)
         shot.save_image(Path(reports) / "program-form.ppm")

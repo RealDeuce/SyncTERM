@@ -988,7 +988,11 @@ or returns to the existing session.
 Opening, resizing, or switching the directory does not resize the remote terminal.
 
 DOS entry settings, New Connection Defaults, and Program Settings use separate
-full-page forms. The active category stays highlighted and bracketed in the
+full-page forms. Entry settings have three tabs on one row at 80 columns:
+Connection (including login and security), Terminal (including scripts and
+palette), and Files & Notes (paths, logging, and comment). New Connection
+Defaults uses the same grouping without the per-entry comment, naming its last
+tab Files. The active category stays highlighted and bracketed in the
 top tab row while keyboard focus moves through its fields. Click a tab or use
 Ctrl-PageUp/PageDown to change categories.
 Tab/Shift-Tab move between three control groups: the tab bar, form fields, and
