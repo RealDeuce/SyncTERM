@@ -10,6 +10,8 @@
 #include "st_rip3_palettes.h"
 #include "st_rip3_mouse.h"
 #include "st_rip3_text_commands.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -118,9 +120,144 @@ static int clipboard_buttons(void)
 	st_rip3_styles_destroy(host.styles);st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);
 	return 0;
 }
+static bool same_style(const struct st_rip3_button_style *a,const struct st_rip3_button_style *b)
+{
+	return a->width==b->width && a->height==b->height && a->flags==b->flags && a->bevel==b->bevel
+	    && a->orientation==b->orientation && a->group==b->group && a->flags2==b->flags2
+	    && memcmp(a->colors,b->colors,sizeof(a->colors))==0;
+}
+
+static int autoclip_buttons(void)
+{
+	struct st_rip3_command_host host={0};unsigned errors=0;
+	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
+	struct st_rip3_clipboard_selection clipboard={0};uint64_t budget=100000;
+	host.clipboard=&clipboard;host.offscreen_pixel_budget=&budget;host.text=&text;
+	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);
+	CHECK(st_rip3_environments_create(&host.environments,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_ports_create(&host.ports,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_button_styles_create(&host.button_styles)==0 && st_rip3_button_styles_select(host.button_styles,5)==0);
+	struct st_rip3_mouse_sink sink={0};CHECK(st_rip3_mouse_create(&host.mouse,&sink)==0);
+	struct st_rip3_environment env;CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
+	env.world_width=640;env.world_height=480;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	struct st_rip3_button_style original,after,expected;
+	CHECK(st_rip3_button_style_defaults(&original)==0);
+	original.flags=256|512|64|16|8|32768|1024;original.group=4;
+	original.colors[ST_RIP3_BUTTON_LABEL_FOREGROUND]=12;
+	for (unsigned protect=0;protect<2;protect++) {
+		CHECK(st_rip3_button_styles_protect(host.button_styles,5,false)==0);
+		CHECK(st_rip3_button_styles_set(host.button_styles,5,&original)==0);
+		CHECK(st_rip3_button_styles_protect(host.button_styles,5,protect!=0)==0);
+		budget=100000;unsigned previous=errors;
+		command(&host,&errors,"1U0A0K321O0000<>Label<>");CHECK(errors==previous);
+		CHECK(clipboard.set && clipboard.port==1 && st_rip3_mouse_count(host.mouse)==1);
+		struct st_rip3_port_info port;CHECK(st_rip3_ports_info(host.ports,1,&port)==0 && port.defined);
+		CHECK(port.bounds.x1==106 && port.bounds.y1==46); /* 100x40 face + bevel 3 + helper unit. */
+		for (int y=0;y<47;y++) for (int x=0;x<107;x++) {
+			uint8_t value;CHECK(st_rip3_ports_read(host.ports,1,x,y,&value)==0);
+			CHECK(value!=0 && value!=12); /* Neither black recess nor later red label. */
+		}
+		unsigned red=0;
+		for (int y=20;y<60;y++) for (int x=10;x<110;x++) {
+			uint8_t value;CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0);red+=value==12;
+		}
+		CHECK(red!=0);
+		expected=original;expected.flags=1025; /* CLIPBOARD + MOUSE; every other attribute retained. */
+		CHECK(st_rip3_button_styles_get(host.button_styles,5,&after)==0 && same_style(&after,&expected));
+		struct st_rip3_button_style_info info;
+		CHECK(st_rip3_button_styles_info(host.button_styles,5,&info)==0 && info.defined && info.protected==(protect!=0));
+		command(&host,&errors,"1U5K5K00000000<><>");CHECK(errors==previous && st_rip3_mouse_count(host.mouse)==2);
+		CHECK(pixel(host.ports,200,200,15)==0 && pixel(host.ports,306,246,8)==0 && pixel(host.ports,307,200,0)==0);
+		/* A protected clipboard rejects capture after face/effect painting,
+		 * without mutating the style or installing a new mouse field. */
+		CHECK(st_rip3_button_styles_protect(host.button_styles,5,false)==0
+		    && st_rip3_button_styles_set(host.button_styles,5,&original)==0
+		    && st_rip3_button_styles_protect(host.button_styles,5,protect!=0)==0);
+		CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
+		command(&host,&errors,"1U8C2SB43W0000<>Label<>");CHECK(errors==previous+1);
+		CHECK(st_rip3_button_styles_get(host.button_styles,5,&after)==0 && same_style(&after,&original));
+		CHECK(clipboard.set && clipboard.port==1 && st_rip3_mouse_count(host.mouse)==2 && pixel(host.ports,330,120,7)==0);
+		/* Budget failure follows the shared destructive replacement contract. */
+		CHECK(st_rip3_ports_protect(host.ports,1,false)==0);budget=0;
+		command(&host,&errors,"1U8C2SB43W0000<>Label<>");CHECK(errors==previous+2);
+		CHECK(st_rip3_button_styles_get(host.button_styles,5,&after)==0 && same_style(&after,&original));
+		CHECK(!clipboard.set && st_rip3_ports_info(host.ports,1,&port)==0 && !port.defined && st_rip3_mouse_count(host.mouse)==2);
+		st_rip3_mouse_kill(host.mouse);
+	}
+	const struct st_rip3_rect tiny={0,0,0,0};
+	for (unsigned i=1;i<36;i++) CHECK(st_rip3_ports_define(host.ports,i,&tiny,true)==0);
+	budget=100000;unsigned previous=errors;
+	command(&host,&errors,"1U0A0K321O0000<>Label<>");CHECK(errors==previous+1 && !clipboard.set);
+	CHECK(st_rip3_button_styles_get(host.button_styles,5,&after)==0 && same_style(&after,&original));
+	/* Replacing the current clipboard port selects PORT0 as source. Its
+	 * post-capture label must not contaminate the new clipboard bitmap. */
+	for (unsigned i=1;i<36;i++) CHECK(st_rip3_ports_delete(host.ports,i)==0);
+	const struct st_rip3_rect block={0,0,31,31};
+	CHECK(st_rip3_ports_fill(host.ports,&block,3,ST_RIP3_COPY)==0);
+	CHECK(st_rip3_ports_define(host.ports,6,&block,true)==0 && st_rip3_ports_switch(host.ports,6)==0);
+	CHECK(st_rip3_ports_fill(host.ports,&block,4,ST_RIP3_COPY)==0);
+	clipboard=(struct st_rip3_clipboard_selection){true,6};original.flags=256|64;
+	original.bevel=0; /* Explicit B definition without BEVEL stores zero. */
+	CHECK(st_rip3_button_styles_protect(host.button_styles,5,false)==0
+	    && st_rip3_button_styles_set(host.button_styles,5,&original)==0);
+	command(&host,&errors,"1U00000K0G0000<>A<>");CHECK(errors==previous+1);
+	unsigned current;CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==0 && clipboard.set && clipboard.port==6);
+	for (int y=0;y<17;y++) for (int x=0;x<21;x++) {
+		uint8_t value;CHECK(st_rip3_ports_read(host.ports,6,x,y,&value)==0 && value==3);
+	}
+	unsigned red=0;
+	for (int y=0;y<16;y++) for (int x=0;x<20;x++) {
+		uint8_t value;CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0);red+=value==12;
+	}
+	CHECK(red!=0);
+	/* Font realization belongs to the later label stage. A missing face
+	 * cannot roll back a successful capture or the style's captured flags. */
+	original.flags=256|64;
+	CHECK(st_rip3_button_styles_set(host.button_styles,5,&original)==0);
+	drawing.font_mode=ST_RIP3_FONT_OUTLINE;
+	memcpy(drawing.outline.name,"NoSuchFont",11);
+	CHECK(st_rip3_styles_set(host.styles,0,&drawing)==0);
+	command(&host,&errors,"1U14141O1K0000<>Label<>");CHECK(errors==previous+2);
+	CHECK(st_rip3_button_styles_get(host.button_styles,5,&after)==0 && after.flags==1);
+	struct st_rip3_port_info port;
+	CHECK(st_rip3_ports_info(host.ports,6,&port)==0 && port.bounds.x1==20 && port.bounds.y1==16);
+	/* CLIPBOARD wins over PLAIN and may itself auto-capture; the already
+	 * copied image survives replacement of its old clipboard source. */
+	original.flags=1|64|256;
+	CHECK(st_rip3_button_styles_set(host.button_styles,5,&original)==0);
+	command(&host,&errors,"1U282800000000<><>");CHECK(errors==previous+2);
+	CHECK(st_rip3_ports_info(host.ports,6,&port)==0 && port.bounds.x1==21 && port.bounds.y1==17);
+	for (int y=0;y<18;y++) for (int x=0;x<22;x++) {
+		uint8_t value;CHECK(st_rip3_ports_read(host.ports,6,x,y,&value)==0 && value==7);
+	}
+	/* Current-target replacement failure also retains the helper's PORT0
+	 * fallback; it cannot resurrect or reselect the deleted clipboard. */
+	original.flags=256|64;
+	CHECK(st_rip3_button_styles_set(host.button_styles,5,&original)==0 && st_rip3_ports_switch(host.ports,6)==0);
+	budget=0;
+	command(&host,&errors,"1U00000K0G0000<><>");CHECK(errors==previous+3);
+	CHECK(st_rip3_ports_current(host.ports,&current)==0 && current==0 && !clipboard.set);
+	CHECK(st_rip3_ports_info(host.ports,6,&port)==0 && !port.defined);
+	CHECK(st_rip3_button_styles_get(host.button_styles,5,&after)==0 && same_style(&after,&original));
+	budget=100000;
+	/* Missing capture bindings are preflight failures, before even the face. */
+	original.flags=256|64;
+	CHECK(st_rip3_button_styles_set(host.button_styles,5,&original)==0);
+	const struct st_rip3_rect preflight={120,40,139,55};
+	CHECK(st_rip3_ports_fill(host.ports,&preflight,3,ST_RIP3_COPY)==0);
+	host.offscreen_pixel_budget=NULL;
+	command(&host,&errors,"1U3C143W1K0000<><>");CHECK(errors==previous+4 && pixel(host.ports,130,45,3)==0);
+	host.offscreen_pixel_budget=&budget;host.clipboard=NULL;
+	command(&host,&errors,"1U3C143W1K0000<><>");CHECK(errors==previous+5 && pixel(host.ports,130,45,3)==0);
+	st_rip3_mouse_destroy(host.mouse);st_rip3_button_styles_destroy(host.button_styles);
+	st_rip3_styles_destroy(host.styles);st_rip3_ports_destroy(host.ports);st_rip3_environments_destroy(host.environments);
+	return 0;
+}
+
 int main(void)
 {
-	CHECK(payloads()==0 && clipboard_buttons()==0);
+	CHECK(payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0);
 	struct st_rip3_command_host host={0};unsigned errors=0;
 	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
 	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);

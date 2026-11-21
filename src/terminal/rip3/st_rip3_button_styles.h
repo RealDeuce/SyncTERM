@@ -34,6 +34,12 @@ int st_rip3_button_styles_current(const struct st_rip3_button_styles *, unsigned
 /* Creation reads stored current fields even after a reset clears in-use;
  * unlike selection, this does not default or define that record. */
 int st_rip3_button_styles_current_value(const struct st_rip3_button_styles *, struct st_rip3_button_style *result);
+/* Successful renderer auto-capture changes only current flags, even when
+ * protected/undefined. Use persistent field flags (RECESS is removed here),
+ * retain record metadata and return the new field flags for later rendering.
+ * The caller invokes this only after clipboard capture succeeds. */
+int st_rip3_button_styles_autoclip(struct st_rip3_button_styles *,
+	uint16_t field_flags, uint16_t *result);
 int st_rip3_button_styles_info(const struct st_rip3_button_styles *, unsigned number,
 	struct st_rip3_button_style_info *result);
 int st_rip3_button_styles_get(const struct st_rip3_button_styles *, unsigned number,

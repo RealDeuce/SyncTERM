@@ -254,9 +254,11 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	bool mouse=(style.flags&1024)!=0;
 	/* Type precedence is ICON, clipboard, plain. Group and key decorations
 	 * only apply to resident mouse buttons; inapplicable flags do not reject. */
-	if ((style.flags&(64|128))!=0
+	if ((style.flags&128)!=0
 	    || (mouse && ((style.flags&16384)!=0 || (style.flags2&1)!=0))) return IO_ERROR_NOT_SUPPORTED;
 	if (mouse && host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
+	if ((style.flags&64)!=0 && (host->clipboard==NULL || host->offscreen_pixel_budget==NULL))
+		return IO_ERROR_NOT_SUPPORTED;
 	bool clipboard=(style.flags&1)!=0;
 	struct st_rip3_port_info source;
 	if (clipboard) {
@@ -283,6 +285,7 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	status=st_rip3_environments_frame(host->environments,number,&frame);if (status!=0) return status;
 	unsigned old_port,target;
 	status=st_rip3_ports_current(host->ports,&old_port);if (status!=0) return status;
+	unsigned restore_port=old_port;
 	target=mouse ? 0 : old_port;
 	struct st_rip3_port_info port;
 	status=st_rip3_ports_info(host->ports,target,&port);if (status!=0 || !port.viewport_active) return status;
@@ -317,9 +320,6 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	if (hit.y1>(int64_t)port.clip.y1+1) hit.y1=(int64_t)port.clip.y1+1;
 	if (mouse && (hit.x0>=hit.x1 || hit.y0>=hit.y1)) return 0;
 	if (mouse && st_rip3_mouse_count(host->mouse)==128) return IO_ERROR_OUT_OF_RANGE;
-	struct label label;
-	status=prepare_label(&label,host,&drawing,&style,&frame,payload.label.data,payload.label.length);
-	if (status!=0) return status;
 	*operation=true;status=st_rip3_ports_switch(host->ports,target);
 	uint8_t bright=style.colors[ST_RIP3_BUTTON_BRIGHT],dark=style.colors[ST_RIP3_BUTTON_DARK];
 	uint8_t corner=style.colors[ST_RIP3_BUTTON_CORNER];
@@ -357,8 +357,33 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 		struct box chisel={face.x0+insets[i][0],face.y0+insets[i][1],face.x1-insets[i][0],face.y1-insets[i][1]};
 		status=edge(host,&port,chisel,dark,bright,corner);
 	}
-	if (status==0) status=paint_label(&label,host,&port,&style,&frame,face,(uint8_t)values[4]);
-	int restored=st_rip3_ports_switch(host->ports,old_port);
+	if (status==0 && (style.flags&64)!=0) {
+		/* Capture the original face/bevel extent, before label output. The
+		 * shared helper owns slot choice, extra allocation unit, budget and
+		 * destructive replacement; the surrounding recess is not included. */
+		struct box image=expand(face,(int)bevel);
+		const struct st_rip3_clipboard_area area={image.x0,image.y0,image.x1,image.y1};
+		status=st_rip3_clipboard_capture(host->ports,host->clipboard,&area,*host->offscreen_pixel_budget);
+		if (status==0) status=st_rip3_button_styles_autoclip(host->button_styles,style.flags,&style.flags);
+		/* Replacing the current clipboard destroys its old destination and
+		 * selects PORT0. Preserve that helper side effect, also on failure;
+		 * later label painting uses the new live context, not the new image. */
+		unsigned current;
+		int queried=st_rip3_ports_current(host->ports,&current);
+		if (queried==0 && !mouse && current!=target) {
+			restore_port=current;
+			if (status==0) status=st_rip3_ports_info(host->ports,current,&port);
+		}
+		if (status==0) status=queried;
+	}
+	if (status==0) {
+		/* Realization can fail; it is part of label rendering, after the
+		 * capture/style commit. Raw payload bounds were checked earlier. */
+		struct label label;
+		status=prepare_label(&label,host,&drawing,&style,&frame,payload.label.data,payload.label.length);
+		if (status==0) status=paint_label(&label,host,&port,&style,&frame,face,(uint8_t)values[4]);
+	}
+	int restored=st_rip3_ports_switch(host->ports,restore_port);
 	if (status==0) status=restored;
 	if (status==0 && mouse) {
 		int64_t ox=(int64_t)port.bounds.x0+port.viewport.x0,oy=(int64_t)port.bounds.y0+port.viewport.y0;

@@ -6909,6 +6909,57 @@ no new damage layer or normal ANSI/RIP1 rendering operation is introduced.
 
 The review queue is 1574 implemented, 1709 pending, 3424 unreviewed, 1287 context, 67 excluded, 38 blocked units. Full RIP3 compliance remains unfinished.
 
+## Connected plain/clipboard auto-stamp
+
+`1U` accepts AUTOCLIP 64 for its implemented plain and active-clipboard faces.
+It renders face/effects, captures the original face plus bevel through the
+existing shared clipboard helper, and then renders the label. The capture
+excludes the extra recess and label. Its dimensions retain the helper's extra
+allocation unit; the interaction rectangle retains its own creation-time bounds.
+Clipping does not replace the original capture rectangle with the smaller hit
+intersection. No additional rendering plane or damage map is introduced.
+
+Successful capture writes only the actual current button-style record's flags,
+including when protected. It removes the persistent recess and applies the
+published `(field_flags & 0x7c37) | 1` conversion. Definition/protection/current
+metadata, colors, group, dimensions and the stored bevel value are retained.
+Local field flags use that conversion for subsequent label work; later buttons
+use the clipboard face. Protected explicit `1B` edits still reject normally.
+
+Capture reuses an assigned clipboard or selects the first free nonzero port,
+with the existing client pixel budget and helper-owned replacement semantics.
+A protected target or exhausted slot table rejects without a successful flags
+commit. Allocation/budget failure after replacement can delete the old bitmap
+and clear its assignment. Earlier painting is retained; no mouse field is
+installed on these failures. Missing capture bindings reject before painting.
+Replacing the current clipboard selects PORT0 as the helper's new source;
+constructor cleanup preserves that fallback, including on failure. Labels use
+the resulting live context rather than contaminating the new clipboard image.
+
+Font realization now belongs to the later label stage. A missing font cannot
+roll back a successful clipboard/flags commit. A subsequent label-free clipboard
+button can still use that image. All parser/operation failures remain nonfatal
+and are tested with continued queries and button activation in the connection.
+
+Native tests cover protected/unprotected styles, complete retained attributes,
+plain and clipboard capture, recess/label exclusion, no-free-slot/protected/
+budget failures, destructive current-target replacement, missing bindings and
+late font failure. Connected CP437/UTF-8 tests exercise protected auto-stamp,
+style backups, original versus copied hit bounds, failure recovery, current-
+clipboard replacement and missing-font recovery on all four existing device
+rasters. Exported bitmap dimensions and literal pixel indices provide independent
+geometry/color expectations: the captured 107x47 beveled face excludes black
+recess/red label, and 21x17 replacement/font-failure images retain their expected
+uniform source colors. Expected RIPtel rasters are not generated from this engine.
+
+Native Release CMake is warning-free. Seven distinct affected CTests pass,
+including the contract/preservation guards. The source units for full multi-type
+auto-stamp remain pending with explicit partial evidence until ICON/hot/group
+rendering is connected; those modes are not claimed. B118/B119/B120 remain open.
+The queue has 1574 implemented, 1711 pending, 3422 unreviewed, 1287 context,
+67 excluded and 38 blocked units. The stable pin and frozen RIP1.54 implementation
+remain unchanged. Full RIP3 compliance remains unfinished.
+
 ## Verification and acceptance
 
 Configure/build with native CMake and run CTest. V3 expectations come from

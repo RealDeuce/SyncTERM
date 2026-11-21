@@ -50,6 +50,14 @@ st_rip3_button_styles_current_value(const struct st_rip3_button_styles *styles, 
 }
 
 int
+st_rip3_button_styles_autoclip(struct st_rip3_button_styles *styles, uint16_t field_flags, uint16_t *result)
+{
+	if (styles==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t flags=(uint16_t)(((unsigned)field_flags&~16u&0x7c37u)|1u);
+	styles->entries[styles->current].value.flags=flags;*result=flags;return 0;
+}
+
+int
 st_rip3_button_styles_info(const struct st_rip3_button_styles *styles, unsigned number,
     struct st_rip3_button_style_info *result)
 {

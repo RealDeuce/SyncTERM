@@ -27,16 +27,20 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 `syncterm_rip3_mouse_CP437` and `syncterm_rip3_mouse_UTF-8` cover connected
 simple mouse fields, host execution, captured coordinates, deletion and native
 text/graphics press feedback and the adopted PR #115 gesture/identity policy.
-`syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise plain
-plain/active-clipboard `1U` rendering, classic/Dixon labels, pointer activation, reset-before-host,
-shared capacity and deferred host failure recovery on four connection rasters.
+`syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise
+plain `1U` buttons, active clipboard faces, classic/Dixon labels, pointer
+activation, reset-before-host, shared capacity and deferred host failure
+recovery on four connection rasters.
 PR #117 defines positional payload splitting and half-open hit boundaries;
 native tests cover raw limits, reversed/degenerate faces and viewport snapshots.
 Deletion-only `1k` tests distinguish simple fields/buttons, retain a captured
 instance across compaction, remove feedback before captured deletion, and prevent
 a same-ID replacement from inheriting the held gesture. Full region/painting
 policy awaits #120; paint requests remain nonfatal and preserve existing fields.
-Clear/zoom, hover, ICON/hot/auto faces and groups remain pending. Keyboard
+Auto-stamp captures implemented plain/clipboard faces before their label, mutates
+protected live style flags only on success, and recovers after capture/font
+failures. Tests verify exported dimensions/colors and current-clipboard replacement.
+Clear/zoom, hover, ICON/hot faces and groups remain pending. Keyboard
 activation and complete nonplain source sizing/eligibility await #118/#119; see the RIP3 inventory for the exact supported subset.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
