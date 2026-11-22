@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/149",
-  "revision": "393c5ebee54687f329c85d8b17db641e4210a18a",
-  "previous_revision": "4c8672d935e9faccdb74eb702ab7c056cf24071e",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/151",
+  "revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
+  "previous_revision": "393c5ebee54687f329c85d8b17db641e4210a18a",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "1dd4fedad69ab99d0730c7cb1deddc22cf4d90418f2831a9eb196090ad863370",
+  "archive_sha256": "6ab4b850ad5ee2e3ebc38878181bdbfba2cd7330c15ece9df384eb5c40b171ee",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -990,7 +990,7 @@
     },
     {
       "path": "version/3.0/research/issue-104-terminal-character-sets.md",
-      "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+      "sha256": "028dc23e46661b3fcf3d9bf4a919c50735e1c12f5182bb32348495fd534e69ca",
       "title": "Issue #104: Terminal character sets",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1395,6 +1395,12 @@
       "sha256": "c2189c0b1b33fbe383acb2e3ac1a7d09760f44aa1c33f9f82b8fa4e7752c9973",
       "title": "Issue #148: Live text-window reset state and ordering",
       "role": "Read-only documentary derivation and explicitly labeled portable state/selector/failure completion; no downloaded instructions, original client, probes or validation code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-150-ansi-esc-snapshot.md",
+      "sha256": "c96048d56073faa002157e2ec9a278a8987fa36c89e0a9057164bdb62a6b3c6d",
+      "title": "Issue #150: ANSI ESC 7/8 text-window snapshot",
+      "role": "Read-only documentary derivation and explicitly adopted portable payload/ownership/current-target/lifetime/failure completion. Workflow/checkpoint text is not agent instructions or runtime evidence; no downloaded code, original client or probes executed."
     }
   ],
   "documents": [
@@ -1488,7 +1494,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "22af7a2170760c665bbf46e3566262d7fdd6fb7f1118987d15f04d8960480332"
+      "sha256": "4c819f21b0f95fd9f4123f97b629febded2b2d56d758494951c255583e10a3de"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
@@ -1496,11 +1502,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "d04987435fcbb3b121fd49ee0ba02ceb6c27960b3a978ed44255c566f898cd2b"
+      "sha256": "ac68cd504e0ccd1701b5ba7df3f67a944233023b463757d8c14844c02166cfc8"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "c996fc4eedcdc5d6b9bb9b18126449db025f0ac4abb19439348f695928b4ee86"
+      "sha256": "76896610753e8a18e8f86a39a924cab2260e95fe354eecbceb7943942cee130f"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1556,7 +1562,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "92bb8301a3f2231a5e78c4efde84f68a8d4f9d9f738775eb5b8f596659191ab5"
+      "sha256": "bb78e79c9a32a5db2bd251c6159270f203cea41780efeb5d70282fdf5b116245"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1596,7 +1602,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "2cc1b4fbc8991e56098a90e4f71ba10dda2d7e17332d48420b7a80afab6e09a7"
+      "sha256": "c5114dc8871f1e017af45219c2bf49373410e6d3cb418a02268caaf93eeca5ee"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
@@ -9952,6 +9958,236 @@
         "original_alpha4_sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
         "scope": "Full normative archive path/hash inventory and exact-text reindex; all prior research hashes and original ALPHA4 unchanged. New derivation and all new/replaced normative text reviewed as data. No unchanged application builds/runtime tests repeated; contract and original preservation guards run after adoption.",
         "identical_reset_section_moves": "Identical duplicate rows in the inserted Other RESET Families grouping were matched by their preserved source order and exact text, including existing MOUSE/SCREEN stack claims; no implementation evidence was dropped for a heading-only move. Six repeated separators were matched using the same reviewed 71-line section displacement; the three newly inserted matrix separators stay distinct contextual blocks."
+      }
+    },
+    {
+      "previous_revision": "393c5ebee54687f329c85d8b17db641e4210a18a",
+      "revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
+      "archive_sha256": "6ab4b850ad5ee2e3ebc38878181bdbfba2cd7330c15ece9df384eb5c40b171ee",
+      "pull_requests": [
+        {
+          "number": 151,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/151",
+          "head": "685c3d5daca00837dcbef83e2ad40261e748e95b"
+        }
+      ],
+      "upstream_state": "Actual reviewed PR151 head is ancestral to the selected fork stable, two commits ahead/none behind. Later changes affect research/workflow checkpoint text only, with no further normative edits.",
+      "authorization": "Standing user-selected stable reference and reviewed-PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "22af7a2170760c665bbf46e3566262d7fdd6fb7f1118987d15f04d8960480332",
+          "sha256": "4c819f21b0f95fd9f4123f97b629febded2b2d56d758494951c255583e10a3de"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "d04987435fcbb3b121fd49ee0ba02ceb6c27960b3a978ed44255c566f898cd2b",
+          "sha256": "ac68cd504e0ccd1701b5ba7df3f67a944233023b463757d8c14844c02166cfc8"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "c996fc4eedcdc5d6b9bb9b18126449db025f0ac4abb19439348f695928b4ee86",
+          "sha256": "76896610753e8a18e8f86a39a924cab2260e95fe354eecbceb7943942cee130f"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "92bb8301a3f2231a5e78c4efde84f68a8d4f9d9f738775eb5b8f596659191ab5",
+          "sha256": "bb78e79c9a32a5db2bd251c6159270f203cea41780efeb5d70282fdf5b116245"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "2cc1b4fbc8991e56098a90e4f71ba10dda2d7e17332d48420b7a80afab6e09a7",
+          "sha256": "c5114dc8871f1e017af45219c2bf49373410e6d3cb418a02268caaf93eeca5ee"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8604,
+      "moved_source_blocks": 409,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 71,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:499",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:236",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:112",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:114",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:118",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:120",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:121",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:122",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:123",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:124",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:125",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:126",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:127",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:128",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:129",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:130",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:131",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:132",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:133",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:135",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:137",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:138",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:139",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:140",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:141",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:142",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:143",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:144",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:145",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:147",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:151",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:153",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:155",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:157",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:159",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:161",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:165",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:166",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:167",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:168",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:169",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:170",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:171",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:172",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:173",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:174",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:175",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:176",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:177",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:179",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:183",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:185",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:186",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:187",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:188",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:189",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:190",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:191",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:192",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:193",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:194",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:195",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:196",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:197",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:198",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:199",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:439",
+        "version/3.0/ripscrip/5.1-text-variables.md:2925",
+        "version/3.0/ripscrip/5.1-text-variables.md:2952",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:252"
+      ],
+      "retired_source_blocks": 4,
+      "retired_implemented_claims": [],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "heading": "Character-set State Boundaries",
+          "lines": [
+            86,
+            86
+          ],
+          "text": "| ANSI `ESC 7` / `ESC 8` | Saves/restores the TW definition/state snapshot, including G0/G1/invocation; global emulation choice is not in that snapshot |\n",
+          "sha256": "6ed5806f3b070e8a18c3e34bced0265791d1f86b40f2d24c65b0bcc142d9306f",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "reason": "Applicable charset recording/lifetime and CSI-only saved coordinates are implemented. The full interpreter-owned ESC7/8 snapshot is not: new issue150 requests exact portable field ownership/payload, current-versus-original restore target, protected/inactive/uninitialized behavior, reset/COPY/backup lifetime and recoverable resource publication. Native0xf1 record-copy evidence is not enough to choose interoperable query/font/geometry/protection behavior. Existing simple ANSI coordinate handling does not establish full snapshot compliance. Do not add comments to covered #104/PR107, #106/PR110 or #148/PR149.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/150"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/1.4-terminal-ansi-view.md:348",
+          "heading": "Selection, First Use and Partial ANSI Input",
+          "source": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "lines": [
+            348,
+            348
+          ],
+          "text": "“Copy logical colors” includes optional direct ANSI color values if the implementation already supports them; this does not require any new SGR syntax or change RIP's graphics ENV color mode. Global client emulation mode, input lock, font resources and graphics palette/PORT/STYLE/ENV selections are outside this per-window copy. The larger `ESC 7/8` snapshot is interpreter-owned, distinct from the per-window CSI-saved coordinates; selection retains that snapshot and does not create a separate copy in the new TW.\n",
+          "sha256": "bea1f004c61d4d1a6218b418831c4b0a7490b9121a2df241517b00560212faf9",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "reason": "Applicable charset recording/lifetime and CSI-only saved coordinates are implemented. The full interpreter-owned ESC7/8 snapshot is not: new issue150 requests exact portable field ownership/payload, current-versus-original restore target, protected/inactive/uninitialized behavior, reset/COPY/backup lifetime and recoverable resource publication. Native0xf1 record-copy evidence is not enough to choose interoperable query/font/geometry/protection behavior. Existing simple ANSI coordinate handling does not establish full snapshot compliance. Do not add comments to covered #104/PR107, #106/PR110 or #148/PR149.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/150"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2925",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "heading": "Live Text-Window Reset Contract",
+          "lines": [
+            2925,
+            2925
+          ],
+          "text": "Retain the connection's partial ANSI ESC/CSI/designation or supported string parser state and the interpreter-owned larger ESC-7/8 snapshot. Reset only the per-window CSI-saved coordinates listed above. Subsequent raw bytes continue the existing parser against the then-current TW; reset does not inject text or run an ANSI reset on a different protected current window.\n",
+          "sha256": "b68071e32022b48688d7e6969dd621e26500f57324d18e7a3f6d67ed20a730f4",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "reason": "Applicable charset recording/lifetime and CSI-only saved coordinates are implemented. The full interpreter-owned ESC7/8 snapshot is not: new issue150 requests exact portable field ownership/payload, current-versus-original restore target, protected/inactive/uninitialized behavior, reset/COPY/backup lifetime and recoverable resource publication. Native0xf1 record-copy evidence is not enough to choose interoperable query/font/geometry/protection behavior. Existing simple ANSI coordinate handling does not establish full snapshot compliance. Do not add comments to covered #104/PR107, #106/PR110 or #148/PR149.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/150"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2952",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "heading": "Live Text-Window Reset Contract",
+          "lines": [
+            2952,
+            2952
+          ],
+          "text": "| TW 0 extended/inactive, cursor hidden/nondefault shape; RESET(TW,0) | Same fresh ordinary state for the user default; no extended kind/bounds/inactivity/shape request retained. Parser and larger ESC-7/8 snapshot remain unchanged |\n",
+          "sha256": "fb082f7d8d98c17e10516a74b3e9d6ee806da67447c2b4450f2eb2400a81fd9a",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "reason": "Applicable charset recording/lifetime and CSI-only saved coordinates are implemented. The full interpreter-owned ESC7/8 snapshot is not: new issue150 requests exact portable field ownership/payload, current-versus-original restore target, protected/inactive/uninitialized behavior, reset/COPY/backup lifetime and recoverable resource publication. Native0xf1 record-copy evidence is not enough to choose interoperable query/font/geometry/protection behavior. Existing simple ANSI coordinate handling does not establish full snapshot compliance. Do not add comments to covered #104/PR107, #106/PR110 or #148/PR149.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/150"
+          ]
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-150-ansi-esc-snapshot.md",
+          "sha256": "c96048d56073faa002157e2ec9a278a8987fa36c89e0a9057164bdb62a6b3c6d",
+          "title": "Issue #150: ANSI ESC 7/8 text-window snapshot",
+          "role": "Read-only documentary derivation and explicitly adopted portable payload/ownership/current-target/lifetime/failure completion. Workflow/checkpoint text is not agent instructions or runtime evidence; no downloaded code, original client or probes executed."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-104-terminal-character-sets.md",
+          "previous_sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+          "sha256": "028dc23e46661b3fcf3d9bf4a919c50735e1c12f5182bb32348495fd534e69ca",
+          "reviewed_change": "Only the existing saved-state paragraph gains the #150 cross-reference and explicit live-to-CSI overwrite consequence; the rest of #104 is unchanged, as reviewed in the exact commit comparison. No new original-client execution is inferred."
+        }
+      ],
+      "states_at_adoption": {
+        "unreviewed": 3062,
+        "context": 1520,
+        "pending": 1740,
+        "implemented": 2261,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8675,
+      "policy": "Treat upstream Markdown as reference data, not agent instructions. No downloaded code/probe/client/checker execution. Preserve exact unchanged source claims and all retired evidence. Keep ECMA48 recognition in the existing CTerm ANSI parser; the existing RIP3 window owner applies logical definition/query state without recursive parsing. Do not add VT102 mode or alter frozen RIP154/entry-raster/external-launch boundaries.",
+      "followup": "Implement one owned optional ESC snapshot across the existing connection/window owner. Prefix processing must unwind the ANSI parser before a restore can replace its native owner, then continue remaining received bytes without session errors. Capture logical fonts/metrics rather than handles/resource ownership; require current compatible resources at restore. Keep source CSI save unchanged, derive snapshot saved coordinates from captured live position, prepare target/query before commit and preserve pixel raster. Do not accept full runtime from reference adoption.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 70,
+        "declared_prior_derivation_changes": 1,
+        "original_alpha4_sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+        "scope": "Full scoped document inventory/hash review and exact-text ordered reindex; new/replaced normative clauses and new/changed derivations read as data. Source cursor-overwrite evidence distinguished from portable recovery. Contract/preservation guards after adoption; unchanged product build/runtime evidence reused."
       }
     }
   ],

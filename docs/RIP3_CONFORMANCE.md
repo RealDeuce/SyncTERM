@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-393c5ebee54687f329c85d8b17db641e4210a18a](https://github.com/RealDeuce/remote-imaging-protocol/tree/393c5ebee54687f329c85d8b17db641e4210a18a/version/3.0)
+26128c7043d90cd00aa95c6b44aadbfc185f6a3a](https://github.com/RealDeuce/remote-imaging-protocol/tree/26128c7043d90cd00aa95c6b44aadbfc185f6a3a/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8604,3 +8604,30 @@ The 8608-unit queue now contains 2261 implemented, 1678 pending, 3062 unreviewed
 1510 context, 67 excluded and 30 blocked. Full RIP3, other RESET families, HEADER,
 full ESC7/ESC8 snapshot under B150 and the deferred default-font policy remain
 unfinished. Arbitrary entry raster and no-VT102/external-launch scope remain.
+
+
+## PR151 ANSI ESC snapshot reference adoption
+
+The selected stable reference is now
+`26128c7043d90cd00aa95c6b44aadbfc185f6a3a`, including reviewed PR151 head
+`685c3d5daca00837dcbef83e2ad40261e748e95b`. The [adoption record](RIP3_REFERENCE_ADOPTION.md#pr151-ansi-esc-snapshot-completion)
+retains exact inventory/hash/retired evidence. B150 is answered by an explicitly
+completed logical payload, captured-live-to-CSI overwrite, eligible current-target
+restore, owned query/resource resolution, reusable lifetime and atomic/no-paint
+failure rules. Hard/session clearing is distinct from retaining SOFT/live-reset/
+selection/COPY/whole-text-window-backup behavior. Stored native pointers or a
+historical record byte count are not the payload contract.
+
+The full ESC7/ESC8 runtime remains pending, including safe continuation after
+replacement of the current native window, compatible logical font resolution and
+independent query ownership. Existing whole-text-window backup capsules own
+font resources, so they cannot be used unchanged as the ESC snapshot payload.
+ANSI escape recognition remains in CTerm; it is not moved into RIP framing. Existing designation/CSI/window/reset/backup features stay
+usable. New clauses are pending runtime acceptance, with original source facts
+separate from portable completion. No implemented claim is retired. The 8675-unit
+queue contains 2261 implemented, 1740 pending, 3062 unreviewed, 1520 context,
+67 excluded and 25 blocked. Contract and original preservation guards pass;
+unchanged builds/rendering suites are reused for this reference-only change.
+Original RIP1.54, arbitrary entry raster, the no-VT102/external-launch scope and
+the user-deferred startup/default-font policy remain controlling. Owned reference
+archive/review scratch files are removed, and full RIP3 compliance is incomplete.

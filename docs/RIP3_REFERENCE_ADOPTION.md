@@ -959,3 +959,49 @@ contract and original preservation guards pass; unchanged native builds and
 functional/rendering evidence are reused for this reference-only change. The
 owned archive is removed. No existing issue receives comments and no code is
 pushed or PR published.
+
+
+## PR151 ANSI ESC snapshot completion
+
+The selected fork stable reference advances to
+[`26128c7043d90cd00aa95c6b44aadbfc185f6a3a`](https://github.com/RealDeuce/remote-imaging-protocol/tree/26128c7043d90cd00aa95c6b44aadbfc185f6a3a),
+including reviewed [PR151](https://github.com/bbs-land/remote-imaging-protocol/pull/151)
+head `685c3d5daca00837dcbef83e2ad40261e748e95b`. Stable is two commits ahead of
+that head and none behind; the later commits change research/workflow checkpoint
+text only. Archive SHA-256:
+`6ab4b850ad5ee2e3ebc38878181bdbfba2cd7330c15ece9df384eb5c40b171ee`.
+
+Five normative documents change in the same 68-document scope. Ordered exact-text
+matching preserves 8604 source reviews and moves 409 line references. There are
+71 new blocks and four retired blocks; all retired text/reasons are preserved,
+and no implemented claim is retired. The 8675-unit queue contains 2261 implemented,
+1740 pending, 3062 unreviewed, 1520 context, 67 excluded and 25 blocked. Seventy
+previous research documents are unchanged. The existing #104 saved-state paragraph
+only gains the declared #150 cross-reference and live-to-CSI overwrite explanation;
+its old/new hashes and exact comparison are recorded. The new #150 derivation is
+separately pinned, bringing the research inventory to 72. Original ALPHA4 text
+bytes retain their recorded hash.
+
+B150 is resolved as a documentation question. The explicit profile owns one
+optional snapshot across selection, applies it only to an eligible current text
+window, keeps source CSI-saved coordinates unchanged during capture, and derives
+the snapshot's saved-coordinate value from the captured live cursor. Restore is
+reusable and prepares logical state/query/resources before commit without repaint.
+The payload excludes source/current selection, floating query, family backups,
+parser/input buffers, pixels/history and native font/cache handles or resource
+ownership. Logical font/metric and any already exposed binding requirements must
+resolve against current compatible resources. Hard reset/session boundaries clear
+the value; ordinary/extended definitions, selection/COPY/live reset, whole text-
+window backups, ESC c and SOFT retain it. Mixed HEADER lifetime clauses remain
+pending with HEADER integration.
+
+This remains a reference-only acceptance: the full ANSI ESC7/ESC8 snapshot is not
+yet implemented. Recognition stays in CTerm's existing ECMA-48 parser; applying
+text-window definition/query state belongs to the existing window owner. Runtime
+must unwind parsing before replacing its active native owner, then continue input
+without a parse error escaping to the session. No VT-102 mode, second ANSI parser,
+scene/damage layer or frozen RIP1.54 change is authorized. No downloaded code,
+original client or upstream probe/checker runs; embedded workflow text is data,
+not instructions. Contract/preservation guards pass, unchanged product build and
+runtime evidence are reused, and the owned archive/review scratch files are
+removed. No covered issue receives comments and no code is pushed or PR published.
