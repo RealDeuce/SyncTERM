@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_backup.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_clipboard.h"
 #include "io_error.h"
 #include "st_pixels.h"
 #include "st_rip3_resident_query.h"
@@ -17,7 +18,7 @@
 } while (0)
 
 static int
-check_saved(struct st_rip3_ports *ports)
+check_saved(struct st_rip3_ports *ports, bool survivor)
 {
 	struct st_rip3_port_info info;
 	unsigned current;
@@ -35,7 +36,14 @@ check_saved(struct st_rip3_ports *ports)
 	    && info.bounds.x1 == 3 && info.bounds.y1 == 2);
 	CHECK(info.viewport.x0 == 1 && info.viewport.y0 == 0
 	    && info.viewport.x1 == 3 && info.viewport.y1 == 1);
-	CHECK(st_rip3_ports_info(ports, 3, &info) == 0 && !info.defined && !info.protected);
+	/* Port 3 is absent in the snapshot. Its protected live definition is
+	 * retained by the original cleanup/undefined-slot rule. */
+	CHECK(st_rip3_ports_info(ports, 3, &info) == 0 && info.defined==survivor && info.protected==survivor);
+	if (survivor) {
+		uint8_t pixel;
+		CHECK(info.offscreen && !info.viewport_active && info.viewport.x0==1 && info.viewport.y1==1);
+		CHECK(st_rip3_ports_read(ports,3,1,1,&pixel)==0 && pixel==11);
+	}
 	for (int32_t y = 0; y < 3; y++) {
 		for (int32_t x = 0; x < 4; x++) {
 			uint8_t value;
@@ -88,20 +96,28 @@ restoration(void)
 	CHECK(st_rip3_ports_erase(ports, 9) == 0);
 	CHECK(st_rip3_ports_protect(ports, 2, true) == 0);
 	CHECK(st_rip3_ports_define(ports, 3, &offscreen, true) == 0);
+	CHECK(st_rip3_ports_switch(ports,3)==0 && st_rip3_ports_erase(ports,11)==0);
+	CHECK(st_rip3_ports_viewport(ports,&offscreen_view)==0 && st_rip3_ports_activate(ports,false)==0);
 	CHECK(st_rip3_ports_protect(ports, 3, true) == 0);
+	CHECK(st_rip3_ports_define(ports,4,&offscreen,true)==0);
+	uint64_t survivor_generation=st_rip3_ports_generation(ports,3);
 	CHECK(st_rip3_ports_switch(ports, 0) == 0);
 	CHECK(st_rip3_ports_erase(ports, 5) == 0);
 	CHECK(st_rip3_ports_plot(ports, 10, 10, 8, ST_RIP3_COPY) == 0);
 	/* Restore bypasses protected live definitions, but no screen bitmap was
 	 * saved by the port table: the newer magenta background must survive. */
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, ports) == 0);
-	CHECK(check_saved(ports) == 0);
+	CHECK(check_saved(ports, true) == 0);
+	struct st_rip3_port_info survivor;
+	CHECK(st_rip3_ports_info(ports,3,&survivor)==0 && survivor.defined && survivor.protected);
+	CHECK(st_rip3_ports_generation(ports,3)==survivor_generation);
+	CHECK(st_rip3_ports_info(ports,4,&survivor)==0 && !survivor.defined);
 	CHECK(st_rip3_ports_protect(ports, 2, false) == 0);
 	CHECK(st_rip3_ports_viewport(ports, &offscreen_full) == 0);
 	CHECK(st_rip3_ports_plot(ports, 0, 0, 10, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_protect(ports, 2, true) == 0);
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, ports) == 0);
-	CHECK(check_saved(ports) == 0);
+	CHECK(check_saved(ports, true) == 0);
 	CHECK(st_rip3_palette_defaults(&palette) == 0);
 	CHECK(st_rip3_ports_snapshot(ports, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < 480; y++) {
@@ -118,7 +134,7 @@ restoration(void)
 	ports = NULL;
 	CHECK(st_rip3_ports_create(&ports, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, ports) == 0);
-	CHECK(check_saved(ports) == 0);
+	CHECK(check_saved(ports, false) == 0);
 	CHECK(st_rip3_ports_snapshot(ports, &palette, &capture) == 0);
 	for (size_t i = 0; i < 640U * 480U; i++)
 		CHECK(capture->primary[i] == ST_PIXEL_COLOR_RGB_TAG);
@@ -207,11 +223,56 @@ static int resident_ownership(void)
 	st_rip3_backup_destroy(backup);st_rip3_ports_destroy(ports);return 0;
 }
 
+static int
+clipboard_ownership(void)
+{
+	struct st_rip3_ports *ports=NULL,*other=NULL;
+	struct st_rip3_backup *backup=NULL;
+	struct st_rip3_clipboard_selection selection={.set=true,.port=5},target={0};
+	const struct st_rip3_rect bounds={0,0,2,2};
+	CHECK(st_rip3_ports_create_device(&ports,720,400)==0);
+	st_rip3_ports_bind_clipboard(ports,&selection);
+	CHECK(st_rip3_ports_backup_create(&backup)==0);
+	CHECK(st_rip3_ports_define(ports,5,&bounds,true)==0);
+	CHECK(query_set(ports,true,0,"saved")==0);
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,ports)==0);
+	selection=(struct st_rip3_clipboard_selection){.set=true,.port=0};
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_SLOT,0,ports)==0);
+	selection=(struct st_rip3_clipboard_selection){0};
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_SLOT,1,ports)==0);
+	selection=(struct st_rip3_clipboard_selection){.set=true,.port=7};
+	CHECK(query_set(ports,true,0,"live")==0);
+	extern size_t st_rip3_resident_test_attempts,st_rip3_resident_test_fail_at;
+	st_rip3_resident_test_fail_at=st_rip3_resident_test_attempts;
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,ports)==IO_ERROR_OUT_OF_MEMORY);
+	st_rip3_resident_test_fail_at=SIZE_MAX;
+	CHECK(selection.set && selection.port==7);
+	st_rip3_resident_test_fail_at=st_rip3_resident_test_attempts;
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,ports)==IO_ERROR_OUT_OF_MEMORY);
+	st_rip3_resident_test_fail_at=SIZE_MAX;
+	CHECK(selection.set && selection.port==7 && query_value(ports,true,0,"live")==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,ports)==0 && selection.set && selection.port==5);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_SLOT,0,ports)==0 && selection.set && selection.port==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_SLOT,1,ports)==0 && !selection.set);
+	CHECK(st_rip3_ports_create_device(&other,720,400)==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,other)==IO_ERROR_NOT_SUPPORTED);
+	st_rip3_ports_bind_clipboard(other,&target);
+	st_rip3_ports_destroy(ports);ports=NULL;
+	selection=(struct st_rip3_clipboard_selection){0};
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,other)==0 && target.set && target.port==5);
+	CHECK(!selection.set); /* Snapshot never owns a pointer into its old session. */
+	st_rip3_ports_destroy(other);
+	CHECK(st_rip3_ports_create_device(&other,800,600)==0);
+	st_rip3_ports_bind_clipboard(other,&target);target.port=35;
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,other)==IO_ERROR_CONFLICT && target.set && target.port==35);
+	st_rip3_ports_destroy(other);st_rip3_backup_destroy(backup);return 0;
+}
+
 int
 main(void)
 {
 	CHECK(resident_ownership()==0 && restoration() == 0);
-	CHECK(canvas_mismatch() == 0);
+	CHECK(canvas_mismatch() == 0 && clipboard_ownership()==0);
 	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);
 	return 0;
 }

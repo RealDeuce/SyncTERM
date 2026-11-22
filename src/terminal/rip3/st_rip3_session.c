@@ -831,6 +831,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_palettes_create(&session->commands.palettes);
 	if (status==0) status=device ? st_rip3_ports_create_device(&session->commands.ports,frame.device_width,frame.device_height)
 	    : st_rip3_ports_create(&session->commands.ports,config->canvas);
+	if (status==0) st_rip3_ports_bind_clipboard(session->commands.ports,&session->clipboard);
 	if (config->builtin_bitmap_errors && config->bitmap_errors==NULL) {
 		session->bitmap_ui=(struct st_rip3_bitmap_error_ui){.ports=session->commands.ports,.palettes=session->commands.palettes};
 		session->bitmap_errors=(struct st_rip3_bitmap_error_sink){&session->bitmap_ui,st_rip3_bitmap_error_show};

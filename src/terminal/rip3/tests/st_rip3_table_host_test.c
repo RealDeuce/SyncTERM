@@ -299,6 +299,17 @@ port_expressions(void)
 	CHECK(st_rip3_ports_read(ports, 2, 0, 0, &pixel) == 0 && pixel == 6);
 	CHECK(execute(&host, "$BACKSTAT(PORT,USE)$", output, sizeof(output)) == 0);
 	CHECK(strcmp(output, "1:0:0:10:0:0:0:0:0:0:0:0:0:0") == 0);
+	CHECK(execute(&host,"$SCB$",output,sizeof(output))==0 && output[0]==0);
+	CHECK(execute(&host,"$SCB(3)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$SCB(PUSH)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$RCB$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$RCB(3)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$RCB(POP)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$INUSE(PORT,S3)$",output,sizeof(output))==0 && strcmp(output,"0")==0);
+	CHECK(execute(&host,"$SCB(10)$",output,sizeof(output))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$SCB(POP)$",output,sizeof(output))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$RCB(PUSH)$",output,sizeof(output))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$SCB(0,1)$",output,sizeof(output))==IO_ERROR_INVALID_FORMAT);
 	host.tables[ST_RIP3_TABLE_PORT].live = NULL;
 	CHECK(execute(&host, "$COPY(PORT,BASE,TBL)$", output, sizeof(output)) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(execute(&host, "$COPY(PORT,BASE,S1)$", output, sizeof(output)) == 0);

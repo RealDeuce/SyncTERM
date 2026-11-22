@@ -618,8 +618,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	}
 	copy = strcmp(reference->name, "COPY") == 0;
 	backstat = strcmp(reference->name, "BACKSTAT") == 0;
-	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0 || strcmp(reference->name,"STW")==0;
-	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0 || strcmp(reference->name,"RTW")==0;
+	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0 || strcmp(reference->name,"STW")==0 || strcmp(reference->name,"SCB")==0;
+	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0 || strcmp(reference->name,"RTW")==0 || strcmp(reference->name,"RCB")==0;
 	if (!copy && !backstat && !save && !restore)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity == 0)
@@ -643,7 +643,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 					return IO_ERROR_INVALID_FORMAT;
 			}
 		}
-		binding = &host->tables[reference->name[1]=='T' ? ST_RIP3_TABLE_TW : reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
+		binding = &host->tables[reference->name[2]=='B' ? ST_RIP3_TABLE_PORT : reference->name[1]=='T' ? ST_RIP3_TABLE_TW : reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
 		    : reference->name[1]=='M' ? ST_RIP3_TABLE_MOUSE : ST_RIP3_TABLE_PAL];
 		if (binding->live == NULL || binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;

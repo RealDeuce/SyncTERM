@@ -8016,3 +8016,53 @@ accepted; full PORT clipboard selection, individual TW-entry COPY/live reset,
 eight-family aggregate operations, HEADER/hard reset and remaining families
 are pending. Source pin, original RIP1.54 freeze, arbitrary entry raster and
 no-VT102 scope remain unchanged; no full-compliance claim is made.
+
+
+## Connected PORT backup selection and protected survivors
+
+At unchanged stable pin `95493d2643eaecfc1a02ca4264da2c0d8a1f406e`,
+`SCB` / `RCB` now address the existing PORT backup family through real sessions.
+BASE, numbered slots, PUSH/POP, protection and whole-PORT COPY use the same
+manager and immutable snapshots. The PORT owner borrows the session's existing
+clipboard selection; snapshots store its value, never a pointer into the source
+session. Restore publishes that value only after preparing the complete saved
+bitmap/query replacement. Unset selection and assigned port zero remain distinct;
+an assigned snapshot requires a bound destination. Source-session teardown and
+failed capture/restore cannot invalidate the saved tuple or change live selection.
+
+The #26 contract also corrects the former blanket replacement of live entries.
+Saved defined entries replace protected live targets, but protected live ports
+absent from a snapshot survive with their viewport, pixels and generation intact.
+Unprotected absent entries disappear. Saved current PORT, image/query records
+and owned offscreen pixels restore; shipping cursor exceptions remain. PORT
+backups contain no screen pixels, and restore leaves current PAL/STYLE/WORLD
+and the entry raster alone. These explicit operations add no work to ordinary
+ANSI or RIP1.54 rendering, and no scene/damage layer is introduced.
+
+Native PORT tests check exact protected offscreen survivor pixels/viewports,
+identity, unprotected cleanup, immutable restored contents, separate-owner
+restoration, empty/zero/assigned selection, allocation failures and canvas
+conflict. Connected CP437/UTF-8 tests cover 640×480, 800×600, 1024×768 and custom
+720×400: selection changes from port 5 back to saved port 2, a subsequent `1P`
+pastes the saved red image, both live screen planes stay unchanged by `RCB`,
+other families retain their selections, and empty-selection snapshots retain
+usable PORT definitions. Slots/stack/protection/generic COPY, SOFT lifetime and
+invalid or missing nonfatal recovery are exercised. Seven distinct relevant
+CTests pass (PORT, table host, session, both connected encodings, contract and
+preservation). The native application/affected targets build in the single
+FreeBSD Release configuration; Make reports host timestamp skew, with no
+introduced C compiler warnings. Earlier unrelated passed suites are reused.
+
+New [issue #140](https://github.com/bbs-land/remote-imaging-protocol/issues/140)
+requests reconciliation of the inherited SCB empty-clipboard deletion paragraph
+and narrow SCB/RCB descriptions with the accepted full PORT family. It references
+#26/PR60 and #138/PR139 without commenting on their covered threads. The runtime
+follows the explicit full-family rule; the conflicting source paragraph remains
+blocked in the ledger. Remembered PORT_COPY source/destination rectangles and
+`PCB` are still pending, so neither complete PORT backups nor `SAVEALL` /
+`RESTOREALL` are claimed complete.
+
+The 8449-unit queue now has 2004 implemented, 1748 pending, 3159 unreviewed,
+1445 context, 67 excluded and 26 blocked units. Original RIP1.54 freeze, arbitrary
+entry raster and no-VT102 scope remain unchanged. Full RIP3 compliance remains
+unfinished.

@@ -9851,6 +9851,63 @@
         "coverage": "Independent literal state/direct-color assertions, all36 record loop with explicit slot35 coverage, font/source teardown, every metadata/font API fault boundary, current parser continuation, no-paint/both planes, inactive/protected records, manager consumption, backup-reset prevalidation and native external-pixel scrolling.",
         "limits": "No additional toolchain/platform, native-display, original-client/probe or exact RIPtel raster claim. Individual TW-entry COPY/live reset, full PORT clipboard binding, aggregate execution and HEADER are pending. Unchanged passed grouped/screen suites were not repeated."
       }
+    },
+    {
+      "after_commit": "19bd06ee",
+      "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "scope": "Connect SCB/RCB PORT backups with session clipboard selection and correct protected-live undefined-slot survival. Keep full PORT/PCB and aggregates pending.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3746",
+        "version/3.0/ripscrip/5.1-text-variables.md:3758",
+        "version/3.0/ripscrip/5.1-text-variables.md:3760",
+        "version/3.0/ripscrip/5.1-text-variables.md:3762",
+        "version/3.0/ripscrip/5.1-text-variables.md:3764",
+        "version/3.0/ripscrip/5.1-text-variables.md:3770",
+        "version/3.0/ripscrip/5.1-text-variables.md:3774",
+        "version/3.0/ripscrip/5.1-text-variables.md:3786",
+        "version/3.0/ripscrip/5.1-text-variables.md:3788",
+        "version/3.0/ripscrip/5.1-text-variables.md:3790",
+        "version/3.0/ripscrip/5.1-text-variables.md:3792"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3740",
+        "version/3.0/ripscrip/5.1-text-variables.md:3742",
+        "version/3.0/ripscrip/5.1-text-variables.md:3744",
+        "version/3.0/ripscrip/5.1-text-variables.md:3768",
+        "version/3.0/ripscrip/5.1-text-variables.md:3772"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_ports.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/rip3/st_rip3_table_host.c"
+      ],
+      "tests": [
+        "rip3_ports_backup",
+        "rip3_table_host",
+        "rip3_session",
+        "syncterm_rip3_port_backup_CP437",
+        "syncterm_rip3_port_backup_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3159,
+        "context": 1445,
+        "pending": 1748,
+        "implemented": 2004,
+        "excluded": 67,
+        "blocked": 26
+      },
+      "research_review": {
+        "path": "version/3.0/research/issue-26-screen-backups.md",
+        "sha256": "d766b3fb662d69f247057dde9a072a263c895123691b5d7fe7d10728a4a61555",
+        "method": "Read pinned normative family and primary derivation after SHA256 matches; execute no downloaded code/probes."
+      },
+      "policy": "Bind the session existing clipboard selection to PORT without another live copy. Capture tuple by value, restore only after complete preparation, retain saved unset versus assigned zero, and require a bound destination for assigned snapshots. Snapshots outlive their source owner. Saved defined ports replace protected live targets; protected live ports absent from the snapshot survive with identity/resources unchanged. SCB/RCB use the existing family manager for reusable BASE, slots, stack and protection; screen pixels and other families remain live. New issue140 references covered #26/PR60 and #138/PR139 without comments. Remembered PCB rectangles, full PORT inventory, aggregates and HEADER remain pending; RIP154 freeze is unchanged.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration using /usr/bin/cc and headless control bitmap TCP fixtures.",
+        "result": "Native application and affected test targets built; focused native PORT/session/table tests and CP437/UTF8 connected tests passed at640x480,800x600,1024x768 and720x400. Contract/preservation guards recorded after ledger update.",
+        "coverage": "Pointer changes from5 back to2, unset/assignedzero distinction, source teardown, capture/restore allocation failures, canvas conflict, exact protected survivor pixels/viewport/generation, no screen repaint, independent live PAL/STYLE, protected/consumed snapshots, generic COPY, SOFT and invalid/missing nonfatal recovery.",
+        "limits": "No complete PORT record or PCB claim; no full RIP3 compliance, original-client/native-display/pixel-parity or additional platform claim. Existing unrelated passed rendering/ANSI tests are reused. Make emitted host timestamp-skew notices; no introduced C compiler warnings."
+      }
     }
   ]
 }

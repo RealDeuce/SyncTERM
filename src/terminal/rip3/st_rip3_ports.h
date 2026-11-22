@@ -13,6 +13,7 @@ struct st_pixel_buffer;
 struct st_rip3_ports;
 struct st_rip3_backup;
 struct st_rip3_surface;
+struct st_rip3_clipboard_selection;
 
 struct st_rip3_image_style {
 	/* Stored DEVICE boundaries relative to the viewport, without clipping.
@@ -55,6 +56,9 @@ int st_rip3_ports_create(struct st_rip3_ports **result, enum st_rip3_canvas canv
 int st_rip3_ports_create_device(struct st_rip3_ports **result,
 	uint32_t width, uint32_t height);
 void st_rip3_ports_destroy(struct st_rip3_ports *ports);
+/* Bind the session's existing selection for PORT snapshots. The borrowed
+ * record must outlive the ports owner. There is no second live selection. */
+void st_rip3_ports_bind_clipboard(struct st_rip3_ports *,struct st_rip3_clipboard_selection *);
 int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
 int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_port_info *result);
@@ -227,12 +231,15 @@ int st_rip3_ports_define_query(struct st_rip3_ports *,bool floating,unsigned num
 const struct st_rip3_resident_query *st_rip3_ports_query(const struct st_rip3_ports *,bool floating,unsigned number);
 /* Backup the device port definitions/current selection and owned offscreen
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore
- * prepares all bitmap copies before replacing any live entry, bypasses live
- * protection, and requires the same device canvas. The backup survives the
- * original ports object. Image styles are included. Restore retains each live
+ * prepares all bitmap/query copies and the clipboard selection before replacing
+ * any live entry. Saved defined entries replace protected live targets, but
+ * protected live ports absent from the snapshot survive. Restore requires the
+ * same device canvas. The backup survives the original ports object. Image
+ * styles are included. Restore retains each live
  * cursor instead of the saved screen cursor; offscreen cursors are not saved.
- * Floating and numbered query sources are deep-owned. Clipboard selection
- * metadata and complete scene orchestration remain separate. */
+ * Floating and numbered query sources are deep-owned. A bound clipboard
+ * selection is copied by value; restoring an assigned selection requires a
+ * bound target. Complete scene orchestration remains separate. */
 int st_rip3_ports_backup_create(struct st_rip3_backup **result);
 
 #endif

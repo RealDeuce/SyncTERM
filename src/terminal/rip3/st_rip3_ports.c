@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_ports.h"
 #include "st_rip3_backup.h"
+#include "st_rip3_clipboard.h"
 #include "st_rip3_resident_query.h"
 
 #include "io_error.h"
@@ -27,6 +28,7 @@ struct st_rip3_ports {
 	struct st_rip3_rect screen_bounds;
 	unsigned current;
 	uint64_t sequence,generations[36];
+	struct st_rip3_clipboard_selection *clipboard;
 	struct port entries[36];
 	struct st_rip3_resident_query floating_query;
 };
@@ -132,6 +134,12 @@ st_rip3_ports_destroy(struct st_rip3_ports *ports)
 	st_rip3_resident_query_clear(&ports->floating_query);
 	st_rip3_surface_destroy(ports->screen);
 	free(ports);
+}
+
+void
+st_rip3_ports_bind_clipboard(struct st_rip3_ports *ports,struct st_rip3_clipboard_selection *selection)
+{
+	if (ports!=NULL) ports->clipboard=selection;
 }
 
 int
@@ -842,6 +850,7 @@ st_rip3_ports_screen_damage(struct st_rip3_ports *ports, uint8_t *damage, size_t
 }
 
 struct port_snapshot {
+	struct st_rip3_clipboard_selection clipboard;
 	struct st_rip3_rect screen_bounds;
 	unsigned current;
 	struct port entries[36];
@@ -891,6 +900,7 @@ port_backup_clone(const void *object, void **result)
 		return IO_ERROR_OUT_OF_MEMORY;
 	snapshot->screen_bounds = ports->screen_bounds;
 	snapshot->current = ports->current;
+	if (ports->clipboard!=NULL) snapshot->clipboard=*ports->clipboard;
 	status=st_rip3_resident_query_copy(&snapshot->floating_query,&ports->floating_query);
 	if (status!=0) {port_backup_destroy(snapshot);return status;}
 	for (size_t i = 0; i < 36; i++) {
@@ -918,12 +928,16 @@ port_backup_restore(void *object, const void *saved)
 	    || ports->screen_bounds.x1 != snapshot->screen_bounds.x1
 	    || ports->screen_bounds.y1 != snapshot->screen_bounds.y1)
 		return IO_ERROR_CONFLICT;
+	if (snapshot->clipboard.set && ports->clipboard==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
 	status=st_rip3_resident_query_copy(&floating,&snapshot->floating_query);
 	if (status!=0) return status;
 	/* No live entry or screen pixel changes until every owned bitmap has
 	 * been copied. Screen ports have definitions only, never a pixel copy. */
 	for (size_t i = 0; i < 36; i++) {
+		/* Initial cleanup skips protected live ports; undefined saved slots
+		 * do not replace those survivors or invalidate their identity. */
+		if (!snapshot->entries[i].info.defined && ports->entries[i].info.protected) continue;
 		status = clone_entry(&entries[i], &snapshot->entries[i]);
 		if (status != 0) {
 			for (size_t j = 0; j < i; j++)
@@ -936,12 +950,14 @@ port_backup_restore(void *object, const void *saved)
 		entries[i].info.cursor = ports->entries[i].info.cursor;
 	}
 	for (size_t i = 0; i < 36; i++) {
+		if (!snapshot->entries[i].info.defined && ports->entries[i].info.protected) continue;
 		clear_port(&ports->entries[i]);
 		ports->entries[i] = entries[i];
 		ports->generations[i]=++ports->sequence;
 	}
 	st_rip3_resident_query_clear(&ports->floating_query);ports->floating_query=floating;
 	ports->current = snapshot->current;
+	if (ports->clipboard!=NULL) *ports->clipboard=snapshot->clipboard;
 	return 0;
 }
 

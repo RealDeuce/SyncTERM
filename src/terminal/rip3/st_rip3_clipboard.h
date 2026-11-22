@@ -9,7 +9,8 @@ struct st_rip3_ports;
 
 /* Borrowed session-owned selection. Captures allocate slots 1..35. An explicitly
  * assigned zero is retained but cannot be replaced by GET_IMAGE. Read-only
- * consumers do not change either field. Reset/backup integration is separate. */
+ * consumers do not change either field. The bound PORT owner captures/restores
+ * this record by value as part of its table backup. */
 struct st_rip3_clipboard_selection {
 	bool set;
 	unsigned port;

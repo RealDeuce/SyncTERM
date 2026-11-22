@@ -2389,3 +2389,17 @@ colors and parser state. Console bitmap tests prove font resources survive
 source teardown. Saved definitions contain no cells, screen pixels or history.
 Individual TW-entry COPY/live reset, aggregate orchestration and HEADER remain
 pending; RIP1.54's original freeze is unchanged.
+
+
+The connected `syncterm_rip3_port_backup_CP437` / `_UTF-8` suites now exercise
+`SCB`/`RCB` and generic whole-PORT COPY at all three presets and custom720×400.
+They distinguish saved versus live clipboard selection and offscreen pixels,
+verify a subsequent wire `1P` uses the restored selection, retain protected live
+ports absent from the save while removing unprotected absent entries, and compare
+both screen planes coherently for no repaint. Empty selection still restores
+usable PORT definitions. Other table selections, slot/stack/protection lifetime,
+SOFT and invalid/missing recovery are checked. Native tests add assigned-zero,
+source-owner teardown, allocation failures, canvas conflict and exact protected
+survivor pixels/viewport/generation. Remembered PORT_COPY rectangles/PCB and
+aggregate backup orchestration remain pending; issue140 records the stale
+empty-clipboard deletion paragraph. RIP1.54's freeze is unchanged.
