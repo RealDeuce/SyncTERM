@@ -2489,3 +2489,23 @@ pixels or adding scene/damage tracking. Live TW reset, charset/ESC7/8, HEADER,
 remaining PORT/STYLE inventory and remembered pairs/PCB remain unfinished;
 original entry font policy is separate. RIP1.54 retains its original preservation
 baseline and no ordinary ANSI renderer/scrolling path changes.
+
+
+`st_rip3_pcb_connected_test.py` now invokes remembered-pair paste over real
+RIP3 TCP sessions in CP437 and UTF-8 on the three existing raster presets and
+custom720×400. Literal pixel/state expectations cover explicit/default/CUR
+selection, decimal parsing independent of Base Math, COPY independent of W,
+DEVICE geometry independent of WORLD, inactive/absent/invalid requests, moved
+viewports, repeated overlapping BCDD/BBCD, GET_IMAGE and PUT_IMAGE producers,
+SCB/RCB pair ownership and initial button auto-stamp. A native ANSI truecolor
+cell is captured and pasted back with its current pixels; compound button
+capture also proves pending graphics are not replaced by stale native ink.
+Coherent captures retain selectors, text/graphics cursors, rendition and raster;
+malformed calls leave the connection usable. Native `rip3_pcb` adds both-axis
+logical/physical boundary and zero-write vectors, helper/read/overlap failures,
+protected destinations, source movement, saved pair/absence/protected survivors,
+SCREEN exclusion and core lifecycle. Screen-source copies use bounded existing
+console readback and existing paint bits; ordinary text rendering and offscreen
+sources gain no readback or tracking layer. Mixed HEADER/live viewport-reset
+clauses remain pending. See the latest RIP3 inventory for current scope and pin;
+RIP1.54 retains its original preservation baseline.

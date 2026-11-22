@@ -698,6 +698,16 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_copy_commands_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_copy_commands COMMAND st_rip3_copy_commands_test)
+	add_executable(st_rip3_pcb_test tests/st_rip3_pcb_test.c
+		tests/st_rip3_copy_surface_impl.c tests/st_rip3_clipboard_fault_impl.c)
+	target_link_libraries(st_rip3_pcb_test PRIVATE st_rip3_commands)
+	set_target_properties(st_rip3_pcb_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_rip3_pcb_test PRIVATE /W4)
+	else()
+		target_compile_options(st_rip3_pcb_test PRIVATE -Wall -Wextra -Wpedantic)
+	endif()
+	add_test(NAME rip3_pcb COMMAND st_rip3_pcb_test)
 
 	add_executable(st_rip3_viewport_commands_test tests/st_rip3_viewport_commands_test.c
 		tests/st_rip3_copy_surface_impl.c tests/st_rip3_image_fault_impl.c)

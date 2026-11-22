@@ -67,6 +67,13 @@ int st_rip3_surface_clone(struct st_rip3_surface **result,
  * Restore copies the unscaled overlap at (0,0), keeps the destination size and
  * marks its existing damage plane. It does not replace the surface identity. */
 int st_rip3_surface_capture_raw(const struct st_rip3_surface *,struct st_pixel_buffer **);
+/* Owned clipped raw source snapshot. A wholly physical-outside area succeeds
+ * with NULL. The rectangle is inclusive; logical mapping stays with the caller. */
+int st_rip3_surface_capture_area_raw(const struct st_rip3_surface *,
+	const struct st_rip3_rect *,struct st_pixel_buffer **);
+/* Borrow an independent raw source snapshot for one projected transfer. */
+int st_rip3_surface_copy_from_raw(struct st_rip3_surface *,const struct st_rip3_rect *,
+	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode);
 int st_rip3_surface_restore_raw(struct st_rip3_surface *,const struct st_pixel_buffer *);
 int st_rip3_surface_size(const struct st_rip3_surface *surface,
 	uint32_t *width, uint32_t *height);

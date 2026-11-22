@@ -93,6 +93,11 @@ struct st_rip3_session_sink {
 	 * Bind both or neither. Accessor reads are allowed, parser reentry is not. */
 	int (*screen_capture)(void *context,struct st_pixel_buffer *);
 	int (*screen_restore)(void *context,const struct st_pixel_buffer *,const struct st_rip3_palette *);
+	/* Enrich a bounded raw screen-source snapshot with native ANSI pixels.
+	 * Called only for protocol read transfers, never ordinary text rendering.
+	 * Preserve raw graphic indexes where native output agrees, and do not
+	 * replace graphics written by the current still-unpresented command. */
+	int (*screen_read)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *);
 };
 
 struct st_rip3_session_config {

@@ -3,6 +3,7 @@
 #include "st_rip3_backup.h"
 #include "st_rip3_clipboard.h"
 #include "st_rip3_resident_query.h"
+#include "st_pixels.h"
 
 #include "io_error.h"
 
@@ -12,6 +13,7 @@
 
 struct port {
 	struct st_rip3_port_info info;
+	struct st_rip3_port_copy_pair pair;
 	struct st_rip3_resident_query query;
 	/* Only offscreen ports own a surface. Screen ports share screen. */
 	struct st_rip3_surface *bitmap;
@@ -29,6 +31,8 @@ struct st_rip3_ports {
 	unsigned current;
 	uint64_t sequence,generations[36];
 	struct st_rip3_clipboard_selection *clipboard;
+	void *screen_reader_context;
+	int (*screen_reader)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *);
 	struct port entries[36];
 	struct st_rip3_resident_query floating_query;
 };
@@ -140,6 +144,13 @@ void
 st_rip3_ports_bind_clipboard(struct st_rip3_ports *ports,struct st_rip3_clipboard_selection *selection)
 {
 	if (ports!=NULL) ports->clipboard=selection;
+}
+
+void
+st_rip3_ports_bind_screen_reader(struct st_rip3_ports *ports,void *context,
+    int (*read)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *))
+{
+	if (ports!=NULL) {ports->screen_reader_context=context;ports->screen_reader=read;}
 }
 
 int
@@ -343,6 +354,7 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 		.viewport = ports->screen_bounds,
 		.image = image_defaults,
 	};
+	ports->entries[0].pair=(struct st_rip3_port_copy_pair){0};
 	ports->current = 0;
 	return 0;
 }
@@ -553,6 +565,46 @@ st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	return 0;
 }
 
+static void
+publish_copy(struct st_rip3_ports *ports,unsigned source,const struct st_rip3_rect *from,
+    unsigned destination,const struct st_rip3_rect *to)
+{
+	struct st_rip3_rect sv=viewport_absolute(&ports->entries[source]);
+	struct st_rip3_rect dv=viewport_absolute(&ports->entries[destination]);
+	ports->entries[destination].pair=(struct st_rip3_port_copy_pair){.set=true,
+	    .source={(int64_t)from->x0-sv.x0,(int64_t)from->y0-sv.y0,
+	        (int64_t)from->x1-sv.x0+1,(int64_t)from->y1-sv.y0+1},
+	    .destination={(int64_t)to->x0-dv.x0,(int64_t)to->y0-dv.y0,
+	        (int64_t)to->x1-dv.x0+1,(int64_t)to->y1-dv.y0+1}};
+}
+
+static int
+copy_native_screen(struct st_rip3_ports *ports,const struct st_rip3_rect *from,
+    unsigned destination,const struct st_rip3_rect *to,enum st_rip3_transfer_mode mode)
+{
+	struct st_rip3_rect source=*from,target=*to;
+	struct st_rip3_rect target_bounds=ports->entries[destination].info.offscreen
+	    ? port_bounds(&ports->entries[destination]) : ports->screen_bounds;
+	if (!clip(&source,&ports->screen_bounds) || !clip(&target,&target_bounds)) return 0;
+	struct st_pixel_buffer *snapshot=NULL;
+	int status=st_rip3_surface_capture_area_raw(ports->screen,&source,&snapshot);
+	if (status==0 && snapshot!=NULL) status=ports->screen_reader(ports->screen_reader_context,&source,snapshot);
+	/* Absolute logical source starts are nonnegative, so physical clipping
+	 * only removes far edges. Retain the original logical span for sampling. */
+	const struct st_rip3_rect local={0,0,from->x1-from->x0,from->y1-from->y0};
+	if (status==0 && snapshot!=NULL) status=st_rip3_surface_copy_from_raw(port_surface(ports,destination),to,snapshot,&local,mode);
+	st_pixel_buffer_destroy(snapshot);return status;
+}
+
+int
+st_rip3_ports_copy_pair(const struct st_rip3_ports *ports,unsigned number,
+    struct st_rip3_port_copy_pair *result)
+{
+	if (ports==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	*result=ports->entries[number].pair;return 0;
+}
+
 int
 st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, unsigned destination,
@@ -576,8 +628,71 @@ st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 	    || !translate(src, source_area, &from)
 	    || !translate(dst, destination_area, &to))
 		return 0;
-	return st_rip3_surface_copy_projected(port_surface(ports,destination),&to,
-	    port_surface(ports,source),&from,mode);
+	int status=!src->info.offscreen && ports->screen_reader!=NULL
+	    ? copy_native_screen(ports,&from,destination,&to,mode)
+	    : st_rip3_surface_copy_projected(port_surface(ports,destination),&to,
+	        port_surface(ports,source),&from,mode);
+	/* Logical success publishes even when physical storage clips every sample.
+	 * A failed overlap snapshot or transfer leaves the old pair unchanged. */
+	if (status==0) publish_copy(ports,source,&from,destination,&to);
+	return status;
+}
+
+static bool
+trim_copy_extent(struct st_rip3_copy_extent *area,struct st_rip3_copy_extent *other,
+    int64_t width,int64_t height)
+{
+	if (area->x0>=width || area->y0>=height) return false;
+	if (area->x1>width) {
+		if (other!=NULL) other->x1-=area->x1-width;
+		area->x1=width;
+	}
+	if (area->y1>height) {
+		if (other!=NULL) other->y1-=area->y1-height;
+		area->y1=height;
+	}
+	return area->x0<area->x1 && area->y0<area->y1;
+}
+
+int
+st_rip3_ports_copy_device(struct st_rip3_ports *ports,unsigned source,
+    const struct st_rip3_copy_extent *source_area,unsigned destination,
+    const struct st_rip3_copy_extent *destination_area,enum st_rip3_transfer_mode mode)
+{
+	if (ports==NULL || source_area==NULL || destination_area==NULL
+	    || source_area->x0<0 || source_area->y0<0 || destination_area->x0<0 || destination_area->y0<0
+	    || source_area->x0>=source_area->x1 || source_area->y0>=source_area->y1
+	    || destination_area->x0>=destination_area->x1 || destination_area->y0>=destination_area->y1
+	    || mode<ST_RIP3_TRANSFER_COPY || mode>ST_RIP3_TRANSFER_INVERT) return IO_ERROR_INVALID_ARGUMENT;
+	if (source>=36 || destination>=36) return IO_ERROR_OUT_OF_RANGE;
+	const struct st_rip3_port_info *src=&ports->entries[source].info,*dst=&ports->entries[destination].info;
+	if (!src->defined || !dst->defined || !src->viewport_active || !dst->viewport_active) return 0;
+	struct st_rip3_copy_extent from=*source_area,to=*destination_area;
+	bool equal=from.x1-from.x0==to.x1-to.x0 && from.y1-from.y0==to.y1-to.y0;
+	if (!trim_copy_extent(&from,equal ? &to : NULL,(int64_t)src->viewport.x1-src->viewport.x0+1,(int64_t)src->viewport.y1-src->viewport.y0+1)
+	    || !trim_copy_extent(&to,equal ? &from : NULL,(int64_t)dst->viewport.x1-dst->viewport.x0+1,(int64_t)dst->viewport.y1-dst->viewport.y0+1)) return 0;
+	/* Narrow only after logical viewport clipping. Physical clipping remains
+	 * in the existing raster kernel and never refits or shrinks this pair. */
+	const struct st_rip3_rect s={(int32_t)from.x0,(int32_t)from.y0,(int32_t)(from.x1-1),(int32_t)(from.y1-1)};
+	const struct st_rip3_rect d={(int32_t)to.x0,(int32_t)to.y0,(int32_t)(to.x1-1),(int32_t)(to.y1-1)};
+	return st_rip3_ports_copy(ports,source,&s,destination,&d,mode);
+}
+
+int
+st_rip3_ports_paste(struct st_rip3_ports *ports,const unsigned *source)
+{
+	if (ports==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	unsigned number;
+	if (source==NULL) {
+		if (ports->clipboard==NULL || !ports->clipboard->set || ports->clipboard->port>=36) return 0;
+		number=ports->clipboard->port;
+	}
+	else number=*source;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	/* Copy values before a same-port operation can replace this owner's pair. */
+	struct st_rip3_port_copy_pair pair=ports->entries[number].pair;
+	if (!pair.set) return 0;
+	return st_rip3_ports_copy_device(ports,number,&pair.destination,ports->current,&pair.source,ST_RIP3_TRANSFER_COPY);
 }
 
 int
@@ -616,9 +731,24 @@ st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
 	 * either int32_t limit therefore cannot intersect a nonnegative surface. */
 	if (x < INT32_MIN || x > INT32_MAX || y < INT32_MIN || y > INT32_MAX)
 		return 0;
-	return st_rip3_surface_blit(port_surface(ports, destination),
-	    &destination_view, (int32_t)x, (int32_t)y,
-	    port_surface(ports, source), NULL, &from, mode);
+	/* Compute logical destination clipping separately from the physical blit.
+	 * Both keep the original translation; only the logical pair is remembered. */
+	int64_t left=x<destination_view.x0 ? destination_view.x0 : x;
+	int64_t top=y<destination_view.y0 ? destination_view.y0 : y;
+	int64_t right=x+(int64_t)from.x1-from.x0,bottom=y+(int64_t)from.y1-from.y0;
+	if (right>destination_view.x1) right=destination_view.x1;
+	if (bottom>destination_view.y1) bottom=destination_view.y1;
+	if (left>right || top>bottom) return 0;
+	struct st_rip3_rect logical_source={(int32_t)(from.x0+left-x),(int32_t)(from.y0+top-y),
+	    (int32_t)(from.x0+right-x),(int32_t)(from.y0+bottom-y)};
+	struct st_rip3_rect logical_destination={(int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom};
+	int status=!src->info.offscreen && ports->screen_reader!=NULL
+	    ? copy_native_screen(ports,&logical_source,destination,&logical_destination,mode)
+	    : st_rip3_surface_blit(port_surface(ports, destination),
+	        &destination_view, (int32_t)x, (int32_t)y,
+	        port_surface(ports, source), NULL, &from, mode);
+	if (status==0) publish_copy(ports,source,&logical_source,destination,&logical_destination);
+	return status;
 }
 
 static int
@@ -873,7 +1003,7 @@ port_backup_destroy(void *object)
 static int
 clone_entry(struct port *result, const struct port *source)
 {
-	struct port value = {.info = source->info};
+	struct port value = {.info = source->info,.pair=source->pair};
 	int status;
 	/* The original offscreen save path has no cursor record. */
 	if (source->info.offscreen) value.info.cursor = (struct st_rip3_cursor){0};

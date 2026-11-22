@@ -225,12 +225,10 @@ define_port(const struct st_rip3_command_host *host,
 /* 2C consumes half-open extent boundaries, unlike the device kernel's
  * inclusive pixels. Retain wide projected values until after clipping so a
  * huge request cannot change the before-clipping scale decision. */
-struct copy_extent { int64_t x0, y0, x1, y1; };
-
-static struct copy_extent
+static struct st_rip3_copy_extent
 copy_project(const struct st_rip3_rect *world, const struct st_rip3_frame *frame)
 {
-	return (struct copy_extent){
+	return (struct st_rip3_copy_extent){
 	    (int64_t)world->x0*frame->device_width/frame->world_width,
 	    (int64_t)world->y0*frame->device_height/frame->world_height,
 	    (int64_t)world->x1*frame->device_width/frame->world_width,
@@ -238,29 +236,9 @@ copy_project(const struct st_rip3_rect *world, const struct st_rip3_frame *frame
 }
 
 static bool
-copy_zero(const struct copy_extent *area)
+copy_zero(const struct st_rip3_copy_extent *area)
 {
 	return area->x0 == 0 && area->y0 == 0 && area->x1 == 0 && area->y1 == 0;
-}
-
-static bool
-copy_trim(struct copy_extent *area, struct copy_extent *counterpart,
-    int64_t width, int64_t height)
-{
-	/* Wire origins are nonnegative and viewport-relative. Only the far
-	 * boundaries can require trimming. Equal-size copies shorten the other
-	 * rectangle by the same amount, preserving their original 1:1 mapping. */
-	if (area->x0 >= width || area->y0 >= height)
-		return false;
-	if (area->x1 > width) {
-		if (counterpart != NULL) counterpart->x1 -= area->x1-width;
-		area->x1 = width;
-	}
-	if (area->y1 > height) {
-		if (counterpart != NULL) counterpart->y1 -= area->y1-height;
-		area->y1 = height;
-	}
-	return area->x0 < area->x1 && area->y0 < area->y1;
 }
 
 static int
@@ -268,9 +246,9 @@ copy_port(const struct st_rip3_command_host *host,
     unsigned environment_number, const struct st_rip3_environment *environment,
     const uint8_t *bytes, size_t length, bool *operation)
 {
-	struct st_rip3_rect source_world, destination_world, source, destination;
+	struct st_rip3_rect source_world, destination_world;
 	struct st_rip3_frame frame;
-	struct copy_extent from, to;
+	struct st_rip3_copy_extent from, to;
 	struct st_rip3_port_info source_info, destination_info;
 	uint64_t source_number, destination_number, mode, reserved;
 	size_t coordinate_bytes = 4*environment->coordinate_size;
@@ -321,27 +299,16 @@ copy_port(const struct st_rip3_command_host *host,
 	to = copy_project(&destination_world,&frame);
 	/* Original handler 0x46372 tests these sentinels after conversion. A
 	 * fully zero destination takes precedence over its verbatim shorthand. */
-	if (copy_zero(&from)) from = (struct copy_extent){0,0,sw,sh};
-	if (copy_zero(&to)) to = (struct copy_extent){0,0,dw,dh};
+	if (copy_zero(&from)) from = (struct st_rip3_copy_extent){0,0,sw,sh};
+	if (copy_zero(&to)) to = (struct st_rip3_copy_extent){0,0,dw,dh};
 	else if (to.x1 == 0 && to.y1 == 0) {
 		to.x1 = to.x0+from.x1-from.x0;
 		to.y1 = to.y0+from.y1-from.y0;
 	}
 	if (from.x0 >= from.x1 || from.y0 >= from.y1 || to.x0 >= to.x1 || to.y0 >= to.y1)
 		return IO_ERROR_INVALID_ARGUMENT;
-	bool equal = from.x1-from.x0 == to.x1-to.x0 && from.y1-from.y0 == to.y1-to.y0;
-	if (!copy_trim(&from,equal ? &to : NULL,sw,sh)
-	    || !copy_trim(&to,equal ? &from : NULL,dw,dh))
-		return 0;
-	/* Both rectangles now fit their viewports. Convert only here to the
-	 * device kernel's inclusive endpoints; its independent clipping becomes
-	 * inert and equal-size copies retain identity sampling. */
-	source = (struct st_rip3_rect){(int32_t)from.x0,(int32_t)from.y0,
-	    (int32_t)(from.x1-1),(int32_t)(from.y1-1)};
-	destination = (struct st_rip3_rect){(int32_t)to.x0,(int32_t)to.y0,
-	    (int32_t)(to.x1-1),(int32_t)(to.y1-1)};
-	return st_rip3_ports_copy(host->ports,(unsigned)source_number,&source,
-	    (unsigned)destination_number,&destination,(enum st_rip3_transfer_mode)mode);
+	return st_rip3_ports_copy_device(host->ports,(unsigned)source_number,&from,
+	    (unsigned)destination_number,&to,(enum st_rip3_transfer_mode)mode);
 }
 
 static int

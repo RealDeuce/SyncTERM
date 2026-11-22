@@ -558,6 +558,36 @@ st_rip3_surface_restore_raw(struct st_rip3_surface *surface,const struct st_pixe
 }
 
 int
+st_rip3_surface_capture_area_raw(const struct st_rip3_surface *surface,
+    const struct st_rip3_rect *area,struct st_pixel_buffer **result)
+{
+	if (surface==NULL || area==NULL || !rect_valid(area) || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_rect visible=*area;
+	if (!surface_clip(surface,&visible,NULL)) {*result=NULL;return 0;}
+	struct st_pixel_buffer *copy=NULL;
+	int status=st_pixel_buffer_create(&copy,(uint32_t)(visible.x1-visible.x0)+1,(uint32_t)(visible.y1-visible.y0)+1,false);
+	if (status!=0) return status;
+	for (uint32_t y=0;y<copy->height;y++)
+		memcpy(copy->primary+(size_t)y*copy->width,
+		    surface->pixels+((size_t)visible.y0+y)*surface->width+(uint32_t)visible.x0,
+		    (size_t)copy->width*sizeof(*copy->primary));
+	*result=copy;return 0;
+}
+
+int
+st_rip3_surface_copy_from_raw(struct st_rip3_surface *destination,const struct st_rip3_rect *to,
+    const struct st_pixel_buffer *source,const struct st_rip3_rect *from,enum st_rip3_transfer_mode mode)
+{
+	if (source==NULL || source->primary==NULL || source->width==0 || source->height==0
+	    || source->width>INT32_MAX || source->height>INT32_MAX) return IO_ERROR_INVALID_ARGUMENT;
+	if (source->height>SIZE_MAX/sizeof(*source->primary)/source->width) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i=0;i<(size_t)source->width*source->height;i++)
+		if (!ST_PIXEL_COLOR_IS_RGB(source->primary[i]) && source->primary[i]>255) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_surface borrowed={.pixels=source->primary,.width=source->width,.height=source->height};
+	return st_rip3_surface_copy_projected(destination,to,&borrowed,from,mode);
+}
+
+int
 st_rip3_surface_read_color(const struct st_rip3_surface *surface,int32_t x,int32_t y,uint32_t *result)
 {
 	if (surface==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;

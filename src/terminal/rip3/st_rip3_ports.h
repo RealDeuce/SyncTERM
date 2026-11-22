@@ -15,6 +15,15 @@ struct st_rip3_backup;
 struct st_rip3_surface;
 struct st_rip3_clipboard_selection;
 
+/* Logical half-open DEVICE extents relative to viewport origins. Wide values
+ * survive projection until logical clipping; physical coverage never changes
+ * the remembered pair. These are geometry values, not saved pixel buffers. */
+struct st_rip3_copy_extent {int64_t x0,y0,x1,y1;};
+struct st_rip3_port_copy_pair {
+	bool set;
+	struct st_rip3_copy_extent source,destination;
+};
+
 struct st_rip3_image_style {
 	/* Stored DEVICE boundaries relative to the viewport, without clipping.
 	 * All -1 is the default viewport-at-display marker; raw all-zero is the
@@ -59,6 +68,12 @@ void st_rip3_ports_destroy(struct st_rip3_ports *ports);
 /* Bind the session's existing selection for PORT snapshots. The borrowed
  * record must outlive the ports owner. There is no second live selection. */
 void st_rip3_ports_bind_clipboard(struct st_rip3_ports *,struct st_rip3_clipboard_selection *);
+/* Optional native screen enrichment for read-side protocol transfers only.
+ * Merge into an owned, physically clipped raw source snapshot; never mutate
+ * the scene/selection or reenter RIP. Binding/lifetime is client-owned and is
+ * not part of PORT backups. Offscreen sources use their existing storage. */
+void st_rip3_ports_bind_screen_reader(struct st_rip3_ports *,void *context,
+	int (*read)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *));
 int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
 int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_port_info *result);
@@ -160,6 +175,21 @@ int st_rip3_ports_erase(struct st_rip3_ports *ports, uint8_t background);
 int st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 	const struct st_rip3_rect *source_area, unsigned destination,
 	const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode);
+/* Nonnegative explicit half-open DEVICE rectangles, without WORLD/sentinels.
+ * Classify equal sizes before clipping: equal copies trim both sides together,
+ * unequal copies fit independently trimmed logical rectangles. The ordinary
+ * copy kernel then publishes the successful logical pair on the destination. */
+int st_rip3_ports_copy_device(struct st_rip3_ports *,unsigned source,
+	const struct st_rip3_copy_extent *,unsigned destination,
+	const struct st_rip3_copy_extent *,enum st_rip3_transfer_mode);
+/* Read optional metadata without selecting/defaulting any port. */
+int st_rip3_ports_copy_pair(const struct st_rip3_ports *,unsigned,
+	struct st_rip3_port_copy_pair *);
+/* PCB reversal into current, COPY mode. NULL uses the bound assigned clipboard
+ * only; absent/dangling pointers are no-ops without repair. Explicit sources
+ * may include zero/current. Preserve selection, pointer, cursor and image state.
+ * Service statuses stay below the existing void parser/session boundary. */
+int st_rip3_ports_paste(struct st_rip3_ports *,const unsigned *source);
 /* Unscaled viewport-relative transfer. NULL source_area means its full viewport.
  * Source clipping shifts the destination by the same number of pixels;
  * destination clipping trims the matching source pixels. Shared screen ports

@@ -20,6 +20,31 @@ st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	unsigned numbers[36], current;
 	size_t count = 0;
 	int status;
+	if (strcmp(reference->name,"PCB")==0) {
+		struct st_rip3_builtin_reference words;
+		status=st_rip3_builtin_reference_words(&words,reference);
+		if (status!=0) return status;
+		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+		if (words.count>1) return IO_ERROR_INVALID_FORMAT;
+		unsigned source=0;bool use_current=false;
+		if (words.count==1) {
+			char *word=words.parameters[0].text;
+			size_t first=0,last=words.parameters[0].length;
+			while (first<last && (word[first]==' ' || (word[first]>='\t' && word[first]<='\r'))) first++;
+			while (last>first && (word[last-1]==' ' || (word[last-1]>='\t' && word[last-1]<='\r'))) last--;
+			if (first==last) return IO_ERROR_INVALID_FORMAT;
+			memmove(word,word+first,last-first);word[last-first]=0;
+			for (size_t i=0;word[i]!=0;i++) if (word[i]>='a' && word[i]<='z') word[i]-='a'-'A';
+			use_current=strcmp(word,"CUR")==0;
+			if (!use_current && (status=st_rip3_host_number(word,0,35,&source))!=0) return status;
+		}
+		if (host->tables==NULL || host->tables->tables[ST_RIP3_TABLE_PORT].live==NULL) return IO_ERROR_NOT_SUPPORTED;
+		ports=host->tables->tables[ST_RIP3_TABLE_PORT].live;
+		if (use_current && (status=st_rip3_ports_current(ports,&source))!=0) return status;
+		status=st_rip3_ports_paste(ports,words.count==0 ? NULL : &source);
+		if (status==0) result[0]=0;
+		return status;
+	}
 
 	if (strcmp(reference->name, "AVP") == 0) operation = ST_RIP3_VIEW_ACTIVATE;
 	else if (strcmp(reference->name, "DVP") == 0) operation = ST_RIP3_VIEW_DEACTIVATE;

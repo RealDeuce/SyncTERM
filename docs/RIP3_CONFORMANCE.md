@@ -26,7 +26,7 @@ Source indexing is discovery, not adjudication or working-feature evidence.
 
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
-fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying, bitmap/clipboard operations,
+fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying, bitmap/clipboard operations and remembered-pair PCB paste,
 trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts,
 session/persistent variables, local modifier/capacity queries and WAV playback
 through the existing mixer when audio is available. Persistent variables use
@@ -8364,3 +8364,67 @@ native build and functional/rendering evidence are reused for this reference-onl
 update. All new pair clauses remain pending runtime acceptance. Arbitrary entry
 raster and the no-VT102/external-launch exclusions remain authoritative. Full
 RIP3 compliance is still incomplete.
+
+
+## Connected PCB and remembered port-copy pairs
+
+`$PCB$` and `$PCB()$` now paste from the assigned clipboard port; explicit
+ASCII case-insensitive CUR or decimal 0..35 chooses that source instead. Empty
+comma fields follow the existing argument parser. Invalid nonempty selectors
+fail before copying; absent/dangling pointers, missing pairs and ineligible
+ports are nonfatal no-ops without fallback, creation or pointer repair. `$P$`
+remains ordinary user-variable lookup. These operations run through actual
+connected host expansion, with no success Boolean or session error return.
+
+Each port privately owns optional half-open DEVICE source/destination offsets.
+Successful logical transfers publish on the receiving port; physical clipping
+or zero sample coverage never shrinks those offsets or refits the mapping.
+The shared copy geometry retains its initial equal-size coupled trimming and
+unequal-size independent fitting. PCB reverses the source's old offsets into
+current viewports under COPY, independent of WORLD, radix and global W.
+Source pixels/pair are read before overlap writes. A failed transfer keeps the
+old pair; a newly allocated but uncopied capture has none. Protected defined
+content targets permit publication. Selection, clipboard pointer, unrelated
+tables, text cursors and image-style state retain their existing rules.
+
+Wire PORT_COPY, GET_IMAGE, shared LOAD capture/explicit duplication, initial
+button auto-stamp and PUT_IMAGE now publish through their existing transfer
+stages. Ordinary drawing/erase, file rendering, placeholder/wallpaper and later
+button redraws preserve metadata. Whole PORT backups and backup copies own
+both rectangles and absence, alongside the previously accepted complete
+PORT definition/query/offscreen-content/current/clipboard-pointer payload.
+Restore applies the saved pair after backing recreation; protected live slots
+absent from a snapshot keep their pairs. Unrelated SCREEN saves do not own it.
+New definitions/deletion/backing replacement and the SOFT/HARD core apply their
+documented clearing rules. Mixed lifecycle clauses involving unfinished HEADER
+or live viewport-only RESET remain pending.
+
+A new independent connection test first exposed stale graphics pixels when
+capturing ordinary ANSI output. Screen-source transfers now take a temporary
+snapshot of only the requested physical region and merge native ANSI pixels
+using existing console readback and paint bits. Pending graphics writes from
+the same compound command take precedence. Existing matching graphics indexes
+stay indexed; ANSI truecolor remains RGB. There is no new resident scene buffer
+or damage map, and this readback does not run for ordinary text rendering or
+offscreen sources. Other screen-reader/export consumers are outside this
+specific acceptance; no general rendering-speed claim is made.
+
+Eight relevant native suites pass, plus connected PCB fixtures in CP437 and
+UTF-8 on 640×480, 800×600, 1024×768 and custom720×400. Independent tests cover
+PR147's physical-boundary vectors on both axes, zero physical writes, original
+copy geometry, no-pair/selector cases, WORLD/radix/mode independence, moved
+origins, literal overlap BCDD/BBCD, protected content, allocation/read failures,
+GET_IMAGE3×3→4×4, nonzero source-viewport PUT_IMAGE, auto-stamp, duplicate/backup
+ownership and ordinary ANSI truecolor capture. The native boundary extension
+also checks bounded readback without refitting a physically truncated source.
+All connection cases continue afterward. Existing independent PORT backup/COPY
+and file-load producer evidence is reused.
+
+The application and affected tests build in the one native FreeBSD amd64
+Release CMake configuration using `/usr/bin/cc`, without introduced C compiler
+warnings. Contract and original RIP1.54 preservation guards pass. The queue now
+has 8552 units: 2190 implemented, 1691 pending, 3077 unreviewed, 1496 context,
+67 excluded and 31 blocked. Full RIP3 compliance, HEADER, live TW reset under
+B148, remaining reset/ANSI fields and startup-font policy remain incomplete.
+RIP1.54's original freeze, arbitrary entry raster and no-VT102/external-launch
+constraints remain authoritative.
