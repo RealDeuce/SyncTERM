@@ -8137,3 +8137,26 @@ reused. No upstream issue receives comments and no source is published.
 
 The queue remains 8449 units: 2055 implemented, 1715 pending, 3121 unreviewed,
 1465 context, 67 excluded and 26 blocked. Full RIP3 compliance remains incomplete.
+
+
+## PCB remembered-pair contract follow-up
+
+New [issue #144](https://github.com/bbs-land/remote-imaging-protocol/issues/144)
+references the resolved #140/PR141 scope and #10 PORT_COPY geometry without
+adding content to covered reports. PCB establishes destination-port ownership
+and basic reverse copying, but its syntax defaults to CUR while the prose uses
+the assigned clipboard. Stored units/normalization/clipping stage, producers
+(GET_IMAGE, bitmap duplication, auto-stamp, PUT_IMAGE and PCB), update timing,
+uninitialized pairs, transfer mode and lifecycle are not specified sufficiently
+to select observable behavior. The preserved legacy `rv_paste` simply blits its
+single clipboard at stored coordinates; it does not supply the missing v3 port
+model or authorize changes to RIP1.54.
+
+Four directly ambiguous PCB blocks are now blocked under B144; known invocation
+and gate requirements remain pending. Completed PORT_COPY pixel transfers and
+connected SCB/RCB/aggregate backups remain usable. No guessed pair/default/
+recovery rule is installed and no PCB completion is claimed. Other unfinished
+RIP3 work can proceed independently while the documentation answer is pending.
+The source queue has 2055 implemented, 1719 pending, 3109 unreviewed, 1469
+context, 67 excluded and 30 blocked units (8449 total). The reference pin and
+original RIP1.54 freeze remain unchanged.
