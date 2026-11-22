@@ -26,7 +26,7 @@ Source indexing is discovery, not adjudication or working-feature evidence.
 
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
-fonts, live ENV/STYLE/PAL/PORT tables and backups, full TW definition backups, bitmap/clipboard operations,
+fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying, bitmap/clipboard operations,
 trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts,
 session/persistent variables, local modifier/capacity queries and WAV playback
 through the existing mixer when audio is available. Persistent variables use
@@ -8268,3 +8268,61 @@ The 8531-unit queue has 2087 implemented, 1774 pending, 3088 unreviewed,
 1488 context, 67 excluded and 27 blocked units. Full RIP3 compliance remains
 incomplete. The original RIP1.54 freeze, arbitrary entry raster and no-VT102/
 external-launch exclusions remain authoritative.
+
+
+## Connected TW entry COPY
+
+At unchanged pin `f14e410915f11f64d2287eec82ebf4770c3baf41`, actual sessions
+now execute numeric/CUR-source `$COPY(TW,source,dest,...)$`. All five allowed
+live-entry COPY families have connected adapters. Validate a defined source
+and every destination's range, protection and non-self identity before invoking
+any helper; mixed entry/backup destinations reject before changing earlier
+entries. A protected source remains readable, repeated writable destinations
+are allowed, current selection stays live, and source protection follows each
+successful TW definition copy except zero remains unprotected.
+
+TW entry copying uses the existing native definition capsule and shared-raster
+window factory. Each destination receives independently owned represented
+native metadata/font resources, stored ordinary/extended geometry, active state,
+cursor/rendition/modes/margins/tabs and resident query. Copying into current
+preserves pending connection ANSI input. No cells, history or scene pixels are
+copied, and no renderer buffers or damage layer are added. Other table selections,
+WORLD and the entry's raster remain live. Copying the unredefined entry TTY
+retains its actual native font/geometry; it does not decide the separate startup
+MicroANSI/default policy or invent a TWFONT number for an unknown mode.
+
+Permission validation is distinct from later resource failure. A native helper
+failure diagnoses privately and leaves that destination unchanged while later
+destinations continue. After a native definition succeeds, the logical record
+is committed before allocating its resident query. Query allocation failure
+leaves the copied definition with an empty query, as the accepted contract
+requires; it does not restore an old query or stop later copies. No stored query
+is executed during any copy. All parse/service failures stay below the void
+RIP/session boundary, without becoming connection errors.
+
+Native session tests verify source/query independence, active/current/zero/35/
+repeated targets, complete permission and syntax validation, and injected native
+helper/query-allocation failures with continuation and full cleanup. Connected
+CP437 and UTF-8 tests cover 640×480,800×600,1024×768 and custom720×400. They exercise
+the literal numeric and CUR examples, unchanged coherent primary/alternate planes
+at COPY, original entry fonts, copied ordinary and extended layouts, one-based
+font queries, cursor shape/visibility/live and saved coordinates, tabs, margins,
+wrap/rendition, literal RGB glyph output, inactive copies, independent subsequent
+edits and a split ANSI CSI across replacement of the current native owner.
+
+Six distinct relevant CTests pass: native session/table-host, both connected
+encodings, contract and original RIP154 preservation. The one native FreeBSD
+amd64 Release CMake configuration uses `/usr/bin/cc`; the application and affected
+test targets build without introduced C compiler warnings (build-driver clock
+skew warnings persist). Existing independently verified definition-capsule,
+resource and unrelated rendering evidence is reused. The original ANSI renderer,
+RIP1.54 sources, scene ownership and scrolling optimizations are unchanged.
+
+The 8531-unit queue now has 2104 implemented, 1761 pending, 3083 unreviewed,
+1489 context, 67 excluded and 27 blocked units. These source-unit acceptances
+cover COPY grammar/adapters and represented record/query transfer; unfinished
+charset/ESC7/8, live TW reset, full STYLE/PORT inventories, HEADER, remembered
+pairs/PCB and the startup font policy remain separate. B146's physical clipping
+question remains open; no covered upstream issue is modified. Arbitrary entry
+raster and the no-VT102/external-launch exclusions remain authoritative. Full
+RIP3 compliance is not claimed.

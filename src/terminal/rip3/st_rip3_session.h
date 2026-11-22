@@ -58,6 +58,11 @@ struct st_rip3_session_sink {
 		const bool keep[36], bool old_active);
 	/* Observe the specified native owner without selecting it or presenting. */
 	int (*text_snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
+	/* One live TW definition copy, below complete permission preflight. Retain
+	 * current selection and connection ANSI syntax; replace destination metadata
+	 * without copying cells/history/pixels. The owner handles query/protection.
+	 * A later failed helper must not prevent subsequent destinations. */
+	int (*text_copy)(void *context,unsigned source,unsigned destination,bool active);
 	/* Explicit whole-TW backup support. Capture owns native definitions/fonts,
 	 * not screen pixels, cells, history or connection parser syntax. Restore prepares
 	 * replacement views before publishing, preserves displayed pixels and

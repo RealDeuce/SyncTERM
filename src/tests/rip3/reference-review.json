@@ -11204,6 +11204,59 @@
         "coverage": "All represented STYLE/BUT fields, independent value ownership, source and destination protection, repeated/zero/current destinations, undefined current source, hidden protected undefined destination, complete preflight errors, copied point/fill colors and button size/color/hotkey action, retained other table selectors/native ANSI cursor/rendition/raster, unchanged planes around COPY, CP437/UTF8 across four rasters, nonfatal malformed macro recovery. Existing SGS/RGS native expectation updated to successful restore with live-current-index preservation.",
         "limits": "No full STYLE/TW/PORT/HEADER/RIP3 completion claim, exact RIPtel raster claim, rendering speed measurement, native-device/physical audio claim or additional platform configuration."
       }
+    },
+    {
+      "after_commit": "6afba828",
+      "revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
+      "scope": "Connect live TW entry COPY and complete the five-family live-entry COPY adapter/validation inventory, retaining independent incomplete window/PORT/HEADER fields.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4021",
+        "version/3.0/ripscrip/5.1-text-variables.md:4045",
+        "version/3.0/ripscrip/5.1-text-variables.md:4051",
+        "version/3.0/ripscrip/5.1-text-variables.md:4147",
+        "version/3.0/ripscrip/5.1-text-variables.md:4149",
+        "version/3.0/ripscrip/5.1-text-variables.md:4151",
+        "version/3.0/ripscrip/5.1-text-variables.md:4155",
+        "version/3.0/ripscrip/5.1-text-variables.md:4164",
+        "version/3.0/ripscrip/5.1-text-variables.md:4168",
+        "version/3.0/ripscrip/5.1-text-variables.md:4172",
+        "version/3.0/ripscrip/5.1-text-variables.md:4174",
+        "version/3.0/ripscrip/5.1-text-variables.md:4178",
+        "version/3.0/ripscrip/5.1-text-variables.md:4183",
+        "version/3.0/ripscrip/5.1-text-variables.md:4225",
+        "version/3.0/ripscrip/5.1-text-variables.md:4233",
+        "version/3.0/ripscrip/5.1-text-variables.md:4235",
+        "version/3.0/ripscrip/7.1-data-tables.md:79"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4223"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_table_host.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/term/st_term_rip3.c"
+      ],
+      "tests": [
+        "rip3_table_host",
+        "rip3_session",
+        "syncterm_rip3_window_copy_CP437",
+        "syncterm_rip3_window_copy_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3083,
+        "context": 1489,
+        "pending": 1761,
+        "implemented": 2104,
+        "excluded": 67,
+        "blocked": 27
+      },
+      "policy": "Use the existing native definition capsule/restore and shared raster views. Validate all destination permissions/syntax before any helper; do not add scene buffers or damage tracking. Copy source protection except zero, active state, logical geometry/native metadata and independently owned resident query; keep selection, current connection parser and other tables live. Continue after post-validation native/query resource failures, with diagnostics inside RIP3 and no session error. Empty query on query allocation failure is deliberate, as the contract specifies. No copy of cells/history/pixels or provider execution. The entry console retains its native font when no MicroANSI choice is known. No new VT102 mode, legacy renderer changes, or raster restrictions.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc; headless control bitmap TCP fixtures.",
+        "result": "Application and affected session/table-host targets configured and built without introduced C compiler warnings; build driver clock-skew warnings retained. Six distinct relevant tests pass: native session/table-host, both connected encodings across four rasters, contract and original RIP154 preservation. Existing independent capsule/resource and unrelated rendering verification is reused.",
+        "coverage": "Complete request validation, source/target protection, current/zero/repeated/35 slots, mixed backup selector rejection, query deep ownership and source lifetime, query OOM with retained definition/empty query, continued destinations after a native helper failure, actual native font/TC output, independent cursor/tab/margin/rendition/geometry/activation state, copied extended layout, no paint at COPY, four physical rasters, CP437/UTF8 and continued partial ANSI syntax across current replacement.",
+        "limits": "No full RIP3 compliance, startup-font policy, unfinished charset/ESC7/8, live TW reset, HEADER or PORT-pair/PCB completion. Existing independently verified capsule/resource tests are reused; no unrelated passed rendering suites or additional platform builds are repeated."
+      }
     }
   ]
 }

@@ -499,6 +499,45 @@ text_select(void *context, unsigned number, bool first, bool active,
 }
 
 static int
+text_copy(void *context,unsigned source,unsigned destination,bool active)
+{
+	struct st_term_rip3 *rip=context;
+	if (source>=36 || destination>=36 || source==destination) return IO_ERROR_INVALID_ARGUMENT;
+	if (source!=0 && rip->windows[source]==NULL) return IO_ERROR_NOT_FOUND;
+	flush_text(rip);present(rip);
+	st_cterm_t *connection=st_term_rip3_text(rip);
+	st_cterm_t *from=rip->windows[source]==NULL ? rip->text : st_term_rip3_view_text(rip->windows[source]);
+	struct st_rip3_text_window_snapshot snapshot;
+	struct st_cterm_window_definition *definition=NULL;
+	struct st_term_rip3_view *candidate=NULL;
+	uint32_t width,height;
+	int status=text_snapshot(rip,source,&snapshot);
+	if (status==0) status=window_budget(rip,&snapshot.layout,destination,NULL);
+	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status==0) status=st_cterm_window_definition_create(&definition,from);
+	if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,&snapshot.layout,width,height);
+	st_cterm_t *target=st_term_rip3_view_text(candidate);
+	if (status==0 && destination==rip->selected_window) status=st_cterm_select_window_interpreter(target,connection);
+	if (status==0) status=st_cterm_window_definition_restore(target,definition);
+	if (status==0) {
+		st_cterm_set_music_mode(target,st_cterm_music_mode(connection));
+		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(connection));
+	}
+	st_cterm_window_definition_destroy(definition);
+	struct st_term_rip3_view *previous=rip->view;
+	if (status==0 && destination==rip->selected_window) {
+		rip->view=candidate;status=present_window(rip,active);
+		if (status!=0) rip->view=previous;
+	}
+	if (status!=0) {st_term_rip3_view_destroy(candidate);return status;}
+	st_term_rip3_view_destroy(rip->windows[destination]);rip->windows[destination]=candidate;
+	if (destination==rip->selected_window && rip->text_config.size_changed!=NULL)
+		rip->text_config.size_changed(rip->text_config.size_context,snapshot.layout.columns,snapshot.layout.rows,
+		    snapshot.layout.columns*snapshot.layout.cell_width,snapshot.layout.rows*snapshot.layout.cell_height);
+	return 0;
+}
+
+static int
 text_reset(void *context, const struct st_rip3_text_window_layout *layout,
     const bool keep[36], bool old_active)
 {
@@ -1282,7 +1321,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .encoding=ST_RIP3_TEXT_UTF8,.graphical_codepage_converted=config->encoding==ST_CTERM_ENCODING_CODEPAGE,
 	    .source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
-	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_backup_capture=text_backup_capture,
+	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_copy=text_copy,.text_backup_capture=text_backup_capture,
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,

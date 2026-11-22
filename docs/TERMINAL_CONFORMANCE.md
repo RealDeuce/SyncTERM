@@ -186,8 +186,9 @@ aggregate reset. Live palette COPY prevalidates every destination and transfers
 source protection except to zero. Reset may leave the current slot undefined:
 numeric ISPROT then returns -1 while CUR protection returns zero, and drawing,
 bitmap/image consumers and coherent captures retain access to its RGB values.
-Table-local soft/hard reset services are covered; whole-scene reset/header
-orchestration and other live-entry COPY families remain pending.
+Table-local soft/hard reset services are covered. Later connected milestones
+cover all five allowed live-entry COPY adapters; whole-scene reset/HEADER and
+unfinished table payload fields remain pending.
 The pinned PR #80/#81 contract confirms current-base N zero/nonzero normalization
 and 2Y one-plus-two fields with ordered protection requests. STYLE-zero source
 and destination requests now diagnose separately without ending processing;
@@ -2449,3 +2450,21 @@ PCB remain pending; the specific physical clipping extent question is tracked
 in new issue146 against PR145. The selected reference pin is
 `f14e410915f11f64d2287eec82ebf4770c3baf41`; RIP1.54 remains at its original
 preservation baseline. See the detailed RIP3 conformance/adoption inventories.
+
+
+`st_rip3_window_copy_connected_test.py` now covers TW entry COPY over actual
+RIP3 TCP connections in CP437 and UTF-8 at 640×480,800×600,1024×768 and custom
+720×400. It asserts literal numeric/CUR examples, source/destination protection,
+zero/repeated/current targets, complete rejection of invalid requests without
+partial changes, independently retained native geometry/fonts/cursors/rendition/
+tabs/margins/activation, and copied ordinary/extended windows. Coherent captures
+compare both planes at COPY; subsequent glyph output and a split ANSI CSI show
+that new definitions are actually used and connection parsing survives current
+owner replacement. Native session tests inject query/native-helper resource
+failures and verify the documented continuation/empty-query behavior and cleanup.
+All five allowed live-entry COPY families are connected. This reuses existing
+native definition capsules and shared-raster views without copying cells/history/
+pixels or adding scene/damage tracking. Live TW reset, charset/ESC7/8, HEADER,
+remaining PORT/STYLE inventory and remembered pairs/PCB remain unfinished;
+original entry font policy is separate. RIP1.54 retains its original preservation
+baseline and no ordinary ANSI renderer/scrolling path changes.

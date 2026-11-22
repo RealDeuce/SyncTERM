@@ -32,6 +32,8 @@ struct fixture {
 	enum st_rip3_command_diagnostic kind;
 	bool overflow;
 	unsigned windows;
+	unsigned copies,copy_source,copy_destinations[64],copy_failure;
+	bool copy_active;
 	int window_status;
 	unsigned moves, column, row;
 	int move_status;
@@ -1286,6 +1288,53 @@ static int stored_queries(void)
 }
 
 struct native_test_window_save {unsigned column,row;struct st_rip3_text_window_layout layout;};
+static int copy_test_window(void *context,unsigned source,unsigned destination,bool active)
+{
+	struct fixture *f=context;
+	CHECK(f->copies<64);f->copy_source=source;f->copy_destinations[f->copies++]=destination;f->copy_active=active;
+	return f->copy_failure!=0 && destination==f->copy_failure ? IO_ERROR_OUT_OF_MEMORY : 0;
+}
+static int text_entry_copies(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;options.sink.text_window=window;
+	options.sink.text_copy=copy_test_window;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$CUR(TW,1)$","")==0);
+	CHECK(append(&f,"!|w0000070510\r")==0 && pump(&f)==0);
+	CHECK(store_query(&f,4,'1',"source",false)==0 && store_query(&f,2,'0',"floating",false)==0);
+	CHECK(query(&f,"$DTW$$PROT(TW,1)$$CUR(TW,2)$$COPY(TW,1,CUR,0,35,35)$","")==0);
+	CHECK(f.copies==4 && f.copy_source==1 && !f.copy_active && !st_rip3_session_text_active(f.session));
+	CHECK(f.copy_destinations[0]==2 && f.copy_destinations[1]==0 && f.copy_destinations[2]==35 && f.copy_destinations[3]==35);
+	CHECK(query(&f,"$CUR(TW)$:$ISPROT(TW,2)$:$ISPROT(TW,35)$:$TWIN$","2:1:1:NO")==0);
+	CHECK(query(&f,"$CUR(TW,0)$$ISPROT(TW,CUR)$$CUR(TW,2)$","0")==0);
+	CHECK(resident_value(&f,4,2,"source")==0 && resident_value(&f,4,35,"source")==0);
+	CHECK(query(&f,"$UNPROT(TW,1)$","")==0 && store_query(&f,4,'1',"changed",false)==0);
+	CHECK(resident_value(&f,4,2,"source")==0 && resident_value(&f,4,0,"source")==0);
+	const char *const invalid[]={"$COPY(TW,1,7,2,8)$","$COPY(TW,1,7,1,8)$",
+	    "$COPY(TW,1,7,36,8)$","$COPY(TW,1,7,BASE,8)$","$COPY(TW,34,7)$"};
+	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+		char wire[128];snprintf(wire,sizeof(wire),"!|1\0330000%s\r",invalid[i]);unsigned errors=f.errors;
+		CHECK(append(&f,wire)==0 && pump(&f)==0 && f.errors==errors+1 && f.copies==4);
+		CHECK(query(&f,"$INUSE(TW,7)$$INUSE(TW,8)$$INUSE(TW,34)$","000")==0);
+	}
+	/* Permission checks finish before any helper; resource failures afterward
+	 * do not roll back or stop later destinations. Query OOM empties the copied
+	 * query but retains the definition and leaves the source independently owned. */
+	extern bool st_rip3_resident_test_fail;
+	st_rip3_resident_test_fail=true;unsigned errors=f.errors;
+	CHECK(append(&f,"!|1\0330000$COPY(TW,1,3,4)$\r")==0 && pump(&f)==0 && f.errors==errors+2 && f.copies==6);
+	st_rip3_resident_test_fail=false;
+	CHECK(query(&f,"$INUSE(TW,3)$$INUSE(TW,4)$:$CUR(TW)$","11:2")==0);
+	CHECK(resident_value(&f,4,3,"")==0 && resident_value(&f,4,4,"")==0 && resident_value(&f,4,1,"changed")==0);
+	f.copy_failure=9;errors=f.errors;
+	CHECK(append(&f,"!|1\0330000$COPY(TW,1,9,10)$\r")==0 && pump(&f)==0 && f.errors==errors+1 && f.copies==8);
+	CHECK(query(&f,"$INUSE(TW,9)$$INUSE(TW,10)$:$CUR(TW)$","01:2")==0);
+	CHECK(resident_value(&f,4,10,"changed")==0 && resident_value(&f,2,0,"floating")==0);
+	st_rip3_session_destroy(f.session);CHECK(st_rip3_session_test_live==0);
+	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);return 0;
+}
+
 static size_t native_window_saves;
 static int capture_test_windows(void *context,const bool defined[36],void **result)
 {
@@ -1356,7 +1405,7 @@ static int text_backups(void)
 int
 main(void)
 {
-	CHECK(text_backups()==0 && stored_queries()==0 && screen_backups()==0);
+	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);

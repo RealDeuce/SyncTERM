@@ -39,15 +39,15 @@ struct st_rip3_table_host {
  * supports PAL/PORT/ENV/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
- * PAL/ENV/STYLE/BUT live-entry COPY validates all destinations before mutation.
- * PAL/ENV/STYLE copy source protection except to zero; BUT clears destination
+ * PAL/ENV/STYLE/BUT/TW live-entry COPY validates all destinations before mutation.
+ * PAL/ENV/STYLE/TW copy source protection except to zero; BUT clears destination
  * protection. RESET(PAL,...) handles current or
  * specific entries, TBL and the base/numbered/stack/aggregate backup selectors.
  * It validates the full selector list and required bindings first. Palette
  * resets preserve selection even when it becomes undefined; ISPROT(PAL,CUR)
  * reads current protection without the numeric-slot definition check.
- * Parameter defaults and decimal slot syntax follow the reference. Remaining
- * live-entry COPY and RESET families return NOT_SUPPORTED for wider dispatch.
+ * Parameter defaults and decimal slot syntax follow the reference. PORT/MOUSE/
+ * SCREEN live-entry COPY is prohibited; unfinished RESET families remain unsupported.
  * CUR(STYLE,n) selects/defaults the represented style and its font family,
  * independently of PORT/ENV/text-cursor state. CUR(ENV,n) defaults unused
  * records and applies the documented departing-record mode overwrite; it
@@ -57,8 +57,10 @@ struct st_rip3_table_host {
  * shipping live-current-index restore defect.
  * A TW live binding borrows st_rip3_text_window_operations; its native owner
  * handles selection/protection and complete definition-only STW/RTW snapshots.
- * Whole-TW COPY/status/protection and backup-only RESET selectors are bound;
- * individual TW-entry COPY and live TW reset remain separate.
+ * Whole-TW and live-entry COPY/status/protection and backup-only RESET selectors
+ * are bound. Entry copies own their queries, retain native connection syntax
+ * and continue after resource failures following complete permission preflight.
+ * Live TW reset remains separate.
  * Parsed references must come from builtin_reference_parse. Empty outputs
  * require capacity >= 1, validated before any active operation. Validation and
  * binding failures leave caller output and bound table/save state unchanged.

@@ -38,6 +38,10 @@ struct st_rip3_text_window_operations {
 	int (*erase)(void *context, const unsigned *numbers, size_t count);
 	/* TWERASEEOL: display row from cursor inclusive, target ANSI background. */
 	int (*erase_eol)(void *context, const unsigned *numbers, size_t count);
+	/* Validate the complete selector/permission set before helper calls. Live
+	 * definition copies retain selection, carry protection except at zero,
+	 * and own independent queries. Later allocation failure is not rollback. */
+	int (*copy_entries)(void *context,unsigned source,const unsigned *destinations,size_t count);
 	/* Whole TW snapshots own logical definitions/native metadata, never screen pixels
 	 * or connection parser input. Saved objects release without the live owner. */
 	int (*backup_capture)(void *context,void **result);

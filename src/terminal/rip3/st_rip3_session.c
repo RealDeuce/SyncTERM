@@ -267,6 +267,39 @@ restore_window_save(void *context,const void *object)
 }
 
 static int
+copy_window_entries(void *context,unsigned source,const unsigned *destinations,size_t count)
+{
+	struct st_rip3_session *session=context;
+	if (destinations==NULL || count==0) return IO_ERROR_INVALID_ARGUMENT;
+	if (source>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (!session->windows[source].info.defined) return IO_ERROR_NOT_FOUND;
+	for (size_t i=0;i<count;i++) {
+		unsigned number=destinations[i];
+		if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+		if (number==source) return IO_ERROR_INVALID_ARGUMENT;
+		if (session->windows[number].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	}
+	if (session->sink.text_copy==NULL) return IO_ERROR_NOT_SUPPORTED;
+	bool active=source==session->current_window ? session->text_active : session->windows[source].info.active;
+	for (size_t i=0;i<count;i++) {
+		unsigned number=destinations[i];
+		int status=session->sink.text_copy(session->sink.context,source,number,active);
+		if (status!=0) {table_operation_failed(session,status);continue;}
+		st_rip3_resident_query_clear(&session->windows[number].query);
+		session->windows[number]=session->windows[source];
+		session->windows[number].query=(struct st_rip3_resident_query){0};
+		session->windows[number].info.active=active;
+		if (number==0) session->windows[number].info.protected=false;
+		if (number==session->current_window) session->text_active=active;
+		/* The shipped copy commits the record before allocating its query;
+		 * failure leaves an empty destination query and the caller continues. */
+		status=st_rip3_resident_query_copy(&session->windows[number].query,&session->windows[source].query);
+		if (status!=0) table_operation_failed(session,status);
+	}
+	return 0;
+}
+
+static int
 protect_window(void *context, unsigned number, bool protect)
 {
 	struct st_rip3_session *session=context;
@@ -806,7 +839,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
 	    .protect=protect_window,.activate=activate_text_windows,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
-	    .erase_eol=erase_window_lines,.backup_capture=capture_window_save,.backup_restore=restore_window_save,
+	    .erase_eol=erase_window_lines,.copy_entries=copy_window_entries,
+	    .backup_capture=capture_window_save,.backup_restore=restore_window_save,
 	    .backup_destroy=destroy_window_save};
 	session->variables.text_windows=&session->window_operations;
 	session->tables.tables[ST_RIP3_TABLE_TW].live=&session->window_operations;
