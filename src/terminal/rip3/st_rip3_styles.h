@@ -6,6 +6,7 @@
 #include "st_rip3_fill.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct st_rip3_styles;
@@ -79,6 +80,11 @@ int st_rip3_styles_set(struct st_rip3_styles *styles,
  * PORT/ENV/cursor/image state. Extended-font activation remains separate. */
 int st_rip3_styles_switch(struct st_rip3_styles *styles, unsigned number);
 int st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool protect);
+/* Preflight every destination before copying a defined source. Protection
+ * follows the source except at zero; selection and other tables stay live.
+ * Duplicate destinations are allowed; self-copy and protected targets fail. */
+int st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source,
+	const unsigned *destinations, size_t count);
 /* Outer SOFT defaults unprotected records, clears nonzero in-use flags and
  * selects zero. All protected configuration and independent backups survive. */
 int st_rip3_styles_soft_reset(struct st_rip3_styles *styles);

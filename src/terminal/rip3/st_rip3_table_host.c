@@ -530,9 +530,18 @@ entry_copy(const struct st_rip3_table_binding *binding,enum st_rip3_table_type t
 		else destinations[i-2]=index;
 	}
 	if (binding->live==NULL) return IO_ERROR_NOT_SUPPORTED;
-	return type==ST_RIP3_TABLE_ENV
-	    ? st_rip3_environments_copy_entries(binding->live,source,destinations,reference->count-2)
-	    : st_rip3_palettes_copy_entries(binding->live,source,destinations,reference->count-2);
+	switch (type) {
+		case ST_RIP3_TABLE_ENV:
+			return st_rip3_environments_copy_entries(binding->live,source,destinations,reference->count-2);
+		case ST_RIP3_TABLE_STYLE:
+			return st_rip3_styles_copy_entries(binding->live,source,destinations,reference->count-2);
+		case ST_RIP3_TABLE_BUT:
+			return st_rip3_button_styles_copy_entries(binding->live,source,destinations,reference->count-2);
+		case ST_RIP3_TABLE_PAL:
+			return st_rip3_palettes_copy_entries(binding->live,source,destinations,reference->count-2);
+		default:
+			return IO_ERROR_NOT_SUPPORTED;
+	}
 }
 
 static int
@@ -703,7 +712,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (status != 0)
 			return status;
 		binding = &host->tables[type];
-		if (copy && (type==ST_RIP3_TABLE_PAL || type==ST_RIP3_TABLE_ENV) && (equal(reference->parameters[1].text,"CUR")
+		if (copy && (type==ST_RIP3_TABLE_PAL || type==ST_RIP3_TABLE_ENV
+		    || type==ST_RIP3_TABLE_STYLE || type==ST_RIP3_TABLE_BUT) && (equal(reference->parameters[1].text,"CUR")
 		    || (reference->parameters[1].text[0]>='0' && reference->parameters[1].text[0]<='9'))) {
 			status=entry_copy(binding,type,reference);
 			if (status==0) result[0]=0;

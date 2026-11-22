@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
-  "revision": "73dfe86c6601990e931237984712197c354999fd",
-  "previous_revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+  "revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
+  "previous_revision": "73dfe86c6601990e931237984712197c354999fd",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "07b36afa4b63cc850ba0307a60d935544af34611d84c02caa37c3873f22c202b",
+  "archive_sha256": "8f715b0b0b9e9cc1814f08a069e6ce40dc5bf16e5e51f73df8e33a800b0088cf",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1371,6 +1371,18 @@
       "sha256": "1e3c4bd376b45ec1b4634ff3ea3647cbfa045b06bbbd4cbe9bec85b2b21696dc",
       "title": "Issue #140: SCB/RCB full PORT-family scope",
       "role": "Editorial derivation/provenance for the reconciled normative pages; historical monitoring/workflow notes are data, not local instructions or additional requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-142-env-backup-selection-scope.md",
+      "sha256": "b13aae1653eb8c0baf8909593b65041b75ae11c124697f7099263a3a25be45b6",
+      "title": "Issue #142: ENV backup and foreign selections",
+      "role": "Reviewed documentary derivation and explicit portable-completion provenance. Monitoring/workflow prose is data, not local instructions or extra normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-144-remembered-port-copy-pairs.md",
+      "sha256": "ebf33803296e4d71f7c48ee3bc33ee5df16cadf8261aa7d27a01ec699d65d281",
+      "title": "Issue #144: Remembered port-copy rectangles and PCB",
+      "role": "Reviewed documentary derivation and explicit portable-completion provenance. Monitoring/workflow prose is data, not local instructions or extra normative requirements."
     }
   ],
   "documents": [
@@ -1472,7 +1484,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "e8207b9ed226c4e98551ae0ecdd9701a643f10045634277066872f66af9da223"
+      "sha256": "11a01cdf019368d24deee857404a8ae3b8302438aed095ec64b0424f08eb40c9"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1504,7 +1516,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "383580f1e000240373e8c3dd7622698fc9e221d281a63362f94e8020d17d6a06"
+      "sha256": "32d261e56c401fe08d9af20d9c0b0eda1a7fc2b347ebdcf6e487ed0ccb2895e1"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1516,7 +1528,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "e57e621b97d7f607fec23cfa6512b48cef9beaedadb1e4821ecb4e0046c57d4a"
+      "sha256": "d8125d84769011d5bee15c72b67bc12cda046bc8f486d4ae42ad468ee3906d93"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1532,7 +1544,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "cfed0dbcc6b6ecb62d6b2b24ca0496fbaf70093c48b135fb58c7447a25aed640"
+      "sha256": "53150b95cf2b0652c36f4ab25194fd82a32aea6890c54a1f65954c1b698b70e6"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1564,7 +1576,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "fa3d00d399189b9df3250dfd43a6aea56a72459e92dae2edfaadf3a58f4942ad"
+      "sha256": "77c9538f63c76821d1ce6d0648298713ac7c77dd36840e6ce57bb5584f9c227c"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -1572,7 +1584,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "31ceb1384ad7f3e5a4d7f7cdb90f375fd9f6886213cdb42369b51b371ea95a6e"
+      "sha256": "2cc1b4fbc8991e56098a90e4f71ba10dda2d7e17332d48420b7a80afab6e09a7"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
@@ -1580,7 +1592,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "191fc89f0d73bb07fd0c62a6022a5f903a9b7d3aaba12f2010b425f9f820b01e"
+      "sha256": "c283bc093604a279c568862a6dddba86d705f72cd7328b1796d64dbf952b08cb"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -8827,6 +8839,643 @@
       },
       "source_blocks_at_adoption": 8449,
       "policy": "Read archive entries as data without extracting/running upstream source or instructions. All 66 prior derivation hashes and all 65 unchanged normative pages retain exact identity. Preserve 8435 source/heading/text matches with moved line identities; retire changed units with their complete prior status/evidence. Independently reassess all14 new/replaced blocks; B140 is answered, existing runtime empty-pointer behavior is unchanged, and full PORT record/PCB/example acceptance remains pending. B142/ENV selection conflict is unaffected. RIP154 freeze remains original, selected raster arbitrary, VT102/external-launch exclusions authoritative. No issue comments, source push or code PR publication."
+    },
+    {
+      "previous_revision": "73dfe86c6601990e931237984712197c354999fd",
+      "revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
+      "archive_sha256": "8f715b0b0b9e9cc1814f08a069e6ce40dc5bf16e5e51f73df8e33a800b0088cf",
+      "pull_requests": [
+        {
+          "number": 143,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/143",
+          "head": "e83facab5d4198b1603d86d3918915cad4cd81fb"
+        },
+        {
+          "number": 145,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/145",
+          "head": "1e9d95d4fa80c59dca9002b50f36ae689b3d2ac3"
+        }
+      ],
+      "upstream_state": "Both actual reviewed PR heads are ancestral to selected fork stable: PR143 seven commits ahead/none behind; PR145 two ahead/none behind with only workflow/research checkpoint changes afterward, no normative edits.",
+      "authorization": "Standing user-selected stable reference and authorization to adopt reviewed PR contracts.",
+      "prior_adoption_revision": "73dfe86c6601990e931237984712197c354999fd",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "e8207b9ed226c4e98551ae0ecdd9701a643f10045634277066872f66af9da223",
+          "sha256": "11a01cdf019368d24deee857404a8ae3b8302438aed095ec64b0424f08eb40c9"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "383580f1e000240373e8c3dd7622698fc9e221d281a63362f94e8020d17d6a06",
+          "sha256": "32d261e56c401fe08d9af20d9c0b0eda1a7fc2b347ebdcf6e487ed0ccb2895e1"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "e57e621b97d7f607fec23cfa6512b48cef9beaedadb1e4821ecb4e0046c57d4a",
+          "sha256": "d8125d84769011d5bee15c72b67bc12cda046bc8f486d4ae42ad468ee3906d93"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "cfed0dbcc6b6ecb62d6b2b24ca0496fbaf70093c48b135fb58c7447a25aed640",
+          "sha256": "53150b95cf2b0652c36f4ab25194fd82a32aea6890c54a1f65954c1b698b70e6"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "fa3d00d399189b9df3250dfd43a6aea56a72459e92dae2edfaadf3a58f4942ad",
+          "sha256": "77c9538f63c76821d1ce6d0648298713ac7c77dd36840e6ce57bb5584f9c227c"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "31ceb1384ad7f3e5a4d7f7cdb90f375fd9f6886213cdb42369b51b371ea95a6e",
+          "sha256": "2cc1b4fbc8991e56098a90e4f71ba10dda2d7e17332d48420b7a80afab6e09a7"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "191fc89f0d73bb07fd0c62a6022a5f903a9b7d3aaba12f2010b425f9f820b01e",
+          "sha256": "c283bc093604a279c568862a6dddba86d705f72cd7328b1796d64dbf952b08cb"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8428,
+      "moved_source_blocks": 866,
+      "new_source_blocks": 103,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:238",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:59",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:99",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:169",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:234",
+        "version/3.0/ripscrip/4.3-buttons.md:702",
+        "version/3.0/ripscrip/5.1-text-variables.md:3277",
+        "version/3.0/ripscrip/5.1-text-variables.md:3295",
+        "version/3.0/ripscrip/5.1-text-variables.md:3297",
+        "version/3.0/ripscrip/5.1-text-variables.md:3531",
+        "version/3.0/ripscrip/5.1-text-variables.md:3549",
+        "version/3.0/ripscrip/5.1-text-variables.md:3551",
+        "version/3.0/ripscrip/5.1-text-variables.md:3558",
+        "version/3.0/ripscrip/5.1-text-variables.md:3560",
+        "version/3.0/ripscrip/5.1-text-variables.md:3562",
+        "version/3.0/ripscrip/5.1-text-variables.md:3563",
+        "version/3.0/ripscrip/5.1-text-variables.md:3564",
+        "version/3.0/ripscrip/5.1-text-variables.md:3565",
+        "version/3.0/ripscrip/5.1-text-variables.md:3566",
+        "version/3.0/ripscrip/5.1-text-variables.md:3568",
+        "version/3.0/ripscrip/5.1-text-variables.md:3707",
+        "version/3.0/ripscrip/5.1-text-variables.md:3709",
+        "version/3.0/ripscrip/5.1-text-variables.md:3711",
+        "version/3.0/ripscrip/5.1-text-variables.md:3715",
+        "version/3.0/ripscrip/5.1-text-variables.md:3723",
+        "version/3.0/ripscrip/5.1-text-variables.md:3725",
+        "version/3.0/ripscrip/5.1-text-variables.md:3727",
+        "version/3.0/ripscrip/5.1-text-variables.md:3728",
+        "version/3.0/ripscrip/5.1-text-variables.md:3729",
+        "version/3.0/ripscrip/5.1-text-variables.md:3730",
+        "version/3.0/ripscrip/5.1-text-variables.md:3731",
+        "version/3.0/ripscrip/5.1-text-variables.md:3732",
+        "version/3.0/ripscrip/5.1-text-variables.md:3733",
+        "version/3.0/ripscrip/5.1-text-variables.md:3734",
+        "version/3.0/ripscrip/5.1-text-variables.md:3736",
+        "version/3.0/ripscrip/5.1-text-variables.md:3738",
+        "version/3.0/ripscrip/5.1-text-variables.md:3740",
+        "version/3.0/ripscrip/5.1-text-variables.md:3742",
+        "version/3.0/ripscrip/5.1-text-variables.md:3744",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:81",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:509",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:511",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:513",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:515",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:520",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:522",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:524",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:529",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:533",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:535",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:536",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:537",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:538",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:539",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:540",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:541",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:542",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:543",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:544",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:546",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:550",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:552",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:554",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:556",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:560",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:561",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:562",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:563",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:564",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:565",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:566",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:567",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:568",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:569",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:570",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:571",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:572",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:574",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:578",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:580",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:581",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:582",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:583",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:584",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:585",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:586",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:587",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:588",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:589",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:590",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:591",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:592",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:593",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:595",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:597",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:599",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:601",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:229",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:240",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:398",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:196",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:200",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:210"
+      ],
+      "retired_source_blocks": 21,
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3295",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:200",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:210"
+      ],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3277",
+          "heading": "$RENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3277,
+            3277
+          ],
+          "text": "_Activates a previously snapshotted environment_\n",
+          "sha256": "7a4267666ccf2948a16a53fd5360bf7fd4f5a8cab49decfbcca25ed55b4b5dce",
+          "status": "context",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Action label/version, syntax introduction or table-layout scaffolding. The executable syntax/dispatch/lifetime clauses have separate native and connected evidence."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3295",
+          "heading": "$RENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3295,
+            3295
+          ],
+          "text": "This command restores a previously saved environment data table back into the actual data table and puts it to use. If you omit the slot parameter, then the environment is restored from the base save area of the environment data backup area.\n",
+          "sha256": "96b1f6ea4aaf58a582601ddeacdb78d36c96075de38e8b9cb78347d936cc6c23",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_styles.c"
+          ],
+          "tests": [
+            "rip3_backup",
+            "rip3_table_host",
+            "rip3_environments",
+            "rip3_screen",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8"
+          ],
+          "reason": "SGS/RGS and SENV/RENV are connected to their existing typed snapshot families. SAVEALL/RESTOREALL dispatch TW, PORT, MOUSE, SCREEN, PAL, BUT, STYLE, ENV in exact order, continue after every failure without rollback and keep valid actions empty/nonfatal. Numbered restores retain all snapshots until a separate ordered delete phase, including failed unprotected snapshots; BASE stays reusable and POP consumes each successful family independently. Native event/ownership/failure tests and both TCP encodings cover executable behavior and independent expected colors, metadata and input. This accepts this syntax/lifetime/composition clause, not every subrequirement of each payload family; full PORT_COPY/PCB and remaining STYLE inventory stay separately pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3529",
+          "heading": "$SENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3529,
+            3529
+          ],
+          "text": "_Records environmental configuration_\n",
+          "sha256": "8982b47c3e4db937919b8fd850d6db0f9d8848ffa04ff5a91c149797532ab1aa",
+          "status": "context",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Action label/version, syntax introduction or table-layout scaffolding. The executable syntax/dispatch/lifetime clauses have separate native and connected evidence."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3547",
+          "heading": "$SENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3547,
+            3547
+          ],
+          "text": "This command takes a snapshot of the RIPscrip configuration over the one of the data backup area's particular save regions. This includes recording the values of:\n",
+          "sha256": "86c11c1d69f73c685a2adbc1b3f3533853f17d32f6f8e4b60395ec9cf66cc427",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_styles.c"
+          ],
+          "tests": [
+            "rip3_backup",
+            "rip3_table_host",
+            "rip3_environments",
+            "rip3_screen",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8"
+          ],
+          "reason": "SENV now captures the ENV table and its current index in real sessions. The following inherited list mixes supported ENV settings with foreign table selections explicitly excluded by corrected 7.1 ownership. Full list reconciliation is tracked in new issue142."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3549",
+          "heading": "$SENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3549,
+            3560
+          ],
+          "text": "- Current graphics style entry number\n- Current button style entry number\n- Current drawing port entry number\n- Current text window entry number\n- Current color palette entry number\n- Current World coordinate dimensions (X and Y)\n- Current base math settings (36 or 64)\n- Current coordinate size (2 through 5)\n- Current color mode (color palette mode or direct RGB mode)\n- Current mouse pointer number\n- Current baud rate emulation value\n- Current environment data table entry currently active\n",
+          "sha256": "dc07bd25d9b24e7f9519bd966d39e511f1091d30ef97abadb7154bd3eb377652",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_styles.c"
+          ],
+          "tests": [
+            "rip3_backup",
+            "rip3_table_host",
+            "rip3_environments",
+            "rip3_screen",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8"
+          ],
+          "reason": "Inherited list claims current STYLE/BUT/PORT/TW/PAL selections belong in SENV, conflicting with accepted 7.1 ENV ownership under #24/PR57. Runtime follows the explicit corrected scope: restore ENV values and current ENV, keep the other selections live. Issue142 requests editorial reconciliation without changing the covered report.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/142"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3699",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3699,
+            3699
+          ],
+          "text": "_Paste Clipboard at last location_\n",
+          "sha256": "31de068c0411d21bd21cdd73f448edcc6ba707eaa8c6c17b3a1f3dba4fd8b5d9",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Action label/version, syntax introduction or motivation for dismissing dialogs; executable PCB rules are assessed separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3701",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3701,
+            3701
+          ],
+          "text": "_Added in RIPscrip v2.A4._\n",
+          "sha256": "6af82b2dfd004ce56bcd9cb097a83282e67a3df57153b0e68bb8c5ad94783818",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Action label/version, syntax introduction or motivation for dismissing dialogs; executable PCB rules are assessed separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3703",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3703,
+            3703
+          ],
+          "text": "**Format:** `$PCB(portno)$`\n",
+          "sha256": "d34f5c1d5a9a98aad606b5ff3e0ea6094a7942879165a6dfc082774cb0926f70",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "PCB name/parameter/gate/example text is identified, but the executable remembered-pair service and connected invocation are absent. Issue144 tracks the missing pair contract; do not claim functionality from catalog registration alone. The existing session parser remains void/nonfatal."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3707",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3707,
+            3714
+          ],
+          "text": "```text\n$PCB(opt:PORTNO)$\n         ──────\n         CUR\n         0-35\n         ──────\n     def=CUR\n```\n",
+          "sha256": "0593a4485b20ed7cbd0b6252ee021730c6b65e0acf0e20497232c7e3ce20c160",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "New issue144 requests remembered-pair units/stage/producers/update/lifecycle rules and resolves syntax default CUR versus omitted clipboard-pointer prose. The source establishes owner/basic reversal but not those observable edge choices. Do not invent pre/post-clipping storage, default pair, or capture/PCB mutation behavior. Existing PORT_COPY pixel geometry and resolved SCB/RCB pointer/full-family scope remain unchanged."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3716",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3716,
+            3716
+          ],
+          "text": "This text variable copies a portion of the specified port onto the current drawing port (these ports may be the same). The area on the specified port that is considered to be the source is \"remembered\" from the last rectangle of data that was put on this port. What this means is when you perform a `RIP_PORT_COPY` command, you copy a rectangle of data from one port to another. The two rectangles of information are stored in the destination port of the copy operation. If the original port were port 0 and the destination port were port 5, then both rectangles of data are stored in port 5's definition. If you switch to port #0 and then perform a `$PCB(5)$` operation, then the rectangle of data on port #5 is copied back to its original location in the current port.\n",
+          "sha256": "1489e20304a210461165271e062b287a1cf0cacd51ad2fd49d324966d965d77d",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "New issue144 requests remembered-pair units/stage/producers/update/lifecycle rules and resolves syntax default CUR versus omitted clipboard-pointer prose. The source establishes owner/basic reversal but not those observable edge choices. Do not invent pre/post-clipping storage, default pair, or capture/PCB mutation behavior. Existing PORT_COPY pixel geometry and resolved SCB/RCB pointer/full-family scope remain unchanged."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3718",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3718,
+            3718
+          ],
+          "text": "This variable is extremely useful for restoring graphics that were previously saved to an offscreen port. It is typically used in dialog boxes when the user clicks on the \"OK\" button, where the dialog box should be erased and the original graphical screen would be restored.\n",
+          "sha256": "9470f2a351bb50e8408435d3fba68a584f6d53b33c148f3e7c4574ed646db119",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Action label/version, syntax introduction or motivation for dismissing dialogs; executable PCB rules are assessed separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3720",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3720,
+            3720
+          ],
+          "text": "If no parameters are specified, then the port that will be pasted from will be whatever port is associated with the clipboard pointer. See the `RIP_GET_IMAGE` command for more details on the clipboard pointer.\n",
+          "sha256": "b8c3adc42f0638610d228283ad8dd5efee30691f063c04256f508faf9adcd0f3",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "New issue144 requests remembered-pair units/stage/producers/update/lifecycle rules and resolves syntax default CUR versus omitted clipboard-pointer prose. The source establishes owner/basic reversal but not those observable edge choices. Do not invent pre/post-clipping storage, default pair, or capture/PCB mutation behavior. Existing PORT_COPY pixel geometry and resolved SCB/RCB pointer/full-family scope remain unchanged."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3722",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3722,
+            3722
+          ],
+          "text": "If you do specify a parameter, then it can be \"CUR\" to indicate the current port, or a value 0-35 to specify a specific port number to retrieve the data from. Note that if the specified port doesn't exist, or if either the current port or the specified port are \"deactivated\", then this command is ignored.\n",
+          "sha256": "58ee194039cdf4b52e8713cd462a9c8949df78dd26c5006d86d11a5328438e4a",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "PCB name/parameter/gate/example text is identified, but the executable remembered-pair service and connected invocation are absent. Issue144 tracks the missing pair contract; do not claim functionality from catalog registration alone. The existing session parser remains void/nonfatal."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3724",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3724,
+            3724
+          ],
+          "text": "It should be noted that the rectangles of information stored in the specified port are \"viewport relative\". What this means is that the coordinates in those rectangles are based on viewports. If you copy data from say port 0 to port 5, then change port 0's viewport before you perform a `$PCB(5)$` operation, then when you actually perform the `$PCB(5)$` command, the data will be pasted in a new location on the screen - not where it came from. If you're going to be using this command, be careful how you manipulate your viewports.\n",
+          "sha256": "13c9e76a4f12aced14a1cb567ee141df7950500f5bbe1b7e47fc82dab0b7556e",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "New issue144 requests remembered-pair units/stage/producers/update/lifecycle rules and resolves syntax default CUR versus omitted clipboard-pointer prose. The source establishes owner/basic reversal but not those observable edge choices. Do not invent pre/post-clipping storage, default pair, or capture/PCB mutation behavior. Existing PORT_COPY pixel geometry and resolved SCB/RCB pointer/full-family scope remain unchanged."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3726",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3726,
+            3726
+          ],
+          "text": "**Example:** `$PCB(5)$` ... Paste port 5's data to the current port **Returns:** nothing\n",
+          "sha256": "02dad29d69592bf507498ff6938625273ed5cc734437fdf12eb4255e8148a589",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "PCB name/parameter/gate/example text is identified, but the executable remembered-pair service and connected invocation are absent. Issue144 tracks the missing pair contract; do not claim functionality from catalog registration alone. The existing session parser remains void/nonfatal."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3728",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3728,
+            3728
+          ],
+          "text": "This is the standard \"dismiss dialog, restore what was underneath\" idiom; the demo entry/exit scripts comment it \"Paste original screen image back\". The executable paste name is **PCB**. RIPTEL.HLP’s `$P$` shorthand is not registered by the driver or client; [P follows the user-variable path](#p). _Evidence: 2.00a4; HLP; SyncTERM (ripper.c:9048 `rv_paste`); corpus (MENU.ENT, TEL3X2.ENT)._\n",
+          "sha256": "2ea8a31f8c6b3ec739b336a7aa25d9bcb0921bdfe8f185411ff4779a728526e7",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ],
+          "reason": "PCB name/parameter/gate/example text is identified, but the executable remembered-pair service and connected invocation are absent. Issue144 tracks the missing pair contract; do not claim functionality from catalog registration alone. The existing session parser remains void/nonfatal."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:81",
+          "heading": "The Port Table",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            81,
+            85
+          ],
+          "text": "- the current X/Y location (used by the [RIP_TEXT](3.0-text-output-and-fonts.md)-family commands),\n- the current image style settings ([RIP_IMAGE_STYLE](4.1-jpeg-images.md#rip_image_style)),\n- its viewport location and dimensions,\n- any fixed viewport \"resident query\" expression ([5.5](5.5-file-transfer-and-queries.md)),\n- the current source X/Y location for [RIP_PORT_COPY](#rip_port_copy), [RIP_GET_IMAGE](4.0-icons-and-bitmaps.md#rip_get_image), [RIP_PUT_IMAGE](4.0-icons-and-bitmaps.md#rip_put_image), and `$PCB$` operations.\n",
+          "sha256": "c393fbbf1ebbaf848541c5a9f3153072e2d49b735b18b4b7e31f8afaa5d06d6d",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_image.c"
+          ],
+          "tests": [
+            "rip3_image",
+            "rip3_ports",
+            "rip3_ports_backup"
+          ],
+          "reason": "PR #71 documentation answers are adopted at a9e0c2f490714d82a0827675ffbc074aa5ae00e6; implementation and independent expectations must now be reconciled. Previous blocker review: Per-port viewport and image-style metadata are implemented and included in independently owned whole-table backups. Current text/source cursors, resident query expressions and clipboard metadata remain pending. Issue #24 leaves graphics-style/port/environment ownership, activation/defaults or non-left-horizontal TEXT_XY cursor effects unresolved. Existing independent record/image/geometry evidence does not establish this combined context behavior.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/24"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/7.2-data-backup-areas.md:229",
+          "heading": "Drawing Port Table Save Area",
+          "source": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "lines": [
+            229,
+            233
+          ],
+          "text": "- The current drawing port data table entry number\n- The actual drawing port data table (all 36 entries)\n- All offscreen/clipboard ports' actual graphical contents\n- The current \"floating\" viewport query expression and each screen port's owned resident-query expression\n- The current \"clipboard port pointer\" (see [RIP_GET_IMAGE](4.0-icons-and-bitmaps.md#rip_get_image) for more details).\n",
+          "sha256": "829e53ffc7ec0f265734f319ff6556278764ad2994e16782e25af8c5a0ab38cb",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "PR141 resolves the full PORT capture/empty-pointer contract, matching connected SCB/RCB and aggregate bindings. Existing represented definitions, queries, clipboard selection and offscreen contents are implemented; complete PORT record acceptance still awaits remembered PORT_COPY rectangles/PCB and remaining inventory. The new illustrative current-screen2/offscreen3/queryQ/empty-pointer combination has not yet received its own literal connected vector; do not infer complete payload conformance from scope/lifetime checks. Issue144 now explicitly tracks the missing remembered-copy pair contract; resolved B140 is not reopened.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/144"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:196",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            196,
+            196
+          ],
+          "text": "| `$PCB(port)$` _(v2.A4)_ | Active | Paste clipboard/port data at its remembered location; `$P$` is not a predefined paste alias | DLL; 2.00a4; HLP; ST; corpus | [5.1](5.1-text-variables.md#pcb) |\n",
+          "sha256": "102548c9a4b25fd1b80ecf1105639bda3771f6c9c88ec0906c66100d99a9d4f9",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:200",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            200,
+            200
+          ],
+          "text": "| `$RENV(source)$` _(v2.A4)_ | Active | Restore environment table from backup area | 2.00a4; HLP | [5.1](5.1-text-variables.md#renv) |\n",
+          "sha256": "10e9cace7a474bb3cf4595e7dc2f5e818340dd0a04da374109b2d1a2d511ff75",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_styles.c"
+          ],
+          "tests": [
+            "rip3_backup",
+            "rip3_table_host",
+            "rip3_environments",
+            "rip3_screen",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8"
+          ],
+          "reason": "SGS/RGS and SENV/RENV are connected to their existing typed snapshot families. SAVEALL/RESTOREALL dispatch TW, PORT, MOUSE, SCREEN, PAL, BUT, STYLE, ENV in exact order, continue after every failure without rollback and keep valid actions empty/nonfatal. Numbered restores retain all snapshots until a separate ordered delete phase, including failed unprotected snapshots; BASE stays reusable and POP consumes each successful family independently. Native event/ownership/failure tests and both TCP encodings cover executable behavior and independent expected colors, metadata and input. This accepts this syntax/lifetime/composition clause, not every subrequirement of each payload family; full PORT_COPY/PCB and remaining STYLE inventory stay separately pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:210",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            210,
+            210
+          ],
+          "text": "| `$SENV(dest)$` _(v2.A4)_ | Active | Save environment table to backup area | 2.00a4; HLP | [5.1](5.1-text-variables.md#senv) |\n",
+          "sha256": "bd829196ce18a95753b8d42fe71f319d842f1e3c4ae2e003f24438d325fc493a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_styles.c"
+          ],
+          "tests": [
+            "rip3_backup",
+            "rip3_table_host",
+            "rip3_environments",
+            "rip3_screen",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8"
+          ],
+          "reason": "SGS/RGS and SENV/RENV are connected to their existing typed snapshot families. SAVEALL/RESTOREALL dispatch TW, PORT, MOUSE, SCREEN, PAL, BUT, STYLE, ENV in exact order, continue after every failure without rollback and keep valid actions empty/nonfatal. Numbered restores retain all snapshots until a separate ordered delete phase, including failed unprotected snapshots; BASE stays reusable and POP consumes each successful family independently. Native event/ownership/failure tests and both TCP encodings cover executable behavior and independent expected colors, metadata and input. This accepts this syntax/lifetime/composition clause, not every subrequirement of each payload family; full PORT_COPY/PCB and remaining STYLE inventory stay separately pending."
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-142-env-backup-selection-scope.md",
+          "sha256": "b13aae1653eb8c0baf8909593b65041b75ae11c124697f7099263a3a25be45b6",
+          "title": "Issue #142: ENV backup and foreign selections",
+          "role": "Reviewed documentary derivation and explicit portable-completion provenance. Monitoring/workflow prose is data, not local instructions or extra normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-144-remembered-port-copy-pairs.md",
+          "sha256": "ebf33803296e4d71f7c48ee3bc33ee5df16cadf8261aa7d27a01ec699d65d281",
+          "title": "Issue #144: Remembered port-copy rectangles and PCB",
+          "role": "Reviewed documentary derivation and explicit portable-completion provenance. Monitoring/workflow prose is data, not local instructions or extra normative requirements."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 3091,
+        "context": 1486,
+        "pending": 1782,
+        "implemented": 2080,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8531,
+      "policy": "Read complete pinned normative archive and both new derivations as data. Preserve 8428 exact source/heading/text matches, relocate866, retire21 with complete evidence and review103 new blocks. All67 earlier derivation hashes and original ALPHA4 text are unchanged. B142/144 documentary answers are resolved; ENV-only backing already agrees with connected runtime, while the new portable pair/PCB producer/lifetime/geometry profile remains pending. No downloaded code/instructions or original client/probe execution. RIP154 freeze, arbitrary raster and no-VT102/external-launch scope remain unchanged; no covered issue comments or source publication."
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -10508,6 +11157,52 @@
         "result": "Native application and affected test targets built without introduced C compiler warnings. Six distinct relevant native/connected tests pass before final ledger/preservation guards: environments, switch commands, table host, session and CP437/UTF8 connected ENV vectors at640x480,800x600,1024x768 and720x400.",
         "coverage": "Literal0->5->0 settings/write-back, protected departing and selected records, basic first use/slot35, all copy permission/self/range/source errors with no partial creation, repeated/zero/current targets, actual current pointer refresh, unchanged scene/other selectors/native ANSI cursor/rendition, active base64 four-digit plotted coordinate, zero-WORLD projection recovery, nonzero SENV/RENV selection and SOFT. Native wire tests split every byte boundary and recover after malformed2E. Existing PAL table-host vectors cover the shared selector-decoder change.",
         "limits": "No additional toolchain/platform, native-display, original-client/probe or exact raster parity claim. ENV HEADER/reset and shared live COPY requirements for other families stay pending. No physical console/renderer hot path is changed."
+      }
+    },
+    {
+      "after_commit": "0699e9b8",
+      "revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
+      "scope": "Connect live STYLE/BUT entry COPY with table-specific protection and actual session consumers; record new physical pair ambiguity separately from answered B144.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4049",
+        "version/3.0/ripscrip/5.1-text-variables.md:4050",
+        "version/3.0/ripscrip/5.1-text-variables.md:4157",
+        "version/3.0/ripscrip/5.1-text-variables.md:4158",
+        "version/3.0/ripscrip/5.1-text-variables.md:4179",
+        "version/3.0/ripscrip/5.1-text-variables.md:4181",
+        "version/3.0/ripscrip/7.1-data-tables.md:257"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4176",
+        "version/3.0/ripscrip/5.1-text-variables.md:4177"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_styles.c",
+        "src/terminal/rip3/st_rip3_button_styles.c",
+        "src/terminal/rip3/st_rip3_table_host.c"
+      ],
+      "tests": [
+        "rip3_styles",
+        "rip3_button_styles",
+        "rip3_table_host",
+        "rip3_session",
+        "syncterm_rip3_style_copy_CP437",
+        "syncterm_rip3_style_copy_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3088,
+        "context": 1488,
+        "pending": 1774,
+        "implemented": 2087,
+        "excluded": 67,
+        "blocked": 27
+      },
+      "policy": "Preflight all targets before value-only copies; allocate no extra buffers or damage state. Preserve current selectors and source fields, clear zero protection, and retain BUT raw-protection checks even for hidden undefined records. STYLE carries protection, BUT clears it. All statuses stay below the existing void parser/session boundary. Existing ordinary ANSI/RIP154 rendering and pixel kernels are unchanged. TW live-entry COPY, HEADER and remembered pairs/PCB remain pending; B146 covers the specific post-PR145 physical clipping extent ambiguity, with a new issue referencing covered #144/PR145 and no comments there.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc; headless control bitmap TCP fixtures.",
+        "result": "Application and affected native targets configured and built. Eight distinct relevant tests pass: four native, both connected encodings at four rasters, contract and original RIP154 preservation guards. No introduced C compiler warnings; build driver reported clock-skew warnings.",
+        "coverage": "All represented STYLE/BUT fields, independent value ownership, source and destination protection, repeated/zero/current destinations, undefined current source, hidden protected undefined destination, complete preflight errors, copied point/fill colors and button size/color/hotkey action, retained other table selectors/native ANSI cursor/rendition/raster, unchanged planes around COPY, CP437/UTF8 across four rasters, nonfatal malformed macro recovery. Existing SGS/RGS native expectation updated to successful restore with live-current-index preservation.",
+        "limits": "No full STYLE/TW/PORT/HEADER/RIP3 completion claim, exact RIPtel raster claim, rendering speed measurement, native-device/physical audio claim or additional platform configuration."
       }
     }
   ]

@@ -17,9 +17,63 @@ same(const struct st_rip3_button_style *a, const struct st_rip3_button_style *b)
 	    && memcmp(a->colors,b->colors,sizeof(a->colors))==0;
 }
 
+static int
+entry_copies(void)
+{
+	struct st_rip3_button_styles *styles=NULL;
+	struct st_rip3_button_style source={.width=23,.height=13,.flags=768|1024,
+	    .bevel=9,.orientation=4,.group=35,.flags2=165,.colors={1,2,3,4,5,6,7}}, actual;
+	struct st_rip3_button_style_info info;
+	unsigned current;
+	const unsigned destinations[]={0,6,35,35};
+	CHECK(st_rip3_button_styles_create(&styles)==0);
+	CHECK(st_rip3_button_styles_set(styles,5,&source)==0);
+	CHECK(st_rip3_button_styles_protect(styles,5,true)==0);
+	CHECK(st_rip3_button_styles_select(styles,6)==0);
+	CHECK(st_rip3_button_styles_copy_entries(styles,5,destinations,4)==0);
+	CHECK(st_rip3_button_styles_current(styles,&current)==0 && current==6);
+	for (size_t i=0;i<4;i++) {
+		CHECK(st_rip3_button_styles_get(styles,destinations[i],&actual)==0 && same(&actual,&source));
+		CHECK(st_rip3_button_styles_info(styles,destinations[i],&info)==0 && info.defined && !info.protected);
+	}
+	const unsigned protected[]={7,5,8}, self[]={7,6,8}, range[]={7,36,8};
+	CHECK(st_rip3_button_styles_copy_entries(styles,6,protected,3)==IO_ERROR_PERMISSION_DENIED);
+	CHECK(st_rip3_button_styles_copy_entries(styles,6,self,3)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_button_styles_copy_entries(styles,5,range,3)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_button_styles_copy_entries(styles,34,destinations,4)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_button_styles_copy_entries(styles,36,destinations,4)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_button_styles_copy_entries(styles,5,NULL,1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_button_styles_copy_entries(styles,5,destinations,0)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_button_styles_copy_entries(NULL,5,destinations,4)==IO_ERROR_INVALID_ARGUMENT);
+	for (unsigned i=7;i<=8;i++) {
+		CHECK(st_rip3_button_styles_info(styles,i,&info)==0 && !info.defined);
+	}
+	actual=source;actual.width=17;
+	CHECK(st_rip3_button_styles_set(styles,6,&actual)==0);
+	CHECK(st_rip3_button_styles_get(styles,5,&actual)==0 && same(&actual,&source));
+	CHECK(st_rip3_button_styles_info(styles,5,&info)==0 && info.protected);
+	/* The shipped CUR-reset defect can hide a protected destination. COPY
+	 * checks that raw protection rather than implicitly selecting it. */
+	CHECK(st_rip3_button_styles_set(styles,7,&source)==0);
+	CHECK(st_rip3_button_styles_protect(styles,7,true)==0);
+	CHECK(st_rip3_button_styles_reset_current(styles)==0);
+	CHECK(st_rip3_button_styles_info(styles,7,&info)==0 && !info.defined && info.protected);
+	CHECK(st_rip3_button_styles_copy_entries(styles,5,protected,1)==IO_ERROR_PERMISSION_DENIED);
+	CHECK(st_rip3_button_styles_info(styles,7,&info)==0 && !info.defined && info.protected);
+	CHECK(st_rip3_button_styles_select(styles,9)==0);
+	CHECK(st_rip3_button_styles_reset_entry(styles,9)==0);
+	const unsigned destination=10;
+	CHECK(st_rip3_button_styles_copy_entries(styles,9,&destination,1)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_button_styles_current(styles,&current)==0 && current==9);
+	CHECK(st_rip3_button_styles_info(styles,9,&info)==0 && !info.defined);
+	CHECK(st_rip3_button_styles_info(styles,10,&info)==0 && !info.defined);
+	st_rip3_button_styles_destroy(styles);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(entry_copies()==0);
 	struct st_rip3_button_styles *styles=NULL;struct st_rip3_backup *backup=NULL;
 	CHECK(st_rip3_button_styles_create(&styles)==0 && st_rip3_button_styles_backup_create(&backup)==0);
 	const struct st_rip3_button_style boot={.orientation=2,.flags=768,.bevel=3,.colors={15,0,15,8,7,15,7}};

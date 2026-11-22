@@ -171,6 +171,25 @@ st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool prot
 	return 0;
 }
 
+int
+st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source,
+    const unsigned *destinations, size_t count)
+{
+	if (styles==NULL || destinations==NULL || count==0) return IO_ERROR_INVALID_ARGUMENT;
+	if (source>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (!styles->entries[source].info.defined) return IO_ERROR_NOT_FOUND;
+	for (size_t i=0;i<count;i++) {
+		if (destinations[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+		if (destinations[i]==source) return IO_ERROR_INVALID_ARGUMENT;
+		if (styles->entries[destinations[i]].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	}
+	for (size_t i=0;i<count;i++) {
+		styles->entries[destinations[i]]=styles->entries[source];
+		if (destinations[i]==0) styles->entries[0].info.protected=false;
+	}
+	return 0;
+}
+
 static int
 style_clone(const void *object, void **result)
 {

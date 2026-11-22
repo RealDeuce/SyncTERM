@@ -2433,3 +2433,19 @@ allows queries, locally rejects projection and accepts the next wire selector
 without disconnecting. Native ownership/state/copy and every-split wire tests
 cover the corresponding kernel boundaries. No ordinary ANSI/RIP1.54 rendering
 or scrolling path is changed; HEADER/other live COPY families remain pending.
+
+
+`st_rip3_style_copy_connected_test.py` exercises live STYLE/BUT entry COPY via
+actual RIP3 TCP sessions in CP437 and UTF-8 at the presets and custom720×400.
+It checks full permission preflight, undefined/current/repeated/zero targets,
+STYLE-carried versus BUT-cleared protection, actual copied drawing/fill colors
+and button dimensions/face/hotkey actions. Coherent captures assert no paint
+at COPY, retained independent selectors/graphics cursor/native ANSI rendition
+and raster, and nonfatal malformed-reference recovery. Native tests compare
+all represented record fields and raw protection on hidden undefined BUT
+entries. These value copies use the existing session-owned records and add no
+renderer/damage layer. Shared TW-entry COPY, HEADER and remembered PORT pairs/
+PCB remain pending; the specific physical clipping extent question is tracked
+in new issue146 against PR145. The selected reference pin is
+`f14e410915f11f64d2287eec82ebf4770c3baf41`; RIP1.54 remains at its original
+preservation baseline. See the detailed RIP3 conformance/adoption inventories.

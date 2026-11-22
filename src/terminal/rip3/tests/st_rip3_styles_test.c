@@ -77,6 +77,47 @@ defaults(void)
 }
 
 static int
+entry_copies(void)
+{
+	struct st_rip3_styles *styles=NULL;
+	struct st_rip3_style initial=defaults(), source=value(5), changed=value(6);
+	struct st_rip3_style_info info;
+	unsigned current;
+	const unsigned destinations[]={0,6,35,35};
+	CHECK(st_rip3_styles_create(&styles,&initial)==0);
+	CHECK(st_rip3_styles_define(styles,5,&source)==0);
+	CHECK(st_rip3_styles_protect(styles,5,true)==0);
+	CHECK(st_rip3_styles_switch(styles,6)==0);
+	CHECK(st_rip3_styles_copy_entries(styles,5,destinations,4)==0);
+	CHECK(st_rip3_styles_current(styles,&current)==0 && current==6);
+	for (size_t i=0;i<4;i++) {
+		CHECK(expect(styles,destinations[i],&source)==0);
+		CHECK(st_rip3_styles_info(styles,destinations[i],&info)==0);
+		CHECK(info.defined && info.protected==(destinations[i]!=0));
+	}
+	/* A late protected, self or invalid destination cannot partially define
+	 * earlier entries. A protected source remains readable. */
+	const unsigned protected[]={7,6,8}, self[]={7,5,8}, range[]={7,36,8};
+	CHECK(st_rip3_styles_copy_entries(styles,5,protected,3)==IO_ERROR_PERMISSION_DENIED);
+	CHECK(st_rip3_styles_copy_entries(styles,5,self,3)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_styles_copy_entries(styles,5,range,3)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_styles_copy_entries(styles,34,destinations,4)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_styles_copy_entries(styles,36,destinations,4)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_styles_copy_entries(styles,5,NULL,1)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_styles_copy_entries(styles,5,destinations,0)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_styles_copy_entries(NULL,5,destinations,4)==IO_ERROR_INVALID_ARGUMENT);
+	for (unsigned i=7;i<=8;i++) {
+		CHECK(st_rip3_styles_info(styles,i,&info)==0 && !info.defined);
+	}
+	CHECK(st_rip3_styles_protect(styles,6,false)==0);
+	CHECK(st_rip3_styles_set(styles,6,&changed)==0);
+	CHECK(expect(styles,5,&source)==0 && expect(styles,0,&source)==0);
+	CHECK(expect(styles,35,&source)==0 && expect(styles,6,&changed)==0);
+	CHECK(st_rip3_styles_info(styles,5,&info)==0 && info.protected);
+	st_rip3_styles_destroy(styles);return 0;
+}
+
+static int
 records(void)
 {
 	struct st_rip3_styles *styles = NULL;
@@ -321,8 +362,10 @@ host_metadata(void)
 	CHECK(reference(&host, "$PROT(STYLE,S0)$", "") == 0);
 	CHECK(reference(&host, "$COPY(STYLE,S0,TBL)$", "") == 0 && expect(styles, 1, &changed) == 0);
 	CHECK(reference(&host, "$INUSE(STYLE,S0)$", "1") == 0);
-	CHECK(reference(&host, "$SGS$", NULL) == 0 && reference(&host, "$RGS$", NULL) == 0);
-	CHECK(reference(&host, "$CUR(STYLE)$", "2") == 0);
+	CHECK(reference(&host, "$SGS$", "") == 0);
+	CHECK(st_rip3_styles_set(styles,1,&initial)==0 && st_rip3_styles_switch(styles,3)==0);
+	CHECK(reference(&host, "$RGS$", "") == 0 && expect(styles,1,&changed)==0);
+	CHECK(reference(&host, "$CUR(STYLE)$", "3") == 0);
 	st_rip3_styles_destroy(styles);
 	st_rip3_backup_destroy(backup);
 	return 0;
@@ -410,6 +453,7 @@ int
 main(void)
 {
 	CHECK(records() == 0);
+	CHECK(entry_copies() == 0);
 	CHECK(errors() == 0);
 	CHECK(snapshots() == 0);
 	CHECK(host_metadata() == 0);

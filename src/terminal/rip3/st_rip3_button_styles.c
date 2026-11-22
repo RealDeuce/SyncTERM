@@ -113,6 +113,26 @@ st_rip3_button_styles_protect(struct st_rip3_button_styles *styles, unsigned num
 }
 
 int
+st_rip3_button_styles_copy_entries(struct st_rip3_button_styles *styles, unsigned source,
+    const unsigned *destinations, size_t count)
+{
+	if (styles==NULL || destinations==NULL || count==0) return IO_ERROR_INVALID_ARGUMENT;
+	if (source>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (!styles->entries[source].in_use) return IO_ERROR_NOT_FOUND;
+	for (size_t i=0;i<count;i++) {
+		if (destinations[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+		if (destinations[i]==source) return IO_ERROR_INVALID_ARGUMENT;
+		if (styles->entries[destinations[i]].protected) return IO_ERROR_PERMISSION_DENIED;
+	}
+	for (size_t i=0;i<count;i++) {
+		struct button_entry *destination=&styles->entries[destinations[i]];
+		destination->value=styles->entries[source].value;
+		destination->in_use=1;destination->protected=false;
+	}
+	return 0;
+}
+
+int
 st_rip3_button_styles_reset_entry(struct st_rip3_button_styles *styles, unsigned number)
 {
 	if (styles==NULL) return IO_ERROR_INVALID_ARGUMENT;

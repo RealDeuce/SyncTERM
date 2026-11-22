@@ -849,3 +849,38 @@ open; no existing issue receives comments and no source is pushed.
 The queue has 2055 implemented, 1715 pending, 3121 unreviewed, 1465 context,
 67 excluded and 26 blocked units. The original RIP1.54 freeze, arbitrary entry
 raster and no-VT102/external-launch exclusions remain authoritative.
+
+
+## PR #143/#145: ENV scope correction and remembered PORT copy pairs
+
+Adopt reviewed [PR #143](https://github.com/bbs-land/remote-imaging-protocol/pull/143)
+head `e83facab5d4198b1603d86d3918915cad4cd81fb` and
+[PR #145](https://github.com/bbs-land/remote-imaging-protocol/pull/145) head
+`1e9d95d4fa80c59dca9002b50f36ae689b3d2ac3` through selected fork stable
+`f14e410915f11f64d2287eec82ebf4770c3baf41`. Both actual heads are ancestral:
+seven commits ahead/none behind for PR143, two ahead/none behind for PR145.
+The later commits alter workflow/research checkpoint material, not the reviewed
+normative contract. Archive SHA-256:
+`8f715b0b0b9e9cc1814f08a069e6ce40dc5bf16e5e51f73df8e33a800b0088cf`.
+Seven of the same 68 normative documents change. Preserve 8428 exact
+source/heading/text matches, relocate 866, retire 21 and review 103 new units,
+yielding 8531. All retired rows, including three implemented claims, retain
+complete former evidence in adoption history. All 67 previous derivation hashes
+remain unchanged; add the #142/#144 derivations for 69. The complete normative
+path set and original ALPHA4 hash are unchanged. Downloaded files are read as
+data; no upstream instructions, code, client or probes are executed.
+
+B142 is answered: SENV/RENV's foreign-selection list now agrees with ENV-only
+ownership and the independently verified connected implementation. Existing
+runtime evidence is reused for those editorial corrections. B144 is answered
+by an explicitly completed portable remembered-pair contract, distinguished from
+the earlier source observations: final DEVICE offsets, named producers, COPY
+reversal, overlap snapshots, optional state and lifecycle/backup rules. Those
+new runtime requirements remain pending; neither existing pixel transfers nor
+PORT snapshots establish PCB completion.
+
+The adoption queue has 2080 implemented, 1782 pending, 3091 unreviewed,
+1486 context, 67 excluded and 25 blocked units. Subsequent implementation and
+new issue146 bookkeeping are recorded separately. No covered issue receives
+comments; the original RIP1.54 freeze, arbitrary entry raster and no-VT102/
+external-launch exclusions remain authoritative.

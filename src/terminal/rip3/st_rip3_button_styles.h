@@ -4,6 +4,7 @@
 #define ST_RIP3_BUTTON_STYLES_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct st_rip3_button_styles;
@@ -50,6 +51,11 @@ int st_rip3_button_styles_set(struct st_rip3_button_styles *, unsigned number,
 	const struct st_rip3_button_style *value);
 int st_rip3_button_styles_select(struct st_rip3_button_styles *, unsigned number);
 int st_rip3_button_styles_protect(struct st_rip3_button_styles *, unsigned number, bool protect);
+/* Copy a defined source after validating every destination. Destinations
+ * become defined and unprotected, including copies from protected sources.
+ * Selection is retained; self-copy/protected targets fail without mutation. */
+int st_rip3_button_styles_copy_entries(struct st_rip3_button_styles *, unsigned source,
+	const unsigned *destinations, size_t count);
 /* Specific/TBL resets preserve selection and protected records. Outer SOFT
  * selects zero separately. Independent backup objects are never cleared. */
 int st_rip3_button_styles_reset_entry(struct st_rip3_button_styles *, unsigned number);

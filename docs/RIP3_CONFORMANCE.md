@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-73dfe86c6601990e931237984712197c354999fd](https://github.com/RealDeuce/remote-imaging-protocol/tree/73dfe86c6601990e931237984712197c354999fd/version/3.0)
+f14e410915f11f64d2287eec82ebf4770c3baf41](https://github.com/RealDeuce/remote-imaging-protocol/tree/f14e410915f11f64d2287eec82ebf4770c3baf41/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8209,3 +8209,62 @@ The 8449-unit queue now has 2071 implemented, 1713 pending, 3092 unreviewed,
 1476 context, 67 excluded and 30 blocked units. Arbitrary entry raster and the
 no-VT102/external-launch exclusions remain authoritative; full RIP3 compliance
 is not claimed.
+
+
+## PR143/145 adoption and connected STYLE/BUT entry COPY
+
+Advance the selected stable pin to `f14e410915f11f64d2287eec82ebf4770c3baf41`.
+The [adoption record](RIP3_REFERENCE_ADOPTION.md) retains actual PR heads,
+ancestry, archive/document/derivation hashes and every retired source unit's
+former evidence. PR143 answers B142's SENV foreign-selection list; existing
+connected ENV evidence applies without new runtime changes. PR145 answers
+B144 with an explicit portable remembered-pair/PCB contract. Its new producer,
+metadata and reverse-copy requirements remain pending implementation.
+
+New [issue146](https://github.com/bbs-land/remote-imaging-protocol/issues/146)
+references covered #144/PR145 without commenting on them. Oversized logical
+viewports can reach a physically clipped projected transfer: the kernel keeps
+the original fit and may skip out-of-backing source samples. Physical edges can
+map to fractional extent boundaries. The new pair contract needs to distinguish
+logical final rectangles from physical backing clipping and specify integer
+correspondence if physical clipping belongs in the pair. Two directly affected
+geometry units are blocked; accepted pixel kernels are unchanged and other
+RIP3 work proceeds independently.
+
+Actual sessions now execute numeric/CUR-source `$COPY(STYLE,source,dest,...)$`
+and `$COPY(BUT,source,dest,...)$`. Each validates the source and every target
+before writing any value. Undefined sources are not implicitly selected;
+protected sources remain readable. Protected targets, self-copy and invalid
+indices reject without partial definitions, including raw protection retained
+on an undefined BUT entry by the shipped reset defect. Repeated writable targets
+are permitted. STYLE copies its owned represented fields and source protection,
+except zero stays unprotected. BUT copies its owned definition and explicitly
+marks every destination defined/unprotected. Current indices and other tables
+remain live; copying into current immediately changes the existing consumers.
+These are value operations with no allocations, new renderer buffers, damage
+tracking or pixel work. All failures stay below the void RIP/session boundary.
+
+Independent native tests compare every represented STYLE/BUT field and copied
+value ownership, zero/repeated/current destinations, protection and complete
+failure preflight. The STYLE host test's obsolete unsupported SGS/RGS assertion
+now verifies successful restore and the retained live-current-index exception.
+Connected CP437/UTF-8 tests exercise four rasters (640×480,800×600,1024×768 and
+custom720×400), compare both planes around COPY, and assert actual copied point/
+fill colors, button dimensions/face/hotkey output, editable copied BUT records,
+preserved resident button appearance, other selectors, graphics cursor, native
+ANSI cursor/rendition and recovery after malformed references. Expected geometry
+and colors follow the contract independently of generated emulator images.
+
+Six distinct relevant native/connected CTests pass, followed by the contract and
+original RIP154 preservation guards. The one native FreeBSD amd64 Release CMake
+configuration uses `/usr/bin/cc`; the application and affected targets build
+without introduced C compiler warnings (the build driver reports clock skew).
+Unrelated passed rendering suites are reused. No ordinary ANSI renderer, frozen
+RIP1.54 source, pixel kernel or scrolling optimization changes. No speed or
+native-device claim follows from these functional tests. TW live-entry COPY,
+remaining STYLE/PORT inventories, HEADER and remembered pairs/PCB are unfinished.
+
+The 8531-unit queue has 2087 implemented, 1774 pending, 3088 unreviewed,
+1488 context, 67 excluded and 27 blocked units. Full RIP3 compliance remains
+incomplete. The original RIP1.54 freeze, arbitrary entry raster and no-VT102/
+external-launch exclusions remain authoritative.

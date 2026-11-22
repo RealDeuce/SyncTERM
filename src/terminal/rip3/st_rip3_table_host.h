@@ -39,8 +39,9 @@ struct st_rip3_table_host {
  * supports PAL/PORT/ENV/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
- * PAL/ENV live-entry COPY validates all destinations before mutation and
- * copies source protection except to zero. RESET(PAL,...) handles current or
+ * PAL/ENV/STYLE/BUT live-entry COPY validates all destinations before mutation.
+ * PAL/ENV/STYLE copy source protection except to zero; BUT clears destination
+ * protection. RESET(PAL,...) handles current or
  * specific entries, TBL and the base/numbered/stack/aggregate backup selectors.
  * It validates the full selector list and required bindings first. Palette
  * resets preserve selection even when it becomes undefined; ISPROT(PAL,CUR)
