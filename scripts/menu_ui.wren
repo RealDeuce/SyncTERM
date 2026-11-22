@@ -389,7 +389,7 @@ class AttachedChoice is ModalPane {
     var size = Screen.checked_(Screen.size)
     var below = size[1] - _anchor.bottom
     var above = _anchor.y - 1
-    var height = _list.count.min(8) + 2
+    var height = _list.count + 2
     var upwards = below < height && above > below
     height = height.min(upwards ? above : below).max(3).min(size[1])
     var width = _anchor.w.max(3).min(size[0])
@@ -399,6 +399,9 @@ class AttachedChoice is ModalPane {
     if (bounds == rect) return
     bounds = rect
     _list.bounds = innerBounds
+    // A taller viewport can make the whole list fit while its old scroll
+    // offset is still valid for the selection. Clamp it to the new extent.
+    _list.scrollTop = _list.scrollTop
   }
 
   draw() {

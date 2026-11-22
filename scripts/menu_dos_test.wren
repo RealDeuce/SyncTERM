@@ -104,7 +104,13 @@ class DosTests {
       for (label in pages) tabWidth = tabWidth + Screen.checked_(Screen.textWidth(label, 0)) + 4
       check(tabWidth <= 78, "entry tabs fit one row at 80 columns")
       var labels = []
-      for (page in 0...pages.count) for (f in DosForms.entryFields_(app, p, d, defaults, page)) labels.add(f[0])
+      for (page in 0...pages.count) for (f in DosForms.entryFields_(app, p, d, defaults, page)) {
+        labels.add(f[0])
+        if (f[1] == "enum") check(f[10] != null, "missing choice widths for %(f[0])")
+        if (f[0] == "TCP Port") check(DosForms.controlWidth_(f) == 7, "TCP port fits five digits and brackets")
+        if (f[0] == "Username") check(DosForms.controlWidth_(f) == 32, "username fits its byte limit and brackets")
+        if (f[0] == "Name") check(DosForms.controlWidth_(f) == 47, "name fits its maximum legal cell width and brackets")
+      }
       for (row in rows) check(row[3][0] == "Log Configuration" || labels.where {|label| label == row[3][0] }.count == 1, "missing or duplicated entry field %(row[3][0]) type %(type)")
       check(labels.where {|label| label == "Comment" }.count == (defaults ? 0 : 1), "notes only belong to personal entries")
       for (label in ["Log File", "Append Log File", "File Transfer Log Level", "Protocol Log Level", "CTerm Log Level"]) {
@@ -122,6 +128,19 @@ class DosTests {
     list.handle(MouseEvent.new(Mouse.button1DblClick, 3, 2))
     check(activation == 1, "double click activates")
     var settings = Menu.settings
+    check(DosForms.settingsPages_.join(",") == "Program,Connections,Appearance,Files,About", "five grouped settings tabs")
+    var settingsTabWidth = 0
+    for (label in DosForms.settingsPages_) settingsTabWidth = settingsTabWidth + Screen.checked_(Screen.textWidth(label, 0)) + 4
+    check(settingsTabWidth <= 78, "settings tabs fit one row at 80 columns")
+    for (connected in [false, true]) {
+      var bookFields = []
+      for (page in 0...DosForms.settingsPages_.count) bookFields.addAll(DosForms.settingsFields_(app, settings, connected, page, Fn.new {|picked| null }))
+      for (oldPage in 0...7) for (field in DosForms.programFields_(app, settings, connected, oldPage)) {
+        var matches = bookFields.count {|f| f[1] != "info" && f[0] == field[0] }
+        check(matches == 1, "missing or duplicated grouped setting %(field[0])")
+      }
+      check(DosForms.settingsFields_(app, settings, connected, 4, null).count {|f| f[1] == "info" } == Menu.buildOptions.count, "build options are inline read-only facts")
+    }
     var ui = settings.mainUi
     settings.mainUi = 1 - ui
     check(Menu.settings.mainUi == ui, "settings isolation")
@@ -132,6 +151,9 @@ class DosTests {
       for (f in DosForms.programFields_(app, settings, false, page)) {
         check(f[2].call() != null, "missing setting value %(f[0])")
         check(f[9] is String, "missing setting help %(f[0])")
+        if (f[1] == "enum") check(f[10] != null, "missing choice widths for %(f[0])")
+        if (f[0] == "Main Interface") check(DosForms.controlWidth_(f) == 12, "interface fits its longest choice")
+        if (f[0] == "Scrollback Buffer Lines") check(DosForms.controlWidth_(f) == 12, "scrollback fits its maximum and brackets")
       }
     }
     check(Menu.load(null) == null, "reload")

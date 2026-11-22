@@ -744,18 +744,19 @@ a separate visible count and action; filtering must not conceal which records
 the action will use. A field-list editor can remain available, but divide
 long forms into named groups and keep save/error actions visible.
 
-==== Implemented DOS presentation
+==== Implemented Retro presentation
 
-SyncTERM now includes a DOS presentation selected through Program Settings →
-Main Interface. The existing Classic interface remains the default. The DOS
+SyncTERM now includes a Retro presentation selected through Program Settings →
+Main Interface. The existing Classic interface remains the default. The Retro
 presentation implements the compact full-width table with connection columns,
 configured terminal/graphics indicators, additional columns at wider sizes,
-and separate full-page draft forms for entries, new-entry defaults, and program
-settings. It uses the same directory model and selected colour theme. The
+and separate full-page draft forms for entries and new-entry defaults. Settings
+uses a common book grouped into Program, Connections, Appearance, Files and
+About. It uses the same directory model and selected colour theme. The
 selected presentation also serves the connected edit-only directory.
 
 The implementation preserves the existing directory actions and adds explicit
-Save/Cancel drafts to the DOS forms. This does not change Classic's editor
+Save/Cancel drafts to the Retro forms. This does not change Classic's editor
 acceptance rules. See link:Wren.adoc#main-interfaces[Built-in main interfaces]
 for the current interaction contract. The library, drawer, and thumbnail layouts
 below remain research proposals.

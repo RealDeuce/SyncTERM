@@ -83,7 +83,7 @@ read_document(const char *path, ini_document_t **document)
 static int
 test_main_ui(const char *path)
 {
-	const char *values[] = {"", "MainUI=DOS\n", "MainUI=Classic\n", "MainUI=unknown\n",
+	const char *values[] = {"", "MainUI=Retro\n", "MainUI=Classic\n", "MainUI=unknown\n",
 	    "MainUI=2\n", "MainUI=-1\n", "MainUI=18446744073709551615\n"};
 	for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
 		char text[128];
@@ -92,6 +92,10 @@ test_main_ui(const char *path)
 		CHECK(st_settings_reload() == 0);
 		CHECK(st_settings.main_ui == (i == 1 ? ST_MAIN_UI_DOS : ST_MAIN_UI_CLASSIC));
 	}
+	CHECK(write_text(path, "[SyncTERM]\nMainUI=dOs\nUnknown=preserve\n") == 0);
+	CHECK(st_settings_reload() == 0 && st_settings.main_ui == ST_MAIN_UI_DOS);
+	CHECK(write_text(path, "[SyncTERM]\nMainUI=Classic\nUnknown=preserve\n") == 0);
+	CHECK(st_settings_reload() == 0);
 	struct st_settings draft;
 	st_settings_init(&draft);
 	CHECK(st_settings_copy(&draft, &st_settings));
@@ -105,7 +109,7 @@ test_main_ui(const char *path)
 	ini_document_t *document = NULL;
 	CHECK(read_document(path, &document) == 0);
 	ini_section_t *section = ini_document_find_section(document, "SyncTERM");
-	CHECK(strcmp(ini_section_get_string(section, "MainUI", ""), "DOS") == 0);
+	CHECK(strcmp(ini_section_get_string(section, "MainUI", ""), "Retro") == 0);
 	CHECK(strcmp(ini_section_get_string(section, "Unknown", ""), "preserve") == 0);
 	ini_document_free(&document);
 	st_settings_dispose(&draft);

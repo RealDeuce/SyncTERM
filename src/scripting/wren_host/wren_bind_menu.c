@@ -1726,7 +1726,7 @@ fn_menu_music_modes(WrenVM *vm)
 static void
 fn_menu_main_ui_choices(WrenVM *vm)
 {
-	static const char *const names[] = {"Classic", "DOS"};
+	static const char *const names[] = {"Classic", "Retro"};
 	push_rows(vm, names, sizeof(names) / sizeof(names[0]));
 }
 

@@ -955,15 +955,17 @@ once per BBS session for `connected`.
 
 === Built-in main interfaces [[main-interfaces]]
 
-Program Settings → Main Interface selects *Classic* or *DOS*. Classic remains
+Main Interface selects *Classic* or *Retro*: in Classic it is under Program
+Settings, and in Retro it is on Settings → Program. Classic remains
 the default when `MainUI` is absent or unrecognized. The accepted choice is
-stored as `MainUI=Classic` or `MainUI=DOS` under `[SyncTERM]` and takes effect
-when Program Settings closes, without restarting or reconnecting. It selects
+stored as `MainUI=Classic` or `MainUI=Retro` under `[SyncTERM]` and takes effect
+when Settings closes, without restarting or reconnecting. It selects
 both the offline directory and the existing edit-only connected directory.
 Custom `main_menu` script overrides retain precedence over this built-in choice.
+The legacy `MainUI=DOS` spelling remains readable; saves use `MainUI=Retro`.
 The layout and selected colour theme are independent.
 
-DOS opens on a full-width calling table. Its fixed 45-cell Name column fits
+Retro opens on a full-width calling table. Its fixed 45-cell Name column fits
 the longest legal name under the 30-scalar / 60-byte UTF-8 limits, including
 wide characters. Address uses the remaining space; Port, Type, Term/Graphics,
 Encoding, Calls, and Last Call appear as space permits. At 80 columns the table
@@ -975,7 +977,7 @@ live protocol negotiation or use the advertised TERM string as an emulator name.
 The last-call date uses local time. Long text is clipped on grapheme boundaries.
 
 Up/Down and paging keys select entries; type-to-search and Ctrl-F/Ctrl-G retain
-the usual list behavior, with DOS Find also matching connection columns. Enter
+the usual list behavior, with Retro Find also matching connection columns. Enter
 connects offline and edits while connected. F2 edits, Insert adds, Delete
 removes, F5/F6 copy/paste, Ctrl-S manages sorting, and `<`/`>` cycle sort profiles.
 A single mouse click selects a directory row; double-click activates it.
@@ -987,16 +989,25 @@ Left/Right choose a focused command and Enter runs it. Escape exits the director
 or returns to the existing session.
 Opening, resizing, or switching the directory does not resize the remote terminal.
 
-DOS Settings and its list menus (including screen modes, fonts, themes, web
-lists, sorting, and Wren scripts) use full-page panels with a framed options
-list and bottom command hints. At 80 columns or wider, a separate scrollable
-information panel shows the menu's help or current preview details; narrower
-screens keep the options full-width and provide help through F1. Tab moves
-between the list and Back; Escape or Back returns to the owning screen.
-Nested menus use the same presentation. Classic retains its compact menus.
+Retro Settings opens one tabbed book with five categories on one row at 80
+columns: Program (general behavior and audio/MIDI), Connections (new-entry
+defaults, modem, security, shell and TLS), Appearance (colours, themes, fonts and
+display), Files (list path, web lists and file locations), and About (read-only
+build capabilities and licenses). Regular settings edit directly in the book.
+Resource editors return to the tab that opened them; Escape from a child
+returns one level. Pending book edits survive child editors, including theme
+selection. Build information stays inside About instead of opening another menu.
+Resource managers and the defaults editor retain their own acceptance rules;
+the book's Save/Cancel controls apply to its program-settings draft.
 
-DOS entry settings, New Connection Defaults, and Program Settings use separate
-full-page forms. Entry settings have three tabs on one row at 80 columns:
+Resource list selectors, sorting and Wren scripts use full-page framed lists
+with bottom command hints. At 80 columns or wider, a separate scrollable
+information panel shows help or preview details. Narrow screens retain F1 help.
+Tab moves between the list and Back. Escape or Back returns to the owning tab
+or screen. Classic retains its compact menus.
+
+Retro entry settings and New Connection Defaults use separate full-page forms.
+They share the Settings book's tab and field controls. Entry settings have three tabs on one row at 80 columns:
 Connection (including login and security), Terminal (including scripts and
 palette), and Files & Notes (paths, logging, and comment). New Connection
 Defaults uses the same grouping without the per-entry comment, naming its last
@@ -1012,10 +1023,15 @@ movement; at either end, Left/Right can cross to an adjacent field column.
 keyboard focus; `tab.selected.focused` styles the combined state. Brackets
 mark the current tab and `>` marks keyboard focus, including when colours match.
 Labels sit beside their controls; text and number editors retain shaded,
-bracketed rectangles when unfocused.
+bracketed rectangles when unfocused. Text boxes fit their field limits, numeric
+boxes fit their minimum/maximum representation, and enum boxes fit their longest
+choice, all capped by the available column width. Manage actions are compact
+buttons sized to their labels; read-only facts are not editable boxes.
 Enum fields have a down-arrow marker and open an attached dropdown with Enter,
 Space, Alt-Down, or a click. The list opens below the field, or above when space
-is limited; long lists scroll. Arrows, paging keys, Home/End, and typing navigate
+is limited. It expands to show all choices or fill the available height on that
+side; a scrollbar appears only when the choices still do not fit.
+Arrows, paging keys, Home/End, and typing navigate
 choices. Enter or a click accepts; Tab accepts and moves to the next control group.
 Escape or an outside click cancels without changing the draft. Resizing keeps
 the list attached, or closes it if the field moves out of view. Opening a
@@ -1199,7 +1215,7 @@ boundary does not hide layout or painting failures, which still abort
 `MainMenu.run` rather than repeatedly failing during every redraw.
 
 The Classic controller defines the following main-menu interaction contract.
-The DOS presentation shares its directory operations and host entry point, with
+The Retro presentation shares its directory operations and host entry point, with
 the navigation and draft-editing differences described in <<main-interfaces>>.
 After a connection or failed connection attempt, the offline directory restores
 its selected entry and viewport rather than returning to the first row. The
@@ -5157,7 +5173,7 @@ if (error != null) System.print(error.message)
 
 === Saving detached menu drafts [[menu-drafts]]
 
-The DOS editors use the existing `Profile.copy()` to keep profile changes out
+The Retro editors use the existing `Profile.copy()` to keep profile changes out
 of the working directory until Save. The following menu-only additions accept
 an owned, editable, detached Profile; passing another foreign type or a borrowed
 profile view aborts. They do not consume the supplied Profile.
@@ -5261,7 +5277,7 @@ when `Menu.encryptionAvailable` is false.
   Persists as `AtariSTKeyClicks` under `[SyncTERM]`.
 
 | `mainUi`
-| Built-in main interface: 0 is Classic (default), 1 is DOS. Other assignments
+| Built-in main interface: 0 is Classic (default), 1 is Retro. Other assignments
   abort. `Menu.mainUiChoices` supplies `[value, label]` rows. This uses the normal
   settings snapshot, apply/save, merge, generation, and safe-mode contracts.
   The built-in controller changes presentation after Program Settings returns.
@@ -8197,7 +8213,7 @@ for any app that needs external wake-ups.
 widget's `parent` to an App is supported and is what `pushModal`
 does internally.
 
-The built-in DOS directory sets `app.menuPanels = true` so `MenuUi` list
+The built-in Retro directory sets `app.menuPanels = true` so `MenuUi` list
 choices use its full-page panel presentation. The default is `false`, keeping
 Classic and custom applications' compact menus. Attached form dropdowns retain
 their field-relative layout in either presentation.

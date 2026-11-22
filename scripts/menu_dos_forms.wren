@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import "syncterm" for Host, Screen, Key, KeyEvent, Mouse, MouseEvent, Mod, Profile, Text
 import "syncterm_menu" for Menu, MenuError, DirectoryEntry
-import "ui_widget" for Rect
+import "ui_widget" for Rect, Widget
 import "ui_pane" for Pane
 import "ui_app" for App
 import "ui_input" for SelectOnFocusInput
@@ -13,6 +13,7 @@ import "ui_popup" for Alert, Confirm
 import "ui_style" for Theme
 import "menu_ui" for MenuUi
 import "menu_bbs_editor" for BbsEditor
+import "menu_dos" for DosTable
 import "menu_settings_ui" for SettingsMenu
 
 // Selection belongs to the tab; keyboard focus can move into its fields.
@@ -64,7 +65,7 @@ class DosFormChoice is Button {
     var st = style(focused ? "button.focused" : "button")
     var width = bounds.w - _valueX
     Painter.fill(surface, Rect.new(_valueX, 0, width, 1), " ", st)
-    Painter.text(surface, _valueX, 0, "[ %(_value)", st, width - (_dropdown ? 4 : 2))
+    Painter.text(surface, _valueX, 0, "[ %(_value)", st, width - (_dropdown ? 3 : 1))
     Painter.text(surface, bounds.w - (_dropdown ? 3 : 1), 0, _dropdown ? " v]" : "]", st, _dropdown ? 3 : 1)
   }
   handle(event) {
@@ -90,6 +91,42 @@ class DosFormCheckbox is Checkbox {
   }
   handle(event) {
     if (event is MouseEvent && event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY)) parent.focusedIndex = parent.children.indexOf(this)
+    return super.handle(event)
+  }
+}
+
+// Read-only facts can receive focus for contextual help, but never edit.
+class DosFormInfo is Widget {
+  construct new(label, value, valueX) {
+    super()
+    _label = label
+    _value = value.toString
+    _valueX = valueX
+  }
+  onPaint_() {
+    var st = style(focused ? "list.item.focused" : "default")
+    Painter.fill(surface, Rect.new(0, 0, bounds.w, 1), " ", st)
+    Painter.text(surface, 0, 0, _label, st, _valueX - 1)
+    Painter.text(surface, _valueX, 0, _value, st, bounds.w - _valueX)
+  }
+  handle(event) {
+    if (event is MouseEvent && event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY)) {
+      parent.focusedIndex = parent.children.indexOf(this)
+      return true
+    }
+    return false
+  }
+}
+
+class DosFormAction is Button {
+  construct new(label) {
+    super(label)
+    hotkeyIdx = -1
+  }
+  handle(event) {
+    if (event is MouseEvent && event.event == Mouse.button1Click && bounds.contains(event.startX, event.startY)) {
+      parent.focusedIndex = parent.children.indexOf(this)
+    }
     return super.handle(event)
   }
 }
@@ -291,6 +328,8 @@ class DosFormPane is Pane {
       var left = 3 + col * pitch
       var row = top + (index % rows)
       var width = (pitch - 2).max(1)
+      var controlWidth = DosForms.controlWidth_(f)
+      if (controlWidth != null) width = width.min(valueX + controlWidth)
       var widget = null
       if (f[1] == "text" || f[1] == "number") {
         widget = DosFormInput.new()
@@ -303,10 +342,21 @@ class DosFormPane is Pane {
         input.onSubmit = Fn.new {|text| moveWithinGroup_(Key.down) }
         _inputs.add([input, f])
         _labels.add([left - 1, row - 1, f[0], valueX, width])
+      } else if (f[1] == "info") {
+        widget = DosFormInfo.new(f[0], f[2].call(), valueX)
       } else if (f[1] == "bool") {
         widget = DosFormCheckbox.new(f[0], valueX)
         widget.value = f[2].call()
         widget.onChange = Fn.new {|value| f[3].call(value) }
+      } else if (f[1] == "action") {
+        var value = f[2].call()
+        widget = DosFormAction.new(value == null || value.toString.count == 0 ? "Open" : value.toString)
+        widget.onPress = Fn.new {
+          if (!flush_()) return
+          f[6].call()
+          rebuild_()
+        }
+        _labels.add([left - 1, row - 1, f[0], valueX, width, false])
       } else {
         var value = f[2].call()
         widget = DosFormChoice.new(f[0], value, valueX, f[1] == "enum")
@@ -320,6 +370,8 @@ class DosFormPane is Pane {
       add(widget)
       if (f[1] == "text" || f[1] == "number") {
         widget.bounds = Rect.new(left + valueX + 1, row, (width - valueX - 2).max(1), 1)
+      } else if (f[1] == "action") {
+        widget.bounds = Rect.new(left + valueX, row, widget.intrinsicWidth.min((width - valueX).max(1)), 1)
       } else {
         widget.bounds = Rect.new(left, row, width, 1)
       }
@@ -340,6 +392,7 @@ class DosFormPane is Pane {
     Painter.hline(surface, 1, _tabBottom, bounds.w - 2, glyph("frame.display.separator"), style("frame"))
     for (label in _labels) {
       Painter.text(surface, label[0], label[1], label[2], style("default"), label[3] - 1)
+      if (label.count > 5 && !label[5]) continue
       Painter.text(surface, label[0] + label[3], label[1], "[", style("frame"), 1)
       Painter.text(surface, label[0] + label[4] - 1, label[1], "]", style("frame"), 1)
     }
@@ -483,7 +536,27 @@ class DosForms {
   }
   // [label, kind, getter, setter, limit, masked, action, min, max, help]
   static field_(label, kind, get, set, limit, masked, action, min, max, help) {
-    return [label, kind, get, set, limit, masked, action, min, max, help]
+    return field_(label, kind, get, set, limit, masked, action, min, max, help, null)
+  }
+
+  static field_(label, kind, get, set, limit, masked, action, min, max, help, choices) {
+    return [label, kind, get, set, limit, masked, action, min, max, help, choices]
+  }
+
+  static controlWidth_(field) {
+    var kind = field[1]
+    if (kind == "text") return (field[0] == "Name" ? DosTable.nameWidth : field[4]) + 2
+    if (kind == "number") return field[7].toString.count.max(field[8].toString.count) + 2
+    if (kind == "enum") {
+      var width = Screen.checked_(Screen.textWidth(field[2].call().toString, 0))
+      if (field[10] != null) for (choice in field[10]) {
+        var label = choice is List ? choice[1] : choice
+        width = width.max(Screen.checked_(Screen.textWidth(label.toString, 0)))
+      }
+      return width + 5
+    }
+    if (kind == "info") return Screen.checked_(Screen.textWidth(field[2].call().toString, 0))
+    return null
   }
 
   static entryPage_(key, label) {
@@ -532,7 +605,7 @@ class DosForms {
       if (key == "termName") limit = 31
       if (key == "port") limit = 5
       var help = key == null ? BbsEditor.editorHelp_(draft, defaults, true) : BbsEditor.fieldHelp_(key, draft)
-      fields.add(field_(label, kind, get, set, limit, meta[4], row[1], key == "port" ? 1 : null, key == "port" ? 65535 : null, help))
+      fields.add(field_(label, kind, get, set, limit, meta[4], row[1], key == "port" ? 1 : null, key == "port" ? 65535 : null, help, meta.count > 6 ? meta[6] : null))
     }
     if (page == 0 && !defaults) fields.add(field_("Explicit Sort Order", "number", Fn.new { draft["sortOrder"] }, Fn.new {|v| draft["sortOrder"] = v }, 12, false, null, -2147483648, 2147483647, BbsEditor.explicitSortHelp_()))
     if (page == 2 && !defaults) fields.add(field_("Comment", "text", Fn.new { draft["comment"] }, Fn.new {|v| draft["comment"] = v }, 1023, false, null, null, null, "# Comment\n\nPersonal notes for this connection."))
@@ -611,6 +684,154 @@ class DosForms {
     return pane.saved
   }
 
+  static settingsPages_ { ["Program", "Connections", "Appearance", "Files", "About"] }
+
+  static settings(app, connected) {
+    var s = Menu.settings
+    var baseline = Menu.settings
+    var changed = false
+    var action = Fn.new {|picked|
+      // Resource editors may install a theme and invalidate native snapshots.
+      // Preserve only this book's edits when acquiring the new settings.
+      var values = settingsBindings_(s)
+      var initial = settingsBindings_(baseline)
+      var edits = []
+      for (i in 0...values.count) {
+        var value = values[i][0].call()
+        if (value != initial[i][0].call()) edits.add([i, value])
+      }
+      var editing = Fiber.new {
+        if (picked == 1) {
+          var result = entry(app, Menu.defaults, true, false)
+          if (!Host.safeMode && result != null) changed = true
+        } else if (SettingsMenu.runAction(app, picked, connected)) {
+          changed = true
+        }
+      }
+      editing.try()
+      s = Menu.settings
+      baseline = Menu.settings
+      values = settingsBindings_(s)
+      for (edit in edits) values[edit[0]][1].call(edit[1])
+      app.theme = Theme.current
+      if (editing.error != null) Fiber.abort(editing.error)
+    }
+    var pane = DosFormPane.new(app, "Settings", settingsPages_,
+        Fn.new {|page| settingsFields_(app, s, connected, page, action) }, Fn.new {
+      var error = Host.safeMode ? s.apply() : s.save()
+      if (error != null) {
+        Alert.show(app, "Settings", error.message)
+        return false
+      }
+      app.invalidateCursorState()
+      app.theme = Theme.current
+      return true
+    }, Fn.new { s.dirty })
+    app.modal(pane)
+    return pane.saved || changed
+  }
+
+  static settingsBindings_(s) {
+    return [
+      [Fn.new { s.mainUi }, Fn.new {|value| s.mainUi = value }],
+      [Fn.new { s.confirmClose }, Fn.new {|value| s.confirmClose = value }],
+      [Fn.new { s.promptSave }, Fn.new {|value| s.promptSave = value }],
+      [Fn.new { s.colorEmoji }, Fn.new {|value| s.colorEmoji = value }],
+      [Fn.new { s.invertWheel }, Fn.new {|value| s.invertWheel = value }],
+      [Fn.new { s.atariStKeyClicks }, Fn.new {|value| s.atariStKeyClicks = value }],
+      [Fn.new { s.scrollbackLines }, Fn.new {|value| s.scrollbackLines = value }],
+      [Fn.new { s.audioModes }, Fn.new {|value| s.audioModes = value }],
+      [Fn.new { s.midiModes }, Fn.new {|value| s.midiModes = value }],
+      [Fn.new { s.startupMode }, Fn.new {|value| s.startupMode = value }],
+      [Fn.new { s.outputMode }, Fn.new {|value| s.outputMode = value }],
+      [Fn.new { s.cursorStyle }, Fn.new {|value| s.cursorStyle = value }],
+      [Fn.new { s.scalingMode }, Fn.new {|value| s.scalingMode = value }],
+      [Fn.new { s.customColumns }, Fn.new {|value| s.customColumns = value }],
+      [Fn.new { s.customRows }, Fn.new {|value| s.customRows = value }],
+      [Fn.new { s.customFontHeight }, Fn.new {|value| s.customFontHeight = value }],
+      [Fn.new { s.customAspectWidth }, Fn.new {|value| s.customAspectWidth = value }],
+      [Fn.new { s.customAspectHeight }, Fn.new {|value| s.customAspectHeight = value }],
+      [Fn.new { s.listPath }, Fn.new {|value| s.listPath = value }],
+      [Fn.new { s.shellTerm }, Fn.new {|value| s.shellTerm = value }],
+      [Fn.new { s.tlsClientCert }, Fn.new {|value| s.tlsClientCert = value }],
+      [Fn.new { s.tlsClientKey }, Fn.new {|value| s.tlsClientKey = value }],
+      [Fn.new { s.modemDevice }, Fn.new {|value| s.modemDevice = value }],
+      [Fn.new { s.modemRate }, Fn.new {|value| s.modemRate = value }],
+      [Fn.new { s.modemInit }, Fn.new {|value| s.modemInit = value }],
+      [Fn.new { s.modemDial }, Fn.new {|value| s.modemDial = value }],
+      [Fn.new { s.kdfShift }, Fn.new {|value| s.kdfShift = value }],
+      [Fn.new { s.frameColor }, Fn.new {|value| s.frameColor = value }],
+      [Fn.new { s.textColor }, Fn.new {|value| s.textColor = value }],
+      [Fn.new { s.backgroundColor }, Fn.new {|value| s.backgroundColor = value }],
+      [Fn.new { s.inverseColor }, Fn.new {|value| s.inverseColor = value }],
+      [Fn.new { s.lightbarColor }, Fn.new {|value| s.lightbarColor = value }],
+      [Fn.new { s.lightbarBackgroundColor }, Fn.new {|value| s.lightbarBackgroundColor = value }]
+    ]
+  }
+
+  static managerField_(label, picked, action, help) {
+    return field_(label, "action", Fn.new { "Manage" }, null, null, false,
+        Fn.new { action.call(picked) }, null, null, help)
+  }
+
+  static infoField_(label, value, help) {
+    return field_(label, "info", Fn.new { value }, null, null, false,
+        null, null, null, help)
+  }
+
+  static settingsFields_(app, s, connected, page, action) {
+    var fields = []
+    if (page == 0) {
+      fields.addAll(programFields_(app, s, connected, 0))
+      fields.addAll(programFields_(app, s, connected, 2))
+    } else if (page == 1) {
+      fields.add(managerField_("New Connection Defaults", 1, action,
+          "# New Connection Defaults\n\nEdit and save the defaults for new directory entries in their own form."))
+      fields.addAll(programFields_(app, s, connected, 4))
+      fields.addAll(programFields_(app, s, connected, 5))
+      fields.addAll(programFields_(app, s, connected, 3).where {|f| f[0] != "List Path" }.toList)
+      if (!connected && Menu.encryptionAvailable) {
+        fields.add(managerField_("List Encryption", 8, action, SettingsMenu.encryptionHelp_()))
+      }
+    } else if (page == 2) {
+      fields.addAll(programFields_(app, s, connected, 6))
+      fields.add(managerField_("Themes", 5, action,
+          "# Themes\n\nPreview, select, and manage themes. Escape from the theme browser returns here without selecting a preview."))
+      fields.add(managerField_("Font Management", 3, action,
+          "# Font Management\n\nManage additional local fonts and their slots."))
+      if (!connected) fields.add(managerField_("Amiga Font Management", 10, action,
+          "# Amiga Font Management\n\nConfigure the Amiga font families."))
+      if (!connected) {
+        var get = Fn.new { choiceName_(Menu.screenModeChoices, Menu.currentScreenMode) }
+        var choose = Fn.new { action.call(2) }
+        fields.add(field_("Current Screen Mode", "enum", get, null, null, false,
+            choose, null, null, "# Current Screen Mode\n\nChange the local directory display size and mode.", Menu.screenModeChoices))
+      }
+      fields.addAll(programFields_(app, s, connected, 1))
+    } else if (page == 3) {
+      fields.addAll(programFields_(app, s, connected, 3).where {|f| f[0] == "List Path" }.toList)
+      fields.add(managerField_("Web Lists", 0, action, SettingsMenu.webListsHelp_()))
+      var locations = Menu.fileLocations
+      for (row in [["Global Directory", "globalList"], ["Personal Directory", "personalList"],
+          ["Configuration File", "configuration"], ["Default Download Directory", "download"],
+          ["Cache Directory", "cache"], ["SSH Keys File", "keys"],
+          ["Wren Scripts Directory", "scripts"], ["Theme Directory", "themes"]]) {
+        var value = locations[row[1]]
+        fields.add(infoField_(row[0], value, "# %(row[0])\n\n%(value)"))
+      }
+    } else if (page == 4) {
+      fields.add(managerField_("Licenses", 9, action,
+          "# Licenses\n\nRead bundled software and font license notices."))
+      for (row in Menu.buildOptions) {
+        var value = row[2] ? "Built in" : "Unavailable"
+        var label = row[0] == "Terminal" ? row[1] : "%(row[0]): %(row[1])"
+        fields.add(infoField_(label, value,
+            "# Build Options\n\n%(label): %(value).\n\nThese capabilities were selected when this copy of SyncTERM was built; they are read-only."))
+      }
+    }
+    return fields
+  }
+
   static settingHelp_(label) {
     var help = SettingsMenu.settingHelp_(label)
     return help == null ? SettingsMenu.programHelp_(false, true) : help
@@ -630,10 +851,10 @@ class DosForms {
       }
       get = Fn.new { choiceName_(Menu.mainUiChoices, s.mainUi) }
       var choose = Fn.new {
-        var value = MenuUi.choice(app, "Main Interface", Menu.mainUiChoices, s.mainUi, "# Main Interface\n\nClassic keeps the original layout. DOS uses a wide directory and full-page forms. The choice applies when Program Settings closes. Custom main-menu script overrides take precedence.")
+        var value = MenuUi.choice(app, "Main Interface", Menu.mainUiChoices, s.mainUi, "# Main Interface\n\nClassic keeps the original layout. Retro uses a wide directory and full-page forms. The choice applies when Settings closes. Custom main-menu script overrides take precedence.")
         if (value != null && value != s.mainUi) s.mainUi = value
       }
-      fields.add(field_("Main Interface", "enum", get, set, null, false, choose, null, null, "# Main Interface\n\nClassic keeps the original layout. DOS uses a wide directory and full-page forms. The choice applies when Program Settings closes. Custom main-menu script overrides take precedence."))
+      fields.add(field_("Main Interface", "enum", get, set, null, false, choose, null, null, "# Main Interface\n\nClassic keeps the original layout. Retro uses a wide directory and full-page forms. The choice applies when Settings closes. Custom main-menu script overrides take precedence.", Menu.mainUiChoices))
     }
     if (page == 0) {
       var get = Fn.new { s.confirmClose }
@@ -687,7 +908,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Startup Screen Mode", Menu.screenModeChoices, s.startupMode, settingHelp_("Startup Screen Mode"))
         if (value != null && value != s.startupMode) s.startupMode = value
       }
-      fields.add(field_("Startup Screen Mode", "enum", get, set, null, false, choose, null, null, settingHelp_("Startup Screen Mode")))
+      fields.add(field_("Startup Screen Mode", "enum", get, set, null, false, choose, null, null, settingHelp_("Startup Screen Mode"), Menu.screenModeChoices))
     }
     if (page == 1) {
       var get = Fn.new { s.outputMode }
@@ -699,7 +920,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Video Output Mode", Menu.outputModes, s.outputMode, settingHelp_("Video Output Mode"))
         if (value != null && value != s.outputMode) s.outputMode = value
       }
-      fields.add(field_("Video Output Mode", "enum", get, set, null, false, choose, null, null, settingHelp_("Video Output Mode")))
+      fields.add(field_("Video Output Mode", "enum", get, set, null, false, choose, null, null, settingHelp_("Video Output Mode"), Menu.outputModes))
     }
     if (page == 1) {
       var get = Fn.new { s.cursorStyle }
@@ -711,7 +932,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Default Cursor Style", Menu.cursorStyles, s.cursorStyle, settingHelp_("Default Cursor Style"))
         if (value != null && value != s.cursorStyle) s.cursorStyle = value
       }
-      fields.add(field_("Default Cursor Style", "enum", get, set, null, false, choose, null, null, settingHelp_("Default Cursor Style")))
+      fields.add(field_("Default Cursor Style", "enum", get, set, null, false, choose, null, null, settingHelp_("Default Cursor Style"), Menu.cursorStyles))
     }
     if (page == 1) {
       var get = Fn.new { s.scalingMode }
@@ -723,7 +944,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Scaling", Menu.scalingModes, s.scalingMode, settingHelp_("Scaling"))
         if (value != null && value != s.scalingMode) s.scalingMode = value
       }
-      fields.add(field_("Scaling", "enum", get, set, null, false, choose, null, null, settingHelp_("Scaling")))
+      fields.add(field_("Scaling", "enum", get, set, null, false, choose, null, null, settingHelp_("Scaling"), Menu.scalingModes))
     }
     if (page == 1 && !connected) {
       var get = Fn.new { s.customColumns }
@@ -805,7 +1026,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Modem/Comm Rate", Menu.serialRates(s.modemDevice), s.modemRate, settingHelp_("Modem/Comm Rate"))
         if (value != null && value != s.modemRate) s.modemRate = value
       }
-      fields.add(field_("Modem/Comm Rate", "enum", get, set, null, false, choose, null, null, settingHelp_("Modem/Comm Rate")))
+      fields.add(field_("Modem/Comm Rate", "enum", get, set, null, false, choose, null, null, settingHelp_("Modem/Comm Rate"), Menu.serialRates(s.modemDevice)))
     }
     if (page == 4) {
       var get = Fn.new { s.modemInit }
@@ -838,7 +1059,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Frame Colour", Menu.colors, s.frameColor, settingHelp_("Frame Colour"))
         if (value != null && value != s.frameColor) s.frameColor = value
       }
-      fields.add(field_("Frame Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Frame Colour")))
+      fields.add(field_("Frame Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Frame Colour"), Menu.colors))
     }
     if (page == 6) {
       var get = Fn.new { s.textColor }
@@ -850,7 +1071,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Text Colour", Menu.colors, s.textColor, settingHelp_("Text Colour"))
         if (value != null && value != s.textColor) s.textColor = value
       }
-      fields.add(field_("Text Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Text Colour")))
+      fields.add(field_("Text Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Text Colour"), Menu.colors))
     }
     if (page == 6) {
       var get = Fn.new { s.backgroundColor }
@@ -862,7 +1083,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Background Colour", Menu.backgroundColors, s.backgroundColor, settingHelp_("Background Colour"))
         if (value != null && value != s.backgroundColor) s.backgroundColor = value
       }
-      fields.add(field_("Background Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Background Colour")))
+      fields.add(field_("Background Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Background Colour"), Menu.backgroundColors))
     }
     if (page == 6) {
       var get = Fn.new { s.inverseColor }
@@ -874,7 +1095,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Inverse Colour", Menu.backgroundColors, s.inverseColor, settingHelp_("Inverse Colour"))
         if (value != null && value != s.inverseColor) s.inverseColor = value
       }
-      fields.add(field_("Inverse Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Inverse Colour")))
+      fields.add(field_("Inverse Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Inverse Colour"), Menu.backgroundColors))
     }
     if (page == 6) {
       var get = Fn.new { s.lightbarColor }
@@ -886,7 +1107,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Lightbar Colour", Menu.colors, s.lightbarColor, settingHelp_("Lightbar Colour"))
         if (value != null && value != s.lightbarColor) s.lightbarColor = value
       }
-      fields.add(field_("Lightbar Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Lightbar Colour")))
+      fields.add(field_("Lightbar Colour", "enum", get, set, null, false, choose, null, null, settingHelp_("Lightbar Colour"), Menu.colors))
     }
     if (page == 6) {
       var get = Fn.new { s.lightbarBackgroundColor }
@@ -898,7 +1119,7 @@ class DosForms {
         var value = MenuUi.choice(app, "Lightbar Background", Menu.backgroundColors, s.lightbarBackgroundColor, settingHelp_("Lightbar Background"))
         if (value != null && value != s.lightbarBackgroundColor) s.lightbarBackgroundColor = value
       }
-      fields.add(field_("Lightbar Background", "enum", get, set, null, false, choose, null, null, settingHelp_("Lightbar Background")))
+      fields.add(field_("Lightbar Background", "enum", get, set, null, false, choose, null, null, settingHelp_("Lightbar Background"), Menu.backgroundColors))
     }
     if (page == 2) {
       for (mode in Menu.audioModes) {

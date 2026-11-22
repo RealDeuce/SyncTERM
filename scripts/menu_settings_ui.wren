@@ -582,7 +582,7 @@ class SettingsMenu {
     var text = "# Program Settings\n\n" +
         (draft ? "Changes remain in a private draft until Save/F10. Cancel/Escape discards unaccepted changes. " : "Accepted changes update the running configuration immediately. The configuration file is written when you leave this screen. ") +
         "Startup screen and video output choices take effect at the next startup.\n\n" +
-        helpItem_("Main Interface", "Select the built-in Classic or DOS directory and settings layout; the accepted choice is used without restarting") +
+        helpItem_("Main Interface", "Select the built-in Classic or Retro directory and settings layout; the accepted choice is used without restarting") +
         helpItem_("Confirm Program Exit", "Prompt before exiting SyncTERM") +
         helpItem_("Prompt to Save", "Offer to save temporary URL entries") +
         helpItem_("Startup Screen Mode", "The initial screen size and mode") +
@@ -623,7 +623,7 @@ class SettingsMenu {
 
   static settingHelp_(title) {
     if (title == "Main Interface") {
-      return "# Main Interface\n\nClassic keeps the original directory and settings panes. DOS uses a wide table and full-page forms. The choice applies when Program Settings closes and is remembered for subsequent launches. Custom main-menu script overrides take precedence."
+      return "# Main Interface\n\nClassic keeps the original directory and settings panes. Retro uses a wide table and full-page forms. The choice applies when Settings closes and is remembered for subsequent launches. Custom main-menu script overrides take precedence."
     }
     if (title == "Startup Screen Mode") {
       return "# Startup Screen Mode\n\nSelect the initial screen size and mode used at startup."

@@ -4,9 +4,6 @@ import "syncterm" for Screen, Text, Key, KeyEvent, Mouse, MouseEvent
 import "syncterm_menu" for Menu
 import "ui_widget" for Widget, Rect
 import "ui_draw" for Painter
-import "menu_ui" for MenuPanel
-import "menu_settings_ui" for SettingsMenu
-import "ui_list" for ListView
 
 class DosTable {
   // Names allow 30 Unicode scalars / 60 UTF-8 bytes. Fifteen ASCII
@@ -121,36 +118,6 @@ class DosHeading is Widget {
     var text = DosTable.viewport(DosTable.header(_list.innerWidth), _list.horizontalOffset, _list.innerWidth)
     Painter.text(surface, _list.contentX_, 0, text, style("title"), _list.innerWidth)
   }
-}
-
-class DosSettingsPane is MenuPanel {
-  construct new(app, connected) {
-    super()
-    panelMode = true
-    _app = app
-    _result = null
-    _list = ListView.new()
-    _rows = []
-    _connected = connected
-    title = "Settings"
-    focused = true
-    keyHints = [["F1", "Help"], ["Enter", "Open"], ["Esc", "Back"]]
-    onClose = Fn.new { _app.popModal() }
-    add(_list)
-  }
-  rows=(rows) {
-    _rows = rows
-    _list.items = rows.map {|r| r[1] }.toList
-    _list.onChange = Fn.new {|index, item|
-      if (index != null) informationText = SettingsMenu.itemHelp(_rows[index][0])
-    }
-    if (_list.selected != null) informationText = SettingsMenu.itemHelp(_rows[_list.selected][0])
-    _list.onSelect = Fn.new {|index, item|
-      _result = _rows[index][0]
-      _app.popModal()
-    }
-  }
-  result { _result }
 }
 
 class DosBackdrop is Widget {

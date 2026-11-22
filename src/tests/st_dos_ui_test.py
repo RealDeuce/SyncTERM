@@ -29,9 +29,18 @@ Graphics=Off
 
 def open_program(client):
     client.key("f4")
-    shot = client.wait_text("Program Settings")
-    click_text(client, shot, "Program Settings")
     return client.wait_text("Main Interface")
+
+
+def wait_settings(client):
+    return client.wait_for(lambda s: "╡ Settings ╞" in s.lines[0] and "[ Cancel ]" in s.text)
+
+
+def click_field(client, snapshot, label):
+    y = next(y for y, line in enumerate(snapshot.lines) if label in line)
+    line = snapshot.lines[y]
+    x = line.index("[", line.index(label) + len(label))
+    click_cell(client, snapshot, x + 2, y)
 
 
 def program_layout(client, shot, reports):
@@ -42,99 +51,92 @@ def program_layout(client, shot, reports):
     def boxed_number(snapshot, value):
         y = next(y for y, line in enumerate(snapshot.lines) if "Scrollback Buffer" in line)
         line = snapshot.lines[y]
-        assert value in line, snapshot.text  # Label and editor share one row.
+        assert value in line, snapshot.text
         x = line.index(value)
         assert "[" in line[:x] and "]" in line[x + len(value):], line
         right = line.index("]", x)
         assert cell_at(snapshot, x, y).background == cell_at(snapshot, right - 1, y).background
         assert cell_at(snapshot, x, y).background != cell_at(snapshot, 0, y).background
 
-    selected_tab(shot, "General")
-    boxed_number(shot, "2000")  # The unfocused editor has a visible rectangle.
-    y = next(y for y, line in enumerate(shot.lines) if "[General]" in line)
-    assert cell_at(shot, shot.lines[y].index("General"), y).background != cell_at(shot, shot.lines[y].index("Display"), y).background
-    selected_background = cell_at(shot, shot.lines[y].index("General"), y).background
-    # Keyboard focus can visit another tab without changing the current page.
+    selected_tab(shot, "Program")
+    boxed_number(shot, "2000")
+    y = 1
+    assert all(label in shot.lines[y] for label in ("[Program]", "Connections", "Appearance", "Files", "About")), shot.text
+    selected_background = cell_at(shot, shot.lines[y].index("Program"), y).background
     client.key("tab", 1)
-    shot = client.wait_text(">[General]")
+    client.wait_text(">[Program]")
     client.key("end")
-    shot = client.wait_text("> Colours")
-    assert "[General]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
-    focus_background = cell_at(shot, shot.lines[y].index("Colours"), y).background
-    assert selected_background == cell_at(shot, shot.lines[y].index("General"), y).background, shot.text
+    shot = client.wait_text("> About")
+    assert "[Program]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
+    focus_background = cell_at(shot, shot.lines[y].index("About"), y).background
+    assert selected_background == cell_at(shot, shot.lines[y].index("Program"), y).background
     assert focus_background != selected_background, shot.text
     shot.save_image(Path(reports) / "program-tabs.ppm")
     client.key("home")
-    shot = client.wait_text(">[General]")
+    client.wait_text(">[Program]")
     client.key("right")
-    shot = client.wait_text("> Display")
-    assert "[General]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
+    shot = client.wait_text("> Connections")
+    assert "[Program]" in shot.lines[y] and "Main Interface" in shot.text, shot.text
     client.key("end")
-    client.wait_text("> Colours")
     client.key("enter")
-    shot = client.wait_text("[Colours]")
-    assert "Frame Colour" in shot.text, shot.text
+    shot = client.wait_text("[About]")
+    assert "Licenses" in shot.text and "Built in" in shot.text, shot.text
     client.key("tab", 1)
-    shot = client.wait_text(">[Colours]")
-    assert cell_at(shot, shot.lines[y].index("Colours"), y).background == focus_background, shot.text
+    shot = client.wait_text(">[About]")
+    assert cell_at(shot, shot.lines[y].index("About"), y).background == focus_background
     client.key("page_down", 2)
     shot = client.wait_text("Main Interface")
-    selected_tab(shot, "General")
+    selected_tab(shot, "Program")
     click_text(client, shot, "2000")
     client.text("4096")
     client.key("tab")
     shot = client.wait_text("4096")
-    boxed_number(shot, "4096")  # Losing focus keeps the entire field visible.
+    boxed_number(shot, "4096")
     for columns, rows in ((132, 50), (40, 25), (40, 14), (80, 25)):
         client.grid_resize(columns, rows)
-        shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "[General]" in s.text)
+        shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "[Program]" in s.text)
         if rows == 14:
-            # A pending edit hidden by reflow still requires discard approval.
             client.key("escape")
             client.wait_text("Discard changes?")
             client.key("escape")
-            shot = client.wait_text("[General]")
-            # Overflow navigation stays beside the tabs, within this category.
+            shot = client.wait_text("[Program]")
             click_text(client, shot, "Next")
             shot = client.wait_text("4096")
             y = next(y for y, line in enumerate(shot.lines) if "Prev" in line)
             assert y < 7, shot.text
             client.key("page_up")
             shot = client.wait_text("Main Interface")
-            selected_tab(shot, "General")
         else:
             boxed_number(shot, "4096")
             shot.save_image(Path(reports) / f"program-form-{columns}.ppm")
-        selected_tab(shot, "General")
-    click_text(client, shot, "Display")
+        selected_tab(shot, "Program")
+    click_text(client, shot, "Appearance")
     shot = client.wait_text("Startup Screen Mode")
-    selected_tab(shot, "Display")
+    selected_tab(shot, "Appearance")
     client.key("tab", 1)
-    client.wait_text(">[Display]")
-    # Wrapped tabs keep focus on the same tab across reflow. Home/End act
-    # on the complete strip, rather than just the current visual row.
+    client.wait_text(">[Appearance]")
     client.grid_resize(40, 25)
-    client.wait_for(lambda s: s.metadata["columns"] == 40 and ">[Display]" in s.text)
+    client.wait_for(lambda s: s.metadata["columns"] == 40 and ">[Appearance]" in s.text)
     client.key("home")
-    shot = client.wait_text("> General")
-    assert "[Display]" in shot.text, shot.text
+    shot = client.wait_text("> Program")
+    assert "[Appearance]" in shot.text, shot.text
     client.key("end")
-    shot = client.wait_text("> Colours")
-    assert "[Display]" in shot.text, shot.text
+    shot = client.wait_text("> About")
+    assert "[Appearance]" in shot.text, shot.text
     client.grid_resize(80, 25)
-    client.wait_for(lambda s: s.metadata["columns"] == 80 and "> Colours" in s.text)
-    # Tab leaves the strip as one stop; either direction re-enters at Display.
+    client.wait_for(lambda s: s.metadata["columns"] == 80 and "> About" in s.text)
     client.key("tab")
-    client.wait_for(lambda s: "> Colours" not in s.text and "Startup Screen Mode" in s.text)
+    client.wait_for(lambda s: "> About" not in s.text and "Frame Colour" in s.text)
     client.key("tab", 1)
-    client.wait_text(">[Display]")
-    client.key("tab", 1)  # Back out to Save/Cancel.
-    client.wait_for(lambda s: ">[Display]" not in s.text and "Startup Screen Mode" in s.text)
+    client.wait_text(">[Appearance]")
+    client.key("tab", 1)
+    client.wait_for(lambda s: ">[Appearance]" not in s.text and "Frame Colour" in s.text)
     client.key("tab")
-    client.wait_text(">[Display]")
+    client.wait_text(">[Appearance]")
+    client.key("page_up", 2)
     client.key("page_up", 2)
     shot = client.wait_text("Main Interface")
-    selected_tab(shot, "General")
+    selected_tab(shot, "Program")
     boxed_number(shot, "4096")
     click_text(client, shot, "4096")
     client.text("2000")
@@ -152,64 +154,110 @@ def contracts(executable, reports):
 
 
 def panels(executable, reports):
-    def panel(snapshot, title, information=True):
+    def panel(snapshot, title):
         assert title in snapshot.lines[0], snapshot.text
         assert snapshot.lines[0].startswith("╔") and snapshot.lines[-1].endswith("╝"), snapshot.text
         assert "Options" in snapshot.lines[2], snapshot.text
-        assert ("Information" in snapshot.lines[2]) == information, snapshot.text
         assert "[ Back ]" in snapshot.lines[-2], snapshot.text
 
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original = (root / "syncterm.ini").read_bytes()
-        client.key("f4")
-        shot = client.wait_text("Program Settings")
-        panel(shot, "Settings")
-        assert "Add a list URL" in shot.text, shot.text
-        shot.save_image(Path(reports) / "settings-panel.ppm")
-        click_cell(client, shot, 40, 4)  # Reading the information must not dismiss it.
-        client.key("down")
-        shot = client.wait_text("used when creating")
-        panel(shot, "Settings")
-        client.key("f1")
-        client.wait_for(lambda s: "SyncTERM Settings" in s.text and "Options" not in s.lines[2])
+        original_list = (root / "syncterm.lst").read_bytes()
+        shot = open_program(client)
+        assert all(label in shot.lines[1] for label in ("[Program]", "Connections", "Appearance", "Files", "About")), shot.text
+        for label in ("Main Interface", "Scrollback Buffer Lines"):
+            line = next(line for line in shot.lines if label in line)
+            left = line.index("[", line.index(label) + len(label))
+            assert line.index("]", left) - left + 1 == 12, line
+        shot.save_image(Path(reports) / "settings-book.ppm")
+        # A draft survives tab switches and nested resource editors.
+        click_text(client, shot, "2000")
+        client.text("4096")
+        shot = client.capture()
+        click_text(client, shot, "Connections")
+        shot = client.wait_text("New Connection Defaults")
+        click_field(client, shot, "New Connection Defaults")
+        client.wait_text("New Connection Defaults")
+        client.wait_text("[Connection]")
         client.key("escape")
-        shot = client.wait_for(lambda s: "Settings" in s.lines[0] and "Options" in s.lines[2])
-        client.key("tab")
-        client.key("enter")  # Back is a separate keyboard control group.
-        client.wait_text("Directory:")
-        client.key("f4")
-        shot = client.wait_text("Program Settings")
-        # The list remains selected and scrollable through reflow.
-        last = "List Encryption" if "List Encryption" in shot.text else "Licenses"
-        client.key("end")
-        shot = client.wait_for(lambda s: last in s.text)
-        y = next(y for y, line in enumerate(shot.lines) if last in line)
-        selected = cell_at(shot, shot.lines[y].index(last), y).background
-        for columns, rows in ((132, 50), (40, 14), (80, 25)):
-            client.grid_resize(columns, rows)
-            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "[ Back ]" in s.text)
-            panel(shot, "Settings", columns >= 80)
-            y = next(y for y, line in enumerate(shot.lines) if last in line)
-            assert cell_at(shot, shot.lines[y].index(last), y).background == selected, shot.text
-        client.key("home")
-        client.key("enter")  # Web Lists, including its editable blank row.
+        shot = wait_settings(client)
+        assert "[Connections]" in shot.lines[1], shot.text
+        line = next(line for line in shot.lines if "New Connection Defaults" in line)
+        left = line.index("[ Manage ]")
+        y = shot.lines.index(line)
+        assert cell_at(shot, left + 10, y).background == cell_at(shot, 0, y).background, line
+        assert cell_at(shot, left + 1, y).background != cell_at(shot, left + 10, y).background, line
+        click_text(client, shot, "Files")
         shot = client.wait_text("Web Lists")
+        assert "Personal Directory" in shot.text and "Configuration File" in shot.text, shot.text
+        click_field(client, shot, "Web Lists")
+        shot = client.wait_for(lambda s: "Web Lists" in s.lines[0])
         panel(shot, "Web Lists")
         assert "INS" in shot.text and "DEL" in shot.text, shot.text
         click_text(client, shot, "[ Back ]")
-        client.wait_text("Directory:")
-        for label, title in (("Current Screen Mode", "Screen Mode"), ("Font Management", "Font Management"), ("Themes", "Themes")):
-            client.key("f4")
-            shot = client.wait_text("Program Settings")
-            click_text(client, shot, label)
-            shot = client.wait_for(lambda s: title in s.lines[0] and "Options" in s.lines[2])
-            panel(shot, title)
+        shot = wait_settings(client)
+        assert "[Files]" in shot.lines[1], shot.text
+        click_text(client, shot, "Appearance")
+        shot = client.wait_text("Frame Colour")
+        for label in ("Font Management", "Themes"):
+            click_field(client, shot, label)
+            shot = client.wait_for(lambda s: label in s.lines[0] and "Options" in s.lines[2])
+            panel(shot, label)
             client.key("down")
             client.key("escape")
-            client.wait_text("Directory:")
-        assert (root / "syncterm.ini").read_bytes() == original, "Cancelling previews must retain settings"
-        client.key(115, 2)  # Ctrl-S: nested sort menus retain their panel layout.
+            shot = wait_settings(client)
+            assert "[Appearance]" in shot.lines[1], shot.text
+        click_text(client, shot, "About")
+        shot = client.wait_text("[About]")
+        assert "Built in" in shot.text and "Licenses" in shot.text, shot.text
+        # Build information is an in-book, read-only page; it never exits Settings.
+        shot.save_image(Path(reports) / "settings-about.ppm")
+        build_y = next(y for y, line in enumerate(shot.lines) if "Built in" in line)
+        click_cell(client, shot, 5, build_y)
+        client.text("x")
+        client.key("enter")
+        shot = wait_settings(client)
+        assert "[About]" in shot.lines[1], shot.text
+        click_field(client, shot, "Licenses")
+        client.wait_for(lambda s: "Licenses" in s.lines[0] and "Options" in s.lines[2])
+        client.key("escape")
+        shot = wait_settings(client)
+        assert "[About]" in shot.lines[1], shot.text
+        click_text(client, shot, "Program")
+        shot = client.wait_text("4096")
+        client.key("escape")
+        client.wait_text("Discard changes?")
+        client.key("escape")
+        shot = wait_settings(client)
+        assert "4096" in shot.text, shot.text
+        client.key("escape")
+        client.wait_text("Discard changes?")
+        client.key("enter")
+        client.wait_text("Directory:")
+        assert (root / "syncterm.ini").read_bytes() == original
+        assert (root / "syncterm.lst").read_bytes() == original_list
+        # Accepting a theme invalidates native settings snapshots. It must
+        # retain the book's draft and leave it saveable on return.
+        shot = open_program(client)
+        click_text(client, shot, "2000")
+        client.text("4096")
+        shot = client.capture()
+        click_text(client, shot, "Appearance")
+        shot = client.wait_text("Themes")
+        shot.save_image(Path(reports) / "settings-appearance.ppm")
+        click_field(client, shot, "Themes")
+        client.wait_for(lambda s: "Themes" in s.lines[0] and "Options" in s.lines[2])
+        client.key("enter")
+        shot = wait_settings(client)
+        assert "[Appearance]" in shot.lines[1], shot.text
+        click_text(client, shot, "Program")
+        client.wait_text("4096")
+        client.key("f10")
+        client.wait_text("Directory:")
+        assert "ScrollBackLines=4096" in (root / "syncterm.ini").read_text()
+        assert "MainUI=Retro" in (root / "syncterm.ini").read_text()
+        client.key(115, 2)
         shot = client.wait_text("Sort Profiles")
         panel(shot, "Sort Profiles")
         client.key("enter")
@@ -223,7 +271,7 @@ def panels(executable, reports):
         shot = client.wait_text("Edit Directory Entry")
         click_text(client, shot, "Terminal")
         shot = client.wait_text("Wren Scripts")
-        click_text(client, shot, "Wren Scripts")
+        click_field(client, shot, "Wren Scripts")
         shot = client.wait_for(lambda s: "Wren Scripts" in s.lines[0] and "Options" in s.lines[2])
         panel(shot, "Wren Scripts")
         client.key("escape")
@@ -233,19 +281,24 @@ def panels(executable, reports):
 
 
 def keyboard(executable, reports):
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original_ini = (root / "syncterm.ini").read_bytes()
         shot = open_program(client)
         y = next(y for y, line in enumerate(shot.lines) if "Main Interface" in line)
-        highlight = cell_at(shot, shot.lines[y].index("DOS"), y).background
+        highlight = cell_at(shot, shot.lines[y].index("Retro"), y).background
 
         def focused(snapshot, label):
             if label in ("Save", "Cancel"):
                 label = "[ " + label + " ]"
+                for y, line in enumerate(snapshot.lines):
+                    if label in line:
+                        return cell_at(snapshot, line.index(label), y).background == highlight
             for y, line in enumerate(snapshot.lines):
                 if label in line:
-                    return cell_at(snapshot, line.index(label), y).background == highlight
+                    x = line.index(label)
+                    editor = line.find("[", x + len(label))
+                    return cell_at(snapshot, editor if editor >= 0 else x, y).background == highlight
             return False
 
         # In one column, Right on a choice must not move down the form.
@@ -271,7 +324,7 @@ def keyboard(executable, reports):
         client.key("left")
         client.wait_for(lambda s: focused(s, "Save"))
         client.key("tab")
-        client.wait_text(">[General]")
+        client.wait_text(">[Program]")
         client.key("tab")
         client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
         client.key("up")
@@ -279,27 +332,38 @@ def keyboard(executable, reports):
         client.wait_for(lambda s: s.metadata["columns"] == 132 and "Main Interface" in s.text)
         # The two columns form a grid, with no vertical wrapping on Left/Right.
         client.key("right")
-        client.wait_for(lambda s: focused(s, "Invert Mouse Wheel"))
+        client.wait_for(lambda s: focused(s, "Audio: PortAudio"))
         client.key("down")
-        client.wait_for(lambda s: focused(s, "Atari ST Key Clicks"))
+        client.wait_for(lambda s: focused(s, "Audio: PulseAudio"))
         client.key("left")
         client.wait_for(lambda s: focused(s, "Confirm Program Exit"))
         client.key("down")
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
         client.key("right")
-        client.wait_for(lambda s: s.metadata["cursor_visible"] == 1)
-        client.key("home")
-        client.key("left")  # At the start of an editor, cross back to its row mate.
+        client.wait_for(lambda s: focused(s, "Audio: ALSA"))
+        client.key("left")
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
         client.key("down")
         client.wait_for(lambda s: focused(s, "Colour Emoji"))
-        client.key("right")  # There is no right-hand field on this row.
+        client.key("right")
+        client.wait_for(lambda s: focused(s, "Audio: OSS"))
+        client.key("right")  # The end of a row does not wrap vertically.
         client.key("up")
+        client.wait_for(lambda s: focused(s, "Audio: ALSA"))
+        client.key("left")
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
         client.key("tab")
         client.wait_for(lambda s: focused(s, "Save"))
         client.key("tab", 1)
         client.wait_for(lambda s: focused(s, "Prompt to Save"))
+        shot = client.capture()
+        click_text(client, shot, "Connections")
+        shot = client.wait_text("TLS Client Certificate")
+        click_field(client, shot, "TLS Client Certificate")
+        client.wait_for(lambda s: s.metadata["cursor_visible"] == 1)
+        client.key("home")
+        client.key("left")  # At an editor's start, cross to its row mate.
+        client.wait_for(lambda s: focused(s, "Modem/Comm Rate"))
         client.key("escape")
         client.wait_text("Directory:")
         assert (root / "syncterm.ini").read_bytes() == original_ini
@@ -312,7 +376,7 @@ def names(executable, reports):
     entries = (f"[{ordinary}]\nAddress=ascii.example\nComment=centred note\n"
                f"[{wide}]\nAddress=wide.example\nComment=界note\n"
                f"[Z]\nAddress=z.example\nComment={long_comment}\n")
-    with fixture(executable, entries=entries, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=entries, settings="MainUI=Retro\n", reports=reports) as (client, root):
         Path(reports).mkdir(parents=True, exist_ok=True)
         for columns, rows in ((80, 25), (132, 50), (40, 25)):
             client.grid_resize(columns, rows)
@@ -344,7 +408,7 @@ def names(executable, reports):
 
 
 def directory(executable, reports):
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         shot = client.wait_text("Directory:")
         Path(reports).mkdir(parents=True, exist_ok=True)
         shot.save_image(Path(reports) / "directory-80.ppm")
@@ -354,8 +418,6 @@ def directory(executable, reports):
         assert not any(label in shot.lines[0] for label in ("[ Edit ]", "[ Connect ]", "[ Settings ]")), shot.text
         # The single command bar retains mouse and keyboard access to actions.
         click_text(client, shot, "F4 Settings")
-        shot = client.wait_text("Program Settings")
-        click_text(client, shot, "Program Settings")
         client.wait_text("Main Interface")
         client.key("escape")
         shot = client.wait_text("Directory:")
@@ -401,7 +463,7 @@ def directory(executable, reports):
 
 
 def forms(executable, reports):
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original = (root / "syncterm.lst").read_bytes()
         client.key("f2")
@@ -475,7 +537,7 @@ def forms(executable, reports):
         assert cell_at(shot, left + 1, y).background != cell_at(shot, 0, y).background
         client.text("0")
         client.grid_resize(40, 14)
-        client.wait_for(lambda s: s.metadata["rows"] == 14 and "[General]" in s.text)
+        client.wait_for(lambda s: s.metadata["rows"] == 14 and "[Program]" in s.text)
         client.key("f10")
         client.wait_text("Enter an integer")
         assert (root / "syncterm.ini").read_bytes() == original_ini
@@ -504,7 +566,20 @@ def dropdowns(executable, reports):
         assert snapshot.lines[row][left] == ("└" if above else "┌"), snapshot.text
         assert snapshot.lines[row][right] == ("┘" if above else "┐"), snapshot.text
 
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    def expanded(snapshot, label, count):
+        left, y, right = field(snapshot, label)
+        below = len(snapshot.lines) - y - 1
+        above = y
+        upwards = below < count + 2 and above > below
+        height = min(count + 2, above if upwards else below)
+        top = y - height if upwards else y + 1
+        bottom = top + height - 1
+        assert snapshot.lines[top][left] == "┌" and snapshot.lines[top][right] == "┐", snapshot.text
+        assert snapshot.lines[bottom][left] == "└" and snapshot.lines[bottom][right] == "┘", snapshot.text
+        # Only a list that cannot fit has the scrollbar's separator column.
+        assert (snapshot.lines[top + 1][right - 2] == "│") == (count > height - 2), snapshot.text
+
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original_ini = (root / "syncterm.ini").read_bytes()
         shot = open_program(client)
@@ -514,6 +589,7 @@ def dropdowns(executable, reports):
         click_text(client, shot, "Main Interface")
         shot = client.wait_text("Classic")
         attached(shot, "Main Interface")
+        expanded(shot, "Main Interface", 2)
         assert cell_at(shot, 2, 20).background == form_background, shot.text
         assert cell_at(shot, left + 1, y + 2).background != cell_at(shot, left + 1, y + 3).background, shot.text
         Path(reports).mkdir(parents=True, exist_ok=True)
@@ -527,7 +603,7 @@ def dropdowns(executable, reports):
         client.key("up")
         client.key("escape")
         shot = client.wait_for(lambda s: "Main Interface" in s.text and "Classic" not in s.text)
-        assert "DOS" in shot.lines[field(shot, "Main Interface")[1]], shot.text
+        assert "Retro" in shot.lines[field(shot, "Main Interface")[1]], shot.text
         client.key("down", 4)  # Alt-Down opens the focused enum.
         shot = client.wait_text("Classic")
         attached(shot, "Main Interface")
@@ -548,19 +624,37 @@ def dropdowns(executable, reports):
         client.key("enter")
         client.wait_text("Directory:")
         shot = open_program(client)
-        click_text(client, shot, "Colours")
-        client.wait_text("Frame Colour")
+        click_text(client, shot, "Appearance")
+        shot = client.wait_text("Frame Colour")
+        click_text(client, shot, "Frame Colour")
+        shot = client.wait_for(lambda s: "┌" in s.text)
+        expanded(shot, "Frame Colour", 17)
+        # Tall screens show every option; short screens fill the available
+        # side and scroll. Reflow must preserve the previewed selection.
+        client.key("end")
+        client.wait_text("Default")
+        for columns, rows in ((132, 50), (40, 14), (80, 25)):
+            client.grid_resize(columns, rows)
+            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "┌" in s.text)
+            expanded(shot, "Frame Colour", 17)
+            if rows >= 25:
+                assert "Black" in shot.text and "White" in shot.text and "Default" in shot.text, shot.text
+        client.key("escape")
+        client.wait_for(lambda s: "Frame Colour" in s.text and "┌" not in s.text)
         client.grid_resize(40, 14)
         shot = client.wait_for(lambda s: s.metadata["rows"] == 14 and "Inverse Colour" in s.text)
         click_text(client, shot, "Inverse Colour")
         shot = client.wait_for(lambda s: "└" in s.text and "Inverse Colour" in s.text)
         attached(shot, "Inverse Colour", above=True)
+        expanded(shot, "Inverse Colour", 9)
         client.grid_resize(80, 25)
         shot = client.wait_for(lambda s: s.metadata["columns"] == 80 and "┌" in s.text)
         attached(shot, "Inverse Colour")
+        expanded(shot, "Inverse Colour", 9)
         client.grid_resize(40, 14)
         shot = client.wait_for(lambda s: s.metadata["rows"] == 14 and "└" in s.text)
         attached(shot, "Inverse Colour", above=True)
+        expanded(shot, "Inverse Colour", 9)
         client.key("home")
         client.wait_text("Black")
         client.key("end")
@@ -575,12 +669,12 @@ def dropdowns(executable, reports):
         click_text(client, shot, "Lightbar Background")
         client.wait_for(lambda s: "┌" in s.text)
         client.grid_resize(40, 14)
-        client.wait_for(lambda s: s.metadata["rows"] == 14 and "[Colours]" in s.text and "┌" not in s.text)
+        client.wait_for(lambda s: s.metadata["rows"] == 14 and "[Appearance]" in s.text and "┌" not in s.text)
         client.key("escape")
         client.wait_text("Directory:")
         assert (root / "syncterm.ini").read_bytes() == original_ini
 
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original_list = (root / "syncterm.lst").read_bytes()
         client.key("f2")
@@ -613,7 +707,7 @@ def switching(executable, reports):
         click_text(client, client.capture(), "Program Settings")
         shot = client.wait_text("Main Interface")
         click_text(client, shot, "Main Interface")
-        client.wait_text("DOS")
+        client.wait_text("Retro")
         client.key("down")
         client.key("enter")
         client.key("escape")
@@ -633,7 +727,7 @@ def switching(executable, reports):
 
 
 def failures(executable, reports):
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original = (root / "syncterm.lst").read_bytes()
         for cancel in (True, False):
@@ -682,11 +776,11 @@ def failures(executable, reports):
         client.wait_text("Discard changes?")
         client.key("enter")
         client.wait_text("Directory:")
-        assert "MainUI=DOS" in path.read_text()
+        assert "MainUI=Retro" in path.read_text()
 
 
 def creation(executable, reports):
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", reports=reports) as (client, root):
         client.wait_text("Directory:")
         original = (root / "syncterm.lst").read_bytes()
         client.key("insert")
@@ -714,7 +808,7 @@ def connected(executable, reports):
     with listener() as server:
         entries = ("[Wire]\nAddress=127.0.0.1\nConnectionType=Raw\nScreenMode=80x25\n"
                    f"Port={server.getsockname()[1]}\nComment=connected notes\nNoStatus=true\nHidePopups=true\n")
-        with fixture(executable, entries=entries, settings="MainUI=DOS\n", reports=reports) as (client, root):
+        with fixture(executable, entries=entries, settings="MainUI=Retro\n", reports=reports) as (client, root):
             client.wait_text("Directory:")
             client.key("enter")
             with server.accept()[0] as peer:
@@ -756,7 +850,7 @@ def connected(executable, reports):
 
 
 def safe(executable, reports):
-    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", extra=("-S",), reports=reports) as (client, root):
+    with fixture(executable, entries=ENTRIES, settings="MainUI=Retro\n", extra=("-S",), reports=reports) as (client, root):
         client.wait_text("Directory:")
         original_ini = (root / "syncterm.ini").read_bytes()
         original_list = (root / "syncterm.lst").read_bytes()
@@ -785,7 +879,7 @@ def offer(executable, reports):
             'if (!DosForms.offerSave(source, "Offered")) Fiber.abort("offer save")',
         ])
         install_suite(root, source, "dos-offer")
-    with fixture(executable, settings="MainUI=DOS\n", prepare=prepare, reports=reports) as (client, root):
+    with fixture(executable, settings="MainUI=Retro\n", prepare=prepare, reports=reports) as (client, root):
         client.wait_text("New Directory Entry")
         client.key("f10")
         client.wait_text("TEST-COMPLETE dos-offer")

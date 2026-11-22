@@ -6,7 +6,7 @@ import "menu_bbs_editor" for BbsEditor
 import "menu_settings_ui" for SettingsMenu
 import "menu_scrollback" for OfflineScrollbackView
 import "menu_sort_profiles" for SortProfiles
-import "menu_dos" for DosTable, DosHeading, DosSettingsPane, DosBackdrop, DosFooter
+import "menu_dos" for DosTable, DosHeading, DosBackdrop, DosFooter
 import "menu_dos_forms" for DosForms
 import "ui_app" for App
 import "ui_widget" for Widget, Container, Rect
@@ -636,11 +636,7 @@ class MainMenuApp {
 
   focusSettings_() {
     if (_dos) {
-      var pane = DosSettingsPane.new(_app, _connected)
-      pane.rows = SettingsMenu.rows(_connected)
-      pane.helpText = SettingsMenu.helpText(_connected)
-      _app.modal(pane)
-      if (pane.result != null) settingsAction_(pane.result)
+      settingsAction_(4)
       return false
     }
     if (_app.root.focusedChild == _footer) {
@@ -1220,7 +1216,7 @@ class MainMenuApp {
     SettingsMenu.begin()
     var changed = false
     if (_dos && picked == 4) {
-      changed = DosForms.program(_app, _connected)
+      changed = DosForms.settings(_app, _connected)
     } else if (_dos && picked == 1) {
       var result = DosForms.entry(_app, Menu.defaults, true, false)
       changed = !Host.safeMode && result != null

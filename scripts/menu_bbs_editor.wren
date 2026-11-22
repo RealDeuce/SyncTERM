@@ -514,6 +514,12 @@ class BbsEditor {
         [label, "action", null, null, false, value]]
   }
 
+  static row_(label, value, choices, action) {
+    var row = row_(label, value, action)
+    row[3].add(choices)
+    return row
+  }
+
   static fileRow_(app, d, key, label) {
     return fileRow_(app, d, key, label, null)
   }
@@ -585,7 +591,7 @@ class BbsEditor {
   }
 
   static choiceRow_(app, d, key, label, choices) {
-    return row_(label, MenuUi.rowName(choices, d[key]), Fn.new {
+    return row_(label, MenuUi.rowName(choices, d[key]), choices, Fn.new {
       var value = MenuUi.choice(app, label, choices, d[key],
           fieldHelp_(key, d))
       if (value != null) d[key] = value
@@ -1366,7 +1372,7 @@ class BbsEditor {
     if (!defaults) rows.add(textRow_(app, d, "addr", addrLabel, 64, false))
 
     rows.add(row_("Connection Type",
-        MenuUi.rowName(Menu.connectionTypes, d["connType"]), Fn.new {
+        MenuUi.rowName(Menu.connectionTypes, d["connType"]), Menu.connectionTypes, Fn.new {
       var value = chooseConnectionType(app, d["connType"])
       if (value != null) changeConnection_(d, value)
     }))
@@ -1376,7 +1382,8 @@ class BbsEditor {
     }
     if (serial_(d["connType"])) {
       rows.add(row_("Flow Control",
-          MenuUi.rowName(Menu.flowControls, d["flowControl"]), Fn.new {
+          MenuUi.rowName(Menu.flowControls, d["flowControl"]),
+          d["connType"] == 9 ? Menu.flowControlsNoRts : Menu.flowControls, Fn.new {
         var choices = Menu.flowControls
         if (d["connType"] == 9) choices = Menu.flowControlsNoRts
         var current = d["flowControl"]
@@ -1389,7 +1396,8 @@ class BbsEditor {
             fieldHelp_("flowControl", d))
         if (value != null) d["flowControl"] = value
       }))
-      rows.add(row_("Comm Rate", rateName_(d["bpsRate"]), Fn.new {
+      rows.add(row_("Comm Rate", rateName_(d["bpsRate"]),
+          d["connType"] == 7 ? Menu.rates : Menu.serialRates(d["addr"]), Fn.new {
         var rates = Menu.rates
         if (d["connType"] != 7) rates = Menu.serialRates(d["addr"])
         var current = rateSelection_(rates, d["bpsRate"])
@@ -1457,13 +1465,13 @@ class BbsEditor {
     if (d["graphics"] == 6) screenChoices = [32, 23, 4].map {|m| [m, Menu.screenModes[m]] }.toList
     if (d["graphics"] == 5) screenChoices = (27..29).map {|m| [m, Menu.screenModes[m]] }.toList
     var screenName = MenuUi.rowName(screenChoices, d["screenMode"])
-    rows.add(row_("Screen Mode", screenName,
+    rows.add(row_("Screen Mode", screenName, screenChoices,
         Fn.new {
       var value = MenuUi.choice(app, "Screen Mode", screenChoices,
           d["screenMode"], skyPix_(d["graphics"]) ? "# SkyPix Canvas\n\nChoose the screen mode, including its resolution, aspect ratio and system cell grid. The Amiga font supplies text metrics independently. Status uses the last row inside the mode." : screenModeHelp_())
       if (value != null) changeScreen_(d, value)
     }))
-    rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]),
+    rows.add(row_("Encoding", MenuUi.rowName(Menu.encodings, d["encoding"]), Menu.encodings,
         Fn.new {
       var value = MenuUi.choice(app, "Encoding", Menu.encodings,
           d["encoding"], skyPix_(d["graphics"]) ? "# SkyPix Encoding\n\nChoose the BBS text encoding. Amiga bitmap fonts have byte-indexed glyphs and no encoding tag. With UTF-8 input the Amiga glyph mapping defaults to Latin-1." : encodingHelp_())
@@ -1475,7 +1483,7 @@ class BbsEditor {
       var fontChoices = Menu.fontsForEncoding(d["encoding"]).map {|row|
         return [row[1], row[1]]
       }.toList
-      rows.add(row_("Font", d["font"], Fn.new {
+      rows.add(row_("Font", d["font"], fontChoices, Fn.new {
         var value = MenuUi.choice(app, "Font", fontChoices, d["font"],
             fontHelp_())
         if (value != null) changeFont_(d, value)
@@ -1493,7 +1501,7 @@ class BbsEditor {
       }))
     }
     rows.add(boolRow_(d, "lfExpand", "LF Expand"))
-      rows.add(row_("Graphics", MenuUi.rowName(Menu.graphicsModes, d["graphics"]),
+      rows.add(row_("Graphics", MenuUi.rowName(Menu.graphicsModes, d["graphics"]), Menu.graphicsModes,
           Fn.new {
         var value = MenuUi.choice(app, "Graphics", Menu.graphicsModes, d["graphics"],
             graphicsHelp_())
@@ -1515,7 +1523,7 @@ class BbsEditor {
       editLog_(app, d, Fn.new { update_(app, b, d, defaults) })
     }))
     if (!serial_(d["connType"])) {
-      rows.add(row_("Fake Comm Rate", rateName_(d["bpsRate"]), Fn.new {
+      rows.add(row_("Fake Comm Rate", rateName_(d["bpsRate"]), Menu.rates, Fn.new {
         var rates = Menu.rates
         var current = rateSelection_(rates, d["bpsRate"])
         var value = MenuUi.choice(app, "Fake Comm Rate", rates, current,

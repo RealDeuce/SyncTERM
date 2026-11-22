@@ -107,7 +107,7 @@ static const char *output_modes[] = {
 	"WaylandFullscreen", "Quartz", "QuartzFullscreen", NULL
 };
 
-static const char *main_uis[] = {"Classic", "DOS", NULL};
+static const char *main_uis[] = {"Classic", "Retro", NULL};
 
 static const char *cursor_types[] = {
 	"Default", "BlinkingUnderline", "SolidUnderline", "BlinkingBlock",
@@ -362,6 +362,8 @@ decode_settings(struct st_settings *value, ini_document_t *document,
 	if (section != NULL) {
 		size_t main_ui = ini_section_get_enum_names(section, "MainUI",
 		    ENUM_NAMES(main_uis), ST_MAIN_UI_CLASSIC);
+		if (names_equal(ini_section_get_string(section, "MainUI", ""), "DOS"))
+			main_ui = ST_MAIN_UI_DOS;
 		value->main_ui = main_ui < ENUM_COUNT(main_uis)
 		    ? (enum st_main_ui)main_ui : ST_MAIN_UI_CLASSIC;
 		value->confirm_close = ini_section_get_bool(section, "ConfirmClose",
