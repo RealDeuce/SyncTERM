@@ -835,6 +835,54 @@ static int mouse_pointer(void)
 }
 
 static int
+text_metrics(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|Y00000100|m0A0A\r")==0 && pump(&f)==0);
+	struct st_rip3_session_capture before={0},after={0};
+	CHECK(st_rip3_session_capture(f.session,&before)==0);
+	/* Feed the complete metric prefix/string one byte at a time through
+	 * the public void receive path, including ignored nonnumeric reserved. */
+	const char *wire="!|r01????ab|r210000$textdata$\r";
+	for (size_t i=0;i<strlen(wire);i++) {
+		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);st_rip3_session_process(f.session,1);
+	}
+	CHECK(pump(&f)==0 && f.errors==0 && f.reply_length==7 && memcmp(f.reply,"16\r8:8\r",7)==0);
+	CHECK(st_rip3_session_capture(f.session,&after)==0 && after.cursor_x==before.cursor_x && after.cursor_y==before.cursor_y
+	    && memcmp(after.pixels->primary,before.pixels->primary,(size_t)after.pixels->width*after.pixels->height*sizeof(*after.pixels->primary))==0);
+	st_rip3_session_capture_dispose(&before);st_rip3_session_capture_dispose(&after);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r410000$COORDSIZE(CUR,5)$|r020000$COORDSIZE(CUR,5)$|r01000\r")==0 && pump(&f)==0
+	    && f.errors==3 && f.reply_length==0 && !st_rip3_session_pending(f.session));
+	CHECK(query(&f,"$COORDSIZE$","2")==0);
+	/* Ordinary metric user references stay literal and cannot prompt/store;
+	 * their angle equivalents retain the eligible graphical user policy. */
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000$=LATER$\r")==0 && pump(&f)==0 && !st_rip3_session_pending(f.session)
+	    && f.reply_length==3 && memcmp(f.reply,"64\r",3)==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000<<NAME>>\rafter\r\n")==0 && pump(&f)==0 && st_rip3_session_pending(f.session));
+	struct st_rip3_session_prompt prompt;CHECK(st_rip3_session_prompt(f.session,&prompt) && strcmp(prompt.reference->name,"NAME")==0);
+	size_t stopped=f.read;CHECK(pump(&f)==0 && f.read==stopped && f.reply_length==0);
+	st_rip3_session_respond(f.session,(const uint8_t *)"Ready",5,false);
+	CHECK(!st_rip3_session_pending(f.session) && f.read==stopped && f.reply_length==3 && memcmp(f.reply,"40\r",3)==0);
+	CHECK(pump(&f)==0 && f.text_length==7 && memcmp(f.text,"after\r\n",7)==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000<<MKILL>>\r")==0 && pump(&f)==0 && f.errors==4 && f.reply_length==0);
+	CHECK(append(&f,"!|r010000$TEXTDATA$\r")==0 && pump(&f)==0 && f.reply_length==3 && memcmp(f.reply,"40\r",3)==0);
+	/* Cancel releases only this pending worker, retains the prior text and
+	 * accepted earlier user effects, and permits subsequent wire processing. */
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000<<CANCEL>>\r")==0 && pump(&f)==0 && st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_cancel(f.session);
+	CHECK(!st_rip3_session_pending(f.session));
+	CHECK(append(&f,"!|r010000$TEXTDATA$\r")==0 && pump(&f)==0 && f.reply_length==3 && memcmp(f.reply,"40\r",3)==0);
+	CHECK(query(&f,"alive","alive")==0);st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 graphical_text(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -964,7 +1012,7 @@ main(void)
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
-	CHECK(plain_button()==0 && graphical_text()==0);
+	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

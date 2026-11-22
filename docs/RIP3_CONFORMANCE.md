@@ -7394,3 +7394,66 @@ advanced frontend editor/format modes. Grouped/persistent selection, initial
 selected plain/clipboard image policy, hover and other recorded table/playback
 work remain pending. This milestone does not establish full RIP3 compliance.
 The RIP1.54 baseline and historical fixtures are not advanced.
+
+## Connected TEXT_METRIC width and retained expansion
+
+Level-zero `r` now reaches the separate engine's session parser. It decodes the
+one-digit mode/domain before providers can change Base Math, consumes the four
+reserved bytes without interpreting them, and rejects invalid prefixes before
+expansion or retained-text replacement. Its arguments share the graphical
+worker used by T/@ and button filename/labels. Metric ordinary unknown user
+forms remain literal; angle user/template lookups can suspend through the same
+real prompt and ordered input path. Completed replacements own their bytes.
+
+Exact case-insensitive `$TEXTDATA$` input uses the previously retained result
+without another angle or ordinary pass. Other arguments retain their bounded
+expanded C-string prefix before measurement, including successful empty output;
+a later decoding/measurement failure does not restore the old result. Hard
+expansion failure and cancellation preserve the last completed text and send no
+metric reply. Retained text is session-owned, independent of user-variable
+storage and table selection. No general TEXTDATA callback is invented.
+
+Width modes 0/2 are callable from actual connections. They reuse the existing
+classic metric and logical outline width services, returning signed decimal
+whole-string or independent byte widths with a final CR. Narrow the device
+result to a signed WORD, perform signed WORLD/device conversion with truncation,
+and narrow again. Replies are assembled before transmission. Measurement adds
+no pixels and does not move the graphics cursor. Normalized codepage input is
+recovered to original font bytes; actual UTF-8 wire input currently retains the
+literal byte-oriented metric profile. This differs from Unicode glyph counting
+and remains explicit in the transport question below.
+
+This is a connected width/expansion milestone, **not complete TEXT_METRIC
+compliance**. New [issue #130](https://github.com/bbs-land/remote-imaging-protocol/issues/130)
+requests the portable shipped-font width/height/axis and font-initialization
+contract, including prior/cold cache behavior, viewport/zero-WORLD gates,
+TEXTDATA initial/reset/visibility lifetime, provider-stage snapshots and the
+UTF-8 adaptation. The existing synthetic width-3/height-7 oracles do not
+establish real-font height or reset semantics. Earlier #5/PR31, #86/PR88 and
+#124/PR126 answers remain adopted; their issues receive no comments. Height
+modes 1/3 and the sentinel before any completed assignment remain unsupported
+inside the parser. Current stored text survives cancellation/table selection;
+full reset/backup behavior is awaiting that clarification. Existing outline
+width services are reused, with their complete metric binding still recorded
+under B130 rather than inferred as new source facts.
+
+Native tests cover controlled bitmap width, the independently documented Marin
+F metric, per-byte results, repeated signed narrowing, NUL/prefix handling,
+retained sentinel bypass, raw versus normalized byte profiles and no partial
+reply after a decoding failure. Public session tests split the wire one byte at
+a time and check early validation, prompt/cancel ordering, retained effects,
+recovery and one coherent unchanged pixel/cursor capture. Real CP437 and UTF-8
+connections at 640×480 and 720×400 check decimal replies, byte budgets, template
+and ordinary-provider differences, an actual angle prompt and ordered later
+wire input. The existing T/@, keyboard, normal ANSI controls and relevant
+native parser/query/forwarding checks pass in the one native Release CMake tree.
+All 17 distinct relevant checks pass, including the contract and preservation
+guards.
+
+The unchanged reference pin is `21728db6fd3ff7623e36d5ff59e8c64421f57c14`.
+The 8279-unit ledger is now 1727 implemented, 1742 pending, 3341 unreviewed,
+1366 context, 67 excluded and 36 blocked. Eleven source units explicitly track
+B130 instead of hiding these gaps in an implementation claim. Advanced frontend
+user editor/format modes, grouped/persistent selection, selected plain/clipboard
+image policy, hover and remaining table/playback work also remain pending.
+RIP1.54 sources, historical expectations and baseline are unchanged.

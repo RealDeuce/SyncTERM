@@ -121,9 +121,10 @@ struct st_rip3_session_config {
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
  * This does not select an application terminal mode or implement unbound
- * full text-window backups, grouped buttons, field zoom, button graphical-text
- * continuations or complete scene headers. T/@ use the bounded graphical
- * preprocessor. Immediate host queries include their angle preprocessor. */
+ * full text-window backups, grouped buttons, field zoom or complete scene
+ * headers. T/@, button filename/label and metric arguments share the bounded
+ * graphical preprocessor. Metric height and initial/reset TEXTDATA semantics
+ * remain pending #130. Immediate host queries include their angle preprocessor. */
 int st_rip3_session_create(struct st_rip3_session **result,
 	const struct st_rip3_session_config *config);
 void st_rip3_session_destroy(struct st_rip3_session *session);

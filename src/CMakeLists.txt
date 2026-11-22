@@ -229,6 +229,12 @@ if(BUILD_TESTING)
 					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_rip3_mouse_${_encoding}
 					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip3")
+				add_test(NAME syncterm_rip3_metric_${_encoding}
+					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip3_metric_connected_test.py
+					$<TARGET_FILE:syncterm_app> ${_encoding}
+					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
+				set_tests_properties(syncterm_rip3_metric_${_encoding}
+					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip3")
 				add_test(NAME syncterm_rip3_graphical_${_encoding}
 					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip3_graphical_connected_test.py
 					$<TARGET_FILE:syncterm_app> ${_encoding}

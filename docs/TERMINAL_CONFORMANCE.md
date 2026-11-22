@@ -2203,7 +2203,8 @@ scanner coverage, and `rip3_builtin_inventory` checks all 84 published eligible
 names plus known ineligible names. `term_key_forward` exercises the real receive
 pump's required render prompt, ordered deferred events and local shutdown.
 Filename/label bindings now also run through connected creation and full
-redraw; metric binding remains pending. Existing ANSI/RIP1 rendering uses its
+redraw; metric width/expansion binding is covered below, with height and full
+font/state semantics pending. Existing ANSI/RIP1 rendering uses its
 prior paths and console damage/scroll tracking.
 
 The button/icon connected cases additionally verify live filename/label values,
@@ -2218,3 +2219,15 @@ action lifetime through deletion/redraw failure. The modal bridge retains only
 the original physical tail against its press token in the existing input FIFO.
 No new pixel/damage layer or guest scripting API is added. Parser/provider and
 rendering failures stay local to RIP3; the connection remains usable.
+
+`rip3_text_metric`, public session tests and the connected
+`syncterm_rip3_metric_CP437` / `syncterm_rip3_metric_UTF-8` cases cover live
+level-zero r width modes 0/2, decimal signed-WORD/world conversion, independent
+byte replies, ignored reserved bytes, early numeric rejection, retained
+TEXTDATA bypass, bounded graphical expansion, prompt/cancel ordering and a
+connection usable after failure. Native and bitmap captures verify no drawing
+or cursor movement. Connected cases include 640×480 and 720×400 entry rasters.
+Normalized codepage bytes and actual UTF-8 wire bytes have explicit separate
+metric vectors. This does not claim full TEXT_METRIC: height modes, initial/reset
+TEXTDATA and complete real-font/cache/axis policy remain under
+[issue #130](https://github.com/bbs-land/remote-imaging-protocol/issues/130).

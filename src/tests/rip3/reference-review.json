@@ -965,8 +965,8 @@
   ],
   "upstream_issue_resolutions": 64,
   "pending_followups": [
-    "TEXT_METRIC/TEXTDATA integration and frontend advanced user editor/format modes.",
-    "Grouped/persistent button selection, selected plain/clipboard image policy, hover and remaining table/playback families."
+    "B130: portable font width/height/axis/preparation failure, viewport gates, TEXTDATA cold/reset/visibility and expansion-stage snapshots.",
+    "Advanced frontend user editor/format modes, grouped/persistent button selection, initial selected plain/clipboard policy, hover and remaining table/playback work."
   ],
   "derivations": [
     {
@@ -6710,6 +6710,95 @@
         ],
         "scope": "Twenty-five distinct relevant native/connected/contract checks pass. RIP1.54 preservation matches 93 frozen files and 41 helper definitions, with only the already recorded historical maintenance exceptions. Connected button/icon fixtures use independently encoded image/geometry expectations in both encodings across four entry rasters. A real Wren modal editor preserves the original release and ignores later dialog clicks. Existing ANSI controls and connected keyboard/mouse/T/@ regressions pass. The final builds are warning-free; no additional toolchain or user display is used.",
         "fixture_corrections": "The staged WORLD setter uses its already documented non-CUR selector; the modal input drain received its new host argument at both call sites. New source-crop fixtures distinguish wire extent boundaries from native inclusive endpoints, and offscreen label checks allow label ink outside the face."
+      }
+    },
+    {
+      "after_commit": "fc53a781",
+      "revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+      "scope": "Connect TEXT_METRIC r width/query control, retained TEXTDATA and bounded graphical argument continuations. Full font/height/state semantics remain B130.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:564",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:565",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:566",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:568",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:570",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:584",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:588",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:590",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:53",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:55",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:70",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:71",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:72",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:74",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:75",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:76",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:77",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:78",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:79",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:81",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:85",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:87",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:89",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:91",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:104"
+      ],
+      "newly_blocked_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:572",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:576",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:577",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:578",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:579",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:583",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:586",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:592",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:594",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:596",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:106"
+      ],
+      "tests": [
+        "rip3_text_metric",
+        "rip3_session",
+        "rip3_graphical",
+        "syncterm_rip3_metric_CP437",
+        "syncterm_rip3_metric_UTF-8"
+      ],
+      "policy": "The separate RIP3 void session parser consumes numeric/expansion/metric failures. Metric source is owned across prompts, reply formatting is signed decimal with CR and no partial output on failure. Reuse existing classic metric and logical outline width services; no drawing, cursor updates, new scene buffers or normal ANSI/RIP1 rendering path changes. Initial sentinel and height modes are explicitly unsupported pending B130; no full r compliance claim.",
+      "states_after_update": {
+        "unreviewed": 3341,
+        "context": 1366,
+        "pending": 1742,
+        "implemented": 1727,
+        "excluded": 67,
+        "blocked": 36
+      },
+      "pending_followups": [
+        "B130: portable font width/height/axis/preparation failure, viewport gates, TEXTDATA cold/reset/visibility and expansion-stage snapshots.",
+        "Advanced frontend user editor/format modes, grouped/persistent button selection, initial selected plain/clipboard policy, hover and remaining table/playback work."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; existing CMake build tree build.",
+        "passed_tests": [
+          "rip3_text_metric",
+          "rip3_session",
+          "rip3_graphical",
+          "rip3_text_commands",
+          "rip3_query_commands",
+          "term_key_forward",
+          "syncterm_rip3_metric_CP437",
+          "syncterm_rip3_metric_UTF-8",
+          "syncterm_rip3_graphical_CP437",
+          "syncterm_rip3_graphical_UTF-8",
+          "syncterm_rip3_keyboard_CP437",
+          "syncterm_rip3_keyboard_UTF-8",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "rip154_source_freeze",
+          "rip3_contract",
+          "rip3_preservation_guard"
+        ],
+        "scope": "Seventeen distinct relevant checks pass, including the ledger/contract guard and RIP1.54 preservation of 93 files and 41 helper definitions with only the recorded historical maintenance exceptions. Native vectors cover synthetic bitmap and independently documented Marin F metrics, signed narrowing/world conversion, normalized versus raw byte profiles, retained-source bypass and no reply after later decoding failure. Public session vectors cover split input, early rejection, nonfatal recovery, prompt/cancel ordering and unchanged pixels/cursor. Real connected CP437/UTF-8 cases run at 640x480 and 720x400. Builds are warning-free.",
+        "fixture_corrections": "The outline native fixture needed its actual PORT table binding for frame validation. The live MOVE fixture now establishes WORLD first and encodes decimal 20 as MegaNum 0K."
       }
     }
   ]
