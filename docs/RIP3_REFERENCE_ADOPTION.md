@@ -666,3 +666,42 @@ are added to existing issues, and no upstream state is modified.
 The resulting queue has 1664 implemented, 1775 pending, 3365 unreviewed,
 1354 context, 67 excluded and 25 blocked source units. The RIP1.54 baseline,
 entry-selected raster and explicit absence of a new VT-102 mode remain intact.
+
+## PR #129: auto-stamp redraw and destination lifetime
+
+Adopt fork stable `21728db6fd3ff7623e36d5ff59e8c64421f57c14`, containing
+reviewed [PR #129](https://github.com/bbs-land/remote-imaging-protocol/pull/129)
+head `b80b12ff7b3f32b1897e9d93bc11089938232ffc`. The actual PR head is an
+ancestor of this selected stable revision, while the PR remains open upstream.
+Archive SHA-256:
+`e5b0224c6f32590111c647c14f245c8a57ddd33a6e79fc986db998820fc2d77f`.
+Two of the same 68 normative documents change. Preserve 8247 exact
+source/heading/text blocks, relocate 78, retire three and review 32 new blocks,
+yielding 8279 units. Retain the retired implemented geometry paragraph's old
+evidence in the adoption history; its replacement is assessed against this
+milestone's independent geometry and connected redraw tests.
+
+Verify the unchanged hashes of 59 prior derivations. The #27 note adds only its
+explicit documentary follow-up, recorded with old/new digests; add the #128
+source/policy note for 61 pinned derivations. Archive contents are read as data;
+no original executable, probe or downloaded code is executed. The source split
+contract from [PR #117](https://github.com/bbs-land/remote-imaging-protocol/pull/117)
+is unchanged: after one identity scan and whole-payload leading whitespace
+removal, only the first two literal `<>` pairs split filename/label/host. Quotes
+and backslashes do not escape that split; inserted expansion output does not
+resplit it; the remaining host source stays opaque during rendering.
+
+PR #129 resolves B128. It specifies separate original face F, fixed hit H and
+baked capture C; exact logical crop and COPY padding; retained chisel label
+inset; filename/source/label stages on full redraw; provider-free feedback undo;
+and the primary same-effective-destination ignore guard. A helper's PORT0
+fallback never authorizes transferring a stale label continuation. The guard
+supersedes earlier recorded same-target capture/fallback behavior for button
+auto-stamp only. Ordinary GET_IMAGE retains its existing helper contract.
+
+The accompanying connected runtime milestone implements those button stages,
+prompt lifetime and geometry. The resulting queue is 1702 implemented,
+1760 pending, 3365 unreviewed, 1360 context, 67 excluded and 25 blocked units.
+TEXT_METRIC/TEXTDATA, grouped/persistent selection and other recorded unfinished
+families remain pending. No comments are added to existing issues. RIP1.54,
+entry-selected resolution and the exclusion of a new VT-102 mode remain intact.

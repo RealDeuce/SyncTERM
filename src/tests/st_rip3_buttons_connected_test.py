@@ -252,15 +252,15 @@ def run(args,width,height):
         files=list(root.rglob("Auto.bmp"));assert len(files)==1,files
         data=files[0].read_bytes()
         assert data[:2]==b"BM" and int.from_bytes(data[28:30],"little")==8
-        assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(107,47)
+        assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(106,46)
         offset=int.from_bytes(data[10:14],"little");stride=108
         # All bitmap pixels precede label output and exclude the black recess.
-        assert all(value in (7,8,15) for y in range(47) for value in data[offset+y*stride:offset+y*stride+107])
+        assert all(value in (7,8,15) for y in range(46) for value in data[offset+y*stride:offset+y*stride+106])
         frame=t.exchange(button((300,240,0,0),b"ID=14:<><>captured:$FIELDID$"))
-        assert pixel(frame,300,240)==0xffffff and pixel(frame,406,286)==0x555555
-        assert all(pixel(frame,x,y)!=0xff5555 for y in range(240,287) for x in range(300,407))
-        click(406,286,b"captured:14")
-        click(407,286)
+        assert pixel(frame,300,240)==0xffffff and pixel(frame,405,285)==0x555555
+        assert all(pixel(frame,x,y)!=0xff5555 for y in range(240,286) for x in range(300,406))
+        click(405,285,b"captured:14")
+        click(406,285)
         click(97,240,b"auto:13")  # original field retains its creation-time bevel
         click(203,240)
 
@@ -279,12 +279,13 @@ def run(args,width,height):
         t.exchange(style(flags=256|64,foreground=12)+b"\x01|S0103|B00000V0V\r\n")
         values(b"$CUR(PORT,1)$")
         frame=t.exchange(button((0,0,20,16),b"<>A<>")+b"\x01|1W0Alias.bmp\r\n")
-        values(b"$CUR(PORT)$",b"0")
-        assert any(pixel(frame,x,y)==0xff5555 for y in range(16) for x in range(20))
+        values(b"$CUR(PORT)$",b"1")
+        assert all(pixel(frame,x,y)==0x00aaaa for y in range(16) for x in range(20))
         files=list(root.rglob("Alias.bmp"));assert len(files)==1,files
         data=files[0].read_bytes();offset=int.from_bytes(data[10:14],"little")
-        assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(21,17)
-        assert all(value==3 for y in range(17) for value in data[offset+y*24:offset+y*24+21])
+        assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(106,46)
+        assert any(value==12 for y in range(46) for value in data[offset+y*108:offset+y*108+106]), (data[28:30],{i:data[offset:].count(i) for i in set(data[offset:])})
+        values(b"$CUR(PORT,0)$")
 
         t.case(f"rip3-auto-stamp-later-font-failure-{width}x{height}")
         frame=t.exchange(style(flags=256|64)
@@ -293,12 +294,35 @@ def run(args,width,height):
                          +b"\x01|1W0AfterFontError.bmp\r\n")
         files=list(root.rglob("AfterFontError.bmp"));assert len(files)==1,files
         data=files[0].read_bytes();offset=int.from_bytes(data[10:14],"little")
-        assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(21,17)
-        assert all(value==7 for y in range(17) for value in data[offset+y*24:offset+y*24+21])
+        assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(20,16)
+        assert all(value==7 for y in range(16) for value in data[offset+y*20:offset+y*20+20])
         # Successful capture converted the style before font realization
         # failed. A label-free clipboard button still uses the captured face.
         frame=t.exchange(button((80,40,0,0)))
-        assert pixel(frame,80,40)==0xaaaaaa and pixel(frame,100,56)==0xaaaaaa
+        assert pixel(frame,80,40)==0xaaaaaa and pixel(frame,99,55)==0xaaaaaa
+        t.case(f"rip3-auto-stamp-live-redraw-providers-and-fixed-crop-{width}x{height}")
+        t.exchange(b"\x01|*|Y00000100\r\n\x1b[?25l")
+        values(f"$WORLD(CUR,{width},{height})$".encode()+b"$-=LABEL=A$")
+        frame=t.exchange(style(flags=256|1024|64|512|2,surface=3,foreground=12,flags2=8)
+                         +button((100,50,120,60),b"ID=90:$-=PHASE=draw$<>$&LABEL$<>redraw:$FIELDID$"))
+        values(b"$&PHASE$",b"draw")
+        assert pixel(frame,97,47)==0xffffff and pixel(frame,122,62)==0x555555
+        red=[(x,y) for y in range(47,63) for x in range(97,123) if pixel(frame,x,y)==0xff5555]
+        assert red and min(x for x,y in red)>=110
+        # Replace the current clipboard's backing with a known solid 14x12
+        # image. Its larger viewport has just 9x5 available pixels at origin.
+        t.exchange(b"\x01|2P100000E0C1|2s100|S0104|B00000D0B|v05070K0G|v00000000\r\n")
+        values(b"$PROT(PORT,1)$$CUR(PORT,0)$$-=LABEL= $$-=PHASE=before$")
+        mouse(98,48,True);t.exchange()
+        values(b"$&PHASE$",b"draw")  # filename stage ran for selected full redraw
+        values(b"$-=PHASE=before-up$")
+        mouse(98,48);frame=t.input(b"redraw:90")
+        for y in range(47,63):
+            for x in range(97,123):
+                assert pixel(frame,x,y)==(0xaa0000 if x<106 and y<52 else 0)
+        values(b"$&PHASE$",b"draw")  # unselected redraw also runs its providers
+        click(123,48)  # the original half-open hit boundary never grew
+
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
         assert (frame.metadata["plane_width"],frame.metadata["plane_height"])==(width,height)

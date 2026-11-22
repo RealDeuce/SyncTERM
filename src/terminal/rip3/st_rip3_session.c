@@ -15,6 +15,7 @@
 #include "st_rip3_stream.h"
 #include "st_rip3_query.h"
 #include "st_rip3_graphical.h"
+#include "st_rip3_button_render.h"
 #include "st_rip3_command_internal.h"
 #include "st_rip3_query_internal.h"
 #include "st_rip3_input.h"
@@ -425,7 +426,7 @@ static bool
 prepare(void *context)
 {
 	struct st_rip3_session *session=context;
-	bool pending=st_rip3_query_pending(session->commands.query) || session->text_job;
+	bool pending=st_rip3_session_pending(session);
 	struct st_rip3_field_context previous=session->field_context;
 	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
 	st_rip3_query_process(session->commands.query,64);
@@ -444,8 +445,12 @@ prepare(void *context)
 			st_rip3_graphical_cancel(session->graphical);session->text_job=false;
 		}
 	}
+	if (!st_rip3_query_pending(session->commands.query) && !session->text_job) {
+		st_rip3_button_renderer_process(session->commands.buttons,64);
+		st_rip3_mouse_resume(session->commands.mouse);
+	}
 	if (pending) ++session->revision;
-	return !st_rip3_query_pending(session->commands.query) && !session->text_job;
+	return !st_rip3_session_pending(session);
 }
 
 static void
@@ -484,7 +489,8 @@ void
 st_rip3_session_cancel(struct st_rip3_session *session)
 {
 	if (session==NULL) return;
-	st_rip3_mouse_cancel(session->commands.mouse);
+	st_rip3_button_renderer_cancel(session->commands.buttons);
+	st_rip3_mouse_abort(session->commands.mouse);
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_graphical_cancel(session->graphical);session->text_job=false;
 	session->field_program=false;
@@ -501,8 +507,9 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	/* Query destruction precedes every borrowed processor/store/table and the
 	 * input gate. Saves own independent snapshots and precede live-table teardown. */
 	st_rip3_query_destroy(session->commands.query);
-	st_rip3_graphical_destroy(session->graphical);
 	st_rip3_mouse_destroy(session->commands.mouse);
+	st_rip3_button_renderer_destroy(session->commands.buttons);
+	st_rip3_graphical_destroy(session->graphical);
 	st_rip3_input_destroy(session->commands.input);
 	st_rip3_stream_destroy(session->stream);
 	st_rip3_user_variables_destroy(session->owned_user);
@@ -549,7 +556,8 @@ static void
 mouse_activate(void *context, const uint8_t *program, size_t length, bool reset, int identity, bool pointer, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
-	if (st_rip3_query_pending(session->commands.query) || session->text_job) {
+	if (st_rip3_query_pending(session->commands.query) || session->text_job
+	    || st_rip3_button_renderer_pending(session->commands.buttons)) {
 		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
 	}
 	if (reset && soft_reset(session)!=0) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
@@ -563,6 +571,14 @@ mouse_activate(void *context, const uint8_t *program, size_t length, bool reset,
 	if (status!=0) diagnose(session,status==IO_ERROR_OUT_OF_MEMORY
 	    ? ST_RIP3_COMMAND_RESOURCE_FAILURE : ST_RIP3_COMMAND_OPERATION_FAILED);
 	++session->revision;
+}
+
+static bool
+mouse_busy(void *context)
+{
+	struct st_rip3_session *session=context;
+	return session->text_job || st_rip3_query_pending(session->commands.query)
+	    || st_rip3_button_renderer_pending(session->commands.buttons);
 }
 
 bool
@@ -593,10 +609,16 @@ st_rip3_session_key(struct st_rip3_session *session, uint8_t byte)
 	return session!=NULL && st_rip3_mouse_key(session->commands.mouse,byte);
 }
 
+uint64_t
+st_rip3_session_press_token(const struct st_rip3_session *session)
+{
+	return session==NULL ? 0 : st_rip3_mouse_press_token(session->commands.mouse);
+}
+
 void
 st_rip3_session_mouse_cancel(struct st_rip3_session *session)
 {
-	if (session!=NULL) st_rip3_mouse_cancel(session->commands.mouse);
+	if (session!=NULL) st_rip3_mouse_cancel_silent(session->commands.mouse);
 }
 
 int
@@ -652,7 +674,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    : st_rip3_environments_create(&session->commands.environments,config->canvas);
 	if (status==0) status=st_rip3_styles_create(&session->commands.styles,&initial);
 	if (status==0) status=st_rip3_button_styles_create(&session->commands.button_styles);
-	const struct st_rip3_mouse_sink mouse_sink={.context=session,
+	const struct st_rip3_mouse_sink mouse_sink={.context=session,.busy=mouse_busy,
 	    .invert=config->sink.mouse_invert!=NULL ? mouse_invert : NULL,
 	    .activate=mouse_activate,.resource_failure=mouse_resource_failure,
 	    .render_failure=mouse_render_failure,.changed=mouse_changed};
@@ -691,6 +713,9 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->variables.input=session->commands.input;
 	if (status==0) status=st_rip3_query_create(&session->commands.query,&session->variables,&session->host_sink);
 	if (status==0) status=st_rip3_graphical_create(&session->graphical,&session->variables,&session->host_sink,config->graphical_codepage_converted);
+	const struct st_rip3_command_sink button_sink={session,diagnose};
+	if (status==0) status=st_rip3_button_renderer_create(&session->commands.buttons,&session->commands,&button_sink,
+	    session->graphical,config->graphical_codepage_converted);
 	const struct st_rip3_stream_sink sink={.context=session,.text=text,.command=command,.at_line_start=line_start,.diagnostic=stream_diagnostic};
 	if (status==0) status=st_rip3_stream_create(&session->stream,&sink);
 	if (status!=0) {st_rip3_session_destroy(session);return status;}
@@ -712,20 +737,24 @@ st_rip3_session_wait_ns(const struct st_rip3_session *session)
 bool
 st_rip3_session_graphical_pending(const struct st_rip3_session *session)
 {
-	return session!=NULL && session->text_job;
+	return session!=NULL && (session->text_job || st_rip3_button_renderer_pending(session->commands.buttons)
+	    || st_rip3_mouse_pending(session->commands.mouse));
 }
 
 void
 st_rip3_session_graphical_cancel(struct st_rip3_session *session)
 {
 	if (session==NULL) return;
-	st_rip3_graphical_cancel(session->graphical);session->text_job=false;++session->revision;
+	st_rip3_button_renderer_cancel(session->commands.buttons);
+	st_rip3_graphical_cancel(session->graphical);session->text_job=false;
+	st_rip3_mouse_resume(session->commands.mouse);++session->revision;
 }
 
 bool
 st_rip3_session_pending(const struct st_rip3_session *session)
 {
-	return session!=NULL && (st_rip3_query_pending(session->commands.query) || session->text_job);
+	return session!=NULL && (st_rip3_query_pending(session->commands.query) || session->text_job
+	    || st_rip3_button_renderer_pending(session->commands.buttons) || st_rip3_mouse_pending(session->commands.mouse));
 }
 
 bool

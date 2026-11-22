@@ -20,6 +20,12 @@ void st_term_rip3_destroy(struct st_term_rip3 *rip);
 void st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length);
 void st_term_rip3_poll(struct st_term_rip3 *rip);
 void st_term_rip3_cancel(struct st_term_rip3 *rip);
+/* The owner appends a modal press tail to its existing deferred-event FIFO. */
+void st_term_rip3_bind_prompt_input(struct st_term_rip3 *rip,
+	void (*retain)(void *context,uint64_t token,const struct st_console_event *event),void *context);
+void st_term_rip3_observe_prompt_input(struct st_term_rip3 *rip,const struct st_console_event *event);
+void st_term_rip3_note_queued_input(struct st_term_rip3 *rip,const struct st_console_event *event);
+void st_term_rip3_captured_input(struct st_term_rip3 *rip,uint64_t token,const struct st_console_event *event);
 bool st_term_rip3_graphical_pending(const struct st_term_rip3 *rip);
 void st_term_rip3_graphical_failure(struct st_term_rip3 *rip);
 bool st_term_rip3_paused(const struct st_term_rip3 *rip);

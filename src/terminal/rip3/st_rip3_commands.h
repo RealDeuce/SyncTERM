@@ -18,6 +18,7 @@ struct st_rip3_button_styles;
 struct st_rip3_mouse;
 struct st_rip3_input;
 struct st_rip3_query;
+struct st_rip3_button_renderer;
 struct st_rip3_bitmap_destination;
 struct st_rip3_text_context;
 struct st_rip3_text_window_layout;
@@ -67,6 +68,8 @@ struct st_rip3_command_host {
 	/* Session-owned immediate-query evaluator, resumed by the input source's prepare
 	 * callback before further bytes. Uses this source's same input gate. */
 	struct st_rip3_query *query;
+	/* Optional session-owned staged creation/redraw service. */
+	struct st_rip3_button_renderer *buttons;
 	struct st_rip3_clipboard_selection *clipboard;
 	/* Explicit client policy for captures/definitions, in offscreen device pixels. */
 	const uint64_t *offscreen_pixel_budget;

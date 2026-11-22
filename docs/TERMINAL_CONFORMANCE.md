@@ -2169,7 +2169,8 @@ nonfatal later asset failure. Mouse-owner tests verify visual ownership through
 rejection, failed redraw, cancellation, self-deletion and shutdown. Surface tests
 check clipped RGB-complement matching and existing damage; port tests verify
 captured-context restoration after failure. No persistent scene/damage layer is
-introduced. Filename/label macro expansion, grouped/persistent selection and
+introduced. Filename/label macro expansion and auto-stamp continuations are
+covered by the connected milestone below; grouped/persistent selection and
 initial selected plain/clipboard images remain pending.
 
 `syncterm_rip3_pointer_CP437` and `syncterm_rip3_pointer_UTF-8` cover connected
@@ -2201,6 +2202,19 @@ NUL, prompt/cancellation and retained-effect vectors; `rip3_angle` preserves hos
 scanner coverage, and `rip3_builtin_inventory` checks all 84 published eligible
 names plus known ineligible names. `term_key_forward` exercises the real receive
 pump's required render prompt, ordered deferred events and local shutdown.
-Filename/label and metric bindings remain pending; their private worker modes
-are not connected-feature claims. Existing ANSI/RIP1 rendering uses its prior
-paths and console damage/scroll tracking.
+Filename/label bindings now also run through connected creation and full
+redraw; metric binding remains pending. Existing ANSI/RIP1 rendering uses its
+prior paths and console damage/scroll tracking.
+
+The button/icon connected cases additionally verify live filename/label values,
+fixed creation geometry across setter effects, PR129 separate face/hit/baked
+rectangles, exact logical auto-stamp crop/padding, same-destination capture skip,
+and current clipboard content on full redraw. A real menu editor receives a
+held guest release, resumes the original button, and ignores later dialog clicks
+as guest input. Native tests cover opaque host sources, quote/backslash split
+rules, inserted delimiters, original codepage raw-slot limits, once-only capture
+before a label prompt, destination replacement, capacity exhaustion and committed
+action lifetime through deletion/redraw failure. The modal bridge retains only
+the original physical tail against its press token in the existing input FIFO.
+No new pixel/damage layer or guest scripting API is added. Parser/provider and
+rendering failures stay local to RIP3; the connection remains usable.

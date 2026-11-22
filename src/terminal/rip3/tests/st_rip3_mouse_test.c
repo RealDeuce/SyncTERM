@@ -202,7 +202,7 @@ static int visuals(void)
 	    .activate=activate_visual,.changed=changed_visual,.render_failure=error_visual};
 	CHECK(st_rip3_mouse_create(&f.input.mouse,&sink)==0);
 	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding binding={'A',false};
-	const struct st_rip3_mouse_visual visual={&f,select_visual,destroy_visual};
+	const struct st_rip3_mouse_visual visual={&f,select_visual,destroy_visual,NULL};
 	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0,&visual)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(f.destroyed==0); /* Rejection never takes ownership. */
 	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,7,(const uint8_t *)"v",1,&visual)==0);
@@ -224,9 +224,50 @@ static int visuals(void)
 	CHECK(f.selected==4 && f.cleared==4 && f.destroyed==3);return 0;
 }
 
+struct suspended {
+	struct st_rip3_mouse *mouse;bool busy;unsigned downs,ups,actions,destroyed;uint8_t result;
+};
+static bool suspended_busy(void *context) {return ((struct suspended *)context)->busy;}
+static int suspended_select(void *context,bool selected)
+{
+	struct suspended *s=context;if (selected) s->downs++;else s->ups++;
+	s->busy=true;return 0;
+}
+static void suspended_destroy(void *context) {((struct suspended *)context)->destroyed++;}
+static void suspended_activate(void *context,const uint8_t *program,size_t length,bool reset,int id,bool pointer,int32_t x,int32_t y)
+{
+	(void)reset;(void)id;(void)pointer;(void)x;(void)y;
+	struct suspended *s=context;s->actions++;s->result=length!=0 ? program[0] : 0;s->busy=true;
+}
+static int suspended_actions(void)
+{
+	struct suspended s={0};const struct st_rip3_mouse_sink sink={.context=&s,.activate=suspended_activate,.busy=suspended_busy};
+	CHECK(st_rip3_mouse_create(&s.mouse,&sink)==0);
+	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding key={'A',false};
+	const struct st_rip3_mouse_visual visual={&s,suspended_select,suspended_destroy,NULL};
+	CHECK(st_rip3_mouse_define(s.mouse,ST_RIP3_MOUSE_BUTTON,&key,&area,false,false,7,(const uint8_t *)"a",1,&visual)==0);
+	CHECK(st_rip3_mouse_key(s.mouse,'a') && s.downs==1 && s.actions==0 && st_rip3_mouse_pending(s.mouse));
+	st_rip3_mouse_resume(s.mouse);CHECK(s.actions==0);
+	s.busy=false;st_rip3_mouse_resume(s.mouse);CHECK(s.actions==1 && s.result=='a' && st_rip3_mouse_pending(s.mouse));
+	uint64_t scene=st_rip3_mouse_scene(s.mouse);st_rip3_mouse_kill(s.mouse);
+	CHECK(st_rip3_mouse_scene(s.mouse)!=scene && s.destroyed==1);
+	CHECK(st_rip3_mouse_define(s.mouse,ST_RIP3_MOUSE_BUTTON,&key,&area,false,false,7,(const uint8_t *)"b",1,&visual)==0);
+	s.busy=false;st_rip3_mouse_resume(s.mouse);CHECK(!st_rip3_mouse_pending(s.mouse) && s.actions==1 && s.downs==1);
+	CHECK(st_rip3_mouse_key(s.mouse,'a') && s.downs==2 && s.actions==1);
+	/* Removal during optional feedback cannot discard the committed snapshot. */
+	st_rip3_mouse_kill(s.mouse);CHECK(s.destroyed==2);
+	s.busy=false;st_rip3_mouse_resume(s.mouse);CHECK(s.actions==2 && s.result=='b');
+	s.busy=false;st_rip3_mouse_resume(s.mouse);CHECK(!st_rip3_mouse_pending(s.mouse));
+	CHECK(st_rip3_mouse_define(s.mouse,ST_RIP3_MOUSE_BUTTON,&key,&area,false,false,7,(const uint8_t *)"c",1,&visual)==0);
+	CHECK(st_rip3_mouse_key(s.mouse,'a') && s.downs==3);
+	unsigned ups=s.ups;st_rip3_mouse_abort(s.mouse);
+	CHECK(!st_rip3_mouse_pending(s.mouse) && s.ups==ups && s.actions==2);
+	st_rip3_mouse_destroy(s.mouse);CHECK(s.destroyed==3);return 0;
+}
+
 int main(void)
 {
-	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0 && visuals()==0);
+	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0 && visuals()==0 && suspended_actions()==0);
 	struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	struct st_rip3_rect area={10,20,30,40};

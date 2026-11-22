@@ -1,6 +1,11 @@
 /* Connected plain/clipboard construction. Statuses stay below the parser. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
+#include "st_rip3_button_render.h"
+#include "st_rip3_graphical.h"
+#include "st_rip3_graphical_bytes.h"
+#include "st_codepage.h"
+#include "st_utf8.h"
 #include "st_rip3_button_styles.h"
 #include "st_rip3_button_payload.h"
 #include "st_rip3_clipboard.h"
@@ -86,13 +91,14 @@ descender(uint8_t c)
 static int
 prepare_label(struct label *label,const struct st_rip3_command_host *host,
     const struct st_rip3_style *drawing,const struct st_rip3_button_style *style,
-    const struct st_rip3_frame *frame,const uint8_t *text,size_t length)
+    const struct st_rip3_frame *frame,const uint8_t *text,size_t length,bool expanded)
 {
 	if (length==0) {label->length=0;return 0;}
 	memset(label,0,sizeof(*label));
 	if (host->text==NULL) return IO_ERROR_NOT_SUPPORTED;
 	const uint8_t *glyphs;uint8_t *owned=NULL;size_t count;
-	int status=st_rip3_command_text_glyphs(host->text,text,length,&glyphs,&count,&owned);
+	int status=expanded ? st_rip3_command_expanded_glyphs(host->text,text,length,&glyphs,&count,&owned)
+	    : st_rip3_command_text_glyphs(host->text,text,length,&glyphs,&count,&owned);
 	if (status!=0) return status;
 	if (count>sizeof(label->bytes)) {free(owned);return IO_ERROR_OUT_OF_RANGE;}
 	memcpy(label->bytes,glyphs,count);label->length=count;free(owned);
@@ -256,92 +262,234 @@ paint_effects(const struct st_rip3_command_host *host,const struct st_rip3_port_
 	return status;
 }
 
-struct icon {
+/* A resident field and at most one renderer job share this logical descriptor.
+ * No pixels are retained here. The field destructor invalidates it before
+ * dropping its reference; a suspended job cannot observe a reused instance. */
+struct button {
 	struct st_rip3_command_host host;
+	struct st_rip3_text_context text;
 	struct st_rip3_frame frame;
 	struct st_rip3_port_info port;
 	struct st_rip3_style drawing;
 	struct st_rip3_button_style style;
-	struct box face;
-	char name[128];
-	uint8_t label[255],hotkey;size_t label_length;
-	bool selected;
+	struct box face,hit,baked;
+	uint64_t generation;
+	unsigned target,rgb_bits;
+	size_t references,name_length,label_length,program_length;
+	uint8_t name_source[4*127],label_source[4*255];
+	char name[4*255+1];
+	uint8_t hotkey;int identity;
+	bool alive,mouse,default_enter,selected,auto_stamped,inversion_applied,label_chisel;
+	uint8_t program[];
+};
+enum render_stage { FILENAME, FILENAME_VALUE, FACE, LABEL, LABEL_VALUE, FINISH };
+struct render_job {
+	struct button *button;
+	struct st_rip3_bitmap *bitmap;
+	enum render_stage stage;
+	uint64_t scene;
+	bool creation,worker_owned,operation;
+};
+struct st_rip3_button_renderer {
+	const struct st_rip3_command_host *host;
+	struct st_rip3_command_sink sink;
+	struct st_rip3_graphical *worker;
+	struct render_job *job;
+	bool converted;
 };
 
+static void
+release_button(struct button *button)
+{
+	if (--button->references==0) free(button);
+}
+
+static void clear_inversion(struct button *button);
+
+static void
+remove_button(void *context)
+{
+	struct button *button=context;
+	clear_inversion(button);button->alive=false;
+	struct st_rip3_button_renderer *renderer=button->host.buttons;
+	if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==button)
+		st_rip3_button_renderer_cancel(renderer);
+	release_button(button);
+}
+
+static bool
+valid_job(const struct render_job *job)
+{
+	const struct button *button=job->button;
+	return button->alive && st_rip3_ports_generation(button->host.ports,button->target)==button->generation
+	    && st_rip3_mouse_scene(button->host.mouse)==job->scene;
+}
+
 static int
-icon_load(struct icon *icon,struct st_rip3_bitmap **bitmap,unsigned port)
+filename_value(struct button *button,const uint8_t *bytes,size_t length)
+{
+	size_t used=0;
+	if (button->text.encoding==ST_RIP3_TEXT_CP437) {
+		for (size_t i=0;i<length;i++) {
+			uint32_t scalar=bytes[i]<0x80 ? bytes[i] : st_codepage_to_unicode(ST_CODEPAGE_CP437,bytes[i],false);
+			ptrdiff_t count=st_utf8_encode_one(button->name+used,sizeof(button->name)-used-1,scalar);
+			if (count<0) return (int)count;
+			used+=(size_t)count;
+		}
+	}
+	else {
+		if (length>=sizeof(button->name)) return IO_ERROR_OUT_OF_RANGE;
+		if (length!=0) memcpy(button->name,bytes,length);used=length;
+	}
+	button->name[used]=0;
+	if (used==0) return (button->style.flags&128)!=0 ? IO_ERROR_INVALID_FORMAT : 0;
+	return st_rip3_resource_name_valid(button->name) ? 0 : IO_ERROR_INVALID_FORMAT;
+}
+
+static int
+load_icon(struct button *button,struct st_rip3_bitmap **bitmap)
 {
 	int status=IO_ERROR_NOT_FOUND;
-	if (icon->selected && (icon->style.flags&4096)!=0) {
-		char hot[132];size_t size=strlen(icon->name);
-		const char *extension=strrchr(icon->name,'.');
-		if (extension!=NULL) size=(size_t)(extension-icon->name);
-		memcpy(hot,icon->name,size);memcpy(hot+size,".BMH",5);
-		status=st_rip3_bitmap_load(bitmap,icon->host.resources,hot);
+	if (button->selected && (button->style.flags&4096)!=0) {
+		char hot[4*255+5];size_t size=strlen(button->name);
+		const char *extension=strrchr(button->name,'.');
+		if (extension!=NULL) size=(size_t)(extension-button->name);
+		memcpy(hot,button->name,size);memcpy(hot+size,".BMH",5);
+		status=st_rip3_bitmap_load(bitmap,button->host.resources,hot);
 		if (status==0) return 0;
 	}
-	status=st_rip3_bitmap_load(bitmap,icon->host.resources,icon->name);
-	if (status!=0) icon->host.bitmap_errors->show(icon->host.bitmap_errors->context,icon->name,port,NULL);
-	else if (icon->selected && (icon->style.flags&4096)!=0) icon->style.flags=(icon->style.flags&~4096u)|2u;
+	status=st_rip3_bitmap_load(bitmap,button->host.resources,button->name);
+	if (status!=0) button->host.bitmap_errors->show(button->host.bitmap_errors->context,button->name,button->target,NULL);
+	else if (button->selected && (button->style.flags&4096)!=0) button->style.flags=(button->style.flags&~4096u)|2u;
 	return status;
 }
 
 static int
-paint_icon(struct icon *icon,const struct st_rip3_bitmap *bitmap)
+paint_icon(struct button *button,const struct st_rip3_bitmap *bitmap)
 {
 	struct st_rip3_palette palette;
-	int status=st_rip3_palettes_current_palette(icon->host.palettes,&palette);
-	const struct st_rip3_bitmap_destination area={icon->face.x0,icon->face.y0,icon->face.x1-1,icon->face.y1-1};
-	if (status==0) status=st_rip3_draw_bitmap(icon->host.ports,bitmap,&area,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL);
+	int status=st_rip3_palettes_current_palette(button->host.palettes,&palette);
+	const struct st_rip3_bitmap_destination area={button->face.x0,button->face.y0,button->face.x1-1,button->face.y1-1};
+	if (status==0) status=st_rip3_draw_bitmap(button->host.ports,bitmap,&area,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL);
 	return status;
 }
 
 static int
-invert_icon(struct icon *icon)
+invert_button(void *context)
 {
-	struct box area=expand(icon->face,(icon->style.flags&512)!=0 ? (int)(icon->style.bevel&255u) : 0);
-	if (area.x0<icon->port.clip.x0) area.x0=icon->port.clip.x0;
-	if (area.y0<icon->port.clip.y0) area.y0=icon->port.clip.y0;
-	if (area.x1>(int64_t)icon->port.clip.x1+1) area.x1=(int64_t)icon->port.clip.x1+1;
-	if (area.y1>(int64_t)icon->port.clip.y1+1) area.y1=(int64_t)icon->port.clip.y1+1;
+	struct button *button=context;
+	struct box area=button->hit;
+	if (area.x0<button->port.clip.x0) area.x0=button->port.clip.x0;
+	if (area.y0<button->port.clip.y0) area.y0=button->port.clip.y0;
+	if (area.x1>(int64_t)button->port.clip.x1+1) area.x1=(int64_t)button->port.clip.x1+1;
+	if (area.y1>(int64_t)button->port.clip.y1+1) area.y1=(int64_t)button->port.clip.y1+1;
 	if (area.x0>=area.x1 || area.y0>=area.y1) return 0;
-	struct st_rip3_palette palette;int status=st_rip3_palettes_current_palette(icon->host.palettes,&palette);
+	struct st_rip3_palette palette;int status=st_rip3_palettes_current_palette(button->host.palettes,&palette);
 	const struct st_rip3_rect clipped={(int32_t)area.x0,(int32_t)area.y0,(int32_t)(area.x1-1),(int32_t)(area.y1-1)};
-	return status==0 ? st_rip3_ports_invert_rgb(icon->host.ports,&clipped,&palette) : status;
+	return status==0 ? st_rip3_ports_invert_rgb(button->host.ports,&clipped,&palette) : status;
+}
+
+static void
+clear_inversion(struct button *button)
+{
+	if (!button->inversion_applied) return;
+	if (button->alive && st_rip3_ports_generation(button->host.ports,button->target)==button->generation)
+		(void)st_rip3_ports_button_context(button->host.ports,button->target,button->generation,&button->port,invert_button,button);
+	button->inversion_applied=false;
+}
+
+static void
+abort_button(void *context)
+{
+	struct button *button=context;clear_inversion(button);button->selected=false;
+	struct st_rip3_button_renderer *renderer=button->host.buttons;
+	if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==button)
+		st_rip3_button_renderer_cancel(renderer);
 }
 
 static int
-redraw_icon(void *context)
+paint_face(void *context)
 {
-	struct icon *icon=context;struct st_rip3_bitmap *bitmap=NULL;
-	int status=icon_load(icon,&bitmap,0);
-	if (status==0) status=paint_icon(icon,bitmap);
-	st_rip3_bitmap_destroy(bitmap);
-	if (status==0) status=paint_effects(&icon->host,&icon->port,&icon->style,icon->face);
-	if (status==0) {
-		struct label label;
-		status=prepare_label(&label,&icon->host,&icon->drawing,&icon->style,&icon->frame,icon->label,icon->label_length);
-		if (status==0) status=paint_label(&label,&icon->host,&icon->port,&icon->style,&icon->frame,icon->face,icon->hotkey);
+	struct render_job *job=context;struct button *b=job->button;
+	const struct st_rip3_command_host *host=&b->host;
+	struct st_rip3_button_style *style=&b->style;
+	int status=0;
+	if (b->inversion_applied) {status=invert_button(b);b->inversion_applied=false;if (status!=0) return status;}
+	if ((style->flags&128)!=0) status=paint_icon(b,job->bitmap);
+	else if ((style->flags&1)!=0) {
+		if (host->clipboard==NULL || !host->clipboard->set) return IO_ERROR_NOT_FOUND;
+		struct box image=b->auto_stamped ? b->baked : b->face;
+		if (image.x0<INT32_MIN || image.y0<INT32_MIN || image.x1>INT32_MAX || image.y1>INT32_MAX)
+			return IO_ERROR_OUT_OF_RANGE;
+		const struct st_rip3_rect face={(int32_t)image.x0,(int32_t)image.y0,(int32_t)image.x1,(int32_t)image.y1};
+		status=st_rip3_ports_button_clipboard(host->ports,host->clipboard->port,&face);
 	}
-	if (status==0 && icon->selected && (icon->style.flags&2)!=0) status=invert_icon(icon);
+	else if ((style->flags2&32)==0) {
+		if ((style->flags2&64)==0) status=fill(host,&b->port,b->face,style->colors[ST_RIP3_BUTTON_SURFACE]);
+		else {
+			struct box area=b->face;
+			if (area.x0<b->port.clip.x0) area.x0=b->port.clip.x0;
+			if (area.y0<b->port.clip.y0) area.y0=b->port.clip.y0;
+			if (area.x1>(int64_t)b->port.clip.x1+1) area.x1=(int64_t)b->port.clip.x1+1;
+			if (area.y1>(int64_t)b->port.clip.y1+1) area.y1=(int64_t)b->port.clip.y1+1;
+			uint8_t foreground,background;
+			status=st_rip3_command_ink(host,b->rgb_bits,b->drawing.fill_color,&foreground);
+			if (status==0) status=st_rip3_command_ink(host,b->rgb_bits,b->drawing.background_color,&background);
+			if (status==0 && area.x0<area.x1 && area.y0<area.y1) {
+				const struct st_rip3_rect rect={(int32_t)area.x0,(int32_t)area.y0,(int32_t)(area.x1-1),(int32_t)(area.y1-1)};
+				struct st_rip3_fill pattern;st_rip3_command_fill(&b->port,&b->drawing.fill,&pattern);
+				status=st_rip3_draw_bar(host->ports,&rect,&pattern,foreground,background,ST_RIP3_COPY);
+			}
+		}
+	}
+	if (status==0) status=paint_effects(host,&b->port,style,b->face);
 	return status;
 }
 
 static int
-select_icon(void *context,bool selected)
+capture_face(void *context)
 {
-	struct icon *icon=context;icon->selected=selected;
-	return st_rip3_ports_button_view(icon->host.ports,&icon->port,redraw_icon,icon);
+	struct button *b=context;
+	if (b->host.clipboard->set && b->host.clipboard->port==b->target) return 0;
+	unsigned bevel=(b->style.flags&512)!=0 ? b->style.bevel&255u : 0;
+	struct box image=expand(b->face,(int)bevel);
+	const struct st_rip3_clipboard_area area={image.x0,image.y0,image.x1,image.y1};
+	int status=st_rip3_clipboard_capture_button(b->host.ports,b->host.clipboard,&area,*b->host.offscreen_pixel_budget);
+	if (status==0) status=st_rip3_button_styles_autoclip(b->host.button_styles,b->style.flags,&b->style.flags);
+	if (status==0) {b->auto_stamped=true;b->baked=image;}
+	return status;
 }
 
-int
-st_rip3_button_create_execute(const struct st_rip3_command_host *host,
-    const uint8_t *command,size_t length,bool *operation)
+struct label_paint {struct button *button;const uint8_t *bytes;size_t length;bool expanded;};
+static int
+render_label(void *context)
 {
+	struct label_paint *paint=context;struct button *b=paint->button;struct label label;
+	int status=prepare_label(&label,&b->host,&b->drawing,&b->style,&b->frame,paint->bytes,paint->length,paint->expanded);
+	struct st_rip3_button_style layout=b->style;
+	if (b->label_chisel) layout.flags|=8;
+	if (status==0) status=paint_label(&label,&b->host,&b->port,&layout,&b->frame,b->face,b->hotkey);
+	return status;
+}
+
+static void
+hit_bounds(struct button *b)
+{
+	b->hit=expand(b->face,(b->style.flags&512)!=0 ? (int)(b->style.bevel&255u) : 0);
+	if (b->hit.x0<b->port.clip.x0) b->hit.x0=b->port.clip.x0;
+	if (b->hit.y0<b->port.clip.y0) b->hit.y0=b->port.clip.y0;
+	if (b->hit.x1>(int64_t)b->port.clip.x1+1) b->hit.x1=(int64_t)b->port.clip.x1+1;
+	if (b->hit.y1>(int64_t)b->port.clip.y1+1) b->hit.y1=(int64_t)b->port.clip.y1+1;
+}
+
+static int
+prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,size_t length,
+    bool converted,struct button **result)
+{
+	*result=NULL;
 	if (host->button_styles==NULL || host->styles==NULL || host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
-	struct st_rip3_environment env;unsigned number;
-	int status=st_rip3_command_environment(host,&number,&env);
-	if (status!=0) return status;
+	struct st_rip3_environment env;unsigned env_number,number;
+	int status=st_rip3_command_environment(host,&env_number,&env);if (status!=0) return status;
 	size_t fixed=2+4*env.coordinate_size+4;
 	if (length<fixed) return IO_ERROR_INVALID_FORMAT;
 	uint64_t values[7];size_t at=2;
@@ -351,165 +499,255 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	}
 	if (values[4]>255) return IO_ERROR_OUT_OF_RANGE;
 	if (values[6]!=0) return IO_ERROR_NOT_SUPPORTED;
-	struct st_rip3_button_style style;
-	status=st_rip3_button_styles_current_value(host->button_styles,&style);
-	if (status!=0) return status;
-	bool mouse=(style.flags&1024)!=0;
-	/* Type precedence is ICON, clipboard, plain. Group and key decorations
-	 * only apply to resident mouse buttons; inapplicable flags do not reject. */
-	bool is_icon=(style.flags&128)!=0;
+	struct st_rip3_button_style style;status=st_rip3_button_styles_current_value(host->button_styles,&style);if (status!=0) return status;
+	bool mouse=(style.flags&1024)!=0,is_icon=(style.flags&128)!=0,clipboard=!is_icon && (style.flags&1)!=0;
 	if (mouse && ((style.flags&16384)!=0 || (style.flags2&1)!=0)) return IO_ERROR_NOT_SUPPORTED;
 	if (mouse && host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
-	if ((style.flags&64)!=0 && (host->clipboard==NULL || host->offscreen_pixel_budget==NULL))
+	if (mouse && st_rip3_mouse_count(host->mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	if ((style.flags&64)!=0 && (host->clipboard==NULL || host->offscreen_pixel_budget==NULL)) return IO_ERROR_NOT_SUPPORTED;
+	if (is_icon && (host->resources==NULL || host->palettes==NULL || host->bitmap_errors==NULL || host->bitmap_errors->show==NULL))
 		return IO_ERROR_NOT_SUPPORTED;
-	bool clipboard=!is_icon && (style.flags&1)!=0;
-	struct st_rip3_port_info source;
+	struct st_rip3_port_info source={0};
 	if ((style.flags&1)!=0) {
 		if (host->clipboard==NULL || !host->clipboard->set) return IO_ERROR_NOT_FOUND;
-		status=st_rip3_ports_info(host->ports,host->clipboard->port,&source);
-		if (status!=0) return status;
-		if (!source.defined) return IO_ERROR_NOT_FOUND;
-		/* Activation/protection gate writes, not clipboard reads. The whole
-		 * positive viewport must have at least some physical backing. */
-		if (source.viewport.x1<source.viewport.x0 || source.viewport.y1<source.viewport.y0
+		status=st_rip3_ports_info(host->ports,host->clipboard->port,&source);if (status!=0) return status;
+		if (!source.defined || source.viewport.x1<source.viewport.x0 || source.viewport.y1<source.viewport.y0
 		    || source.clip.x1<source.clip.x0 || source.clip.y1<source.clip.y0) return IO_ERROR_NOT_FOUND;
 	}
 	struct st_rip3_button_payload payload;
-	status=st_rip3_button_payload_parse(&payload,command+at,length-at);
-	if (status!=0) return status;
+	status=st_rip3_button_payload_parse_encoded(&payload,command+at,length-at,converted);if (status!=0) return status;
 	if (is_icon && payload.icon.length==0) return IO_ERROR_INVALID_FORMAT;
-	if (payload.icon.length!=0) {
-		char filename[128];memcpy(filename,payload.icon.data,payload.icon.length);filename[payload.icon.length]=0;
-		/* Filename expansion retains its separate rendering-stage work. */
-		if (strchr(filename,'$')!=NULL || strstr(filename,"<<")!=NULL) return IO_ERROR_NOT_SUPPORTED;
-		if (!st_rip3_resource_name_valid(filename)) return IO_ERROR_INVALID_FORMAT;
-	}
 	if (!is_icon && !clipboard && !mouse && payload.label.length==0 && !(style.width!=0 && style.height!=0) && values[2]==0 && values[3]==0) return 0;
-	struct st_rip3_frame frame;
-	status=st_rip3_environments_frame(host->environments,number,&frame);if (status!=0) return status;
-	unsigned old_port,target;
-	status=st_rip3_ports_current(host->ports,&old_port);if (status!=0) return status;
-	unsigned restore_port=old_port;
-	target=mouse ? 0 : old_port;
-	struct st_rip3_port_info port;
-	status=st_rip3_ports_info(host->ports,target,&port);if (status!=0 || !port.viewport_active) return status;
+	struct st_rip3_frame frame;status=st_rip3_environments_frame(host->environments,env_number,&frame);if (status!=0) return status;
+	unsigned target;status=st_rip3_ports_current(host->ports,&target);if (status!=0) return status;if (mouse) target=0;
+	struct st_rip3_port_info port;status=st_rip3_ports_info(host->ports,target,&port);if (status!=0 || !port.viewport_active) return status;
 	if (port.clip.x1<port.clip.x0 || port.clip.y1<port.clip.y0) return 0;
 	if (!is_icon && !clipboard && !(style.width!=0 && style.height!=0)) {
 		if (values[2]==0 && values[3]==0) return 0;
 		if (values[0]>values[2]) {uint64_t swap=values[0];values[0]=values[2];values[2]=swap;}
 		if (values[1]>values[3]) {uint64_t swap=values[1];values[1]=values[3];values[3]=swap;}
 	}
-	struct box face={(int64_t)(values[0]*frame.device_width/frame.world_width),
-	    (int64_t)(values[1]*frame.device_height/frame.world_height),
-	    (int64_t)(values[2]*frame.device_width/frame.world_width),
-	    (int64_t)(values[3]*frame.device_height/frame.world_height)};
-	if (clipboard) {
-		/* The whole clipboard viewport is the image, in DEVICE pixels.
-		 * Fixed style dimensions and command far corners belong to plain
-		 * buttons. Preserve source clipping/alignment in the shared blitter. */
-		face.x1=face.x0+(int64_t)source.viewport.x1-source.viewport.x0+1;
-		face.y1=face.y0+(int64_t)source.viewport.y1-source.viewport.y0+1;
-	}
+	struct box face={(int64_t)(values[0]*frame.device_width/frame.world_width),(int64_t)(values[1]*frame.device_height/frame.world_height),
+	    (int64_t)(values[2]*frame.device_width/frame.world_width),(int64_t)(values[3]*frame.device_height/frame.world_height)};
+	if (clipboard) {face.x1=face.x0+(int64_t)source.viewport.x1-source.viewport.x0+1;face.y1=face.y0+(int64_t)source.viewport.y1-source.viewport.y0+1;}
 	else if (!is_icon && style.width!=0 && style.height!=0) {face.x1=face.x0+style.width;face.y1=face.y0+style.height;}
 	if (!is_icon && (face.x1<=face.x0 || face.y1<=face.y0)) return 0;
-	struct st_rip3_style drawing;
-	status=st_rip3_styles_current(host->styles,&number);
-	if (status==0) status=st_rip3_styles_get(host->styles,number,&drawing);
+	struct st_rip3_style drawing;status=st_rip3_styles_current(host->styles,&number);
+	if (status==0) status=st_rip3_styles_get(host->styles,number,&drawing);if (status!=0) return status;
+	if (payload.icon.length>sizeof(((struct button *)0)->name_source) || payload.label.length>sizeof(((struct button *)0)->label_source)
+	    || payload.host.length>SIZE_MAX-sizeof(struct button)) return IO_ERROR_OUT_OF_RANGE;
+	struct button *b=calloc(1,sizeof(*b)+payload.host.length);if (b==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	b->host=*host;if (host->text!=NULL) b->text=*host->text;
+	b->host.text=host->text!=NULL ? &b->text : NULL;
+	b->frame=frame;b->port=port;b->drawing=drawing;b->style=style;b->face=face;b->label_chisel=(style.flags&8)!=0;
+	b->target=target;b->generation=st_rip3_ports_generation(host->ports,target);b->rgb_bits=env.rgb_bits;
+	b->references=1;b->alive=true;b->mouse=mouse;b->selected=is_icon && (values[5]&1)!=0;
+	b->hotkey=(uint8_t)values[4];b->default_enter=(values[5]&2)!=0;b->identity=payload.identity;
+	b->name_length=payload.icon.length;b->label_length=payload.label.length;b->program_length=payload.host.length;
+	if (payload.icon.length!=0) memcpy(b->name_source,payload.icon.data,payload.icon.length);
+	if (payload.label.length!=0) memcpy(b->label_source,payload.label.data,payload.label.length);
+	if (payload.host.length!=0) memcpy(b->program,payload.host.data,payload.host.length);
+	hit_bounds(b);
+	if (!is_icon && mouse && (b->hit.x0>=b->hit.x1 || b->hit.y0>=b->hit.y1)) {release_button(b);return 0;}
+	*result=b;return 0;
+}
+
+static int select_button(void *context,bool selected);
+
+static int
+finish_button(struct render_job *job)
+{
+	struct button *b=job->button;
+	if (b->selected && (b->style.flags&2)!=0) {
+		int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,invert_button,b);
+		if (status!=0) return status;
+		b->inversion_applied=true;
+	}
+	if (!job->creation || !b->mouse) return 0;
+	if (st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	int64_t ox=(int64_t)b->port.bounds.x0+b->port.viewport.x0,oy=(int64_t)b->port.bounds.y0+b->port.viewport.y0;
+	const struct st_rip3_rect area={(int32_t)(ox+b->hit.x0),(int32_t)(oy+b->hit.y0),(int32_t)(ox+b->hit.x1),(int32_t)(oy+b->hit.y1)};
+	const struct st_rip3_mouse_binding binding={b->hotkey,b->default_enter};
+	const struct st_rip3_mouse_visual visual={b,select_button,remove_button,abort_button};
+	bool redraw=(b->style.flags&(2|4096))!=0;
+	if (redraw) b->references++;
+	int status=st_rip3_mouse_define(b->host.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,(b->style.flags&2)!=0,(b->style.flags&4)!=0,
+	    b->identity,b->program,b->program_length,redraw ? &visual : NULL);
+	if (status!=0 && redraw) release_button(b);
+	return status;
+}
+
+static int
+face_stage(struct render_job *job)
+{
+	struct button *b=job->button;int status=0;
+	if ((b->style.flags&128)!=0) {
+		job->operation=true;status=load_icon(b,&job->bitmap);if (status!=0) return status;
+		if (job->creation) {
+			uint64_t width=(uint64_t)job->bitmap->pixels->width*b->frame.device_width/b->frame.world_width;
+			uint64_t height=(uint64_t)job->bitmap->pixels->height*b->frame.device_height/b->frame.world_height;
+			if (width==0 || height==0) return IO_ERROR_OUT_OF_RANGE;
+			b->face.x1=b->face.x0+(int64_t)width;b->face.y1=b->face.y0+(int64_t)height;hit_bounds(b);
+			if (b->mouse && (b->hit.x0>=b->hit.x1 || b->hit.y0>=b->hit.y1)) {job->stage=FINISH;return 0;}
+		}
+	}
+	if (b->mouse && job->creation && st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	job->operation=true;
+	status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,job);
+	st_rip3_bitmap_destroy(job->bitmap);job->bitmap=NULL;
 	if (status!=0) return status;
-	struct icon *icon=NULL;struct st_rip3_bitmap *bitmap=NULL;
-	if (is_icon) {
-		if (host->resources==NULL || host->palettes==NULL || host->bitmap_errors==NULL || host->bitmap_errors->show==NULL)
-			return IO_ERROR_NOT_SUPPORTED;
-		icon=calloc(1,sizeof(*icon));if (icon==NULL) return IO_ERROR_OUT_OF_MEMORY;
-		icon->host=*host;icon->style=style;icon->frame=frame;icon->port=port;icon->drawing=drawing;
-		icon->selected=(values[5]&1)!=0;icon->hotkey=(uint8_t)values[4];
-		memcpy(icon->name,payload.icon.data,payload.icon.length);
-		memcpy(icon->label,payload.label.data,payload.label.length);icon->label_length=payload.label.length;
-		*operation=true;status=icon_load(icon,&bitmap,target);
-		if (status!=0) goto done;
-		uint64_t width=(uint64_t)bitmap->pixels->width*frame.device_width/frame.world_width;
-		uint64_t height=(uint64_t)bitmap->pixels->height*frame.device_height/frame.world_height;
-		if (width==0 || height==0) {status=IO_ERROR_OUT_OF_RANGE;goto done;}
-		face.x1=face.x0+(int64_t)width;face.y1=face.y0+(int64_t)height;
-		icon->face=face;style=icon->style;
+	b->style.flags&=~16u; /* Initial recess is not resident feedback. */
+	if (job->creation && (b->style.flags&64)!=0) {
+		status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,capture_face,b);
 	}
-	unsigned bevel=(style.flags&512)!=0 ? style.bevel&255u : 0;
-	struct box hit=expand(face,(int)bevel);
-	if (hit.x0<port.clip.x0) hit.x0=port.clip.x0;
-	if (hit.y0<port.clip.y0) hit.y0=port.clip.y0;
-	if (hit.x1>(int64_t)port.clip.x1+1) hit.x1=(int64_t)port.clip.x1+1;
-	if (hit.y1>(int64_t)port.clip.y1+1) hit.y1=(int64_t)port.clip.y1+1;
-	if (mouse && (hit.x0>=hit.x1 || hit.y0>=hit.y1)) {status=0;goto done;}
-	if (mouse && st_rip3_mouse_count(host->mouse)==128) {status=IO_ERROR_OUT_OF_RANGE;goto done;}
-	*operation=true;status=st_rip3_ports_switch(host->ports,target);
-	if (status==0 && is_icon) status=paint_icon(icon,bitmap);
-	if (status==0 && clipboard) {
-		if (face.x0>INT32_MAX || face.y0>INT32_MAX) status=IO_ERROR_OUT_OF_RANGE;
-		else status=st_rip3_ports_clipboard_blit(host->ports,host->clipboard->port,(int32_t)face.x0,(int32_t)face.y0);
+	return status;
+}
+
+static int
+step_job(struct render_job *job,struct st_rip3_graphical *worker)
+{
+	struct button *b=job->button;int status=0;
+	if (job->stage==FILENAME) {
+		if (worker!=NULL && b->name_length!=0) {
+			st_rip3_graphical_start(worker,ST_RIP3_GRAPHICAL_FILENAME,b->name_source,b->name_length);
+			job->worker_owned=true;job->stage=FILENAME_VALUE;
+		}
+		else {status=filename_value(b,b->name_source,b->name_length);job->stage=FACE;}
 	}
-	if (status==0 && !is_icon && !clipboard && (style.flags2&32)==0) {
-		if ((style.flags2&64)==0) status=fill(host,&port,face,style.colors[ST_RIP3_BUTTON_SURFACE]);
+	else if (job->stage==FILENAME_VALUE || job->stage==LABEL_VALUE) {
+		st_rip3_graphical_process(worker,1);
+		if (st_rip3_graphical_pending(worker)) return 0;
+		const struct st_rip3_condition_bytes *value=st_rip3_graphical_result(worker);
+		if (value==NULL) return IO_ERROR_CANCELLED;
+		if (job->stage==FILENAME_VALUE) {status=filename_value(b,value->bytes,value->length);job->stage=FACE;}
 		else {
-			struct box clipped=face;
-			if (clipped.x0<port.clip.x0) clipped.x0=port.clip.x0;
-			if (clipped.y0<port.clip.y0) clipped.y0=port.clip.y0;
-			if (clipped.x1>(int64_t)port.clip.x1+1) clipped.x1=(int64_t)port.clip.x1+1;
-			if (clipped.y1>(int64_t)port.clip.y1+1) clipped.y1=(int64_t)port.clip.y1+1;
-			uint8_t foreground,background;
-			status=st_rip3_command_ink(host,env.rgb_bits,drawing.fill_color,&foreground);
-			if (status==0) status=st_rip3_command_ink(host,env.rgb_bits,drawing.background_color,&background);
-			if (status==0 && clipped.x0<clipped.x1 && clipped.y0<clipped.y1) {
-				struct st_rip3_rect area={(int32_t)clipped.x0,(int32_t)clipped.y0,(int32_t)(clipped.x1-1),(int32_t)(clipped.y1-1)};
-				struct st_rip3_fill pattern;st_rip3_command_fill(&port,&drawing.fill,&pattern);
-				status=st_rip3_draw_bar(host->ports,&area,&pattern,foreground,background,ST_RIP3_COPY);
-			}
+			struct label_paint paint={b,value->bytes,value->length,true};
+			status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,render_label,&paint);
+			job->stage=FINISH;
+		}
+		st_rip3_graphical_cancel(worker);job->worker_owned=false;
+	}
+	else if (job->stage==FACE) {status=face_stage(job);if (job->stage!=FINISH) job->stage=LABEL;}
+	else if (job->stage==LABEL) {
+		if (worker!=NULL && b->label_length!=0) {
+			st_rip3_graphical_start(worker,ST_RIP3_GRAPHICAL_LABEL,b->label_source,b->label_length);
+			job->worker_owned=true;job->stage=LABEL_VALUE;
+		}
+		else {
+			struct label_paint paint={b,b->label_source,b->label_length,worker!=NULL};
+			status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,render_label,&paint);
+			job->stage=FINISH;
 		}
 	}
-	if (status==0) status=paint_effects(host,&port,&style,face);
-	if (status==0 && (style.flags&64)!=0) {
-		/* Capture the original face/bevel extent, before label output. The
-		 * shared helper owns slot choice, extra allocation unit, budget and
-		 * destructive replacement; the surrounding recess is not included. */
-		struct box image=expand(face,(int)bevel);
-		const struct st_rip3_clipboard_area area={image.x0,image.y0,image.x1,image.y1};
-		status=st_rip3_clipboard_capture(host->ports,host->clipboard,&area,*host->offscreen_pixel_budget);
-		if (status==0) status=st_rip3_button_styles_autoclip(host->button_styles,style.flags,&style.flags);
-		/* Replacing the current clipboard destroys its old destination and
-		 * selects PORT0. Preserve that helper side effect, also on failure;
-		 * later label painting uses the new live context, not the new image. */
-		unsigned current;
-		int queried=st_rip3_ports_current(host->ports,&current);
-		if (queried==0 && !mouse && current!=target) {
-			restore_port=current;
-			if (status==0) status=st_rip3_ports_info(host->ports,current,&port);
+	return status;
+}
+
+static int
+run_synchronous(struct button *b,bool creation,bool *operation)
+{
+	struct render_job job={.button=b,.creation=creation,.scene=st_rip3_mouse_scene(b->host.mouse)};
+	int status=0;
+	while (status==0 && job.stage!=FINISH && valid_job(&job)) status=step_job(&job,NULL);
+	if (status==0 && valid_job(&job) && (!creation || !b->mouse || (b->hit.x0<b->hit.x1 && b->hit.y0<b->hit.y1))) status=finish_button(&job);
+	if (operation!=NULL) *operation=job.operation;
+	st_rip3_bitmap_destroy(job.bitmap);return status;
+}
+
+static int
+select_button(void *context,bool selected)
+{
+	struct button *b=context;b->selected=selected;
+	struct st_rip3_button_renderer *renderer=b->host.buttons;
+	if (renderer==NULL) return run_synchronous(b,false,NULL);
+	if (renderer->job!=NULL && renderer->job->button==b) st_rip3_button_renderer_cancel(renderer);
+	if (renderer->job!=NULL || st_rip3_graphical_pending(renderer->worker)) return IO_ERROR_BUSY;
+	struct render_job *job=calloc(1,sizeof(*job));if (job==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	b->references++;*job=(struct render_job){.button=b,.scene=st_rip3_mouse_scene(b->host.mouse)};
+	renderer->job=job;return 0;
+}
+
+int
+st_rip3_button_renderer_create(struct st_rip3_button_renderer **result,const struct st_rip3_command_host *host,
+    const struct st_rip3_command_sink *sink,struct st_rip3_graphical *worker,bool converted_codepage)
+{
+	if (result==NULL || host==NULL || sink==NULL || worker==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_button_renderer *renderer=calloc(1,sizeof(*renderer));if (renderer==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	renderer->host=host;renderer->sink=*sink;renderer->worker=worker;renderer->converted=converted_codepage;
+	*result=renderer;return 0;
+}
+
+static void
+discard_job(struct st_rip3_button_renderer *renderer,bool feedback)
+{
+	if (renderer==NULL || renderer->job==NULL) return;
+	struct render_job *job=renderer->job;renderer->job=NULL;
+	if (feedback) clear_inversion(job->button);
+	if (job->worker_owned) st_rip3_graphical_cancel(renderer->worker);
+	st_rip3_bitmap_destroy(job->bitmap);release_button(job->button);free(job);
+}
+
+void
+st_rip3_button_renderer_cancel(struct st_rip3_button_renderer *renderer)
+{
+	discard_job(renderer,true);
+}
+
+void
+st_rip3_button_renderer_destroy(struct st_rip3_button_renderer *renderer)
+{
+	st_rip3_button_renderer_cancel(renderer);free(renderer);
+}
+
+bool
+st_rip3_button_renderer_pending(const struct st_rip3_button_renderer *renderer)
+{
+	return renderer!=NULL && renderer->job!=NULL;
+}
+
+void
+st_rip3_button_renderer_start(struct st_rip3_button_renderer *renderer,const uint8_t *command,size_t length)
+{
+	if (renderer==NULL) return;
+	if (renderer->job!=NULL || st_rip3_graphical_pending(renderer->worker)) {
+		st_rip3_command_result(&renderer->sink,IO_ERROR_BUSY,false);return;
+	}
+	struct button *b=NULL;int status=prepare_button(renderer->host,command,length,renderer->converted,&b);
+	if (status==0 && b!=NULL) {
+		struct render_job *job=calloc(1,sizeof(*job));
+		if (job==NULL) {release_button(b);status=IO_ERROR_OUT_OF_MEMORY;}
+		else {*job=(struct render_job){.button=b,.creation=true,.scene=st_rip3_mouse_scene(b->host.mouse)};renderer->job=job;}
+	}
+	st_rip3_command_result(&renderer->sink,status,false);
+}
+
+void
+st_rip3_button_renderer_process(struct st_rip3_button_renderer *renderer,size_t budget)
+{
+	if (renderer==NULL) return;
+	for (size_t i=0;i<budget && renderer->job!=NULL;i++) {
+		struct render_job *job=renderer->job;
+		if (!valid_job(job)) {st_rip3_button_renderer_cancel(renderer);return;}
+		int status=step_job(job,renderer->worker);
+		if (status==0 && !valid_job(job)) {st_rip3_button_renderer_cancel(renderer);return;}
+		if (status==0 && job->stage==FINISH) {
+			struct button *b=job->button;
+			if (!job->creation || !b->mouse || (b->hit.x0<b->hit.x1 && b->hit.y0<b->hit.y1)) status=finish_button(job);
+			st_rip3_command_result(&renderer->sink,status,job->operation);discard_job(renderer,status!=0);return;
 		}
-		if (status==0) status=queried;
+		if (status!=0) {
+			/* The worker has already consumed/diagnosed a hard expansion abort. */
+			if (status!=IO_ERROR_CANCELLED) st_rip3_command_result(&renderer->sink,status,job->operation);
+			st_rip3_button_renderer_cancel(renderer);return;
+		}
+		if (st_rip3_graphical_state(renderer->worker)==ST_RIP3_GRAPHICAL_PROMPT) return;
 	}
-	if (status==0) {
-		/* Realization can fail; it is part of label rendering, after the
-		 * capture/style commit. Raw payload bounds were checked earlier. */
-		struct label label;
-		status=prepare_label(&label,host,&drawing,&style,&frame,payload.label.data,payload.label.length);
-		if (status==0) status=paint_label(&label,host,&port,&style,&frame,face,(uint8_t)values[4]);
-	}
-	if (status==0 && is_icon && icon->selected && (style.flags&2)!=0) status=invert_icon(icon);
-	int restored=st_rip3_ports_switch(host->ports,restore_port);
-	if (status==0) status=restored;
-	if (status==0 && mouse) {
-		/* RECESS belongs to the initial surrounding scene, outside the
-		 * persistent hit/image. Later hot redraws must not repaint it. */
-		if (icon!=NULL) icon->style.flags&=~16u;
-		int64_t ox=(int64_t)port.bounds.x0+port.viewport.x0,oy=(int64_t)port.bounds.y0+port.viewport.y0;
-		struct st_rip3_rect area={(int32_t)(ox+hit.x0),(int32_t)(oy+hit.y0),
-		    (int32_t)(ox+hit.x1),(int32_t)(oy+hit.y1)};
-		const struct st_rip3_mouse_binding binding={(uint8_t)values[4],(values[5]&2)!=0};
-		const struct st_rip3_mouse_visual visual={icon,select_icon,free};
-		bool redraw=is_icon && (icon->style.flags&64)==0 && (style.flags&(2|4096))!=0;
-		status=st_rip3_mouse_define(host->mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,(style.flags&2)!=0,(style.flags&4)!=0,payload.identity,
-		    payload.host.data,payload.host.length,redraw ? &visual : NULL);
-		if (status==0 && redraw) icon=NULL;
-	}
-done:
-	st_rip3_bitmap_destroy(bitmap);free(icon);
+}
+
+int
+st_rip3_button_create_execute(const struct st_rip3_command_host *host,const uint8_t *command,size_t length,bool *operation)
+{
+	if (host->buttons!=NULL) {st_rip3_button_renderer_start(host->buttons,command,length);*operation=true;return 0;}
+	struct button *b=NULL;int status=prepare_button(host,command,length,false,&b);
+	if (status==0 && b!=NULL) {status=run_synchronous(b,true,operation);release_button(b);}
 	return status;
 }

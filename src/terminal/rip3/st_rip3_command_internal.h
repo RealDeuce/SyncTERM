@@ -19,6 +19,8 @@ struct st_rip3_outline_style;
 struct st_rip3_text_context;
 int st_rip3_command_text_glyphs(const struct st_rip3_text_context *context,
 	const uint8_t *text, size_t length, const uint8_t **glyphs, size_t *count, uint8_t **owned);
+int st_rip3_command_expanded_glyphs(const struct st_rip3_text_context *context,
+	const uint8_t *text,size_t length,const uint8_t **glyphs,size_t *count,uint8_t **owned);
 int st_rip3_command_outline_font(struct st_rip3_outline_font *result,
 	const struct st_rip3_text_context *context, const struct st_rip3_outline_style *style,
 	const struct st_rip3_frame *frame, unsigned orientation);

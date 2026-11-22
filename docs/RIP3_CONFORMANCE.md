@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-a8570522e02f4b6753afea9cb9a6de3565009f1a](https://github.com/RealDeuce/remote-imaging-protocol/tree/a8570522e02f4b6753afea9cb9a6de3565009f1a/version/3.0)
+21728db6fd3ff7623e36d5ff59e8c64421f57c14](https://github.com/RealDeuce/remote-imaging-protocol/tree/21728db6fd3ff7623e36d5ff59e8c64421f57c14/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -7322,3 +7322,75 @@ blockers resolved; implementation/test evidence for every in-scope requirement;
 and passing preservation/runtime tests. Commit completed, verified changes.
 Do not push code or publish PRs without further instruction. Upstream
 clarification issues are authorized.
+
+## Connected filename/label stages and PR #129 auto-stamp contract
+
+The reference now pins fork stable
+`21728db6fd3ff7623e36d5ff59e8c64421f57c14`, including reviewed
+[PR #129](https://github.com/bbs-land/remote-imaging-protocol/pull/129) for
+[issue #128](https://github.com/bbs-land/remote-imaging-protocol/issues/128).
+The adoption record retains the archive/document/derivation hashes, exact block
+migration and retired implementation evidence. This answers B128; no existing
+issue receives comments. The already adopted PR117 positional `1U` split is
+unchanged, with new explicit quote/backslash, inserted-delimiter and normalized
+codepage raw-byte boundary vectors.
+
+Connected `1U` creation and requested full redraws now use the same bounded
+angle/ordinary worker as T/@ for the nonempty common filename and label slots.
+A non-ICON first slot is prepared without loading an icon. The original raw
+sources are retained, while definition-time WORLD, geometry, style, font and
+viewport/destination identity remain captured. Filename providers precede
+face/effects and capture; label providers follow them. Completed live setter
+and clipboard/style effects are preserved across suspension or later failure.
+The opaque third host slot executes only after an actual committed activation.
+
+A shared resumable renderer owns its working descriptor while a field or
+prompt can disappear. Scene and destination generations prevent drawing into
+replacement ports, resurrecting private viewport state or admitting a pending
+field into another scene. Admission rechecks the shared 128-field capacity.
+Keyboard/release activation owns its original source and identity snapshot,
+waits for optional redraw/query stages, and commits once even if feedback fails
+or the field is deleted. Destruction and forced cancellation clear temporary
+feedback without providers or a new activation. Parser/resource/provider errors
+remain below void parser/session processing and never terminate the connection.
+
+Physical release/focus-loss/cancel information received by the real modal Wren
+editor is retained against the original unique guest press token and appended
+to the existing ordered input FIFO. Later dialog clicks are not replayed as
+guest clicks. The bridge uses the existing console-event/poll ownership and one
+embedded terminal-event node; it adds no guest Wren API, scene pixel buffer or
+damage tracking layer. Ordinary ANSI/RIP1 rendering retains its existing path.
+
+PR129 auto-stamp keeps F for the label, H for input and C for the baked face and
+bevel, excluding the recess and label. Capture uses C's exact logical dimensions,
+places available source pixels at their C-relative offsets and pads unavailable
+pixels with index 0/COPY. Full redraws re-prepare the filename, read the current
+clipboard into the same C with crop/padding, then expand the current label;
+they do not reload a former ICON or recapture. Clearing CHISEL does not change
+its captured label inset. Same-effective-destination auto-stamp skips deletion,
+allocation and converted-style writes, then draws the label on the original
+port. Destination replacement cancels the stale continuation without a PORT0
+handoff. Ordinary `1C` GET_IMAGE allocation/copy behavior remains unchanged.
+
+Independent native vectors cover F/H/C, source aliases and padding, once-only
+capture/style writes before a prompt, stale destination/scene, field deletion,
+capacity exhaustion, provider-free cleanup and committed-action lifetime. The
+connected button/icon cases run in CP437 and UTF-8 across four entry rasters,
+using independently encoded BMP/BMH assets and direct geometry/color checks.
+They cover live filename and label changes, fixed redraw geometry/crop,
+real modal release handling and a usable connection after
+malformed definitions or later failures. Existing connected keyboard, mouse and
+T/@ cases, normal ANSI controls and the relevant native parser/query/port tests
+pass. Native raw-slot vectors check original codepage wire-byte budgets.
+Fixture corrections distinguish wire extent boundaries from inclusive
+native endpoints and allow label ink outside its face; expectations are not
+generated from this emulator. All 25 distinct relevant checks pass, including the source freeze, contract and
+preservation guard. Builds use the one native Release CMake tree.
+
+The 8279-unit queue now has 1702 implemented, 1760 pending, 3365 unreviewed,
+1360 context, 67 excluded and 25 blocked units. The whole generic prompt-lifetime
+rows remain pending where they include unfinished TEXT_METRIC/TEXTDATA or
+advanced frontend editor/format modes. Grouped/persistent selection, initial
+selected plain/clipboard image policy, hover and other recorded table/playback
+work remain pending. This milestone does not establish full RIP3 compliance.
+The RIP1.54 baseline and historical fixtures are not advanced.

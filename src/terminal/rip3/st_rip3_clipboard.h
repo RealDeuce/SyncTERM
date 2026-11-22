@@ -41,6 +41,13 @@ int st_rip3_clipboard_capture(struct st_rip3_ports *ports,
 	struct st_rip3_clipboard_selection *selection,
 	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
 
+/* Button auto-stamp uses the same allocation/failure ownership with an exact
+ * half-open logical footprint and COPY padding at the original source offset.
+ * The button renderer checks the documented same-destination guard first. */
+int st_rip3_clipboard_capture_button(struct st_rip3_ports *ports,
+	struct st_rip3_clipboard_selection *selection,
+	const struct st_rip3_clipboard_area *area, uint64_t pixel_budget);
+
 /* LOAD_BITMAP's explicit post-draw duplicate route. Zero uses shared capture;
  * >35 and same-current nonzero selectors skip duplication. A different defined
  * target is deleted before allocation, clearing a matching clipboard pointer.

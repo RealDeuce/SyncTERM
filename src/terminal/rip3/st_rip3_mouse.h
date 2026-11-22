@@ -13,9 +13,12 @@ enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
 struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;};
 struct st_rip3_mouse_visual {
 	void *context;
-	/* Synchronous redraw; may not mutate/reenter the mouse owner. */
+	/* May schedule owned asynchronous redraw, reported by sink.busy.
+	 * Must not mutate/reenter the mouse owner. */
 	int (*select)(void *context, bool selected);
 	void (*destroy)(void *context);
+	/* Optional provider-free removal of temporary feedback on forced abort. */
+	void (*abort)(void *context);
 };
 /* Scoped callback value; an inactive context has no numeric fallback. */
 struct st_rip3_field_context {bool active;int identity;};
@@ -31,6 +34,8 @@ struct st_rip3_mouse_sink {
 	void (*resource_failure)(void *context);
 	void (*render_failure)(void *context);
 	void (*changed)(void *context);
+	/* Renderer/host continuation busy; excludes this owner's pending action. */
+	bool (*busy)(void *context);
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
@@ -60,6 +65,17 @@ int st_rip3_mouse_remove(struct st_rip3_mouse *mouse,
 size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);
+/* Forced shutdown/cancel: discard committed continuations, restore synchronous
+ * feedback only, and start no new asynchronous provider/prompt operation. */
+void st_rip3_mouse_abort(struct st_rip3_mouse *mouse);
+/* Provider-free capture cancellation; retain already committed actions. */
+void st_rip3_mouse_cancel_silent(struct st_rip3_mouse *mouse);
+/* Unique physical gesture token, zero outside a captured left-button press. */
+uint64_t st_rip3_mouse_press_token(const struct st_rip3_mouse *mouse);
+bool st_rip3_mouse_pending(const struct st_rip3_mouse *mouse);
+void st_rip3_mouse_resume(struct st_rip3_mouse *mouse);
+/* Scene replacement token, independent of appends and individual deletion. */
+uint64_t st_rip3_mouse_scene(const struct st_rip3_mouse *mouse);
 bool st_rip3_mouse_active(const struct st_rip3_mouse *mouse);
 /* Capture on left press, invert while inside, commit on release inside and
  * cancel release outside. Captured instances cannot be stolen by appends. */

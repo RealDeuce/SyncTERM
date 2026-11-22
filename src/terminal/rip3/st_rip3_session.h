@@ -142,6 +142,7 @@ bool st_rip3_session_mouse_pointer(const struct st_rip3_session *session, unsign
 /* Input/gesture failures are absorbed internally just like wire failures. */
 bool st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left);
 bool st_rip3_session_key(struct st_rip3_session *session, uint8_t byte);
+uint64_t st_rip3_session_press_token(const struct st_rip3_session *session);
 void st_rip3_session_mouse_cancel(struct st_rip3_session *session);
 /* Presentation services. Revision advances after commands/host continuations;
  * it does not promise that pixels changed. Damage is borrowed through unbind

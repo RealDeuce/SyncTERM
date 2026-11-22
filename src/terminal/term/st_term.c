@@ -21,7 +21,10 @@
 
 /* Physical event order is retained while a graphical provider suspends.
  * Ordinary ANSI/RIP1 and completed RIP3 output do not use this queue. */
-struct deferred_event {struct st_console_event event;struct deferred_event *next;};
+struct deferred_event {
+	struct st_console_event event;struct deferred_event *next;
+	uint64_t capture_token;bool embedded;
+};
 
 struct st_term_session {
 	struct st_term_config config;
@@ -29,6 +32,8 @@ struct st_term_session {
 	st_ooii_t *ooii;
 	struct st_term_rip3 *rip3;
 	struct deferred_event *deferred_head,*deferred_tail;
+	struct deferred_event modal_tail;
+	bool modal_tail_queued;
 	int output_error;
 	bool end_requested;
 	bool exit_requested;
@@ -53,6 +58,27 @@ struct st_term_session {
 	uint8_t prestel_frame[65536];
 	size_t prestel_frame_size;
 };
+
+static void
+retain_prompt_tail(void *context,uint64_t token,const struct st_console_event *event)
+{
+	st_term_session_t *session=context;
+	/* A single physical gesture has one terminal release/cancel. Later UI
+	 * clicks are filtered by RIP3; queued input cannot start another capture
+	 * until this node drains. Embedding it makes this handoff allocation-free. */
+	if (session->modal_tail_queued) return;
+	struct deferred_event *saved=&session->modal_tail;
+	*saved=(struct deferred_event){.event=*event,.capture_token=token,.embedded=true};
+	if (session->deferred_tail!=NULL) session->deferred_tail->next=saved;
+	else session->deferred_head=saved;
+	session->deferred_tail=saved;session->modal_tail_queued=true;
+}
+
+void
+st_term_session_observe_prompt_input(st_term_session_t *session,const struct st_console_event *event)
+{
+	if (session!=NULL && event!=NULL) st_term_rip3_observe_prompt_input(session->rip3,event);
+}
 
 static bool
 input_paused(st_term_session_t *session)
@@ -429,6 +455,7 @@ st_term_session_create(st_term_session_t **result,
 		status=st_term_rip3_create(&session->rip3,config,session->cterm,&cterm_config);
 		if (status!=0) {st_term_session_destroy(&session);return status;}
 	}
+	st_term_rip3_bind_prompt_input(session->rip3,retain_prompt_tail,session);
 	*result = session;
 	return 0;
 }
@@ -486,7 +513,7 @@ st_term_session_destroy(st_term_session_t **session)
 	free((*session)->returned_wire);
 	while ((*session)->deferred_head!=NULL) {
 		struct deferred_event *event=(*session)->deferred_head;
-		(*session)->deferred_head=event->next;free(event);
+		(*session)->deferred_head=event->next;if (!event->embedded) free(event);
 	}
 	free(*session);
 	*session = NULL;
@@ -1309,7 +1336,11 @@ st_term_session_pump(st_term_session_t *session,
 			 * abandon rendering and drain the original FIFO without losing a
 			 * release/cancel or turning resource failure into disconnection. */
 			struct deferred_event *saved=malloc(sizeof(*saved));
-			if (saved==NULL) {st_term_rip3_graphical_failure(session->rip3);continue;}
+			if (saved==NULL) {
+				st_term_rip3_graphical_failure(session->rip3);
+				if (st_term_rip3_graphical_pending(session->rip3)) return session->output_error;
+				continue;
+			}
 			status=st_console_event_try(session->config.console,&saved->event);
 			if (status!=0) {free(saved);break;}
 			if (saved->event.type==ST_CONSOLE_EVENT_CLOSE
@@ -1318,7 +1349,8 @@ st_term_session_pump(st_term_session_t *session,
 				if (event.type!=ST_CONSOLE_EVENT_CLOSE) {*finished=true;return 0;}
 			}
 			else {
-				saved->next=NULL;
+				saved->next=NULL;saved->capture_token=0;saved->embedded=false;
+				st_term_rip3_note_queued_input(session->rip3,&saved->event);
 				if (session->deferred_tail!=NULL) session->deferred_tail->next=saved;
 				else session->deferred_head=saved;
 				session->deferred_tail=saved;continue;
@@ -1326,9 +1358,13 @@ st_term_session_pump(st_term_session_t *session,
 		}
 		else if (session->deferred_head!=NULL) {
 			struct deferred_event *saved=session->deferred_head;
-			event=saved->event;session->deferred_head=saved->next;
+			event=saved->event;uint64_t token=saved->capture_token;session->deferred_head=saved->next;
 			if (session->deferred_head==NULL) session->deferred_tail=NULL;
-			free(saved);
+			if (saved->embedded) session->modal_tail_queued=false;else free(saved);
+			if (token!=0) {
+				st_term_rip3_captured_input(session->rip3,token,&event);
+				continue;
+			}
 		}
 		else {
 			status=st_console_event_try(session->config.console,&event);

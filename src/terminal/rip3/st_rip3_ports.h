@@ -58,6 +58,15 @@ void st_rip3_ports_destroy(struct st_rip3_ports *ports);
 int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
 int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_port_info *result);
+/* Nonzero destination identity, or zero for an undefined/invalid port. Viewport,
+ * cursor and protection edits retain it; backing/definition replacement does not. */
+uint64_t st_rip3_ports_generation(const struct st_rip3_ports *ports, unsigned number);
+/* Short captured drawing/capture context. Providers must run outside this call.
+ * Restore surviving live records and selection; never resurrect a definition or
+ * selected backing replaced by the callback. A stale identity rejects before draw. */
+int st_rip3_ports_button_context(struct st_rip3_ports *ports, unsigned number,
+	uint64_t generation, const struct st_rip3_port_info *view,
+	int (*draw)(void *context), void *context);
 /* Screen bounds are clamped to the device. An entirely external rectangle
  * fails. All endpoints here are inclusive; the wire producer converts extent
  * boundaries before calling. For offscreen ports x0/y0 are ignored.
@@ -193,6 +202,9 @@ int st_rip3_ports_screen_pattern(struct st_rip3_ports *ports,
  * native dimensions and pad unavailable pixels with index 0. COPY preserves
  * overlapping source pixels before padding. No selection/source mutation. */
 int st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports, unsigned source, int32_t x, int32_t y);
+/* Same native-size transfer clipped/padded to a captured half-open face. */
+int st_rip3_ports_button_clipboard(struct st_rip3_ports *ports,unsigned source,
+	const struct st_rip3_rect *face);
 /* Selected image inversion within the current drawing viewport. */
 int st_rip3_ports_invert_rgb(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
 	const struct st_rip3_palette *palette);

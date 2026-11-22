@@ -4,6 +4,7 @@
 #define ST_RIP3_BUTTON_PAYLOAD_H_
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 struct st_rip3_button_text {const uint8_t *data;size_t length;};
@@ -17,4 +18,6 @@ struct st_rip3_button_payload {
 int st_rip3_button_payload_parse(struct st_rip3_button_payload *result,
 	const uint8_t *text,size_t length);
 
+int st_rip3_button_payload_parse_encoded(struct st_rip3_button_payload *result,
+	const uint8_t *text,size_t length,bool converted_codepage);
 #endif

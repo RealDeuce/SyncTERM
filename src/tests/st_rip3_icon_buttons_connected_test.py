@@ -6,6 +6,7 @@ from pathlib import Path
 import struct
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
+from syncterm_fixture import receive
 from st_rip3_buttons_connected_test import button,style,remove_fields
 from st_rip3_button_styles_connected_test import number
 from st_rip3_connected_test import query,pixel
@@ -38,7 +39,8 @@ def run(args,width,height):
         assets=paths[0].parent
         for name,w,h,rgb in [('Face.BMP',60,30,0x00aa00),('Face.BMH',100,50,0xaa0000),
                              ('Fallback.BMP',20,10,0x0000aa),('BadHot.BMP',20,10,0x0000aa),
-                             ('OnlyHot.BMH',100,50,0xaa0000),('Tiny.BMP',1,1,0x00aa00)]:
+                             ('OnlyHot.BMH',100,50,0xaa0000),('Tiny.BMP',1,1,0x00aa00),
+                             ('Other.BMP',10,5,0x0000aa),('Other.BMH',5,3,0x00aaaa)]:
             (assets/name).write_bytes(bitmap(w,h,rgb))
         (assets/'BadHot.BMH').write_bytes(b'not a bitmap')
         m=frame.metadata
@@ -55,6 +57,48 @@ def run(args,width,height):
             values(f'$WORLD(CUR,{width*scale},{height*scale})$'.encode())
             # WORLD may exceed the two-digit range; the macro changes it without
             # changing coordinate width/base, keeping the fixture prefixes literal.
+        world(1)
+        t.case(f'rip3-icon-filename-label-expansion-and-captured-geometry-{width}x{height}')
+        values(b'$-=FACE=Face$$-=LABEL=A$')
+        source=f'$WORLDW(0,{2*width})$$&FACE$'.encode()+b'<>$&LABEL$<>macro:$FIELDID$'
+        frame=t.exchange(style(flags=128|4096|1024,foreground=15)
+                         +button((400,200,0,0),b'ID=82:'+source))
+        assert pixel(frame,400,200)==0x00aa00 and pixel(frame,459,229)==0x00aa00
+        values(b'$WORLDW$',str(2*width).encode())
+        values(b'$-=FACE=Other$$-=LABEL= $')
+        mouse(430,215,True);frame=t.exchange()
+        assert all(pixel(frame,x,y)==0x00aaaa for y in range(200,230) for x in range(400,460))
+        mouse(430,215);frame=t.input(b'macro:82')
+        assert all(pixel(frame,x,y)==0x0000aa for y in range(200,230) for x in range(400,460))
+        assert pixel(frame,460,215)==0 and pixel(frame,430,230)==0
+        values(b'$WORLDW$',str(2*width).encode())
+        # Start the next checks with the original full PORT0 and seed port.
+        t.exchange(b'\x01|*|2P6000001011\r\n\x1b[?25l');world(1)
+        if width==640:
+            t.case('rip3-button-modal-release-and-no-dialog-click-replay')
+            values(b'$-=LIVE=Creation$')
+            send(style(flags=256|1024|2,foreground=15)
+                 +button((20,20,120,60),b'ID=83:<>$=LIVE,10@Draw <<LIVE>>$<>clicked:$FIELDID$')
+                 +query(b'created',at_cursor=True)+b'\x1b[5n')
+            client.wait_text('Draw Creation')
+            def answer(value):
+                client.key('home')
+                for _ in range(10):client.key('delete')
+                client.text(value);client.key('enter')
+            answer('Down')
+            receive(peer,b'created\x1b[0n',root/'replies.bin')
+            mouse(70,35,True);dialog=client.wait_text('Draw Down')
+            assert (dialog.metadata['plane_width'],dialog.metadata['plane_height'])==(m['plane_width'],m['plane_height'])
+            # This release is consumed by the real menu-VM editor, which must
+            # preserve the original guest press. Later dialog clicks are not
+            # new guest gestures and must not trigger another activation.
+            mouse(70,35)
+            mouse(70,35,True);mouse(70,35)
+            answer('Up');client.wait_text('Draw Up')
+            send(b'\x1b[5n');answer('Done')
+            receive(peer,b'clicked:83\x1b[0n',root/'replies.bin')
+            values(b'$&LIVE$',b'Done')
+            t.exchange(b'\x01|*|2P6000001011\r\n\x1b[?25l')
         world(2)
         t.case(f'rip3-icon-natural-palette-copy-{width}x{height}')
         before=t.exchange(style(flags=128|1024))
@@ -137,14 +181,14 @@ def run(args,width,height):
                          +b'\x01|1W0AutoIcon.bmp\r\n')
         paths=list(root.rglob('AutoIcon.bmp'));assert len(paths)==1
         data=paths[0].read_bytes();offset=int.from_bytes(data[10:14],'little')
-        assert struct.unpack_from('<ii',data,18)==(57,32)
-        colors={value for y in range(32) for value in data[offset+y*60:offset+y*60+57]}
+        assert struct.unpack_from('<ii',data,18)==(56,31)
+        colors={value for y in range(31) for value in data[offset+y*56:offset+y*56+56]}
         # Hot image=4, dark=8, bright=15, and this fixture's explicit corner=7;
         # the later label foreground=12 must not enter the captured bitmap.
         assert colors <= {4,7,8,15} and 12 not in colors, colors
         frame=t.exchange(button((400,400,0,0),b'<><>captured-icon'))
-        assert pixel(frame,200,200)==0xffffff and pixel(frame,256,231)==0x555555
-        click(256,231,b'captured-icon')
+        assert pixel(frame,200,200)==0xffffff and pixel(frame,255,230)==0x555555
+        click(255,230,b'captured-icon')
 
         t.case(f'rip3-hot-redraw-excludes-initial-recess-{width}x{height}')
         frame=t.exchange(style(flags=128|4096|512|16|1024,bevel=6)

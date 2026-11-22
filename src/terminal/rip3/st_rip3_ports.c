@@ -24,6 +24,7 @@ struct st_rip3_ports {
 	size_t damage_length;
 	struct st_rip3_rect screen_bounds;
 	unsigned current;
+	uint64_t sequence,generations[36];
 	struct port entries[36];
 };
 
@@ -158,6 +159,18 @@ st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	return 0;
 }
 
+uint64_t
+st_rip3_ports_generation(const struct st_rip3_ports *ports,unsigned number)
+{
+	return ports==NULL || number>=36 || !ports->entries[number].info.defined ? 0 : ports->generations[number];
+}
+
+static bool
+generations_available(const struct st_rip3_ports *ports,unsigned count)
+{
+	return ports->sequence<=UINT64_MAX-count;
+}
+
 int
 st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
     const struct st_rip3_rect *bounds, bool offscreen)
@@ -167,7 +180,7 @@ st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 
 	if (ports == NULL || bounds == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (number == 0 || number >= 36)
+	if (number == 0 || number >= 36 || !generations_available(ports,1))
 		return IO_ERROR_OUT_OF_RANGE;
 	if (ports->entries[number].info.protected) {
 		ports->current = 0;
@@ -197,6 +210,7 @@ st_rip3_ports_define(struct st_rip3_ports *ports, unsigned number,
 	value.info.image = image_defaults;
 	clear_port(&ports->entries[number]);
 	ports->entries[number] = value;
+	ports->generations[number]=++ports->sequence;
 	return 0;
 }
 
@@ -209,7 +223,7 @@ st_rip3_ports_install_bitmap(struct st_rip3_ports *ports, unsigned number,
 	int status;
 
 	if (ports == NULL || bitmap == NULL || *bitmap == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (number == 0 || number >= 36) return IO_ERROR_OUT_OF_RANGE;
+	if (number == 0 || number >= 36 || !generations_available(ports,1)) return IO_ERROR_OUT_OF_RANGE;
 	if (ports->entries[number].info.protected) return IO_ERROR_PERMISSION_DENIED;
 	status = st_rip3_surface_size(*bitmap,&width,&height);
 	if (status != 0) return status;
@@ -220,6 +234,7 @@ st_rip3_ports_install_bitmap(struct st_rip3_ports *ports, unsigned number,
 	value.info.image = image_defaults;
 	value.bitmap = *bitmap;
 	clear_port(&ports->entries[number]); ports->entries[number] = value;
+	ports->generations[number]=++ports->sequence;
 	*bitmap = NULL;
 	return 0;
 }
@@ -273,17 +288,19 @@ st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number)
 {
 	if (ports == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (number >= 36)
+	if (number >= 36 || !generations_available(ports,36))
 		return IO_ERROR_OUT_OF_RANGE;
 	if (number != 0) {
 		if (ports->entries[number].info.protected)
 			return IO_ERROR_PERMISSION_DENIED;
 		clear_port(&ports->entries[number]);
+		ports->generations[number]=++ports->sequence;
 	}
 	else {
 		for (unsigned i = 1; i < 36; i++) {
-			if (!ports->entries[i].info.protected)
-				clear_port(&ports->entries[i]);
+			if (!ports->entries[i].info.protected) {
+				clear_port(&ports->entries[i]);ports->generations[i]=++ports->sequence;
+			}
 		}
 	}
 	if (!ports->entries[ports->current].info.defined)
@@ -297,10 +314,13 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 	if (ports == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	ports->entries[ports->current].info.image = image_defaults;
+	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
 	for (unsigned i = 1; i < 36; i++) {
-		if (hard || !ports->entries[i].info.protected)
-			clear_port(&ports->entries[i]);
+		if (hard || !ports->entries[i].info.protected) {
+			clear_port(&ports->entries[i]);ports->generations[i]=++ports->sequence;
+		}
 	}
+	ports->generations[0]=++ports->sequence;
 	ports->entries[0].info = (struct st_rip3_port_info){
 		.defined = true,
 		.viewport_active = true,
@@ -599,13 +619,15 @@ clipboard_padding(struct st_rip3_surface *surface,const struct st_rip3_rect *vis
 	return st_rip3_surface_fill(surface,NULL,&area,0,ST_RIP3_COPY);
 }
 
-int
-st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports,unsigned source,int32_t x,int32_t y)
+static int
+clipboard_blit(struct st_rip3_ports *ports,unsigned source,int32_t x,int32_t y,const struct st_rip3_rect *face)
 {
 	struct st_rip3_port_info info;
 	int status=st_rip3_ports_info(ports,source,&info);
 	if (status!=0) return status;
 	if (!info.defined || !rect_valid(&info.viewport) || !rect_valid(&info.clip)) return IO_ERROR_NOT_FOUND;
+	if (face!=NULL && ((int64_t)info.clip.x0 >= (int64_t)face->x1-face->x0
+	    || (int64_t)info.clip.y0 >= (int64_t)face->y1-face->y0)) return IO_ERROR_NOT_FOUND;
 	const struct port *dst=&ports->entries[ports->current];
 	if (!dst->info.viewport_active) return 0;
 	struct st_rip3_rect from=viewport_absolute(&ports->entries[source]);
@@ -618,12 +640,19 @@ st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports,unsigned source,int32_t
 	if (!clip(&visible,&physical)) return 0;
 	int64_t ox=(int64_t)to.x0+x,oy=(int64_t)to.y0+y;
 	if (ox>INT32_MAX || oy>INT32_MAX || ox<INT32_MIN || oy<INT32_MIN) return 0;
+	if (face!=NULL) {
+		int64_t right=ox+(int64_t)face->x1-face->x0-1,bottom=oy+(int64_t)face->y1-face->y0-1;
+		const struct st_rip3_rect limited={(int32_t)ox,(int32_t)oy,
+		    right>INT32_MAX ? INT32_MAX : (int32_t)right,bottom>INT32_MAX ? INT32_MAX : (int32_t)bottom};
+		if (!clip(&visible,&limited)) return 0;
+	}
 	/* Copy first, using the existing overlap snapshot. Padding before this
 	 * transfer could corrupt a shared screen/source or self-aliased bitmap. */
 	status=st_rip3_surface_blit(surface,&visible,(int32_t)ox,(int32_t)oy,
 	    port_surface(ports,source),NULL,&from,ST_RIP3_TRANSFER_COPY);
 	if (status!=0) return status;
 	int64_t right=ox+(int64_t)from.x1-from.x0,bottom=oy+(int64_t)from.y1-from.y0;
+	if (face!=NULL) {right=ox+(int64_t)face->x1-face->x0-1;bottom=oy+(int64_t)face->y1-face->y0-1;}
 	int64_t left=ox+info.clip.x0,top=oy+info.clip.y0;
 	int64_t backed_right=ox+info.clip.x1,backed_bottom=oy+info.clip.y1;
 	status=clipboard_padding(surface,&visible,ox,oy,right,top-1);
@@ -631,6 +660,19 @@ st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports,unsigned source,int32_t
 	if (status==0) status=clipboard_padding(surface,&visible,ox,top,left-1,backed_bottom);
 	if (status==0) status=clipboard_padding(surface,&visible,backed_right+1,top,right,backed_bottom);
 	return status;
+}
+
+int
+st_rip3_ports_clipboard_blit(struct st_rip3_ports *ports,unsigned source,int32_t x,int32_t y)
+{
+	return clipboard_blit(ports,source,x,y,NULL);
+}
+
+int
+st_rip3_ports_button_clipboard(struct st_rip3_ports *ports,unsigned source,const struct st_rip3_rect *face)
+{
+	if (face==NULL || face->x1<=face->x0 || face->y1<=face->y0) return IO_ERROR_INVALID_ARGUMENT;
+	return clipboard_blit(ports,source,face->x0,face->y0,face);
 }
 
 int
@@ -705,11 +747,14 @@ st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
 	if (width != (uint32_t)ports->screen_bounds.x1 + 1
 	    || height != (uint32_t)ports->screen_bounds.y1 + 1)
 		return IO_ERROR_CONFLICT;
+	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
 	status = st_rip3_surface_clone(&pixels, snapshot);
 	if (status != 0)
 		return status;
 	st_rip3_surface_destroy(ports->screen);
 	ports->screen = pixels;
+	for (unsigned i=0;i<36;i++) if (ports->entries[i].info.defined && !ports->entries[i].info.offscreen)
+		ports->generations[i]=++ports->sequence;
 	(void)st_rip3_surface_damage(pixels,ports->damage,ports->damage_length);
 	if (ports->damage!=NULL) {
 		for (size_t i=0; i<(size_t)width*height; i++) ports->damage[i]=1;
@@ -731,6 +776,21 @@ st_rip3_ports_invert_rgb(struct st_rip3_ports *ports,const struct st_rip3_rect *
 	const struct port *port=&ports->entries[ports->current];struct st_rip3_rect visible;
 	if (!port->info.viewport_active || !translate(port,area,&visible)) return 0;
 	return st_rip3_surface_invert_rgb(port_surface(ports,ports->current),NULL,&visible,palette);
+}
+
+int
+st_rip3_ports_button_context(struct st_rip3_ports *ports,unsigned number,uint64_t generation,
+    const struct st_rip3_port_info *view,int (*draw)(void *context),void *context)
+{
+	if (ports==NULL || number>=36 || view==NULL || draw==NULL || !view->defined) return IO_ERROR_INVALID_ARGUMENT;
+	if (generation==0 || st_rip3_ports_generation(ports,number)!=generation) return IO_ERROR_CONFLICT;
+	struct st_rip3_port_info saved=ports->entries[number].info;unsigned current=ports->current;
+	uint64_t selected=st_rip3_ports_generation(ports,current);
+	ports->entries[number].info=*view;ports->current=number;
+	int status=draw(context);
+	if (st_rip3_ports_generation(ports,number)==generation) ports->entries[number].info=saved;
+	if (st_rip3_ports_generation(ports,current)==selected) ports->current=current;
+	return status;
 }
 
 int
@@ -856,6 +916,7 @@ port_backup_restore(void *object, const void *saved)
 	    || ports->screen_bounds.x1 != snapshot->screen_bounds.x1
 	    || ports->screen_bounds.y1 != snapshot->screen_bounds.y1)
 		return IO_ERROR_CONFLICT;
+	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
 	/* No live entry or screen pixel changes until every owned bitmap has
 	 * been copied. Screen ports have definitions only, never a pixel copy. */
 	for (size_t i = 0; i < 36; i++) {
@@ -872,6 +933,7 @@ port_backup_restore(void *object, const void *saved)
 	for (size_t i = 0; i < 36; i++) {
 		clear_port(&ports->entries[i]);
 		ports->entries[i] = entries[i];
+		ports->generations[i]=++ports->sequence;
 	}
 	ports->current = snapshot->current;
 	return 0;

@@ -64,6 +64,10 @@ struct st_term_rip3 {
 	bool pointer_known;
 	enum st_console_pointer_shape pointer_shape;
 	uint64_t pixel_budget, presented;
+	void (*retain_prompt_input)(void *context,uint64_t token,const struct st_console_event *event);
+	void *prompt_input_context;
+	uint64_t prompt_token,prompt_queued_token;
+	bool observing_prompt;
 	uint8_t *queue, *damage;
 	size_t position, length, capacity, pixels;
 	struct st_pixel_buffer *previous;
@@ -745,6 +749,41 @@ modifier(void *context, enum st_rip3_modifier kind, bool *down)
 	return status;
 }
 
+static bool
+press_tail(const struct st_console_event *event)
+{
+	return (event->type==ST_CONSOLE_EVENT_MOUSE && event->data.mouse.action!=ST_CONSOLE_MOUSE_WHEEL
+	        && (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)==0)
+	    || (event->type==ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
+	    || event->type==ST_CONSOLE_EVENT_CLOSE || event->type==ST_CONSOLE_EVENT_RESIZE;
+}
+
+void
+st_term_rip3_bind_prompt_input(struct st_term_rip3 *rip,
+    void (*retain)(void *,uint64_t,const struct st_console_event *),void *context)
+{
+	if (rip==NULL) return;
+	rip->retain_prompt_input=retain;rip->prompt_input_context=context;
+}
+
+void
+st_term_rip3_note_queued_input(struct st_term_rip3 *rip,const struct st_console_event *event)
+{
+	if (rip!=NULL && press_tail(event)) rip->prompt_queued_token=st_rip3_session_press_token(rip->session);
+}
+
+void
+st_term_rip3_observe_prompt_input(struct st_term_rip3 *rip,const struct st_console_event *event)
+{
+	if (rip==NULL || !rip->observing_prompt || rip->prompt_token==0 || rip->retain_prompt_input==NULL
+	    || rip->prompt_queued_token==rip->prompt_token || !press_tail(event)) return;
+	/* Exactly one release/cancel belongs to the original guest gesture. Later
+	 * editor clicks/keys remain editor input. The owner already holds earlier
+	 * physical events; append this tail rather than replaying it ahead of them. */
+	rip->prompt_queued_token=rip->prompt_token;
+	rip->retain_prompt_input(rip->prompt_input_context,rip->prompt_token,event);
+}
+
 static void
 prompt(struct st_term_rip3 *rip)
 {
@@ -758,11 +797,14 @@ prompt(struct st_term_rip3 *rip)
 	bool supported=(reference->directives&ST_RIP3_VARIABLE_MASKED)==0
 	    && !reference->has_position;
 	int status=IO_ERROR_NOT_SUPPORTED;
+	rip->prompt_token=st_rip3_session_press_token(rip->session);
+	rip->observing_prompt=rip->prompt_token!=0;
 	if (supported && rip->config.rip_prompt!=NULL)
 		status=rip->config.rip_prompt(rip->config.rip_prompt_context,
 		    reference->has_question ? (const char *)reference->question.bytes : reference->name,
 		    view.initial==NULL ? "" : (const char *)view.initial->bytes,
 		    reference->has_width ? reference->width : 255,false,&value);
+	rip->observing_prompt=false;
 	if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	st_rip3_session_respond(rip->session,(const uint8_t *)value,value==NULL ? 0 : strlen(value),
 	    status!=0 || value==NULL);
@@ -843,6 +885,18 @@ mouse_capture(void *context, int32_t x, int32_t y)
 	struct st_term_rip3 *rip=context;
 	rip->mouse_position=(struct st_rip3_point){x,y};
 	rip->local.mouse_position=&rip->mouse_position;
+}
+
+void
+st_term_rip3_captured_input(struct st_term_rip3 *rip,uint64_t token,const struct st_console_event *event)
+{
+	if (rip==NULL || token==0 || st_rip3_session_press_token(rip->session)!=token) return;
+	if (event->type==ST_CONSOLE_EVENT_MOUSE) {
+		mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
+		(void)st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
+		    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
+	}
+	else st_rip3_session_mouse_cancel(rip->session);
 }
 
 static void

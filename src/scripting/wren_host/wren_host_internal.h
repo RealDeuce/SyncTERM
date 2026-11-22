@@ -308,6 +308,9 @@ struct st_wren_host {
 	char last_error[512];
 };
 
+/* Observe native modal events before UI draining/translation consumes them. */
+void st_wren_observe_prompt_input(struct st_wren_host *host,st_console_t *console,
+	const struct st_console_event *event);
 struct st_wren_host *st_wren_host_from_vm(WrenVM *vm);
 struct st_wren_context *st_wren_context_from_vm(WrenVM *vm);
 int st_wren_host_run_connected_menu(struct st_wren_host *host,

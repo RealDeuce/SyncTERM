@@ -30,10 +30,10 @@ budget_available(struct st_rip3_ports *ports, uint64_t budget, uint64_t requeste
 	return used > budget || requested > budget-used ? IO_ERROR_OUT_OF_MEMORY : 0;
 }
 
-int
-st_rip3_clipboard_capture(struct st_rip3_ports *ports,
+static int
+capture(struct st_rip3_ports *ports,
     struct st_rip3_clipboard_selection *selection,
-    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget)
+    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget, bool button)
 {
 	struct st_rip3_surface *bitmap = NULL;
 	struct st_rip3_port_info target;
@@ -45,8 +45,9 @@ st_rip3_clipboard_capture(struct st_rip3_ports *ports,
 	    || area->left > area->right || area->top > area->bottom
 	    || area->left < -limit || area->right > limit || area->top < -limit || area->bottom > limit)
 		return IO_ERROR_INVALID_ARGUMENT;
-	uint16_t width = (uint16_t)(area->right-area->left+1);
-	uint16_t height = (uint16_t)(area->bottom-area->top+1);
+	uint64_t width = button ? (uint64_t)(area->right-area->left) : (uint16_t)(area->right-area->left+1);
+	uint64_t height = button ? (uint64_t)(area->bottom-area->top) : (uint16_t)(area->bottom-area->top+1);
+	if (button && (width > INT32_MAX || height > INT32_MAX)) return IO_ERROR_OUT_OF_RANGE;
 	/* Do not invent native zero-dimension allocation behavior. */
 	if (width == 0 || height == 0) return IO_ERROR_NOT_SUPPORTED;
 	if (selection->set) {
@@ -71,7 +72,7 @@ st_rip3_clipboard_capture(struct st_rip3_ports *ports,
 	}
 	selection->set = true; selection->port = number;
 	status = budget_available(ports,pixel_budget,(uint64_t)width*height);
-	if (status == 0) status = st_rip3_surface_create(&bitmap,width,height);
+	if (status == 0) status = st_rip3_surface_create(&bitmap,(uint32_t)width,(uint32_t)height);
 	if (status == 0) status = st_rip3_ports_install_bitmap(ports,number,&bitmap);
 	st_rip3_surface_destroy(bitmap);
 	if (status != 0) {
@@ -84,8 +85,27 @@ st_rip3_clipboard_capture(struct st_rip3_ports *ports,
 	 * Empty/trim/copy failures retain the newly installed clear allocation. */
 	const struct st_rip3_rect from = {bounded(area->left),bounded(area->top),
 	    bounded(area->right-1),bounded(area->bottom-1)};
-	(void)st_rip3_ports_copy(ports,source,&from,number,NULL,ST_RIP3_TRANSFER_COPY);
+	if (button)
+		(void)st_rip3_ports_blit(ports,source,&from,number,0,0,ST_RIP3_TRANSFER_COPY);
+	else
+		(void)st_rip3_ports_copy(ports,source,&from,number,NULL,ST_RIP3_TRANSFER_COPY);
 	return 0;
+}
+
+int
+st_rip3_clipboard_capture(struct st_rip3_ports *ports,
+    struct st_rip3_clipboard_selection *selection,
+    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget)
+{
+	return capture(ports,selection,area,pixel_budget,false);
+}
+
+int
+st_rip3_clipboard_capture_button(struct st_rip3_ports *ports,
+    struct st_rip3_clipboard_selection *selection,
+    const struct st_rip3_clipboard_area *area, uint64_t pixel_budget)
+{
+	return capture(ports,selection,area,pixel_budget,true);
 }
 
 int

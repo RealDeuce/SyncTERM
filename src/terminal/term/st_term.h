@@ -147,6 +147,10 @@ bool st_term_session_remote_closed(const st_term_session_t *session);
  * the notice without resizing. Destruction does not capture subsequent UI. */
 int st_term_session_prepare_disconnect(st_term_session_t *session);
 void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
+/* Owner-thread modal editor bridge. Only an original RIP3 physical press's
+ * release/cancel is retained; dialog input is never replayed as new guest input. */
+void st_term_session_observe_prompt_input(st_term_session_t *session,
+	const struct st_console_event *event);
 /* Owner-only handoff. The session remains the sole transport reader and
  * feeds protocol input while a modal UI suspends ordinary terminal display. */
 int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);

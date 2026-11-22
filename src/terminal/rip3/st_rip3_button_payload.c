@@ -1,10 +1,11 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_button_payload.h"
 #include "st_rip3_mouse.h"
+#include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
 
 int
-st_rip3_button_payload_parse(struct st_rip3_button_payload *result,const uint8_t *text,size_t length)
+st_rip3_button_payload_parse_encoded(struct st_rip3_button_payload *result,const uint8_t *text,size_t length,bool converted_codepage)
 {
 	if (result==NULL || (text==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	int identity=st_rip3_mouse_identity(&text,&length);
@@ -19,6 +20,13 @@ st_rip3_button_payload_parse(struct st_rip3_button_payload *result,const uint8_t
 		value.host=(struct st_rip3_button_text){value.label.data+i+2,value.label.length-i-2};
 		value.label.length=i;break;
 	}
-	if (value.icon.length>127 || value.label.length>255) return IO_ERROR_OUT_OF_RANGE;
+	if (st_rip3_graphical_units(value.icon.data,value.icon.length,converted_codepage)>127
+	    || st_rip3_graphical_units(value.label.data,value.label.length,converted_codepage)>255) return IO_ERROR_OUT_OF_RANGE;
 	*result=value;return 0;
+}
+
+int
+st_rip3_button_payload_parse(struct st_rip3_button_payload *result,const uint8_t *text,size_t length)
+{
+	return st_rip3_button_payload_parse_encoded(result,text,length,false);
 }

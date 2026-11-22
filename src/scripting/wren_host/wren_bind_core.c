@@ -1335,6 +1335,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit,
 			st_wren_abort(vm, "input wait failed");
 			return false;
 		}
+		st_wren_observe_prompt_input(host,context->console,&event);
 		if (event.type == ST_CONSOLE_EVENT_CLOSE) {
 			host->exit_requested = true;
 			continue;

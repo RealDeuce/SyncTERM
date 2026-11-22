@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/127",
-  "revision": "a8570522e02f4b6753afea9cb9a6de3565009f1a",
-  "previous_revision": "eb346cb73cf01f66ba88c8fa0dc2a134756a2302",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
+  "revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+  "previous_revision": "a8570522e02f4b6753afea9cb9a6de3565009f1a",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "Both actual open PR heads consolidated into selected fork stable.",
-  "archive_sha256": "a655f4c3e9a778a78767f9223b9fe825c3f6c63d41744cdbb6aa3fc211c8bd0e",
+  "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
+  "archive_sha256": "e5b0224c6f32590111c647c14f245c8a57ddd33a6e79fc986db998820fc2d77f",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,39 +17,19 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "previous_sha256": "147a7322ffdd5b26040bbd0cc53c893e8e0f2525202da4304bc6201ddb386798",
-      "sha256": "2da34fb5ea79d65a2d9f10511def40a3820803c22331f1dd8f4dc6a75dfc00b8"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "previous_sha256": "f2e007054304d2e5f4202cb709bf0c2b6fd83697817940b22b91642b530bf104",
-      "sha256": "a1a88c37781b38c449cafd96e3b8c4a0d64e006d340e0366306a75936b6b2a56"
-    },
-    {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "previous_sha256": "b9c9e606588ffc38dabdfd370639dda60efaef944304bcab2b3b2c005bc4e96b",
-      "sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "fc3e33d018af5e1eb9572813055ad7c64f8cb1591ae0eeea8a936a8c849e9f02",
-      "sha256": "abaef97374d8188ed8e7674a1e1bb5a141a87f37a7c59fe9153af1b9bf55aec5"
+      "previous_sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7",
+      "sha256": "a736e18a603c6861d71e8e53f8deba879290e29bd79118855738c2a9a79c0be6"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "previous_sha256": "dd8f46592f6029662cd26a6e9f1c7ee39b65282cb2da7cfb1bab8ea67c67f537",
-      "sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "previous_sha256": "b82f9164fe415f53094c64db83950bad4e8fbe405894e57ceacd251621d3a465",
-      "sha256": "23c0c2f7352ed8c53ce4ed65515d2dd1ffd9b34120bef4d97152d7e52dfe8268"
+      "previous_sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8",
+      "sha256": "b3d3535075aa3efde925d65bb765519ed045bc6f545681e37806ad80626db3ae"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 8170,
+  "matched_source_blocks": 8247,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -983,10 +963,10 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 63,
+  "upstream_issue_resolutions": 64,
   "pending_followups": [
-    "Connect graphical filename/label/T/@/metric expansion, bounded angle processing and serialized prompt continuations under the newly specified contract.",
-    "Complete grouped/persistent button selection, selected plain/clipboard images, mouse hover and remaining table/playback families."
+    "TEXT_METRIC/TEXTDATA integration and frontend advanced user editor/format modes.",
+    "Grouped/persistent button selection, selected plain/clipboard image policy, hover and remaining table/playback families."
   ],
   "derivations": [
     {
@@ -1093,7 +1073,7 @@
     },
     {
       "path": "version/3.0/research/issue-27-button-style-contract.md",
-      "sha256": "c7496d4a45801ad3b8421dd0ab93002cdd6d1788139552106a113aa271f0984a",
+      "sha256": "ba5ac2b55ac1a3224620d094718fbc6935c06592095cbccc855027d5d92f52f3",
       "title": "Issue #27: button-style defaults, validation, geometry and transparency",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1328,6 +1308,12 @@
       "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
       "title": "Issue #125: Canonical cursor numbering and prohibited cursor 7",
       "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-128-auto-stamp-redraw.md",
+      "sha256": "96fbe0a30ed0f943cad986c84b8c1e00e4db55a10cd90fc32e5891d2c6ea9628",
+      "title": "Issue #128: Auto-stamp redraw and destination handoff",
+      "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
     }
   ],
   "documents": [
@@ -1473,7 +1459,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7"
+      "sha256": "a736e18a603c6861d71e8e53f8deba879290e29bd79118855738c2a9a79c0be6"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1493,7 +1479,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8"
+      "sha256": "b3d3535075aa3efde925d65bb765519ed045bc6f545681e37806ad80626db3ae"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1604,7 +1590,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "86b2c4e383b2c62d8dc566b421c9e04976c83a6a",
+  "previous_ledger_commit": "c1e9adc7",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -6291,6 +6277,153 @@
         "scope": "X11 used a private Xvfb after clearing inherited display/session variables. Cursor fallback test runs through the actual receive pump with a backend rejecting the requested shape. CP437/UTF-8 bitmap captures verify live sessions. GDI/Quartz were not executed locally; existing ANSI/RIP1 forwarding and RIP1.54 freeze passed.",
         "correction": "The new fixture initially lacked its private header dependency and installed its mock too early; both fixture-only defects were fixed, and only the failing case was rerun. The final build is warning-free."
       }
+    },
+    {
+      "previous_revision": "a8570522e02f4b6753afea9cb9a6de3565009f1a",
+      "revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+      "archive_sha256": "e5b0224c6f32590111c647c14f245c8a57ddd33a6e79fc986db998820fc2d77f",
+      "pull_requests": [
+        {
+          "number": 129,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
+          "head": "b80b12ff7b3f32b1897e9d93bc11089938232ffc"
+        }
+      ],
+      "upstream_state": "Actual open PR head consolidated into selected fork stable.",
+      "authorization": "User selected fork stable and reported the newly specified button contract.",
+      "prior_adoption_commit": "c1e9adc7",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7",
+          "sha256": "a736e18a603c6861d71e8e53f8deba879290e29bd79118855738c2a9a79c0be6"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8",
+          "sha256": "b3d3535075aa3efde925d65bb765519ed045bc6f545681e37806ad80626db3ae"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8247,
+      "moved_source_blocks": 78,
+      "new_source_blocks": 32,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.3-buttons.md:213",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:645",
+        "version/3.0/ripscrip/4.3-buttons.md:647",
+        "version/3.0/ripscrip/4.3-buttons.md:649",
+        "version/3.0/ripscrip/4.3-buttons.md:651",
+        "version/3.0/ripscrip/4.3-buttons.md:653",
+        "version/3.0/ripscrip/4.3-buttons.md:654",
+        "version/3.0/ripscrip/4.3-buttons.md:655",
+        "version/3.0/ripscrip/4.3-buttons.md:656",
+        "version/3.0/ripscrip/4.3-buttons.md:657",
+        "version/3.0/ripscrip/4.3-buttons.md:659",
+        "version/3.0/ripscrip/4.3-buttons.md:661",
+        "version/3.0/ripscrip/4.3-buttons.md:663",
+        "version/3.0/ripscrip/4.3-buttons.md:665",
+        "version/3.0/ripscrip/4.3-buttons.md:667",
+        "version/3.0/ripscrip/4.3-buttons.md:668",
+        "version/3.0/ripscrip/4.3-buttons.md:669",
+        "version/3.0/ripscrip/4.3-buttons.md:670",
+        "version/3.0/ripscrip/4.3-buttons.md:671",
+        "version/3.0/ripscrip/4.3-buttons.md:672",
+        "version/3.0/ripscrip/4.3-buttons.md:673",
+        "version/3.0/ripscrip/4.3-buttons.md:674",
+        "version/3.0/ripscrip/4.3-buttons.md:675",
+        "version/3.0/ripscrip/4.3-buttons.md:676",
+        "version/3.0/ripscrip/4.3-buttons.md:678",
+        "version/3.0/ripscrip/4.3-buttons.md:680",
+        "version/3.0/ripscrip/4.3-buttons.md:684",
+        "version/3.0/ripscrip/4.3-buttons.md:686",
+        "version/3.0/ripscrip/4.3-buttons.md:688",
+        "version/3.0/ripscrip/4.3-buttons.md:690",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:104"
+      ],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/4.3-buttons.md:213",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:104"
+      ],
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/4.3-buttons.md:641"
+      ],
+      "previous_implementation_evidence": [
+        {
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_surface.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_mouse",
+            "rip3_surface",
+            "rip3_ports",
+            "rip3_button_create",
+            "rip3_session",
+            "syncterm_rip3_icon_buttons_CP437",
+            "syncterm_rip3_icon_buttons_UTF-8"
+          ],
+          "reason": "Connected literal ICON and paired HOT rendering: initial chosen image determines creation-WORLD geometry; later redraws keep captured face/viewport/font, COPY nearest current palette with no key, field-local quiet HOT fallback to INVERT, nonfatal normal failure and owned deletion/shutdown. Independent BMP fixtures cover four entry rasters in both encodings. RGB inversion maps back to nearest current-palette index as client rendering policy.",
+          "id": "version/3.0/ripscrip/4.3-buttons.md:641",
+          "source": "version/3.0/ripscrip/4.3-buttons.md",
+          "lines": [
+            641,
+            641
+          ],
+          "heading": "Image Face Sizing and Source Eligibility",
+          "text": "Creation captures logical face geometry and the WORLD reference used for later redraw. Subsequent WORLD changes, clipboard-pointer/viewport changes or normal/hot state changes do not reflow an existing button; create a new instance to choose new geometry. This does not promise frozen clipboard pixels: existing rendering may refresh content within the fixed face. BEVEL/RECESS, label units and destination clipping retain their earlier rules.\n",
+          "sha256": "d861d758786632a8bc7e54ef6a58a11183e0069917f874d41abdfc0a4085925c"
+        }
+      ],
+      "source_blocks_after_update": 8279,
+      "resolved_documentation_blockers": [
+        128
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-128-auto-stamp-redraw.md",
+          "sha256": "96fbe0a30ed0f943cad986c84b8c1e00e4db55a10cd90fc32e5891d2c6ea9628",
+          "title": "Issue #128: Auto-stamp redraw and destination handoff",
+          "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-27-button-style-contract.md",
+          "previous_sha256": "c7496d4a45801ad3b8421dd0ab93002cdd6d1788139552106a113aa271f0984a",
+          "sha256": "ba5ac2b55ac1a3224620d094718fbc6935c06592095cbccc855027d5d92f52f3"
+        }
+      ],
+      "reviewed_change": "Retain separate F/H/C and captured label inset; exact logical auto-stamp crop and padding; full filename/source/label stages on redraw versus provider-free feedback undo. Guard same destination before destructive capture and never transfer a stale label to PORT0. Existing PR117 positional 1U splitting remains unchanged.",
+      "states_after_update": {
+        "unreviewed": 3365,
+        "context": 1354,
+        "pending": 1799,
+        "implemented": 1669,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "implemented_source_units": [],
+      "pending_followups": [
+        "Runtime filename/label button and auto-stamp acceptance recorded in a separate implementation milestone."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; single CMake build tree build.",
+        "passed_tests": [
+          "rip3_contract",
+          "rip3_preservation_guard",
+          "rip154_source_freeze"
+        ],
+        "scope": "All normative source blocks independently reconstructed from the selected archive; unchanged document set and 59 prior derivation hashes verified, with #27 documentary append and new #128 derivation separately recorded. No downloaded code executed."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -6481,6 +6614,102 @@
           "rip3_preservation_guard"
         ],
         "scope": "Fifteen distinct relevant native/connected checks pass. Final builds are warning-free. Connected original-byte-boundary cases cover normalized CP437 and actual UTF-8; native tests cover suspension, hard failure, ordered events and local shutdown. Existing host query/scanner and literal text tests retain their paths. ANSI controls and RIP1.54 freeze pass; no graphical user display or additional toolchain configuration is used."
+      }
+    },
+    {
+      "after_commit": "c1e9adc7",
+      "revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+      "scope": "Connected 1U filename/label expansion, resumable feedback/action sequencing and PR129 auto-stamp geometry/destination guard.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:213",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:647",
+        "version/3.0/ripscrip/4.3-buttons.md:649",
+        "version/3.0/ripscrip/4.3-buttons.md:655",
+        "version/3.0/ripscrip/4.3-buttons.md:656",
+        "version/3.0/ripscrip/4.3-buttons.md:657",
+        "version/3.0/ripscrip/4.3-buttons.md:659",
+        "version/3.0/ripscrip/4.3-buttons.md:661",
+        "version/3.0/ripscrip/4.3-buttons.md:663",
+        "version/3.0/ripscrip/4.3-buttons.md:665",
+        "version/3.0/ripscrip/4.3-buttons.md:669",
+        "version/3.0/ripscrip/4.3-buttons.md:670",
+        "version/3.0/ripscrip/4.3-buttons.md:671",
+        "version/3.0/ripscrip/4.3-buttons.md:672",
+        "version/3.0/ripscrip/4.3-buttons.md:673",
+        "version/3.0/ripscrip/4.3-buttons.md:674",
+        "version/3.0/ripscrip/4.3-buttons.md:675",
+        "version/3.0/ripscrip/4.3-buttons.md:676",
+        "version/3.0/ripscrip/4.3-buttons.md:678",
+        "version/3.0/ripscrip/4.3-buttons.md:680",
+        "version/3.0/ripscrip/4.3-buttons.md:684",
+        "version/3.0/ripscrip/4.3-buttons.md:686",
+        "version/3.0/ripscrip/4.3-buttons.md:718",
+        "version/3.0/ripscrip/4.3-buttons.md:724",
+        "version/3.0/ripscrip/4.3-buttons.md:725",
+        "version/3.0/ripscrip/4.3-buttons.md:728",
+        "version/3.0/ripscrip/4.3-buttons.md:752",
+        "version/3.0/ripscrip/4.3-buttons.md:756",
+        "version/3.0/ripscrip/4.3-buttons.md:758",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:50",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:51",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:97"
+      ],
+      "tests": [
+        "rip3_button_create",
+        "rip3_graphical",
+        "rip3_mouse",
+        "rip3_ports",
+        "rip3_session",
+        "syncterm_rip3_buttons_CP437",
+        "syncterm_rip3_buttons_UTF-8",
+        "syncterm_rip3_icon_buttons_CP437",
+        "syncterm_rip3_icon_buttons_UTF-8"
+      ],
+      "policy": "Separate RIP3 engine; failures never leave void parser processing. Original source slots and drawing snapshots own suspended work. Use existing surface/console damage and scroll paths; no new retained pixels or scene damage layer. Original RIP1.54 source and baseline, entry raster and no-VT102 policy remain intact.",
+      "pending_followups": [
+        "TEXT_METRIC/TEXTDATA integration and frontend advanced user editor/format modes.",
+        "Grouped/persistent button selection, selected plain/clipboard image policy, hover and remaining table/playback families."
+      ],
+      "states_after_update": {
+        "unreviewed": 3365,
+        "context": 1360,
+        "pending": 1760,
+        "implemented": 1702,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; single CMake build tree build.",
+        "passed_tests": [
+          "rip3_button_create",
+          "rip3_ports",
+          "rip3_ports_backup",
+          "rip3_mouse",
+          "rip3_session",
+          "rip3_clipboard",
+          "rip3_graphical",
+          "rip3_query_commands",
+          "rip3_text_commands",
+          "term_key_forward",
+          "syncterm_rip3_buttons_CP437",
+          "syncterm_rip3_buttons_UTF-8",
+          "syncterm_rip3_icon_buttons_CP437",
+          "syncterm_rip3_icon_buttons_UTF-8",
+          "syncterm_rip3_keyboard_CP437",
+          "syncterm_rip3_keyboard_UTF-8",
+          "syncterm_rip3_mouse_CP437",
+          "syncterm_rip3_mouse_UTF-8",
+          "syncterm_rip3_graphical_CP437",
+          "syncterm_rip3_graphical_UTF-8",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "rip154_source_freeze",
+          "rip3_contract",
+          "rip3_preservation_guard"
+        ],
+        "scope": "Twenty-five distinct relevant native/connected/contract checks pass. RIP1.54 preservation matches 93 frozen files and 41 helper definitions, with only the already recorded historical maintenance exceptions. Connected button/icon fixtures use independently encoded image/geometry expectations in both encodings across four entry rasters. A real Wren modal editor preserves the original release and ignores later dialog clicks. Existing ANSI controls and connected keyboard/mouse/T/@ regressions pass. The final builds are warning-free; no additional toolchain or user display is used.",
+        "fixture_corrections": "The staged WORLD setter uses its already documented non-CUR selector; the modal input drain received its new host argument at both call sites. New source-crop fixtures distinguish wire extent boundaries from native inclusive endpoints, and offscreen label checks allow label ink outside the face."
       }
     }
   ]

@@ -125,6 +125,13 @@ st_rip3_command_text_glyphs(const struct st_rip3_text_context *context, const ui
 }
 
 int
+st_rip3_command_expanded_glyphs(const struct st_rip3_text_context *context,const uint8_t *text,
+    size_t length,const uint8_t **glyphs,size_t *count,uint8_t **owned)
+{
+	return text_glyphs(context,text,length,glyphs,count,owned,true);
+}
+
+int
 st_rip3_text_argument_prepare(const struct st_rip3_command_host *host, const uint8_t *command,
     size_t length, struct st_rip3_text_argument *argument, size_t *offset)
 {

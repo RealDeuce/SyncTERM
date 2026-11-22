@@ -1058,14 +1058,23 @@ menu_status_clear(struct st_wren_host *host)
 	(void)wrenCall(host->vm, host->menu_status_clear);
 }
 
+void
+st_wren_observe_prompt_input(struct st_wren_host *host,st_console_t *console,
+    const struct st_console_event *event)
+{
+	for (struct st_wren_context *owner=host->poll_contexts;owner!=NULL;owner=owner->poll_next)
+		if (owner->console==console) st_term_session_observe_prompt_input(owner->session,event);
+}
+
 static int
-drain_prompt_input(st_console_t *console, bool *closed,
+drain_prompt_input(struct st_wren_host *host,st_console_t *console, bool *closed,
 	bool *resized, struct st_console_event *last_resize)
 {
 	struct st_console_event event;
 	int status;
 
 	while ((status = st_console_event_try(console, &event)) == 0) {
+		st_wren_observe_prompt_input(host,console,&event);
 		if (event.type == ST_CONSOLE_EVENT_CLOSE)
 			*closed = true;
 		else if (event.type == ST_CONSOLE_EVENT_RESIZE) {
@@ -1103,7 +1112,7 @@ host_dialog(st_wren_host_t *host, const char *title,
 	status = st_console_snapshot_create(&snapshot, host->config.console);
 	if (status != 0)
 		return status;
-	status = drain_prompt_input(host->config.console, &closed,
+	status = drain_prompt_input(host,host->config.console, &closed,
 	    &resized, &resize);
 	if (status != 0 || closed)
 		goto finished;
@@ -1155,7 +1164,7 @@ finished:
 	if (choice_call != NULL)
 		wrenReleaseHandle(host->vm, choice_call);
 	{
-		int drain_status = drain_prompt_input(host->config.console,
+		int drain_status = drain_prompt_input(host,host->config.console,
 		    &closed, &resized, &resize);
 
 		if (status == 0)

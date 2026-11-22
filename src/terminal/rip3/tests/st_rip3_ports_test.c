@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_ports.h"
+#include "st_rip3_backup.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -343,6 +344,46 @@ install_bitmap(void)
 	st_rip3_ports_destroy(ports); return 0;
 }
 
+static int
+fixed_clipboard_face(void)
+{
+	struct st_rip3_ports *ports=NULL;CHECK(st_rip3_ports_create_device(&ports,16,8)==0);
+	const struct st_rip3_rect source={0,0,1,0},face={1,0,5,2};
+	CHECK(st_rip3_ports_define(ports,1,&source,false)==0);
+	CHECK(st_rip3_ports_plot(ports,0,0,7,ST_RIP3_COPY)==0 && st_rip3_ports_plot(ports,1,0,9,ST_RIP3_COPY)==0);
+	CHECK(st_rip3_ports_button_clipboard(ports,1,&face)==0);
+	uint8_t value;CHECK(st_rip3_ports_read(ports,0,1,0,&value)==0 && value==7);
+	CHECK(st_rip3_ports_read(ports,0,2,0,&value)==0 && value==9);
+	for (int y=0;y<2;y++) for (int x=1;x<5;x++) if (y!=0 || x>=3)
+		CHECK(st_rip3_ports_read(ports,0,x,y,&value)==0 && value==0);
+	st_rip3_ports_destroy(ports);return 0;
+}
+
+static int
+destination_generations(void)
+{
+	struct st_rip3_ports *ports=NULL;struct st_rip3_backup *saved=NULL;
+	CHECK(st_rip3_ports_create_device(&ports,64,48)==0);
+	uint64_t screen=st_rip3_ports_generation(ports,0);
+	CHECK(screen!=0 && st_rip3_ports_generation(ports,36)==0 && st_rip3_ports_generation(ports,6)==0);
+	const struct st_rip3_rect bounds={0,0,15,15},view={1,2,8,9};
+	CHECK(st_rip3_ports_define(ports,6,&bounds,true)==0);
+	uint64_t original=st_rip3_ports_generation(ports,6);CHECK(original!=0 && original!=screen);
+	CHECK(st_rip3_ports_switch(ports,6)==0 && st_rip3_ports_viewport(ports,&view)==0);
+	CHECK(st_rip3_ports_protect(ports,6,true)==0 && st_rip3_ports_generation(ports,6)==original);
+	CHECK(st_rip3_ports_define(ports,6,&bounds,true)==IO_ERROR_PERMISSION_DENIED && st_rip3_ports_generation(ports,6)==original);
+	CHECK(st_rip3_ports_protect(ports,6,false)==0 && st_rip3_ports_define(ports,6,&bounds,true)==0
+	    && st_rip3_ports_generation(ports,6)!=original && st_rip3_ports_generation(ports,0)==screen);
+	original=st_rip3_ports_generation(ports,6);
+	CHECK(st_rip3_ports_backup_create(&saved)==0 && st_rip3_backup_save(saved,ST_RIP3_BACKUP_BASE,0,ports)==0);
+	CHECK(st_rip3_ports_delete(ports,6)==0 && st_rip3_ports_generation(ports,6)==0);
+	CHECK(st_rip3_backup_restore(saved,ST_RIP3_BACKUP_BASE,0,ports)==0
+	    && st_rip3_ports_generation(ports,6)!=original && st_rip3_ports_generation(ports,0)!=screen);
+	screen=st_rip3_ports_generation(ports,0);
+	CHECK(st_rip3_ports_reset(ports,false)==0 && st_rip3_ports_generation(ports,0)!=screen);
+	st_rip3_backup_destroy(saved);st_rip3_ports_destroy(ports);return 0;
+}
+
 int
 main(void)
 {
@@ -351,6 +392,6 @@ main(void)
 	CHECK(copies() == 0);
 	CHECK(boundaries() == 0 && install_bitmap() == 0);
 	CHECK(screen_fill()==0);
-	CHECK(captured_view()==0);
+	CHECK(captured_view()==0 && destination_generations()==0 && fixed_clipboard_face()==0);
 	return 0;
 }

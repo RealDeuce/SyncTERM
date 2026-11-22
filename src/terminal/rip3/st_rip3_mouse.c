@@ -15,13 +15,22 @@ struct field {
 	size_t length;
 	uint8_t program[];
 };
+struct activation {
+	size_t length;
+	uint64_t instance;
+	unsigned stage;
+	int identity;int32_t x,y;
+	bool keyboard,reset;
+	uint8_t program[];
+};
 struct st_rip3_mouse {
 	struct st_rip3_mouse_sink sink;
 	struct field *fields[128];
 	size_t count;
 	struct field *pressed;
-	uint64_t sequence;
-	bool left, inverted,hotkeys;
+	uint64_t sequence,scene,gesture;
+	struct activation *activation;
+	bool left, inverted,hotkeys,pointer_capture;
 };
 
 int
@@ -65,7 +74,7 @@ void
 st_rip3_mouse_cancel(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	feedback(mouse,false);mouse->pressed=NULL;
+	feedback(mouse,false);mouse->pressed=NULL;mouse->pointer_capture=false;
 	/* Retain the sampled button state: a held button cannot acquire a new
 	 * field merely because its old definition was removed. */
 }
@@ -81,6 +90,7 @@ void
 st_rip3_mouse_kill(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
+	++mouse->scene;
 	st_rip3_mouse_cancel(mouse);
 	for (size_t i=0;i<mouse->count;i++) destroy_field(mouse->fields[i]);
 	mouse->count=0;
@@ -90,7 +100,7 @@ void
 st_rip3_mouse_destroy(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	st_rip3_mouse_kill(mouse);free(mouse);
+	st_rip3_mouse_abort(mouse);st_rip3_mouse_kill(mouse);free(mouse);
 }
 
 bool
@@ -178,27 +188,94 @@ inside(const struct field *field, int32_t x, int32_t y)
 	return x>=field->area.x0 && x<field->area.x1 && y>=field->area.y0 && y<field->area.y1;
 }
 
-static void
-commit(struct st_rip3_mouse *mouse, struct field *field, bool keyboard, int32_t x, int32_t y)
+uint64_t
+st_rip3_mouse_scene(const struct st_rip3_mouse *mouse)
 {
-	/* Snapshot before cancel/feedback and before a callback can delete the
-	 * field. Cleanup checks only the live capture's token, never field. */
-	size_t length=field->length;int identity=field->identity;bool reset=field->reset;
-	uint64_t instance=field->instance;
-	uint8_t *copy=malloc(length==0 ? 1 : length);
-	if (copy!=NULL && length!=0) memcpy(copy,field->program,length);
+	return mouse==NULL ? 0 : mouse->scene;
+}
+
+bool
+st_rip3_mouse_pending(const struct st_rip3_mouse *mouse)
+{
+	return mouse!=NULL && mouse->activation!=NULL;
+}
+
+void
+st_rip3_mouse_cancel_silent(struct st_rip3_mouse *mouse)
+{
+	if (mouse==NULL) return;
+	if (mouse->pressed!=NULL && mouse->pressed->visual.select!=NULL && mouse->sink.busy!=NULL) {
+		if (mouse->pressed->visual.abort!=NULL) mouse->pressed->visual.abort(mouse->pressed->visual.context);
+		mouse->inverted=false;mouse->pressed=NULL;
+	}
+	else st_rip3_mouse_cancel(mouse);
+	mouse->pointer_capture=false;
+}
+
+void
+st_rip3_mouse_abort(struct st_rip3_mouse *mouse)
+{
+	if (mouse==NULL) return;
+	st_rip3_mouse_cancel_silent(mouse);free(mouse->activation);mouse->activation=NULL;
+}
+
+uint64_t
+st_rip3_mouse_press_token(const struct st_rip3_mouse *mouse)
+{
+	return mouse==NULL || !mouse->pointer_capture || mouse->pressed==NULL ? 0 : mouse->gesture;
+}
+
+void
+st_rip3_mouse_resume(struct st_rip3_mouse *mouse)
+{
+	if (mouse==NULL) return;
+	while (mouse->activation!=NULL) {
+		if (mouse->sink.busy!=NULL && mouse->sink.busy(mouse->sink.context)) return;
+		struct activation *action=mouse->activation;
+		if (action->stage==0) {
+			action->stage=1;
+			if (action->keyboard) for (size_t i=0;i<mouse->count;i++) {
+				struct field *field=mouse->fields[i];
+				if (field->instance==action->instance) {
+					mouse->pressed=field;feedback(mouse,field->invert || field->visual.select!=NULL);break;
+				}
+			}
+		}
+		else if (action->stage==1) {
+			action->stage=2;
+			if (mouse->sink.activate!=NULL) mouse->sink.activate(mouse->sink.context,action->program,
+			    action->length,action->reset,action->identity,!action->keyboard,action->x,action->y);
+		}
+		else if (action->stage==2) {
+			action->stage=3;
+			if (action->keyboard && mouse->pressed!=NULL && mouse->pressed->instance==action->instance)
+				st_rip3_mouse_cancel(mouse);
+		}
+		else {mouse->activation=NULL;free(action);}
+	}
+}
+
+static void
+commit(struct st_rip3_mouse *mouse,struct field *field,bool keyboard,int32_t x,int32_t y)
+{
+	if (mouse->activation!=NULL) {
+		if (mouse->sink.render_failure!=NULL) mouse->sink.render_failure(mouse->sink.context);
+		return;
+	}
+	/* Snapshot before optional feedback, which can suspend while the source
+	 * field/destination is deleted. Selection failure never revokes commitment. */
+	struct activation *action=field->length>SIZE_MAX-sizeof(*action) ? NULL : malloc(sizeof(*action)+field->length);
+	if (action!=NULL) {
+		*action=(struct activation){.length=field->length,.instance=field->instance,.identity=field->identity,
+		    .x=x,.y=y,.keyboard=keyboard,.reset=field->reset};
+		if (field->length!=0) memcpy(action->program,field->program,field->length);
+	}
 	if (keyboard) st_rip3_mouse_cancel(mouse);
-	if (copy==NULL) {
+	if (action==NULL) {
 		if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
 		return;
 	}
-	if (keyboard) {mouse->pressed=field;feedback(mouse,field->invert || field->visual.select!=NULL);}
-	if (mouse->sink.activate!=NULL)
-		mouse->sink.activate(mouse->sink.context,copy,length,reset,identity,!keyboard,x,y);
-	/* Deletion clears pressed before freeing. A same-address replacement
-	 * cannot acquire that canceled capture without a fresh physical press. */
-	if (keyboard && mouse->pressed!=NULL && mouse->pressed->instance==instance) st_rip3_mouse_cancel(mouse);
-	free(copy);
+	mouse->activation=action;st_rip3_mouse_resume(mouse);
 }
 
 void
@@ -239,15 +316,19 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 	bool previous=mouse->left;mouse->left=left;
 	if (left && !previous) {
 		for (size_t i=mouse->count;i>0;i--) if (inside(mouse->fields[i-1],x,y)) {
-			mouse->pressed=mouse->fields[i-1];break;
+			if (mouse->gesture==UINT64_MAX) {
+				if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
+				return false;
+			}
+			mouse->pressed=mouse->fields[i-1];mouse->pointer_capture=true;++mouse->gesture;break;
 		}
 	}
 	struct field *field=mouse->pressed;
-	if (field==NULL) return false;
+	if (field==NULL || !mouse->pointer_capture) return false;
 	bool hit=inside(field,x,y);
 	feedback(mouse,left && hit && (field->invert || field->visual.select!=NULL));
 	if (left) return true;
-	mouse->pressed=NULL;
+	mouse->pressed=NULL;mouse->pointer_capture=false;
 	if (hit && mouse->sink.activate!=NULL) commit(mouse,field,false,x,y);
 	return true;
 }
