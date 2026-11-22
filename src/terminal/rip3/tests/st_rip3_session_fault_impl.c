@@ -8,6 +8,7 @@
 #include "st_rip3_ports.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
+#include "st_rip3_screen.h"
 #include "st_rip3_outline_cache.h"
 #include "st_rip3_templates.h"
 #include "st_rip3_user_variables.h"
@@ -68,6 +69,7 @@ FACTORY(st_rip3_button_styles_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_palettes_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_ports_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_mouse_backup_create,(struct st_rip3_backup **p),(p))
+FACTORY(st_rip3_screen_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_outline_cache_create,(struct st_rip3_outline_cache **p),(p))
 FACTORY(st_rip3_templates_create,(struct st_rip3_templates **p),(p))
 FACTORY(st_rip3_variables_create,(struct st_rip3_variables **p),(p))
@@ -116,6 +118,7 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_palettes_backup_create test_st_rip3_palettes_backup_create
 #define st_rip3_ports_backup_create test_st_rip3_ports_backup_create
 #define st_rip3_mouse_backup_create test_st_rip3_mouse_backup_create
+#define st_rip3_screen_backup_create test_st_rip3_screen_backup_create
 #define st_rip3_outline_cache_create test_st_rip3_outline_cache_create
 #define st_rip3_templates_create test_st_rip3_templates_create
 #define st_rip3_variables_create test_st_rip3_variables_create

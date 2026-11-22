@@ -1,87 +1,54 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_screen.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
+#include "st_pixels.h"
 #include "io_error.h"
-
 #include <stdlib.h>
-
-struct screen_snapshot {
-	struct st_rip3_surface *pixels;
-	struct st_rip3_palette palette;
-	bool status_bar;
-};
-
-static bool
-bindings_valid(const struct st_rip3_screen *screen)
+struct screen_snapshot {struct st_pixel_buffer *pixels;struct st_rip3_palette palette;};
+static bool valid(const struct st_rip3_screen *s)
 {
-	return screen != NULL && screen->ports != NULL && screen->palette != NULL
-	    && screen->status_bar != NULL;
+	return s!=NULL && s->ports!=NULL && s->palettes!=NULL && ((s->capture==NULL)==(s->restore==NULL));
 }
-
-static void
-screen_destroy(void *object)
+static void destroy(void *object)
 {
-	struct screen_snapshot *snapshot = object;
-
-	if (snapshot == NULL)
-		return;
-	st_rip3_surface_destroy(snapshot->pixels);
-	free(snapshot);
+	struct screen_snapshot *s=object;if (s==NULL) return;
+	st_pixel_buffer_destroy(s->pixels);free(s);
 }
-
-static int
-screen_clone(const void *object, void **result)
+static int clone(const void *object,void **result)
 {
-	const struct st_rip3_screen *screen = object;
-	struct screen_snapshot *snapshot;
-	int status;
-
-	if (!bindings_valid(screen) || result == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	for (size_t i = 0; i < 256; i++) {
-		if (screen->palette->rgb[i] > UINT32_C(0xffffff))
-			return IO_ERROR_OUT_OF_RANGE;
+	const struct st_rip3_screen *screen=object;
+	if (!valid(screen) || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct screen_snapshot *s=calloc(1,sizeof(*s));if (s==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	int status=st_rip3_palettes_current_palette(screen->palettes,&s->palette);
+	if (status==0) status=st_rip3_ports_screen_capture(screen->ports,&s->pixels);
+	if (status==0 && screen->capture!=NULL) status=screen->capture(screen->context,s->pixels);
+	if (status==0) for (size_t i=0;i<(size_t)s->pixels->width*s->pixels->height;i++) {
+		uint32_t primary=s->pixels->primary[i],alternate=s->pixels->alternate==NULL ? primary : s->pixels->alternate[i];
+		if ((!ST_PIXEL_COLOR_IS_RGB(primary) && primary>255) || (!ST_PIXEL_COLOR_IS_RGB(alternate) && alternate>255)) {status=IO_ERROR_OUT_OF_RANGE;break;}
 	}
-	snapshot = calloc(1, sizeof(*snapshot));
-	if (snapshot == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	status = st_rip3_ports_screen_clone(screen->ports, &snapshot->pixels);
-	if (status != 0) {
-		screen_destroy(snapshot);
-		return status;
-	}
-	snapshot->palette = *screen->palette;
-	snapshot->status_bar = *screen->status_bar;
-	*result = snapshot;
-	return 0;
+	if (status!=0) {destroy(s);return status;}
+	*result=s;return 0;
 }
-
-static int
-screen_restore(void *object, const void *saved)
+static int restore(void *object,const void *saved)
 {
-	struct st_rip3_screen *screen = object;
-	const struct screen_snapshot *snapshot = saved;
-	int status;
-
-	if (!bindings_valid(screen) || snapshot == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	/* Replacement pixels are prepared before any live field changes. Palette
-	 * and status assignment cannot fail after the pixel transaction commits. */
-	status = st_rip3_ports_screen_restore(screen->ports, snapshot->pixels);
-	if (status != 0)
-		return status;
-	*screen->palette = snapshot->palette;
-	*screen->status_bar = snapshot->status_bar;
-	return 0;
+	struct st_rip3_screen *screen=object;const struct screen_snapshot *s=saved;
+	if (!valid(screen) || s==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	/* Palette is applied to the entry current now, not the saved selector.
+	 * No table/port is revived; pixel-only COPY retains destination identity. */
+	int status=st_rip3_palettes_restore_screen(screen->palettes,&s->palette);
+	if (status==0) status=st_rip3_ports_screen_restore(screen->ports,s->pixels);
+	if (status==0 && screen->restore!=NULL) status=screen->restore(screen->context,s->pixels,&s->palette);
+	return status;
 }
-
-int
-st_rip3_screen_backup_create(struct st_rip3_backup **result)
+int st_rip3_screen_clear(struct st_rip3_screen *screen)
 {
-	static const struct st_rip3_backup_ops ops = {
-		screen_clone, screen_restore, screen_destroy,
-	};
-
-	return st_rip3_backup_create(result, &ops);
+	if (!valid(screen)) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_port_info info;int status=st_rip3_ports_info(screen->ports,0,&info);
+	return status==0 ? st_rip3_ports_screen_fill(screen->ports,&info.bounds,0) : status;
+}
+int st_rip3_screen_backup_create(struct st_rip3_backup **result)
+{
+	static const struct st_rip3_backup_ops ops={clone,restore,destroy};return st_rip3_backup_create(result,&ops);
 }

@@ -290,3 +290,12 @@ st_rip3_palettes_backup_create(struct st_rip3_backup **result)
 
 	return st_rip3_backup_create(result, &ops);
 }
+
+
+int
+st_rip3_palettes_restore_screen(struct st_rip3_palettes *palettes,const struct st_rip3_palette *source)
+{
+	if (palettes==NULL || source==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	for (unsigned i=0;i<256;i++) if (source->rgb[i]>0xffffff) return IO_ERROR_OUT_OF_RANGE;
+	palettes->entries[palettes->current].palette=*source;return 0;
+}

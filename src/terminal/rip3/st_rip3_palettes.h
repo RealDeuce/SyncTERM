@@ -37,6 +37,9 @@ int st_rip3_palettes_get(const struct st_rip3_palettes *palettes,
  * a defined slot for PALENTRY and live-entry copy semantics. */
 int st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
 	struct st_rip3_palette *result);
+/* Screen RESTORE overwrites only current RGB, including protected/undefined
+ * slots. Retain current selection and all definition/protection flags. */
+int st_rip3_palettes_restore_screen(struct st_rip3_palettes *,const struct st_rip3_palette *);
 /* Specific/current reset rejects protection, restores RGB defaults and clears
  * nonzero definition without changing selection. Table/soft reset skips
  * protected slots; hard reset also removes protection and selects zero.

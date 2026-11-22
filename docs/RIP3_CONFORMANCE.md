@@ -1161,6 +1161,10 @@ under #6. The native CMake build and all 50 RIP3/preservation checks pass;
 native Valgrind reports no errors or leaks in the port-query fixture.
 This does not add stream framing or change the active terminal route.
 
+**Historical prototype:** the next three paragraphs describe the earlier,
+unbound screen kernel. The current connected screen-backup milestone below
+replaces its capture set, palette binding and canvas policy.
+
 `rip3_screen` adds owned snapshots of the consistent 7.2 screen data: the full
 screen index plane, explicit active-display palette and logical status-bar
 visibility. These borrowed live bindings are captured by value. Saved data
@@ -7773,3 +7777,63 @@ table checks pass, along with RIP1.54 contract/preservation guards.
 The 8410-unit queue now has 1885 implemented, 1739 pending, 3282 unreviewed,
 1407 context, 67 excluded and 30 blocked units. Full RIP3 compliance remains
 unfinished. The RIP1.54 baseline and historical expectations are unchanged.
+
+
+## Connected physical screen saves and numbered aliases
+
+The current pinned screen contract is connected through `$SAVE$`, `$RESTORE$`,
+all twenty fixed numbered aliases and generic `COPY(SCREEN,...)`. Explicit
+backups capture the physical PORT0 scene and current-palette RGB, including
+native ANSI output and both blink planes. They save no table selection,
+viewport, styles, text-window/mouse definitions or status-bar visibility.
+Restore overwrites RGB in the palette entry current at restore time, including
+protected or selected-but-undefined entries, while retaining its flags/index.
+Saved dimensions control an unscaled clipped copy; no canvas resize or port
+identity change occurs. Buttons created after SAVE remain usable after RESTORE.
+
+Native composition is captured only for explicit backup operations. The adapter
+uses the existing presented graphics image and console raster to preserve raw
+RIP indices and literal reset black while incorporating native ANSI RGB. There
+is no new resident scene/damage layer or per-character capture. Restore uses the
+existing pixel-restore and raster-view adoption paths, preserving both native
+planes and marking cells through the console's existing external-pixel/damage
+flags. Native cell writes and circular scrolling after restoration are covered.
+An indexed BMP consumer now matches restored RGB through its explicit export
+palette rather than truncating the RGB word to an index; ordinary indexed reads
+and write formats retain their existing paths.
+
+BASE remains reusable. Numbered and stack saves share the existing family
+capacity/protection manager. Numeric RESTORE requests numbered deletion even
+after a later presentation failure; protected slots survive. Failed POP retains
+its stack entry. Valid failed action callbacks produce no variable value/error,
+so a following ordinary suffix still executes; private lower-level diagnostics
+remain available. Invalid arguments reject before backup effects and recover
+inside RIP processing. `RESET(SCREEN)` clears physical palette index 0 without
+changing PORT/TW/style state; backup selectors clear their own save areas and
+retain protected snapshots. SOFT preserves independent screen backups.
+
+Independent native tests cover all three presets plus 720×400, unscaled
+cross-size clipping, current PAL5→PAL17 restoration, protected/undefined targets,
+port/viewport/offscreen retention, both planes, every alias and argument form,
+failed/invalid capture retaining earlier saves, presentation failure and the
+distinct numbered/POP consumption rules. A bytewise public-session stream
+checks actions and continued replies, paired-service validation and constructor/
+teardown ownership. Real CP437/UTF-8 connections at 640×480 and 720×400 cover
+encoded native text, blink planes, later palette recoloring versus literal
+black/native RGB, retained live grouped/button state, cursor/scroll behavior,
+and an independently decoded one-pixel BMP export. Thirty distinct relevant
+CTest checks pass in the native FreeBSD amd64 Release build, including image/
+clipboard, reset/text-erase/mouse-backup, ANSI controls and RIP1.54 preservation.
+
+The variable index still repeats superseded capture fields and aggregate order.
+New [issue #138](https://github.com/bbs-land/remote-imaging-protocol/issues/138)
+records that editorial follow-up; specific corrected 5.1/7.2 entries control the
+implementation. Existing covered issue threads receive no comments. PR #137 is
+now available for B136 grouped capture and awaits review/adoption; current live
+group behavior and the explicit grouped-SMF rejection are unchanged in this
+milestone. Full TW backups, eight-family SAVEALL/RESTOREALL, HEADER/hard reset,
+stored query modes and remaining table/UI/playback families are still pending.
+
+The 8410-unit queue now has 1919 implemented, 1747 pending, 3225 unreviewed,
+1422 context, 67 excluded and 30 blocked units. Full RIP3 compliance remains
+unfinished; RIP1.54's baseline and historical expectations are unchanged.

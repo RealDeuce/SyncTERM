@@ -714,6 +714,22 @@ st_rip3_ports_read_viewport(const struct st_rip3_ports *ports, unsigned number,
 }
 
 int
+st_rip3_ports_read_color(const struct st_rip3_ports *ports,unsigned number,int32_t x,int32_t y,bool viewport,uint32_t *result)
+{
+	if (ports==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_port_info info;int status=st_rip3_ports_info(ports,number,&info);
+	if (status!=0) return status;if (!info.defined) return IO_ERROR_NOT_FOUND;
+	if (viewport) {
+		if (x<info.clip.x0 || y<info.clip.y0 || x>info.clip.x1 || y>info.clip.y1) return IO_ERROR_OUT_OF_RANGE;
+		const struct st_rip3_rect view=viewport_absolute(&ports->entries[number]);
+		return st_rip3_surface_read_color(port_surface(ports,number),view.x0+x,view.y0+y,result);
+	}
+	const struct st_rip3_rect bounds=port_bounds(&ports->entries[number]);
+	if (x<0 || y<0 || x>bounds.x1 || y>bounds.y1) return IO_ERROR_OUT_OF_RANGE;
+	return st_rip3_surface_read_color(port_surface(ports,number),x+info.bounds.x0,y+info.bounds.y0,result);
+}
+
+int
 st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
     const struct st_rip3_palette *palette, struct st_pixel_buffer **result)
 {
@@ -723,43 +739,15 @@ st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 }
 
 int
-st_rip3_ports_screen_clone(const struct st_rip3_ports *ports,
-    struct st_rip3_surface **result)
+st_rip3_ports_screen_capture(const struct st_rip3_ports *ports,struct st_pixel_buffer **result)
 {
-	if (ports == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	return st_rip3_surface_clone(result, ports->screen);
+	return ports==NULL ? IO_ERROR_INVALID_ARGUMENT : st_rip3_surface_capture_raw(ports->screen,result);
 }
 
 int
-st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
-    const struct st_rip3_surface *snapshot)
+st_rip3_ports_screen_restore(struct st_rip3_ports *ports,const struct st_pixel_buffer *snapshot)
 {
-	struct st_rip3_surface *pixels;
-	uint32_t width, height;
-	int status;
-
-	if (ports == NULL || snapshot == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_surface_size(snapshot, &width, &height);
-	if (status != 0)
-		return status;
-	if (width != (uint32_t)ports->screen_bounds.x1 + 1
-	    || height != (uint32_t)ports->screen_bounds.y1 + 1)
-		return IO_ERROR_CONFLICT;
-	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
-	status = st_rip3_surface_clone(&pixels, snapshot);
-	if (status != 0)
-		return status;
-	st_rip3_surface_destroy(ports->screen);
-	ports->screen = pixels;
-	for (unsigned i=0;i<36;i++) if (ports->entries[i].info.defined && !ports->entries[i].info.offscreen)
-		ports->generations[i]=++ports->sequence;
-	(void)st_rip3_surface_damage(pixels,ports->damage,ports->damage_length);
-	if (ports->damage!=NULL) {
-		for (size_t i=0; i<(size_t)width*height; i++) ports->damage[i]=1;
-	}
-	return 0;
+	return ports==NULL ? IO_ERROR_INVALID_ARGUMENT : st_rip3_surface_restore_raw(ports->screen,snapshot);
 }
 
 int

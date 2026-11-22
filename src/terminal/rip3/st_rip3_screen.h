@@ -1,36 +1,28 @@
+/* Physical screen snapshots under the pinned screen-backup contract. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #ifndef ST_RIP3_SCREEN_H_
 #define ST_RIP3_SCREEN_H_
-
 #include "st_rip3_surface.h"
-
-#include <stdbool.h>
-
 struct st_rip3_ports;
+struct st_rip3_palettes;
 struct st_rip3_backup;
-
-/* Borrowed session-owned bindings for the consistent 7.2 screen-save data:
- * full screen index plane, active display palette and status-bar visibility.
- * The palette is an explicit display value, not a palette-table slot. The
- * owner applies restored display/UI values; no hardware or UI calls occur
- * here. All bindings are required and used only during an operation. Saved
- * snapshots own their data and survive these bindings and their owners.
- *
- * This deliberately does not infer viewport, style/button-table or palette
- * slot activation/ownership rules pending #26. SAVE/RESTORE wire dispatch and
- * complete context backups remain unsupported until those are resolved. */
+struct st_pixel_buffer;
+/* One session thread owns these borrowed bindings. Snapshots own raw screen
+ * pixels and current-palette RGB only: no status/UI, current index, table,
+ * viewport, text-window or mouse metadata. Optional paired native callbacks
+ * merge ANSI ink into the prepared raw graphics capture (retaining its size
+ * and ownership; adding an alternate plane is permitted) and present both
+ * native planes on restore. They run only for explicit save/restore, never
+ * ordinary drawing. Source callbacks must not reenter parsing/providers.
+ * Capture failure preserves result/previous saves. Restore effects already
+ * applied before a presentation failure are not rolled back. */
 struct st_rip3_screen {
 	struct st_rip3_ports *ports;
-	struct st_rip3_palette *palette;
-	bool *status_bar;
+	struct st_rip3_palettes *palettes;
+	void *context;
+	int (*capture)(void *,struct st_pixel_buffer *);
+	int (*restore)(void *,const struct st_pixel_buffer *,const struct st_rip3_palette *);
 };
-
-/* Typed backup callbacks accept st_rip3_screen bindings. A restore prepares a
- * same-canvas pixel clone before committing pixels/palette/status together.
- * Port definitions, viewport state, protection, current port and offscreen
- * pixels are untouched. Destroy using backup_destroy. Failures preserve live
- * state and the save, and are consumed by the owning parser, never returned
- * through a terminal/session processing entry. */
 int st_rip3_screen_backup_create(struct st_rip3_backup **result);
-
+int st_rip3_screen_clear(struct st_rip3_screen *);
 #endif

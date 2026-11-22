@@ -175,17 +175,18 @@ int st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
  * they do not wrap or become an invented padded pixel value. */
 int st_rip3_ports_read_viewport(const struct st_rip3_ports *ports, unsigned number,
 	int32_t x, int32_t y, uint8_t *result);
+/* Image-capture read preserving tagged native RGB. Coordinates are port-
+ * relative unless viewport is true, with the same physical clipping rules as
+ * the corresponding indexed read. No palette mapping or state mutation. */
+int st_rip3_ports_read_color(const struct st_rip3_ports *,unsigned number,int32_t x,int32_t y,bool viewport,uint32_t *);
 int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);
-/* Owned raw index-plane snapshots for the screen backup component, independent
- * of all port/viewport definitions. Restore requires matching device dimensions
- * and clones before committing; it neither takes ownership of nor changes the
- * saved surface. It bypasses viewport clipping/activation and drawing modes.
- * Palette and UI state belong to the enclosing screen backup transaction. */
-int st_rip3_ports_screen_clone(const struct st_rip3_ports *ports,
-	struct st_rip3_surface **result);
-int st_rip3_ports_screen_restore(struct st_rip3_ports *ports,
-	const struct st_rip3_surface *snapshot);
+/* Physical screen backup transport, independent of PORT selection, protection
+ * and viewport. Restore copies the unscaled overlap without resizing or
+ * changing any definition/generation. The enclosing screen owner handles PAL
+ * and optional native ANSI planes. */
+int st_rip3_ports_screen_capture(const struct st_rip3_ports *,struct st_pixel_buffer **);
+int st_rip3_ports_screen_restore(struct st_rip3_ports *,const struct st_pixel_buffer *);
 int st_rip3_ports_screen_damage(struct st_rip3_ports *ports,
 	uint8_t *damage, size_t length);
 /* Absolute inclusive DEVICE rectangle, clipped only to the physical screen.

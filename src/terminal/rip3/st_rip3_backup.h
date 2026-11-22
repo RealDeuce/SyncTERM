@@ -20,7 +20,8 @@ enum st_rip3_backup_place {
  * after cloning (restore must not modify them). The area owns each
  * successful snapshot until destruction/overwrite/consumption. An applying
  * mouse restore still cancels transient input on failure; it cannot revive a
- * saved gesture or traversal. Ops are copied;
+ * saved gesture or traversal. Screen restoration can retain an already
+ * applied palette/pixel change after a later presentation failure. Ops are copied;
  * their function code must outlive the area. All operations share one owner
  * thread, including callbacks; callbacks must not reenter the area. */
 struct st_rip3_backup_ops {

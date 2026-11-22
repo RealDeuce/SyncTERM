@@ -1131,6 +1131,46 @@ field_context(void)
 	st_rip3_session_destroy(f.session);return 0;
 }
 
+static int screen_capture_failure(void *context,struct st_pixel_buffer *pixels)
+{
+	(void)context;(void)pixels;return IO_ERROR_OUT_OF_MEMORY;
+}
+static int screen_restore_failure(void *context,const struct st_pixel_buffer *pixels,const struct st_rip3_palette *palette)
+{
+	(void)context;(void)pixels;(void)palette;return IO_ERROR_IO;
+}
+static int screen_backups(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	const char wire[]="!|1\0330000$WORLD(CUR,640,480)$$CUR(PAL,5)$\r!|a0F04|c0F|X0A0A\r"
+	    "!|1\0330000$SAVE0$$CUR(PAL,17)$\r!|a0F02\r"
+	    "!|1\0330000$PROT(PAL,17)$$RESET(SCREEN)$$RESTORE0$$CUR(PAL)$:$INUSE(SCREEN,S0)$\r";
+	for (size_t i=0;i<sizeof(wire)-1;i++) {
+		char part[2]={wire[i],0};CHECK(append(&f,part)==0);st_rip3_session_process(f.session,1);
+	}
+	CHECK(pump(&f)==0 && !st_rip3_session_pending(f.session) && f.errors==0);
+	CHECK(f.reply_length==4 && memcmp(f.reply,"17:0",4)==0);
+	struct st_rip3_session_capture capture={0};CHECK(st_rip3_session_capture(f.session,&capture)==0);
+	if (capture.palette!=17 || capture.pixels->primary[10*640+10]!=(ST_PIXEL_COLOR_RGB_TAG|0xaa0000))
+		fprintf(stderr,"screen palette=%u pixel=%08x world=%ux%u\n",capture.palette,(unsigned)capture.pixels->primary[10*640+10],(unsigned)capture.frame.world_width,(unsigned)capture.frame.world_height);
+	CHECK(capture.palette==17 && capture.pixels->primary[10*640+10]==(ST_PIXEL_COLOR_RGB_TAG|0xaa0000));
+	st_rip3_session_capture_dispose(&capture);
+	f.reply_length=0;
+	CHECK(append(&f,"!|1\0330000before:$RESTORE0$after\r")==0 && pump(&f)==0);
+	CHECK(f.errors==1 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED && f.reply_length==12 && memcmp(f.reply,"before:after",12)==0);
+	CHECK(query(&f,"alive","alive")==0);st_rip3_session_destroy(f.session);f=(struct fixture){0};
+	options=config(&f,ST_RIP3_CANVAS_640_480);options.sink.screen_capture=screen_capture_failure;
+	CHECK(st_rip3_session_create(&f.session,&options)==IO_ERROR_INVALID_ARGUMENT && f.session==NULL);
+	options.sink.screen_capture=NULL;options.sink.screen_restore=screen_restore_failure;
+	CHECK(st_rip3_session_create(&f.session,&options)==IO_ERROR_INVALID_ARGUMENT && f.session==NULL);
+	options.sink.screen_capture=screen_capture_failure;CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|1\0330000before:$SAVE$after\r")==0 && pump(&f)==0);
+	CHECK(f.errors==1 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE && f.reply_length==12 && memcmp(f.reply,"before:after",12)==0);
+	CHECK(query(&f,"$INUSE(SCREEN,BASE)$alive","0alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
 static int
 construction(bool device)
 {
@@ -1169,6 +1209,7 @@ construction(bool device)
 int
 main(void)
 {
+	CHECK(screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);

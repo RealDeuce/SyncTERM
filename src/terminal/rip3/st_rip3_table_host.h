@@ -26,6 +26,10 @@ struct st_rip3_table_host {
 	struct st_rip3_table_binding tables[ST_RIP3_TABLE_COUNT];
 	void *reset_context;
 	int (*soft_reset)(void *context);
+	/* Valid action callbacks report lower-level failure without a variable error
+	 * or returned value; malformed syntax still returns private preflight status. */
+	void *operation_context;
+	void (*operation_failed)(void *context,int status);
 };
 
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
@@ -65,6 +69,12 @@ struct st_rip3_table_host {
  * RESET(MOUSE) defaults to TBL; explicit backup selectors preserve protected
  * slots, and field-only resets retain handlers. Grouped capture is unsupported
  * under #136; failed saves preserve earlier backups and current interaction.
+ * SCREEN has SAVE/RESTORE, all numbered aliases, COPY/status and RESET
+ * selectors. Valid screen actions return no value/variable error after manager
+ * failure; a lower-level callback may diagnose it. Numeric RESTORE requests
+ * slot deletion even after failure, while POP remains success-dependent.
+ * Screen snapshots capture pixels/current RGB only; selection/metadata and
+ * status visibility remain live. SAVEALL/RESTOREALL are still separate work.
  * No host transmission, prompting, stream parsing or app/session routing occurs here. Execution
  * statuses are private to parser-owned recovery; use the public host-variable
  * process entry to consume malformed references without a session error. */

@@ -9,6 +9,7 @@
 #include "st_rip3_ports.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
+#include "st_rip3_screen.h"
 #include "st_rip3_outline_cache.h"
 #include "st_rip3_templates.h"
 #include "st_rip3_user_variables.h"
@@ -37,6 +38,7 @@ struct st_rip3_session {
 	struct st_rip3_command_host commands;
 	struct st_rip3_host_variables variables;
 	struct st_rip3_table_host tables;
+	struct st_rip3_screen screen;
 	struct st_rip3_host_sink host_sink;
 	struct st_rip3_text_context text;
 	struct st_rip3_graphical *graphical;
@@ -78,6 +80,12 @@ diagnose(void *context, enum st_rip3_command_diagnostic kind)
 {
 	struct st_rip3_session *session=context;
 	if (session->sink.diagnostic!=NULL) session->sink.diagnostic(session->sink.context,kind);
+}
+
+static void
+table_operation_failed(void *context,int status)
+{
+	diagnose(context,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_COMMAND_RESOURCE_FAILURE : ST_RIP3_COMMAND_OPERATION_FAILED);
 }
 
 static void
@@ -675,6 +683,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || config->source.now_ns==NULL || config->source.next==NULL
 	    || config->default_text_font>=5
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
+	if ((config->sink.screen_capture==NULL)!=(config->sink.screen_restore==NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL
 	    || config->services->text_windows!=NULL || config->services->mouse!=NULL
@@ -743,6 +752,11 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_palettes_backup_create(&session->tables.tables[ST_RIP3_TABLE_PAL].backup);
 	if (status==0) status=st_rip3_ports_backup_create(&session->tables.tables[ST_RIP3_TABLE_PORT].backup);
 	if (status==0) status=st_rip3_mouse_backup_create(&session->tables.tables[ST_RIP3_TABLE_MOUSE].backup);
+	if (status==0) status=st_rip3_screen_backup_create(&session->tables.tables[ST_RIP3_TABLE_SCREEN].backup);
+	session->screen=(struct st_rip3_screen){.ports=session->commands.ports,.palettes=session->commands.palettes,
+	    .context=session->sink.context,.capture=session->sink.screen_capture,.restore=session->sink.screen_restore};
+	session->tables.tables[ST_RIP3_TABLE_SCREEN].live=&session->screen;
+	session->tables.operation_context=session;session->tables.operation_failed=table_operation_failed;
 	session->tables.tables[ST_RIP3_TABLE_MOUSE].live=session->commands.mouse;
 	session->tables.tables[ST_RIP3_TABLE_ENV].live=session->commands.environments;
 	session->tables.tables[ST_RIP3_TABLE_STYLE].live=session->commands.styles;

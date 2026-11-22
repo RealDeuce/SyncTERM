@@ -186,15 +186,16 @@ st_term_rip3_pointer_shape(const struct st_term_rip3 *rip,enum st_console_pointe
 	*result=rip->pointer_shape;return true;
 }
 
-static void
-present(struct st_term_rip3 *rip)
+static int
+present_frame(struct st_term_rip3 *rip,bool force)
 {
 	refresh_pointer(rip);
 	uint64_t revision=st_rip3_session_revision(rip->session);
-	if (revision==rip->presented) return;
+	if (!force && revision==rip->presented) return 0;
 	struct st_rip3_session_capture capture={0};
-	if (st_rip3_session_capture(rip->session,&capture)!=0) {
-		diagnostic(rip,ST_RIP3_COMMAND_RESOURCE_FAILURE);return;
+	int status=st_rip3_session_capture(rip->session,&capture);
+	if (status!=0) {
+		diagnostic(rip,ST_RIP3_COMMAND_RESOURCE_FAILURE);return status;
 	}
 	/* Palette edits repaint existing graphics. Explicit paint damage also
 	 * overwrites intervening ANSI ink when a COPY repeats the same index. */
@@ -202,7 +203,8 @@ present(struct st_term_rip3 *rip)
 		if (capture.pixels->primary[i]!=rip->previous->primary[i]) rip->damage[i]=1;
 	struct st_pixel_buffer *old=rip->previous;
 	rip->previous=capture.pixels;
-	if (st_console_modify_pixels(rip->config.console,modify,rip)==0) {
+	status=st_console_modify_pixels(rip->config.console,modify,rip);
+	if (status==0) {
 		rip->presented=revision;memset(rip->damage,0,rip->pixels);
 		st_pixel_buffer_destroy(old);
 	}
@@ -210,7 +212,10 @@ present(struct st_term_rip3 *rip)
 		rip->previous=old;st_pixel_buffer_destroy(capture.pixels);
 		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	}
+	return status;
 }
+
+static void present(struct st_term_rip3 *rip) {(void)present_frame(rip,false);}
 
 static void
 ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
@@ -542,6 +547,67 @@ before_command(void *context)
 		status=st_term_rip3_view_present(rip->view,rip->config.console,true);
 	if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	else rip->text_since_boundary=false;
+}
+
+/* Explicit screen saves merge native ANSI ink into the existing raw graphics
+ * capture. Reuse the last presented RGB image to retain underlying palette
+ * indexes/literal reset black wherever native output has not changed the pixel.
+ * These temporary buffers are backup work, never a second resident scene. */
+static uint32_t
+native_rgb(uint32_t value,const uint32_t *palette)
+{
+	return ST_PIXEL_COLOR_IS_RGB(value) ? value : ST_PIXEL_COLOR_RGB_TAG|palette[value];
+}
+static int
+screen_capture(void *context,struct st_pixel_buffer *pixels)
+{
+	struct st_term_rip3 *rip=context;flush_text(rip);
+	int status=present_frame(rip,true);if (status!=0) return status;
+	struct st_pixel_buffer *native=NULL;
+	const struct st_console_rect area={0,0,pixels->width,pixels->height};
+	status=st_console_get_pixels(&native,rip->config.console,&area,false);if (status!=0) return status;
+	uint32_t maximum=0;size_t count=(size_t)native->width*native->height;
+	for (size_t i=0;i<count;i++) {
+		uint32_t values[2]={native->primary[i],native->alternate==NULL ? native->primary[i] : native->alternate[i]};
+		for (unsigned n=0;n<2;n++) if (!ST_PIXEL_COLOR_IS_RGB(values[n]) && values[n]>maximum) maximum=values[n];
+	}
+	if (maximum>65535 || native->width!=pixels->width || native->height!=pixels->height) {st_pixel_buffer_destroy(native);return IO_ERROR_OUT_OF_RANGE;}
+	uint32_t *palette=malloc(((size_t)maximum+1)*sizeof(*palette));
+	if (palette==NULL) {st_pixel_buffer_destroy(native);return IO_ERROR_OUT_OF_MEMORY;}
+	status=st_console_get_palette(rip->config.console,0,palette,maximum+1);
+	if (status==0 && native->alternate!=NULL) status=st_pixel_buffer_ensure_alternate(pixels);
+	if (status==0) for (size_t i=0;i<count;i++) {
+		uint32_t expected=rip->previous->primary[i];
+		uint32_t value=native_rgb(native->primary[i],palette);
+		if (value!=expected) pixels->primary[i]=value;
+		if (pixels->alternate!=NULL) {
+			value=native_rgb(native->alternate[i],palette);
+			if (value!=expected) pixels->alternate[i]=value;
+		}
+	}
+	free(palette);st_pixel_buffer_destroy(native);return status;
+}
+static int
+screen_restore(void *context,const struct st_pixel_buffer *pixels,const struct st_rip3_palette *palette)
+{
+	struct st_term_rip3 *rip=context;uint32_t width,height;
+	int status=st_console_pixel_size(rip->config.console,&width,&height);if (status!=0) return status;
+	if (width>pixels->width) width=pixels->width;if (height>pixels->height) height=pixels->height;
+	struct st_pixel_buffer *native=NULL;status=st_pixel_buffer_create(&native,width,height,pixels->alternate!=NULL);
+	if (status!=0) return status;
+	for (uint32_t y=0;y<height;y++) for (uint32_t x=0;x<width;x++) {
+		size_t from=(size_t)y*pixels->width+x,to=(size_t)y*width+x;
+		uint32_t value=pixels->primary[from];native->primary[to]=ST_PIXEL_COLOR_IS_RGB(value) ? value : ST_PIXEL_COLOR_RGB_TAG|palette->rgb[value];
+		if (native->alternate!=NULL) {
+			value=pixels->alternate[from];native->alternate[to]=ST_PIXEL_COLOR_IS_RGB(value) ? value : ST_PIXEL_COLOR_RGB_TAG|palette->rgb[value];
+		}
+	}
+	/* Publish the new primary graphics baseline once, then retain the saved
+	 * native alternate plane. The later command revision sees no new damage. */
+	status=present_frame(rip,true);
+	if (status==0) status=st_console_restore_pixel_region(rip->config.console,native,0,0);
+	if (status==0 && rip->view!=NULL) status=st_term_rip3_view_begin(rip->view,rip->config.console);
+	st_pixel_buffer_destroy(native);return status;
 }
 
 static int
@@ -1137,7 +1203,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
-	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw},
+	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
+	        .screen_capture=screen_capture,.screen_restore=screen_restore},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

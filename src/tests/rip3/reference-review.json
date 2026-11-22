@@ -7981,6 +7981,161 @@
         "build_diagnostics": "The initial session constructor fault fixture did not track the new mouse-backup factory; its factory hook was added, retaining full fail-every-construction-boundary and zero-live-owner expectations. Final native builds have no compiler diagnostics.",
         "source_integrity": "Reference pin and all 8410 exact normative source/text/heading/line/hash records are unchanged. Issue #136 is a new follow-up referencing covered #131/#132 and their PRs; no existing issue was edited or commented on."
       }
+    },
+    {
+      "after_commit": "4d525032",
+      "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+      "scope": "Replace stale screen kernel capture semantics and connect physical screen SAVE/RESTORE, twenty aliases, copy/reset/status and native ANSI composition to sessions.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2996",
+        "version/3.0/ripscrip/5.1-text-variables.md:3000",
+        "version/3.0/ripscrip/5.1-text-variables.md:3001",
+        "version/3.0/ripscrip/5.1-text-variables.md:3002",
+        "version/3.0/ripscrip/5.1-text-variables.md:3003",
+        "version/3.0/ripscrip/5.1-text-variables.md:3004",
+        "version/3.0/ripscrip/5.1-text-variables.md:3005",
+        "version/3.0/ripscrip/5.1-text-variables.md:3897",
+        "version/3.0/ripscrip/5.1-text-variables.md:3899",
+        "version/3.0/ripscrip/5.1-text-variables.md:3901",
+        "version/3.0/ripscrip/5.1-text-variables.md:3909",
+        "version/3.0/ripscrip/5.1-text-variables.md:3911",
+        "version/3.0/ripscrip/5.1-text-variables.md:3919",
+        "version/3.0/ripscrip/5.1-text-variables.md:3921",
+        "version/3.0/ripscrip/5.1-text-variables.md:3923",
+        "version/3.0/ripscrip/5.1-text-variables.md:3931",
+        "version/3.0/ripscrip/5.1-text-variables.md:3933",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:269",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:273",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:274",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:275",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:276",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:277",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:278",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:279",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:281",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:285",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:293",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:294",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:295",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:296",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:297",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:299",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:301"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2998",
+        "version/3.0/ripscrip/5.1-text-variables.md:2999",
+        "version/3.0/ripscrip/5.1-text-variables.md:3895",
+        "version/3.0/ripscrip/5.1-text-variables.md:3907",
+        "version/3.0/ripscrip/5.1-text-variables.md:3917",
+        "version/3.0/ripscrip/5.1-text-variables.md:3929",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:267",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:271",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:272",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:291",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:292",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:197",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:198",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:201",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:202"
+      ],
+      "pending_source_units": [
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:287",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:305",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:309",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:310",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:311",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:312",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:313",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:314",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:315",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:316",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:318",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:320"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_screen.c",
+        "src/terminal/rip3/st_rip3_palettes.c",
+        "src/terminal/rip3/st_rip3_ports.c",
+        "src/terminal/rip3/st_rip3_surface.c",
+        "src/terminal/rip3/st_rip3_table_host.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/term/st_term_rip3.c",
+        "src/terminal/rip3/st_rip3_bitmap_capture.c"
+      ],
+      "tests": [
+        "rip3_screen",
+        "rip3_session",
+        "rip3_table_host",
+        "rip3_backup",
+        "rip3_backup_copy",
+        "syncterm_rip3_screen_CP437",
+        "syncterm_rip3_screen_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3225,
+        "context": 1422,
+        "pending": 1747,
+        "implemented": 1919,
+        "excluded": 67,
+        "blocked": 30
+      },
+      "policy": "Connected screen-only SAVE/RESTORE and all numbered aliases capture physical PORT0 pixels plus current-palette RGB. Native ANSI ink and both blink planes are merged only for an explicit backup; raw graphics indexes and literal reset black are retained where unchanged, using the existing presentation image and console raster. Restore copies the unscaled physical overlap without resizing/replacing port identity, overwrites current PAL RGB even if protected/undefined, and leaves all selectors/flags/styles/TW/mouse/status metadata live. BASE is reusable, slots/protection/stack/COPY use owned manager snapshots; numeric RESTORE requests deletion even after failure while POP is success-dependent. Valid failed actions return no value or variable error and report only the private lower-level diagnostic; syntax preflight remains distinct. RESET(SCREEN) clears physical index 0; explicit backup selectors retain protected saves. Native and TCP vectors cover 5-to-17 palette binding, empty/undefined palette flags, no extra state, split bytes, failed capture/presentation, malformed aliases, both planes, circular native scroll/cursor retention, and nonfatal continuation. SAVEALL/RESTOREALL remain separate pending operations. No resident scene/damage layer or ordinary-byte capture is added. Snapshot buffers are owned only by explicit backup operations; live presentation reuses existing console damage/scroll flags and cached graphics image. Restored literal RGB remains RGB until an indexed BMP consumer explicitly matches it through that export palette.",
+      "documentation_followups": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/138",
+          "source_units": [
+            "version/3.0/ripscrip/9.1-text-variable-reference.md:197",
+            "version/3.0/ripscrip/9.1-text-variable-reference.md:198",
+            "version/3.0/ripscrip/9.1-text-variable-reference.md:201",
+            "version/3.0/ripscrip/9.1-text-variable-reference.md:202"
+          ],
+          "scope": "Editorial stale index capture/order/alias wording; detailed corrected entries are authoritative. An incorrect initial PR number was removed from this newly created issue; no comments or changes to covered #26 were made."
+        }
+      ],
+      "pending_followups": [
+        "Review/adopt newly available PR #137 for B136 grouped mouse-backup capture/publication, then connect its complete runtime policy.",
+        "Full text-window backups, aggregate SAVEALL/RESTOREALL, HEADER/hard reset, stored click-query storage and remaining table/UI/playback families."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; one CMake build tree build.",
+        "passed_tests": [
+          "rip154_source_freeze",
+          "rip3_backup",
+          "rip3_backup_copy",
+          "rip3_bitmap_stamp",
+          "rip3_bitmap_write_commands",
+          "rip3_clipboard",
+          "rip3_contract",
+          "rip3_image",
+          "rip3_mouse_backup",
+          "rip3_palette_lifecycle",
+          "rip3_palettes",
+          "rip3_ports",
+          "rip3_preservation_guard",
+          "rip3_query_commands",
+          "rip3_screen",
+          "rip3_session",
+          "rip3_surface",
+          "rip3_table_host",
+          "rip3_viewport_commands",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "syncterm_rip3_mouse_backup_CP437",
+          "syncterm_rip3_mouse_backup_UTF-8",
+          "syncterm_rip3_reset_CP437",
+          "syncterm_rip3_reset_UTF-8",
+          "syncterm_rip3_screen_CP437",
+          "syncterm_rip3_screen_UTF-8",
+          "syncterm_rip3_text_erase_CP437",
+          "syncterm_rip3_text_erase_UTF-8",
+          "term_key_forward"
+        ],
+        "scope": "Thirty distinct relevant CTest checks, including native screen/palette state on 640x480,800x600,1024x768,720x400 plus clipped unscaled cross-size restore; all aliases and zero-argument validation; protected/undefined current-palette overwrite retaining selectors/metadata, failed capture/invalid alternate pixels preserving prior saves, later presentation failure and numeric deletion versus POP retention. Public sessions feed screen actions bytewise, retain ordinary suffixes after valid failed actions and reject unpaired screen services; constructor failure/destruction ownership remains checked. TCP CP437/UTF-8 at 640x480 and 720x400 covers native encoded text/both blink planes, raw RIP palette indexes and literal black, no state rollback for live buttons/groups, native writes and circular scrolling after restore, cursor retention, a literal indexed BMP export of restored native RGB, copy/protection/aliases/SOFT lifetime and malformed-reference recovery. Existing image/bitmap export/clipboard, reset/text erase/mouse backup, ANSI controls and typed library regressions pass, with RIP1.54 guards.",
+        "fixture_corrections": "Native ANSI red is the existing console 0xa80000, distinct from RIP normalized 0xaa0000. Rejected built-in arguments suppress that reference but retain the ordinary suffix. The bytewise fixture explicitly sets decimal WORLD=640x480; its earlier fZKQO literal meant 1280x960 in base36. These corrections preserve independent expected colors/coordinates and parser behavior.",
+        "build_diagnostics": "No compiler diagnostics in the final native builds.",
+        "source_integrity": "Reference pin and all 8410 exact source/text/heading/line/hash records are unchanged; state/evidence review and new upstream follow-up metadata only."
+      }
     }
   ]
 }

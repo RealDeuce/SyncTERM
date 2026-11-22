@@ -60,13 +60,20 @@ int st_rip3_palette_color(const struct st_rip3_palette *palette, bool direct,
 int st_rip3_surface_create(struct st_rip3_surface **result,
 	uint32_t width, uint32_t height);
 void st_rip3_surface_destroy(struct st_rip3_surface *surface);
-/* Exact owned index-plane clone; no RGB conversion or palette association. */
+/* Exact owned index/marked-RGB clone; no palette association. */
 int st_rip3_surface_clone(struct st_rip3_surface **result,
 	const struct st_rip3_surface *surface);
+/* Explicit screen-backup transport, retaining raw indexes and tagged RGB.
+ * Restore copies the unscaled overlap at (0,0), keeps the destination size and
+ * marks its existing damage plane. It does not replace the surface identity. */
+int st_rip3_surface_capture_raw(const struct st_rip3_surface *,struct st_pixel_buffer **);
+int st_rip3_surface_restore_raw(struct st_rip3_surface *,const struct st_pixel_buffer *);
 int st_rip3_surface_size(const struct st_rip3_surface *surface,
 	uint32_t *width, uint32_t *height);
 int st_rip3_surface_get(const struct st_rip3_surface *surface,
 	int32_t x, int32_t y, uint8_t *result);
+/* Preserve the full indexed/tagged-RGB value for physical image capture. */
+int st_rip3_surface_read_color(const struct st_rip3_surface *,int32_t x,int32_t y,uint32_t *);
 /* Full physical-surface COPY of literal black, independent of PAL. Raw index
  * reads use zero for these pixels; indexed logical writes replace the literal
  * value using the existing eight-bit backend arithmetic. No allocation. */

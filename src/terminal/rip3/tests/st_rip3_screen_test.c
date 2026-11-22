@@ -1,236 +1,149 @@
-/* Independent owned screen snapshots and shared backup-area behavior. */
+/* Independent screen/palette binding, lifetime and failure vectors. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_screen.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_palettes.h"
 #include "st_rip3_backup.h"
-#include "st_rip3_host_variables.h"
+#include "st_rip3_host_internal.h"
 #include "st_rip3_table_host.h"
 #include "st_pixels.h"
+#include "st_rip3_bitmap.h"
 #include "io_error.h"
-
 #include <stdio.h>
 #include <string.h>
 
-#define CHECK(expression) do { \
-	if (!(expression)) { \
-		fprintf(stderr, "check failed at line %d: %s\n", __LINE__, #expression); \
-		return 1; \
-	} \
-} while (0)
-
-struct observations {size_t replies, diagnostics; enum st_rip3_host_diagnostic last;};
-
-static void
-reply(void *context, const uint8_t *bytes, size_t length)
+#define CHECK(x) do {if (!(x)) {fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1;}} while (0)
+static int execute(const struct st_rip3_table_host *host,const char *source,char *result,size_t capacity)
 {
-	struct observations *observed = context;
-	(void)bytes; (void)length;
-	observed->replies++;
+	struct st_rip3_builtin_reference reference;
+	int status=st_rip3_builtin_reference_parse(&reference,(const uint8_t *)source,strlen(source));
+	return status==0 ? st_rip3_table_host_execute(host,&reference,result,capacity) : status;
 }
-
-static void
-diagnostic(void *context, enum st_rip3_host_diagnostic kind)
+struct backend {unsigned captures,restores,errors;bool fail_capture,fail_restore,invalid_capture,valid;};
+static int capture(void *context,struct st_pixel_buffer *pixels)
 {
-	struct observations *observed = context;
-	observed->diagnostics++; observed->last = kind;
+	struct backend *b=context;b->captures++;
+	if (b->fail_capture) return IO_ERROR_OUT_OF_MEMORY;
+	int status=st_pixel_buffer_ensure_alternate(pixels);if (status!=0) return status;
+	pixels->primary[0]=ST_PIXEL_COLOR_RGB_TAG|0x123456;pixels->alternate[0]=b->invalid_capture ? 256u : ST_PIXEL_COLOR_RGB_TAG|0x654321;return 0;
 }
-
-static int
-process(const struct st_rip3_host_variables *host, const char *command, int error)
+static int restore(void *context,const struct st_pixel_buffer *pixels,const struct st_rip3_palette *palette)
 {
-	struct observations observed = {0};
-	const struct st_rip3_host_sink sink = {&observed,reply,diagnostic};
-
-	st_rip3_host_variables_process(host, &sink, (const uint8_t *)command, strlen(command));
-	CHECK(observed.replies == 0 && observed.diagnostics == (error < 0 ? 0u : 1u));
-	if (error >= 0) CHECK((int)observed.last == error);
-	return 0;
+	struct backend *b=context;b->restores++;
+	b->valid&=pixels->primary[0]==(ST_PIXEL_COLOR_RGB_TAG|0x123456)
+	    && pixels->alternate!=NULL && pixels->alternate[0]==(ST_PIXEL_COLOR_RGB_TAG|0x654321)
+	    && palette->rgb[15]==0xaa0000;
+	return b->fail_restore ? IO_ERROR_IO : 0;
 }
-
-static int
-capture(const struct st_rip3_screen *screen, uint32_t width, uint32_t height)
+static void failed(void *context,int status) {(void)status;((struct backend *)context)->errors++;}
+static int palette(struct st_rip3_palettes *p,unsigned n,uint32_t rgb)
 {
-	struct st_pixel_buffer *pixels = NULL;
-
-	CHECK(st_rip3_ports_snapshot(screen->ports, screen->palette, &pixels) == 0);
-	CHECK(pixels->width == width && pixels->height == height);
-	for (uint32_t y = 0; y < height; y++) {
-		for (uint32_t x = 0; x < width; x++) {
-			uint32_t expected = 0x102030;
-			if (x >= 10 && x <= 14 && y >= 20 && y <= 23) expected = 0xabcdef;
-			if (x >= 21 && x <= 23 && y >= 32 && y <= 34) expected = 0x456789;
-			CHECK(pixels->primary[(size_t)y * width + x] == (ST_PIXEL_COLOR_RGB_TAG | expected));
-		}
+	CHECK(st_rip3_palettes_switch(p,n)==0 && st_rip3_palettes_rgb(p,15,8,&rgb,1)==0);return 0;
+}
+static int pixels(struct st_rip3_ports *ports,uint32_t width,uint32_t height,uint32_t inside,uint32_t outside)
+{
+	struct st_pixel_buffer *p=NULL;CHECK(st_rip3_ports_screen_capture(ports,&p)==0);
+	CHECK(p->width==width && p->height==height);
+	for (uint32_t y=0;y<height;y++) for (uint32_t x=0;x<width;x++)
+		CHECK(p->primary[(size_t)y*width+x]==(x<640 && y<480 ? inside : outside));
+	st_pixel_buffer_destroy(p);return 0;
+}
+static int binding(uint32_t width,uint32_t height)
+{
+	struct st_rip3_ports *ports=NULL,*other=NULL;struct st_rip3_palettes *palettes=NULL,*other_palettes=NULL;
+	struct st_rip3_backup *backup=NULL;
+	CHECK(st_rip3_ports_create_device(&ports,width,height)==0 && st_rip3_palettes_create(&palettes)==0);
+	CHECK(st_rip3_screen_backup_create(&backup)==0);
+	struct st_rip3_screen screen={.ports=ports,.palettes=palettes};
+	CHECK(palette(palettes,5,0xaa0000)==0 && st_rip3_ports_erase(ports,15)==0);
+	struct st_rip3_rect area={20,30,100,110},view={2,3,6,8},off={0,0,2,1};
+	CHECK(st_rip3_ports_define(ports,1,&area,false)==0 && st_rip3_ports_switch(ports,1)==0);
+	CHECK(st_rip3_ports_viewport(ports,&view)==0 && st_rip3_ports_activate(ports,false)==0 && st_rip3_ports_protect(ports,1,true)==0);
+	CHECK(st_rip3_ports_define(ports,2,&off,true)==0 && st_rip3_ports_switch(ports,2)==0 && st_rip3_ports_erase(ports,9)==0);
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,&screen)==0);
+	CHECK(palette(palettes,5,0x0000aa)==0 && palette(palettes,17,0x00aa00)==0 && st_rip3_palettes_protect(palettes,17,true)==0);
+	CHECK(st_rip3_ports_screen_clear_black(ports)==0);
+	CHECK(st_rip3_ports_switch(ports,0)==0 && st_rip3_ports_viewport(ports,&view)==0 && st_rip3_ports_activate(ports,false)==0);
+	CHECK(st_rip3_ports_switch(ports,2)==0);
+	uint64_t generation=st_rip3_ports_generation(ports,0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,&screen)==0);
+	unsigned selected;struct st_rip3_palette value;struct st_rip3_palette_info info;
+	CHECK(st_rip3_palettes_current(palettes,&selected)==0 && selected==17);
+	CHECK(st_rip3_palettes_get(palettes,17,&value)==0 && value.rgb[15]==0xaa0000);
+	CHECK(st_rip3_palettes_info(palettes,17,&info)==0 && info.defined && info.protected);
+	CHECK(st_rip3_palettes_get(palettes,5,&value)==0 && value.rgb[15]==0x0000aa);
+	struct st_rip3_port_info port;uint8_t pixel;
+	CHECK(st_rip3_ports_current(ports,&selected)==0 && selected==2 && st_rip3_ports_generation(ports,0)==generation);
+	CHECK(st_rip3_ports_info(ports,0,&port)==0 && !port.viewport_active && port.viewport.x0==2);
+	CHECK(st_rip3_ports_info(ports,1,&port)==0 && port.protected && !port.viewport_active && port.bounds.x0==20);
+	CHECK(st_rip3_ports_read(ports,2,0,0,&pixel)==0 && pixel==9);
+	struct st_pixel_buffer *raw=NULL;CHECK(st_rip3_ports_screen_capture(ports,&raw)==0);
+	CHECK(raw->width==width && raw->height==height);
+	for (size_t i=0;i<(size_t)width*height;i++) CHECK(raw->primary[i]==15);
+	st_pixel_buffer_destroy(raw);
+	/* A selected-but-undefined palette is overwritten without becoming defined. */
+	CHECK(palette(palettes,18,0x00aa00)==0 && st_rip3_palettes_reset_entry(palettes,18)==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,&screen)==0);
+	CHECK(st_rip3_palettes_info(palettes,18,&info)==0 && !info.defined && !info.protected);
+	CHECK(st_rip3_palettes_current_palette(palettes,&value)==0 && value.rgb[15]==0xaa0000);
+	/* No resize: independently shaped destination receives the unscaled overlap. */
+	CHECK(st_rip3_ports_create_device(&other,720,400)==0 && st_rip3_palettes_create(&other_palettes)==0);
+	CHECK(st_rip3_ports_erase(other,5)==0);
+	struct st_rip3_screen target={.ports=other,.palettes=other_palettes};
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,&target)==0);
+	CHECK(st_rip3_ports_screen_capture(other,&raw)==0 && raw->width==720 && raw->height==400);
+	for (uint32_t y=0;y<400;y++) for (uint32_t x=0;x<720;x++) CHECK(raw->primary[(size_t)y*720+x]==(x<width && y<height ? 15u : 5u));
+	st_pixel_buffer_destroy(raw);
+	st_rip3_backup_destroy(backup);st_rip3_ports_destroy(ports);st_rip3_palettes_destroy(palettes);
+	st_rip3_ports_destroy(other);st_rip3_palettes_destroy(other_palettes);return 0;
+}
+static int actions(void)
+{
+	struct st_rip3_ports *ports=NULL;struct st_rip3_palettes *palettes=NULL;struct st_rip3_backup *backup=NULL;
+	CHECK(st_rip3_ports_create_device(&ports,640,480)==0 && st_rip3_palettes_create(&palettes)==0 && st_rip3_screen_backup_create(&backup)==0);
+	CHECK(palette(palettes,5,0xaa0000)==0);
+	struct backend b={.valid=true};struct st_rip3_screen screen={.ports=ports,.palettes=palettes,.context=&b,.capture=capture,.restore=restore};
+	struct st_rip3_table_host host={.operation_context=&b,.operation_failed=failed};
+	host.tables[ST_RIP3_TABLE_SCREEN]=(struct st_rip3_table_binding){&screen,backup};
+	char out[100];struct st_rip3_backup_info info;
+	CHECK(execute(&host,"$SAVE$",out,sizeof(out))==0 && out[0]==0 && b.captures==1);
+	b.fail_capture=true;CHECK(execute(&host,"$SAVE$",out,sizeof(out))==0 && b.errors==1);
+	b.fail_capture=false;b.invalid_capture=true;
+	CHECK(execute(&host,"$SAVE$",out,sizeof(out))==0 && b.errors==2);
+	b.invalid_capture=false;CHECK(execute(&host,"$RESTORE$",out,sizeof(out))==0 && b.restores==1 && b.valid);
+	/* A restored native RGB pixel must be matched as RGB when an indexed BMP
+	 * consumer reads it, not truncated to the low byte as an index. */
+	struct st_rip3_palette export_palette;CHECK(st_rip3_palettes_current_palette(palettes,&export_palette)==0);
+	export_palette.rgb[7]=0x123456;struct st_rip3_bitmap *image=NULL;const struct st_rip3_rect one={0,0,0,0};
+	CHECK(st_rip3_bitmap_capture_port(&image,ports,0,&one,&export_palette)==0 && image->bit_depth==8 && image->pixels->primary[0]==7);
+	st_rip3_bitmap_destroy(image);
+	for (unsigned i=0;i<10;i++) {
+		char command[30];snprintf(command,sizeof(command),"$SAVE%u$",i);CHECK(execute(&host,command,out,sizeof(out))==0);
+		snprintf(command,sizeof(command),"$RESTORE%u$",i);CHECK(execute(&host,command,out,sizeof(out))==0);
+		CHECK(st_rip3_backup_info(backup,&info)==0 && !info.slot_used[i]);
+		snprintf(command,sizeof(command),"$SAVE%u(1)$",i);CHECK(execute(&host,command,out,sizeof(out))==IO_ERROR_INVALID_FORMAT);
+		snprintf(command,sizeof(command),"$RESTORE%u(1)$",i);CHECK(execute(&host,command,out,sizeof(out))==IO_ERROR_INVALID_FORMAT);
 	}
-	st_pixel_buffer_destroy(pixels);
-	return 0;
+	CHECK(execute(&host,"$SAVE(3)$",out,sizeof(out))==0);
+	b.fail_restore=true;CHECK(execute(&host,"$RESTORE3$",out,sizeof(out))==0);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && !info.slot_used[3]);
+	CHECK(execute(&host,"$SAVE(3)$",out,sizeof(out))==0 && st_rip3_backup_protect(backup,3,true)==0);
+	CHECK(execute(&host,"$RESTORE(3)$",out,sizeof(out))==0);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && info.slot_used[3] && info.slot_protected[3]);
+	CHECK(execute(&host,"$SAVE(PUSH)$",out,sizeof(out))==0 && execute(&host,"$RESTORE(POP)$",out,sizeof(out))==0);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && info.stack==1);
+	b.fail_restore=false;CHECK(execute(&host,"$RESTORE(pop)$",out,sizeof(out))==0);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && info.stack==0 && b.valid);
+	CHECK(execute(&host,"$SAVE(10)$",out,sizeof(out))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$SAVE(BASE,PUSH)$",out,sizeof(out))==IO_ERROR_INVALID_FORMAT);
+	unsigned calls=b.captures;CHECK(execute(&host,"$SAVE$",out,0)==IO_ERROR_OUT_OF_RANGE && b.captures==calls);
+	CHECK(execute(&host,"$RESET(SCREEN,TBL)$",out,sizeof(out))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$RESET(SCREEN)$",out,sizeof(out))==0 && pixels(ports,640,480,0,0)==0);
+	CHECK(execute(&host,"$RESET(SCREEN,BACKUP)$",out,sizeof(out))==0);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && !info.base && info.slot_used[3]);
+	CHECK(execute(&host,"$UNPROT(SCREEN,S3)$",out,sizeof(out))==0 && execute(&host,"$RESET(SCREEN,ALL)$",out,sizeof(out))==0);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && !info.slot_used[3]);
+	CHECK(st_rip3_ports_screen_capture(NULL,NULL)==IO_ERROR_INVALID_ARGUMENT && st_rip3_ports_screen_restore(ports,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	st_rip3_backup_destroy(backup);st_rip3_ports_destroy(ports);st_rip3_palettes_destroy(palettes);return 0;
 }
-
-static int
-restoration(enum st_rip3_canvas canvas)
-{
-	struct st_rip3_ports *ports = NULL, *other = NULL;
-	struct st_rip3_backup *backup = NULL;
-	struct st_rip3_palette palette, expected_palette, other_palette;
-	bool status_bar = true, other_status = false;
-	struct st_rip3_screen screen = {NULL,&palette,&status_bar};
-	struct st_rip3_screen wrong = {NULL,&other_palette,&other_status};
-	struct st_rip3_frame frame;
-	struct st_rip3_backup_info saves;
-	struct st_rip3_port_info info;
-	struct st_rip3_table_host tables = {0};
-	struct st_rip3_host_variables host = {.tables=&tables};
-	const struct st_rip3_rect rectangle = {10,20,14,23}, onscreen = {20,30,25,35};
-	const struct st_rip3_rect view = {1,2,3,4}, offscreen = {0,0,2,1};
-	const struct st_rip3_rect offview = {1,0,2,1}, replacement = {45,55,46,56};
-	unsigned current;
-	uint8_t pixel;
-
-	CHECK(st_rip3_frame_init(&frame, canvas) == 0);
-	CHECK(st_rip3_ports_create(&ports, canvas) == 0);
-	CHECK(st_rip3_palette_defaults(&palette) == 0);
-	palette.rgb[1] = 0x102030; palette.rgb[56] = 0xabcdef;
-	palette.rgb[250] = 0x456789; palette.rgb[200] = 0xfedcba;
-	expected_palette = palette;
-	screen.ports = ports;
-	CHECK(st_rip3_ports_erase(ports, 1) == 0);
-	CHECK(st_rip3_ports_fill(ports, &rectangle, 56, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_ports_define(ports, 1, &onscreen, false) == 0);
-	CHECK(st_rip3_ports_switch(ports, 1) == 0 && st_rip3_ports_viewport(ports, &view) == 0);
-	CHECK(st_rip3_ports_erase(ports, 250) == 0);
-	CHECK(st_rip3_ports_activate(ports, false) == 0 && st_rip3_ports_protect(ports, 1, true) == 0);
-	CHECK(st_rip3_ports_define(ports, 2, &offscreen, true) == 0);
-	CHECK(st_rip3_ports_switch(ports, 2) == 0 && st_rip3_ports_erase(ports, 8) == 0);
-	CHECK(st_rip3_ports_viewport(ports, &offview) == 0);
-	CHECK(st_rip3_ports_activate(ports, false) == 0 && st_rip3_ports_protect(ports, 2, true) == 0);
-	CHECK(st_rip3_screen_backup_create(&backup) == 0);
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, &screen) == 0);
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_SLOT, 0, &screen) == 0);
-	CHECK(st_rip3_backup_protect(backup, 0, true) == 0);
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_SLOT, 1, &screen) == 0);
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_STACK, 0, &screen) == 0);
-	/* Later live port configuration and offscreen content must survive a
-	 * screen-only restore; all saved on-screen indexes remain independent. */
-	CHECK(st_rip3_ports_switch(ports, 0) == 0 && st_rip3_ports_erase(ports, 7) == 0);
-	CHECK(st_rip3_ports_activate(ports, false) == 0); /* Disable port zero. */
-	CHECK(st_rip3_ports_protect(ports, 1, false) == 0);
-	CHECK(st_rip3_ports_define(ports, 1, &replacement, false) == 0);
-	CHECK(st_rip3_ports_protect(ports, 1, true) == 0);
-	CHECK(st_rip3_ports_protect(ports, 2, false) == 0);
-	CHECK(st_rip3_ports_switch(ports, 2) == 0 && st_rip3_ports_activate(ports, true) == 0);
-	CHECK(st_rip3_ports_erase(ports, 9) == 0);
-	CHECK(st_rip3_ports_activate(ports, false) == 0 && st_rip3_ports_protect(ports, 2, true) == 0);
-	memset(&palette, 0, sizeof(palette)); status_bar = false;
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, &screen) == 0);
-	CHECK(status_bar);
-	for (size_t i = 0; i < 256; i++) CHECK(palette.rgb[i] == expected_palette.rgb[i]);
-	CHECK(st_rip3_ports_current(ports, &current) == 0 && current == 2);
-	CHECK(st_rip3_ports_info(ports, 0, &info) == 0 && !info.viewport_active);
-	CHECK(st_rip3_ports_info(ports, 1, &info) == 0 && info.protected
-	    && info.bounds.x0 == 45 && info.bounds.y0 == 55 && info.bounds.x1 == 46 && info.bounds.y1 == 56);
-	CHECK(st_rip3_ports_info(ports, 2, &info) == 0 && info.protected && !info.viewport_active);
-	CHECK(st_rip3_ports_read(ports, 2, 1, 0, &pixel) == 0 && pixel == 9);
-	CHECK(st_rip3_ports_read(ports, 2, 0, 0, &pixel) == 0 && pixel == 8);
-	CHECK(capture(&screen, frame.device_width, frame.device_height) == 0);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_SLOT, 0, &screen) == 0);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.slot_used[0] && saves.slot_protected[0]);
-	CHECK(st_rip3_backup_protect(backup, 0, false) == 0);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_SLOT, 0, &screen) == 0);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && !saves.slot_used[0] && saves.stack == 1);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_STACK, 0, &screen) == 0);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.stack == 0);
-	CHECK(st_rip3_ports_create(&other, canvas == ST_RIP3_CANVAS_640_480
-	    ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480) == 0);
-	CHECK(st_rip3_palette_defaults(&other_palette) == 0);
-	wrong.ports = other;
-	other_palette.rgb[200] = 0x112233;
-	CHECK(st_rip3_ports_erase(other, 5) == 0);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_SLOT, 1, &wrong) == IO_ERROR_CONFLICT);
-	CHECK(!other_status && other_palette.rgb[200] == 0x112233);
-	CHECK(st_rip3_ports_read(other, 0, 0, 0, &pixel) == 0 && pixel == 5);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.slot_used[1]);
-	/* Invalid save data cannot replace a previous valid base snapshot. A
-	 * restore may repair the live display palette even if it is now invalid. */
-	palette.rgb[200] = 0xff000000;
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, &screen) == IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, &screen) == 0);
-	CHECK(palette.rgb[200] == 0xfedcba);
-	struct st_rip3_screen incomplete[] = {{NULL,&palette,&status_bar},
-	    {ports,NULL,&status_bar},{ports,&palette,NULL}};
-	for (size_t i = 0; i < sizeof(incomplete) / sizeof(incomplete[0]); i++) {
-		CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, &incomplete[i]) == IO_ERROR_INVALID_ARGUMENT);
-		CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_SLOT, 1, &incomplete[i]) == IO_ERROR_INVALID_ARGUMENT);
-		CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.base && saves.slot_used[1]);
-	}
-	status_bar = false;
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_SLOT, 3, &screen) == 0);
-	status_bar = true;
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_SLOT, 3, &screen) == 0 && !status_bar);
-	st_rip3_ports_destroy(ports);
-	CHECK(st_rip3_ports_create(&ports, canvas) == 0);
-	screen.ports = ports;
-	memset(&palette, 0, sizeof(palette)); status_bar = false;
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, &screen) == 0);
-	CHECK(status_bar && capture(&screen, frame.device_width, frame.device_height) == 0);
-	/* The public parser can bind the explicit snapshot core to generic COPY.
-	 * Full SAVE/RESTORE aliases stay unsupported pending context clarification. */
-	tables.tables[ST_RIP3_TABLE_SCREEN] = (struct st_rip3_table_binding){&screen,backup};
-	CHECK(process(&host, "$COPY(SCREEN,BASE,S2,PUSH)$", -1) == 0);
-	CHECK(process(&host, "$SAVE$", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(process(&host, "$RESTORE(POP)$", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(process(&host, "$SAVEALL(PUSH)$", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(process(&host, "$RESTOREALL(POP)$", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	for (unsigned i = 0; i < 10; i++) {
-		char command[20];
-		snprintf(command, sizeof(command), "$SAVE%u$", i);
-		CHECK(process(&host, command, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-		snprintf(command, sizeof(command), "$RESTORE%u$", i);
-		CHECK(process(&host, command, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	}
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.stack == 1 && saves.slot_used[2]);
-	CHECK(st_rip3_ports_erase(ports, 0) == 0);
-	status_bar = false; palette.rgb[1] = 0;
-	CHECK(process(&host, "$COPY(SCREEN,POP,TBL)$", -1) == 0);
-	CHECK(status_bar && capture(&screen, frame.device_width, frame.device_height) == 0);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.stack == 0);
-	tables.tables[ST_RIP3_TABLE_SCREEN].live = &wrong;
-	CHECK(process(&host, "$COPY(SCREEN,S1,TBL)$", ST_RIP3_HOST_OPERATION_FAILED) == 0);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && saves.slot_used[1]);
-	tables.tables[ST_RIP3_TABLE_SCREEN].live = &screen;
-	CHECK(process(&host, "$COPY(SCREEN,S1,TBL)$", -1) == 0);
-	CHECK(st_rip3_backup_info(backup, &saves) == 0 && !saves.slot_used[1]);
-	/* Raw index-plane snapshots are independent in both directions; restoring
-	 * one neither adopts its allocation nor modifies the borrowed snapshot. */
-	struct st_rip3_surface *raw = NULL, *small = NULL;
-	CHECK(st_rip3_ports_screen_clone(NULL, &raw) == IO_ERROR_INVALID_ARGUMENT && raw == NULL);
-	CHECK(st_rip3_ports_screen_clone(ports, NULL) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_ports_screen_restore(ports, NULL) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_surface_create(&small, 1, 1) == 0);
-	CHECK(st_rip3_ports_screen_restore(ports, small) == IO_ERROR_CONFLICT);
-	st_rip3_surface_destroy(small);
-	CHECK(capture(&screen, frame.device_width, frame.device_height) == 0);
-	CHECK(st_rip3_ports_screen_clone(ports, &raw) == 0);
-	CHECK(st_rip3_surface_plot(raw, NULL, 0, 0, 77, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_ports_read(ports, 0, 0, 0, &pixel) == 0 && pixel == 1);
-	CHECK(st_rip3_ports_screen_restore(ports, raw) == 0);
-	CHECK(st_rip3_surface_plot(raw, NULL, 0, 0, 88, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_ports_read(ports, 0, 0, 0, &pixel) == 0 && pixel == 77);
-	CHECK(st_rip3_ports_plot(ports, 0, 0, 66, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_surface_get(raw, 0, 0, &pixel) == 0 && pixel == 88);
-	st_rip3_surface_destroy(raw);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, &screen) == 0);
-	CHECK(capture(&screen, frame.device_width, frame.device_height) == 0);
-	st_rip3_backup_destroy(backup);
-	st_rip3_ports_destroy(other);
-	st_rip3_ports_destroy(ports);
-	return 0;
-}
-
-int
-main(void)
-{
-	CHECK(restoration(ST_RIP3_CANVAS_640_480) == 0);
-	CHECK(restoration(ST_RIP3_CANVAS_800_600) == 0);
-	CHECK(restoration(ST_RIP3_CANVAS_1024_768) == 0);
-	return 0;
-}
+int main(void) {CHECK(binding(640,480)==0 && binding(800,600)==0 && binding(1024,768)==0 && binding(720,400)==0 && actions()==0);return 0;}

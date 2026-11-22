@@ -9,7 +9,7 @@
 #include <string.h>
 
 struct st_rip3_surface {
-	/* Index values, plus the palette-independent RGB-black reset value.
+	/* Index values, plus palette-independent tagged RGB from reset/native ink.
 	 * COPY/clone retain that value; indexed logical writes replace it. */
 	uint32_t *pixels;
 	uint8_t *damage;
@@ -525,4 +525,42 @@ st_rip3_surface_snapshot(const struct st_rip3_surface *surface,
 		    : ST_PIXEL_COLOR_RGB_TAG | palette->rgb[surface->pixels[i]];
 	*result = snapshot;
 	return 0;
+}
+
+
+int
+st_rip3_surface_capture_raw(const struct st_rip3_surface *surface,struct st_pixel_buffer **result)
+{
+	if (surface==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_pixel_buffer *copy=NULL;
+	int status=st_pixel_buffer_create(&copy,surface->width,surface->height,false);
+	if (status!=0) return status;
+	memcpy(copy->primary,surface->pixels,(size_t)surface->width*surface->height*sizeof(*surface->pixels));
+	*result=copy;return 0;
+}
+int
+st_rip3_surface_restore_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source)
+{
+	if (surface==NULL || source==NULL || source->primary==NULL || source->width==0 || source->height==0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (source->height>SIZE_MAX/sizeof(*source->primary)/source->width) return IO_ERROR_OUT_OF_RANGE;
+	uint32_t width=source->width<surface->width ? source->width : surface->width;
+	uint32_t height=source->height<surface->height ? source->height : surface->height;
+	for (uint32_t y=0;y<height;y++) for (uint32_t x=0;x<width;x++) {
+		uint32_t value=source->primary[(size_t)y*source->width+x];
+		if (!ST_PIXEL_COLOR_IS_RGB(value) && value>255) return IO_ERROR_OUT_OF_RANGE;
+	}
+	for (uint32_t y=0;y<height;y++) {
+		memcpy(surface->pixels+(size_t)y*surface->width,source->primary+(size_t)y*source->width,(size_t)width*sizeof(*source->primary));
+		if (surface->damage!=NULL) memset(surface->damage+(size_t)y*surface->width,1,width);
+	}
+	return 0;
+}
+
+int
+st_rip3_surface_read_color(const struct st_rip3_surface *surface,int32_t x,int32_t y,uint32_t *result)
+{
+	if (surface==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (x<0 || y<0 || (uint32_t)x>=surface->width || (uint32_t)y>=surface->height) return IO_ERROR_OUT_OF_RANGE;
+	*result=surface->pixels[(size_t)y*surface->width+(uint32_t)x];return 0;
 }

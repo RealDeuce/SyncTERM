@@ -22,6 +22,7 @@ struct st_rip3_text_window_layout;
 struct st_rip3_text_window_snapshot;
 struct st_rip3_text_cursor_position;
 struct st_rip3_rect;
+struct st_rip3_palette;
 
 struct st_rip3_session_source {
 	void *context;
@@ -74,6 +75,11 @@ struct st_rip3_session_sink {
 	void (*mouse_redraw)(void *context);
 	/* Capture the committing field event before starting its host program. */
 	void (*mouse_capture)(void *context, int32_t x, int32_t y);
+	/* Explicit screen backups only: merge native ANSI into a prepared raw
+	 * graphics capture; restore both planes without changing ANSI/window state.
+	 * Bind both or neither. Accessor reads are allowed, parser reentry is not. */
+	int (*screen_capture)(void *context,struct st_pixel_buffer *);
+	int (*screen_restore)(void *context,const struct st_pixel_buffer *,const struct st_rip3_palette *);
 };
 
 struct st_rip3_session_config {
@@ -195,7 +201,8 @@ struct st_rip3_session_capture {
 };
 /* Resource/accessor service, not incoming-data processing. Failure preserves
  * result. The observation owns only pixels; release it before reuse. This
- * selected-palette view does not claim complete SCREEN/UI backup ownership. */
+ * graphics-only view is not the native physical SCREEN capture; explicit
+ * screen backups also use the paired sink services for ANSI/blink pixels. */
 int st_rip3_session_capture(const struct st_rip3_session *session,
 	struct st_rip3_session_capture *result);
 void st_rip3_session_capture_dispose(struct st_rip3_session_capture *capture);

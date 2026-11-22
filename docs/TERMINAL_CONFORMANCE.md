@@ -2304,3 +2304,25 @@ applying restore boundaries, fresh tokens and suspended traversal invalidation;
 `rip3_session` covers the new owner's construction failure/teardown boundaries.
 Complete grouped snapshot publication, aggregate restore and HEADER behavior
 remain unaccepted; no changes to normal ANSI/RIP1 rendering are introduced.
+
+
+`syncterm_rip3_screen_CP437` and `syncterm_rip3_screen_UTF-8` cover connected
+screen-only SAVE/RESTORE, all twenty numbered aliases, generic COPY/status,
+protection, PUSH/POP, backup reset and SOFT lifetime at 640×480 and 720×400.
+Independent literal colors and coherent scene captures cover native encoded
+ANSI text/both blink planes alongside indexed RIP graphics and literal reset
+black. The PAL5→PAL17 vector restores saved RGB into the currently selected
+protected palette without changing its flags/index or current PORT; native
+component tests add selected-but-undefined targets, all presets and unscaled
+cross-size clipping. Physical capture/restore ignores current-port/viewport
+clipping and retains live fields/group selection, style and offscreen state.
+Native cell writes and circular scrolling after restore use the existing console
+external-pixel flags; restoration preserves current cursor state and both planes.
+A literal one-pixel BMP export verifies restored native RGB is palette-matched,
+not truncated to an index. Native tests add failed/invalid capture, immutable
+saved data, later presentation failure, numbered deletion even on failure versus
+success-dependent POP, argument rejection and continued host suffixes after valid
+failed actions. Public session tests feed actions bytewise and cover paired
+native-service validation and failure/destruction boundaries. Aggregate
+SAVEALL/RESTOREALL, full TW/grouped mouse capture and HEADER remain separate
+unfinished operations; this is not full RIPtel compliance.

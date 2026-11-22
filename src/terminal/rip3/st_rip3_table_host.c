@@ -10,6 +10,7 @@
 #include "st_rip3_button_styles.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_mouse.h"
+#include "st_rip3_screen.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -448,7 +449,7 @@ table_reset(const struct st_rip3_table_binding *binding,
 	/* Validate the complete selector list and every required binding before
 	 * executing anything, including a mixed live-table/backup reset. */
 	for (size_t i=0; i<count; i++) {
-		const char *word=reference->count==1 ? (type==ST_RIP3_TABLE_MOUSE ? "TBL" : "CUR") : reference->parameters[i+1].text;
+		const char *word=reference->count==1 ? ((type==ST_RIP3_TABLE_MOUSE || type==ST_RIP3_TABLE_SCREEN) ? "TBL" : "CUR") : reference->parameters[i+1].text;
 		enum table_reset_kind kind;unsigned index=0;
 		if (equal(word,"CUR")) kind=RESET_CURRENT;
 		else if (equal(word,"TBL")) kind=RESET_TABLE;
@@ -463,6 +464,7 @@ table_reset(const struct st_rip3_table_binding *binding,
 		else if (st_rip3_host_number(word,0,35,&index)==0) kind=RESET_ENTRY;
 		else return IO_ERROR_INVALID_FORMAT;
 		if (type==ST_RIP3_TABLE_MOUSE && (kind==RESET_ENTRY || kind==RESET_CURRENT)) return IO_ERROR_INVALID_FORMAT;
+		if (type==ST_RIP3_TABLE_SCREEN && (kind==RESET_ENTRY || kind==RESET_CURRENT || (kind==RESET_TABLE && reference->count!=1))) return IO_ERROR_INVALID_FORMAT;
 		actions[i].kind=kind;actions[i].index=index;
 		needs_live|=kind==RESET_ENTRY || kind==RESET_CURRENT || kind==RESET_TABLE || kind==RESET_ALL;
 		needs_backup|=kind!=RESET_ENTRY && kind!=RESET_CURRENT && kind!=RESET_TABLE;
@@ -472,7 +474,10 @@ table_reset(const struct st_rip3_table_binding *binding,
 	for (size_t i=0; i<count; i++) {
 		enum table_reset_kind kind=actions[i].kind;unsigned index=actions[i].index;
 		int status=0;
-		if (type==ST_RIP3_TABLE_MOUSE) {
+		if (type==ST_RIP3_TABLE_SCREEN) {
+			if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_screen_clear(binding->live);
+		}
+		else if (type==ST_RIP3_TABLE_MOUSE) {
 			if (kind==RESET_TABLE || kind==RESET_ALL) st_rip3_mouse_kill(binding->live);
 		}
 		else if (type==ST_RIP3_TABLE_BUT) {
@@ -525,6 +530,39 @@ palette_copy(const struct st_rip3_table_binding *binding,
 	return st_rip3_palettes_copy_entries(binding->live,source,destinations,reference->count-2);
 }
 
+static int
+screen_action(const struct st_rip3_table_host *host,const struct st_rip3_builtin_reference *reference,
+    bool save,int fixed,char *result,size_t capacity)
+{
+	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_backup_location place={ST_RIP3_BACKUP_BASE,0};
+	if (fixed>=0) {
+		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
+		place.place=ST_RIP3_BACKUP_SLOT;place.index=(unsigned)fixed;
+	}
+	else {
+		if (reference->count>1) return IO_ERROR_INVALID_FORMAT;
+		if (reference->count==1) {
+			const char *word=reference->parameters[0].text;
+			if (equal(word,"BASE")) place.place=ST_RIP3_BACKUP_BASE;
+			else if (equal(word,save ? "PUSH" : "POP")) place.place=ST_RIP3_BACKUP_STACK;
+			else {
+				if (st_rip3_host_number(word,0,9,&place.index)!=0) return IO_ERROR_INVALID_FORMAT;
+				place.place=ST_RIP3_BACKUP_SLOT;
+			}
+		}
+	}
+	const struct st_rip3_table_binding *binding=&host->tables[ST_RIP3_TABLE_SCREEN];
+	if (binding->live==NULL || binding->backup==NULL) return IO_ERROR_NOT_SUPPORTED;
+	int status=save ? st_rip3_backup_save(binding->backup,place.place,place.index,binding->live)
+	    : st_rip3_backup_restore(binding->backup,place.place,place.index,binding->live);
+	/* The action wrapper requests numbered deletion even after restore failure.
+	 * Protected snapshots survive; POP consumption stays success-dependent. */
+	if (!save && place.place==ST_RIP3_BACKUP_SLOT) (void)st_rip3_backup_clear(binding->backup,place.place,place.index);
+	if (status!=0 && host->operation_failed!=NULL) host->operation_failed(host->operation_context,status);
+	result[0]=0;return 0;
+}
+
 int
 st_rip3_table_host_execute(const struct st_rip3_table_host *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -540,6 +578,13 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	status=st_rip3_builtin_reference_words(&words,reference);
 	if (status!=0) return status;
 	reference=&words;
+	if (strcmp(reference->name,"SAVE")==0 || strcmp(reference->name,"RESTORE")==0)
+		return screen_action(host,reference,reference->name[0]=='S',-1,result,capacity);
+	size_t name_length=strlen(reference->name);
+	if (name_length==5 && memcmp(reference->name,"SAVE",4)==0 && reference->name[4]>='0' && reference->name[4]<='9')
+		return screen_action(host,reference,true,reference->name[4]-'0',result,capacity);
+	if (name_length==8 && memcmp(reference->name,"RESTORE",7)==0 && reference->name[7]>='0' && reference->name[7]<='9')
+		return screen_action(host,reference,false,reference->name[7]-'0',result,capacity);
 	if (strcmp(reference->name,"RESET")==0) {
 		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 		if (reference->count==0) return IO_ERROR_NOT_SUPPORTED;
@@ -554,6 +599,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (equal(reference->parameters[0].text,"BUT")) reset_type=ST_RIP3_TABLE_BUT;
 		else if (equal(reference->parameters[0].text,"PAL")) reset_type=ST_RIP3_TABLE_PAL;
 		else if (equal(reference->parameters[0].text,"MOUSE")) reset_type=ST_RIP3_TABLE_MOUSE;
+		else if (equal(reference->parameters[0].text,"SCREEN")) reset_type=ST_RIP3_TABLE_SCREEN;
 		else return IO_ERROR_NOT_SUPPORTED;
 		status=table_reset(&host->tables[reset_type],reference,reset_type);
 		if (status==0) result[0]=0;

@@ -49,7 +49,8 @@ int st_rip3_bitmap_decode_legacy(struct st_rip3_bitmap **result,
 int st_rip3_bitmap_encode(uint8_t **result, size_t *size,
 	const struct st_rip3_bitmap *bitmap);
 /* Capture a named port's active viewport as an owned 8-bit bitmap with the
- * explicit resolved 256-entry palette. Device area is viewport-relative and
+ * explicit resolved 256-entry palette. Restored native RGB is matched through
+ * that palette; indexed source values remain unchanged. Device area is viewport-relative and
  * clipped, or NULL for the full viewport; no world/sentinel policy is inferred.
  * Undefined/empty returns NOT_FOUND, inactive returns NOT_SUPPORTED, and every
  * failure preserves result. Protection/current selection/configuration/pixels
