@@ -286,9 +286,60 @@ static int definition_backups(void)
 	st_cterm_window_definition_destroy(saved);CHECK(st_cterm_definition_test_fonts==0);return 0;
 }
 
+static int
+character_sets(void)
+{
+	static const char finals[]={'A','B','0'};
+	for (unsigned bank=0;bank<2;bank++) for (unsigned choice=0;choice<3;choice++) for (size_t split=0;split<=3;split++) {
+		struct fixture source={0},next={0};CHECK(create(&source,17)==0 && create(&next,23)==0);
+		char sequence[]={27,bank ? ')' : '(',finals[choice]};
+		CHECK(feed(&source,sequence,split)==0 && st_cterm_inherit_window_interpreter(next.text,source.text,true)==0);
+		destroy(&source);
+		CHECK(feed(&next,sequence+split,3-split)==0 && position(&next,1,1)==0);
+		CHECK(next.text->rip3_g0==(bank ? 'B' : finals[choice]) && next.text->rip3_g1==(bank ? finals[choice] : 'B'));
+		CHECK(feed(&next,"\x1b(x\x1b)y",6)==0 && position(&next,1,1)==0);
+		CHECK(next.text->rip3_g0==(bank ? 'B' : finals[choice]) && next.text->rip3_g1==(bank ? finals[choice] : 'B'));
+		destroy(&next);
+	}
+	struct fixture source={0},next={0};CHECK(create(&source,17)==0 && create(&next,17)==0);
+	const char vector[]="\x1b(A#\x0e" "q\x0f#\xb3";
+	CHECK(feed(&source,vector,sizeof(vector)-1)==0 && position(&source,7,1)==0);
+	CHECK(source.text->rip3_g0=='A' && source.text->rip3_g1=='B');
+	const char *const glyphs[]={"#","\xe2\x99\xab","q","\xe2\x98\xbc","#","\xe2\x94\x82"};
+	struct st_console_cell cells[6];const struct st_console_rect row={0,0,6,1};
+	CHECK(st_console_read_cells(source.console,&row,cells,6)==0);
+	for (size_t i=0;i<6;i++) {
+		char text[8];size_t required;
+		CHECK(st_console_font_glyph_text(source.console,cells[i].glyph_font,cells[i].glyph,text,sizeof(text),&required)==0);
+		CHECK(required==strlen(glyphs[i]) && memcmp(text,glyphs[i],required)==0);
+	}
+	/* CSI coordinates, ESC c and the preliminary outer reset preserve sets. */
+	const char coordinates[]="\x1b)0\x1b[s\x1b(B\x1b[u";
+	CHECK(feed(&source,coordinates,sizeof(coordinates)-1)==0 && source.text->rip3_g0=='B' && source.text->rip3_g1=='0');
+	CHECK(feed(&source,"\x1b(A\x1b" "c",5)==0 && source.text->rip3_g0=='A' && source.text->rip3_g1=='0');
+	CHECK(st_cterm_rip3_ansi_reset(source.text,true)==0 && source.text->rip3_g0=='A' && source.text->rip3_g1=='0');
+	CHECK(st_cterm_select_window_interpreter(next.text,source.text)==0 && next.text->rip3_g0=='B' && next.text->rip3_g1=='B');
+	CHECK(st_cterm_copy_window_state(next.text,source.text)==0 && next.text->rip3_g0=='A' && next.text->rip3_g1=='0');
+	struct st_cterm_window_definition *saved=NULL;
+	CHECK(st_cterm_window_definition_create(&saved,source.text)==0);
+	destroy(&source);destroy(&next);CHECK(create(&next,17)==0);
+	CHECK(st_cterm_window_definition_restore(next.text,saved)==0 && next.text->rip3_g0=='A' && next.text->rip3_g1=='0');
+	st_cterm_window_definition_destroy(saved);destroy(&next);
+	CHECK(create(&source,17)==0 && create(&next,17)==0);
+	CHECK(feed(&source,"\x1b(A\x1b)0",6)==0 && st_cterm_default_window_interpreter(next.text,source.text)==0);
+	CHECK(next.text->rip3_g0=='B' && next.text->rip3_g1=='B');destroy(&source);destroy(&next);
+	/* These declarations do not add charset interpretation to other routes. */
+	for (unsigned mode=0;mode<2;mode++) {
+		CHECK(create(&source,17)==0);source.text->rip3_session_owner=false;
+		source.text->graphics_mode=mode ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_OFF;
+		CHECK(feed(&source,"\x1b(A\x1b)0",6)==0 && source.text->rip3_g0=='B' && source.text->rip3_g1=='B');destroy(&source);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
+	CHECK(character_sets()==0 && definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
 	    && window_copy()==0 && selection_continuations()==0 && default_window()==0 && soft_ansi_reset()==0);return 0;
 }

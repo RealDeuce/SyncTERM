@@ -11977,6 +11977,68 @@
         "coverage": "All five configured default-font nominal grids/wrap choices; forced ordinary replacement of extended/inactive/identical zero; default cursor/CSI save/margins/rendition/direct-color/tab behavior; retained protected inactive current during zero/TBL/ALL; existing inactive extended zero fallback; fixed-query removal/protected retention and floating-query retention without execution; dynamic CUR success/failure retry; zero-failure ALL continuation to deletion/backups; late invalid selector atomic rejection; protected backup survival; CP437/UTF8 glyph output, current partial ANSI completion and no repaint on four physical rasters.",
         "limits": "Full RIP3 and fresh-state profile acceptance remain incomplete: G0/G1 designation/invocation, larger ESC7/8 snapshot, all remaining mode acceptance and startup/default-font policy are separate. Native failure injection verifies owner publication/continuation; it does not claim a low-memory device run. No ordinary ANSI or RIP154 renderer is edited, benchmarked or broadly retested. No additional compiler/platform builds or existing music suites."
       }
+    },
+    {
+      "after_commit": "6d376ddb",
+      "revision": "393c5ebee54687f329c85d8b17db641e4210a18a",
+      "scope": "Connect ANSI-only RIP3 G0/G1 designation metadata through parser, definition/selection/COPY/backup/reset lifetimes while preserving CP437 glyph output and no-op invocation; file full ESC snapshot completion gap as new issue150.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:234",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:29",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:31",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:33",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:82",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:83",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:84",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:85",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:87",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:88",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:89",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:90",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:100",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:179",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:344",
+        "version/3.0/ripscrip/5.1-text-variables.md:2914"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:96",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:108"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:86",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:92",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:348",
+        "version/3.0/ripscrip/5.1-text-variables.md:2925",
+        "version/3.0/ripscrip/5.1-text-variables.md:2952"
+      ],
+      "implementation": [
+        "src/terminal/cterm/cterm_ecma48.c",
+        "src/terminal/cterm/cterm.c",
+        "src/terminal/cterm/st_cterm_text_window.c",
+        "src/terminal/cterm/st_cterm_window_definition.c",
+        "src/terminal/cterm/st_cterm.c",
+        "src/syncterm.c"
+      ],
+      "tests": [
+        "cterm_text_window",
+        "syncterm_rip3_charset_CP437",
+        "syncterm_rip3_charset_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3069,
+        "context": 1508,
+        "pending": 1680,
+        "implemented": 2254,
+        "excluded": 67,
+        "blocked": 30
+      },
+      "policy": "Two per-window designation bytes in existing native metadata only; no charset translation, emulation mode, resident scene or damage layer. Parse valid designation finals after the parenthesis within RIP3 only, preserve other routes and unsupported-sequence handling. Ordinary changes retain sets; extended and CUR/live-reset fresh defaults use US/US. Selection retains target; wire clone/entry COPY/whole-TW native snapshots carry values; outer SOFT retains zero and protected surviving sets. Existing invocation is fixed G0; SI/SO remain CP437 glyphs. Actual state is observable in coherent test-control captures. Full ESC7/8 remains unfinished, separate from CSI coordinates.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc; headless control bitmap TCP fixtures.",
+        "result": "Application and affected native target build without introduced C compiler warnings. Native text-window and both connected charset fixtures pass; final contract and original RIP154 preservation guards run after ledger updates. Unchanged ordinary rendering and prior window/reset/backup evidence are reused.",
+        "coverage": "All six designations and every input split across a destroyed-source/new-owner ordinary definition; unknown finals/no cursor advance; literal #music-note q sun #box ANSI vector from independent native font glyph identities and immutable MicroANSI bitmap rows; unchanged off/RIP1 route designation behavior; CSI versus charset state; ESC-c/preliminary reset retention; ordinary and identical definition, deactivation, extended/identical reset, CUR first-use, wire clone, entry COPY, whole TW backup source teardown/restore, SOFT with different zero/protected sets, TBL/live-zero reset, and continued partial designation across RIP. Connected CP437/UTF8 runs at640x480,800x600,1024x768 and custom720x400; exact bitmap oracle applies at640x480, no original-client pixel claim.",
+        "limits": "No full RIP3 or ESC7/8 snapshot compliance. B150 tracks missing portable payload/restore-target/lifetime/failure details; remaining reset modes and user-deferred startup/default font policy stay independent. No VT102 mode/translation, existing ANSI music replay, user-display tests, alternate platform/compiler builds or unmeasured speed claim."
+      }
     }
   ]
 }

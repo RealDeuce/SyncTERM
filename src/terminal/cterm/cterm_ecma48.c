@@ -1054,6 +1054,23 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
 	}
 }
 
+/* RIP3 ANSI retains the declared sets for window lifecycle/save semantics.
+ * Display remains CP437 and SI/SO do not invoke G1. Other routes retain their
+ * existing unsupported-sequence handling and do not acquire new designations. */
+static bool
+rip3_designation(struct cterminal *cterm)
+{
+	if (cterm->graphics_mode!=ST_CTERM_GRAPHICS_RIP_3 || cterm->emulation!=CTERM_EMULATION_ANSI_BBS)
+		return false;
+	static const uint8_t finals[]={'0','A','B'};
+	for (size_t i=0;i<sizeof(finals)/sizeof(finals[0]);i++) {
+		if (cterm->seq_key==SEQ_GZD4(finals[i])) {cterm->rip3_g0=finals[i];return true;}
+		if (cterm->seq_key==SEQ_G1D4(finals[i])) {cterm->rip3_g1=finals[i];return true;}
+	}
+	return false;
+}
+
+
 /* ------------------------------------------------------------------------
  * cterm_accumulate_ecma_seq — ANSI-BBS / ECMA-48 CSI accumulator
  *
@@ -1071,6 +1088,7 @@ cterm_dispatch_ecma(struct cterminal *cterm, unsigned char byte, int *speed)
  * restarting itself; exposing it via a return value matches the same
  * semantics once the loop is unified.)
  * ------------------------------------------------------------------------ */
+
 bool
 cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *speed)
 {
@@ -1153,7 +1171,7 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 		cterm->sequence = 0;
 		if (d != NULL && d->handler != NULL)
 			d->handler(cterm, speed);
-		else
+		else if (!rip3_designation(cterm))
 			cterm_log_sequence(cterm, "Unsupported sequence");
 		/* A macro can leave the next sequence partially parsed. */
 		if (cterm->accumulator == pre_handler && cterm->seq_phase == SEQ_PHASE_IDLE) {
@@ -1453,6 +1471,16 @@ seq_feed(struct cterminal *cterm, unsigned char ch)
 				return SEQ_INCOMPLETE;
 			}
 			if (ch >= 0x30 && ch <= 0x7E) {
+				/* In RIP3 designation sequences A/B are final bytes after
+				 * the parenthesis, not fresh C1 introducers. Keep the old
+				 * parsing of other routes/sequences outside this scope. */
+				if (cterm->graphics_mode==ST_CTERM_GRAPHICS_RIP_3
+				    && cterm->emulation==CTERM_EMULATION_ANSI_BBS
+				    && (cterm->seq_key==(SEQ_ESC|SEQ_INTERM('('))
+				        || cterm->seq_key==(SEQ_ESC|SEQ_INTERM(')')))) {
+					cterm->seq_key|=SEQ_FINAL(ch);cterm->seq_phase=SEQ_PHASE_COMPLETE;
+					return SEQ_COMPLETE;
+				}
 				if (ch >= 0x40 && ch <= 0x5F) {
 					/* Fe byte: C1 introducer */
 					cterm->seq_key = SEQ_C1(ch);

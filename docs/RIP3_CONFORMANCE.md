@@ -83,9 +83,10 @@ TW backups, full reset and remaining metadata queries remain pending. Slot
 selection/protection and defined noncurrent native views are now connected;
 wire first use copies represented state into an unprotected slot, even from a
 protected source. CUR first use creates fresh full-screen defaults instead;
-ordinary ANSI parsing follows the connection across selection. Charset,
-ESC7/8 snapshot and resident-query acceptance remain pending under the adopted
-PR #107/#110 contracts. Ordinary
+ordinary ANSI parsing follows the connection across selection. ANSI-only
+charset designation/state lifetime is now connected; displayed glyphs remain
+CP437. The larger ESC7/8 TW snapshot remains blocked under B150, separately from
+CSI saved coordinates and the accepted resident-query bindings. Ordinary
 `w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
@@ -97,9 +98,9 @@ window. Adopted
 the ordinary-state contract and corrects the font-2 placement example.
 Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
 are implemented. [PR #107](https://github.com/bbs-land/remote-imaging-protocol/pull/107)
-now supplies the applicable ANSI charset/byte contract; its implementation and
-separate CSI-coordinate versus ESC7/8 full-window saved-state acceptance remain
-pending. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
+supplies the applicable ANSI charset/byte contract, now implemented for the
+ANSI-only designation/glyph/lifetime scope. Separate CSI-coordinate versus
+ESC7/8 full-window saved-state acceptance remains incomplete under B150. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Extended `b` now defines the selected connected text window using wide,
@@ -8505,3 +8506,55 @@ stay pending. The 8608-unit queue now contains 2238 implemented, 1703 pending,
 renderer, scrolling optimization, resident scene or damage tracking is changed;
 no speed benchmark is claimed. HEADER/other RESET families and full RIP3 remain
 unfinished, with arbitrary raster/no-VT102/external-launch constraints intact.
+
+
+## Connected ANSI-only RIP3 character-set state
+
+Six ANSI escape sequences now designate G0/G1 as UK, US or special graphics
+on actual RIP3 connections. They record the selected final byte without ink or
+cursor movement; unknown finals retain the previous value. Initial/fresh sets
+are US/US and invocation remains G0. Display stays in the CP437 bank, including
+SI/SO's music-note/sun glyphs without a shift to G1. This implements the adopted
+RIPtel ANSI profile; no VT-102 mode, selector or glyph translation is added.
+
+The existing native window records now own two designation bytes. Ordinary
+changed/identical definitions and deactivation retain them; extended definitions
+and fresh CUR/live-zero reset use US/US. Selection retains target values, while
+wire first-use cloning, entry COPY and whole TW backups carry independent
+values. ESC c and SOFT retain the stated sets: SOFT uses TW0's sets for its
+ordinary redefinition and preserves each protected surviving window's own sets.
+CSI s/u does not restore designations. Existing temporary/native definition
+capsules carry the fields; no resident scene, damage map or rendering layer is
+introduced. Coherent test-control state exposes the two final bytes for tests.
+
+Split-input tests exposed existing parsing of A/B after a parenthesis as fresh
+C1 controls. The correction applies only to RIP3 ANSI designation parsing;
+other routes retain their previous sequence handling. Normal glyph rendering
+is unchanged. No speed benchmark is claimed.
+
+Native tests cover all six designations at every split across a retired source
+owner, unknown finals, literal bank glyph identities, CSI/ESC-c/preliminary-reset
+state, selection versus clone/fresh defaults, owned snapshot restore after source
+destruction, and unchanged OFF/RIP1 designation handling. Connected CP437/UTF-8
+fixtures pass on 640×480, 800×600, 1024×768 and custom720×400, checking logical
+state, pixels/cursor, ordinary/extended/live reset, selection/clone/COPY/backup,
+protected survival and partial designation continuation. The literal ANSI vector
+has a separate immutable MicroANSI asset bitmap oracle at 640×480; it does not
+use an emulator-generated expected image or assert RIPtel pixel parity. These
+five distinct CTests include contract and original RIP1.54 preservation. The
+native FreeBSD amd64 Release CMake application/affected target build uses
+`/usr/bin/cc` and introduces no C compiler warnings; unrelated rendering and
+previous reset/backup verification are reused.
+
+New [issue150](https://github.com/bbs-land/remote-imaging-protocol/issues/150)
+requests the missing full ESC7/ESC8 snapshot payload, restore target, initial/
+reusable lifetime, protection/activation and resource/owned-query boundaries.
+A native 0xf1-byte copy is not a portable field or pointer-ownership contract.
+The issue references covered #104/PR107, #106/PR110 and #148/PR149 without adding
+comments there. Five directly affected source units are blocked under B150.
+Existing simple ANSI cursor handling does not establish full TW snapshot
+compliance; no full ESC7/8 implementation is claimed. The 8608-unit queue now
+contains 2254 implemented, 1680 pending, 3069 unreviewed, 1508 context, 67 excluded
+and 30 blocked. Remaining reset/insert-mode fields, HEADER, startup/default-font
+policy and many other families remain incomplete. The selected pin, original
+RIP1.54 freeze and arbitrary-raster/no-VT102/external-launch scope are unchanged.

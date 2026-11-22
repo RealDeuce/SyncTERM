@@ -2204,6 +2204,7 @@ struct cterminal* cterm_init(int height, int width, int xpos, int ypos,
 	if((cterm=calloc(1, sizeof(struct cterminal)))==NULL)
 		return cterm;
 	cterm->screen = *screen;
+	cterm->rip3_g0=cterm->rip3_g1='B';
 
 	cterm->x=xpos;
 	cterm->y=ypos;

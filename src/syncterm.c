@@ -72,6 +72,7 @@ static void inspect_application(void *context, struct st_console_test_applicatio
 #define FIELD(name) st_console_test_number(app, "cterm." #name, state.name)
 	FIELD(x); FIELD(y); FIELD(top_margin); FIELD(bottom_margin); FIELD(left_margin); FIELD(right_margin);
 	FIELD(attr); FIELD(fg_color); FIELD(bg_color); FIELD(font_slot);
+	FIELD(rip3_g0); FIELD(rip3_g1);
 	FIELD(scrollback_lines); FIELD(scrollback_width); FIELD(scrollback_pos); FIELD(scrollback_start);
 	FIELD(emulation); FIELD(started); FIELD(skypix); FIELD(graphics_mode);
 	st_console_test_number(app,"cterm.musicomm",st_cterm_musicomm_state(st_term_session_cterm(owner->session)));

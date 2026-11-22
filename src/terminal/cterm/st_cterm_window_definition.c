@@ -18,7 +18,7 @@ struct st_cterm_window_definition {
 	unsigned char attr;bool negative,default_tabs;
 	uint32_t fg_color,bg_color,cell_flags,extattr,last_column_flag,video_flags;
 	int32_t saved_mode,saved_mode_mask;
-	uint8_t decsace;
+	uint8_t decsace,rip3_g0,rip3_g1;
 	char *fg_tc_str,*bg_tc_str;
 	int *tabs,*vtabs,tab_count,vtab_count,tab_width;
 	enum st_codepage codepage;
@@ -75,6 +75,7 @@ st_cterm_window_definition_create(struct st_cterm_window_definition **result,con
 	d->left_margin=source->left_margin;d->right_margin=source->right_margin;
 	d->cursor=source->cursor;d->rip3_visible_cursor=source->rip3_visible_cursor;d->cursor_style=source->cursor_style;
 	d->fetm=source->fetm;d->ttm=source->ttm;d->decsace=source->decsace;
+	d->rip3_g0=source->rip3_g0;d->rip3_g1=source->rip3_g1;
 	d->attr=source->attr;d->negative=source->negative;d->fg_color=source->fg_color;d->bg_color=source->bg_color;
 	d->cell_flags=source->cell_flags;d->extattr=source->extattr;d->last_column_flag=source->last_column_flag;
 	d->saved_mode=source->saved_mode;d->saved_mode_mask=source->saved_mode_mask;
@@ -136,6 +137,7 @@ st_cterm_window_definition_restore(st_cterm_t *destination,const struct st_cterm
 	destination->left_margin=d->left_margin;destination->right_margin=d->right_margin;
 	destination->cursor=d->cursor;destination->rip3_visible_cursor=d->rip3_visible_cursor;destination->cursor_style=d->cursor_style;
 	destination->fetm=d->fetm;destination->ttm=d->ttm;destination->decsace=d->decsace;
+	destination->rip3_g0=d->rip3_g0;destination->rip3_g1=d->rip3_g1;
 	destination->attr=d->attr;destination->negative=d->negative;destination->fg_color=d->fg_color;destination->bg_color=d->bg_color;
 	destination->cell_flags=d->cell_flags;destination->extattr=d->extattr;
 	destination->saved_mode=d->saved_mode;destination->saved_mode_mask=d->saved_mode_mask;

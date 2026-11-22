@@ -2525,3 +2525,19 @@ for their no-prefix-effects expectation; both encodings pass. No ordinary text
 renderer or scene/damage tracker changes. This acceptance leaves G0/G1, larger
 ESC7/8, remaining per-window mode verification and the deferred frontend startup/
 default-font policy pending; it is not full TW reset or RIP3 compliance.
+
+
+`st_rip3_charset_connected_test.py` covers ANSI-only G0/G1 designation state on
+actual CP437/UTF-8 RIP3 TCP connections over the preset and custom720×400 rasters.
+The literal #/music-note/q/sun/#/box vector stays in the CP437 bank; the640×480
+pixel oracle reads the original MicroANSI font asset, independently of emulator
+output. Coherent captures verify no designation ink/cursor movement, unknown
+finals, ordinary and extended definition/identity, activation, fresh reset,
+selection versus first-use clone, entry COPY, owned TW backup, different
+protected/current/zero state across SOFT/TBL and split designation continuation.
+Native `cterm_text_window` exercises every six-sequence split across source
+teardown, independent glyph identities, reset/coordinate/definition/snapshot
+lifetimes and unchanged OFF/RIP1 handling. Charset state adds two metadata bytes;
+no emulation mode or pixel/damage layer is added. Full ESC7/ESC8 snapshot semantics
+remain pending under issue150; ordinary CSI saved coordinates remain distinct.
+RIP1.54's original preservation boundary and ordinary rendering remain intact.

@@ -93,7 +93,11 @@ inherit_interpreter(st_cterm_t *destination, const st_cterm_t *source,
 int
 st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source, bool preserve_tabs)
 {
-	return inherit_interpreter(destination,source,preserve_tabs,true);
+	int status=inherit_interpreter(destination,source,preserve_tabs,true);
+	if (status==0 && preserve_tabs) {
+		destination->rip3_g0=source->rip3_g0;destination->rip3_g1=source->rip3_g1;
+	}
+	return status;
 }
 
 int
@@ -193,6 +197,7 @@ st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 		}
 		*selections[i]=mapped[n];
 	}
+	destination->rip3_g0=source->rip3_g0;destination->rip3_g1=source->rip3_g1;
 	destination->attr=source->attr;destination->fg_color=source->fg_color;destination->bg_color=source->bg_color;
 	destination->cell_flags=source->cell_flags;destination->negative=source->negative;
 	destination->extattr=source->extattr;destination->last_column_flag=source->last_column_flag;

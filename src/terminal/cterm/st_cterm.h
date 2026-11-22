@@ -297,7 +297,9 @@ int st_cterm_text_boundary(st_cterm_t *terminal);
 /* RIP3-only preparation of a started, idle fresh window: inherit unfinished
  * ordinary ANSI syntax and, when preserve_tabs is true, the old tab stops.
  * Extended b keeps fresh default tabs. Do not copy rendition/geometry or
- * UTF-8 presenter state. No rendering/input callbacks. Failure preserves both
+ * UTF-8 presenter state. Ordinary definitions (preserve_tabs) also retain
+ * RIP3 charset designations; extended definitions keep fresh US/US defaults.
+ * No rendering/input callbacks. Failure preserves both
  * objects; success leaves source independently owned. Pending optional media
  * and font-download payloads remain unsupported, never partially transferred. */
 int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_t *source,
@@ -368,6 +370,8 @@ struct st_cterm_state {
 	bool has_palette_override;
 	uint32_t palette_override[16];
 	int font_slot;
+	/* RIP3 designation final bytes (A/B/0); invocation stays G0. */
+	uint8_t rip3_g0,rip3_g1;
 	int alt_fonts[4];
 	int scrollback_lines;
 	int scrollback_width;

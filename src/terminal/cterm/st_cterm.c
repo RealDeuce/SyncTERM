@@ -3377,6 +3377,7 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 		.bg_color = terminal->bg_color & 0xFFFFFFu,
 		.has_palette_override = terminal->has_palette_override,
 		.font_slot = terminal->font_slot,
+		.rip3_g0=terminal->rip3_g0,.rip3_g1=terminal->rip3_g1,
 		.scrollback_lines = terminal->backlines,
 		.scrollback_width = terminal->backwidth,
 		.scrollback_pos = terminal->backpos,
