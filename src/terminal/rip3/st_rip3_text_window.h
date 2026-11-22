@@ -42,6 +42,11 @@ struct st_rip3_text_window_operations {
 	 * definition copies retain selection, carry protection except at zero,
 	 * and own independent queries. Later allocation failure is not rollback. */
 	int (*copy_entries)(void *context,unsigned source,const unsigned *destinations,size_t count);
+	/* One validated live RESET target. Zero gets forced fresh defaults;
+	 * unprotected nonzero definitions are deleted. No pixels or floating query
+	 * change. Failure preserves this target; the dispatcher continues later
+	 * selectors and resolves CUR from live selection each time. */
+	int (*reset_entry)(void *context,unsigned number);
 	/* Whole TW snapshots own logical definitions/native metadata, never screen pixels
 	 * or connection parser input. Saved objects release without the live owner. */
 	int (*backup_capture)(void *context,void **result);

@@ -2509,3 +2509,19 @@ console readback and existing paint bits; ordinary text rendering and offscreen
 sources gain no readback or tracking layer. Mixed HEADER/live viewport-reset
 clauses remain pending. See the latest RIP3 inventory for current scope and pin;
 RIP1.54 retains its original preservation baseline.
+
+
+`st_rip3_window_reset_connected_test.py` covers live RESET(TW) over actual TCP
+connections in CP437/UTF-8 on the presets and custom720×400. Coherent captures
+assert forced fresh ordinary zero state from extended/inactive/identical layouts,
+no repaint, normal native colors and CSI cursor/tab/margin/rendition/cursor-request
+state, protected-current retention through zero/TBL/ALL, existing inactive zero
+fallback, left-to-right CUR, complete late-syntax rejection and partial CSI
+continuation. Native session tests cover five configured font grids/wrap choices,
+fixed versus floating query lifetime without evaluation, protected/undefined
+no-ops, independently owned backups, per-target failure/retry/ALL continuation
+and cleanup. The existing TW backup tests use an actually invalid late selector
+for their no-prefix-effects expectation; both encodings pass. No ordinary text
+renderer or scene/damage tracker changes. This acceptance leaves G0/G1, larger
+ESC7/8, remaining per-window mode verification and the deferred frontend startup/
+default-font policy pending; it is not full TW reset or RIP3 compliance.

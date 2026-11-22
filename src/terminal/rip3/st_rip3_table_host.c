@@ -442,7 +442,7 @@ enum table_reset_kind { RESET_ENTRY, RESET_CURRENT, RESET_TABLE, RESET_BASE,
 	RESET_SLOT, RESET_SLOTS, RESET_STACK, RESET_BACKUP, RESET_ALL };
 
 static int
-table_reset(const struct st_rip3_table_binding *binding,
+table_reset(const struct st_rip3_table_host *host,const struct st_rip3_table_binding *binding,
     const struct st_rip3_builtin_reference *reference, enum st_rip3_table_type type)
 {
 	struct {enum table_reset_kind kind; unsigned index;} actions[39];
@@ -465,7 +465,6 @@ table_reset(const struct st_rip3_table_binding *binding,
 		}
 		else if (st_rip3_host_number(word,0,35,&index)==0) kind=RESET_ENTRY;
 		else return IO_ERROR_INVALID_FORMAT;
-		if (type==ST_RIP3_TABLE_TW && (kind==RESET_ENTRY || kind==RESET_CURRENT || kind==RESET_TABLE || kind==RESET_ALL)) return IO_ERROR_NOT_SUPPORTED;
 		if (type==ST_RIP3_TABLE_MOUSE && (kind==RESET_ENTRY || kind==RESET_CURRENT)) return IO_ERROR_INVALID_FORMAT;
 		if (type==ST_RIP3_TABLE_SCREEN && (kind==RESET_ENTRY || kind==RESET_CURRENT || (kind==RESET_TABLE && reference->count!=1))) return IO_ERROR_INVALID_FORMAT;
 		actions[i].kind=kind;actions[i].index=index;
@@ -474,10 +473,30 @@ table_reset(const struct st_rip3_table_binding *binding,
 	}
 	if ((needs_live && binding->live==NULL) || (needs_backup && binding->backup==NULL))
 		return IO_ERROR_NOT_SUPPORTED;
+	if (type==ST_RIP3_TABLE_TW && needs_live) {
+		const struct st_rip3_text_window_operations *windows=binding->live;
+		if (windows->current==NULL || windows->reset_entry==NULL) return IO_ERROR_NOT_SUPPORTED;
+	}
 	for (size_t i=0; i<count; i++) {
 		enum table_reset_kind kind=actions[i].kind;unsigned index=actions[i].index;
 		int status=0;
-		if (type==ST_RIP3_TABLE_SCREEN) {
+		if (type==ST_RIP3_TABLE_TW) {
+			const struct st_rip3_text_window_operations *windows=binding->live;
+			if (kind==RESET_CURRENT) status=windows->current(windows->context,&index);
+			if (status==0 && (kind==RESET_CURRENT || kind==RESET_ENTRY))
+				status=windows->reset_entry(windows->context,index);
+			else if (kind==RESET_TABLE || kind==RESET_ALL) {
+				for (unsigned number=0;number<36;number++) {
+					int failure=windows->reset_entry(windows->context,number);
+					if (failure!=0 && host->operation_failed!=NULL) host->operation_failed(host->operation_context,failure);
+				}
+			}
+			/* TW's completed profile continues after each target failure.
+			 * CUR is deliberately resolved here, after earlier selectors. */
+			if (status!=0 && host->operation_failed!=NULL) host->operation_failed(host->operation_context,status);
+			status=0;
+		}
+		else if (type==ST_RIP3_TABLE_SCREEN) {
 			if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_screen_clear(binding->live);
 		}
 		else if (type==ST_RIP3_TABLE_MOUSE) {
@@ -662,7 +681,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		else if (equal(reference->parameters[0].text,"SCREEN")) reset_type=ST_RIP3_TABLE_SCREEN;
 		else if (equal(reference->parameters[0].text,"TW")) reset_type=ST_RIP3_TABLE_TW;
 		else return IO_ERROR_NOT_SUPPORTED;
-		status=table_reset(&host->tables[reset_type],reference,reset_type);
+		status=table_reset(host,&host->tables[reset_type],reference,reset_type);
 		if (status==0) result[0]=0;
 		return status;
 	}

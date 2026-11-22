@@ -108,7 +108,7 @@ def run(args,width,height):
         assert pixel(frame,ox+10*cw,oy+7*ch+ch//2)==0x0000aa
         values(b'$RTW$')
         t.case('rip3-tw-backup-reset-selectors-preserve-live-and-protected-saves')
-        values(b'$RESET(TW,BASE,CUR)$');values(b'$INUSE(TW,BASE)$',b'1')
+        values(b'$RESET(TW,BASE,BOGUS)$');values(b'$INUSE(TW,BASE)$',b'1')
         values(b'$STW(3)$$PROT(TW,S3)$$STW(PUSH)$')
         before=capture();same(values(b'$RESET(TW,BACKUP)$'),before)
         values(b'$INUSE(TW,BASE)$$INUSE(TW,S3)$$INUSE(TW,STACK)$$CUR(TW)$',b'0101')

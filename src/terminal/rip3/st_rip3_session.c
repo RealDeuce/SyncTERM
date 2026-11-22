@@ -415,6 +415,34 @@ soft_reset(void *context)
 	return 0;
 }
 
+static int
+reset_window_entry(void *context,unsigned number)
+{
+	struct st_rip3_session *session=context;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (!session->windows[number].info.defined || session->windows[number].info.protected) return 0;
+	if (session->sink.text_reset_entry==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_text_window_layout fresh;
+	int status=number==0 ? st_rip3_text_window_normal(&fresh,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
+	    session->default_text_wrap,session->default_text_font) : 0;
+	if (status==0) status=session->sink.text_reset_entry(session->sink.context,number,
+	    number==0 ? &fresh : NULL,session->windows[0].info.active);
+	if (status!=0) return status;
+	/* Native preparation has committed. No allocation/provider follows it,
+	 * so a failed target cannot publish half a definition or lose its query. */
+	st_rip3_resident_query_clear(&session->windows[number].query);
+	session->windows[number]=(struct session_window){0};
+	if (number==0) {
+		session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
+		session->windows[0].layout=fresh;session->windows[0].has_layout=true;
+		if (session->current_window==0) session->text_active=true;
+	}
+	else if (session->current_window==number) {
+		session->current_window=0;session->text_active=session->windows[0].info.active;
+	}
+	return 0;
+}
+
 static bool
 window_active(struct st_rip3_session *session, unsigned number)
 {
@@ -839,7 +867,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
 	    .protect=protect_window,.activate=activate_text_windows,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
-	    .erase_eol=erase_window_lines,.copy_entries=copy_window_entries,
+	    .erase_eol=erase_window_lines,.copy_entries=copy_window_entries,.reset_entry=reset_window_entry,
 	    .backup_capture=capture_window_save,.backup_restore=restore_window_save,
 	    .backup_destroy=destroy_window_save};
 	session->variables.text_windows=&session->window_operations;

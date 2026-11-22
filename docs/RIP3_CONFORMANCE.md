@@ -26,7 +26,7 @@ Source indexing is discovery, not adjudication or working-feature evidence.
 
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
-fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying, bitmap/clipboard operations and remembered-pair PCB paste,
+fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying and live reset, bitmap/clipboard operations and remembered-pair PCB paste,
 trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts,
 session/persistent variables, local modifier/capacity queries and WAV playback
 through the existing mixer when audio is available. Persistent variables use
@@ -8450,3 +8450,58 @@ all 70 earlier derivations and original ALPHA4 bytes remain unchanged. Contract
 and original preservation guards pass. No unchanged product build or rendering
 suite is repeated for this reference-only update, and the owned archive is
 removed. Other RESET/HEADER work and full RIP3 compliance remain unfinished.
+
+
+## Connected live text-window reset
+
+`$RESET(TW,...)$` now reaches actual sessions for numeric/CUR/TBL live targets
+and their combinations with BASE, numbered slots, SLOTS, STACK, BACKUP and ALL.
+The full selector list and required bindings are validated before any effect.
+CUR resolves from live selection when reached; a protected/undefined target is
+a no-op and does not stop later operations. TBL visits zero then nonzero slots
+in order. ALL also clears independent TW backups, retaining protected save slots.
+
+Resetting zero forces a fresh ordinary native window using the configured
+default MicroANSI font/wrap and full nominal geometry. It bypasses ordinary-w
+identity and does not invoke outer SOFT or MTW. The current adapter uses the
+existing fresh-window constructor for normal colors/rendition/margins, both
+cursor coordinates, explicit tabs and requested cursor visibility/shape. Native
+resources are prepared before replacing the logical definition or fixed query.
+A nonzero applied target is deleted; only deleting current selects the existing
+zero, retaining its kind, font, state and activation. Numeric zero does not
+change another current window, including protected/inactive current. TBL/ALL
+retain a protected current nonzero window. Successful replacement/deletion drops
+the target's fixed query; protected/undefined no-ops retain it. The floating TW
+query survives, no providers run, and unrelated families/backups remain live.
+
+Target resource failures retain that logical target/query/selection, diagnose
+inside RIP3 and continue later valid selectors. Earlier completed actions remain;
+ALL still reaches backup deletion. This supplies no Boolean or session error.
+Native tests inject a first deletion failure followed by dynamic CUR retry and
+a failed zero replacement followed by ALL's remaining deletions/backup clear.
+
+Both connected encodings pass on 640×480, 800×600, 1024×768 and custom720×400,
+including forced extended/inactive and identical-geometry zero replacement,
+protected-current TBL/ALL, existing inactive extended-zero fallback, dynamic CUR,
+late-invalid-selector rejection, unchanged pixels, native default colors and
+cursor/tab state, actual CP437/UTF-8 glyph output and partial CSI continuation.
+The existing TW backup fixtures now use a late invalid selector for their
+prevalidation check and pass in both encodings. Native tests cover all five
+configured default font grids and both wrap choices, query ownership/lifetime,
+selection, recoverable failures and cleanup. These are eight distinct relevant
+CTest suites including contract and original RIP1.54 preservation. The native
+FreeBSD amd64 Release CMake application/session/table-host build uses
+`/usr/bin/cc` and introduces no C compiler warnings. Previously accepted native
+constructor/interpreter/capsule evidence is reused.
+
+This is connected behavior for represented native fields, not acceptance of the
+entire fresh-state profile. G0/G1 designation/invocation, the larger ESC7/8
+snapshot and remaining per-window mode acceptance remain pending. Connection
+partial CSI preservation does not prove the missing larger snapshot. The
+frontend currently supplies default font 0; the user's deferred startup/default
+font policy remains unresolved. Broad clauses/vectors containing those fields
+stay pending. The 8608-unit queue now contains 2238 implemented, 1703 pending,
+3069 unreviewed, 1506 context, 67 excluded and 25 blocked. No ordinary ANSI/RIP1.54
+renderer, scrolling optimization, resident scene or damage tracking is changed;
+no speed benchmark is claimed. HEADER/other RESET families and full RIP3 remain
+unfinished, with arbitrary raster/no-VT102/external-launch constraints intact.

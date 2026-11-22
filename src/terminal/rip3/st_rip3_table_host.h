@@ -57,10 +57,13 @@ struct st_rip3_table_host {
  * shipping live-current-index restore defect.
  * A TW live binding borrows st_rip3_text_window_operations; its native owner
  * handles selection/protection and complete definition-only STW/RTW snapshots.
- * Whole-TW and live-entry COPY/status/protection and backup-only RESET selectors
- * are bound. Entry copies own their queries, retain native connection syntax
+ * Whole-TW and live-entry COPY/status/protection and RESET selectors are bound. Entry copies own their queries, retain native connection syntax
  * and continue after resource failures following complete permission preflight.
- * Live TW reset remains separate.
+ * Live TW reset validates the entire list before effects, resolves CUR from
+ * live state left to right and continues after per-target resource failures.
+ * Slot zero receives fresh defaults; deletion selects existing zero only when
+ * needed. TBL/ALL retain protected current windows and floating queries.
+ * Complete charset/ESC snapshot/default-font profile acceptance is separate.
  * Parsed references must come from builtin_reference_parse. Empty outputs
  * require capacity >= 1, validated before any active operation. Validation and
  * binding failures leave caller output and bound table/save state unchanged.

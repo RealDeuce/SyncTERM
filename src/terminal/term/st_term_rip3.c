@@ -538,6 +538,45 @@ text_copy(void *context,unsigned source,unsigned destination,bool active)
 }
 
 static int
+text_reset_entry(void *context,unsigned number,const struct st_rip3_text_window_layout *fresh,bool zero_active)
+{
+	struct st_term_rip3 *rip=context;
+	if (number>=36 || ((number==0)!=(fresh!=NULL))) return IO_ERROR_INVALID_ARGUMENT;
+	if (number!=0) {
+		if (number==rip->selected_window) {
+			int status=text_select(rip,0,false,zero_active,NULL);
+			if (status!=0) return status;
+		}
+		st_term_rip3_view_destroy(rip->windows[number]);rip->windows[number]=NULL;
+		return 0;
+	}
+	flush_text(rip);present(rip);
+	st_cterm_t *connection=st_term_rip3_text(rip);
+	struct st_term_rip3_view *candidate=NULL;
+	uint32_t width,height;
+	int status=window_budget(rip,fresh,0,NULL);
+	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,fresh,width,height);
+	st_cterm_t *target=st_term_rip3_view_text(candidate);
+	if (status==0) status=st_cterm_default_window_interpreter(target,connection);
+	if (status==0) {
+		st_cterm_set_music_mode(target,st_cterm_music_mode(connection));
+		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(connection));
+	}
+	if (status==0 && rip->selected_window==0) {
+		struct st_term_rip3_view *previous=rip->view;
+		rip->view=candidate;status=present_window(rip,true);
+		if (status!=0) rip->view=previous;
+	}
+	if (status!=0) {st_term_rip3_view_destroy(candidate);return status;}
+	st_term_rip3_view_destroy(rip->windows[0]);rip->windows[0]=candidate;
+	if (rip->selected_window==0 && rip->text_config.size_changed!=NULL)
+		rip->text_config.size_changed(rip->text_config.size_context,fresh->columns,fresh->rows,
+		    fresh->columns*fresh->cell_width,fresh->rows*fresh->cell_height);
+	return 0;
+}
+
+static int
 text_reset(void *context, const struct st_rip3_text_window_layout *layout,
     const bool keep[36], bool old_active)
 {
@@ -1360,7 +1399,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
-	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read},
+	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.text_reset_entry=text_reset_entry},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);
