@@ -568,6 +568,8 @@ if(STEP STREQUAL "install")
 			"${prefix}/share/licenses/${name}/${directory}")
 	endforeach()
 	# Normalize upstream archive filenames, including MSVC's varying .lib names.
+	# Configuration creates the parent prefix, but universal slices use their own.
+	file(MAKE_DIRECTORY "${prefix}/syncterm")
 	set(static_suffix .a)
 	if(MSVC)
 		set(static_suffix .lib)

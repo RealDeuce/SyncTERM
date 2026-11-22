@@ -1,6 +1,14 @@
 # Copyright (c) 2026 Stephen Hurd
 # SPDX-License-Identifier: BSD-2-Clause
 cmake_minimum_required(VERSION 3.22)
+if(CI_FIXTURE_EXPECT_OSX_ARCHITECTURES)
+	string(REPLACE "," ";" _expected "${CI_FIXTURE_EXPECT_OSX_ARCHITECTURES}")
+	if(NOT CMAKE_OSX_ARCHITECTURES STREQUAL _expected)
+		message(FATAL_ERROR "Unexpected macOS architectures: ${CMAKE_OSX_ARCHITECTURES}")
+	endif()
+	# Verify the driver's configuration while compiling this fixture natively.
+	unset(CMAKE_OSX_ARCHITECTURES CACHE)
+endif()
 project(CIDriverFixture C)
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
 include(CTest)

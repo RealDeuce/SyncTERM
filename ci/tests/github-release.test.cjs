@@ -9,7 +9,8 @@ const path = require('node:path');
 const {publish, expire} = require('../github-release.cjs');
 
 const now = new Date('2026-11-16T12:00:00Z');
-const names = ['syncterm-linux-x86_64.zip', 'syncterm-windows-x86_64.zip', 'syncterm-macos-arm64.zip'];
+const names = ['syncterm-linux-x86_64.zip', 'syncterm-windows-x86_64.zip',
+  'syncterm-macos-arm64.zip', 'syncterm-macos-x86_64.zip', 'syncterm-macos-universal.zip'];
 function fixture(release = null, assets = []) {
   if (release) release.tag_name = 'latest-build';
   const state = {release, assets, tag: release ? 'old' : null, mutations: [], failUpload: false};
@@ -79,10 +80,12 @@ test('replacement removes old assets and recreates a tag removed by mirroring', 
 });
 
 test('missing platform package preserves the previous public build', async t => {
-  const f = await withPackages(t, fixture({id: 42, prerelease: true}));
-  await fs.unlink(path.join(f.directory, names[1]));
-  await assert.rejects(publish(f), /ENOENT/);
-  assert.deepEqual(f.state.mutations, []);
+  for (const name of names) {
+    const f = await withPackages(t, fixture({id: 42, prerelease: true}));
+    await fs.unlink(path.join(f.directory, name));
+    await assert.rejects(publish(f), /ENOENT/);
+    assert.deepEqual(f.state.mutations, []);
+  }
 });
 
 test('superseded builds cannot overwrite current packages', async () => {
@@ -100,7 +103,7 @@ test('failed upload stays hidden and the next run recovers', async t => {
   f.state.failUpload = false;
   await publish(f);
   assert.equal(f.state.release.draft, false);
-  assert.equal(f.state.assets.length, 4);
+  assert.equal(f.state.assets.length, names.length + 1);
 });
 
 test('authorization failures are not mistaken for missing releases', async t => {

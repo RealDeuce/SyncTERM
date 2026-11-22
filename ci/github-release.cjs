@@ -12,6 +12,8 @@ const packages = [
   'syncterm-linux-x86_64.zip',
   'syncterm-windows-x86_64.zip',
   'syncterm-macos-arm64.zip',
+  'syncterm-macos-x86_64.zip',
+  'syncterm-macos-universal.zip',
 ];
 
 async function optional(request) {

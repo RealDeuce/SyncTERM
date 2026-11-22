@@ -2,8 +2,8 @@
 
 SyncTERM is a terminal emulator for connecting to bulletin board systems.
 
-Automated development builds for Linux x86-64, Windows x86-64, and macOS arm64
-are available from the
+Automated development builds for Linux x86-64, Windows x86-64, and macOS ARM64,
+x86-64, and universal (ARM64 + x86-64) are available from the
 https://github.com/RealDeuce/SyncTERM/releases/tag/latest-build[GitHub mirror's latest-build prerelease].
 They are replaced after successful upstream builds and expire after 14 days.
 See link:docs/HACKING.adoc#_github_mirror_development_downloads[the download workflow]

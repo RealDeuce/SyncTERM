@@ -122,6 +122,15 @@ elseif(CI_PROFILE STREQUAL mixed-linkage)
 	# independently selected prerequisites, and directly link the image decoder.
 	list(APPEND _options -DST_DEP_SNDFILE_LINKAGE=STATIC -DST_DEP_SNDFILE_SOURCE=BUNDLED
 		-DST_DEP_JXL_LINKAGE=SHARED -DST_PIXEL_IMAGE_JXL=ON)
+elseif(CI_PROFILE MATCHES "^macos-(x86_64|universal)$")
+	set(_architectures x86_64)
+	if(CI_PROFILE STREQUAL macos-universal)
+		set(_architectures "arm64;x86_64")
+	endif()
+	# A cache script preserves the architecture list through command wrappers.
+	file(WRITE "${_reports}/macos-architectures.cmake"
+		"set(CMAKE_OSX_ARCHITECTURES [==[${_architectures}]==] CACHE STRING \"macOS target architectures\" FORCE)\n")
+	list(APPEND _options -C "${_reports}/macos-architectures.cmake")
 elseif(CI_PROFILE MATCHES "^mingw(32|64)-cross$")
 	set(_cross TRUE)
 	set(CI_MINGW_BITS "${CMAKE_MATCH_1}")

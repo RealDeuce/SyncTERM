@@ -33,7 +33,15 @@ jobs:
             runner: windows-2022
           - platform: macos-arm64
             runner: macos-15
+          - platform: macos-x86_64
+            runner: macos-15
+            profile: macos-x86_64
+          - platform: macos-universal
+            runner: macos-15
+            profile: macos-universal
     runs-on: ${{ matrix.runner }}
+    env:
+      CI_PROFILE: ${{ matrix.profile || 'native' }}
     timeout-minutes: 120
     concurrency:
       group: latest-build-${{ matrix.platform }}-${{ github.ref }}
@@ -60,7 +68,8 @@ jobs:
           const {execFileSync} = require('node:child_process');
           if (!process.env.ImageVersion) throw new Error('Missing hosted runner image version');
           const identity = [process.env.ImageOS, process.env.ImageVersion,
-            process.cwd(), process.env.CI_BUILD_TYPE, process.env.CI_EXTRA_CMAKE_ARGS,
+            process.cwd(), process.env.CI_BUILD_TYPE, process.env.CI_PROFILE,
+            process.env.CI_EXTRA_CMAKE_ARGS,
             ...['CC', 'CXX', 'CFLAGS', 'CXXFLAGS', 'CPPFLAGS', 'LDFLAGS',
               'CMAKE_GENERATOR', 'CMAKE_GENERATOR_PLATFORM', 'CMAKE_GENERATOR_TOOLSET',
               'MACOSX_DEPLOYMENT_TARGET', 'SDKROOT'].map(name => process.env[name]),

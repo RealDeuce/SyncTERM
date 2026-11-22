@@ -127,7 +127,8 @@ and mixed linkage; optional Clang job
 | `RaspberryPi` | Native ARM64 build and tests
 | `FreeBSD` | Native build/tests; Win32 and Win64 MinGW cross-compilation
 | `OpenBSD`, `NetBSD` | Native build and tests, including slower runners
-| `macOS-aarch64` | Native build and tests
+| `macOS-aarch64` | Native ARM64 build and tests; Intel x86-64 and universal
+(ARM64 + x86-64) build-only jobs
 | `macOS-x86` | Not built or tested: the current runner's SDK lacks the
 `timespec_get()` / `TIME_UTC` support required by DeuceSSH.
 | `Windows` | MSVC and MinGW, each with native Win32 and Win64 tests
@@ -147,6 +148,12 @@ require Clang. Local macOS x86 builds use CMake's compiler capability list to
 select C11 only when C17 mode is unavailable; other platforms still require C17.
 The pinned standalone DeuceSSH uses the same language-mode fallback; its
 runtime capability requirements remain unchanged.
+
+The `macos-x86_64` and `macos-universal` jobs use the ARM64 runner's current
+Apple SDK to build Intel and universal products. They remain build-only in
+full-test pipelines; target execution and native-window tests stay with the
+`macos-arm64` job. Their `CI_PROFILE` values select `x86_64` and
+`arm64;x86_64`, respectively, through `CMAKE_OSX_ARCHITECTURES`.
 
 Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler and its native
 build tool. Jobs request a two-hour limit, subject to the runner's own cap.
@@ -256,6 +263,8 @@ successful `master` pipeline:
 * https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=linux-gcc[Linux x86-64]
 * https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=freebsd[FreeBSD]
 * https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=macos-arm64[macOS arm64]
+* https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=macos-x86_64[macOS x86-64]
+* https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=macos-universal[macOS universal (ARM64 + x86-64)]
 * https://gitlab.synchro.net/Deuce/syncterm/-/jobs/artifacts/master/raw/build-ci/packages/syncterm-build.zip?job=windows-msvc%3A%20%5Bx64%5D[Windows x86-64 (MSVC)]
 
 For other jobs, replace the `job` query parameter with the URL-encoded job
@@ -271,7 +280,8 @@ building, so a failure cannot upload a stale download.
 === GitHub mirror development downloads
 
 link:../.github/workflows/latest-build.yml[The Latest build workflow] builds
-Linux x86-64, Windows x86-64 (MSVC), and macOS arm64 independently on GitHub's
+Linux x86-64, Windows x86-64 (MSVC), and macOS ARM64, x86-64, and universal
+(ARM64 + x86-64) independently on GitHub's
 hosted runners when the upstream push mirror updates `master`. It uses the
 same CMake build-only drivers as GitLab. Manual runs on the default branch
 can rebuild the current commit. These builds do not run the application test
@@ -292,12 +302,14 @@ are rebuilt in each job. Older source archives may be reused across pin
 changes, with their SHA-256 hashes still verified before use. GitHub may evict
 caches; a miss performs the normal pinned source build.
 
-After all three builds succeed, the workflow replaces the mutable
+After all five builds succeed, the workflow replaces the mutable
 `latest-build` prerelease. Downloads work without a GitHub login:
 
 * https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-linux-x86_64.zip[Linux x86-64]
 * https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-windows-x86_64.zip[Windows x86-64]
 * https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-macos-arm64.zip[macOS arm64]
+* https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-macos-x86_64.zip[macOS x86-64]
+* https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/syncterm-macos-universal.zip[macOS universal (ARM64 + x86-64)]
 * https://github.com/RealDeuce/SyncTERM/releases/download/latest-build/SHA256SUMS[SHA-256 checksums]
 
 These URLs remain fixed across builds. Old packages are replaced, rather than

@@ -63,6 +63,10 @@ include:
   - local: .gitlab/ci/posix.yml
     inputs: {name: macos-arm64, tag: macOS-aarch64}
   - local: .gitlab/ci/posix.yml
+    inputs: {name: macos-x86_64, tag: macOS-aarch64, profile: macos-x86_64}
+  - local: .gitlab/ci/posix.yml
+    inputs: {name: macos-universal, tag: macOS-aarch64, profile: macos-universal}
+  - local: .gitlab/ci/posix.yml
     inputs: {name: linux-minimal, tag: Linux, cc: gcc, cxx: g++, profile: minimal}
     rules:
       - if: '$SYNCTERM_CI_MODE == "full-test"'
@@ -94,6 +98,16 @@ mingw32-cross:
 
 mingw64-cross:
   extends: .cross-artifacts
+
+macos-x86_64:
+  extends: .cross-artifacts
+  variables:
+    SYNCTERM_CI_MODE: build
+
+macos-universal:
+  extends: .cross-artifacts
+  variables:
+    SYNCTERM_CI_MODE: build
 
 linux-clang:
   rules:
