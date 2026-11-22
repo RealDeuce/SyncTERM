@@ -36,10 +36,10 @@ struct st_rip3_table_host {
  * SCP/RCP, SBS/RBS, SMF/RMF, STW/RTW, SCB/RCB, SGS/RGS, SENV/RENV,
  * SAVEALL/RESTOREALL, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
- * supports PAL/PORT/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
+ * supports PAL/PORT/ENV/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
  * and aggregate ISPROT undefined cases stay unsupported pending #16.
- * Palette live-entry COPY validates all destinations before mutation and
+ * PAL/ENV live-entry COPY validates all destinations before mutation and
  * copies source protection except to zero. RESET(PAL,...) handles current or
  * specific entries, TBL and the base/numbered/stack/aggregate backup selectors.
  * It validates the full selector list and required bindings first. Palette
@@ -48,8 +48,9 @@ struct st_rip3_table_host {
  * Parameter defaults and decimal slot syntax follow the reference. Remaining
  * live-entry COPY and RESET families return NOT_SUPPORTED for wider dispatch.
  * CUR(STYLE,n) selects/defaults the represented style and its font family,
- * independently of PORT/ENV/text-cursor state. CUR(ENV,n) remains separate
- * activation work. SENV/RENV snapshot ENV-owned settings and the table/current
+ * independently of PORT/ENV/text-cursor state. CUR(ENV,n) defaults unused
+ * records and applies the documented departing-record mode overwrite; it
+ * never switches other tables. SENV/RENV snapshot ENV-owned settings and the table/current
  * index, leaving other table selections live as specified by the corrected
  * ownership contract. SGS/RGS snapshot represented STYLE fields and retain the
  * shipping live-current-index restore defect.

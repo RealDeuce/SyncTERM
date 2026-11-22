@@ -5,6 +5,7 @@
 #include "st_rip3_geometry.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct st_rip3_environments;
@@ -59,14 +60,25 @@ int st_rip3_environments_set(struct st_rip3_environments *environments,
  * Selection and every other record field remain unchanged. Wire M uses set. */
 int st_rip3_environments_color(struct st_rip3_environments *environments,
 	unsigned number, unsigned bits);
-/* MCURSOR's protection-bypassing edit of the current defined ENV. The
- * documented callback accepts 7; its presentation mapping is unresolved. */
+/* MCURSOR's protection-bypassing edit of the current defined ENV. Accept
+ * the documented 0..7 preferences; the connection owns native presentation. */
 int st_rip3_environments_mouse(struct st_rip3_environments *environments, unsigned pointer);
-/* Select an existing record only. The future scene owner must activate its
- * references in other tables as part of a complete context transaction.
- * CUR(ENV,n)/SWITCH_ENVIRONMENT runtime activation is not implemented here. */
+/* Low-level selection of an existing record without protocol side effects.
+ * Used when constructing a prepared state. Wire/CUR selectors use activate. */
 int st_rip3_environments_select(struct st_rip3_environments *environments,
 	unsigned number);
+/* Protocol selection defaults unused targets, then writes target base/RGB/
+ * coordinate width into the departing record, bypassing its protection, before
+ * changing current. WORLD/pointer/baud stay owned by their respective records.
+ * No other table selection changes. Consumers read active values from current;
+ * the existing connection pointer refresh observes its new mouse number. */
+int st_rip3_environments_activate(struct st_rip3_environments *,unsigned number);
+/* Validate the defined source and all destinations before copying. Protected
+ * sources are readable; protected/self/invalid targets reject the whole call.
+ * Copy definition/protection, clearing protection at zero. Keep selection and
+ * device dimensions; repeated destinations are legal. No allocation occurs. */
+int st_rip3_environments_copy_entries(struct st_rip3_environments *,unsigned source,
+	const unsigned *destinations,size_t count);
 int st_rip3_environments_protect(struct st_rip3_environments *environments,
 	unsigned number, bool protect);
 /* Outer SOFT: default unprotected records, discard their nonzero definitions

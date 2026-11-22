@@ -8160,3 +8160,52 @@ RIP3 work can proceed independently while the documentation answer is pending.
 The source queue has 2055 implemented, 1719 pending, 3109 unreviewed, 1469
 context, 67 excluded and 30 blocked units (8449 total). The reference pin and
 original RIP1.54 freeze remain unchanged.
+
+
+## Connected ENV selection and live-entry COPY
+
+At unchanged pin `73dfe86c6601990e931237984712197c354999fd`, actual sessions
+now execute `$CUR(ENV,n)$`, wire `2E` and numeric/CUR-source ENV entry COPY.
+Protocol activation defaults an unused target to the published basic environment
+(640×350 WORLD, base 36, width 2, palette mode and pointer 0), then reproduces the
+specified departing-record base/RGB/coordinate-width overwrite before selecting
+the target. That overwrite bypasses departing protection; target protection
+does not block selection. Each record retains its own WORLD, pointer and baud.
+Current ENV remains the single active source: no second mode cache or renderer
+layer is introduced. The existing native pointer refresh reads the new record.
+The lower-level selector remains a prepared-record operation; wire/CUR always
+use protocol activation. Other current tables, graphics cursor/image state,
+ANSI interpreter and current scene pixels do not change.
+
+ENV entry COPY validates the defined source and every numeric/CUR destination
+before writing anything. Protected sources are readable; a late protected,
+invalid or self destination rejects the entire expression. Successful copies
+carry definition/protection, clear protection at zero, permit repeated targets
+and retain the current index. Copying into current changes its normally consumed
+settings without activating unrelated table selections. The shared PAL selector
+decoder keeps its established behavior. These value operations allocate nothing.
+
+Native ENV tests check the literal 0→5→0 example, protected departing write-back,
+unused slot 35, preserved custom raster, copy flags/zero/repeated destinations,
+all preflight failures and zero WORLD. Wire tests validate exactly two current-
+base digits independent of coordinate size, every input split and continuation
+after malformed commands. Native table/session tests cover shared dispatcher
+and lifetime bindings. Connected CP437/UTF-8 tests run 640×480, 800×600, 1024×768 and
+custom 720×400, comparing both screen planes around activation and asserting
+pointer presentation, other selectors, native cursor/rendition, stored settings,
+protected wire setters versus variable bypasses, base 64/four-digit pixel output,
+nonzero SENV/RENV selection, SOFT and zero-projection/invalid-input recovery.
+
+Eight distinct relevant CTests pass, including contract and RIP154 preservation
+guards. The one native FreeBSD Release CMake configuration uses `/usr/bin/cc`;
+application and affected test targets build without introduced C compiler
+warnings. Unrelated passed rendering suites are reused. No frozen RIP1.54,
+ordinary ANSI renderer, scene ownership or external-pixel scrolling code changes.
+PR143 is recorded as a proposed B142 answer awaiting exact reference adoption;
+no covered issue is modified. HEADER, shared COPY for remaining families and
+B144's remembered-pair/PCB work remain unfinished.
+
+The 8449-unit queue now has 2071 implemented, 1713 pending, 3092 unreviewed,
+1476 context, 67 excluded and 30 blocked units. Arbitrary entry raster and the
+no-VT102/external-launch exclusions remain authoritative; full RIP3 compliance
+is not claimed.

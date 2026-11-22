@@ -360,7 +360,7 @@ host_variables(void)
 	CHECK(run(&host,"$BAUDEMUL(CUR,1000000000000)$","",-1)==0);
 	CHECK(run(&host,"$BAUDEMUL$","1000000000000",-1)==0);
 	CHECK(run(&host, "$CUR(ENV)$", "0", -1) == 0);
-	CHECK(run(&host, "$CUR(ENV,35)$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
+	CHECK(run(&host, "$CUR(ENV,35)$", "", -1) == 0);
 	CHECK(run(&host, "$INUSE(ENV,35)$", "1", -1) == 0);
 	CHECK(run(&host, "$INUSE(ENV,ANY)$", "1", -1) == 0);
 	CHECK(run(&host, "$INUSE(ENV,ALL)$", "0", -1) == 0);
@@ -432,9 +432,60 @@ soft_reset(void)
 	st_rip3_backup_destroy(backup);st_rip3_environments_destroy(env);return 0;
 }
 
+static int activation_and_entry_copy(void)
+{
+	struct st_rip3_environments *env=NULL;
+	struct st_rip3_environment zero,five,value;
+	struct st_rip3_environment_info info;
+	struct st_rip3_frame frame;
+	CHECK(st_rip3_environments_create_device(&env,720,400)==0);
+	CHECK(st_rip3_environment_defaults(&zero)==0);
+	zero.world_width=640;zero.world_height=480;zero.mouse_pointer=2;zero.baud_rate=300;
+	five=zero;five.base_math=64;five.coordinate_size=4;five.rgb_bits=8;
+	five.world_width=1280;five.world_height=960;five.mouse_pointer=6;five.baud_rate=1200;
+	CHECK(st_rip3_environments_set(env,0,&zero)==0 && st_rip3_environments_define(env,5,&five)==0);
+	CHECK(st_rip3_environments_activate(env,5)==0);
+	CHECK(st_rip3_environments_get(env,0,&value)==0);
+	CHECK(value.base_math==64 && value.coordinate_size==4 && value.rgb_bits==8
+	    && value.world_width==640 && value.world_height==480 && value.mouse_pointer==2 && value.baud_rate==300);
+	CHECK(st_rip3_environments_activate(env,0)==0 && st_rip3_environments_get(env,0,&value)==0);
+	CHECK(value.base_math==64 && value.coordinate_size==4 && value.rgb_bits==8 && value.mouse_pointer==2);
+	CHECK(st_rip3_environments_get(env,5,&value)==0 && same(&value,&five));
+	/* Protection does not block selection or the documented departing write-back. */
+	CHECK(st_rip3_environments_protect(env,5,true)==0 && st_rip3_environments_activate(env,5)==0);
+	CHECK(st_rip3_environments_activate(env,35)==0 && st_rip3_environments_get(env,35,&value)==0);
+	CHECK(value.world_width==640 && value.world_height==350 && value.base_math==36
+	    && value.coordinate_size==2 && value.rgb_bits==0 && value.mouse_pointer==0 && value.baud_rate==0);
+	CHECK(st_rip3_environments_get(env,5,&value)==0 && value.base_math==36 && value.coordinate_size==2
+	    && value.rgb_bits==0 && value.world_width==1280 && value.world_height==960 && value.mouse_pointer==6 && value.baud_rate==1200);
+	CHECK(st_rip3_environments_info(env,5,&info)==0 && info.protected);
+	CHECK(st_rip3_environments_activate(env,36)==IO_ERROR_OUT_OF_RANGE && st_rip3_environments_activate(NULL,0)==IO_ERROR_INVALID_ARGUMENT);
+	unsigned current;CHECK(st_rip3_environments_current(env,&current)==0 && current==35);
+	CHECK(st_rip3_environments_frame(env,35,&frame)==0 && frame.device_width==720 && frame.device_height==400);
+	const unsigned destinations[]={6,8,0,8},late_protected[]={7,6},late_self[]={7,5},late_range[]={7,36};
+	CHECK(st_rip3_environments_copy_entries(env,5,destinations,4)==0);
+	for (unsigned i=0;i<4;i++) {
+		CHECK(st_rip3_environments_get(env,destinations[i],&five)==0 && same(&five,&value));
+		CHECK(st_rip3_environments_info(env,destinations[i],&info)==0 && info.defined && info.protected==(destinations[i]!=0));
+	}
+	CHECK(st_rip3_environments_copy_entries(env,5,late_protected,2)==IO_ERROR_PERMISSION_DENIED);
+	CHECK(st_rip3_environments_copy_entries(env,5,late_self,2)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_environments_copy_entries(env,5,late_range,2)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_environments_copy_entries(env,34,late_protected,2)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_environments_copy_entries(env,5,NULL,1)==IO_ERROR_INVALID_ARGUMENT
+	    && st_rip3_environments_copy_entries(env,5,destinations,0)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_environments_info(env,7,&info)==0 && !info.defined);
+	CHECK(st_rip3_environments_current(env,&current)==0 && current==35);
+	CHECK(st_rip3_environments_protect(env,6,false)==0);
+	five.world_width=five.world_height=0;CHECK(st_rip3_environments_set(env,6,&five)==0);
+	CHECK(st_rip3_environments_activate(env,6)==0 && st_rip3_environments_frame(env,6,&frame)!=0);
+	st_rip3_environments_destroy(env);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(activation_and_entry_copy()==0);
 	CHECK(color_precisions() == 0);
 	CHECK(world_ranges() == 0);
 	CHECK(records(ST_RIP3_CANVAS_640_480, 640, 480) == 0);

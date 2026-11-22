@@ -2418,3 +2418,18 @@ These tests accept the wrapper composition and represented payloads, not the
 unfinished complete PORT/STYLE inventories or full RIP3 compliance. Source pin
 and RIP1.54 preservation remain unchanged; issues140/142 retain their separate
 editorial status, with PR141 awaiting adoption.
+
+
+The connected `syncterm_rip3_environment_CP437` / `_UTF-8` suites exercise
+`CUR(ENV,n)`, fixed-two-digit `2E` and live ENV entry COPY on all presets and
+custom 720×400. Independent replies/captures verify the documented departing-
+record write-back, protected and first-use selection, native pointer refresh,
+separate current table selections, unchanged ANSI state/scene/raster, actual
+base 64/four-digit plotted coordinates and wire-protection versus host-variable
+bypasses. Late invalid/protected/self copy targets produce no partial definitions;
+zero/current destinations have explicit metadata/value expectations. Nonzero
+ENV backup restore and SOFT retain their own lifetimes. Selecting zero WORLD
+allows queries, locally rejects projection and accepts the next wire selector
+without disconnecting. Native ownership/state/copy and every-split wire tests
+cover the corresponding kernel boundaries. No ordinary ANSI/RIP1.54 rendering
+or scrolling path is changed; HEADER/other live COPY families remain pending.

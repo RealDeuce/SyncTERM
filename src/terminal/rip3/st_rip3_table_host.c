@@ -305,6 +305,8 @@ objects(const struct st_rip3_table_host *host,
 			status = st_rip3_ports_select(binding->live, index);
 		else if (type == ST_RIP3_TABLE_STYLE)
 			status = st_rip3_styles_switch(binding->live,index);
+		else if (type == ST_RIP3_TABLE_ENV)
+			status = st_rip3_environments_activate(binding->live,index);
 		else if (type == ST_RIP3_TABLE_BUT)
 			status = st_rip3_button_styles_select(binding->live,index);
 		else if (type == ST_RIP3_TABLE_TW) {
@@ -514,21 +516,23 @@ table_reset(const struct st_rip3_table_binding *binding,
 }
 
 static int
-palette_copy(const struct st_rip3_table_binding *binding,
+entry_copy(const struct st_rip3_table_binding *binding,enum st_rip3_table_type type,
     const struct st_rip3_builtin_reference *reference)
 {
 	unsigned source=0,destinations[38];
 	for (size_t i=1; i<reference->count; i++) {
 		const char *word=reference->parameters[i].text;unsigned index;
 		int status;
-		if (equal(word,"CUR")) status=entry_current(ST_RIP3_TABLE_PAL,binding->live,&index);
+		if (equal(word,"CUR")) status=entry_current(type,binding->live,&index);
 		else status=st_rip3_host_number(word,0,35,&index);
 		if (status!=0) return status;
 		if (i==1) source=index;
 		else destinations[i-2]=index;
 	}
 	if (binding->live==NULL) return IO_ERROR_NOT_SUPPORTED;
-	return st_rip3_palettes_copy_entries(binding->live,source,destinations,reference->count-2);
+	return type==ST_RIP3_TABLE_ENV
+	    ? st_rip3_environments_copy_entries(binding->live,source,destinations,reference->count-2)
+	    : st_rip3_palettes_copy_entries(binding->live,source,destinations,reference->count-2);
 }
 
 static int
@@ -699,9 +703,9 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (status != 0)
 			return status;
 		binding = &host->tables[type];
-		if (copy && type==ST_RIP3_TABLE_PAL && (equal(reference->parameters[1].text,"CUR")
+		if (copy && (type==ST_RIP3_TABLE_PAL || type==ST_RIP3_TABLE_ENV) && (equal(reference->parameters[1].text,"CUR")
 		    || (reference->parameters[1].text[0]>='0' && reference->parameters[1].text[0]<='9'))) {
-			status=palette_copy(binding,reference);
+			status=entry_copy(binding,type,reference);
 			if (status==0) result[0]=0;
 			return status;
 		}

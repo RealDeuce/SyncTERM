@@ -386,9 +386,38 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	return 0;
 }
 
+static int environment_protocol(void)
+{
+	struct fixture f={0},missing={0};struct st_rip3_stream *stream=NULL;
+	CHECK(process(&missing,"2E00",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
+	struct st_rip3_environment value;CHECK(st_rip3_environment_defaults(&value)==0);
+	value.base_math=64;value.coordinate_size=5;value.rgb_bits=8;value.world_width=1280;value.world_height=960;
+	CHECK(st_rip3_environments_define(f.host.environments,5,&value)==0);
+	CHECK(process(&f,"2E05",-1)==0);
+	unsigned current;CHECK(st_rip3_environments_current(f.host.environments,&current)==0 && current==5);
+	CHECK(process(&f,"2E0Z",-1)==0); /* Fixed two base-64 digits, not coordinate width. */
+	CHECK(st_rip3_environments_get(f.host.environments,35,&value)==0 && value.coordinate_size==2 && value.base_math==36);
+	const char *invalid[]={"2E","2E0","2E000","2E10","2E?0"};
+	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
+	CHECK(st_rip3_environments_current(f.host.environments,&current)==0 && current==35);
+	const char bytes[]="!|2E?0|2E05|2E00\r\n";
+	const struct st_rip3_stream_sink sink={.context=&f,.command=command};
+	for (size_t split=0;split<sizeof(bytes);split++) {
+		CHECK(st_rip3_stream_create(&stream,&sink)==0);
+		unsigned errors=f.errors;
+		st_rip3_stream_process(stream,(const uint8_t *)bytes,split);
+		st_rip3_stream_process(stream,(const uint8_t *)bytes+split,sizeof(bytes)-1-split);
+		CHECK(f.errors==errors+1 && st_rip3_environments_current(f.host.environments,&current)==0 && current==0);
+		st_rip3_stream_destroy(stream);
+	}
+	destroy(&f);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(environment_protocol()==0);
 	CHECK(adopted_examples() == 0);
 	CHECK(matrix(ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(matrix(ST_RIP3_CANVAS_800_600) == 0);

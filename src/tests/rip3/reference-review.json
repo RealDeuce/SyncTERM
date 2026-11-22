@@ -10449,6 +10449,66 @@
         "coverage": "Independent literal S/R/D family logs prove dispatch order, no early numbered consumption, failed/protected save continuation, failed/missing/all-failed restore continuation, independent POP, reusable BASE, retained-slot input/failure guards and invalid syntax preflight. Actual session captures/replies prove restored pixels, offscreen data, native ANSI attributes/cursor, button keyboard commitment, whole PAL/BUT selection, live STYLE selection defect and ENV-only values. Missing PAL restoration still permits screen RGB binding and the later ENV phase.",
         "limits": "Wrapper/represented payload acceptance only; full RIP3 and full PORT/STYLE payload conformance remain incomplete. No additional platform/toolchain, original-client/probe/native-display/pixel-parity claim. Unchanged unrelated passed suites are reused. Make emitted timestamp-skew notices; no C compiler warnings were introduced."
       }
+    },
+    {
+      "after_commit": "5d689c31",
+      "revision": "73dfe86c6601990e931237984712197c354999fd",
+      "scope": "Connect CUR(ENV,n), wire2E and live-entry ENV COPY to the session-owned table, preserving independent selectors and documented activation/write-back.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/7.1-data-tables.md:155",
+        "version/3.0/ripscrip/7.1-data-tables.md:157",
+        "version/3.0/ripscrip/7.1-data-tables.md:159",
+        "version/3.0/ripscrip/7.1-data-tables.md:161",
+        "version/3.0/ripscrip/7.1-data-tables.md:273",
+        "version/3.0/ripscrip/7.1-data-tables.md:274",
+        "version/3.0/ripscrip/7.1-data-tables.md:275",
+        "version/3.0/ripscrip/7.1-data-tables.md:277",
+        "version/3.0/ripscrip/7.1-data-tables.md:279",
+        "version/3.0/ripscrip/7.1-data-tables.md:281",
+        "version/3.0/ripscrip/7.1-data-tables.md:283",
+        "version/3.0/ripscrip/7.1-data-tables.md:285",
+        "version/3.0/ripscrip/5.1-text-variables.md:4040",
+        "version/3.0/ripscrip/5.1-text-variables.md:4144",
+        "version/3.0/ripscrip/5.1-text-variables.md:4251",
+        "version/3.0/ripscrip/5.1-text-variables.md:4264"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/7.1-data-tables.md:151",
+        "version/3.0/ripscrip/7.1-data-tables.md:153",
+        "version/3.0/ripscrip/7.1-data-tables.md:265",
+        "version/3.0/ripscrip/7.1-data-tables.md:267",
+        "version/3.0/ripscrip/7.1-data-tables.md:269",
+        "version/3.0/ripscrip/7.1-data-tables.md:271",
+        "version/3.0/ripscrip/7.1-data-tables.md:272"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_environments.c",
+        "src/terminal/rip3/st_rip3_commands.c",
+        "src/terminal/rip3/st_rip3_table_host.c"
+      ],
+      "tests": [
+        "rip3_environments",
+        "rip3_switch_commands",
+        "rip3_table_host",
+        "rip3_session",
+        "syncterm_rip3_environment_CP437",
+        "syncterm_rip3_environment_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3092,
+        "context": 1476,
+        "pending": 1713,
+        "implemented": 2071,
+        "excluded": 67,
+        "blocked": 30
+      },
+      "policy": "Use a narrow protocol activation operation alongside the existing raw prepared-record selector. Default unused slots using published CUR ENV defaults, snapshot target settings, write target base/RGB/coordinate width into the departing record despite protection, and publish the target index. WORLD/pointer/baud remain record-owned; other tables and native ANSI interpreter/pixels are untouched. No separate active-state copy or renderer layer is added. Existing pointer refresh observes the new ENV. Prevalidate every entry-copy destination without writes, then copy values/flags with zero unprotected and retain selection. Entry COPY into current changes its normally consumed values without switching unrelated tables. All syntax/service statuses remain below existing void command/session boundaries. Unrelated passed rendering suites are reused. PR143 is recorded as a proposed B142 answer awaiting exact reference adoption; B144/PCB and full HEADER remain unresolved. Original RIP154 freeze and arbitrary entry raster are unchanged.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc and headless control bitmap TCP fixtures.",
+        "result": "Native application and affected test targets built without introduced C compiler warnings. Six distinct relevant native/connected tests pass before final ledger/preservation guards: environments, switch commands, table host, session and CP437/UTF8 connected ENV vectors at640x480,800x600,1024x768 and720x400.",
+        "coverage": "Literal0->5->0 settings/write-back, protected departing and selected records, basic first use/slot35, all copy permission/self/range/source errors with no partial creation, repeated/zero/current targets, actual current pointer refresh, unchanged scene/other selectors/native ANSI cursor/rendition, active base64 four-digit plotted coordinate, zero-WORLD projection recovery, nonzero SENV/RENV selection and SOFT. Native wire tests split every byte boundary and recover after malformed2E. Existing PAL table-host vectors cover the shared selector-decoder change.",
+        "limits": "No additional toolchain/platform, native-display, original-client/probe or exact raster parity claim. ENV HEADER/reset and shared live COPY requirements for other families stay pending. No physical console/renderer hot path is changed."
+      }
     }
   ]
 }

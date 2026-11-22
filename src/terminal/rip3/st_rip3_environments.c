@@ -166,6 +166,44 @@ st_rip3_environments_select(struct st_rip3_environments *environments, unsigned 
 }
 
 int
+st_rip3_environments_activate(struct st_rip3_environments *environments,unsigned number)
+{
+	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	struct environment_entry *target=&environments->entries[number];
+	if (!target->info.defined) {
+		(void)st_rip3_environment_defaults(&target->data);
+		target->info=(struct st_rip3_environment_info){.defined=true};
+	}
+	const struct st_rip3_environment value=target->data;
+	struct st_rip3_environment *old=&environments->entries[environments->current].data;
+	/* The documented selector applies these setters before changing current,
+	 * so they overwrite the departing record even when it is protected. */
+	old->base_math=value.base_math;old->rgb_bits=value.rgb_bits;
+	old->coordinate_size=value.coordinate_size;
+	environments->current=number;return 0;
+}
+
+int
+st_rip3_environments_copy_entries(struct st_rip3_environments *environments,unsigned source,
+    const unsigned *destinations,size_t count)
+{
+	if (environments==NULL || destinations==NULL || count==0) return IO_ERROR_INVALID_ARGUMENT;
+	if (source>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (!environments->entries[source].info.defined) return IO_ERROR_NOT_FOUND;
+	for (size_t i=0;i<count;i++) {
+		if (destinations[i]>=36) return IO_ERROR_OUT_OF_RANGE;
+		if (destinations[i]==source) return IO_ERROR_INVALID_ARGUMENT;
+		if (environments->entries[destinations[i]].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	}
+	for (size_t i=0;i<count;i++) {
+		environments->entries[destinations[i]]=environments->entries[source];
+		if (destinations[i]==0) environments->entries[0].info.protected=false;
+	}
+	return 0;
+}
+
+int
 st_rip3_environments_mouse(struct st_rip3_environments *environments,unsigned pointer)
 {
 	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;

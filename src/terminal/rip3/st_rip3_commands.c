@@ -213,6 +213,20 @@ switch_style(const struct st_rip3_command_host *host,
 }
 
 static int
+switch_environment(const struct st_rip3_command_host *host,
+    const uint8_t *command,size_t length,bool *operation)
+{
+	if (length!=4) return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_environment environment;unsigned current;
+	uint64_t target;
+	int status=st_rip3_command_environment(host,&current,&environment);
+	if (status==0) status=st_rip3_command_field(&target,command+2,2,environment.base_math);
+	if (status!=0) return status;
+	if (target>=36) return IO_ERROR_OUT_OF_RANGE;
+	*operation=true;return st_rip3_environments_activate(host->environments,(unsigned)target);
+}
+
+static int
 switch_text_window(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
@@ -395,6 +409,8 @@ execute(const struct st_rip3_command_host *host,
 	}
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
 		return switch_style(host,command,length,operation,sink);
+	if (length >= 2 && command[0] == '2' && command[1] == 'E')
+		return switch_environment(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'T')
 		return switch_text_window(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
