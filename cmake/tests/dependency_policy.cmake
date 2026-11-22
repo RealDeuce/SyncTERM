@@ -61,6 +61,34 @@ run(transitive TRUE "${CMAKE_COMMAND}" -S "${source}"
 	-DST_DEP_FIXTURE_LINKAGE=RUNTIME "-DST_DEP_FIXTURE_ROOT=${TEST_ROOT}/prefix-SHARED"
 	-DEXPECTED=RUNTIME -DEXERCISE_TRANSITIVE=ON)
 run(transitive-build TRUE "${CMAKE_COMMAND}" --build "${TEST_ROOT}/transitive")
+run(provide-cxx TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/provide-cxx"
+	-DPROVIDE=STATIC -DPROVIDE_CXX=ON "-DCMAKE_INSTALL_PREFIX=${TEST_ROOT}/prefix-cxx")
+run(build-cxx TRUE "${CMAKE_COMMAND}" --build "${TEST_ROOT}/provide-cxx" --target install)
+run(select-cxx TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/select-cxx"
+	"-DPROJECT_MODULES=${modules}" -DST_DEP_FIXTURE_LINKAGE=STATIC
+	"-DST_DEP_FIXTURE_ROOT=${TEST_ROOT}/prefix-cxx" -DEXPECTED=STATIC -DEXERCISE_CXX=ON)
+run(link-cxx TRUE "${CMAKE_COMMAND}" --build "${TEST_ROOT}/select-cxx")
+file(READ "${TEST_ROOT}/select-cxx/consumer-language.txt" language)
+if(NOT language STREQUAL CXX)
+	message(FATAL_ERROR "Installed C++ archives must select the C++ link driver")
+endif()
+run(provide-api TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/provide-api"
+	-DPROVIDE=STATIC -DPROVIDE_RECIPE_API=ON "-DCMAKE_INSTALL_PREFIX=${TEST_ROOT}/prefix-api")
+run(build-api TRUE "${CMAKE_COMMAND}" --build "${TEST_ROOT}/provide-api" --target install)
+foreach(recipe BROTLI LCMS2)
+	foreach(kind complete missing)
+		set(prefix "${TEST_ROOT}/prefix-api")
+		set(success TRUE)
+		if(kind STREQUAL missing)
+			set(prefix "${TEST_ROOT}/prefix-STATIC")
+			set(success FALSE)
+		endif()
+		run("probe-${recipe}-${kind}" ${success} "${CMAKE_COMMAND}" -S "${source}"
+			-B "${TEST_ROOT}/probe-${recipe}-${kind}" "-DPROJECT_MODULES=${modules}"
+			-DST_DEP_FIXTURE_LINKAGE=STATIC "-DST_DEP_FIXTURE_ROOT=${prefix}"
+			-DEXPECTED=STATIC "-DEXERCISE_RECIPE_PROBE=${recipe}")
+	endforeach()
+endforeach()
 if(CMAKE_HOST_SYSTEM_NAME MATCHES "^(Linux|FreeBSD)$")
 	set(sdk "${TEST_ROOT}/native-sdk")
 	file(MAKE_DIRECTORY "${sdk}/usr")

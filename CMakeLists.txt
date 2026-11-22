@@ -141,6 +141,13 @@ add_subdirectory(src/terminal/term)
 add_subdirectory(src/scripting/wren_vm)
 add_subdirectory(src/scripting/re1)
 add_subdirectory(src/scripting/wren_host)
+# Dependencies may enable C++ in their own directories. Make its link rules
+# available to the application without requiring it for C-only configurations.
+get_property(_syncterm_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if(CXX IN_LIST _syncterm_languages)
+	enable_language(CXX)
+endif()
+unset(_syncterm_languages)
 add_subdirectory(src)
 add_subdirectory(addons/modern_ui)
 
