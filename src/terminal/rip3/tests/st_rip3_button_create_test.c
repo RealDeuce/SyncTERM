@@ -409,6 +409,7 @@ struct staged {
 	struct st_rip3_graphical *worker;struct st_rip3_user_variables *user;
 	struct st_rip3_variables *session,*persistent;
 	struct st_rip3_host_variables variables;struct st_rip3_table_host tables;
+	struct st_rip3_templates *slots;
 	struct st_rip3_host_sink expansion_sink;struct st_rip3_frame frame;
 	struct st_rip3_clipboard_selection clipboard;uint64_t budget;
 	unsigned errors,actions,formats;char value[256],program[64];
@@ -445,7 +446,8 @@ static int staged_create(struct staged *f,bool converted)
 	f->host.clipboard=&f->clipboard;f->budget=100000;f->host.offscreen_pixel_budget=&f->budget;
 	const struct st_rip3_mouse_sink mouse={.context=f,.activate=staged_activate,.busy=staged_busy,
 	    .resource_failure=staged_error,.render_failure=staged_error};
-	CHECK(st_rip3_mouse_create(&f->host.mouse,&mouse)==0);
+	CHECK(st_rip3_mouse_create(&f->host.mouse,&mouse)==0 && st_rip3_templates_create(&f->slots)==0);
+	st_rip3_mouse_bind_templates(f->host.mouse,f->slots);
 	CHECK(st_rip3_variables_create(&f->session)==0 && st_rip3_variables_create(&f->persistent)==0);
 	const struct st_rip3_user_variable_host user={.session=f->session,.persistent=f->persistent,.context=f,.format=staged_format};
 	CHECK(st_rip3_user_variables_create(&f->user,&user)==0);
@@ -461,6 +463,7 @@ static int staged_create(struct staged *f,bool converted)
 static void staged_destroy(struct staged *f)
 {
 	st_rip3_button_renderer_cancel(f->host.buttons);st_rip3_mouse_destroy(f->host.mouse);
+	st_rip3_templates_destroy(f->slots);
 	st_rip3_button_renderer_destroy(f->host.buttons);st_rip3_graphical_destroy(f->worker);
 	st_rip3_user_variables_destroy(f->user);st_rip3_variables_destroy(f->session);st_rip3_variables_destroy(f->persistent);
 	st_rip3_ports_destroy(f->host.ports);st_rip3_palettes_destroy(f->host.palettes);
@@ -513,7 +516,7 @@ static int staged_buttons(void)
 	CHECK(st_rip3_variables_remove(f.session,"LABEL",5)==0 && st_rip3_mouse_key(f.host.mouse,'a'));
 	staged_pump(&f);CHECK(st_rip3_graphical_state(f.worker)==ST_RIP3_GRAPHICAL_PROMPT && f.actions==1);
 	st_rip3_mouse_kill(f.host.mouse);CHECK(st_rip3_graphical_state(f.worker)==ST_RIP3_GRAPHICAL_IDLE);
-	const struct st_rip3_rect replacement={10,20,60,40};const struct st_rip3_mouse_binding key={'A',false};
+	const struct st_rip3_rect replacement={10,20,60,40};const struct st_rip3_mouse_binding key={.hotkey='A'};
 	CHECK(st_rip3_mouse_define(f.host.mouse,ST_RIP3_MOUSE_BUTTON,&key,&replacement,false,false,7,(const uint8_t *)"new",3,NULL)==0);
 	staged_pump(&f);CHECK(f.errors==0 && f.actions==2 && strcmp(f.program,"go")==0 && f.formats==3);
 	staged_pump(&f);CHECK(f.actions==2);staged_destroy(&f);
@@ -635,7 +638,7 @@ static int initially_selected_faces(void)
 	for (unsigned type=0;type<3;type++) {
 		struct staged f={0};CHECK(staged_create(&f,false)==0);
 		struct st_rip3_button_style style;CHECK(st_rip3_button_styles_get(f.host.button_styles,0,&style)==0);
-		style.flags=(type==1 ? 1u : 256u|512u|16u)|1024u|2u|(type==2 ? 64u : 0u);style.bevel=3;
+		style.flags=(type==1 ? 1u : 256u|512u|16u)|1024u|2u|(type==2 ? 64u : 0u);style.bevel=3;style.flags2=1;
 		CHECK(st_rip3_button_styles_set(f.host.button_styles,0,&style)==0);
 		if (type==1) {
 			const struct st_rip3_rect source={0,0,3,2},view={0,0,5,4};
@@ -654,9 +657,9 @@ static int initially_selected_faces(void)
 		if (type!=1) CHECK(pixel(f.host.ports,7,25,0)==0 && pixel(f.host.ports,5,25,8)==0);
 		else CHECK(pixel(f.host.ports,14,20,15)==0 && pixel(f.host.ports,10,23,15)==0);
 		CHECK(st_rip3_mouse_event(f.host.mouse,11,21,true));staged_pump(&f);
-		CHECK(f.errors==0 && f.actions==0 && pixel(f.host.ports,10,20,12)==0);
-		CHECK(st_rip3_mouse_event(f.host.mouse,100,100,false));staged_pump(&f);
 		CHECK(f.errors==0 && f.actions==0 && pixel(f.host.ports,10,20,3)==0);
+		CHECK(st_rip3_mouse_event(f.host.mouse,100,100,false));staged_pump(&f);
+		CHECK(f.errors==0 && f.actions==0 && pixel(f.host.ports,10,20,12)==0);
 		CHECK(st_rip3_mouse_key(f.host.mouse,'a'));staged_pump(&f);
 		CHECK(f.errors==0 && f.actions==1 && strcmp(f.program,"opaque")==0 && pixel(f.host.ports,10,20,3)==0);
 		if (type==1) {

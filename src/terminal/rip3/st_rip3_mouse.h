@@ -4,13 +4,14 @@
 #define ST_RIP3_MOUSE_H_
 
 #include "st_rip3_surface.h"
+#include "st_rip3_templates.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 struct st_rip3_mouse;
 enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
-struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;};
+struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;unsigned group;enum st_rip3_group_kind group_kind;bool selected;};
 struct st_rip3_mouse_visual {
 	void *context;
 	/* May schedule owned asynchronous redraw, reported by sink.busy.
@@ -19,6 +20,10 @@ struct st_rip3_mouse_visual {
 	void (*destroy)(void *context);
 	/* Optional provider-free removal of temporary feedback on forced abort. */
 	void (*abort)(void *context);
+	/* Undo temporary feedback from prepared values, without providers/files. */
+	int (*restore)(void *context,bool selected);
+	/* Logical state has already committed; this notification cannot undo it. */
+	void (*committed)(void *context,bool selected);
 };
 /* Scoped callback value; an inactive context has no numeric fallback. */
 struct st_rip3_field_context {bool active;int identity;};
@@ -39,6 +44,12 @@ struct st_rip3_mouse_sink {
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
+/* Bind before definitions; template state outlives every live mouse field. */
+void st_rip3_mouse_bind_templates(struct st_rip3_mouse *,struct st_rip3_templates *);
+int st_rip3_mouse_group_check(const struct st_rip3_mouse *,unsigned,enum st_rip3_group_kind);
+/* Stable owner of a committed grouped activation, including redraw/prompt
+ * suspension; zero for hover and ungrouped actions. */
+uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *);
 /* Half-open, clipped absolute DEVICE bounds. Simple fields and button
  * records share this owner's 128 entries. No drawing buffers or damage map. */
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,

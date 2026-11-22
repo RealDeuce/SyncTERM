@@ -111,6 +111,12 @@ prepare(void *context)
 	return !st_rip3_query_pending(f->host.query);
 }
 
+static int required_group(struct st_rip3_templates *t,unsigned n,bool required)
+{
+	uint64_t redraw[128];size_t count;
+	if (required) return st_rip3_templates_button_add(t,1000+n,n,ST_RIP3_GROUP_RADIO,false,redraw,&count);
+	st_rip3_templates_button_remove(t,1000+n);return 0;
+}
 static int
 create(struct fixture *f, enum st_rip3_canvas canvas)
 {
@@ -679,12 +685,15 @@ template_queries(enum st_rip3_canvas canvas)
 	}
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000[0]discarded",-1)==0 && f.reply_length==0 && !st_rip3_query_pending(f.host.query));
-	CHECK(st_rip3_templates_required(f.templates.slots,2,true)==0);
+	CHECK(required_group(f.templates.slots,2,true)==0);
 	unsigned errors=f.host_errors;
 	CHECK(process(&f,"1\0330000[2]feed[]unreached",-1)==0 && f.reply_length==0 && f.required_calls==1
 	    && f.required_group==2 && f.host_errors==errors+1 && f.host_kind==ST_RIP3_HOST_OPERATION_FAILED
 	    && !st_rip3_query_pending(f.host.query));
-	CHECK(process(&f,"1\0330000[2:]selected[2]feed",-1)==0 && f.reply_length==8 && memcmp(f.reply,"selected",8)==0);
+	CHECK(process(&f,"1\0330000[2:]selected[2]feed",-1)==0 && f.reply_length==0);
+	uint64_t redraw[128];size_t changed;
+	CHECK(st_rip3_templates_button_activate(f.templates.slots,1002,redraw,&changed)==0);
+	CHECK(process(&f,"1\0330000[2]feed",-1)==0 && f.reply_length==8 && memcmp(f.reply,"selected",8)==0);
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000[Z:]\xb3 \xe2\x98\x83[Z]",-1)==0 && f.reply_length==5
 	    && memcmp(f.reply,"\xb3 \xe2\x98\x83",5)==0);
@@ -812,10 +821,10 @@ embedding_limits(enum st_rip3_canvas canvas)
 	/* Blank groups insert empty, while a required missing slot requests selection
 	 * and aborts the host program. Later blocks are never run on that failure. */
 	CHECK(capped_query(&f,(const uint8_t *)"a$?0$b",6)==0 && f.reply_length==2 && memcmp(f.reply,"ab",2)==0);
-	CHECK(st_rip3_templates_required(f.templates.slots,0,true)==0);unsigned required=f.required_calls,errors=f.host_errors;
+	CHECK(required_group(f.templates.slots,0,true)==0);unsigned required=f.required_calls,errors=f.host_errors;
 	CHECK(capped_query(&f,(const uint8_t *)"$?0$[]unreached",strlen("$?0$[]unreached"))==0 && f.reply_length==0 && f.required_calls==required+1
 	    && f.required_group==0 && f.host_errors==errors+1 && !st_rip3_query_pending(f.host.query));
-	CHECK(st_rip3_templates_required(f.templates.slots,0,false)==0);
+	CHECK(required_group(f.templates.slots,0,false)==0);
 	/* A full replacement discards even unsupported or malformed ordinary
 	 * references before they are validated, without requiring their service. */
 	memset(bytes,'X',4096);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4096)==0);
@@ -1015,13 +1024,13 @@ angle_queries(enum st_rip3_canvas canvas, const char *width)
 	errors=f.host_errors;
 	CHECK(process(&f,"1\0330000<<-=FLAG=kept>><<IF N>>",-1)==0 && f.host_errors==errors+1
 	    && f.reply_length==0 && user_value(f.session,"FLAG","kept")==0);
-	CHECK(st_rip3_templates_set(f.templates.slots,3,NULL,0)==0 && st_rip3_templates_required(f.templates.slots,3,true)==0);
+	CHECK(st_rip3_templates_set(f.templates.slots,3,NULL,0)==0 && required_group(f.templates.slots,3,true)==0);
 	CHECK(process(&f,"1\0330000<<IF RESX=0>><<?3>><<ENDIF>>",-1)==0 && f.required_calls==1 && f.required_group==3
 	    && !st_rip3_query_pending(f.host.query) && f.reply_length==0);
 	/* The eight-pass success result may still contain deferred angle syntax. */
 	for (unsigned n=0; n<10; n++) {
 		char text[16];(void)snprintf(text,sizeof(text),"<<?%u>>",n+1);
-		CHECK(st_rip3_templates_required(f.templates.slots,n,false)==0
+		CHECK(required_group(f.templates.slots,n,false)==0
 		    && st_rip3_templates_set(f.templates.slots,n,(const uint8_t *)(n==9 ? "END" : text),n==9 ? 3 : strlen(text))==0);
 	}
 	f.reply_length=0;CHECK(process(&f,"1\0330000<<?0>>",-1)==0);

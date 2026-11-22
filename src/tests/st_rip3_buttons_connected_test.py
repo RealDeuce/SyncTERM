@@ -14,8 +14,8 @@ from st_rip3_connected_test import query,pixel
 from st_terminal_conformance_test import Terminal
 
 
-def style(flags=256,width=0,height=0,flags2=0,surface=7,orientation=2,bevel=3,underline=15,foreground=15):
-    values=(width,height,orientation,flags,bevel,foreground,0,15,8,surface,0,flags2,underline,7,0,0)
+def style(flags=256,width=0,height=0,flags2=0,surface=7,orientation=2,bevel=3,underline=15,foreground=15,group=0):
+    values=(width,height,orientation,flags,bevel,foreground,0,15,8,surface,group,flags2,underline,7,0,0)
     widths=(2,2,2,4,2,2,2,2,2,2,2,2,2,2,1,5)
     return b"\x01|1B"+b"".join(number(v,w) for v,w in zip(values,widths))+b"\r\n"
 
@@ -172,27 +172,27 @@ def run(args,width,height):
 
         t.case(f"rip3-initially-selected-plain-and-clipboard-images-{width}x{height}")
         values(b"$-=SELECTED_ACTION=0$")
-        frame=t.exchange(style(flags=256|1024|2|512|16,surface=3)
+        frame=t.exchange(style(flags=256|1024|2|512|16,surface=3,flags2=1)
                          +button((20,220,70,240),b"ID=91:<><>$-=SELECTED_ACTION=1$plain:$FIELDID$",
                                  hotkey=ord('Q'),flags=1))
         assert pixel(frame,20,220)==0xff5555
         assert pixel(frame,17,230)==0 and pixel(frame,15,230)==0x555555
         values(b"$&SELECTED_ACTION$",b"0")  # image selection never runs host source
         mouse(30,230,True);frame=t.exchange()
-        assert pixel(frame,20,220)==0xff5555  # redraw must not double-invert it
+        assert pixel(frame,20,220)==0x00aaaa  # selected checkbox previews OFF
         mouse(90,230);frame=t.exchange()
-        assert pixel(frame,20,220)==0x00aaaa
+        assert pixel(frame,20,220)==0xff5555  # cancel retains committed ON
         values(b"$&SELECTED_ACTION$",b"0")  # outside release is not activation
         click(30,230,b"plain:91")
         values(b"$&SELECTED_ACTION$",b"1")
         values(b"$-=SELECTED_ACTION=0$")
         client.text('q');frame=t.input(b"plain:91")
-        assert pixel(frame,20,220)==0x00aaaa
+        assert pixel(frame,20,220)==0xff5555  # translated key toggles ON
         values(b"$&SELECTED_ACTION$",b"1")
         values(b"$-=SELECTED_ACTION=0$")
         # The existing protected/inactive 5x3 source has a 7x5 viewport.
         # Initial selection complements its padding as well as its face.
-        frame=t.exchange(style(flags=1|1024|2)
+        frame=t.exchange(style(flags=1|1024|2,flags2=1)
                          +button((120,220,0,0),b"ID=92:<><>$-=SELECTED_ACTION=1$clip:$FIELDID$",flags=1))
         assert pixel(frame,120,220)==0xff5555
         assert pixel(frame,125,220)==0xffffff and pixel(frame,120,223)==0xffffff

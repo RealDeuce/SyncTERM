@@ -144,8 +144,8 @@ static int keyboard(void)
 	    {129,0,128,false,7},{'?',0,255,false,8},{'a',0,255,false,2},
 	    {13,0,'B',true,4},{13,1u<<3,'B',true,8},{'b',0,'B',true,8},
 	    {10,1u<<6,0,false,0},{255,0,0,false,7},{13,0,13,false,8}};
-	static const struct st_rip3_mouse_binding bindings[]={{'A',false},{'a',false},{0,false},
-	    {13,false},{0,true},{0,true},{255,false}};
+	static const struct st_rip3_mouse_binding bindings[]={{.hotkey='A'},{.hotkey='a'},{0},
+	    {.hotkey=13},{.default_enter=true},{.default_enter=true},{.hotkey=255}};
 	const struct st_rip3_rect area={10,10,20,20};
 	for (size_t test=0;test<sizeof(cases)/sizeof(*cases);test++) {
 		struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
@@ -155,7 +155,7 @@ static int keyboard(void)
 			CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&bindings[i],&area,false,false,(int)i+1,&data,1,NULL)==0);
 		}
 		if (cases[test].extra!=0) {
-			const struct st_rip3_mouse_binding binding={cases[test].extra,cases[test].default_enter};
+			const struct st_rip3_mouse_binding binding={.hotkey=cases[test].extra,.default_enter=cases[test].default_enter};
 			CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,8,NULL,0,NULL)==0);
 		}
 		bool handled=st_rip3_mouse_key(f.mouse,cases[test].key);
@@ -165,7 +165,7 @@ static int keyboard(void)
 	}
 	struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
-	const struct st_rip3_mouse_binding binding={'B',false};
+	const struct st_rip3_mouse_binding binding={.hotkey='B'};
 	const struct st_rip3_rect other={30,30,40,40};
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,true,false,1,NULL,0,NULL)==0);
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&other,true,false,2,(const uint8_t *)"k",1,NULL)==0);
@@ -201,8 +201,8 @@ static int visuals(void)
 	struct visual_fixture f={0};const struct st_rip3_mouse_sink sink={.context=&f,
 	    .activate=activate_visual,.changed=changed_visual,.render_failure=error_visual};
 	CHECK(st_rip3_mouse_create(&f.input.mouse,&sink)==0);
-	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding binding={'A',false};
-	const struct st_rip3_mouse_visual visual={&f,select_visual,destroy_visual,NULL};
+	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding binding={.hotkey='A'};
+	const struct st_rip3_mouse_visual visual={.context=&f,.select=select_visual,.destroy=destroy_visual};
 	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,-1,NULL,0,&visual)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(f.destroyed==0); /* Rejection never takes ownership. */
 	CHECK(st_rip3_mouse_define(f.input.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,7,(const uint8_t *)"v",1,&visual)==0);
@@ -243,8 +243,8 @@ static int suspended_actions(void)
 {
 	struct suspended s={0};const struct st_rip3_mouse_sink sink={.context=&s,.activate=suspended_activate,.busy=suspended_busy};
 	CHECK(st_rip3_mouse_create(&s.mouse,&sink)==0);
-	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding key={'A',false};
-	const struct st_rip3_mouse_visual visual={&s,suspended_select,suspended_destroy,NULL};
+	const struct st_rip3_rect area={10,10,20,20};const struct st_rip3_mouse_binding key={.hotkey='A'};
+	const struct st_rip3_mouse_visual visual={.context=&s,.select=suspended_select,.destroy=suspended_destroy};
 	CHECK(st_rip3_mouse_define(s.mouse,ST_RIP3_MOUSE_BUTTON,&key,&area,false,false,7,(const uint8_t *)"a",1,&visual)==0);
 	CHECK(st_rip3_mouse_key(s.mouse,'a') && s.downs==1 && s.actions==0 && st_rip3_mouse_pending(s.mouse));
 	st_rip3_mouse_resume(s.mouse);CHECK(s.actions==0);
@@ -265,9 +265,70 @@ static int suspended_actions(void)
 	st_rip3_mouse_destroy(s.mouse);CHECK(s.destroyed==3);return 0;
 }
 
+struct grouped {
+	struct st_rip3_mouse *mouse;struct st_rip3_templates *templates;
+	bool fail,suspend,busy,valid;unsigned actions,redraws,failures,destroyed;
+	uint64_t owner;uint8_t source;
+};
+struct grouped_visual {struct grouped *group;uint64_t token;};
+static bool grouped_busy(void *context) {return ((struct grouped *)context)->busy;}
+static void grouped_failure(void *context) {((struct grouped *)context)->failures++;}
+static int grouped_select(void *context,bool selected)
+{
+	struct grouped_visual *v=context;struct grouped *g=v->group;g->redraws++;
+	/* Logical selection is committed before even a failed/suspended redraw. */
+	g->valid&=st_rip3_templates_button_selected(g->templates,v->token)==selected;
+	if (g->suspend) g->busy=true;
+	return g->fail ? IO_ERROR_NOT_FOUND : 0;
+}
+static void grouped_destroy(void *context) {((struct grouped_visual *)context)->group->destroyed++;}
+static void grouped_activate(void *context,const uint8_t *program,size_t length,bool reset,int id,bool pointer,int32_t x,int32_t y)
+{
+	(void)reset;(void)pointer;(void)x;(void)y;
+	struct grouped *g=context;g->actions++;g->owner=st_rip3_mouse_callback_owner(g->mouse);
+	g->valid&=length==1 && id==7 && g->owner!=0;g->source=length==1 ? program[0] : 0;
+	/* A removed owner's resumed definition must not become an ordinary write. */
+	if (g->owner==2) g->valid&=st_rip3_templates_associate(g->templates,g->owner,4,(const uint8_t *)"B",1)==0;
+}
+static int grouped_actions(void)
+{
+	struct grouped g={.valid=true};
+	const struct st_rip3_mouse_sink sink={.context=&g,.activate=grouped_activate,.busy=grouped_busy,.render_failure=grouped_failure};
+	CHECK(st_rip3_mouse_create(&g.mouse,&sink)==0 && st_rip3_templates_create(&g.templates)==0);
+	st_rip3_mouse_bind_templates(g.mouse,g.templates);
+	struct grouped_visual views[]={{&g,1},{&g,2},{&g,3}};
+	const struct st_rip3_rect areas[]={{10,10,20,20},{30,10,40,20}};
+	for (unsigned i=0;i<2;i++) {
+		const struct st_rip3_mouse_binding binding={.hotkey=(uint8_t)('a'+i),.group=4,.group_kind=ST_RIP3_GROUP_RADIO,.selected=i==0};
+		const struct st_rip3_mouse_visual visual={.context=&views[i],.select=grouped_select,.destroy=grouped_destroy};
+		uint8_t source=(uint8_t)('a'+i);
+		CHECK(st_rip3_mouse_define(g.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&areas[i],false,false,7,&source,1,&visual)==0);
+	}
+	CHECK(g.actions==0 && g.redraws==0 && st_rip3_templates_associate(g.templates,1,4,(const uint8_t *)"A",1)==0);
+	g.fail=true;
+	CHECK(st_rip3_mouse_key(g.mouse,'b') && g.actions==1 && g.source=='b' && g.owner==2 && g.failures==2);
+	CHECK(!st_rip3_templates_button_selected(g.templates,1) && st_rip3_templates_button_selected(g.templates,2));
+	struct st_rip3_template_bytes value;
+	CHECK(st_rip3_templates_resolve(g.templates,4,&value)==0 && value.length==1 && value.bytes[0]=='B');
+	g.fail=false;g.suspend=true;
+	CHECK(st_rip3_mouse_key(g.mouse,'b') && g.actions==1 && g.busy && st_rip3_mouse_pending(g.mouse));
+	CHECK(st_rip3_mouse_remove(g.mouse,&areas[1],1,NULL)==0 && g.destroyed==1);
+	const struct st_rip3_mouse_binding replacement={.hotkey='c',.group=4,.group_kind=ST_RIP3_GROUP_RADIO,.selected=true};
+	const struct st_rip3_mouse_visual visual={.context=&views[2],.select=grouped_select,.destroy=grouped_destroy};
+	CHECK(st_rip3_mouse_define(g.mouse,ST_RIP3_MOUSE_BUTTON,&replacement,&areas[1],false,false,7,(const uint8_t *)"c",1,&visual)==0);
+	g.suspend=g.busy=false;st_rip3_mouse_resume(g.mouse);
+	CHECK(g.actions==2 && g.source=='b' && g.owner==2 && !st_rip3_mouse_pending(g.mouse));
+	CHECK(st_rip3_templates_button_selected(g.templates,3) && st_rip3_templates_resolve(g.templates,4,&value)==0 && value.length==0);
+	CHECK(st_rip3_mouse_key(g.mouse,'a') && g.actions==3 && g.source=='a' && g.owner==1);
+	CHECK(st_rip3_templates_resolve(g.templates,4,&value)==0 && value.length==1 && value.bytes[0]=='A');
+	CHECK(st_rip3_mouse_key(g.mouse,'a') && g.actions==4 && st_rip3_templates_button_selected(g.templates,1));
+	st_rip3_mouse_destroy(g.mouse);CHECK(g.valid && g.destroyed==3);
+	st_rip3_templates_destroy(g.templates);return 0;
+}
+
 int main(void)
 {
-	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0 && visuals()==0 && suspended_actions()==0);
+	CHECK(identities()==0 && enclosed()==0 && paint_failure()==0 && keyboard()==0 && visuals()==0 && suspended_actions()==0 && grouped_actions()==0);
 	struct fixture f={0};struct st_rip3_mouse_sink sink={.context=&f,.invert=flip,.activate=activate};
 	CHECK(st_rip3_mouse_create(&f.mouse,&sink)==0);
 	struct st_rip3_rect area={10,20,30,40};

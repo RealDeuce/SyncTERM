@@ -837,6 +837,25 @@ static int mouse_pointer(void)
 }
 
 static int
+grouped_reset(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0 && query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1B00000200ZK000F000F080702010F07000000|1U0A0A1O0U1T00ID=7:<>A<>[2:]A[]$=GROUPWAIT,8@Group$[2:]stale[]after:$FIELDID$\r")==0
+	    && pump(&f)==0 && f.errors==0);
+	CHECK(st_rip3_session_mouse(f.session,30,20,true));CHECK(pump(&f)==0);
+	CHECK(st_rip3_session_mouse(f.session,30,20,false));CHECK(pump(&f)==0);
+	struct st_rip3_session_prompt prompt;CHECK(st_rip3_session_prompt(f.session,&prompt));
+	CHECK(st_rip3_session_test_soft_reset(f.session)==0 && !st_rip3_session_mouse_active(f.session)
+	    && st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_respond(f.session,(const uint8_t *)"kept",4,false);
+	CHECK(!st_rip3_session_pending(f.session) && f.reply_length==11 && memcmp(f.reply,"keptafter:7",11)==0);
+	CHECK(query(&f,"$?2$","A")==0 && query(&f,"alive","alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 hover_queries(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -1154,7 +1173,7 @@ main(void)
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
-	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && hover_queries()==0 && hover_lifecycle()==0);
+	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && grouped_reset()==0 && hover_queries()==0 && hover_lifecycle()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

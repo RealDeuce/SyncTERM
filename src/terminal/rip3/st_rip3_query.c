@@ -16,6 +16,7 @@ struct st_rip3_query {
 	uint8_t *bytes, *output, *program;
 	size_t program_length, program_cursor;
 	size_t length, cursor, used, capacity;
+	uint64_t template_owner;
 	unsigned pass; /* 0 idle; 1/2 ordinary expansion; 3 next block; 4 angles. */
 	struct st_rip3_angle *angle;
 	bool allocation_failed;
@@ -240,7 +241,7 @@ st_rip3_query_cancel(struct st_rip3_query *query)
 	query->bytes=query->output=query->program=NULL;
 	query->length=query->cursor=query->used=query->capacity=0;
 	query->program_length=query->program_cursor=0;
-	query->pass=0;query->allocation_failed=false;
+	query->pass=0;query->allocation_failed=false;query->template_owner=0;
 }
 
 static void
@@ -265,7 +266,8 @@ prepare_block(struct st_rip3_query *query)
 	const struct st_rip3_template_host *host=query->variables->templates;
 	int status=0;
 	if (value.directive.kind==DEFINITION) {
-		status=st_rip3_templates_set(host->slots,value.directive.numbers[0],feed,length);
+		status=query->template_owner==0 ? st_rip3_templates_set(host->slots,value.directive.numbers[0],feed,length)
+		    : st_rip3_templates_associate(host->slots,query->template_owner,value.directive.numbers[0],feed,length);
 		if (status!=0) operation_failed(query,status,0);
 		return;
 	}
@@ -536,13 +538,14 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 }
 
 int
-st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
+st_rip3_query_start_owned(struct st_rip3_query *query, const uint8_t *bytes, size_t length,uint64_t owner)
 {
 	if (query==NULL || query->sink->reply==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (st_rip3_query_pending(query)) return IO_ERROR_BUSY;
 	if ((bytes==NULL && length!=0) || length==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);
+	query->template_owner=owner;
 	for (size_t i=0; i+1<length; i++) if (bytes[i]=='<' && bytes[i+1]=='<') {
 		int status=st_rip3_angle_create(&query->angle,bytes,length);
 		if (status!=0) return status;
@@ -551,4 +554,9 @@ st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t le
 	int status=start_program(query,bytes,length);
 	if (status==0) st_rip3_query_process(query,64);
 	return status;
+}
+
+int st_rip3_query_start(struct st_rip3_query *query,const uint8_t *bytes,size_t length)
+{
+	return st_rip3_query_start_owned(query,bytes,length,0);
 }

@@ -50,11 +50,14 @@ struct st_rip3_host_sink;
  * either ordinary pass. Every response is clipped to 4096 working bytes before
  * pass one and after every replacement; discarded suffixes never execute or
  * return after later decoding/shrinking. Definitions retain at most 4096 bytes.
- * A trailing outer backslash stays literal. Required empty groups request
- * selection through the borrowed callback and abort the current host program.
+ * A trailing outer backslash stays literal. A live radio group without a
+ * selected member requests selection through the borrowed callback and aborts
+ * the current host program, regardless of slot bytes. Selected empty radios
+ * are valid. Grouped source definitions retain their original stable owner
+ * across suspension; stale writes are skipped, never ordinary assignments.
  * Literal/unrecognized brackets pass through; incomplete slots diagnose without
- * suppressing bytes. Pick lists, playback and button-associated aggregation
- * remain separate, as does one-pass graphical-text consumer integration.
+ * suppressing bytes. Pick lists and playback remain separate; graphical
+ * consumers use their own one-pass worker.
  * Unsupported extended syntax on known names never enters the user path.
  * Syntax/operation errors never return to a terminal/session failure path. */
 int st_rip3_query_create(struct st_rip3_query **result,

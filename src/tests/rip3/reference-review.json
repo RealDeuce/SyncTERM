@@ -7732,6 +7732,129 @@
         "build_diagnostics": "The initial hover fault-injection target lacked the private UTF-8 dependency; corrected before the final build/tests. No compiler diagnostics in the final native build. GNU make may report sub-millisecond future timestamps on regenerated dependency files on this filesystem.",
         "source_integrity": "Reconstructed all 68 normative documents and 8410 exact source/heading/text/line/hash records from selected stable archive; all 64 derivation hashes match. Both actual PR heads are ancestral to the selected stable revision."
       }
+    },
+    {
+      "after_commit": "6a61c0be",
+      "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+      "scope": "Connect PR134 persistent grouped buttons, associated per-slot definitions/publication and selection-based required radio lookup to actual session pointer/keyboard actions.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:174",
+        "version/3.0/ripscrip/4.3-buttons.md:198",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:505",
+        "version/3.0/ripscrip/4.3-buttons.md:561",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:570",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:572",
+        "version/3.0/ripscrip/4.3-buttons.md:573",
+        "version/3.0/ripscrip/4.3-buttons.md:574",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:106",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:154",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:366",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:380",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:430",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:437",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:439",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:443",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:445",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:447",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:453",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:461",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:462",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:463",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:464",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:465",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:466",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:467",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:468",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:469",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:471",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:473",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:477",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:483",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:485",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:487",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:565",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:616"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:428",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:451",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:475"
+      ],
+      "pending_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_templates.c",
+        "src/terminal/rip3/st_rip3_mouse.c",
+        "src/terminal/rip3/st_rip3_button_create.c",
+        "src/terminal/rip3/st_rip3_query.c",
+        "src/terminal/rip3/st_rip3_session.c"
+      ],
+      "tests": [
+        "rip3_templates",
+        "rip3_mouse",
+        "rip3_button_create",
+        "rip3_query_commands",
+        "rip3_session",
+        "syncterm_rip3_groups_CP437",
+        "syncterm_rip3_groups_UTF-8",
+        "syncterm_rip3_buttons_CP437",
+        "syncterm_rip3_buttons_UTF-8",
+        "syncterm_rip3_icon_buttons_CP437",
+        "syncterm_rip3_icon_buttons_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3316,
+        "context": 1400,
+        "pending": 1747,
+        "implemented": 1855,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "policy": "PR134 is connected to live sessions: stable-instance checkbox/radio state commits before optional redraw and clicked source, with opaque creation and selected-radio exclusivity. Each surviving owner retains post-angle ordinary-unexpanded A[N]; current group publications assemble selected owners in creation order with a 4096-byte prefix and ordinary-baseline/last-publisher precedence. Required radio selection depends on actual membership, independently of slot bytes. Native failure/suspension and independent CP437/UTF-8 TCP vectors cover OFF-source execution, duplicate IDs, stale writes, cross-slot publication, SOFT effective-byte preservation, no provider calls during composition, and recovery without disconnecting. Explicit mouse-family backup/restore and host-template-clearing operations remain separate pending units. No renderer scene/damage layer or additional terminal mode; ordinary ANSI and frozen RIP1.54 paths are unchanged. Optional feedback undo uses the existing RGB complement or already prepared ICON/label resources, without new providers, file reads or auto-stamp. Ordinary hover actions retain small allocation; peer-token storage is allocated only for grouped actions.",
+      "pending_followups": [
+        "Mouse-family backup/restore, explicit host-template clearing and HEADER/global orchestration remain pending.",
+        "Stored resident click modes 1..4, advanced frontend user formats, remaining scene/table/playback work.",
+        "The older parent issue #2 retains its own unresolved 25 source units; no issue comments were added."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; one CMake build tree build.",
+        "passed_tests": [
+          "rip3_templates",
+          "rip3_query_commands",
+          "rip3_session",
+          "rip3_mouse",
+          "rip3_hover",
+          "rip3_button_create",
+          "term_key_forward",
+          "syncterm_rip3_groups_CP437",
+          "syncterm_rip3_groups_UTF-8",
+          "syncterm_rip3_hover_CP437",
+          "syncterm_rip3_hover_UTF-8",
+          "syncterm_rip3_keyboard_CP437",
+          "syncterm_rip3_keyboard_UTF-8",
+          "syncterm_rip3_buttons_CP437",
+          "syncterm_rip3_buttons_UTF-8",
+          "syncterm_rip3_icon_buttons_CP437",
+          "syncterm_rip3_icon_buttons_UTF-8",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "rip3_contract",
+          "rip3_preservation_guard",
+          "rip154_source_freeze"
+        ],
+        "scope": "Twenty-two distinct relevant checks, including native selection-before-failed-redraw, suspension/deletion/same-ID replacement, selected-radio repeat, template allocation failures and retained body/publisher state. TCP CP437/UTF-8 vectors at 640x480 and 720x400 check exact checkbox publication transitions, ordinary precedence, empty selected radio and missing choice, HKEYOFF, mixed-kind no-paint rejection, newly selected radio while an older member is held, real prompts and nonfatal stale-owner recovery, angle-once/ordinary-late bodies, pure rebuild without provider effects and 4096-byte assembly. Public session SOFT during a committed grouped prompt preserves effective ordinary bytes and FIELDID while skipping stale associated writes. Existing plain/clipboard/ICON, hover, keyboard and ANSI controls pass; source-preservation guards cover RIP1.54.",
+        "build_diagnostics": "No compiler diagnostics in the final native builds. GNU make reported filesystem clock skew for regenerated dependency files in one build; the requested targets completed successfully.",
+        "source_integrity": "Reference unchanged at stable 49a69454a0bd6055c0d11bb415759d309519de33. Source/text/heading/line/hash fields for all 8410 units are unchanged; only review status/evidence changes."
+      }
     }
   ]
 }

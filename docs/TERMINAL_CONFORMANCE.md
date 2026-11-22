@@ -40,7 +40,7 @@ COPY index-0 cleanup, opaque screen-phase patterns and once-only selector paint.
 They retain surviving captures, cancel deleted ones, continue failed paint attempts
 and reject unsupported flags nonfatally. PR #122 supplies clipboard eligibility/
 padding and per-type geometry. Literal ICON/hot rendering is covered below;
-filename/label macro expansion remains pending.
+filename/label macro expansion and persistent groups are covered below.
 Auto-stamp captures implemented plain/clipboard faces before their label, mutates
 protected live style flags only on success, and recovers after capture/font
 failures. Tests verify exported dimensions/colors and current-clipboard replacement.
@@ -48,9 +48,9 @@ failures. Tests verify exported dimensions/colors and current-clipboard replacem
 byte/default/wildcard vectors, event consumption, HKEY gates, pointer cancellation
 and reset/delayed FIELDID lifetime through real keyboard events. Native forwarding
 checks cover ANSI/RIP1/RIP3 and pointer-only disable. HEADER input lock, full mouse
-queries/restore/playback, physical indicators, clear/zoom, hover, grouped buttons
-and groups remain pending. Complete nonplain sizing/eligibility and enclosed
-painting await #119/#120; see the RIP3 inventory for exact scope.
+queries/restore/playback, physical indicators and clear/zoom remain pending.
+Connected hover, grouped buttons, nonplain sizing/eligibility and enclosed
+painting are covered below; see the RIP3 inventory for exact scope.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector
 or mode-specific keymap is explicitly outside the user-approved scope, even
 when upstream reference documentation or a PR describes that mode. Applicable
@@ -2259,5 +2259,26 @@ press. Full SOFT clears both handlers; field-only deletion retains them.
 Actual CP437/UTF-8 sessions cover both 640×480 and 720×400 plus held click/button
 ownership and coherent unchanged-pixel checks. Native allocation injection and
 pending-focus/reset cases cover ownership/error paths. Mouse-family backup/
-restore, HEADER/input-lock operations, PR134 grouped selection/template state
-and stored click modes 1–4 remain pending with those subsystems.
+restore, HEADER/input-lock operations and stored click modes 1–4 remain pending
+with those subsystems. PR134 grouped selection/template state is covered below.
+
+
+`syncterm_rip3_groups_CP437` and `syncterm_rip3_groups_UTF-8` exercise PR134
+through actual TCP sessions on 640×480 and 720×400 entries. Independent byte and
+pixel expectations cover persistent checkbox/radio state, opaque initial
+selection, momentary ungrouped buttons, release cancellation, selected-radio
+reactivation/repeats, duplicate numeric IDs and mixed-kind rejection before
+providers or painting. A newly selected radio changes peer state while a held
+older member retains temporary feedback until outside release. Template vectors
+cover per-owner/per-slot last-definition storage, creation-order concatenation,
+ordinary baseline/publication precedence, cross-slot contributions, deletion and
+SOFT preservation. Actual prompts retain FIELDID but skip deleted-owner writes;
+post-angle bodies defer ordinary providers until use, and pure rebuilds execute
+none. Assembly retains 3000+1096 bytes without truncating the underlying bodies.
+Empty selected radios succeed; a live radio group with no selection fails even
+with ordinary text, and last-member deletion removes the requirement. Native
+mouse/template/session tests add failed-redraw commitment, suspended feedback
+with same-ID replacement, allocation-failure preservation and full SOFT during
+a grouped host prompt. Existing plain/clipboard/ICON tests use grouped initial
+selection under the clarified contract. Mouse-family backup/restore, explicit
+host-template clearing and HEADER operations remain separate pending work.

@@ -250,6 +250,8 @@ soft_reset(void *context)
 	int status=st_rip3_text_window_normal(&layout,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
 	    session->default_text_wrap,session->default_text_font);
 	if (status!=0) return status;
+	status=st_rip3_templates_preserve(session->templates.slots);
+	if (status!=0) return status;
 	/* Full-scene reset invalidates retained text and any old suspended
 	 * graphical consumer. Table/viewport operations never use this path. */
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
@@ -597,7 +599,7 @@ mouse_activate(void *context, const uint8_t *program, size_t length, bool reset,
 	if (pointer && session->sink.mouse_capture!=NULL) session->sink.mouse_capture(session->sink.context,x,y);
 	struct st_rip3_field_context previous=session->field_context;
 	session->field_context=(struct st_rip3_field_context){true,identity};
-	int status=st_rip3_query_start(session->commands.query,program,length);
+	int status=st_rip3_query_start_owned(session->commands.query,program,length,st_rip3_mouse_callback_owner(session->commands.mouse));
 	session->field_context=previous;
 	session->field_program=status==0 && st_rip3_query_pending(session->commands.query);
 	session->field_program_id=identity;
@@ -747,6 +749,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->tables.tables[ST_RIP3_TABLE_PORT].live=session->commands.ports;
 	if (status==0) status=st_rip3_outline_cache_create(&session->text.outline_cache);
 	if (status==0) status=st_rip3_templates_create(&session->templates.slots);
+	if (status==0) st_rip3_mouse_bind_templates(session->commands.mouse,session->templates.slots);
 	if (status==0 && session->variables.user_variables==NULL) {
 		status=st_rip3_variables_create(&session->session_values);
 		if (status==0) status=st_rip3_variables_create(&session->persistent_values);

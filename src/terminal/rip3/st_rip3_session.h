@@ -121,7 +121,7 @@ struct st_rip3_session_config {
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
  * This does not select an application terminal mode or implement unbound
- * full text-window backups, grouped buttons, field zoom or complete scene
+ * full text-window backups, field zoom or complete scene
  * headers. T/@, button filename/label and metric arguments share the bounded
  * graphical preprocessor. Metrics retain expanded TEXTDATA outside the tables;
  * exact r/@ sentinels read it without expansion. Full drawing resets empty it.

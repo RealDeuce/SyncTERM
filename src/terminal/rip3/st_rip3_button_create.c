@@ -280,6 +280,11 @@ struct button {
 	char name[4*255+1];
 	uint8_t hotkey;int identity;
 	bool alive,mouse,default_enter,selected,auto_stamped,inversion_applied,label_chisel;
+	bool label_expanded;
+	uint8_t label_value[4*255+1];size_t label_value_length;
+	/* Reuse prepared ICON resources for provider/file-free feedback undo.
+	 * These are the existing decoded objects, never a new scene pixel plane. */
+	struct st_rip3_bitmap *images[2];
 	uint8_t program[];
 };
 enum render_stage { FILENAME, FILENAME_VALUE, FACE, LABEL, LABEL_VALUE, FINISH };
@@ -301,7 +306,7 @@ struct st_rip3_button_renderer {
 static void
 release_button(struct button *button)
 {
-	if (--button->references==0) free(button);
+	if (--button->references==0) {st_rip3_bitmap_destroy(button->images[0]);st_rip3_bitmap_destroy(button->images[1]);free(button);}
 }
 
 static void clear_inversion(struct button *button);
@@ -469,6 +474,10 @@ render_label(void *context)
 	struct st_rip3_button_style layout=b->style;
 	if (b->label_chisel) layout.flags|=8;
 	if (status==0) status=paint_label(&label,&b->host,&b->port,&layout,&b->frame,b->face,b->hotkey);
+	if (status==0 && paint->length<=sizeof(b->label_value)) {
+		if (paint->length!=0 && paint->bytes!=b->label_value) memcpy(b->label_value,paint->bytes,paint->length);
+		b->label_value_length=paint->length;b->label_expanded=paint->expanded;
+	}
 	return status;
 }
 
@@ -501,7 +510,12 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 	if (values[6]!=0) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_button_style style;status=st_rip3_button_styles_current_value(host->button_styles,&style);if (status!=0) return status;
 	bool mouse=(style.flags&1024)!=0,is_icon=(style.flags&128)!=0,clipboard=!is_icon && (style.flags&1)!=0;
-	if (mouse && ((style.flags&16384)!=0 || (style.flags2&1)!=0)) return IO_ERROR_NOT_SUPPORTED;
+	bool radio=(style.flags&16384)!=0,checkbox=(style.flags2&1)!=0;
+	if (radio && checkbox) return IO_ERROR_CONFLICT;
+	enum st_rip3_group_kind group_kind=radio ? ST_RIP3_GROUP_RADIO : checkbox ? ST_RIP3_GROUP_CHECKBOX : ST_RIP3_GROUP_NONE;
+	if (mouse && group_kind!=ST_RIP3_GROUP_NONE) {
+		status=st_rip3_mouse_group_check(host->mouse,style.group,group_kind);if (status!=0) return status;
+	}
 	if (mouse && host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (mouse && st_rip3_mouse_count(host->mouse)==128) return IO_ERROR_OUT_OF_RANGE;
 	if ((style.flags&64)!=0 && (host->clipboard==NULL || host->offscreen_pixel_budget==NULL)) return IO_ERROR_NOT_SUPPORTED;
@@ -541,7 +555,7 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 	b->host.text=host->text!=NULL ? &b->text : NULL;
 	b->frame=frame;b->port=port;b->drawing=drawing;b->style=style;b->face=face;b->label_chisel=(style.flags&8)!=0;
 	b->target=target;b->generation=st_rip3_ports_generation(host->ports,target);b->rgb_bits=env.rgb_bits;
-	b->references=1;b->alive=true;b->mouse=mouse;b->selected=(values[5]&1)!=0;
+	b->references=1;b->alive=true;b->mouse=mouse;b->selected=mouse && group_kind!=ST_RIP3_GROUP_NONE && (values[5]&1)!=0;
 	b->hotkey=(uint8_t)values[4];b->default_enter=(values[5]&2)!=0;b->identity=payload.identity;
 	b->name_length=payload.icon.length;b->label_length=payload.label.length;b->program_length=payload.host.length;
 	if (payload.icon.length!=0) memcpy(b->name_source,payload.icon.data,payload.icon.length);
@@ -553,6 +567,8 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 }
 
 static int select_button(void *context,bool selected);
+static int restore_button(void *context,bool selected);
+static void commit_button(void *context,bool selected);
 
 static int
 finish_button(struct render_job *job)
@@ -567,9 +583,12 @@ finish_button(struct render_job *job)
 	if (st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
 	int64_t ox=(int64_t)b->port.bounds.x0+b->port.viewport.x0,oy=(int64_t)b->port.bounds.y0+b->port.viewport.y0;
 	const struct st_rip3_rect area={(int32_t)(ox+b->hit.x0),(int32_t)(oy+b->hit.y0),(int32_t)(ox+b->hit.x1),(int32_t)(oy+b->hit.y1)};
-	const struct st_rip3_mouse_binding binding={b->hotkey,b->default_enter};
-	const struct st_rip3_mouse_visual visual={b,select_button,remove_button,abort_button};
-	bool redraw=(b->style.flags&(2|4096))!=0;
+	const struct st_rip3_mouse_binding binding={.hotkey=b->hotkey,.default_enter=b->default_enter,.group=b->style.group,
+	    .group_kind=(b->style.flags&16384)!=0 ? ST_RIP3_GROUP_RADIO : (b->style.flags2&1)!=0 ? ST_RIP3_GROUP_CHECKBOX : ST_RIP3_GROUP_NONE,
+	    .selected=b->selected};
+	const struct st_rip3_mouse_visual visual={.context=b,.select=select_button,.destroy=remove_button,.abort=abort_button,
+	    .restore=restore_button,.committed=commit_button};
+	bool redraw=binding.group_kind!=ST_RIP3_GROUP_NONE || (b->style.flags&(2|4096))!=0;
 	if (redraw) b->references++;
 	int status=st_rip3_mouse_define(b->host.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,(b->style.flags&2)!=0,(b->style.flags&4)!=0,
 	    b->identity,b->program,b->program_length,redraw ? &visual : NULL);
@@ -594,6 +613,12 @@ face_stage(struct render_job *job)
 	if (b->mouse && job->creation && st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
 	job->operation=true;
 	status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,job);
+	if (status==0 && job->bitmap!=NULL && (b->style.flags&4096)!=0) {
+		unsigned state=b->selected ? 1 : 0;st_rip3_bitmap_destroy(b->images[state]);b->images[state]=job->bitmap;job->bitmap=NULL;
+	}
+	if ((b->style.flags&4096)==0) {
+		st_rip3_bitmap_destroy(b->images[0]);st_rip3_bitmap_destroy(b->images[1]);b->images[0]=b->images[1]=NULL;
+	}
 	st_rip3_bitmap_destroy(job->bitmap);job->bitmap=NULL;
 	if (status!=0) return status;
 	b->style.flags&=~16u; /* Initial recess is not resident feedback. */
@@ -664,6 +689,36 @@ select_button(void *context,bool selected)
 	struct render_job *job=calloc(1,sizeof(*job));if (job==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	b->references++;*job=(struct render_job){.button=b,.scene=st_rip3_mouse_scene(b->host.mouse)};
 	renderer->job=job;return 0;
+}
+
+static void
+commit_button(void *context,bool selected)
+{
+	((struct button *)context)->selected=selected;
+}
+
+static int
+restore_button(void *context,bool selected)
+{
+	struct button *b=context;struct st_rip3_button_renderer *renderer=b->host.buttons;
+	if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==b) st_rip3_button_renderer_cancel(renderer);
+	if (!b->alive || st_rip3_ports_generation(b->host.ports,b->target)!=b->generation) return 0;
+	b->selected=selected;
+	if ((b->style.flags&128)==0 || (b->style.flags&4096)==0) {
+		/* Plain/clipboard and ICON fallback feedback is only the existing
+		 * RGB complement. Never paste/read files or run providers to undo it. */
+		bool desired=selected && (b->style.flags&2)!=0;
+		if (desired==b->inversion_applied) return 0;
+		int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,invert_button,b);
+		if (status==0) b->inversion_applied=desired;return status;
+	}
+	struct st_rip3_bitmap *image=b->images[selected ? 1 : 0];
+	if (image==NULL) return 0; /* A failed preview never replaces prepared art. */
+	struct render_job job={.button=b,.bitmap=image,.scene=st_rip3_mouse_scene(b->host.mouse)};
+	int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,&job);
+	struct label_paint paint={b,b->label_value,b->label_value_length,b->label_expanded};
+	if (status==0) status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,render_label,&paint);
+	if (status==0) status=finish_button(&job);return status;
 }
 
 int

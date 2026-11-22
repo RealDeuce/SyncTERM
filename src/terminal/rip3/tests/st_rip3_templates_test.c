@@ -12,6 +12,12 @@
 	fprintf(stderr,"line %d: %s\n",__LINE__,#expression);return 1; } } while (0)
 extern bool st_rip3_templates_test_fail;
 
+static int required_group(struct st_rip3_templates *t,unsigned n,bool required)
+{
+	uint64_t redraw[128];size_t count;
+	if (required) return st_rip3_templates_button_add(t,1000+n,n,ST_RIP3_GROUP_RADIO,false,redraw,&count);
+	st_rip3_templates_button_remove(t,1000+n);return 0;
+}
 static int
 set(struct st_rip3_templates *slots, unsigned number, const char *value)
 {
@@ -28,9 +34,73 @@ chain(struct st_rip3_templates *slots, const uint8_t *numbers, size_t count,
 	return 0;
 }
 
+static int value(struct st_rip3_templates *t,unsigned n,const char *expected)
+{
+	struct st_rip3_template_bytes v;CHECK(st_rip3_templates_resolve(t,n,&v)==0);
+	CHECK(v.length==strlen(expected) && (v.length==0 || memcmp(v.bytes,expected,v.length)==0));return 0;
+}
+static int groups(void)
+{
+	struct st_rip3_templates *t=NULL;uint64_t redraw[128];size_t count;
+	CHECK(st_rip3_templates_create(&t)==0);
+	CHECK(st_rip3_templates_button_add(t,1,2,ST_RIP3_GROUP_CHECKBOX,false,redraw,&count)==0);
+	CHECK(st_rip3_templates_button_add(t,2,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
+	CHECK(value(t,2,"")==0 && value(t,3,"")==0);
+	CHECK(st_rip3_templates_button_activate(t,1,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,1,2,(const uint8_t *)"A",1)==0
+	    && st_rip3_templates_associate(t,1,3,(const uint8_t *)"X",1)==0);
+	CHECK(value(t,2,"A")==0 && value(t,3,"X")==0);
+	CHECK(st_rip3_templates_button_activate(t,2,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,2,2,(const uint8_t *)"B",1)==0
+	    && st_rip3_templates_associate(t,2,2,(const uint8_t *)"C",1)==0
+	    && st_rip3_templates_associate(t,2,3,(const uint8_t *)"Y",1)==0);
+	CHECK(value(t,2,"A")==0 && value(t,3,"X")==0);
+	CHECK(st_rip3_templates_button_activate(t,2,redraw,&count)==0);
+	CHECK(value(t,2,"AC")==0 && value(t,3,"XY")==0);
+	CHECK(set(t,2,"Z")==0);st_rip3_templates_button_remove(t,2);
+	CHECK(value(t,2,"Z")==0 && value(t,3,"X")==0);
+	CHECK(st_rip3_templates_associate(t,1,2,(const uint8_t *)"A",1)==0 && value(t,2,"A")==0);
+	st_rip3_templates_button_remove(t,1);CHECK(value(t,2,"Z")==0 && value(t,3,"")==0);
+	CHECK(st_rip3_templates_associate(t,2,2,(const uint8_t *)"stale",5)==0 && value(t,2,"Z")==0);
+	CHECK(st_rip3_templates_button_add(t,3,4,ST_RIP3_GROUP_RADIO,false,redraw,&count)==0);
+	struct st_rip3_template_bytes missing;
+	CHECK(set(t,4,"ordinary")==0 && st_rip3_templates_resolve(t,4,&missing)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_templates_button_activate(t,3,redraw,&count)==0 && value(t,4,"ordinary")==0);
+	CHECK(st_rip3_templates_associate(t,3,4,NULL,0)==0 && value(t,4,"")==0);
+	CHECK(st_rip3_templates_group_check(t,4,ST_RIP3_GROUP_CHECKBOX)==IO_ERROR_CONFLICT);
+	CHECK(st_rip3_templates_button_add(t,4,4,ST_RIP3_GROUP_RADIO,true,redraw,&count)==0
+	    && count==2 && redraw[0]==3 && !st_rip3_templates_button_selected(t,3));
+	CHECK(st_rip3_templates_associate(t,4,4,(const uint8_t *)"preserved",9)==0);
+	CHECK(st_rip3_templates_preserve(t)==0);st_rip3_templates_button_remove(t,3);st_rip3_templates_button_remove(t,4);
+	CHECK(value(t,4,"preserved")==0);
+	CHECK(st_rip3_templates_button_add(t,5,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0
+	    && st_rip3_templates_button_add(t,6,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
+	uint8_t a[3000],b[2000];memset(a,'A',sizeof(a));memset(b,'B',sizeof(b));
+	CHECK(st_rip3_templates_associate(t,5,2,a,sizeof(a))==0 && st_rip3_templates_associate(t,6,2,b,sizeof(b))==0);
+	struct st_rip3_template_bytes aggregate;
+	CHECK(st_rip3_templates_resolve(t,2,&aggregate)==0 && aggregate.length==4096);
+	for (size_t i=0;i<aggregate.length;i++) CHECK(aggregate.bytes[i]==(i<3000 ? 'A' : 'B'));
+	st_rip3_templates_test_fail=true;
+	CHECK(st_rip3_templates_associate(t,5,2,(const uint8_t *)"lost",4)==IO_ERROR_OUT_OF_MEMORY);
+	CHECK(st_rip3_templates_preserve(t)==IO_ERROR_OUT_OF_MEMORY);
+	CHECK(st_rip3_templates_button_add(t,7,2,ST_RIP3_GROUP_CHECKBOX,false,redraw,&count)==IO_ERROR_OUT_OF_MEMORY);
+	st_rip3_templates_test_fail=false;
+	CHECK(st_rip3_templates_resolve(t,2,&aggregate)==0 && aggregate.length==4096);
+	CHECK(st_rip3_templates_button_activate(t,5,redraw,&count)==0);
+	CHECK(st_rip3_templates_resolve(t,2,&aggregate)==0 && aggregate.length==2000);
+	for (size_t i=0;i<aggregate.length;i++) CHECK(aggregate.bytes[i]=='B');
+	/* Another group can publish the slot, without resurrecting old publishers. */
+	CHECK(st_rip3_templates_button_add(t,8,8,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,8,2,(const uint8_t *)"other",5)==0 && value(t,2,"other")==0);
+	st_rip3_templates_button_remove(t,6);CHECK(value(t,2,"other")==0);
+	st_rip3_templates_button_remove(t,8);CHECK(value(t,2,"Z")==0);
+	st_rip3_templates_destroy(t);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(groups()==0);
 	struct st_rip3_templates *slots=NULL;struct st_rip3_template_bytes view;
 	CHECK(st_rip3_templates_create(&slots)==0);
 	for (unsigned i=0; i<36; i++) CHECK(st_rip3_templates_resolve(slots,i,&view)==0 && view.length==0);
@@ -52,16 +122,19 @@ main(void)
 	/* Blank ordinary slots discard their feed; required blanks report the
 	 * missing group without publishing either a partial result or length. */
 	CHECK(chain(slots,(const uint8_t[]){0},1,"X","")==0);
-	CHECK(st_rip3_templates_required(slots,0,true)==0);
+	CHECK(required_group(slots,0,true)==0);
 	view=(struct st_rip3_template_bytes){.length=99};
 	CHECK(st_rip3_templates_resolve(slots,0,&view)==IO_ERROR_NOT_FOUND && view.length==99);
 	uint8_t result[4096];memset(result,0x5a,sizeof(result));size_t length=99;unsigned missing=99;
 	CHECK(st_rip3_templates_chain(slots,(const uint8_t[]){3,0,4},3,(const uint8_t *)"X",1,result,sizeof(result),&length,&missing)
 	    ==IO_ERROR_NOT_FOUND && missing==0 && length==99);
 	for (size_t i=0; i<sizeof(result); i++) CHECK(result[i]==0x5a);
-	CHECK(set(slots,0,"selected")==0 && st_rip3_templates_resolve(slots,0,&view)==0 && view.length==8);
-	CHECK(set(slots,0,"")==0 && st_rip3_templates_resolve(slots,0,&view)==IO_ERROR_NOT_FOUND);
-	CHECK(st_rip3_templates_required(slots,0,false)==0 && st_rip3_templates_resolve(slots,0,&view)==0);
+	CHECK(set(slots,0,"selected")==0 && st_rip3_templates_resolve(slots,0,&view)==IO_ERROR_NOT_FOUND);
+	uint64_t redraw[128];size_t changed;
+	CHECK(st_rip3_templates_button_activate(slots,1000,redraw,&changed)==0
+	    && st_rip3_templates_resolve(slots,0,&view)==0 && view.length==8);
+	CHECK(set(slots,0,"")==0 && st_rip3_templates_resolve(slots,0,&view)==0 && view.length==0);
+	CHECK(required_group(slots,0,false)==0 && st_rip3_templates_resolve(slots,0,&view)==0);
 	/* Definitions own their capped bytes and can safely be replaced from
 	 * their own borrowed view. Storage counts raw, unexpanded bytes. */
 	uint8_t source[5000];memset(source,'A',sizeof(source));
@@ -88,8 +161,8 @@ main(void)
 	CHECK(st_rip3_templates_set(slots,36,NULL,0)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_templates_set(slots,0,NULL,1)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_templates_set(slots,0,source,SIZE_MAX)==IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_templates_required(slots,36,true)==IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_templates_required(NULL,0,true)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(required_group(slots,36,true)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(required_group(NULL,0,true)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_templates_resolve(slots,36,&view)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_templates_resolve(slots,0,NULL)==IO_ERROR_INVALID_ARGUMENT);
 	length=99;missing=99;memset(result,0x5a,sizeof(result));

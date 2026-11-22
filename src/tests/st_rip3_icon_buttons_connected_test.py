@@ -140,7 +140,7 @@ def run(args,width,height):
         world(2)
 
         t.case(f'rip3-hot-initial-size-and-label-{width}x{height}')
-        frame=t.exchange(style(flags=128|4096|1024,foreground=15)
+        frame=t.exchange(style(flags=128|4096|1024,foreground=15,flags2=1)
                          +button((200,200,0,0),b'ID=3:Face<>X<>selected',flags=1))
         assert pixel(frame,100,100)==0xaa0000 and pixel(frame,149,124)==0xaa0000
         white={(x,y) for y in range(100,125) for x in range(100,150) if pixel(frame,x,y)==0xffffff}
@@ -169,14 +169,14 @@ def run(args,width,height):
         t.exchange(button((480,200,0,0),b'BadHot<><>bad-hot'))
         mouse(245,102,True);frame=t.exchange();assert pixel(frame,240,100)==0xffff55
         mouse(245,102);t.input(b'bad-hot')
-        frame=t.exchange(style(flags=128|2|1024)
+        frame=t.exchange(style(flags=128|2|1024,flags2=1)
                          +button((560,200,0,0),b'Fallback<><>initial-inverse',flags=1))
         assert pixel(frame,280,100)==0xffff55 and pixel(frame,289,104)==0xffff55
         frame=click(285,102,b'initial-inverse')
         assert pixel(frame,280,100)==0x0000aa
 
         t.case(f'rip3-icon-auto-stamp-before-label-{width}x{height}')
-        frame=t.exchange(style(flags=128|4096|64|512|1024,foreground=12,bevel=6)
+        frame=t.exchange(style(flags=128|4096|64|512|1024,foreground=12,bevel=6,flags2=1)
                          +button((200,400,0,0),b'Face<>X<>auto-icon',flags=1)
                          +b'\x01|1W0AutoIcon.bmp\r\n')
         paths=list(root.rglob('AutoIcon.bmp'));assert len(paths)==1
@@ -209,7 +209,7 @@ def run(args,width,height):
         mouse(210,155);t.exchange()
         # A selected hot image establishes geometry without loading an unused
         # missing normal image. Its later normal-load failure is nonfatal.
-        frame=t.exchange(button((600,300,0,0),b'OnlyHot<><>still-alive',flags=1))
+        frame=t.exchange(style(flags=128|4096|1024,flags2=1)+button((600,300,0,0),b'OnlyHot<><>still-alive',flags=1))
         assert pixel(frame,300,150)==0xaa0000 and pixel(frame,349,174)==0xaa0000
         click(349,174,b'still-alive')
         frame=values(b'alive',b'alive')

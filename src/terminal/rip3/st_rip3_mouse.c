@@ -17,12 +17,15 @@ struct field {
 	uint8_t program[];
 };
 struct activation {
+	struct activation *next;
+	uint64_t redraw_preview;size_t redraw_count,redraw_at,redraw_capacity;
+	bool associated,render_only;
 	size_t length;
 	uint64_t instance;
 	unsigned stage;
 	int identity;int32_t x,y;
 	bool keyboard,reset;
-	uint8_t program[];
+	uint64_t redraw[];
 };
 struct st_rip3_mouse {
 	struct st_rip3_mouse_sink sink;
@@ -31,6 +34,7 @@ struct st_rip3_mouse {
 	struct field *pressed;
 	uint64_t sequence,scene,gesture;
 	struct activation *activation;
+	struct st_rip3_templates *templates;
 	bool left, inverted,hotkeys,pointer_capture;
 	struct {uint8_t *bytes;size_t length;} queries[2]; /* Entry, exit. */
 	/* One bounded motion snapshot, independent of resident field storage. */
@@ -39,6 +43,12 @@ struct st_rip3_mouse {
 	unsigned hover_phase;
 	int32_t hover_x,hover_y;
 };
+
+static uint8_t *
+action_program(struct activation *action)
+{
+	return (uint8_t *)(action->redraw+action->redraw_capacity);
+}
 
 int
 st_rip3_mouse_identity(const uint8_t **program, size_t *length)
@@ -64,12 +74,35 @@ st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_s
 	mouse->sink=*sink;mouse->hotkeys=true;*result=mouse;return 0;
 }
 
+void st_rip3_mouse_bind_templates(struct st_rip3_mouse *mouse,struct st_rip3_templates *templates)
+{
+	if (mouse!=NULL && mouse->count==0) mouse->templates=templates;
+}
+int st_rip3_mouse_group_check(const struct st_rip3_mouse *mouse,unsigned group,enum st_rip3_group_kind kind)
+{
+	return mouse==NULL || mouse->templates==NULL ? IO_ERROR_NOT_SUPPORTED
+	    : st_rip3_templates_group_check(mouse->templates,group,kind);
+}
+uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *mouse)
+{
+	return mouse!=NULL && mouse->activation!=NULL && mouse->activation->associated ? mouse->activation->instance : 0;
+}
+static void enqueue(struct st_rip3_mouse *mouse,struct activation *action)
+{
+	struct activation **tail=&mouse->activation;while (*tail!=NULL) tail=&(*tail)->next;*tail=action;
+}
+
 static void
 feedback(struct st_rip3_mouse *mouse, bool inverted)
 {
 	if (mouse->inverted==inverted) return;
 	if (mouse->pressed->visual.select!=NULL) {
-		int status=mouse->pressed->visual.select(mouse->pressed->visual.context,inverted);
+		struct field *field=mouse->pressed;
+		bool grouped=field->binding.group_kind!=ST_RIP3_GROUP_NONE;
+		bool selected=grouped ? st_rip3_templates_button_selected(mouse->templates,field->instance) : false;
+		bool display=grouped ? (inverted ? field->binding.group_kind==ST_RIP3_GROUP_RADIO || !selected : selected) : inverted;
+		int status=!inverted && field->visual.restore!=NULL
+		    ? field->visual.restore(field->visual.context,display) : field->visual.select(field->visual.context,display);
 		if (status!=0 && mouse->sink.render_failure!=NULL) mouse->sink.render_failure(mouse->sink.context);
 		if (mouse->sink.changed!=NULL) mouse->sink.changed(mouse->sink.context);
 	}
@@ -87,8 +120,9 @@ st_rip3_mouse_cancel(struct st_rip3_mouse *mouse)
 }
 
 static void
-destroy_field(struct field *field)
+destroy_field(struct st_rip3_mouse *mouse,struct field *field)
 {
+	st_rip3_templates_button_remove(mouse->templates,field->instance);
 	if (field->visual.destroy!=NULL) field->visual.destroy(field->visual.context);
 	free(field);
 }
@@ -99,7 +133,7 @@ st_rip3_mouse_kill(struct st_rip3_mouse *mouse)
 	if (mouse==NULL) return;
 	++mouse->scene;mouse->hover_phase=0;
 	st_rip3_mouse_cancel(mouse);
-	for (size_t i=0;i<mouse->count;i++) destroy_field(mouse->fields[i]);
+	for (size_t i=0;i<mouse->count;i++) destroy_field(mouse,mouse->fields[i]);
 	mouse->count=0;
 }
 
@@ -144,6 +178,21 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	field->visual=visual!=NULL ? *visual : (struct st_rip3_mouse_visual){0};
 	field->instance=++mouse->sequence;
 	if (length!=0) memcpy(field->program,program,length);
+	struct activation *initial=NULL;
+	if (field->binding.group_kind!=ST_RIP3_GROUP_NONE) {
+		if (field->binding.group_kind==ST_RIP3_GROUP_RADIO && field->binding.selected) {
+			initial=calloc(1,sizeof(*initial)+128*sizeof(uint64_t));if (initial==NULL) {free(field);return IO_ERROR_OUT_OF_MEMORY;}
+		}
+		uint64_t redraw[128];size_t count;
+		int status=st_rip3_templates_button_add(mouse->templates,field->instance,field->binding.group,
+		    field->binding.group_kind,field->binding.selected,redraw,&count);
+		if (status!=0) {free(initial);free(field);return status;}
+		if (initial!=NULL) {
+			initial->render_only=true;initial->redraw_capacity=128;
+			for (size_t i=0;i<count;i++) if (redraw[i]!=field->instance) initial->redraw[initial->redraw_count++]=redraw[i];
+			if (initial->redraw_count!=0) enqueue(mouse,initial);else free(initial);
+		}
+	}
 	mouse->fields[mouse->count++]=field;return 0;
 }
 
@@ -175,7 +224,7 @@ st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *are
 	size_t kept=0;
 	for (size_t i=0;i<mouse->count;i++) {
 		struct field *field=mouse->fields[i];
-		if (selected[i]) destroy_field(field);
+		if (selected[i]) destroy_field(mouse,field);
 		else mouse->fields[kept++]=field;
 	}
 	mouse->count=kept;
@@ -212,7 +261,13 @@ void
 st_rip3_mouse_cancel_silent(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	if (mouse->pressed!=NULL && mouse->pressed->visual.select!=NULL && mouse->sink.busy!=NULL) {
+	if (mouse->pressed!=NULL && mouse->pressed->visual.restore!=NULL) {
+		struct field *field=mouse->pressed;
+		(void)field->visual.restore(field->visual.context,field->binding.group_kind!=ST_RIP3_GROUP_NONE
+		    && st_rip3_templates_button_selected(mouse->templates,field->instance));
+		mouse->inverted=false;mouse->pressed=NULL;
+	}
+	else if (mouse->pressed!=NULL && mouse->pressed->visual.select!=NULL && mouse->sink.busy!=NULL) {
 		if (mouse->pressed->visual.abort!=NULL) mouse->pressed->visual.abort(mouse->pressed->visual.context);
 		mouse->inverted=false;mouse->pressed=NULL;
 	}
@@ -243,7 +298,7 @@ void
 st_rip3_mouse_abort(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	st_rip3_mouse_boundary(mouse);free(mouse->activation);mouse->activation=NULL;
+	st_rip3_mouse_boundary(mouse);while (mouse->activation!=NULL) {struct activation *next=mouse->activation->next;free(mouse->activation);mouse->activation=next;}
 }
 
 uint64_t
@@ -303,7 +358,7 @@ next_hover(struct st_rip3_mouse *mouse)
 		}
 		*action=(struct activation){.length=length,.instance=field->instance,.identity=field->identity,
 		    .x=mouse->hover_x,.y=mouse->hover_y};
-		memcpy(action->program,mouse->queries[slot].bytes,length);mouse->activation=action;return true;
+		memcpy(action_program(action),mouse->queries[slot].bytes,length);mouse->activation=action;return true;
 	}
 	return false;
 }
@@ -341,8 +396,33 @@ st_rip3_mouse_resume(struct st_rip3_mouse *mouse)
 		if (mouse->activation==NULL && !next_hover(mouse)) return;
 		struct activation *action=mouse->activation;
 		if (action->stage==0) {
+			if (action->redraw_preview!=0) {
+				if (mouse->pressed!=NULL && mouse->pressed->instance==action->redraw_preview && mouse->inverted
+				    && mouse->pressed->visual.restore!=NULL) {
+					struct field *field=mouse->pressed;
+					bool preview=field->binding.group_kind==ST_RIP3_GROUP_RADIO
+					    || !st_rip3_templates_button_selected(mouse->templates,field->instance);
+					if (field->visual.restore(field->visual.context,preview)!=0 && mouse->sink.render_failure!=NULL)
+						mouse->sink.render_failure(mouse->sink.context);
+				}
+				action->redraw_preview=0;
+				if (mouse->sink.changed!=NULL) mouse->sink.changed(mouse->sink.context);
+			}
+			if (action->redraw_at<action->redraw_count) {
+				uint64_t token=action->redraw[action->redraw_at++];
+				for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->instance==token) {
+					struct field *field=mouse->fields[i];
+					if (mouse->pressed==field && mouse->inverted) action->redraw_preview=token;
+					if (field->visual.select!=NULL && field->visual.select(field->visual.context,
+					    st_rip3_templates_button_selected(mouse->templates,token))!=0 && mouse->sink.render_failure!=NULL)
+						mouse->sink.render_failure(mouse->sink.context);
+					break;
+				}
+				if (mouse->sink.changed!=NULL) mouse->sink.changed(mouse->sink.context);
+				continue;
+			}
 			action->stage=1;
-			if (action->keyboard) for (size_t i=0;i<mouse->count;i++) {
+			if (action->keyboard && !action->associated) for (size_t i=0;i<mouse->count;i++) {
 				struct field *field=mouse->fields[i];
 				if (field->instance==action->instance) {
 					mouse->pressed=field;feedback(mouse,field->invert || field->visual.select!=NULL);break;
@@ -351,15 +431,15 @@ st_rip3_mouse_resume(struct st_rip3_mouse *mouse)
 		}
 		else if (action->stage==1) {
 			action->stage=2;
-			if (mouse->sink.activate!=NULL) mouse->sink.activate(mouse->sink.context,action->program,
+			if (!action->render_only && mouse->sink.activate!=NULL) mouse->sink.activate(mouse->sink.context,action_program(action),
 			    action->length,action->reset,action->identity,!action->keyboard,action->x,action->y);
 		}
 		else if (action->stage==2) {
 			action->stage=3;
-			if (action->keyboard && mouse->pressed!=NULL && mouse->pressed->instance==action->instance)
+			if (action->keyboard && !action->associated && mouse->pressed!=NULL && mouse->pressed->instance==action->instance)
 				st_rip3_mouse_cancel(mouse);
 		}
-		else {mouse->activation=NULL;free(action);}
+		else {mouse->activation=action->next;free(action);}
 	}
 }
 
@@ -372,16 +452,27 @@ commit(struct st_rip3_mouse *mouse,struct field *field,bool keyboard,int32_t x,i
 	}
 	/* Snapshot before optional feedback, which can suspend while the source
 	 * field/destination is deleted. Selection failure never revokes commitment. */
-	struct activation *action=field->length>SIZE_MAX-sizeof(*action) ? NULL : malloc(sizeof(*action)+field->length);
+	size_t capacity=field->binding.group_kind==ST_RIP3_GROUP_NONE ? 0 : 128;
+	size_t extra=capacity*sizeof(uint64_t);
+	struct activation *action=field->length>SIZE_MAX-sizeof(*action)-extra ? NULL : malloc(sizeof(*action)+extra+field->length);
 	if (action!=NULL) {
 		*action=(struct activation){.length=field->length,.instance=field->instance,.identity=field->identity,
-		    .x=x,.y=y,.keyboard=keyboard,.reset=field->reset};
-		if (field->length!=0) memcpy(action->program,field->program,field->length);
+		    .x=x,.y=y,.keyboard=keyboard,.reset=field->reset,.redraw_capacity=capacity};
+		if (field->length!=0) memcpy(action_program(action),field->program,field->length);
 	}
 	if (keyboard) st_rip3_mouse_cancel(mouse);
 	if (action==NULL) {
 		if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
 		return;
+	}
+	if (field->binding.group_kind!=ST_RIP3_GROUP_NONE) {
+		action->associated=true;
+		(void)st_rip3_templates_button_activate(mouse->templates,field->instance,action->redraw,&action->redraw_count);
+		for (size_t at=0;at<action->redraw_count;at++) for (size_t i=0;i<mouse->count;i++) {
+			struct field *target=mouse->fields[i];
+			if (target->instance==action->redraw[at] && target->visual.committed!=NULL)
+				target->visual.committed(target->visual.context,st_rip3_templates_button_selected(mouse->templates,target->instance));
+		}
 	}
 	mouse->activation=action;st_rip3_mouse_resume(mouse);
 }
@@ -434,7 +525,17 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 	struct field *field=mouse->pressed;
 	if (field==NULL || !mouse->pointer_capture) return false;
 	bool hit=inside(field,x,y);
-	feedback(mouse,left && hit && (field->invert || field->visual.select!=NULL));
+	if (!left && hit && field->binding.group_kind!=ST_RIP3_GROUP_NONE) mouse->inverted=false;
+	else if (!left && hit && mouse->inverted && field->visual.select!=NULL) {
+		/* A committed ordinary release requests its actual unselected redraw.
+		 * Outside/focus cancellation below only removes temporary feedback. */
+		mouse->inverted=false;
+		if (field->visual.committed!=NULL) field->visual.committed(field->visual.context,false);
+		int status=field->visual.select(field->visual.context,false);
+		if (status!=0 && mouse->sink.render_failure!=NULL) mouse->sink.render_failure(mouse->sink.context);
+		if (mouse->sink.changed!=NULL) mouse->sink.changed(mouse->sink.context);
+	}
+	else feedback(mouse,left && hit && (field->invert || field->visual.select!=NULL));
 	if (left) return true;
 	mouse->pressed=NULL;mouse->pointer_capture=false;
 	if (hit && mouse->sink.activate!=NULL) commit(mouse,field,false,x,y);

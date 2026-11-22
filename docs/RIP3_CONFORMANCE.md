@@ -48,7 +48,7 @@ contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. Scene reset `*` and `$RESET(SOFT)$` now clear the
 physical canvas to palette-independent RGB black and reset the represented
 TW/STYLE/BUT/PAL/PORT/ENV families on connected sessions. The complete reset contract
-still awaits button instances, mouse/header/resident-query and remaining ANSI state work.
+still awaits mouse-family backup/restore, header/resident-query and remaining ANSI state work.
 The entry-versus-default-MicroANSI policy remains a separate open client decision.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
@@ -7653,3 +7653,62 @@ The 8410-unit queue has 1811 implemented, 1794 pending, 3316 unreviewed,
 unfinished, including PR134 grouped behavior, stored click modes 1–4 and the
 remaining scene/table/playback families. No new renderer buffer/damage layer,
 terminal mode or normal ANSI/RIP1 rendering path is introduced.
+
+
+## Connected grouped selection and template ownership
+
+At the unchanged PR134/135 pin, grouped `1U` buttons now participate in live
+pointer and translated-key sessions. Checkbox activation toggles persistent
+state; radio activation selects one stable instance and clears its peers before
+optional redraw or host processing. An already selected radio still activates
+once. Creation uses the initial selection for artwork and state without parsing
+its host source. Ungrouped buttons ignore that initial flag and remain momentary.
+Conflicting group kinds reject before providers or painting, with admission
+rechecked after suspension. A newly selected radio does not transfer or cancel
+an older held instance's temporary preview; outside release restores the then
+current committed state.
+
+The existing template owner now retains a per-slot unexpanded definition map
+for each stable grouped instance. Only reached definition blocks write it, after
+angle processing and before ordinary expansion; OFF checkboxes still process
+their own source. Selected contributions assemble in creation order, retaining
+the first 4096 bytes without modifying the individual bodies or running providers.
+Ordinary baselines and one current publisher per slot preserve later explicit
+assignments and other groups' publications. Deletion rebuilds current group
+publications; last-member deletion releases them to the ordinary baseline.
+SOFT first preserves effective bytes as ordinary definitions, then deletes
+fields. A pending old continuation retains its source/FIELDID but skips any
+associated write whose original stable owner has disappeared. Duplicate numeric
+IDs never retarget an association or redraw.
+
+A live radio group requires a selected member when its numbered template is
+referenced, independently of slot contents. Selected empty radio bodies are
+valid; ordinary bytes do not satisfy an unselected live group. The last member's
+deletion removes the requirement. HKEYOFF and pointer delivery gates retain
+selection. Missing choices abort only the current host lookup/program, without
+synthetic clicks, automatic retries or connection errors.
+
+Optional feedback uses the existing button renderer. Full redraws retain their
+filename/label provider stages; cancellation uses the existing RGB complement
+or prepared ICON and label resources without providers, file reads or auto-stamp.
+No new scene-pixel or damage layer is introduced. Peer-token storage is allocated
+only for grouped actions, preserving the smaller ordinary hover allocation.
+
+Native tests cover selection before failed redraws, suspended peer feedback,
+same-ID replacement, stale writes, publication supersession, allocation failures
+and source-body/aggregate bounds. Public sessions cover SOFT during a committed
+prompt. Independent connected CP437/UTF-8 tests at 640×480 and 720×400 cover the
+published checkbox transitions, radio selection and empty/missing choices,
+keyboard repeats, mixed-kind rejection without painting, held-preview mutation,
+real prompts, post-angle/ordinary-late bodies, provider-free rebuild and SOFT
+preservation. Existing plain/clipboard/ICON, hover, keyboard and ANSI controls
+pass. Twenty-two distinct relevant CTest checks pass in the single native
+Release configuration, including the contract and RIP1.54 preservation guards.
+
+The 8410-unit queue now has 1855 implemented, 1747 pending, 3316 unreviewed,
+1400 context, 67 excluded and 25 blocked units. Explicit mouse-family backup/
+restore, host-template clearing, HEADER/global orchestration, resident click
+modes 1–4 and other scene/table/playback work remain unfinished. Mixed source
+clauses including those operations stay pending. Existing issue threads receive
+no comments; PR134/135 are already in the pinned stable reference. RIP1.54's
+baseline and expectations remain unchanged.
