@@ -884,3 +884,40 @@ The adoption queue has 2080 implemented, 1782 pending, 3091 unreviewed,
 new issue146 bookkeeping are recorded separately. No covered issue receives
 comments; the original RIP1.54 freeze, arbitrary entry raster and no-VT102/
 external-launch exclusions remain authoritative.
+
+
+## PR #147: logical remembered-pair boundary before physical raster access
+
+Adopt reviewed [PR #147](https://github.com/bbs-land/remote-imaging-protocol/pull/147)
+head `55ba94bdcc2e7b852bc62ffa409cd69aa65d4a3c` through selected fork stable
+`4c8672d935e9faccdb74eb702ab7c056cf24071e`. The actual head is ancestral,
+four commits ahead and none behind; subsequent changes affect workflow/research
+checkpoints without normative edits. Archive SHA-256:
+`409d29dd241618dfffd72035217bf91cb0125b1b0161310b5e13a5362326eb6d`.
+Three of the same 68 normative documents change. Preserve 8520 exact
+source/heading/text matches, relocate 68, retire 11 and review 32 new units,
+yielding 8552. No implemented claims are retired; all retired rows and their
+former evidence remain in adoption history. Of 69 existing derivations, only
+#144 changes (explicitly linking the completed physical boundary); add #146
+for 70. The full normative path set and original ALPHA4 byte hash are unchanged.
+Archive contents remain data: no downloaded instructions, research checks,
+original client, native probe or renderer are executed.
+
+B146 is answered. The pair stores final logical compositor rectangles after
+protocol viewport clipping, before physical storage/sample clipping. Preserve
+their post-viewport mapping without physical refitting or rounding fractional
+edges into the pair. A successful eligible nonempty logical transfer publishes
+even with zero physical writes; logical no-ops and actual underlying failures
+retain old metadata on a surviving definition. This qualifies all named
+producers, PCB and backups without selecting a sampler or adding coverage state.
+Existing copied pixels alone do not establish runtime pair publication or PCB;
+the new/changed clauses remain pending implementation.
+
+At adoption the queue has 2104 implemented, 1780 pending, 3083 unreviewed,
+1493 context, 67 excluded and 25 blocked units. New B148's independent live-TW
+reset report subsequently moves six unreviewed units to blocked, yielding
+3077 unreviewed and 31 blocked; the other counts stay unchanged. Its issue
+references covered reports without commenting on them. The original RIP1.54
+freeze, arbitrary entry raster and no-VT102/external-launch exclusions remain
+controlling. This is a reference-only change; unchanged runtime verification
+is reused and the contract/preservation guards pass.

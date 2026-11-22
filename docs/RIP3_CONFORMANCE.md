@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-f14e410915f11f64d2287eec82ebf4770c3baf41](https://github.com/RealDeuce/remote-imaging-protocol/tree/f14e410915f11f64d2287eec82ebf4770c3baf41/version/3.0)
+4c8672d935e9faccdb74eb702ab7c056cf24071e](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c8672d935e9faccdb74eb702ab7c056cf24071e/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8326,3 +8326,41 @@ pairs/PCB and the startup font policy remain separate. B146's physical clipping
 question remains open; no covered upstream issue is modified. Arbitrary entry
 raster and the no-VT102/external-launch exclusions remain authoritative. Full
 RIP3 compliance is not claimed.
+
+
+## PR147 physical-boundary answer and live TW reset follow-up
+
+The exact selected reference advances to fork stable
+`4c8672d935e9faccdb74eb702ab7c056cf24071e`, incorporating reviewed PR147
+head `55ba94bdcc2e7b852bc62ffa409cd69aa65d4a3c`. The
+[adoption record](RIP3_REFERENCE_ADOPTION.md) retains archive/document/derivation
+hashes, ancestry and complete retired source evidence. B146 is resolved as a
+documentation question. Remembered pairs use final logical rectangles after
+viewport clipping and before physical storage/sample clipping. Physical bounds
+must preserve the established mapping; successful logical completion publishes
+those rectangles even when no physical pixels are written. A logical no-op or
+actual underlying failure does not publish merely because an outer helper
+returns success. This requires no physical coverage/damage layer, rounding of
+fractional edges or new sampling rule. Runtime pairs/PCB remain pending; no
+working feature is claimed from this reference adoption.
+
+While preparing live `$RESET(TW,...)$`, new
+[issue148](https://github.com/bbs-land/remote-imaging-protocol/issues/148)
+records the remaining unstated zero-slot font/kind/native-state and resident-query
+rules, table-reset selection with a protected current window, and CUR resolution
+order. The paragraph's full-screen/no-clear description is not a complete
+state transition, and MTW, ordinary definition, first-use and outer SOFT have
+different explicit retention/default rules. No equivalence is guessed. The
+new issue references #16/#100/#101/#105/#106 and their covered PRs without adding
+comments to them. Six directly affected TW reset units are blocked under B148;
+known backup deletion and connected TW COPY/STW/RTW stay separate and usable.
+Mixed requests containing an unsupported live TW reset remain nonfatal and
+reject before changing earlier backup selectors. Other RIP3 work continues.
+
+The source queue now has 8552 units: 2104 implemented, 1780 pending,
+3077 unreviewed, 1493 context, 67 excluded and 31 blocked. No runtime or frozen
+RIP1.54 code changes. Contract and original preservation guards pass; unchanged
+native build and functional/rendering evidence are reused for this reference-only
+update. All new pair clauses remain pending runtime acceptance. Arbitrary entry
+raster and the no-VT102/external-launch exclusions remain authoritative. Full
+RIP3 compliance is still incomplete.

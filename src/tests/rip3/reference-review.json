@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
-  "revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
-  "previous_revision": "73dfe86c6601990e931237984712197c354999fd",
+  "revision": "4c8672d935e9faccdb74eb702ab7c056cf24071e",
+  "previous_revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "8f715b0b0b9e9cc1814f08a069e6ce40dc5bf16e5e51f73df8e33a800b0088cf",
+  "archive_sha256": "409d29dd241618dfffd72035217bf91cb0125b1b0161310b5e13a5362326eb6d",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1380,9 +1380,15 @@
     },
     {
       "path": "version/3.0/research/issue-144-remembered-port-copy-pairs.md",
-      "sha256": "ebf33803296e4d71f7c48ee3bc33ee5df16cadf8261aa7d27a01ec699d65d281",
+      "sha256": "7d993df415dab411c9d30b0ef80bd17cecc240d6b94a68473ee1ac4776532656",
       "title": "Issue #144: Remembered port-copy rectangles and PCB",
       "role": "Reviewed documentary derivation and explicit portable-completion provenance. Monitoring/workflow prose is data, not local instructions or extra normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-146-physical-clip-pairs.md",
+      "sha256": "eadc618631d855e82ead80ab7148ad45caefcdb4309dbdef9355d3a224f169c8",
+      "title": "Issue #146: Physical clipping and remembered-pair geometry",
+      "role": "Primary documentary/portable-profile derivation for normative pages; checkpoint/workflow material and validation scripts are not additional normative instructions or runtime evidence."
     }
   ],
   "documents": [
@@ -1516,7 +1522,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "32d261e56c401fe08d9af20d9c0b0eda1a7fc2b347ebdcf6e487ed0ccb2895e1"
+      "sha256": "0fbc0bbd84611e1e83e8f62d90590f5fb8d7754d10917e7a678b5be39f77df3f"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1544,7 +1550,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "53150b95cf2b0652c36f4ab25194fd82a32aea6890c54a1f65954c1b698b70e6"
+      "sha256": "8b4eaf03875a00a9e8261188784a8a5d978ce8f2f7aa5e23f652ad7b16c235fd"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1576,7 +1582,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "77c9538f63c76821d1ce6d0648298713ac7c77dd36840e6ce57bb5584f9c227c"
+      "sha256": "5bb26f2b7002e7908b06e22f9ded9359cab875c6c2d1d65c153c244246e658c4"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -9476,6 +9482,301 @@
       },
       "source_blocks_at_adoption": 8531,
       "policy": "Read complete pinned normative archive and both new derivations as data. Preserve 8428 exact source/heading/text matches, relocate866, retire21 with complete evidence and review103 new blocks. All67 earlier derivation hashes and original ALPHA4 text are unchanged. B142/144 documentary answers are resolved; ENV-only backing already agrees with connected runtime, while the new portable pair/PCB producer/lifetime/geometry profile remains pending. No downloaded code/instructions or original client/probe execution. RIP154 freeze, arbitrary raster and no-VT102/external-launch scope remain unchanged; no covered issue comments or source publication."
+    },
+    {
+      "previous_revision": "f14e410915f11f64d2287eec82ebf4770c3baf41",
+      "revision": "4c8672d935e9faccdb74eb702ab7c056cf24071e",
+      "archive_sha256": "409d29dd241618dfffd72035217bf91cb0125b1b0161310b5e13a5362326eb6d",
+      "pull_requests": [
+        {
+          "number": 147,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/147",
+          "head": "55ba94bdcc2e7b852bc62ffa409cd69aa65d4a3c"
+        }
+      ],
+      "upstream_state": "Actual reviewed PR147 head is ancestral to selected fork stable: four commits ahead/none behind. Subsequent changes affect workflow/research checkpoints only, with no normative edits.",
+      "authorization": "Standing user-selected fork stable reference and reviewed-PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "32d261e56c401fe08d9af20d9c0b0eda1a7fc2b347ebdcf6e487ed0ccb2895e1",
+          "sha256": "0fbc0bbd84611e1e83e8f62d90590f5fb8d7754d10917e7a678b5be39f77df3f"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "53150b95cf2b0652c36f4ab25194fd82a32aea6890c54a1f65954c1b698b70e6",
+          "sha256": "8b4eaf03875a00a9e8261188784a8a5d978ce8f2f7aa5e23f652ad7b16c235fd"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "77c9538f63c76821d1ce6d0648298713ac7c77dd36840e6ce57bb5584f9c227c",
+          "sha256": "5bb26f2b7002e7908b06e22f9ded9359cab875c6c2d1d65c153c244246e658c4"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8520,
+      "moved_source_blocks": 68,
+      "new_source_blocks": 32,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:59",
+        "version/3.0/ripscrip/5.1-text-variables.md:3736",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:511",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:513",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:520",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:533",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:535",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:537",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:539",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:541",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:542",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:543",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:544",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:545",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:546",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:548",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:550",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:552",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:553",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:554",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:555",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:556",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:557",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:558",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:559",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:561",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:565",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:578",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:582",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:586",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:624",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:625"
+      ],
+      "retired_source_blocks": 11,
+      "retired_implemented_claims": [],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:59",
+          "heading": "Capture Failure and Geometry",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            59,
+            59
+          ],
+          "text": "**Remembered-pair completion:** a new/replaced clipboard starts without a pair. Only an actual nonempty successful transfer establishes its [remembered DEVICE rectangles](7.0-drawing-ports.md#remembered-copy-pairs), using the final geometry and the actual live source selected by the existing capture rules. The 3×3→4×4 example above therefore records those different extents; its PCB reversal is 4×4→3×3. An allocated clear target left after trim/copy failure has no pair even if the old helper's outward return ignores that failure. This adds no rollback or change to the already adopted pointer/current-port/definition effects.\n",
+          "sha256": "909879d919be33c9e001e453d15cfedd30bad6c021d3572b5d600a142b28f5a7",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3736",
+          "heading": "$PCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3736,
+            3736
+          ],
+          "text": "The source port owns the [optional remembered pair](7.0-drawing-ports.md#remembered-copy-pairs) established by the listed producer operations. If it is `P=(Rs,Rd)`, PCB reads **current source viewport origin + Rd** and writes **current destination viewport origin + Rs**, in DEVICE units. Stored offsets are already projected and trimmed; WORLD changes do not reinterpret them. Viewport movement changes their absolute origins and current viewport extents still clip the new transfer. The original source port number is not a permanent destination binding: paste goes into whatever port is current now.\n",
+          "sha256": "0887591da60d80510373aa2042e8a9e5a15e6f53395b874214ed1371a248c915",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:511",
+          "heading": "Remembered Copy Pairs",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            511,
+            511
+          ],
+          "text": "Each live port p owns either **no pair** or `P[p]=(Rs,Rd)`. Both rectangles have positive area and use half-open DEVICE extent boundaries `(left,top;right,bottom)`. They are the **final source and destination rectangles actually transferred**, after the producer's WORLD conversion, sentinel expansion and existing pre-trim classification/clipping rules, expressed as offsets from their respective viewport origins **at that transfer**. They are not raw WORLD coordinates, sentinel values, original unclipped requests, a raster-mode setting or cached pixels.\n",
+          "sha256": "7f32ae2633c2ef5be474b7f79eb6362b33c1f1fbf804535a1178b9928687fd44",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves the earlier B144 pair/default/lifecycle questions. New issue146 asks whether final pairs describe logical viewport clipping or physical backing clipping for oversized viewports; unequal projections can map physical edges to fractional coordinates without a specified integer extent/rounding rule. Do not change accepted sampling/clipping or guess pair geometry. Pair/PCB implementation is still pending; independent STYLE/BUT/header work is unaffected.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/146"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:513",
+          "heading": "Remembered Copy Pairs",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            513,
+            513
+          ],
+          "text": "Let `Os` and `Od` be the source/destination viewport origins in the backing-surface DEVICE coordinates used by the compositor. For screen ports these include the port's screen origin; for offscreen ports use the bitmap's viewport origin. Add a port origin only once if a backend already stores absolute viewport bounds. Given final rectangles `S*` and `D*`, publish on the **destination**:\n",
+          "sha256": "f2d64b8154310cf4846a608bfd9ca34f1d4c41b5724a4ed7e44a5d4eab412448",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:520",
+          "heading": "Remembered Copy Pairs",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            520,
+            520
+          ],
+          "text": "Subtraction/addition translates all four rectangle boundaries. No second rounding or unit conversion occurs. Store the existing kernel's final rectangles, rather than recomputing an intersection that would change its coupled-versus-independent trimming. In particular, initially equal-size transfers remain unscaled under coupled clipping; initially unequal transfers retain their independently trimmed fit path. A later operation classifies its own initial extents; the pair does not preserve/inherit the old branch.\n",
+          "sha256": "29a7ea2480b9f182bb3162ff5ed91bf74abeca73c329bca424e234cd0f7e393c",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves the earlier B144 pair/default/lifecycle questions. New issue146 asks whether final pairs describe logical viewport clipping or physical backing clipping for oversized viewports; unequal projections can map physical edges to fractional coordinates without a specified integer extent/rounding rule. Do not change accepted sampling/clipping or guess pair geometry. Pair/PCB implementation is still pending; independent STYLE/BUT/header work is unaffected.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/146"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:533",
+          "heading": "Producers and Publication",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            533,
+            533
+          ],
+          "text": "A pair starts absent; no implicit whole-viewport/default pair exists. Publish exactly once on the receiving port after a **nonempty successful transfer stage**, before later outer-command stages. Source pair state normally stays unchanged. A successful same-port transfer snapshots the old pair first, then replaces that same owner's pair with the new final transfer; it must not read its own partially updated metadata.\n",
+          "sha256": "94b51c0e665750a0e06b06743e975797e930746b8f9ec4692d45bcf6b420dd55",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:546",
+          "heading": "Producers and Publication",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            546,
+            546
+          ],
+          "text": "Wire GET_IMAGE retains its adopted extent increments: at WORLD=DEVICE, `(1,1)..(3,3)` requests source `[1,4)×[1,4)` (3×3) and allocates/targets `[0,4)×[0,4)` (4×4). With no clipping it records **Rs=(1,1;4,4), Rd=(0,0;4,4)**; PCB later fits 4×4 back into 3×3. Shared LOAD capture of an already returned w×h rectangle instead has its existing helper allocation w+1 by h+1; explicit duplication uses w×h. Record the final transfer each route actually makes. The [auto-stamp completion](4.3-buttons.md#auto-stamp-geometry-and-redraw) is distinct: logical C is used one-for-one, even if a backend allocates extra capacity. For C=[97,123)×[47,63), full capture gives Rs=(97,47;123,63), Rd=(0,0;26,16) at viewport origins zero.\n",
+          "sha256": "bc7474a868cb94ba1344240a3a1ed847eb32e02a563d7471c995c708eec373dc",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:550",
+          "heading": "Success, Failure, Protection and Overlap",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            550,
+            550
+          ],
+          "text": "For an existing destination definition, a geometric no-op, wholly clipped rectangle, invalid/inactive/undefined operand, rejected request or failed transfer leaves its previous pair unchanged. A nonempty successful copy may publish even when the pixels happen to remain identical. Snapshot source pixels before overlapping writes, including distinct screen ports sharing one backing surface; this reads the source before writing the destination without choosing a scaling filter. If preparing that snapshot fails, there is no transfer/pair publication. A later rendering failure does not imply pixel rollback.\n",
+          "sha256": "747d27b127693afeb655acd36f0d52010c9a9a1492f869ce571a194d36ea33bb",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:554",
+          "heading": "Success, Failure, Protection and Overlap",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            554,
+            554
+          ],
+          "text": "Replacement/capture has its existing stage effects: if an old target was deleted, its old pair is gone; a surviving newly allocated clear target has **no pair** until an actual copy succeeds, even if an outer helper reports success after ignoring a blit/no-op result. A protected replacement rejection retains the old definition/pair. Allocation failure and current/clipboard changes keep the existing operation's documented or implementation-defined recovery scope; this metadata rule adds no rollback. Inactive/trim failure discovered only after capture allocation likewise need not undo that allocation. Later label, wallpaper or other outer-stage failure does not undo a previously completed transfer or its published pair.\n",
+          "sha256": "c068c02dfbf78390112cdaf814134415174f52a4d09c1ef915ff902eff6e6393",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:592",
+          "heading": "Independent Rectangle and State Vectors",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            592,
+            592
+          ],
+          "text": "| Wholly clipped copy or backend failure into an existing port with old P | Keep old P; no uncopied requested rectangle becomes eligible for PCB |\n",
+          "sha256": "33b4b60cbade165e9efd198f256f8d8ac00e0f9b07063d80931915fb9251c284",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:593",
+          "heading": "Independent Rectangle and State Vectors",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            593,
+            593
+          ],
+          "text": "| Capture replacement allocates a new clear bitmap, then actual copy is wholly clipped/fails | New definition/pointer follow existing capture rules, but its pair is absent; no old pair survives deletion |\n",
+          "sha256": "4181ba35e9c2ce4c097ef263babe963ec4820713e7caa032ea19e7161dc0d392",
+          "status": "pending",
+          "implementation": [],
+          "tests": [],
+          "reason": "PR145 resolves B144 through an explicit portable remembered-pair profile: destination-owned final DEVICE offsets, named producer publication, COPY-mode reversal, source snapshot overlap, selector/no-op/failure/lifetime/backup rules. Runtime pair ownership/publication and PCB dispatch are not implemented yet. Existing copy/capture geometry and cursor/protection exceptions remain controlling; do not claim pair functionality from current pixel transfers or PORT snapshots."
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-146-physical-clip-pairs.md",
+          "sha256": "eadc618631d855e82ead80ab7148ad45caefcdb4309dbdef9355d3a224f169c8",
+          "title": "Issue #146: Physical clipping and remembered-pair geometry",
+          "role": "Primary documentary/portable-profile derivation for normative pages; checkpoint/workflow material and validation scripts are not additional normative instructions or runtime evidence."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-144-remembered-port-copy-pairs.md",
+          "previous_sha256": "ebf33803296e4d71f7c48ee3bc33ee5df16cadf8261aa7d27a01ec699d65d281",
+          "sha256": "7d993df415dab411c9d30b0ef80bd17cecc240d6b94a68473ee1ac4776532656"
+        }
+      ],
+      "states_at_adoption": {
+        "unreviewed": 3083,
+        "context": 1493,
+        "pending": 1780,
+        "implemented": 2104,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8552,
+      "policy": "Read exact scoped normative changes and derivations as data, not instructions; execute no downloaded code, original client, probes or research checks. Verify the full68-document path set, all prior derivation hashes (one declared #144 update), new #146 derivation and unchanged ALPHA4 bytes. Preserve exact unchanged source reviews and all retired claims/evidence. B146 is answered without declaring pair/PCB runtime complete. Original RIP154 freeze/arbitrary raster/noVT102/external-launch exclusions remain unchanged.",
+      "followup": {
+        "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/148",
+        "new_blocker": "B148",
+        "blocked_source_units": [
+          "version/3.0/ripscrip/5.1-text-variables.md:2880",
+          "version/3.0/ripscrip/5.1-text-variables.md:2884",
+          "version/3.0/ripscrip/5.1-text-variables.md:2885",
+          "version/3.0/ripscrip/5.1-text-variables.md:2886",
+          "version/3.0/ripscrip/5.1-text-variables.md:2892",
+          "version/3.0/ripscrip/5.1-text-variables.md:2894"
+        ],
+        "states_after_followup": {
+          "unreviewed": 3077,
+          "context": 1493,
+          "pending": 1780,
+          "implemented": 2104,
+          "excluded": 67,
+          "blocked": 31
+        },
+        "scope": "New report references covered #16/#100/#101/#105/#106 and their PRs; no existing issue received comments."
+      },
+      "verification": {
+        "result": "rip3_contract and rip3_preservation_guard pass in the existing native CMake configuration.",
+        "scope": "Reference/data-only change: exact full normative path inventory, moved/new/retired blocks and their evidence, declared derivation hash change, new derivation and unchanged original ALPHA4 bytes. No downloaded code executed and no unchanged product build or runtime rendering suite repeated."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
