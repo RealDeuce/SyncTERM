@@ -4,6 +4,8 @@ import "ui_draw" for Painter
 import "ui_widget" for Rect, Widget
 import "ui_pane" for Pane
 import "ui_list" for ListView
+import "ui_button" for Button
+import "ui_help" for Help
 import "ui_popup" for Alert, Confirm, Prompt, LinePrompt, Popup
 
 class ChoiceMessage is Widget {
@@ -196,7 +198,140 @@ class StandaloneChoice is Popup {
   }
 }
 
-class ModalPane is Pane {
+// An embedded help viewer scrolls but never dismisses its owning panel.
+class MenuPanelInfo is Help {
+  construct new(body) {
+    super("Information", body)
+    focusable = false
+    closeable = false
+    helpable = false
+    shadow = false
+  }
+
+  dismissWith_(value) {}
+
+  handle(event) {
+    if (event is MouseEvent) return super.handle(event)
+    return false
+  }
+}
+
+// Menu policy and ListView state stay with their callers. Only DOS opts
+// into this full-page layout; attached enum choices remain field-sized.
+class MenuPanel is Pane {
+  construct new() {
+    super()
+    _panelMode = false
+    _selection = null
+    _options = null
+    _information = null
+    _informationText = null
+    _informationOverride = null
+    _back = null
+  }
+
+  panelMode { _panelMode }
+  informationText=(value) {
+    _informationOverride = value
+    markDirty()
+  }
+  panelMode=(value) {
+    _panelMode = value
+    if (value) {
+      titleAsBar = false
+      shadow = false
+      helpable = false
+      closeable = false
+    }
+  }
+
+  add(child) {
+    if (!_panelMode || !(child is ListView)) return super.add(child)
+    _selection = child
+    _options = Pane.new()
+    _options.title = "Options"
+    _options.titleAsBar = false
+    _options.frameKind = "display"
+    _options.helpable = false
+    _options.closeable = false
+    _options.add(child)
+    super.add(_options)
+    _back = Button.new("Back")
+    _back.hotkeyIdx = -1
+    _back.onPress = Fn.new { handle(KeyEvent.new(Key.escape)) }
+    super.add(_back)
+    return child
+  }
+
+  layoutPanel_() {
+    var size = Screen.checked_(Screen.size)
+    var rect = Rect.new(1, 1, size[0], size[1])
+    if (bounds != rect) bounds = rect
+    if (_selection == null) return
+    var text = _informationOverride == null ? helpText : _informationOverride
+    var showInformation = size[0] >= 80 && text != null
+    if (_information == null || _informationText != text) {
+      if (_information != null) remove(_information)
+      _informationText = text
+      _information = MenuPanelInfo.new(text)
+      super.add(_information)
+    }
+    _information.visible = showInformation
+    var width = size[0] - 2
+    if (showInformation) {
+      var longest = 0
+      for (label in _selection.items) {
+        longest = longest.max(Screen.checked_(Screen.textWidth(label, 0)))
+      }
+      width = (longest + 5).max(30).min(((size[0] - 3) * 0.6).floor)
+    }
+    var height = (size[1] - 6).max(3)
+    _options.bounds = Rect.new(2, 3, width, height)
+    _selection.bounds = _options.innerBounds
+    if (showInformation) {
+      _information.bounds = Rect.new(width + 3, 3, size[0] - width - 3, height)
+    }
+    _back.bounds = Rect.new(size[0] - _back.intrinsicWidth - 1,
+        size[1] - 1, _back.intrinsicWidth, 1)
+  }
+
+  draw() {
+    if (_panelMode) layoutPanel_()
+    return super.draw()
+  }
+
+  handle(event) {
+    if (_panelMode && event is KeyEvent && event.shortcut_ == Key.escape) {
+      triggerClose_()
+      return true
+    }
+    return super.handle(event)
+  }
+
+  onPaint_() {
+    super.onPaint_()
+    if (!_panelMode) return
+    var x = 2
+    var y = bounds.h - 3
+    var hints = keyHints == null ? [] : keyHints
+    for (hint in hints) {
+      var text = hint[0] + " " + hint[1]
+      var width = Screen.checked_(Screen.textWidth(text, 0))
+      if (x + width > bounds.w - 2) {
+        x = 2
+        y = y + 1
+      }
+      var limit = y == bounds.h - 2 ? _back.bounds.x - 2 : bounds.w - 2
+      if (y >= bounds.h - 1 || x + width > limit) break
+      Painter.text(surface, x, y, hint[0], style("classic.hotkey"), width)
+      Painter.text(surface, x + hint[0].count + 1, y, hint[1],
+          style("classic.hint"), width)
+      x = x + width + 3
+    }
+  }
+}
+
+class ModalPane is MenuPanel {
   construct new(onDismiss) {
     super()
     shadow = true
@@ -578,6 +713,7 @@ class MenuUi {
       finish.call([spec[0], rowValue_(rows, index)])
     }
     pane = CommandPane.new(cancel, commands, onCommand)
+    pane.panelMode = app is App && app.menuPanels
     pane.title = title
     pane.helpText = helpText
     pane.keyHints = commandHints_(commands, helpText != null)
@@ -630,6 +766,7 @@ class MenuUi {
       app.popModal()
     }
     pane = CommandPane.new(cancel, {}, Fn.new {|spec| null })
+    pane.panelMode = app is App && app.menuPanels
     pane.title = title
     pane.keyHints = commandHints_({}, true)
     pane.focused = true
@@ -713,6 +850,7 @@ class MenuUi {
       closeWith.call([spec[0], value])
     }
     pane = CommandPane.new(cancel, commands, onCommand)
+    pane.panelMode = app is App && app.menuPanels
     pane.title = title
     pane.keyHints = commandHints_(commands, true)
     pane.focused = true

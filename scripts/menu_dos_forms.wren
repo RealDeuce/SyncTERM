@@ -544,7 +544,9 @@ class DosForms {
   }
 
   static offerSave(source, name) {
-    return entry_(App.new(), source, false, true, name, true) != null
+    var app = App.new()
+    app.menuPanels = true
+    return entry_(app, source, false, true, name, true) != null
   }
 
   static entry_(app, original, defaults, isNew, name, standalone) {

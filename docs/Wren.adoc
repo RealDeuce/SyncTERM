@@ -987,6 +987,14 @@ Left/Right choose a focused command and Enter runs it. Escape exits the director
 or returns to the existing session.
 Opening, resizing, or switching the directory does not resize the remote terminal.
 
+DOS Settings and its list menus (including screen modes, fonts, themes, web
+lists, sorting, and Wren scripts) use full-page panels with a framed options
+list and bottom command hints. At 80 columns or wider, a separate scrollable
+information panel shows the menu's help or current preview details; narrower
+screens keep the options full-width and provide help through F1. Tab moves
+between the list and Back; Escape or Back returns to the owning screen.
+Nested menus use the same presentation. Classic retains its compact menus.
+
 DOS entry settings, New Connection Defaults, and Program Settings use separate
 full-page forms. Entry settings have three tabs on one row at 80 columns:
 Connection (including login and security), Terminal (including scripts and
@@ -8188,6 +8196,11 @@ for any app that needs external wake-ups.
 `markDirty()` so widget tree-walks can terminate at it.  Setting a
 widget's `parent` to an App is supported and is what `pushModal`
 does internally.
+
+The built-in DOS directory sets `app.menuPanels = true` so `MenuUi` list
+choices use its full-page panel presentation. The default is `false`, keeping
+Classic and custom applications' compact menus. Attached form dropdowns retain
+their field-relative layout in either presentation.
 
 === Widget [[ui-widget]]
 

@@ -452,7 +452,7 @@ target_link_libraries(st_wren_host PRIVATE st_amiga_font)
 
 if(BUILD_TESTING AND NOT WIN32 AND NOT CMAKE_CROSSCOMPILING
     AND Python3_Interpreter_FOUND AND ST_CONSOLE_TEST AND CMAKE_PROJECT_NAME STREQUAL "SyncTERM")
-	foreach(_st_dos_case contracts directory forms keyboard names dropdowns switching failures creation connected safe offer)
+	foreach(_st_dos_case contracts panels directory forms keyboard names dropdowns switching failures creation connected safe offer)
 		add_test(NAME syncterm_dos_${_st_dos_case}
 			COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/src/tests/st_dos_ui_test.py
 				$<TARGET_FILE:syncterm_app> ${_st_dos_case}

@@ -1,7 +1,7 @@
 import "syncterm" for ConnType, FilePickerOptions, Host, Key, KeyEvent, Mod,
     MouseEvent, TLSVersion, Profile, Error, Text
 import "syncterm_menu" for Menu, DirectoryEntry
-import "menu_ui" for ChoiceViewState, MenuUi
+import "menu_ui" for ChoiceViewState, MenuUi, MenuPanel
 import "ui_app" for App
 import "ui_pane" for Pane
 import "ui_list" for ListView
@@ -86,10 +86,11 @@ class ScriptListView is ListView {
   }
 }
 
-class ScriptListPane is Pane {
+class ScriptListPane is MenuPanel {
   construct new(app, scripts, onChange) {
     super()
     shadow = true
+    panelMode = app is App && app.menuPanels
     title = "Wren Scripts"
     helpText = BbsEditor.wrenScriptsHelp_()
     focused = true

@@ -4,7 +4,8 @@ import "syncterm" for Screen, Text, Key, KeyEvent, Mouse, MouseEvent
 import "syncterm_menu" for Menu
 import "ui_widget" for Widget, Rect
 import "ui_draw" for Painter
-import "ui_pane" for Pane
+import "menu_ui" for MenuPanel
+import "menu_settings_ui" for SettingsMenu
 import "ui_list" for ListView
 
 class DosTable {
@@ -122,9 +123,10 @@ class DosHeading is Widget {
   }
 }
 
-class DosSettingsPane is Pane {
+class DosSettingsPane is MenuPanel {
   construct new(app, connected) {
     super()
+    panelMode = true
     _app = app
     _result = null
     _list = ListView.new()
@@ -139,18 +141,16 @@ class DosSettingsPane is Pane {
   rows=(rows) {
     _rows = rows
     _list.items = rows.map {|r| r[1] }.toList
+    _list.onChange = Fn.new {|index, item|
+      if (index != null) informationText = SettingsMenu.itemHelp(_rows[index][0])
+    }
+    if (_list.selected != null) informationText = SettingsMenu.itemHelp(_rows[_list.selected][0])
     _list.onSelect = Fn.new {|index, item|
       _result = _rows[index][0]
       _app.popModal()
     }
   }
   result { _result }
-  draw() {
-    var size = Screen.checked_(Screen.size)
-    bounds = Rect.new(1, 1, size[0], size[1])
-    _list.bounds = innerBounds
-    return super.draw()
-  }
 }
 
 class DosBackdrop is Widget {

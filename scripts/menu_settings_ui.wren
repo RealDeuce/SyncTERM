@@ -13,6 +13,21 @@ class SettingsMenu {
   static directoryPassword { __directoryPassword }
   static passwordChanged { __passwordChanged }
 
+  static itemHelp(value) {
+    if (value == 0) return "Configure dialing directories downloaded from the web. Add a list URL, edit an existing source, or remove one."
+    if (value == 1) return "Set the connection, terminal, and file defaults used when creating new directory entries."
+    if (value == 2) return "Change the current display size and mode. This selects the local directory display."
+    if (value == 3) return "Manage additional local font files and their assigned font slots."
+    if (value == 10) return "Configure the Amiga font families used by Amiga display modes."
+    if (value == 4) return "Configure application behavior, display, sound, hardware, and colours. Changes remain a draft until you save."
+    if (value == 5) return "Preview and select the user-interface theme. You can also create, edit, or browse themes online. Escape cancels the preview."
+    if (value == 6) return "View the locations of SyncTERM's configuration files, dialing directories, fonts, and other data."
+    if (value == 7) return "View the features and libraries selected when this copy of SyncTERM was built."
+    if (value == 9) return "Read the bundled software and font license notices."
+    if (value == 8) return "Protect the personal dialing directory with a password, or change its encryption settings."
+    return "Choose a settings category and press Enter to open it."
+  }
+
   static helpText(connected) {
     var text = "# SyncTERM Settings\n\n" +
         "Web Lists\n:  Configure dialing directories downloaded from the web\n" +
@@ -266,7 +281,7 @@ class SettingsMenu {
       commands[Key.f6] = ["Online", true]
       var result = MenuUi.browserCommandChoice(app, "Themes", rows, current,
           Fn.new {|identity|
-            themeHelp_(themeEntry_(entries, identity))
+            return themeHelp_(themeEntry_(entries, identity))
           }, Fn.new {|identity|
             var entry = themeEntry_(entries, identity)
             if (onComment != null) onComment.call(themeComment_(entry))

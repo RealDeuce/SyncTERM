@@ -364,6 +364,7 @@ class MainMenuApp {
     var view = MainMenu.view_(connected)
     if (connected && MainMenu.view_(false) != null) view = MainMenu.view_(false)
     _app = MainMenuEventApp.new(Fn.new { _consoleIndicator.refresh() })
+    _app.menuPanels = _dos
     _connected = connected
     _current = current
     _result = null

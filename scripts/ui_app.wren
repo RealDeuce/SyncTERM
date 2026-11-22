@@ -73,6 +73,7 @@ class App {
     _root        = Container.new()
     _root.parent = this           // anchors tree-walks at the App
     _modalStack  = []
+    _menuPanels  = false          // built-in menu presentation; Classic by default
     _keymap      = {}
     _running     = false
     _theme       = Theme.current
@@ -138,6 +139,8 @@ class App {
   }
 
   root        { _root        }
+  menuPanels { _menuPanels }
+  menuPanels=(value) { _menuPanels = value }
   theme       { _theme       }
   theme=(t) {
     _theme = t

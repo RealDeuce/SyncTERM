@@ -6,7 +6,7 @@ import socket
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools/testing"))
-from syncterm_fixture import SOURCE, fixture, application, click_text, write_script, install_suite, listener, cell_at
+from syncterm_fixture import SOURCE, fixture, application, click_cell, click_text, write_script, install_suite, listener, cell_at
 
 ENTRIES = """[Alpha]
 Address=alpha.example
@@ -149,6 +149,87 @@ def contracts(executable, reports):
     with fixture(executable, entries=ENTRIES, prepare=prepare, reports=reports) as (client, root):
         client.wait_text("TEST-COMPLETE dos")
         assert b"DOS-CONTRACTS-PASS" in client.stderr
+
+
+def panels(executable, reports):
+    def panel(snapshot, title, information=True):
+        assert title in snapshot.lines[0], snapshot.text
+        assert snapshot.lines[0].startswith("╔") and snapshot.lines[-1].endswith("╝"), snapshot.text
+        assert "Options" in snapshot.lines[2], snapshot.text
+        assert ("Information" in snapshot.lines[2]) == information, snapshot.text
+        assert "[ Back ]" in snapshot.lines[-2], snapshot.text
+
+    with fixture(executable, entries=ENTRIES, settings="MainUI=DOS\n", reports=reports) as (client, root):
+        client.wait_text("Directory:")
+        original = (root / "syncterm.ini").read_bytes()
+        client.key("f4")
+        shot = client.wait_text("Program Settings")
+        panel(shot, "Settings")
+        assert "Add a list URL" in shot.text, shot.text
+        shot.save_image(Path(reports) / "settings-panel.ppm")
+        click_cell(client, shot, 40, 4)  # Reading the information must not dismiss it.
+        client.key("down")
+        shot = client.wait_text("used when creating")
+        panel(shot, "Settings")
+        client.key("f1")
+        client.wait_for(lambda s: "SyncTERM Settings" in s.text and "Options" not in s.lines[2])
+        client.key("escape")
+        shot = client.wait_for(lambda s: "Settings" in s.lines[0] and "Options" in s.lines[2])
+        client.key("tab")
+        client.key("enter")  # Back is a separate keyboard control group.
+        client.wait_text("Directory:")
+        client.key("f4")
+        shot = client.wait_text("Program Settings")
+        # The list remains selected and scrollable through reflow.
+        last = "List Encryption" if "List Encryption" in shot.text else "Licenses"
+        client.key("end")
+        shot = client.wait_for(lambda s: last in s.text)
+        y = next(y for y, line in enumerate(shot.lines) if last in line)
+        selected = cell_at(shot, shot.lines[y].index(last), y).background
+        for columns, rows in ((132, 50), (40, 14), (80, 25)):
+            client.grid_resize(columns, rows)
+            shot = client.wait_for(lambda s: (s.metadata["columns"], s.metadata["rows"]) == (columns, rows) and "[ Back ]" in s.text)
+            panel(shot, "Settings", columns >= 80)
+            y = next(y for y, line in enumerate(shot.lines) if last in line)
+            assert cell_at(shot, shot.lines[y].index(last), y).background == selected, shot.text
+        client.key("home")
+        client.key("enter")  # Web Lists, including its editable blank row.
+        shot = client.wait_text("Web Lists")
+        panel(shot, "Web Lists")
+        assert "INS" in shot.text and "DEL" in shot.text, shot.text
+        click_text(client, shot, "[ Back ]")
+        client.wait_text("Directory:")
+        for label, title in (("Current Screen Mode", "Screen Mode"), ("Font Management", "Font Management"), ("Themes", "Themes")):
+            client.key("f4")
+            shot = client.wait_text("Program Settings")
+            click_text(client, shot, label)
+            shot = client.wait_for(lambda s: title in s.lines[0] and "Options" in s.lines[2])
+            panel(shot, title)
+            client.key("down")
+            client.key("escape")
+            client.wait_text("Directory:")
+        assert (root / "syncterm.ini").read_bytes() == original, "Cancelling previews must retain settings"
+        client.key(115, 2)  # Ctrl-S: nested sort menus retain their panel layout.
+        shot = client.wait_text("Sort Profiles")
+        panel(shot, "Sort Profiles")
+        client.key("enter")
+        shot = client.wait_text("Sort Fields:")
+        panel(shot, "Sort Fields:")
+        client.key("escape")
+        client.wait_for(lambda s: "Sort Profiles" in s.lines[0])
+        client.key("escape")
+        client.wait_text("Directory:")
+        client.key("f2")
+        shot = client.wait_text("Edit Directory Entry")
+        click_text(client, shot, "Terminal")
+        shot = client.wait_text("Wren Scripts")
+        click_text(client, shot, "Wren Scripts")
+        shot = client.wait_for(lambda s: "Wren Scripts" in s.lines[0] and "Options" in s.lines[2])
+        panel(shot, "Wren Scripts")
+        client.key("escape")
+        client.wait_text("Edit Directory Entry")
+        client.key("escape")
+        client.wait_text("Directory:")
 
 
 def keyboard(executable, reports):
@@ -715,7 +796,7 @@ def offer(executable, reports):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("executable")
-    p.add_argument("case", choices=("contracts", "directory", "forms", "keyboard", "names", "dropdowns", "switching", "failures", "creation", "connected", "safe", "offer"))
+    p.add_argument("case", choices=("contracts", "panels", "directory", "forms", "keyboard", "names", "dropdowns", "switching", "failures", "creation", "connected", "safe", "offer"))
     p.add_argument("--reports", default="reports/dos-ui")
     args = p.parse_args()
     globals()[args.case](args.executable, args.reports)
