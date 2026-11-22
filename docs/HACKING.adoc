@@ -72,13 +72,30 @@ dependency linkage choices are described above.
 
 SSH uses the external https://github.com/RealDeuce/DeuceSSH/[DeuceSSH]
 library. CMake uses FetchContent at a pinned revision, against the exact crypto
-provider target already selected for SyncTERM and TLS. Fetched sources and builds live under the build tree;
+provider target already selected for SyncTERM and TLS, using DeuceSSH's
+Botan target hint or OpenSSL package interface without patching its source.
+Fetched sources and builds live under the build tree;
 no DeuceSSH source is copied into SyncTERM. For an offline source checkout,
 set `FETCHCONTENT_SOURCE_DIR_DEUCESSH` to that checkout. Installed DeuceSSH
 packages are not selected because they do not export provider provenance.
 The SSH backend follows the selected TLS crypto provider; `CRYPTO_BACKEND=none`
 keeps the unencrypted transports available and reports encrypted transports
 as unavailable.
+
+If an older build fails with `Failed to unstash changes` in DeuceSSH, its
+checkout may still contain the former build-time patch. Preserve that checkout
+(including its Git stashes) and let CMake fetch a clean copy:
+
+[source,sh]
+----
+mkdir build/deucessh-recovery
+mv build/_deps/deucessh-src build/_deps/deucessh-subbuild build/_deps/deucessh-build build/deucessh-recovery/
+cmake -S . -B build
+cmake --build build
+----
+
+Adjust `build` if using a different build directory. Keep the recovery directory
+until any local edits or stashes have been inspected.
 
 To iterate on a component, build its library or test target and select its
 CTest name:

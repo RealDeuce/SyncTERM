@@ -11,17 +11,20 @@ if(NOT TARGET deucessh::deucessh_static AND NOT TARGET deucessh::deucessh_shared
 	set(DEUCESSH_BUILD_SHARED OFF)
 	set(DEUCESSH_BUILD_TESTS OFF)
 	set(DEUCESSH_CRYPTO_BACKEND "${ST_TLS_PROVIDER}")
-	set(DEUCESSH_PARENT_CRYPTO_TARGET "${_st_crypto_dependency}")
 	if(ST_TLS_PROVIDER STREQUAL "Botan")
 		set(BOTAN3_VENDORED_TARGET "${_st_crypto_dependency}")
 		set(BOTAN3_VENDORED_BUILD_TARGET "${_st_crypto_dependency}")
 	endif()
 	FetchContent_Declare(deucessh
 		GIT_REPOSITORY https://github.com/RealDeuce/DeuceSSH.git
-		GIT_TAG 79c3bc8150974bb3019e9f8f6f6c1fab40aa962d
-		PATCH_COMMAND "${CMAKE_COMMAND}" "-DSOURCE=<SOURCE_DIR>"
-			-P "${CMAKE_CURRENT_LIST_DIR}/PatchDeuceSSH.cmake")
+		GIT_TAG 79c3bc8150974bb3019e9f8f6f6c1fab40aa962d)
+	# DeuceSSH's OpenSSL package lookup must consume our resolved provider,
+	# including when its headers and libraries will only exist at build time.
+	set(_st_deucessh_module_path "${CMAKE_MODULE_PATH}")
+	list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/deucessh")
 	FetchContent_MakeAvailable(deucessh)
+	set(CMAKE_MODULE_PATH "${_st_deucessh_module_path}")
+	unset(_st_deucessh_module_path)
 	# Build-interface linkage supplies both pending generated headers and their
 	# configuration-specific build dependency, without exporting a parent-owned
 	# target in DeuceSSH's installed package.
@@ -47,3 +50,9 @@ if(ST_TLS_PROVIDER STREQUAL "Botan")
 		${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
 endif()
 set(ST_DEUCESSH_TARGET st_deucessh)
+
+if(BUILD_TESTING)
+	add_test(NAME deucessh_provider COMMAND "${CMAKE_COMMAND}"
+		"-DTEST_ROOT=${PROJECT_BINARY_DIR}/deucessh-provider-tests"
+		-P "${CMAKE_CURRENT_LIST_DIR}/tests/deucessh_provider.cmake")
+endif()
