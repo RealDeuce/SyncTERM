@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
-  "revision": "9d666f8468036e5517f2f1395790b52bf6810c28",
-  "previous_revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+  "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+  "previous_revision": "9d666f8468036e5517f2f1395790b52bf6810c28",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "fd771166381c5726458a4bde521c25912f61b663d078e220ed217d5ee7fad8f8",
+  "archive_sha256": "b38c508c2370437675e089a349d8807e22ca2dad21db1049fa6765b878cb3a83",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -963,7 +963,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 65,
+  "upstream_issue_resolutions": 67,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1318,9 +1318,21 @@
     },
     {
       "path": "version/3.0/research/issue-130-text-metric-state.md",
-      "sha256": "9b884806dff95f46b96621317b95773790acd191287be929e4ec0ab4284acddb",
+      "sha256": "29e2e6a9f6c24e7ee5fee6e6eb5fea449b1666dbf4e952bfbf6dafef3f42deaa",
       "title": "Issue #130: Real-font metrics and retained TEXTDATA state",
       "role": "Read-only source/font derivation and explicit portable completion; no original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-131-grouped-button-lifetime.md",
+      "sha256": "6688333fe89c34ede8b8263604b9697c9de2ab3f2b9dea68f5b0621026e53274",
+      "title": "Issue #131: grouped-button-lifetime",
+      "role": "Read-only original source/corpus evidence and explicit portable completion; no original code executed."
+    },
+    {
+      "path": "version/3.0/research/issue-132-hover-handler-lifetime.md",
+      "sha256": "84795ccd30010ab89ef970893e7de6411d461606ec3e6f8195959f0ca97f82f9",
+      "title": "Issue #132: hover-handler-lifetime",
+      "role": "Read-only original source/corpus evidence and explicit portable completion; no original code executed."
     }
   ],
   "documents": [
@@ -1422,7 +1434,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "15e370409366d00871becb1f2a299318d84b714c01597edece1d799a172b5680"
+      "sha256": "e8207b9ed226c4e98551ae0ecdd9701a643f10045634277066872f66af9da223"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1462,11 +1474,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "a1a88c37781b38c449cafd96e3b8c4a0d64e006d340e0366306a75936b6b2a56"
+      "sha256": "59ee8954948d6d82e803e1989f6a173248ce2356ec3f3f621c09320977a0824e"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "a736e18a603c6861d71e8e53f8deba879290e29bd79118855738c2a9a79c0be6"
+      "sha256": "e57e621b97d7f607fec23cfa6512b48cef9beaedadb1e4821ecb4e0046c57d4a"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1478,7 +1490,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "3c1490ae45f3d6cdeb025f389010a149dcaf4bd23fe6c349230c3eaa09b69dc7"
+      "sha256": "e11281b5a27edf93b755fb83eaccfdda0f2a58f9f07585e10a454d0b0dd1d57b"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
@@ -1486,7 +1498,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "b3d3535075aa3efde925d65bb765519ed045bc6f545681e37806ad80626db3ae"
+      "sha256": "8ace42afa39995f1b4e4110440b2f6ea20237e0e56c309f406f705a9f22bb740"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1498,7 +1510,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "a13925455edf751d1200c1cbed311139004f06dcac6b3f7a0fb89eeec1950204"
+      "sha256": "8799eef4defc1450b644b1cb4bf54cf1d24e13dde7c25b784effcd9dfb9a59fb"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -6615,6 +6627,313 @@
           "rip154_source_freeze"
         ]
       }
+    },
+    {
+      "previous_revision": "9d666f8468036e5517f2f1395790b52bf6810c28",
+      "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+      "archive_sha256": "b38c508c2370437675e089a349d8807e22ca2dad21db1049fa6765b878cb3a83",
+      "pull_requests": [
+        {
+          "number": 134,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/134",
+          "head": "6797f9beabb90cd317c5414755b50a00f01a415d"
+        },
+        {
+          "number": 135,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/135",
+          "head": "04ef07e25e8d0551cb997dda4b7f6d917bbdda9b"
+        }
+      ],
+      "upstream_state": "Actual open reviewed PR heads consolidated into selected fork stable.",
+      "authorization": "Standing user authorization to adopt reviewed PR commits on fork stable; user reports all remaining issue PRs.",
+      "prior_adoption_commit": "8818296e",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "15e370409366d00871becb1f2a299318d84b714c01597edece1d799a172b5680",
+          "sha256": "e8207b9ed226c4e98551ae0ecdd9701a643f10045634277066872f66af9da223"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "a1a88c37781b38c449cafd96e3b8c4a0d64e006d340e0366306a75936b6b2a56",
+          "sha256": "59ee8954948d6d82e803e1989f6a173248ce2356ec3f3f621c09320977a0824e"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "a736e18a603c6861d71e8e53f8deba879290e29bd79118855738c2a9a79c0be6",
+          "sha256": "e57e621b97d7f607fec23cfa6512b48cef9beaedadb1e4821ecb4e0046c57d4a"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.0-host-commands.md",
+          "previous_sha256": "3c1490ae45f3d6cdeb025f389010a149dcaf4bd23fe6c349230c3eaa09b69dc7",
+          "sha256": "e11281b5a27edf93b755fb83eaccfdda0f2a58f9f07585e10a454d0b0dd1d57b"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "b3d3535075aa3efde925d65bb765519ed045bc6f545681e37806ad80626db3ae",
+          "sha256": "8ace42afa39995f1b4e4110440b2f6ea20237e0e56c309f406f705a9f22bb740"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "a13925455edf751d1200c1cbed311139004f06dcac6b3f7a0fb89eeec1950204",
+          "sha256": "8799eef4defc1450b644b1cb4bf54cf1d24e13dde7c25b784effcd9dfb9a59fb"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8301,
+      "moved_source_blocks": 676,
+      "new_source_blocks": 109,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:251",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:53",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:55",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:57",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:59",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:63",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:65",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:66",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:67",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:68",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:69",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:70",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:71",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:72",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:73",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:74",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:75",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:76",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:77",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:78",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:84",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:86",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:87",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:88",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:89",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:90",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:91",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:92",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:93",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:94",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:95",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:96",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:97",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:98",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:99",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:100",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:101",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:102",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:103",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:105",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:107",
+        "version/3.0/ripscrip/4.3-buttons.md:174",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:505",
+        "version/3.0/ripscrip/4.3-buttons.md:561",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:567",
+        "version/3.0/ripscrip/4.3-buttons.md:568",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:570",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:572",
+        "version/3.0/ripscrip/4.3-buttons.md:573",
+        "version/3.0/ripscrip/4.3-buttons.md:574",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/5.0-host-commands.md:130",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:366",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:380",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:428",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:430",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:437",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:439",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:443",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:445",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:447",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:451",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:453",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:459",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:460",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:461",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:462",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:463",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:464",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:465",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:466",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:467",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:468",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:469",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:471",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:473",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:475",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:477",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:483",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:485",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:487",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:565",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:616",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:57",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:59",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:60",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:61",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:62",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:63",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:65",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:67",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:69",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:73",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:75",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:77",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:82",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:84",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:86",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:95",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:97"
+      ],
+      "removed_source_block_ids": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:251",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:53",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:55",
+        "version/3.0/ripscrip/4.3-buttons.md:174",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:505",
+        "version/3.0/ripscrip/4.3-buttons.md:561",
+        "version/3.0/ripscrip/5.0-host-commands.md:130",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:366",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:368",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:383",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:385",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:507",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:509",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:560",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:55",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:57",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:59",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:64",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:66",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:68",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:77",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:79"
+      ],
+      "removed_implementation_claims": [
+        "version/3.0/ripscrip/4.3-buttons.md:561",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:77"
+      ],
+      "previous_implementation_evidence": [
+        {
+          "id": "version/3.0/ripscrip/4.3-buttons.md:561",
+          "heading": "RIP_BUTTON",
+          "source": "version/3.0/ripscrip/4.3-buttons.md",
+          "lines": [
+            561,
+            561
+          ],
+          "text": "Using a flag of 1 means that the Button is already \"selected\". By selected, we mean that it is already clicked and should be initially drawn as clicked. This is typically used for Radio Buttons and/or Check Boxes. This only affects the image. The Host Command WILL NOT be automatically sent to the host when a selected Button is drawn. If this parameter is set to 0, then the Button will be drawn in normal, unselected mode.\n",
+          "sha256": "5cf43c4d7548ade85d20a78c64bcc1da869e165a5831aa4dc3e7f79c53c468b0",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_button_create",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8"
+          ],
+          "reason": "The definition-time selected-image bit now reaches every face type. Plain and clipboard creation applies the existing RGB-complement path once, including the fixed bevel/image footprint and source padding while retaining the recess and clipboard source. Native vectors cover auto-stamp before selected inversion; connected CP437/UTF-8 cases cover both new faces on four entry rasters, outside release, pointer/keyboard activation and opaque host source. The existing ICON behavior is unchanged. This is the image flag only; persistent radio/checkbox state and associated-template lifetime remain separately blocked under B131."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:77",
+          "heading": "RIP_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            77,
+            77
+          ],
+          "text": "> **NOTE:** The `<res>` parameter is reserved for future use by TeleGrafix Communications, Inc. It should be set to 00 for compatibility with future releases.\n",
+          "sha256": "14a731ee249abbc027e891a4496a144644d0706ecf514dc001a21525cd3118c8",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_input.c",
+            "src/terminal/rip3/st_rip3_host_variables.c",
+            "src/terminal/rip3/st_rip3_user_variables.c",
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_templates.c",
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_query_commands",
+            "rip3_host_variables",
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_templates",
+            "rip3_hover",
+            "rip3_mouse",
+            "rip3_session",
+            "syncterm_rip3_hover_CP437",
+            "syncterm_rip3_hover_UTF-8"
+          ],
+          "reason": "Connected wire modes 5/6 own unexpanded global entry/exit strings; real physical movement resumes exits before entries, newest first, under independent stable field tokens and callback FIELDID. Normal pointer/keyboard commitment stays separate, including held buttons and asynchronous redraw/prompt/query work. Native and live CP437/UTF-8 vectors cover overlap/boundaries, self-deletion, same-ID replacement, actual editor prompts, once-only traversal and parse-failure recovery. This unit records grammar/normal dispatch, not all resident-query storage or the B132 handler-definition/reset edge contract."
+        }
+      ],
+      "source_blocks_after_update": 8410,
+      "resolved_documentation_blockers": [
+        131,
+        132
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-131-grouped-button-lifetime.md",
+          "sha256": "6688333fe89c34ede8b8263604b9697c9de2ab3f2b9dea68f5b0621026e53274",
+          "title": "Issue #131: grouped-button-lifetime",
+          "role": "Read-only original source/corpus evidence and explicit portable completion; no original code executed."
+        },
+        {
+          "path": "version/3.0/research/issue-132-hover-handler-lifetime.md",
+          "sha256": "84795ccd30010ab89ef970893e7de6411d461606ec3e6f8195959f0ca97f82f9",
+          "title": "Issue #132: hover-handler-lifetime",
+          "role": "Read-only original source/corpus evidence and explicit portable completion; no original code executed."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-130-text-metric-state.md",
+          "previous_sha256": "9b884806dff95f46b96621317b95773790acd191287be929e4ec0ab4284acddb",
+          "sha256": "29e2e6a9f6c24e7ee5fee6e6eb5fea449b1666dbf4e952bfbf6dafef3f42deaa"
+        }
+      ],
+      "reviewed_change": "Grouped selection and associated-template ownership/assembly; preserve effective SOFT template values. Hover definition edges, handler-independent membership, per-callback commitment, focus/full-reset and backup lifecycle. Retain historical context and implementation pending until actual runtime evidence.",
+      "states_after_update": {
+        "unreviewed": 3425,
+        "context": 1378,
+        "pending": 1734,
+        "implemented": 1781,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "implemented_source_units": [],
+      "pending_followups": [
+        "Grouped button/template implementation, full hover lifecycle and remaining table/backup operations."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; one CMake build tree build.",
+        "scope": "Exact source-block reconstruction from selected archive; prior derivations verified, changed notes recorded separately; archive is data only.",
+        "passed_tests": [
+          "rip3_contract",
+          "rip3_preservation_guard",
+          "rip154_source_freeze"
+        ]
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -7237,6 +7556,181 @@
         ],
         "source_integrity": "Exact selected archive reconstruction verifies all 68 normative documents, 8324 source/heading/text/line/hash records and 62 derivation hashes; no normative text was edited to fit implementation.",
         "build_diagnostics": "No compiler diagnostics. GNU make reports sub-millisecond future timestamps on regenerated compiler_depend.make files on this filesystem; changed targets compile and link, and relevant tests pass."
+      }
+    },
+    {
+      "after_commit": "8818296e",
+      "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+      "scope": "Connect PR135 hover definition edges, focus/pointer-delivery interaction boundaries and full-SOFT handler lifetime; adopt PR134 grouped contracts as pending runtime.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:53",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:55",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:57",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:67",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:69",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:78",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:88",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:89",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:90",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:91",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:92",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:93",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:94",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:95",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:96",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:97",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:98",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:99",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:100",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:101",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:102",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:105",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:107",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:57",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:61",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:62",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:63",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:65",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:67",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:69"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:63",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:65",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:66",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:84",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:86",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:87",
+        "version/3.0/ripscrip/4.3-buttons.md:567",
+        "version/3.0/ripscrip/4.3-buttons.md:568",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:459",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:460",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:59",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:60",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:75",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:77",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:82",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:84",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:86",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:95",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:97"
+      ],
+      "pending_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:251",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:59",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:68",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:70",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:71",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:72",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:73",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:74",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:75",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:76",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:77",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:103",
+        "version/3.0/ripscrip/4.3-buttons.md:174",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:505",
+        "version/3.0/ripscrip/4.3-buttons.md:561",
+        "version/3.0/ripscrip/4.3-buttons.md:565",
+        "version/3.0/ripscrip/4.3-buttons.md:569",
+        "version/3.0/ripscrip/4.3-buttons.md:570",
+        "version/3.0/ripscrip/4.3-buttons.md:571",
+        "version/3.0/ripscrip/4.3-buttons.md:572",
+        "version/3.0/ripscrip/4.3-buttons.md:573",
+        "version/3.0/ripscrip/4.3-buttons.md:574",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:581",
+        "version/3.0/ripscrip/5.0-host-commands.md:130",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:366",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:380",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:428",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:430",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:437",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:439",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:443",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:445",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:447",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:451",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:453",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:461",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:462",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:463",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:464",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:465",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:466",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:467",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:468",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:469",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:471",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:473",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:475",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:477",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:483",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:485",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:487",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:565",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:616",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:73"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_mouse.c",
+        "src/terminal/rip3/st_rip3_commands.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/term/st_term_rip3.c"
+      ],
+      "tests": [
+        "rip3_hover",
+        "rip3_mouse",
+        "rip3_session",
+        "term_key_forward",
+        "syncterm_rip3_hover_CP437",
+        "syncterm_rip3_hover_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3316,
+        "context": 1397,
+        "pending": 1794,
+        "implemented": 1811,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "policy": "PR135 live hover is connected: definitions preserve membership, exact C-prefix OFF, nonfatal empty/oversized rejection before replacement, original-byte 1023 limit, ignored numeric window/reserved. Membership remains independent of handlers and public IDs; per-callback owned source/FIELDID survive replacement/deletion/reset and suspension. Focus/pointer-disable invalidates uncommitted traversal and clears membership without synthetic exits; the real modal observer applies focus loss even without a guest press. Full SOFT clears both handlers separately from 1K/MKILL. Mouse-family backup, HEADER and other aggregate operations remain separately pending.",
+      "pending_followups": [
+        "Persistent checkbox/radio state, associated-template ownership/assembly and required-radio behavior from PR134.",
+        "Mouse-family backup/restore and HEADER/global aggregate operations from PR135 remain pending.",
+        "Stored click modes 1..4, remaining table/UI/playback families."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; one CMake build tree build.",
+        "passed_tests": [
+          "rip3_hover",
+          "rip3_session",
+          "rip3_mouse",
+          "rip3_button_create",
+          "rip3_query_commands",
+          "term_key_forward",
+          "syncterm_rip3_hover_CP437",
+          "syncterm_rip3_hover_UTF-8",
+          "syncterm_rip3_mouse_CP437",
+          "syncterm_rip3_mouse_UTF-8",
+          "syncterm_rip3_keyboard_CP437",
+          "syncterm_rip3_keyboard_UTF-8",
+          "syncterm_rip3_reset_CP437",
+          "syncterm_rip3_reset_UTF-8",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "rip3_contract",
+          "rip3_preservation_guard",
+          "rip154_source_freeze"
+        ],
+        "scope": "Native published ordering/count vectors, handler-independent membership, duplicate IDs, per-callback replacement/OFF, exit-to-entry replacement, boundary during suspension, held press cancellation, NUL/whitespace/quoted OFF, 1023/1024 source limits and normalized codepage limits, allocation-failure preservation and destruction. Public sessions cover nonfatal framing, SOFT with callback FIELDID retained, focus during prompt and normalized sources. Connected CP437/UTF-8 at 640x480 and 720x400 uses real physical focus and real editor prompts, oversized/empty recovery, held click/button ownership and no synthetic callbacks. Existing mouse/keyboard/reset/ANSI controls and RIP154 freeze remain covered. A public-session full-SOFT injection during a hover-owned prompt retains the committed query/FIELDID and rejects all old uncommitted field callbacks. Final native and connected checks pass after correcting fixture-only reserved user-name/encoding assumptions.",
+        "build_diagnostics": "The initial hover fault-injection target lacked the private UTF-8 dependency; corrected before the final build/tests. No compiler diagnostics in the final native build. GNU make may report sub-millisecond future timestamps on regenerated dependency files on this filesystem.",
+        "source_integrity": "Reconstructed all 68 normative documents and 8410 exact source/heading/text/line/hash records from selected stable archive; all 64 derivation hashes match. Both actual PR heads are ancestral to the selected stable revision."
       }
     }
   ]

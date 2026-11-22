@@ -61,10 +61,20 @@ def run(args,width,height):
         t.exchange(resident(5,b'E$FIELDID$;'))
         move(30,30)  # restoring a handler does not erase membership
         move(90,90,b'X8;X7;');move(30,30,b'E8;E7;')
-        t.exchange(b'\x01|1\x1b5001bad|1\x1b7000bad\r\n')
+        t.exchange(b'\x01|1\x1b5Z01E$FIELDID$;|1\x1b7000bad\r\n')
         move(90,90,b'X8;X7;')
         t.exchange(field((100,10,140,50),b'anonymous'))
         move(110,30);move(111,30)  # unnumbered fields have no shared hover
+        t.case('rip3-hover-focus-definition-bound-and-membership')
+        move(30,30,b'E8;E7;')
+        client.focus(False);client.focus(True);t.exchange()
+        move(30,30,b'E8;E7;')  # fresh interaction; no movement synthesized on focus
+        t.exchange(resident(5,b''))  # rejected empty replacement retains E
+        move(90,90,b'X8;X7;');move(30,30,b'E8;E7;')
+        t.exchange(resident(5,b'A'*1023)+resident(5,b'B'*1024))
+        move(90,90,b'X8;X7;');move(30,30,b'A'*2046)
+        t.exchange(resident(5,b'E$FIELDID$;'))
+        move(90,90,b'X8;X7;')
         t.case('rip3-hover-handler-failure-stays-inside-parser')
         t.exchange(resident(5,b'$RAND("bad")$'))
         move(30,30)  # rejected handlers send nothing and do not end the session
@@ -100,6 +110,25 @@ def run(args,width,height):
             client.text(value);client.key('enter')
         answer('Ready');client.wait_text('Entry 7');answer('Done')
         receive(peer,b'E8:Ready;E7:Done;\x1b[0n',root/'replies.bin')
+        t.case('rip3-hover-focus-during-real-prompt')
+        move(90,90,b'X8;X7;')
+        t.exchange(resident(5,b'E$FIELDID$:$=FOCUSED,8@Focus <<FIELDID>>$;'))
+        mouse(30,30);client.wait_text('Focus 8')
+        client.focus(False);client.focus(True)
+        send(b'\x1b[5n');answer('kept')
+        # The committed callback finishes, while old uncommitted A is skipped.
+        receive(peer,b'E8:kept;\x1b[0n',root/'replies.bin')
+        t.exchange(resident(5,b'E$FIELDID$;'))
+        move(30,30,b'E8;E7;')  # boundary left both stable instances outside
+        t.case('rip3-hover-full-reset-clears-definitions')
+        move(90,90,b'X8;X7;')
+        t.exchange(resident(5,b'$RESET(SOFT)$kept:$FIELDID$'))
+        move(30,30,b'kept:8')
+        # SOFT removes the old fields and both handlers. Definition/reentry
+        # without reinstalling handlers must not run the old reset callback.
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        t.exchange(fields())
+        move(30,30);move(90,90)
         values(b'$FIELDID$')  # unavailable between callback scopes
         values(b'$&LIVE$',b'Done')
         values(b'alive',b'alive')

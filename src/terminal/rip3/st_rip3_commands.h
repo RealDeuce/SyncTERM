@@ -79,6 +79,7 @@ struct st_rip3_command_host {
 	 * definition/activation/protection and represented SOFT reset; backups remain pending. */
 	bool *text_active;
 	const struct st_rip3_text_window_host *text_window;
+	bool codepage_converted; /* Incoming codepage bytes normalized to UTF-8. */
 };
 
 enum st_rip3_command_diagnostic {

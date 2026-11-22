@@ -878,6 +878,54 @@ hover_queries(void)
 }
 
 static int
+hover_lifecycle(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0 && query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1\0335Z01E$FIELDID$;|1\0336QZZX$FIELDID$;|1M000A0A1O1O0000000ID=7:A|1M000K0K28280000000ID=8:B\r")==0
+	    && pump(&f)==0 && f.errors==0);
+	st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(f.reply_length==6 && memcmp(f.reply,"E8;E7;",6)==0);
+	st_rip3_session_pointer_boundary(f.session);f.reply_length=0;
+	st_rip3_session_mouse_move(f.session,30,30);CHECK(f.reply_length==6 && memcmp(f.reply,"E8;E7;",6)==0);
+	CHECK(append(&f,"!|1\0335000\r")==0 && pump(&f)==0 && f.errors==1);
+	f.reply_length=0;st_rip3_session_mouse_move(f.session,90,90);st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(f.reply_length==12 && memcmp(f.reply,"X8;X7;E8;E7;",12)==0);
+	/* Focus can invalidate the rest of a traversal while the committed
+	 * callback retains its already-running host continuation and FIELDID. */
+	f.reply_length=0;st_rip3_session_mouse_move(f.session,90,90);f.reply_length=0;
+	CHECK(append(&f,"!|1\0335000E$FIELDID$:$=FOCUS,8@Hover <<FIELDID>>$;\r")==0 && pump(&f)==0);
+	st_rip3_session_mouse_move(f.session,30,30);struct st_rip3_session_prompt prompt;
+	CHECK(st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_pointer_boundary(f.session);
+	st_rip3_session_respond(f.session,(const uint8_t *)"kept",4,false);
+	CHECK(!st_rip3_session_pending(f.session) && f.reply_length==8 && memcmp(f.reply,"E8:kept;",8)==0);
+	CHECK(append(&f,"!|1\0330000$FIELDID$\r")==0 && pump(&f)==0 && f.errors==2 && f.reply_length==8);
+	CHECK(append(&f,"!|1\0335000pending$FIELDID$:$=SOFTVALUE,8@Reset <<FIELDID>>$\r")==0 && pump(&f)==0);
+	f.reply_length=0;st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(st_rip3_session_prompt(f.session,&prompt) && st_rip3_session_test_soft_reset(f.session)==0
+	    && !st_rip3_session_mouse_active(f.session) && st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_respond(f.session,(const uint8_t *)"kept",4,false);
+	CHECK(!st_rip3_session_pending(f.session) && f.reply_length==13 && memcmp(f.reply,"pending8:kept",13)==0 && f.resets==1);
+	CHECK(append(&f,"!|1M000A0A1O1O0000000ID=7:A\r")==0 && pump(&f)==0);f.reply_length=0;
+	st_rip3_session_mouse_move(f.session,30,30);st_rip3_session_mouse_move(f.session,90,90);
+	CHECK(f.reply_length==0 && !st_rip3_session_pending(f.session));
+	CHECK(query(&f,"alive","alive")==0);st_rip3_session_destroy(f.session);
+	/* Raw C-prefix storage limits count original normalized codepage bytes. */
+	f=(struct fixture){0};options=config(&f,ST_RIP3_CANVAS_640_480);options.graphical_codepage_converted=true;options.encoding=ST_RIP3_TEXT_UTF8;
+	CHECK(st_rip3_session_create(&f.session,&options)==0 && query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1M000A0A1O1O0000000ID=7:A\r")==0 && pump(&f)==0);
+	char wire[3100];memcpy(wire,"!|1\0335000",8);size_t at=8;
+	for (size_t i=0;i<1023;i++) {wire[at++]=(char)0xe2;wire[at++]=(char)0x96;wire[at++]=(char)0x88;}
+	wire[at++]='\r';wire[at]=0;
+	CHECK(append(&f,wire)==0 && pump(&f)==0 && f.errors==0);
+	f.reply_length=0;st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(f.reply_length==3069 && memcmp(f.reply,wire+8,3069)==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 text_metrics(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -1106,7 +1154,7 @@ main(void)
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
-	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && hover_queries()==0);
+	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && hover_queries()==0 && hover_lifecycle()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

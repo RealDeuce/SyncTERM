@@ -63,9 +63,18 @@ struct st_rip3_mouse_paint {
 int st_rip3_mouse_remove(struct st_rip3_mouse *mouse,
 	const struct st_rip3_rect *area, unsigned flags, const struct st_rip3_mouse_paint *paint);
 /* Global mode-5 entry / mode-6 exit expressions. Copy unexpanded source;
- * case-insensitive $OFF$ removes it. Empty source leaves it unchanged.
+ * case-insensitive exact C-prefix $OFF$ removes it. Empty source and sources
+ * over 1023 protocol bytes reject without replacing the previous definition.
  * These definitions survive field deletion; they own no pixel buffers. */
 int st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length);
+int st_rip3_mouse_query_encoded(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length,bool converted_codepage);
+/* Full drawing reset clears the handlers separately from deleting fields.
+ * Removing them does not change membership or an already committed callback. */
+void st_rip3_mouse_clear_queries(struct st_rip3_mouse *mouse);
+/* Focus loss/pointer delivery disabled: no new providers, clear memberships and
+ * uncommitted traversal, cancel capture, retain handlers and owned activation.
+ * Keep the sampled physical button state until a real release arrives. */
+void st_rip3_mouse_boundary(struct st_rip3_mouse *mouse);
 /* One movement at a time, serialized by pending(). Snapshot field tokens;
  * exits precede entries, newest first. A callback may delete/redefine fields.
  * Hover never acquires, releases or transfers click capture. */

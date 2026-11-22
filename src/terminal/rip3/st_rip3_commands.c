@@ -139,11 +139,11 @@ host_query(const struct st_rip3_command_host *host,
 	if (status != 0)
 		return status;
 	(void)window; /* Immediate and hover queries have no numbered target. */
-	if ((mode!=0 && mode!=5 && mode!=6) || reserved!=0) return IO_ERROR_NOT_SUPPORTED;
+	if ((mode!=0 && mode!=5 && mode!=6) || (mode==0 && reserved!=0)) return IO_ERROR_NOT_SUPPORTED;
 	*operation=true;
 	if (mode==5 || mode==6) {
 		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
-		return st_rip3_mouse_query(host->mouse,mode==5,command+6,length-6);
+		return st_rip3_mouse_query_encoded(host->mouse,mode==5,command+6,length-6,host->codepage_converted);
 	}
 	/* Private ownership/preflight status is consumed by the void command
 	 * boundary. Rejected source syntax has not started an operation. Nested

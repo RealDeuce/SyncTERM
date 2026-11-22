@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-9d666f8468036e5517f2f1395790b52bf6810c28](https://github.com/RealDeuce/remote-imaging-protocol/tree/9d666f8468036e5517f2f1395790b52bf6810c28/version/3.0)
+49a69454a0bd6055c0d11bb415759d309519de33](https://github.com/RealDeuce/remote-imaging-protocol/tree/49a69454a0bd6055c0d11bb415759d309519de33/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -7600,3 +7600,56 @@ The 8324-unit queue contains 1783 implemented, 1736 pending, 3323 unreviewed,
 unfinished, including grouped button/template state, hover lifecycle, resident
 query modes 1–4, advanced frontend formats and remaining scene/table/playback
 families. No new pixel/damage layer or terminal mode is introduced.
+
+## PR134/135 adoption and connected hover lifecycle
+
+The current pin is fork stable
+`49a69454a0bd6055c0d11bb415759d309519de33`, containing reviewed
+[PR #134](https://github.com/bbs-land/remote-imaging-protocol/pull/134) and
+[PR #135](https://github.com/bbs-land/remote-imaging-protocol/pull/135).
+B131/B132 are documentary answers. The adoption history records actual PR heads,
+archive/document hashes, 64 derivations and exact source-block migration. PR134's
+grouped selection, associated-template ownership/assembly and required-radio
+rules remain pending runtime work. No existing issue receives comments.
+
+Live mode-5/6 definitions now reject empty text and sources over 1023 protocol
+bytes before changing the old handler. Exact case-insensitive C-prefix `$OFF$`
+removes only that handler; quoted, whitespace or suffix spellings stay raw
+sources. Normalized codepage bytes retain their original byte budget. The
+numeric window and reserved fields are consumed/validated but their values are
+ignored for these modes. Immediate-mode validation retains its previous path.
+All failures remain nonfatal below the void parser/session boundary.
+
+Every field's membership is maintained independently of handler availability
+and numeric ID. Transitions commit membership before consulting the current
+handler; each callback owns its source/FIELDID, so earlier callbacks may replace
+or remove later handlers safely. Stable-instance tokens retain exit-before-entry
+and newest-first ordering; deleted/replaced fields do not inherit an old action.
+Anonymous fields maintain membership but invoke no shared query. Absent-handler
+motion keeps its single-pass path and allocates no host action.
+
+Focus loss and disabled pointer delivery clear membership, capture and the
+remaining uncommitted traversal without synthetic exits. Already committed
+callbacks keep their owned source and FIELDID. Ordinary capture-only cancellation
+and pure rendering/selection do not clear membership. The actual modal editor's
+existing observer now applies focus boundaries even without a held guest press;
+its original gesture-tail FIFO remains intact. Full SOFT deletes fields and
+clears both handlers, while `1K`/MKILL retain the handlers for future fields.
+Mouse-family backup/restore, HEADER/input-lock orchestration and their mixed
+source clauses remain pending; they are not inferred from these live paths.
+
+Native published vectors cover no/entry/exit/both handlers, duplicate IDs,
+per-callback OFF/replacement, exit-to-entry replacement, pending focus/reset,
+source limits, C-prefix sentinel forms, allocation failures and destruction.
+Public session tests cover numeric framing, normalized sources, callback FIELDID
+after full reset and later wire recovery. Actual CP437/UTF-8 connections at
+640×480 and 720×400 cover focus boundaries, a real prompt losing focus, no
+synthetic/replayed callbacks, full SOFT clearing and retained click/button
+ownership. Existing mouse/keyboard/reset and ANSI control regressions pass.
+The native CMake build and RIP1.54 contract/preservation guards are checked.
+
+The 8410-unit queue has 1811 implemented, 1794 pending, 3316 unreviewed,
+1397 context, 67 excluded and 25 blocked units. Full RIP3 compliance remains
+unfinished, including PR134 grouped behavior, stored click modes 1–4 and the
+remaining scene/table/playback families. No new renderer buffer/damage layer,
+terminal mode or normal ANSI/RIP1 rendering path is introduced.

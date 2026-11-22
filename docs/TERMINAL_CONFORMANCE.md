@@ -2247,13 +2247,17 @@ radio/checkbox state and associated-template lifetime remain separately under
 [issue #131](https://github.com/bbs-land/remote-imaging-protocol/issues/131).
 
 `rip3_hover`, public session tests and `syncterm_rip3_hover_CP437` /
-`syncterm_rip3_hover_UTF-8` cover connected query modes 5/6: exits before entries,
-newest-first overlap, valid-ID membership, half-open edges, callback FIELDID,
-held click capture, asynchronous button redraw, self-deletion, delay/prompt
-suspension and ordered later wire input. Two real editor prompts retain IDs 8
-and 7; malformed handlers remain nonfatal. Native allocation injection checks
-retained definitions and leak-free shutdown. Unchanged motion creates no pending
-traversal, and no-handler motion uses one membership pass. Pointer-only captures
-retain their pixel planes. Modes 1..4 storage and complete resident-handler/
-membership/reset edges remain pending, with the latter tracked in
-[issue #132](https://github.com/bbs-land/remote-imaging-protocol/issues/132).
+`syncterm_rip3_hover_UTF-8` cover connected query modes 5/6: handler-independent
+membership, exits before entries/newest-first overlap, duplicate IDs and stable
+instances, half-open edges, current handler selection per callback and owned
+FIELDID/source through replacement/deletion/suspension. PR135 adds exact OFF,
+empty/1023/1024-byte definitions, normalized codepage bounds, ignored numeric
+window/reserved values and nonfatal recovery. Focus/pointer-disable boundaries
+clear membership and uncommitted traversal without synthetic exits, retaining
+committed callbacks. Real modal editor focus loss works without a held guest
+press. Full SOFT clears both handlers; field-only deletion retains them.
+Actual CP437/UTF-8 sessions cover both 640×480 and 720×400 plus held click/button
+ownership and coherent unchanged-pixel checks. Native allocation injection and
+pending-focus/reset cases cover ownership/error paths. Mouse-family backup/
+restore, HEADER/input-lock operations, PR134 grouped selection/template state
+and stored click modes 1–4 remain pending with those subsystems.

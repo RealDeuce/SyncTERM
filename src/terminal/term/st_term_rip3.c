@@ -769,13 +769,22 @@ st_term_rip3_bind_prompt_input(struct st_term_rip3 *rip,
 void
 st_term_rip3_note_queued_input(struct st_term_rip3 *rip,const struct st_console_event *event)
 {
-	if (rip!=NULL && press_tail(event)) rip->prompt_queued_token=st_rip3_session_press_token(rip->session);
+	if (rip==NULL) return;
+	if (event->type==ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
+		st_rip3_session_pointer_boundary(rip->session);
+	if (press_tail(event)) rip->prompt_queued_token=st_rip3_session_press_token(rip->session);
 }
 
 void
 st_term_rip3_observe_prompt_input(struct st_term_rip3 *rip,const struct st_console_event *event)
 {
-	if (rip==NULL || !rip->observing_prompt || rip->prompt_token==0 || rip->retain_prompt_input==NULL
+	if (rip==NULL || !rip->observing_prompt) return;
+	/* Modal editors consume focus events too. Apply their interaction
+	 * boundary now, even when this hover prompt has no held guest press.
+	 * Keep its committed query/FIELDID; suppress the old traversal tail. */
+	if (event->type==ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
+		st_rip3_session_pointer_boundary(rip->session);
+	if (rip->prompt_token==0 || rip->retain_prompt_input==NULL
 	    || rip->prompt_queued_token==rip->prompt_token || !press_tail(event)) return;
 	/* Exactly one release/cancel belongs to the original guest gesture. Later
 	 * editor clicks/keys remain editor input. The owner already holds earlier
@@ -798,7 +807,7 @@ prompt(struct st_term_rip3 *rip)
 	    && !reference->has_position;
 	int status=IO_ERROR_NOT_SUPPORTED;
 	rip->prompt_token=st_rip3_session_press_token(rip->session);
-	rip->observing_prompt=rip->prompt_token!=0;
+	rip->observing_prompt=true;
 	if (supported && rip->config.rip_prompt!=NULL)
 		status=rip->config.rip_prompt(rip->config.rip_prompt_context,
 		    reference->has_question ? (const char *)reference->question.bytes : reference->name,
@@ -896,7 +905,7 @@ st_term_rip3_captured_input(struct st_term_rip3 *rip,uint64_t token,const struct
 		(void)st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
 		    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
 	}
-	else st_rip3_session_mouse_cancel(rip->session);
+	else st_rip3_session_pointer_boundary(rip->session);
 }
 
 static void
@@ -964,7 +973,7 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 void
 st_term_rip3_mouse_cancel(struct st_term_rip3 *rip)
 {
-	if (rip!=NULL) st_rip3_session_mouse_cancel(rip->session);
+	if (rip!=NULL) st_rip3_session_pointer_boundary(rip->session);
 }
 
 void
@@ -973,7 +982,7 @@ st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_even
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return;
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	(void)st_rip3_session_mouse(rip->session,-1,-1,(event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
-	st_rip3_session_mouse_cancel(rip->session);
+	st_rip3_session_pointer_boundary(rip->session);
 }
 
 void

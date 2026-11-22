@@ -110,7 +110,7 @@ endif()
 
 if(BUILD_TESTING)
 	add_executable(st_rip3_hover_test tests/st_rip3_hover_test.c tests/st_rip3_hover_fault_impl.c)
-	target_link_libraries(st_rip3_hover_test PRIVATE st_rip3)
+	target_link_libraries(st_rip3_hover_test PRIVATE st_rip3 st_utf8)
 	set_target_properties(st_rip3_hover_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
 		target_compile_options(st_rip3_hover_test PRIVATE /W4)

@@ -733,3 +733,37 @@ unreviewed, 1379 context, 67 excluded and 36 blocked units. Mixed clauses that
 also require HEADER or SAVEALL/RESTOREALL remain pending. B131/B132 and the
 other unfinished families are unchanged. RIP1.54's original freeze, selected
 entry raster and the exclusion of a new VT-102 mode remain intact.
+
+## PRs #134 and #135: grouped ownership and hover lifecycle
+
+Adopt fork stable `49a69454a0bd6055c0d11bb415759d309519de33`, containing
+actual reviewed PR #134 head `6797f9beabb90cd317c5414755b50a00f01a415d`
+and PR #135 head `04ef07e25e8d0551cb997dda4b7f6d917bbdda9b`. Both are
+ancestors of this selected stable revision (10 and 2 commits ahead, none behind).
+The PRs remain open upstream. Archive SHA-256:
+`b38c508c2370437675e089a349d8807e22ca2dad21db1049fa6765b878cb3a83`.
+Six of the same 68 normative documents change. Preserve 8301 exact
+source/heading/text blocks, relocate 676, retire 23 and review 109 new blocks,
+yielding 8410 units. The two retired implemented claims retain their previous
+evidence in the adoption history. Verify all 62 previous derivations: 61 retain
+their hashes; #130 adds only its final consolidation checkpoint, recorded with
+old/new digests. Add the #131/#132 notes for 64 pinned derivations.
+
+B131 and B132 are answered as documentation. PR #134 specifies persistent
+checkbox/radio state, preflight membership conflicts, owned committed actions,
+associated definitions/publications/baselines, required radio selection and
+provider-free composition/deletion. It preserves effective template values
+through full SOFT while releasing their field owners. These grouped runtime
+obligations remain pending; adoption does not present them as working buttons.
+
+PR #135 specifies exact definition/C-string/1023-byte edges, handler-independent
+membership, current-handler selection per callback, owned suspended source and
+FIELDID, and separate deletion/focus/full-reset/backup lifetimes. Its live hover
+runtime is connected in this milestone. Mouse-family save/restore, HEADER and
+aggregate operations remain pending with their owning subsystems. No downloaded
+code, original client or source probe is executed; no existing upstream issue
+receives comments.
+
+The implementation queue now has 1811 implemented, 1794 pending, 3316 unreviewed,
+1397 context, 67 excluded and 25 blocked units. RIP1.54's frozen source baseline,
+entry-selected raster and explicit exclusion of a new VT-102 mode are unchanged.

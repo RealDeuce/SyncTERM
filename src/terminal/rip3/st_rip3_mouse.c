@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_mouse.h"
+#include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
 #include <stdlib.h>
 #include <string.h>
@@ -107,7 +108,7 @@ st_rip3_mouse_destroy(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
 	st_rip3_mouse_abort(mouse);st_rip3_mouse_kill(mouse);
-	free(mouse->queries[0].bytes);free(mouse->queries[1].bytes);free(mouse);
+	st_rip3_mouse_clear_queries(mouse);free(mouse);
 }
 
 bool
@@ -220,10 +221,29 @@ st_rip3_mouse_cancel_silent(struct st_rip3_mouse *mouse)
 }
 
 void
+st_rip3_mouse_boundary(struct st_rip3_mouse *mouse)
+{
+	if (mouse==NULL) return;
+	st_rip3_mouse_cancel_silent(mouse);mouse->hover_phase=0;
+	for (size_t i=0;i<mouse->count;i++) mouse->fields[i]->hovered=false;
+	/* An allocated activation already owns its source/FIELDID. Keep it;
+	 * only the remaining uncommitted traversal candidates are invalidated. */
+}
+
+void
+st_rip3_mouse_clear_queries(struct st_rip3_mouse *mouse)
+{
+	if (mouse==NULL) return;
+	for (size_t i=0;i<2;i++) {
+		free(mouse->queries[i].bytes);mouse->queries[i].bytes=NULL;mouse->queries[i].length=0;
+	}
+}
+
+void
 st_rip3_mouse_abort(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	st_rip3_mouse_cancel_silent(mouse);mouse->hover_phase=0;free(mouse->activation);mouse->activation=NULL;
+	st_rip3_mouse_boundary(mouse);free(mouse->activation);mouse->activation=NULL;
 }
 
 uint64_t
@@ -233,12 +253,13 @@ st_rip3_mouse_press_token(const struct st_rip3_mouse *mouse)
 }
 
 int
-st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length)
+st_rip3_mouse_query_encoded(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length,bool converted)
 {
 	if (mouse==NULL || (bytes==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);
-	if (length==0) return 0;
+	if (length==0) return IO_ERROR_INVALID_FORMAT;
+	if (st_rip3_graphical_units(bytes,length,converted)>1023) return IO_ERROR_OUT_OF_RANGE;
 	bool off=length==5;
 	static const char remove[]="$OFF$";
 	for (size_t i=0;off && i<5;i++) {
@@ -250,6 +271,12 @@ st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,
 	unsigned slot=entry ? 0 : 1;
 	free(mouse->queries[slot].bytes);mouse->queries[slot].bytes=copy;mouse->queries[slot].length=off ? 0 : length;
 	return 0;
+}
+
+int
+st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length)
+{
+	return st_rip3_mouse_query_encoded(mouse,entry,bytes,length,false);
 }
 
 static bool
@@ -266,6 +293,7 @@ next_hover(struct st_rip3_mouse *mouse)
 		bool entry=mouse->hover_phase==2;
 		if (mouse->hover[at].inside!=entry || field->hovered==entry) continue;
 		field->hovered=entry;
+		if (field->identity<0) continue;
 		unsigned slot=entry ? 0 : 1;size_t length=mouse->queries[slot].length;
 		if (length==0) continue;
 		struct activation *action=length>SIZE_MAX-sizeof(*action) ? NULL : malloc(sizeof(*action)+length);
@@ -291,13 +319,12 @@ st_rip3_mouse_move(struct st_rip3_mouse *mouse,int32_t x,int32_t y)
 	/* With no callbacks there can be no traversal mutation. Keep membership
 	 * in one pass without creating a pending action for ordinary motion. */
 	if (mouse->queries[0].length==0 && mouse->queries[1].length==0) {
-		for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->identity>=0)
+		for (size_t i=0;i<mouse->count;i++)
 			mouse->fields[i]->hovered=inside(mouse->fields[i],x,y);
 		return;
 	}
 	mouse->hover_count=0;mouse->hover_x=x;mouse->hover_y=y;
-	for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->identity>=0
-	    && mouse->fields[i]->hovered!=inside(mouse->fields[i],x,y)) {
+	for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->hovered!=inside(mouse->fields[i],x,y)) {
 		size_t at=mouse->hover_count++;
 		mouse->hover[at].instance=mouse->fields[i]->instance;mouse->hover[at].inside=inside(mouse->fields[i],x,y);
 	}

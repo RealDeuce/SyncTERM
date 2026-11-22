@@ -257,6 +257,7 @@ soft_reset(void *context)
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
+	st_rip3_mouse_clear_queries(session->commands.mouse);
 	status=st_rip3_ports_reset(session->commands.ports,false);
 	if (status==0 && session->clipboard.set) {
 		struct st_rip3_port_info info;
@@ -654,6 +655,12 @@ st_rip3_session_press_token(const struct st_rip3_session *session)
 }
 
 void
+st_rip3_session_pointer_boundary(struct st_rip3_session *session)
+{
+	if (session!=NULL) st_rip3_mouse_boundary(session->commands.mouse);
+}
+
+void
 st_rip3_session_mouse_cancel(struct st_rip3_session *session)
 {
 	if (session!=NULL) st_rip3_mouse_cancel_silent(session->commands.mouse);
@@ -691,6 +698,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->commands.clipboard=&session->clipboard;session->commands.text=&session->text;
 	session->text.encoding=config->encoding;session->text.font=config->classic_font;session->text.outline_font=config->outline_font;
 	session->graphical_codepage_converted=config->graphical_codepage_converted;
+	session->commands.codepage_converted=config->graphical_codepage_converted;
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->variables.field_context=&session->field_context;
