@@ -154,6 +154,8 @@ Apple SDK to build Intel and universal products. They remain build-only in
 full-test pipelines; target execution and native-window tests stay with the
 `macos-arm64` job. Their `CI_PROFILE` values select `x86_64` and
 `arm64;x86_64`, respectively, through `CMAKE_OSX_ARCHITECTURES`.
+The universal job uses `Release` to reduce the size of its two-architecture
+download; native jobs retain `RelWithDebInfo`.
 
 Runners need Git, CMake/CTest 3.22 or newer, a C17 compiler and its native
 build tool. Jobs request a two-hour limit, subject to the runner's own cap.
