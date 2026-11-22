@@ -630,9 +630,47 @@ static int staged_auto_stamp(void)
 	return 0;
 }
 
+static int initially_selected_faces(void)
+{
+	for (unsigned type=0;type<3;type++) {
+		struct staged f={0};CHECK(staged_create(&f,false)==0);
+		struct st_rip3_button_style style;CHECK(st_rip3_button_styles_get(f.host.button_styles,0,&style)==0);
+		style.flags=(type==1 ? 1u : 256u|512u|16u)|1024u|2u|(type==2 ? 64u : 0u);style.bevel=3;
+		CHECK(st_rip3_button_styles_set(f.host.button_styles,0,&style)==0);
+		if (type==1) {
+			const struct st_rip3_rect source={0,0,3,2},view={0,0,5,4};
+			CHECK(st_rip3_ports_define(f.host.ports,6,&source,true)==0 && st_rip3_ports_switch(f.host.ports,6)==0
+			    && st_rip3_ports_fill(f.host.ports,&source,3,ST_RIP3_COPY)==0
+			    && st_rip3_ports_viewport_device(f.host.ports,&view)==0 && st_rip3_ports_activate(f.host.ports,false)==0
+			    && st_rip3_ports_protect(f.host.ports,6,true)==0 && st_rip3_ports_switch(f.host.ports,0)==0);
+			f.clipboard=(struct st_rip3_clipboard_selection){true,6};
+		}
+		staged_start(&f,"1U0A0K1O141T10ID=12:<><>opaque");
+		CHECK(f.errors==0 && f.actions==0 && st_rip3_mouse_count(f.host.mouse)==1);
+		CHECK(pixel(f.host.ports,10,20,12)==0);
+		if (type==2) {
+			uint8_t value;CHECK(f.clipboard.set && st_rip3_ports_read(f.host.ports,f.clipboard.port,3,3,&value)==0 && value==3);
+		}
+		if (type!=1) CHECK(pixel(f.host.ports,7,25,0)==0 && pixel(f.host.ports,5,25,8)==0);
+		else CHECK(pixel(f.host.ports,14,20,15)==0 && pixel(f.host.ports,10,23,15)==0);
+		CHECK(st_rip3_mouse_event(f.host.mouse,11,21,true));staged_pump(&f);
+		CHECK(f.errors==0 && f.actions==0 && pixel(f.host.ports,10,20,12)==0);
+		CHECK(st_rip3_mouse_event(f.host.mouse,100,100,false));staged_pump(&f);
+		CHECK(f.errors==0 && f.actions==0 && pixel(f.host.ports,10,20,3)==0);
+		CHECK(st_rip3_mouse_key(f.host.mouse,'a'));staged_pump(&f);
+		CHECK(f.errors==0 && f.actions==1 && strcmp(f.program,"opaque")==0 && pixel(f.host.ports,10,20,3)==0);
+		if (type==1) {
+			uint8_t value;CHECK(st_rip3_ports_read(f.host.ports,6,0,0,&value)==0 && value==3);
+			CHECK(pixel(f.host.ports,14,20,0)==0 && pixel(f.host.ports,10,23,0)==0);
+		}
+		staged_destroy(&f);
+	}
+	return 0;
+}
+
 int main(void)
 {
-	CHECK(staged_auto_stamp()==0 && staged_buttons()==0 && payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0 && deletion_paint()==0 && mouse_pointers()==0);
+	CHECK(initially_selected_faces()==0 && staged_auto_stamp()==0 && staged_buttons()==0 && payloads()==0 && clipboard_buttons()==0 && autoclip_buttons()==0 && deletion_paint()==0 && mouse_pointers()==0);
 	struct st_rip3_command_host host={0};unsigned errors=0;
 	struct st_rip3_style drawing;struct st_rip3_text_context text={.encoding=ST_RIP3_TEXT_CP437};
 	CHECK(st_rip3_style_defaults(&drawing)==0 && st_rip3_styles_create(&host.styles,&drawing)==0);

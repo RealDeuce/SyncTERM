@@ -170,6 +170,38 @@ def run(args,width,height):
         click(257,304)
         values(b"$UNPROT(PORT,1)$")
 
+        t.case(f"rip3-initially-selected-plain-and-clipboard-images-{width}x{height}")
+        values(b"$-=SELECTED_ACTION=0$")
+        frame=t.exchange(style(flags=256|1024|2|512|16,surface=3)
+                         +button((20,220,70,240),b"ID=91:<><>$-=SELECTED_ACTION=1$plain:$FIELDID$",
+                                 hotkey=ord('Q'),flags=1))
+        assert pixel(frame,20,220)==0xff5555
+        assert pixel(frame,17,230)==0 and pixel(frame,15,230)==0x555555
+        values(b"$&SELECTED_ACTION$",b"0")  # image selection never runs host source
+        mouse(30,230,True);frame=t.exchange()
+        assert pixel(frame,20,220)==0xff5555  # redraw must not double-invert it
+        mouse(90,230);frame=t.exchange()
+        assert pixel(frame,20,220)==0x00aaaa
+        values(b"$&SELECTED_ACTION$",b"0")  # outside release is not activation
+        click(30,230,b"plain:91")
+        values(b"$&SELECTED_ACTION$",b"1")
+        values(b"$-=SELECTED_ACTION=0$")
+        client.text('q');frame=t.input(b"plain:91")
+        assert pixel(frame,20,220)==0x00aaaa
+        values(b"$&SELECTED_ACTION$",b"1")
+        values(b"$-=SELECTED_ACTION=0$")
+        # The existing protected/inactive 5x3 source has a 7x5 viewport.
+        # Initial selection complements its padding as well as its face.
+        frame=t.exchange(style(flags=1|1024|2)
+                         +button((120,220,0,0),b"ID=92:<><>$-=SELECTED_ACTION=1$clip:$FIELDID$",flags=1))
+        assert pixel(frame,120,220)==0xff5555
+        assert pixel(frame,125,220)==0xffffff and pixel(frame,120,223)==0xffffff
+        values(b"$&SELECTED_ACTION$",b"0")
+        frame=click(122,221,b"clip:92")
+        assert pixel(frame,120,220)==0x00aaaa
+        assert pixel(frame,125,220)==0 and pixel(frame,120,223)==0
+        values(b"$&SELECTED_ACTION$",b"1")
+
         t.case(f"rip3-enclosed-field-types-and-capture-{width}x{height}")
         values(b"$MKILL$")
         definitions=(field((10,100,50,140),b"simple",invert=True)

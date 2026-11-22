@@ -7457,3 +7457,42 @@ B130 instead of hiding these gaps in an implementation claim. Advanced frontend
 user editor/format modes, grouped/persistent selection, selected plain/clipboard
 image policy, hover and remaining table/playback work also remain pending.
 RIP1.54 sources, historical expectations and baseline are unchanged.
+
+## Initial selected images for plain and clipboard faces
+
+The definition-time `1U` selected-image bit now applies to PLAIN and CLIPBOARD
+as well as the existing ICON path. Invertible faces use the same one-time RGB
+complement over their stored image/hit footprint. Bevel pixels and clipboard
+padding participate; the recess and source clipboard do not. Auto-stamp still
+captures before the final selected-image inversion. This changes only the
+initial image; creation never evaluates or executes the opaque host source.
+The existing redraw and input paths handle subsequent press, outside release,
+inside activation and translated keyboard input without double inversion.
+
+A focused native expectation demonstrates the old ICON-only guard's failure
+and passes with the generalized image bit. Connected CP437 and UTF-8 button
+cases pass on 640×480, 800×600, 1024×768 and 720×400 entries. They check initial
+pixels, bevel/recess and clipboard padding, outside-release cancellation,
+once-only pointer/keyboard activation, and unchanged user storage until an
+actual activation. Native tests also verify that a captured auto-stamp source
+contains its unselected face before the displayed complement. No new renderer,
+buffer, damage path, mode list or configuration is added. The existing ICON
+condition has identical results and its passed evidence is retained. Normal
+ANSI/RIP1 code is unchanged.
+
+Persistent radio/checkbox selection is a separate unfinished family. New
+[issue #131](https://github.com/bbs-land/remote-imaging-protocol/issues/131)
+requests its selection/feedback commitment, per-instance associated-template
+ownership, checkbox OFF processing, required-radio lifetime and interaction
+with suspended deletion/reset/replacement. The inherited group examples and
+newer opaque-creation/once-only input contracts are retained. In particular,
+this is not permission to execute a preselected field's host source on receipt.
+Grouped definitions continue to fail inside the void parser until their
+complete connected behavior is implemented. Existing issues receive no comments.
+
+The reference pin remains `21728db6fd3ff7623e36d5ff59e8c64421f57c14`.
+The 8279-unit ledger is 1729 implemented, 1741 pending, 3328 unreviewed,
+1369 context, 67 excluded and 45 blocked. Nine group source units now explicitly
+track B131. B130's complete metric/font/height/state rules, advanced frontend
+user editor/format modes, hover and remaining table/playback work also remain
+unfinished. RIP1.54's sources, baseline and historical expectations remain intact.

@@ -965,8 +965,9 @@
   ],
   "upstream_issue_resolutions": 64,
   "pending_followups": [
-    "B130: portable font width/height/axis/preparation failure, viewport gates, TEXTDATA cold/reset/visibility and expansion-stage snapshots.",
-    "Advanced frontend user editor/format modes, grouped/persistent button selection, initial selected plain/clipboard policy, hover and remaining table/playback work."
+    "B130 portable complete TEXT_METRIC font/height/state contract.",
+    "B131 grouped radio/checkbox selection and template continuation/required lifetime.",
+    "Advanced frontend user editor/format modes, hover and remaining table/playback work."
   ],
   "derivations": [
     {
@@ -6799,6 +6800,57 @@
         ],
         "scope": "Seventeen distinct relevant checks pass, including the ledger/contract guard and RIP1.54 preservation of 93 files and 41 helper definitions with only the recorded historical maintenance exceptions. Native vectors cover synthetic bitmap and independently documented Marin F metrics, signed narrowing/world conversion, normalized versus raw byte profiles, retained-source bypass and no reply after later decoding failure. Public session vectors cover split input, early rejection, nonfatal recovery, prompt/cancel ordering and unchanged pixels/cursor. Real connected CP437/UTF-8 cases run at 640x480 and 720x400. Builds are warning-free.",
         "fixture_corrections": "The outline native fixture needed its actual PORT table binding for frame validation. The live MOVE fixture now establishes WORLD first and encodes decimal 20 as MegaNum 0K."
+      }
+    },
+    {
+      "after_commit": "860c3e81",
+      "revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+      "scope": "Apply the definition-time selected-image bit to plain and clipboard faces, preserving the existing ICON path.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:558",
+        "version/3.0/ripscrip/4.3-buttons.md:561"
+      ],
+      "newly_blocked_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:174",
+        "version/3.0/ripscrip/4.3-buttons.md:198",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:505",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:383",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:385",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:507",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:509",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:560"
+      ],
+      "tests": [
+        "rip3_button_create",
+        "syncterm_rip3_buttons_CP437",
+        "syncterm_rip3_buttons_UTF-8"
+      ],
+      "policy": "This is the per-definition initial image, not persistent group state. Creation remains opaque and runs no host action. Existing one-time RGB complement, captured geometry, auto-stamp order, mouse/keyboard commitment and provider-free cancellation paths are reused. Failures remain below void parsing; normal ANSI/RIP1 paths and RIP1.54 sources are unchanged.",
+      "states_after_update": {
+        "unreviewed": 3328,
+        "context": 1369,
+        "pending": 1741,
+        "implemented": 1729,
+        "excluded": 67,
+        "blocked": 45
+      },
+      "pending_followups": [
+        "B130 portable complete TEXT_METRIC font/height/state contract.",
+        "B131 grouped radio/checkbox selection and template continuation/required lifetime.",
+        "Advanced frontend user editor/format modes, hover and remaining table/playback work."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; one native CMake build tree build.",
+        "passed_tests": [
+          "rip3_button_create",
+          "syncterm_rip3_buttons_CP437",
+          "syncterm_rip3_buttons_UTF-8",
+          "rip154_source_freeze",
+          "rip3_contract",
+          "rip3_preservation_guard"
+        ],
+        "scope": "The focused native expectation failed on the old ICON-only guard, then passed after removing that guard. Both connected encodings pass on 640x480, 800x600, 1024x768 and 720x400. Checks cover selected plain/clipboard image, bevel versus recess, padded source, no double inversion, outside cancellation, once-only keyboard/pointer host activation and no creation-time execution. Native auto-stamp captures retain unselected source pixels before the final image inversion. The final builds are warning-free; unchanged ICON behavior is reused by code equivalence rather than replaying its passed suite. All six distinct relevant checks pass, including the contract/preservation guards and the unchanged 93-file/41-helper RIP1.54 freeze with its recorded historical exceptions."
       }
     }
   ]

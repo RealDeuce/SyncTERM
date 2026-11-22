@@ -541,7 +541,7 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 	b->host.text=host->text!=NULL ? &b->text : NULL;
 	b->frame=frame;b->port=port;b->drawing=drawing;b->style=style;b->face=face;b->label_chisel=(style.flags&8)!=0;
 	b->target=target;b->generation=st_rip3_ports_generation(host->ports,target);b->rgb_bits=env.rgb_bits;
-	b->references=1;b->alive=true;b->mouse=mouse;b->selected=is_icon && (values[5]&1)!=0;
+	b->references=1;b->alive=true;b->mouse=mouse;b->selected=(values[5]&1)!=0;
 	b->hotkey=(uint8_t)values[4];b->default_enter=(values[5]&2)!=0;b->identity=payload.identity;
 	b->name_length=payload.icon.length;b->label_length=payload.label.length;b->program_length=payload.host.length;
 	if (payload.icon.length!=0) memcpy(b->name_source,payload.icon.data,payload.icon.length);

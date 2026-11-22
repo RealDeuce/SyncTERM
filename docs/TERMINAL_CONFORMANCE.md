@@ -2170,8 +2170,8 @@ rejection, failed redraw, cancellation, self-deletion and shutdown. Surface test
 check clipped RGB-complement matching and existing damage; port tests verify
 captured-context restoration after failure. No persistent scene/damage layer is
 introduced. Filename/label macro expansion and auto-stamp continuations are
-covered by the connected milestone below; grouped/persistent selection and
-initial selected plain/clipboard images remain pending.
+covered by the connected milestones below, as are initial selected plain/
+clipboard images; grouped/persistent selection remains pending.
 
 `syncterm_rip3_pointer_CP437` and `syncterm_rip3_pointer_UTF-8` cover connected
 `1c`/`MCURSOR` shapes, unchanged pixel planes, zero WORLD, fixed cursor-field
@@ -2231,3 +2231,11 @@ Normalized codepage bytes and actual UTF-8 wire bytes have explicit separate
 metric vectors. This does not claim full TEXT_METRIC: height modes, initial/reset
 TEXTDATA and complete real-font/cache/axis policy remain under
 [issue #130](https://github.com/bbs-land/remote-imaging-protocol/issues/130).
+
+The connected button cases also verify the initial selected-image flag for
+plain and clipboard faces, including bevel/recess boundaries, protected/inactive
+source padding, no double complement, outside cancellation and later pointer/
+keyboard activation with opaque creation-time host source. Native tests cover
+auto-stamp capture before the final selected-image inversion. Persistent
+radio/checkbox state and associated-template lifetime remain separately under
+[issue #131](https://github.com/bbs-land/remote-imaging-protocol/issues/131).
