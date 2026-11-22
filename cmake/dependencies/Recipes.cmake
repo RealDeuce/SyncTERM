@@ -34,6 +34,9 @@ function(syncterm_dependency_recipe name)
 		set(libs sndfile)
 		set(deps FLAC OGG VORBIS OPUS MPG123 LAME)
 		set(options -DBUILD_PROGRAMS=OFF -DBUILD_EXAMPLES=OFF -DENABLE_EXTERNAL_LIBS=ON -DENABLE_MPEG=ON)
+		if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
+			list(APPEND options -DCMAKE_POLICY_VERSION_MINIMUM=3.18)
+		endif()
 	elseif(name STREQUAL "FLAC")
 		set(package flac)
 		set(header FLAC/stream_decoder.h)
@@ -49,6 +52,9 @@ function(syncterm_dependency_recipe name)
 		set(header vorbis/vorbisenc.h)
 		set(libs vorbisenc vorbis)
 		set(deps OGG)
+		if(CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
+			list(APPEND options -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
+		endif()
 	elseif(name STREQUAL "OPUS")
 		set(package opus)
 		set(header opus/opus.h)
@@ -165,6 +171,8 @@ function(syncterm_dependency_recipe name)
 			-Dsession-managers=[] -Dtests=disabled -Dexamples=disabled -Dman=disabled
 			-Ddocs=disabled -Dinstalled_tests=disabled -Dgstreamer=disabled -Dlibsystemd=disabled
 			-Dauto_features=disabled -Dspa-plugins=enabled -Dsupport=enabled -Daudioconvert=enabled
+			-Daudiomixer=disabled -Dcontrol=disabled -Daudiotestsrc=disabled
+			-Dvideoconvert=disabled -Dvideotestsrc=disabled
 			-Ddbus=disabled -Dudev=disabled -Dlibpulse=disabled
 			-Dsndfile=disabled -Dreadline=disabled -Dbluez5=disabled -Dlibcamera=disabled)
 	elseif(name STREQUAL "WAYLAND")

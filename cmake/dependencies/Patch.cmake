@@ -53,8 +53,10 @@ if(NAME STREQUAL "BOTAN")
 		string(REPLACE "${before}" "${after}" text "${text}")
 		file(WRITE "${path}" "${text}")
 	endif()
-elseif(NAME STREQUAL "VORBIS")
+elseif(NAME STREQUAL "VORBIS" AND CMAKE_VERSION VERSION_LESS 4.0)
 	# Vorbis 1.3.7 requests policies older than CMake 4 supports.
+	# CMake 4 uses the external policy floor instead. Older CMake releases
+	# need the range edit to retain the same policy behavior.
 	set(path "${SOURCE}/CMakeLists.txt")
 	file(READ "${path}" text)
 	set(before "cmake_minimum_required(VERSION 2.8.12)")
@@ -68,9 +70,10 @@ elseif(NAME STREQUAL "VORBIS")
 		string(REPLACE "${before}" "${after}" text "${text}")
 		file(WRITE "${path}" "${text}")
 	endif()
-elseif(NAME STREQUAL "SNDFILE")
+elseif(NAME STREQUAL "SNDFILE" AND CMAKE_VERSION VERSION_LESS 4.0)
 	# libsndfile 1.2.2 misspells the policy-range separator, leaving the
 	# effective policy version at 3.1, which CMake 4 no longer supports.
+	# CMake 4 uses the external policy floor; older versions lack that setting.
 	set(path "${SOURCE}/CMakeLists.txt")
 	file(READ "${path}" text)
 	set(before "cmake_minimum_required (VERSION 3.1..3.18)")
@@ -156,8 +159,13 @@ elseif(NAME STREQUAL "PIPEWIRE")
 	file(READ "${SOURCE}/spa/meson.build" spa)
 	string(REPLACE "subdir('tools')" "# SyncTERM builds the SPA client plugins only." spa "${spa}")
 	file(WRITE "${SOURCE}/spa/meson.build" "${spa}")
-	file(WRITE "${SOURCE}/spa/plugins/meson.build"
-		"subdir('support')\nsubdir('audioconvert')\n")
+	# The remaining SPA plugins are selected through upstream feature options.
+	# These two subdirectories alone have no option in the pinned release.
+	file(READ "${SOURCE}/spa/plugins/meson.build" plugins)
+	foreach(plugin aec filter-graph)
+		string(REPLACE "subdir('${plugin}')" "# SyncTERM does not use ${plugin}." plugins "${plugins}")
+	endforeach()
+	file(WRITE "${SOURCE}/spa/plugins/meson.build" "${plugins}")
 	file(WRITE "${SOURCE}/src/daemon/meson.build" [=[
 configure_file(input: 'client.conf.in', output: 'client.conf',
   configuration: configuration_data(), install_dir: pipewire_confdatadir)
