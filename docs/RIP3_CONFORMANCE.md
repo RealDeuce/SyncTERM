@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-95493d2643eaecfc1a02ca4264da2c0d8a1f406e](https://github.com/RealDeuce/remote-imaging-protocol/tree/95493d2643eaecfc1a02ca4264da2c0d8a1f406e/version/3.0)
+73dfe86c6601990e931237984712197c354999fd](https://github.com/RealDeuce/remote-imaging-protocol/tree/73dfe86c6601990e931237984712197c354999fd/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8119,3 +8119,21 @@ PCB, remaining STYLE scope, ENV selection, HEADER and many other requirements
 remain unfinished. RIP1.54's original freeze, arbitrary entry raster and the
 no-VT102/external-launch exclusions remain unchanged. No full-compliance claim
 is made.
+
+
+## PR #141 adoption: explicit full-family SCB/RCB scope
+
+The exact pin advances to fork stable
+`73dfe86c6601990e931237984712197c354999fd`, incorporating reviewed PR141
+head `fc574bab8fb3cf5948a231615eaab28c724d0354`. The
+[adoption record](RIP3_REFERENCE_ADOPTION.md) retains archive/document/derivation
+hashes and complete retired source evidence. SCB/RCB's empty-pointer/full-family
+wording now agrees with the existing connected implementation; B140 is answered.
+No runtime or legacy behavior changes. Complete PORT definitions and the new
+joint example remain pending with the remembered-copy/PCB inventory; current
+syntax, pointer and lifetime evidence is preserved. B142 remains independent.
+Contract and preservation checks pass; unchanged build/rendering evidence is
+reused. No upstream issue receives comments and no source is published.
+
+The queue remains 8449 units: 2055 implemented, 1715 pending, 3121 unreviewed,
+1465 context, 67 excluded and 26 blocked. Full RIP3 compliance remains incomplete.

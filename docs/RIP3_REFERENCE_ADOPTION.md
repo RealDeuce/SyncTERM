@@ -817,3 +817,35 @@ After the grouped implementation, the queue has 1954 implemented, 1752 pending,
 HEADER and host-template-clearing clauses remain pending. RIP1.54's original
 freeze, selected entry raster and the exclusion of a new VT-102 mode remain
 unchanged.
+
+
+## PR #141: full PORT-family clipboard entry reconciliation
+
+Adopt reviewed [PR #141](https://github.com/bbs-land/remote-imaging-protocol/pull/141)
+head `fc574bab8fb3cf5948a231615eaab28c724d0354` through selected fork stable
+`73dfe86c6601990e931237984712197c354999fd`. The actual head is ancestral,
+two commits ahead and none behind, with no subsequent normative changes.
+Archive SHA-256:
+`07b36afa4b63cc850ba0307a60d935544af34611d84c02caa37c3873f22c202b`.
+Three of the same 68 normative documents change. Preserve 8435 exact
+source/heading/text matches, relocate 425, retire 14 and review 14 replacement
+blocks. The index still contains 8449 units. All 14 retired units, including
+six implemented claims, retain their former evidence in adoption history.
+All 66 existing derivation hashes are unchanged; add the #140 derivation for 67.
+The complete archive's normative path set and original ALPHA4 text hash are
+checked; downloaded files remain data and no upstream code/instructions run.
+
+B140 is resolved. SCB/RCB explicitly address the whole PORT family, retain valid
+snapshots with empty assigned pointers and never imply SCREEN restore or PCB
+paste. RCB Format is corrected, per-screen-port queries are listed, and inherited
+clipboard-only deletion language is historical context. Existing connected code
+already follows these rules. Exact full-family/illustrative-example units remain
+pending with complete PORT record/PCB acceptance; syntax, pointer and lifetime
+clauses use prior independent native/connected evidence. No unchanged product
+build/rendering suite is repeated for this editorial pin update. New contract
+and RIP154 preservation checks pass. B142's separate SENV-list report remains
+open; no existing issue receives comments and no source is pushed.
+
+The queue has 2055 implemented, 1715 pending, 3121 unreviewed, 1465 context,
+67 excluded and 26 blocked units. The original RIP1.54 freeze, arbitrary entry
+raster and no-VT102/external-launch exclusions remain authoritative.

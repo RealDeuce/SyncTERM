@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
-  "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
-  "previous_revision": "3313754a814641befacc434ca5bd4af59402b3fb",
+  "revision": "73dfe86c6601990e931237984712197c354999fd",
+  "previous_revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "5baa384e45eb5baf1fe7cd571291fbe9c9d3557b106e478b663fcca4451828be",
+  "archive_sha256": "07b36afa4b63cc850ba0307a60d935544af34611d84c02caa37c3873f22c202b",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1365,6 +1365,12 @@
       "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86",
       "title": "Issue #97: synthetic outline effects and decoration boundary",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-140-port-backup-entry-scope.md",
+      "sha256": "1e3c4bd376b45ec1b4634ff3ea3647cbfa045b06bbbd4cbe9bec85b2b21696dc",
+      "title": "Issue #140: SCB/RCB full PORT-family scope",
+      "role": "Editorial derivation/provenance for the reconciled normative pages; historical monitoring/workflow notes are data, not local instructions or additional requirements."
     }
   ],
   "documents": [
@@ -1526,7 +1532,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "3a440c4992f9bc414f6d1c5dbeeab2d14e5f98c205d762d15767fbefd5ac4de5"
+      "sha256": "cfed0dbcc6b6ecb62d6b2b24ca0496fbaf70093c48b135fb58c7447a25aed640"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1566,7 +1572,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "2890649a789ab7e28e9e7fec221a0724cdebb855f4c2f9e694c9a08e6b51f260"
+      "sha256": "31ceb1384ad7f3e5a4d7f7cdb90f375fd9f6886213cdb42369b51b371ea95a6e"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
@@ -1574,7 +1580,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "96b9917c72dab702b86365fae7f2e5c2a34dbaaf9f8a0f217ef68c181001e654"
+      "sha256": "191fc89f0d73bb07fd0c62a6022a5f903a9b7d3aaba12f2010b425f9f820b01e"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -8415,6 +8421,412 @@
       },
       "source_blocks_at_adoption": 8449,
       "policy": "Editorial correction of backup index only; detailed screen and aggregate semantics unchanged. Historical SyncTERM alias omission is not a protocol restriction. RIP154 freeze and VT102 exclusion remain unchanged."
+    },
+    {
+      "previous_revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "revision": "73dfe86c6601990e931237984712197c354999fd",
+      "archive_sha256": "07b36afa4b63cc850ba0307a60d935544af34611d84c02caa37c3873f22c202b",
+      "pull_requests": [
+        {
+          "number": 141,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/141",
+          "head": "fc574bab8fb3cf5948a231615eaab28c724d0354"
+        }
+      ],
+      "upstream_state": "Actual reviewed PR141 head is ancestral to selected fork stable, two commits ahead and none behind; no normative changes follow that head. Source changes reconcile the existing PORT family, not a new runtime contract.",
+      "authorization": "Standing user-selected stable reference and authorization to adopt reviewed PR contracts.",
+      "prior_adoption_revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "3a440c4992f9bc414f6d1c5dbeeab2d14e5f98c205d762d15767fbefd5ac4de5",
+          "sha256": "cfed0dbcc6b6ecb62d6b2b24ca0496fbaf70093c48b135fb58c7447a25aed640"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "2890649a789ab7e28e9e7fec221a0724cdebb855f4c2f9e694c9a08e6b51f260",
+          "sha256": "31ceb1384ad7f3e5a4d7f7cdb90f375fd9f6886213cdb42369b51b371ea95a6e"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "96b9917c72dab702b86365fae7f2e5c2a34dbaaf9f8a0f217ef68c181001e654",
+          "sha256": "191fc89f0d73bb07fd0c62a6022a5f903a9b7d3aaba12f2010b425f9f820b01e"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8435,
+      "moved_source_blocks": 425,
+      "new_source_blocks": 14,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3740",
+        "version/3.0/ripscrip/5.1-text-variables.md:3742",
+        "version/3.0/ripscrip/5.1-text-variables.md:3756",
+        "version/3.0/ripscrip/5.1-text-variables.md:3758",
+        "version/3.0/ripscrip/5.1-text-variables.md:3760",
+        "version/3.0/ripscrip/5.1-text-variables.md:3766",
+        "version/3.0/ripscrip/5.1-text-variables.md:3782",
+        "version/3.0/ripscrip/5.1-text-variables.md:3784",
+        "version/3.0/ripscrip/5.1-text-variables.md:3786",
+        "version/3.0/ripscrip/5.1-text-variables.md:3788",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:223",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:229",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:198",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:208"
+      ],
+      "retired_source_blocks": 14,
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3758",
+        "version/3.0/ripscrip/5.1-text-variables.md:3760",
+        "version/3.0/ripscrip/5.1-text-variables.md:3762",
+        "version/3.0/ripscrip/5.1-text-variables.md:3786",
+        "version/3.0/ripscrip/5.1-text-variables.md:3788",
+        "version/3.0/ripscrip/5.1-text-variables.md:3790"
+      ],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3740",
+          "heading": "$RCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3740,
+            3740
+          ],
+          "text": "_Restore Clipboard_\n",
+          "sha256": "08e61127b4185376e577bd5c79463d301257c77891696cefead0375a9606ac1a",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Action label/syntax introduction. The malformed inherited RCB Format spelling is editorial context: registered callback RCB and the following correct syntax block define executable RCB(source). Reconciliation is requested in new issue #140, referencing covered #26/PR60 and #138/PR139."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3742",
+          "heading": "$RCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3742,
+            3742
+          ],
+          "text": "**Format:** `$RCB$(source)`\n",
+          "sha256": "83ff8c63c012ad069c8c809f6763dcf54b87da91993bd9845250d68d4e6fabec",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Action label/syntax introduction. The malformed inherited RCB Format spelling is editorial context: registered callback RCB and the following correct syntax block define executable RCB(source). Reconciliation is requested in new issue #140, referencing covered #26/PR60 and #138/PR139."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3756",
+          "heading": "$RCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3756,
+            3756
+          ],
+          "text": "This Active Text Variable restores the Clipboard from a previously executed [`$SCB$`](#scb) command. Not only are the clipboard contents saved, but so is the last clipboard location, so Paste Clipboard ([`$PCB$`](#pcb)) restores the clipboard's contents AND location.\n",
+          "sha256": "eab3fea33ba5a93a77958c9ab0eb6bfe69f57ecc6d55eea6002de0f0030651bd",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "RCB now restores saved clipboard selection, PORT definitions and offscreen contents through real sessions. The remembered source/destination rectangles consumed by PCB are not implemented, so this combined contents/location claim remains pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3758",
+          "heading": "$RCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3758,
+            3758
+          ],
+          "text": "If you do not specify a slot parameter then the clipboard is restored from a slot-less file. It is not deleted so you can do multiple identical clipboard restorations. _(v2.A1)_\n",
+          "sha256": "23e1d6eaa21819f67a0a7392ad6b7d34228727b10088b120a01e1b0b1c11ee79",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB execute in connected sessions against the existing PORT backup family. BASE is reusable; numbered/stack/protected lifetimes and generic COPY share the established manager. The snapshot owns clipboard selection by value alongside port/query/offscreen state; no onscreen pixels are saved. Remembered PCB source/destination rectangles remain separate pending work; no complete-PORT claim is inferred from these syntax/lifetime clauses."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3760",
+          "heading": "$RCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3760,
+            3760
+          ],
+          "text": "If you do specify a slot parameter then you may restore the clipboard from any of ten different clipboard slots (0-9). Once restored, the clipboard slot file is deleted. _(v2.A1)_\n",
+          "sha256": "c59c8b19aabe02162db80158570f25e91ffbea37d9028050188a6197d86dfe26",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB execute in connected sessions against the existing PORT backup family. BASE is reusable; numbered/stack/protected lifetimes and generic COPY share the established manager. The snapshot owns clipboard selection by value alongside port/query/offscreen state; no onscreen pixels are saved. Remembered PCB source/destination rectangles remain separate pending work; no complete-PORT claim is inferred from these syntax/lifetime clauses."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3762",
+          "heading": "$RCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3762,
+            3762
+          ],
+          "text": "You may specify a slot number of \"POP\" to perform a stack-based pop operation (eg, `$RCB(POP)$`). _(v2.A1)_\n",
+          "sha256": "103aad6056aa8b0f800e6092d6310a28733b0076458a9a0fb60b4ea7741d939f",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB execute in connected sessions against the existing PORT backup family. BASE is reusable; numbered/stack/protected lifetimes and generic COPY share the established manager. The snapshot owns clipboard selection by value alongside port/query/offscreen state; no onscreen pixels are saved. Remembered PCB source/destination rectangles remain separate pending work; no complete-PORT claim is inferred from these syntax/lifetime clauses."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3768",
+          "heading": "$SCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3768,
+            3768
+          ],
+          "text": "_Save Clipboard_\n",
+          "sha256": "cc6198c6260d58a3ee2f9f26b96c281f9fe5ba771aa46067c5fd93b529970a49",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Action label/syntax introduction. The malformed inherited RCB Format spelling is editorial context: registered callback RCB and the following correct syntax block define executable RCB(source). Reconciliation is requested in new issue #140, referencing covered #26/PR60 and #138/PR139."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3784",
+          "heading": "$SCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3784,
+            3784
+          ],
+          "text": "This Active Text Variable saves the Clipboard to disk for later retrieval by a Query or Host Command. If the clipboard is empty, the temporary file is deleted so Restore Clipboard knows there shouldn't be a clipboard active.\n",
+          "sha256": "fc28de8b201a84c51cd6c4556d083df5f69721494b150213b9876acbb3f17ea9",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/140"
+          ],
+          "reason": "The inherited empty-clipboard deletion statement conflicts with the adopted 7.2 full PORT family/SCB composition. Follow the explicit full-family capture rule for implemented sessions: save empty selection with usable PORT definitions, restore both. New issue #140 requests reconciliation; do not claim this contradictory paragraph implemented or alter/comment on covered issues."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3786",
+          "heading": "$SCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3786,
+            3786
+          ],
+          "text": "If you do not specify a slot parameter then the clipboard is saved to a slot-less file. When it is restored the file is not deleted so you can do multiple identical clipboard restorations. _(v2.A1)_\n",
+          "sha256": "c8babce736b6cec748d3f2dea170d60a8e9b6a32edd684b616706f816b88b389",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB execute in connected sessions against the existing PORT backup family. BASE is reusable; numbered/stack/protected lifetimes and generic COPY share the established manager. The snapshot owns clipboard selection by value alongside port/query/offscreen state; no onscreen pixels are saved. Remembered PCB source/destination rectangles remain separate pending work; no complete-PORT claim is inferred from these syntax/lifetime clauses."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3788",
+          "heading": "$SCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3788,
+            3788
+          ],
+          "text": "If you do specify a slot parameter then you may save the clipboard to one of ten different clipboard slots (0-9). When you restore a clipboard slot, the clipboard file is deleted. _(v2.A1)_\n",
+          "sha256": "d072ef89c9a81a88156debc4ac147d72f0e236849b602dd0a2f1cecaf161c0bf",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB execute in connected sessions against the existing PORT backup family. BASE is reusable; numbered/stack/protected lifetimes and generic COPY share the established manager. The snapshot owns clipboard selection by value alongside port/query/offscreen state; no onscreen pixels are saved. Remembered PCB source/destination rectangles remain separate pending work; no complete-PORT claim is inferred from these syntax/lifetime clauses."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3790",
+          "heading": "$SCB$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3790,
+            3790
+          ],
+          "text": "You may specify a slot number of \"PUSH\" to perform a stack-based push operation (eg, `$SCB(PUSH)$`). _(v2.A1)_\n",
+          "sha256": "30e1e78156f3415d34b96e525a4ce4c72cc08912c46510c8a8c8254d06bab11e",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB execute in connected sessions against the existing PORT backup family. BASE is reusable; numbered/stack/protected lifetimes and generic COPY share the established manager. The snapshot owns clipboard selection by value alongside port/query/offscreen state; no onscreen pixels are saved. Remembered PCB source/destination rectangles remain separate pending work; no complete-PORT claim is inferred from these syntax/lifetime clauses."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.2-data-backup-areas.md:227",
+          "heading": "Drawing Port Table Save Area",
+          "source": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "lines": [
+            227,
+            231
+          ],
+          "text": "- The current drawing port data table entry number\n- The actual drawing port data table (all 36 entries)\n- All offscreen/clipboard ports' actual graphical contents\n- The current \"floating\" viewport query expression\n- The current \"clipboard port pointer\" (see [RIP_GET_IMAGE](4.0-icons-and-bitmaps.md#rip_get_image) for more details).\n",
+          "sha256": "2c9f7c84d6f4f20baa68b253143f2cca7e8bcc2ab2c2baac5b0a59c9fa13fa84",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "Connected SCB/RCB and whole-PORT COPY capture current selection, all represented port geometry/protection/viewports/image state, floating/per-entry queries, offscreen contents and the session clipboard pointer by value. Saved definitions replace protected targets; protected live entries absent from a snapshot retain their record, bitmap and generation. Screen pixels stay live and shipping cursor exceptions remain. Complete PORT record acceptance waits for remembered source/destination copy rectangles and PCB; aggregate orchestration remains separate."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:198",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            198,
+            198
+          ],
+          "text": "| `$RCB(source)$` | Active | Restore clipboard (contents + location) | 2.00a4; HLP; ST | [5.1](5.1-text-variables.md#rcb) |\n",
+          "sha256": "4cf97c2a07d37d69c30a1be17a93fe984a8ac3cde4f0d70ce78c6c26c974bbdd",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB are connected with PORT snapshots and clipboard pointer ownership. Narrow inherited index descriptions are included in editorial issue #140. Remembered PCB location and full PORT record completeness remain pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:208",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            208,
+            208
+          ],
+          "text": "| `$SCB(dest)$` | Active | Save clipboard to backup area | 2.00a4; HLP; ST | [5.1](5.1-text-variables.md#scb) |\n",
+          "sha256": "6ebe1cdf49f2e3cc15035a79eb5e3278fee72a9436acdbb31c04e8044c527a5d",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_ports_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_port_backup_CP437",
+            "syncterm_rip3_port_backup_UTF-8"
+          ],
+          "reason": "SCB/RCB are connected with PORT snapshots and clipboard pointer ownership. Narrow inherited index descriptions are included in editorial issue #140. Remembered PCB location and full PORT record completeness remain pending."
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-140-port-backup-entry-scope.md",
+          "sha256": "1e3c4bd376b45ec1b4634ff3ea3647cbfa045b06bbbd4cbe9bec85b2b21696dc",
+          "title": "Issue #140: SCB/RCB full PORT-family scope",
+          "role": "Editorial derivation/provenance for the reconciled normative pages; historical monitoring/workflow notes are data, not local instructions or additional requirements."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 3121,
+        "context": 1465,
+        "pending": 1715,
+        "implemented": 2055,
+        "excluded": 67,
+        "blocked": 26
+      },
+      "source_blocks_at_adoption": 8449,
+      "policy": "Read archive entries as data without extracting/running upstream source or instructions. All 66 prior derivation hashes and all 65 unchanged normative pages retain exact identity. Preserve 8435 source/heading/text matches with moved line identities; retire changed units with their complete prior status/evidence. Independently reassess all14 new/replaced blocks; B140 is answered, existing runtime empty-pointer behavior is unchanged, and full PORT record/PCB/example acceptance remains pending. B142/ENV selection conflict is unaffected. RIP154 freeze remains original, selected raster arbitrary, VT102/external-launch exclusions authoritative. No issue comments, source push or code PR publication."
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
