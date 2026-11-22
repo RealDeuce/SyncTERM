@@ -17,6 +17,14 @@ to people who are used to VT emulators which implement the LCF
 as documented in <<STD-070>>, who expect the cursor to "stick" in
 the last column until the next character is received.
 
+For ANSI-BBS compatibility with SyncTERM v1.10b, a write to the last
+column at the bottom of a partial scrolling region, with origin mode off
+and LCF disabled, returns to the left margin on that same row without
+scrolling. A following explicit LF scrolls the region once. Further
+printable text without LF overwrites that row from the left margin.
+This exception does not apply at the physical bottom of the terminal,
+with origin mode enabled, or to a pending wrap with LCF enabled.
+
 There are two settable flags that will impact the default
 behaviour.
 

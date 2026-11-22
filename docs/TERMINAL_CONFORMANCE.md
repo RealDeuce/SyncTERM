@@ -8,10 +8,15 @@ for LF, RI, SU, SD, IL and DL in small/large scroll regions, including oversized
 counts and reset recovery. Native IL tests retain every input split and the
 bottom-row boundary. Existing `st_console` tests cover row-ring wraps, copies
 with/without a fill, both pixel phases and outside/status-row preservation.
-A synthetic Rainwire-style full-width bottom-row stream checks both immediate
-BBS wrapping and enabled last-column-flag behavior. With immediate wrapping,
-a following explicit LF causes a second scroll; enabling Force Last Column
-Flag gives deferred wrapping. Remote artwork is not used as an expected image.
+A synthetic Rainwire-style full-width bottom-row stream preserves v1.10b's
+partial-region post-write rewind with origin mode off and LCF disabled: only
+the explicit LF scrolls, without inserted blank rows. Native tests check the
+physical-bottom boundary, history counts and every input split in CP437/UTF-8;
+connected cases also cover enabled LCF, origin mode and full cell/solid-colour
+pixel rows. The comparison used the actual v1.10b executable, whose DA reply
+is `ESC[=67;84;101;114;109;1;333c`, identical to v2's. Live Rainwire verification
+uses Force LCF disabled. Expected rows and solid-colour pixels are independently
+authored; remote artwork is not used as an expected image.
 
 Per-BBS graphics caches retain the legacy `RIP/` and `SkyPix/` subdirectories;
 APC uses the BBS cache root. The RIP interaction suites check icon writes,

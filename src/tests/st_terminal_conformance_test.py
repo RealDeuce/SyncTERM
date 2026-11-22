@@ -8,6 +8,7 @@ not move the cursor or consume pending wrap. No installed BBS is required.
 """
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
+import array
 import binascii
 import json
 from pathlib import Path
@@ -257,32 +258,53 @@ def region_scrolling(t):
                         context = (top, bottom, count, operation, x, row)
                         assert frame.cell_text(cell) == expected_text, context
                         assert colour(frame, cell, background=True) == expected_rgb, context
-                        for alternate in (False, True):
-                            assert all((pixel if pixel & 0x80000000 else frame.palette[pixel]) & 0xffffff == expected_rgb
-                                       for pixel in tile(frame, x, row, alternate)), (context, alternate, expected_rgb, sorted(set(tile(frame, x, row, alternate))), frame.palette[:16])
+                    # Compare complete solid rows in C rather than creating a
+                    # Python tuple for every tile in this 96-scene matrix.
+                    span = frame.metadata["plane_width"] * frame.metadata["cell_height"]
+                    offset = (row - 1) * span
+                    pixels = array.array("I", [0x80000000 | expected_rgb]) * span
+                    for plane in (frame.primary, frame.alternate):
+                        assert plane[offset:offset + span] == pixels, (top, bottom, count, operation, row)
                 assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, start), (operation, frame.application)
     t.check("RegionScrollRecovery", b"RECOVERED", (10, 1), ((1, 1, "RECOVERED"),))
 
 
 def region_full_width_wrap(t):
-    # Rainwire writes a complete bottom row, then explicitly positions there
-    # and sends LF. Immediate BBS wrap and enabled LCF have distinct results.
-    for enabled in (False, True):
-        t.case("RegionFullWidthWrap")
-        mode = ESC + (b"[=4h" if enabled else b"[=4l")
-        data = mode + ESC + b"[1;23r" + cup(1, 23)
-        for letter in b"ABCDE":
-            data += cup(1, 23) + b"\n" + cup(1, 23) + bytes([letter]) * 80
-        frame = t.exchange(data, reset=True)
-        for row in range(1, 26):
-            expected = " " * 80
-            for index, letter in enumerate("ABCDE"):
-                target = 19 + index if enabled else 14 + 2 * index
-                if row == target:
-                    expected = letter * 80
-            assert frame.lines[row - 1] == expected, (enabled, row, frame.lines)
-        assert (frame.application["cterm.x"], frame.application["cterm.y"]) == ((80, 23) if enabled else (1, 23))
-        assert frame.application["cterm.last_column_flag.set"] == int(enabled)
+    # Compared with the actual v1.10b executable (DA 1;333), not a changed
+    # SSH banner. Partial-region eager wrap rewinds without a scroll when
+    # origin mode is off. Only the explicit LF scrolls Rainwire's next row.
+    for top, origin in ((1, False), (3, False), (1, True)):
+        for enabled in (False, True):
+            t.case("RegionFullWidthWrap")
+            mode = ESC + (b"[=4h" if enabled else b"[=4l")
+            setup = mode + f"\x1b[{top};23r".encode() + (ESC + b"[?6h" if origin else b"")
+            before = t.exchange(setup, reset=True)
+            data = ESC + b"[38;2;24;80;120m\x1b[48;2;24;80;120m"
+            for letter in b"ABCDE":
+                data += cup(1, 23) + b"\n" + cup(1, 23) + bytes([letter]) * 80
+            frame = t.exchange(data)
+            double = origin and not enabled
+            for row in range(1, 26):
+                expected = " " * 80
+                for index, letter in enumerate("ABCDE"):
+                    target = 14 + 2 * index if double else 19 + index
+                    if row == target:
+                        expected = letter * 80
+                assert frame.lines[row - 1] == expected, (top, origin, enabled, row, frame.lines)
+                # Equal foreground/background colours give independently
+                # expected solid pixel tiles for every written cell.
+                written = expected.strip() != ""
+                for x in range(1, 81):
+                    cell = cell_at(frame, x - 1, row - 1)
+                    if written:
+                        assert colour(frame, cell) == 0x185078
+                        assert colour(frame, cell, background=True) == 0x185078
+                        for alternate in (False, True):
+                            assert all(pixel == 0x80185078 for pixel in tile(frame, x, row, alternate))
+            app = frame.application
+            assert (app["cterm.x"], app["cterm.y"]) == ((80, 23) if enabled else (1, 23))
+            assert app["cterm.last_column_flag.set"] == int(enabled)
+            assert (app["cterm.scrollback_pos"] - before.application["cterm.scrollback_pos"]) % app["cterm.scrollback_lines"] == (10 if double else 5)
     t.check("RegionWrapRecovery", b"RECOVERED", (10, 1), ((1, 1, "RECOVERED"),))
 
 

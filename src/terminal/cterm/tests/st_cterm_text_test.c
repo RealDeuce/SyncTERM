@@ -167,6 +167,62 @@ test_codepages(void)
 	}
 }
 
+/* v1.10b's non-scrolling text write rewinds at the bottom of a partial
+ * region with origin mode off. The following LF alone archives a row. */
+static void
+test_partial_region_eager_wrap(void)
+{
+	static const char input[] = "QQQQQQQQ\x1b[5n";
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		for (int bottom = 4; bottom <= 5; ++bottom) {
+			for (int enabled = 0; enabled <= 1; ++enabled) {
+				for (size_t split = 0; split < sizeof(input); ++split) {
+					st_console_t *console = NULL;
+					st_font_catalog_t *fonts = NULL;
+					st_cterm_t *terminal = NULL;
+					const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+					const struct st_console_config geometry = {.columns = 8, .rows = 6, .cell_width = 8, .cell_height = 16};
+					struct result result = {0};
+					CHECK(st_console_create(&console, &display, &geometry) == 0);
+					CHECK(st_font_catalog_create(&fonts, console) == 0);
+					const struct st_cterm_config config = {.console = console, .fonts = fonts,
+						.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding, .codepage = ST_CODEPAGE_CP437,
+						.terminal_rows = 5, .scrollback_lines = 16, .force_lcf = enabled != 0,
+						.output = capture, .output_context = &result, .quiet = true};
+					CHECK(st_cterm_create(&terminal, &config) == 0);
+					const char *setup = bottom == 4 ? "\x1b[2;4r\x1b[4;1H" : "\x1b[2;5r\x1b[5;1H";
+					size_t consumed;
+					CHECK(st_cterm_write(terminal, setup, strlen(setup), &consumed) == 0 && consumed == strlen(setup));
+					CHECK(st_cterm_write(terminal, input, split, &consumed) == 0 && consumed == split);
+					CHECK(st_cterm_write(terminal, input + split, sizeof(input) - 1 - split, &consumed) == 0
+					    && consumed == sizeof(input) - 1 - split);
+					struct st_cterm_state state;
+					CHECK(st_cterm_state(terminal, &state) == 0);
+					CHECK(state.x == (enabled ? 8 : 1) && state.y == bottom);
+					CHECK(state.last_column_flag.set == (enabled != 0));
+					const bool scrolled = bottom == 5 && !enabled;
+					CHECK(terminal->backfilled == (scrolled ? 1 : 0));
+					struct st_console_cell cells[8];
+					const struct st_console_rect row = {0, (uint32_t)(bottom - 1 - (scrolled ? 1 : 0)), 8, 1};
+					CHECK(st_console_read_cells(console, &row, cells, 8) == 0);
+					for (size_t x = 0; x < 8; ++x) {
+						char text[8]; size_t size;
+						CHECK(st_console_font_glyph_text(console, cells[x].glyph_font, cells[x].glyph,
+						    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'Q');
+					}
+					CHECK(result.response_size == 4 && memcmp(result.response, "\x1b[0n", 4) == 0);
+					CHECK(st_cterm_write(terminal, "\n", 1, &consumed) == 0 && consumed == 1);
+					CHECK(terminal->backfilled == (scrolled ? 2 : 1));
+					CHECK(st_cterm_state(terminal, &state) == 0 && state.y == bottom && !state.last_column_flag.set);
+					st_cterm_destroy(&terminal);
+					st_font_catalog_destroy(fonts);
+					st_console_destroy(console);
+				}
+			}
+		}
+	}
+}
+
 static void
 test_scrollback_text(void)
 {
@@ -247,15 +303,17 @@ test_scrollback_clears(void)
 		CHECK(actual.history_rows == 8);
 		for (size_t row = 0; row < 5; ++row)
 			CHECK(actual.history[row * 20].glyph == 'A' + row);
-		/* Origin mode must not shift or truncate the saved screen either. */
+		/* Origin mode archives only the erased rows, followed by the live
+		 * page with its untouched header and footer. */
 		run(&actual, (enum st_cterm_encoding)encoding,
 		    "A\r\nB\r\nC\r\nD\033[2;3r\033[?6h\033[2JE", SIZE_MAX, false);
-		CHECK(actual.history_rows == 8);
-		for (size_t row = 0; row < 4; ++row)
-			CHECK(actual.history[row * 20].glyph == 'A' + row);
-		CHECK(actual.history[80].glyph == 'A');
-		CHECK(actual.history[100].glyph == 'E');
-		CHECK(actual.history[140].glyph == 'D');
+		CHECK(actual.history_rows == 6);
+		CHECK(actual.history[0].glyph == 'B');
+		CHECK(actual.history[20].glyph == 'C');
+		CHECK(actual.history[40].glyph == 'A');
+		CHECK(actual.history[60].glyph == 'E');
+		CHECK(actual.history[80].glyph == ' ');
+		CHECK(actual.history[100].glyph == 'D');
 		/* Spaces with a different background can be meaningful ANSI art. */
 		run(&actual, (enum st_cterm_encoding)encoding,
 		    "\033[41m\033[2J\033[40m\033[2J", SIZE_MAX, false);
@@ -1089,6 +1147,7 @@ test_diagnostics(void)
 int
 st_cterm_text_test_main(void)
 {
+	test_partial_region_eager_wrap();
 	test_default_tabstops();
 	test_tabstop_insertion();
 	test_diagnostics();
