@@ -12039,6 +12039,50 @@
         "coverage": "All six designations and every input split across a destroyed-source/new-owner ordinary definition; unknown finals/no cursor advance; literal #music-note q sun #box ANSI vector from independent native font glyph identities and immutable MicroANSI bitmap rows; unchanged off/RIP1 route designation behavior; CSI versus charset state; ESC-c/preliminary reset retention; ordinary and identical definition, deactivation, extended/identical reset, CUR first-use, wire clone, entry COPY, whole TW backup source teardown/restore, SOFT with different zero/protected sets, TBL/live-zero reset, and continued partial designation across RIP. Connected CP437/UTF8 runs at640x480,800x600,1024x768 and custom720x400; exact bitmap oracle applies at640x480, no original-client pixel claim.",
         "limits": "No full RIP3 or ESC7/8 snapshot compliance. B150 tracks missing portable payload/restore-target/lifetime/failure details; remaining reset modes and user-deferred startup/default font policy stay independent. No VT102 mode/translation, existing ANSI music replay, user-display tests, alternate platform/compiler builds or unmeasured speed claim."
       }
+    },
+    {
+      "after_commit": "152feaf3",
+      "revision": "393c5ebee54687f329c85d8b17db641e4210a18a",
+      "scope": "Connect viewport-only RESET current/numeric/TBL operations with full port bounds and activation, retaining pixels/queries/cursors/image state/copy pairs and existing MVP semantics.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:238",
+        "version/3.0/ripscrip/5.1-text-variables.md:2865",
+        "version/3.0/ripscrip/5.1-text-variables.md:3078",
+        "version/3.0/ripscrip/5.1-text-variables.md:3082",
+        "version/3.0/ripscrip/5.1-text-variables.md:3083",
+        "version/3.0/ripscrip/5.1-text-variables.md:3084",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:595"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3080",
+        "version/3.0/ripscrip/5.1-text-variables.md:3081"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_ports.c",
+        "src/terminal/rip3/st_rip3_table_host.c"
+      ],
+      "tests": [
+        "rip3_viewport_host",
+        "syncterm_rip3_view_reset_CP437",
+        "syncterm_rip3_view_reset_UTF-8",
+        "rip3_ports",
+        "rip3_table_host"
+      ],
+      "states_after_update": {
+        "unreviewed": 3062,
+        "context": 1510,
+        "pending": 1678,
+        "implemented": 2261,
+        "excluded": 67,
+        "blocked": 30
+      },
+      "policy": "Reuse existing port objects and complete table-reset selector validation. VIEW is a view of PORT state, not a new table or save family. Add only an explicit existing-core RESET operation that activates inactive viewports; keep MVP inactive skip unchanged. No allocation, erasure, selection, query execution, pair publication or unrelated table/backups change. All malformed/binding failures stay below the void RIP host/parser/session boundary. ANSI parsing remains in CTerm and is untouched by this host-variable geometry operation.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration using /usr/bin/cc; headless control bitmap TCP fixtures.",
+        "result": "Application and affected native targets configure/build without introduced C compiler warnings. Native port/table-host/viewport-host and both connected reset encodings pass; contract and original RIP154 preservation guards run after inventory validation. Prior pair/full-reset/backup evidence is reused rather than repeating unrelated passed suites.",
+        "coverage": "Implied/current/numeric/leading-zero/repeated/TBL/empty-comma/case-insensitive selectors; late invalid keyword/range/backup-selector rejection with no prefix effect; absent live binding; protected inactive and undefined no-ops; existing MVP inactive skip; screen/offscreen full port bounds and activation; exact saved copy geometry and retained bitmap pixels; fixed and floating queries, cursor/image record and assigned clipboard; zero WORLD/base64 independence; real PCB after viewport reset; screen sub-port origin and last included/first excluded pixel; coherent native text state/foreign selectors/raster/no-paint captures in CP437 and UTF8 at640x480,800x600,1024x768 and custom720x400.",
+        "limits": "Full RIP3, other RESET families, HEADER and full ESC7/8 snapshot under B150 remain incomplete. No CTerm/ordinary ANSI or RIP154 renderer changes, new scene/damage tracking, alternate compiler/platform builds or speed claims."
+      }
     }
   ]
 }

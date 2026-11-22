@@ -59,6 +59,10 @@ struct st_rip3_table_host {
  * handles selection/protection and complete definition-only STW/RTW snapshots.
  * Whole-TW and live-entry COPY/status/protection and RESET selectors are bound. Entry copies own their queries, retain native connection syntax
  * and continue after resource failures following complete permission preflight.
+ * RESET(VIEW) accepts current/numeric/TBL selectors, restores full port
+ * viewport bounds and activates inactive targets while skipping protected and
+ * undefined entries. It keeps content, queries, cursor/image state, copy pairs
+ * and independent backups; it shares full-list validation with table resets.
  * Live TW reset validates the entire list before effects, resolves CUR from
  * live state left to right and continues after per-target resource failures.
  * Slot zero receives fresh defaults; deletion selects existing zero only when

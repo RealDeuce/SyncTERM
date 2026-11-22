@@ -529,7 +529,7 @@ st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	bool selected[36] = {0};
 
 	if (ports == NULL || (count != 0 && numbers == NULL)
-	    || operation < ST_RIP3_VIEW_ACTIVATE || operation > ST_RIP3_VIEW_ERASE)
+	    || operation < ST_RIP3_VIEW_ACTIVATE || operation > ST_RIP3_VIEW_RESET)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < count; i++) {
 		if (numbers[i] >= 36)
@@ -554,9 +554,10 @@ st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 				return status;
 		}
 		else if (!port->info.protected) {
-			if (operation == ST_RIP3_VIEW_MAXIMIZE) {
-				if (port->info.viewport_active)
+			if (operation == ST_RIP3_VIEW_MAXIMIZE || operation == ST_RIP3_VIEW_RESET) {
+				if (port->info.viewport_active || operation == ST_RIP3_VIEW_RESET)
 					port->info.viewport = port_bounds(port);
+				if (operation == ST_RIP3_VIEW_RESET) port->info.viewport_active=true;
 			}
 			else
 				port->info.viewport_active = operation == ST_RIP3_VIEW_ACTIVATE;

@@ -151,13 +151,17 @@ enum st_rip3_view_operation {
 	ST_RIP3_VIEW_DEACTIVATE,
 	ST_RIP3_VIEW_MAXIMIZE,
 	ST_RIP3_VIEW_ERASE,
+	ST_RIP3_VIEW_RESET,
 };
 /* Apply to numbered ports without changing the current selection. Validate
  * every index before changes; repeated indexes are idempotent. Undefined
  * ports are ignored. Activation/deactivation skip protected ports; maximize
  * also skips inactive viewports and fills the underlying port's full bounds.
  * Erase skips inactive viewports, permits protected content and uses COPY
- * with the explicitly resolved current background index. No definitions,
+ * with the explicitly resolved current background index. Reset restores full
+ * port bounds and activates even an inactive viewport, skipping protected
+ * definitions and preserving queries, cursor/image state and copy pairs.
+ * No definitions,
  * protection, current selection or pixels outside erased viewports change. */
 int st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,

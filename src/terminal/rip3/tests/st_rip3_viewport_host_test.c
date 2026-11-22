@@ -2,6 +2,8 @@
 #include "st_rip3_host_variables.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_clipboard.h"
+#include "st_rip3_resident_query.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -50,14 +52,76 @@ check_view(struct st_rip3_ports *ports, unsigned number, bool active,
 {
 	struct st_rip3_port_info info;
 	CHECK(st_rip3_ports_info(ports, number, &info) == 0 && info.defined);
+	if (info.viewport_active!=active || info.viewport.x0!=x0 || info.viewport.y0!=y0 || info.viewport.x1!=x1 || info.viewport.y1!=y1)
+		fprintf(stderr,"port %u: actual %d %d,%d,%d,%d; expected %d %d,%d,%d,%d\n",number,
+		    info.viewport_active,info.viewport.x0,info.viewport.y0,info.viewport.x1,info.viewport.y1,active,x0,y0,x1,y1);
 	CHECK(info.viewport_active == active && info.viewport.x0 == x0 && info.viewport.y0 == y0
 	    && info.viewport.x1 == x1 && info.viewport.y1 == y1);
 	return 0;
 }
 
+static int
+reset_views(void)
+{
+	struct st_rip3_ports *ports=NULL;struct st_rip3_table_host tables={0};
+	struct st_rip3_host_variables host={.tables=&tables};
+	struct st_rip3_clipboard_selection clipboard={true,2};
+	const struct st_rip3_rect screen={4,2,9,6},screen_inner={5,3,6,4},bitmap={0,0,3,2},inner={1,1,2,2},image={1,2,8,9};
+	const struct st_rip3_copy_extent from={2,1,4,2},to={1,1,3,2};
+	const struct st_rip3_cursor cursor={33,44};
+	CHECK(st_rip3_ports_create_device(&ports,16,8)==0 && st_rip3_ports_erase(ports,7)==0);
+	tables.tables[ST_RIP3_TABLE_PORT].live=ports;st_rip3_ports_bind_clipboard(ports,&clipboard);
+	CHECK(st_rip3_ports_define(ports,1,&screen,false)==0 && st_rip3_ports_switch(ports,1)==0);
+	CHECK(st_rip3_ports_viewport_device(ports,&screen_inner)==0 && st_rip3_ports_activate(ports,false)==0);
+	CHECK(st_rip3_ports_define_query(ports,false,1,(const uint8_t *)"fixed",5,false)==0);
+	CHECK(st_rip3_ports_define_query(ports,true,0,(const uint8_t *)"floating",8,false)==0);
+	CHECK(st_rip3_ports_define_query(ports,false,0,(const uint8_t *)"zero",4,false)==0);
+	CHECK(st_rip3_ports_protect(ports,1,true)==0 && st_rip3_ports_define(ports,2,&bitmap,true)==0);
+	CHECK(st_rip3_ports_switch(ports,2)==0 && st_rip3_ports_erase(ports,9)==0);
+	CHECK(st_rip3_ports_copy_device(ports,0,&from,2,&to,ST_RIP3_TRANSFER_COPY)==0);
+	CHECK(st_rip3_ports_cursor(ports,2,&cursor)==0 && st_rip3_ports_image_style(ports,2,&image,5)==0);
+	CHECK(st_rip3_ports_viewport_device(ports,&inner)==0 && st_rip3_ports_activate(ports,false)==0);
+	/* RESET activates a full viewport; MVP deliberately skips inactive ones. */
+	CHECK(run(&host,"$MVP$",-1)==0 && check_view(ports,2,false,1,1,2,2)==0);
+	CHECK(run(&host,"$RESET(VIEW,2,BOGUS)$",ST_RIP3_HOST_INVALID_REFERENCE)==0);
+	CHECK(check_view(ports,2,false,1,1,2,2)==0);
+	CHECK(run(&host,"$RESET(vIeW,,)$",-1)==0 && check_view(ports,2,true,0,0,3,2)==0);
+	struct st_rip3_port_info info;struct st_rip3_port_copy_pair pair;unsigned current;
+	CHECK(st_rip3_ports_info(ports,2,&info)==0 && info.cursor.x==33 && info.cursor.y==44
+	    && info.image.area.x0==1 && info.image.area.y0==2 && info.image.area.x1==8 && info.image.area.y1==9 && info.image.flags==5);
+	CHECK(st_rip3_ports_copy_pair(ports,2,&pair)==0 && pair.set && pair.source.x0==2 && pair.source.y0==1
+	    && pair.source.x1==4 && pair.source.y1==2 && pair.destination.x0==1 && pair.destination.y0==1
+	    && pair.destination.x1==3 && pair.destination.y1==2);
+	for (int32_t y=0;y<3;y++) for (int32_t x=0;x<4;x++) {
+		uint8_t color;CHECK(st_rip3_ports_read(ports,2,x,y,&color)==0 && color==(y==1 && x>=1 && x<3 ? 7 : 9));
+	}
+	CHECK(run(&host,"$RESET(VIEW,0002,CUR,2,35)$",-1)==0);
+	CHECK(st_rip3_ports_info(ports,35,&info)==0 && !info.defined);
+	const char *const invalid[]={"$RESET(VIEW,2,36)$","$RESET(VIEW,2,BASE)$","$RESET(VIEW,2,ALL)$",
+	    "$RESET(VIEW,2,S0)$","$RESET(VIEW,2,STACK)$","$RESET(VIEW,2,-1)$"};
+	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+		CHECK(st_rip3_ports_viewport_device(ports,&inner)==0 && st_rip3_ports_activate(ports,false)==0);
+		CHECK(run(&host,invalid[i],ST_RIP3_HOST_INVALID_REFERENCE)==0 && check_view(ports,2,false,1,1,2,2)==0);
+	}
+	CHECK(run(&host,"$RESET(VIEW,TBL)$",-1)==0 && check_view(ports,2,true,0,0,3,2)==0
+	    && check_view(ports,1,false,1,1,2,2)==0 && check_view(ports,0,true,0,0,15,7)==0);
+	CHECK(st_rip3_ports_protect(ports,1,false)==0 && run(&host,"$RESET(VIEW,1)$",-1)==0
+	    && check_view(ports,1,true,0,0,5,4)==0);
+	const struct st_rip3_resident_query *fixed=st_rip3_ports_query(ports,false,1),*floating=st_rip3_ports_query(ports,true,0);
+	CHECK(fixed!=NULL && fixed->length==5 && memcmp(fixed->bytes,"fixed",5)==0
+	    && floating!=NULL && floating->length==8 && memcmp(floating->bytes,"floating",8)==0);
+	fixed=st_rip3_ports_query(ports,false,0);CHECK(fixed!=NULL && fixed->length==4 && memcmp(fixed->bytes,"zero",4)==0);
+	CHECK(st_rip3_ports_current(ports,&current)==0 && current==2 && clipboard.set && clipboard.port==2);
+	tables.tables[ST_RIP3_TABLE_PORT].live=NULL;
+	CHECK(run(&host,"$RESET(VIEW,2)$",ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
+	CHECK(run(&host,"$RESET(VIEW,2,BOGUS)$",ST_RIP3_HOST_INVALID_REFERENCE)==0);
+	st_rip3_ports_destroy(ports);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(reset_views()==0);
 	struct st_rip3_ports *ports = NULL;
 	struct st_rip3_table_host tables = {0};
 	struct st_rip3_host_variables host = {.tables=&tables,.background=8};

@@ -2541,3 +2541,17 @@ lifetimes and unchanged OFF/RIP1 handling. Charset state adds two metadata bytes
 no emulation mode or pixel/damage layer is added. Full ESC7/ESC8 snapshot semantics
 remain pending under issue150; ordinary CSI saved coordinates remain distinct.
 RIP1.54's original preservation boundary and ordinary rendering remain intact.
+
+
+`st_rip3_view_reset_connected_test.py` invokes RESET(VIEW) over actual CP437/
+UTF-8 RIP3 TCP sessions on preset and custom720×400 rasters. It checks full
+current/numeric/TBL port viewport bounds and activation, preserved MVP inactive
+semantics, zero WORLD/radix independence, protected/undefined no-ops and complete
+late-invalid-selector rejection. Coherent captures retain pixels, ordinary text
+state and foreign selections; actual PCB after reset proves copy geometry and
+offscreen contents survived. A screen sub-port's absolute origin and included/
+excluded far-edge pixels check full-port bounds. Native viewport tests inspect
+cursor/image/pair/query/clipboard state and unavailable-binding recovery, while
+native port/table-host suites retain their existing coverage. This is a drawing
+viewport configuration change; CTerm ANSI parsing and RIP1.54 rendering are
+unchanged. Other RESET/HEADER and the full ESC7/8 snapshot remain unfinished.

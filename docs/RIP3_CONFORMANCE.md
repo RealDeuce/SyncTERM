@@ -24,6 +24,9 @@ Incomplete families remain unsupported and nonfatal; full compliance is not a
 prerequisite for connecting completed work. RIP1.54 retains its original route.
 Source indexing is discovery, not adjudication or working-feature evidence.
 
+`TW` is RIPscrip's table keyword for a **text window**. A text-window
+definition records its position, size, font and activation/protection settings.
+
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
 fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying and live reset, bitmap/clipboard operations and remembered-pair PCB paste,
@@ -8558,3 +8561,46 @@ contains 2254 implemented, 1680 pending, 3069 unreviewed, 1508 context, 67 exclu
 and 30 blocked. Remaining reset/insert-mode fields, HEADER, startup/default-font
 policy and many other families remain incomplete. The selected pin, original
 RIP1.54 freeze and arbitrary-raster/no-VT102/external-launch scope are unchanged.
+
+
+## Connected viewport-only reset
+
+`$RESET(VIEW)$` now resets the current drawing viewport. Explicit CUR,
+decimal 0..35 and TBL are supported; all selectors and the live PORT binding are
+validated before effects. A reset restores the full dimensions of each defined,
+unprotected drawing port and activates its viewport. Protected/undefined targets
+are no-ops. This is distinct from MVP, whose existing inactive-viewport skip is
+preserved. VIEW uses existing PORT state and has no separate backup family;
+ALL/BASE/slot/stack/backup selectors are invalid here and cannot apply a valid
+prefix before rejection.
+
+The operation retains pixels, the current drawing port, assigned clipboard,
+resident fixed/floating queries, graphics cursor, image-style tuple and remembered
+copy offsets. No query executes and no pair is published. Screen ports keep
+their port origin and physical extent; offscreen ports keep their backing size
+and contents. Other text windows/tables/backups remain unchanged. This host
+variable changes drawing-port configuration; ANSI escape parsing remains in
+CTerm and is untouched.
+
+Native port/table-host/viewport-host suites and connected CP437/UTF-8 fixtures
+pass. Coherent connection captures cover all four existing rasters, inactive
+activation versus MVP, zero WORLD/base64 independence, implied/numeric/repeated/
+TBL selectors, protected/undefined entries, late-invalid rejection, no paint,
+retained ordinary text/foreign selections and actual PCB reuse after reset.
+The screen sub-port case verifies its first/last included pixels and first
+excluded far-edge pixel. Native tests additionally inspect retained query bytes,
+copy rectangles, clipboard and cursor/image metadata, plus missing-binding
+recovery. The drawing cursor expectation includes its existing viewport-origin
+contribution; pixel command X uses its documented context-absolute coordinates.
+Previously accepted PCB/full-reset lifecycle evidence is reused. Mixed HEADER/
+HARD clauses remain pending despite the completed viewport-only preservation.
+
+The seven distinct relevant CTests include contract and original RIP1.54
+preservation. The one native FreeBSD amd64 Release CMake application/affected
+target build uses `/usr/bin/cc` without introduced C compiler warnings. No
+CTerm, ordinary ANSI or RIP1.54 renderer, scene ownership or damage tracking is
+changed; no speed benchmark or additional platform/compiler build is claimed.
+The 8608-unit queue now contains 2261 implemented, 1678 pending, 3062 unreviewed,
+1510 context, 67 excluded and 30 blocked. Full RIP3, other RESET families, HEADER,
+full ESC7/ESC8 snapshot under B150 and the deferred default-font policy remain
+unfinished. Arbitrary entry raster and no-VT102/external-launch scope remain.
