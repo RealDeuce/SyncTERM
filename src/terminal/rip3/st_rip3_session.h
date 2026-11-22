@@ -123,8 +123,9 @@ struct st_rip3_session_config {
  * This does not select an application terminal mode or implement unbound
  * full text-window backups, grouped buttons, field zoom or complete scene
  * headers. T/@, button filename/label and metric arguments share the bounded
- * graphical preprocessor. Metric height and initial/reset TEXTDATA semantics
- * remain pending #130. Immediate host queries include their angle preprocessor. */
+ * graphical preprocessor. Metrics retain expanded TEXTDATA outside the tables;
+ * exact r/@ sentinels read it without expansion. Full drawing resets empty it.
+ * Immediate host queries include their angle preprocessor. */
 int st_rip3_session_create(struct st_rip3_session **result,
 	const struct st_rip3_session_config *config);
 void st_rip3_session_destroy(struct st_rip3_session *session);

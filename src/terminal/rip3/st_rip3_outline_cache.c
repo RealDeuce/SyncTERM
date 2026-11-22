@@ -1,4 +1,4 @@
-/* Logical X-width snapshots for the adopted RIP3 cursor contract. */
+/* Atomic logical outline width/height snapshots for the RIP3 contract. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_outline_cache.h"
 #include "st_rip3_outline_font_internal.h"
@@ -10,7 +10,7 @@
 #include <string.h>
 
 struct st_rip3_outline_cache {
-	uint64_t logical[256];
+	uint64_t logical[256], height;
 	int64_t steps[256], bbox_width;
 	unsigned dpi_x, spacing;
 	bool bounding_box_spacing, valid;
@@ -76,7 +76,7 @@ st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache,
 	if (span>INT64_MAX) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_outline_cache value={.bbox_width=(int64_t)span,.dpi_x=font->dpi_x,
 	    .spacing=spacing,.bounding_box_spacing=(font->flags&0x400)!=0,.valid=true};
-	int status=st_rip3_outline_font_metric_map(value.logical,font);
+	int status=st_rip3_outline_font_metric_map(value.logical,&value.height,font);
 	if (status!=0) return status;
 	for (size_t code=0; code<256; code++) {
 		/* The validated u16/Q/DPI/H ranges keep this product in uint64_t. */
@@ -108,4 +108,10 @@ st_rip3_outline_cache_measure(struct st_rip3_outline_width *result,
 	if (word>=32768) word-=65536;
 	*result=(struct st_rip3_outline_width){.advance=total,.cursor=(int16_t)word};
 	return 0;
+}
+
+uint64_t
+st_rip3_outline_cache_height(const struct st_rip3_outline_cache *cache)
+{
+	return st_rip3_outline_cache_valid(cache) ? cache->height : 0;
 }

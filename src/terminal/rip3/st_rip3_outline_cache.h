@@ -24,7 +24,8 @@ void st_rip3_outline_cache_destroy(struct st_rip3_outline_cache *cache);
 void st_rip3_outline_cache_reset(struct st_rip3_outline_cache *cache);
 bool st_rip3_outline_cache_valid(const struct st_rip3_outline_cache *cache);
 /* Prepare from a successfully realized font, copying the complete logical map,
- * X DPI, spacing, bbox flag and realized horizontal bbox span. No font/file or
+ * X DPI, spacing, bbox flag, realized horizontal bbox span and unrotated
+ * global geometric height. No font/file or
  * bitmap pointers survive. Commit only after every field/code succeeds; errors
  * preserve the prior snapshot. Selection alone never calls this service.
  * The text owner prepares after its nonempty/viewport gates, before cursor
@@ -39,5 +40,8 @@ int st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache,
  * This is a service below void parser entry points, not a session error API. */
 int st_rip3_outline_cache_measure(struct st_rip3_outline_width *result,
 	const struct st_rip3_outline_cache *cache, const uint8_t *text, size_t length);
+
+/* Font-global unrotated height from the same atomic snapshot; cold is zero. */
+uint64_t st_rip3_outline_cache_height(const struct st_rip3_outline_cache *cache);
 
 #endif

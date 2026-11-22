@@ -705,3 +705,31 @@ prompt lifetime and geometry. The resulting queue is 1702 implemented,
 TEXT_METRIC/TEXTDATA, grouped/persistent selection and other recorded unfinished
 families remain pending. No comments are added to existing issues. RIP1.54,
 entry-selected resolution and the exclusion of a new VT-102 mode remain intact.
+
+## PR #133: real-font metrics and retained TEXTDATA
+
+Adopt fork stable `9d666f8468036e5517f2f1395790b52bf6810c28`, containing
+reviewed [PR #133](https://github.com/bbs-land/remote-imaging-protocol/pull/133)
+head `078874549dd1df52cc1481fad6d22fb8d082fb74`. The actual open PR head is an
+ancestor of this stable commit (one commit ahead, none behind). Archive SHA-256:
+`fd771166381c5726458a4bde521c25912f61b663d078e220ed217d5ee7fad8f8`.
+Three of the same 68 normative documents change. Preserve 8277 exact
+source/heading/text blocks, relocate 2125, retire two and review 47 new blocks,
+yielding 8324 units. The two retired implemented claims retain their complete
+prior evidence in the adoption history. All 61 earlier derivation hashes are
+unchanged; add the #130 research note for 62 pinned derivations. Archive contents
+are read as data; no original executable or downloaded probe/code is run.
+
+B130 is answered as documentation. The contract supplies real-font width and
+height axes, CHR rational truncation, bitmap 80×43 measurement geometry,
+unrotated global outline Hcache in the atomic shared snapshot, cold/warm
+fallback, post-expansion frame selection and retained r/@ sentinel lifetime.
+The connected implementation milestone records acceptance separately. Current
+source splitting for `1U` remains the already adopted PR117 positional rule.
+No existing upstream issue receives comments.
+
+The implementation queue now contains 1783 implemented, 1736 pending, 3323
+unreviewed, 1379 context, 67 excluded and 36 blocked units. Mixed clauses that
+also require HEADER or SAVEALL/RESTOREALL remain pending. B131/B132 and the
+other unfinished families are unchanged. RIP1.54's original freeze, selected
+entry raster and the exclusion of a new VT-102 mode remain intact.

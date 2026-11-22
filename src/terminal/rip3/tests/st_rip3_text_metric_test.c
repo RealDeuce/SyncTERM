@@ -44,20 +44,23 @@ int main(void)
 	struct st_rip3_metric_state state={0};struct st_rip3_environment env;
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);env.world_width=1280;env.world_height=960;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
-	CHECK(execute(&state,&host,"r01xxxxab",(const uint8_t *)"ab",2,false,"6\r")==0);
-	CHECK(execute(&state,&host,"r20????ab",(const uint8_t *)"ab",2,false,"6:6\r")==0);
-	CHECK(execute(&state,&host,"r000000$textdata$",NULL,0,false,"12\r")==0);
+	CHECK(execute(&state,&host,"r010000$TEXTDATA$",NULL,0,false,"0\r")==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"11\r")==0);
+	CHECK(execute(&state,&host,"r310000AB",(const uint8_t *)"AB",2,false,"11:11\r")==0);
+	CHECK(execute(&state,&host,"r01xxxxab",(const uint8_t *)"ab",2,false,"16\r")==0);
+	CHECK(execute(&state,&host,"r20????ab",(const uint8_t *)"ab",2,false,"16:16\r")==0);
+	CHECK(execute(&state,&host,"r000000$textdata$",NULL,0,false,"32\r")==0);
 	CHECK(state.length==2 && memcmp(state.bytes,"ab",2)==0);
 	CHECK(execute(&state,&host,"r210000",NULL,0,false,"\r")==0);
 	CHECK(execute(&state,&host,"r010000",NULL,0,false,"0\r")==0);
 	const uint8_t nul[]={'a',0,'b'};
-	CHECK(execute(&state,&host,"r010000a",nul,sizeof(nul),false,"3\r")==0 && state.length==1);
+	CHECK(execute(&state,&host,"r010000a",nul,sizeof(nul),false,"8\r")==0 && state.length==1);
 	/* Normalized codepage is recovered to its original byte; actual UTF-8
 	 * retains the documented independent raw-byte metric profile. */
 	text.encoding=ST_RIP3_TEXT_UTF8;
 	const uint8_t accented[]={0xc3,0xa9};
-	CHECK(execute(&state,&host,"r210000x",accented,2,true,"3\r")==0);
-	CHECK(execute(&state,&host,"r210000x",accented,2,false,"3:3\r")==0);
+	CHECK(execute(&state,&host,"r210000x",accented,2,true,"8\r")==0);
+	CHECK(execute(&state,&host,"r210000x",accented,2,false,"8:8\r")==0);
 	/* A later decode failure sends no partial reply and retains the newly
 	 * completed TEXTDATA assignment rather than restoring its predecessor. */
 	const uint8_t bad[]={0xff};struct output failed={0};
@@ -66,12 +69,12 @@ int main(void)
 	CHECK(st_rip3_metric_complete(&state,&host,&ordinary,bad,1,true,&failed_sink)!=0
 	    && failed.calls==0 && state.length==1 && state.bytes[0]==0xff);
 	text.encoding=ST_RIP3_TEXT_CP437;
-	CHECK(execute(&state,&host,"r010000$TEXTDATA$",NULL,0,false,"3\r")==0);
+	CHECK(execute(&state,&host,"r010000$TEXTDATA$",NULL,0,false,"8\r")==0);
 	/* Whole string narrows once, before signed world multiplication/division. */
 	style.font.magnification=10;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	uint8_t large[1022];memset(large,'A',sizeof(large));
-	CHECK(execute(&state,&host,"r010000x",large,sizeof(large),false,"30660\r")==0);
-	CHECK(execute(&state,&host,"r000000$TEXTDATA$",NULL,0,false,"-4216\r")==0);
+	CHECK(execute(&state,&host,"r010000x",large,sizeof(large),false,"16224\r")==0);
+	CHECK(execute(&state,&host,"r000000$TEXTDATA$",NULL,0,false,"32448\r")==0);
 	struct st_rip3_metric_argument before={.mode=3,.domain=1},argument=before;size_t offset=99;
 	CHECK(st_rip3_metric_argument_prepare(&host,(const uint8_t *)"r410000$SIDE$",13,&argument,&offset)!=0
 	    && argument.mode==before.mode && argument.domain==before.domain
@@ -95,6 +98,95 @@ int main(void)
 	CHECK(execute(&state,&host,"r010000F",(const uint8_t *)"F",1,false,"62\r")==0);
 	memset(large,'F',sizeof(large));
 	CHECK(execute(&state,&host,"r010000x",large,700,false,"-22136\r")==0);
+	/* Height is the global font axis, independent of decorations/rotations.
+	 * Current WORLD conversion uses retained device metrics on failure. */
+	style.outline.spacing=100;
+	env.world_height=480;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r110000FF",(const uint8_t *)"FF",2,false,"104\r")==0);
+	CHECK(execute(&state,&host,"r310000$TEXTDATA$",NULL,0,false,"104:104\r")==0);
+	for (unsigned rotation=0;rotation<4;rotation++) {
+		style.outline.character_rotation=rotation*900;
+		style.outline.string_rotation=((rotation+1)%4)*900;
+		CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+		CHECK(execute(&state,&host,"r110000F",(const uint8_t *)"F",1,false,"104\r")==0);
+	}
+	memcpy(style.outline.name,"absent",7);CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	env.world_width=1280;env.world_height=960;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	CHECK(execute(&state,&host,"r000000F",(const uint8_t *)"F",1,false,"100\r")==0);
+	CHECK(execute(&state,&host,"r100000$TEXTDATA$",NULL,0,false,"208\r")==0);
+	env.world_height=0;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	CHECK(execute(&state,&host,"r100000$TEXTDATA$",NULL,0,false,"0\r")==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"104\r")==0);
+	memcpy(style.outline.name,"Marin",6);CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	env.world_width=65535;env.world_height=65535;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	CHECK(execute(&state,&host,"r010000F",(const uint8_t *)"F",1,false,"0\r")==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"0\r")==0);
+	CHECK(st_rip3_outline_cache_valid(text.outline_cache));
+	memcpy(style.outline.name,"absent",7);CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	st_rip3_outline_cache_reset(text.outline_cache);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"0\r")==0);
+	/* Independent original-font vectors at the documented reference frame. */
+	st_rip3_environments_destroy(host.environments);
+	st_rip3_ports_destroy(host.ports);
+	CHECK(st_rip3_environments_create_device(&host.environments,640,350)==0
+	    && st_rip3_ports_create_device(&host.ports,640,350)==0);
+	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
+	style.font_mode=ST_RIP3_FONT_CLASSIC;style.font.font=1;style.font.magnification=4;
+	for (unsigned direction=0;direction<2;direction++) {
+		style.font.direction=direction;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+		CHECK(execute(&state,&host,"r010000AB",(const uint8_t *)"AB",2,false,"39\r")==0);
+		CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"32\r")==0);
+		CHECK(execute(&state,&host,"r210000$TEXTDATA$",NULL,0,false,"19:20\r")==0);
+		CHECK(execute(&state,&host,"r310000$TEXTDATA$",NULL,0,false,"32:32\r")==0);
+	}
+	style.font.magnification=2;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r010000AB",(const uint8_t *)"AB",2,false,"26\r")==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"21\r")==0);
+	CHECK(execute(&state,&host,"r210000$TEXTDATA$",NULL,0,false,"12:13\r")==0);
+	CHECK(execute(&state,&host,"r310000$TEXTDATA$",NULL,0,false,"21:21\r")==0);
+	style.font.font=0;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r010000AB",(const uint8_t *)"AB",2,false,"32\r")==0);
+	CHECK(execute(&state,&host,"r210000$TEXTDATA$",NULL,0,false,"16:16\r")==0);
+	CHECK(execute(&state,&host,"r310000$TEXTDATA$",NULL,0,false,"16:16\r")==0);
+	CHECK(execute(&state,&host,"r110000",NULL,0,false,"16\r")==0);
+	CHECK(execute(&state,&host,"r310000",NULL,0,false,"\r")==0);
+	struct st_rip3_classic_font broken={.number=1};text.font=&broken;
+	style.font.font=1;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r010000AB",(const uint8_t *)"AB",2,false,"0\r")==0);
+	CHECK(execute(&state,&host,"r310000$TEXTDATA$",NULL,0,false,"0:0\r")==0);
+	/* Failed classic preparation cannot replace the shared outline metrics. */
+	text.font=NULL;style.font_mode=ST_RIP3_FONT_OUTLINE;memcpy(style.outline.name,"Marin",6);
+	style.outline.size=10;env.world_width=1280;env.world_height=700;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0 && st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r010000FF",(const uint8_t *)"FF",2,false,"4\r")==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"5\r")==0);
+	style.outline.size=4095;env.world_width=640;env.world_height=1;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0 && st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r110000F",(const uint8_t *)"F",1,false,"32762\r")==0);
+	CHECK(execute(&state,&host,"r100000$TEXTDATA$",NULL,0,false,"93\r")==0);
+	style.outline.size=10;env.world_width=1280;env.world_height=700;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0 && st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r110000FF",(const uint8_t *)"FF",2,false,"5\r")==0);
+	unsigned port_number=0;
+	CHECK(st_rip3_ports_operate_views(host.ports,&port_number,1,ST_RIP3_VIEW_DEACTIVATE,0)==0);
+	style.outline.size=90;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+	CHECK(execute(&state,&host,"r010000F",(const uint8_t *)"F",1,false,"2\r")==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"5\r")==0);
+	CHECK(st_rip3_styles_define(host.styles,1,&style)==0 && st_rip3_styles_switch(host.styles,1)==0
+	    && st_rip3_styles_protect(host.styles,1,true)==0);
+	CHECK(st_rip3_environments_define(host.environments,1,&env)==0 && st_rip3_environments_select(host.environments,1)==0
+	    && st_rip3_environments_protect(host.environments,1,true)==0);
+	const struct st_rip3_rect area={0,0,639,349};
+	CHECK(st_rip3_ports_define(host.ports,1,&area,false)==0 && st_rip3_ports_switch(host.ports,1)==0
+	    && st_rip3_ports_operate_views(host.ports,(const unsigned[]){1},1,ST_RIP3_VIEW_DEACTIVATE,0)==0
+	    && st_rip3_ports_protect(host.ports,1,true)==0);
+	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"5\r")==0);
+	/* Raw C-prefix sentinel recognition is exact and case insensitive. */
+	const uint8_t sentinel_nul[]="$tExTdAtA$\0ignored";
+	CHECK(st_rip3_metric_sentinel(sentinel_nul,sizeof(sentinel_nul)-1));
+	CHECK(!st_rip3_metric_sentinel((const uint8_t *)" $TEXTDATA$",11));
+	CHECK(!st_rip3_metric_sentinel((const uint8_t *)"$TEXTDATA$x",11));
 	st_rip3_outline_cache_destroy(text.outline_cache);
 	st_rip3_styles_destroy(host.styles);st_rip3_environments_destroy(host.environments);st_rip3_ports_destroy(host.ports);return 0;
 }

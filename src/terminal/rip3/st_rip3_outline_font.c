@@ -162,12 +162,13 @@ metric_parameters(struct st_rip3_rff *file, struct st_rip3_rff_style *style,
 {
 	if (font==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (font->points==0 || font->points>4095
-	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->dpi_y==0 || font->dpi_y>72*1024
+	    || font->dpi_x>72*1024 || font->dpi_y>72*1024
 	    || font->orientation>3 || font->flags>0xffffff)
 		return IO_ERROR_OUT_OF_RANGE;
 	int status=st_rip3_rff_open(file,font->file.data,font->file.size);
 	if (status==0) status=st_rip3_rff_style_at(style,file,font->face);
-	if (status==0 && style->horizontal_percent==0) status=IO_ERROR_OUT_OF_RANGE;
+	if (status==0 && (style->horizontal_percent==0 || file->xmin>file->xmax || file->ymin>file->ymax))
+		status=IO_ERROR_OUT_OF_RANGE;
 	return status;
 }
 
@@ -181,9 +182,9 @@ logical_advance(unsigned advance, const struct st_rip3_outline_font *font,
 }
 
 int
-st_rip3_outline_font_metric_map(uint64_t result[256], const struct st_rip3_outline_font *font)
+st_rip3_outline_font_metric_map(uint64_t result[256], uint64_t *height, const struct st_rip3_outline_font *font)
 {
-	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (result==NULL || height==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_rff file;
 	struct st_rip3_rff_style style;
 	int status=metric_parameters(&file,&style,font);
@@ -196,6 +197,11 @@ st_rip3_outline_font_metric_map(uint64_t result[256], const struct st_rip3_outli
 		if (status!=0) return status;
 		values[code]=logical_advance(advance,font,&file,&style);
 	}
+	/* Geometric font-axis height: round in 1/1440 inch before DPI.
+	 * Validated signed 16-bit bbox, Q and DPI keep each product in u64. */
+	uint64_t numerator=(uint64_t)(file.ymax-file.ymin)*font->points*20;
+	uint64_t logical_height=(numerator+file.units_per_em/2)/file.units_per_em;
+	*height=logical_height*font->dpi_y/1440;
 	memcpy(result,values,sizeof(values));
 	return 0;
 }
@@ -208,6 +214,10 @@ st_rip3_outline_font_advances(int32_t *result,
 	if (font==NULL || (length!=0 && (result==NULL || text==NULL))) return IO_ERROR_INVALID_ARGUMENT;
 	if (length>SIZE_MAX/sizeof(*result) || string_rotation>2700 || string_rotation%900!=0)
 		return IO_ERROR_OUT_OF_RANGE;
+	/* Raster advances retain their positive-DPI realization gate. The
+	 * logical metric snapshot also accepts DPI truncated to zero by a
+	 * positive WORLD, where the protocol formulas produce zero metrics. */
+	if (font->dpi_x==0 || font->dpi_y==0) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_rff file;
 	struct st_rip3_rff_style style;
 	int status=metric_parameters(&file,&style,font);

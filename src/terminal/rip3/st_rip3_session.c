@@ -44,6 +44,7 @@ struct st_rip3_session {
 	enum graphical_job graphical_job;
 	struct st_rip3_metric_argument metric_argument;
 	struct st_rip3_metric_state metric;
+	bool text_retained;
 	bool graphical_codepage_converted;
 	struct st_rip3_template_host templates;
 	struct st_rip3_clipboard_selection clipboard;
@@ -249,6 +250,10 @@ soft_reset(void *context)
 	int status=st_rip3_text_window_normal(&layout,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
 	    session->default_text_wrap,session->default_text_font);
 	if (status!=0) return status;
+	/* Full-scene reset invalidates retained text and any old suspended
+	 * graphical consumer. Table/viewport operations never use this path. */
+	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
+	session->metric=(struct st_rip3_metric_state){0};
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
@@ -439,7 +444,7 @@ prepare(void *context)
 	session->field_context=previous;
 	if (!st_rip3_query_pending(session->commands.query)) session->field_program=false;
 	if (session->graphical_job) {
-		bool retained=session->graphical_job==GRAPHICAL_METRIC && session->metric_argument.retained;
+		bool retained=session->graphical_job==GRAPHICAL_METRIC ? session->metric_argument.retained : session->text_retained;
 		if (!retained) st_rip3_graphical_process(session->graphical,64);
 		if (!st_rip3_graphical_pending(session->graphical)) {
 			const struct st_rip3_condition_bytes *result=st_rip3_graphical_result(session->graphical);
@@ -453,7 +458,8 @@ prepare(void *context)
 					    retained ? NULL : result->bytes,retained ? 0 : result->length,
 					    session->graphical_codepage_converted,&session->host_sink);
 				}
-				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,result->bytes,result->length,&operation);
+				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
+				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
 			}
 			st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
@@ -478,7 +484,9 @@ command(void *context, const uint8_t *bytes, size_t length)
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);
 		if (status!=0) st_rip3_command_result(&sink,status,false);
 		else {
-			st_rip3_graphical_start(session->graphical,ST_RIP3_GRAPHICAL_TEXT,bytes+offset,length-offset);
+			session->text_retained=bytes[0]=='@' && st_rip3_metric_sentinel(bytes+offset,length-offset);
+			if (!session->text_retained)
+				st_rip3_graphical_start(session->graphical,ST_RIP3_GRAPHICAL_TEXT,bytes+offset,length-offset);
 			session->graphical_job=GRAPHICAL_TEXT;
 		}
 	}

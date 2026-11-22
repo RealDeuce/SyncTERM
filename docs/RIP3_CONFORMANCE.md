@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-21728db6fd3ff7623e36d5ff59e8c64421f57c14](https://github.com/RealDeuce/remote-imaging-protocol/tree/21728db6fd3ff7623e36d5ff59e8c64421f57c14/version/3.0)
+9d666f8468036e5517f2f1395790b52bf6810c28](https://github.com/RealDeuce/remote-imaging-protocol/tree/9d666f8468036e5517f2f1395790b52bf6810c28/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -7552,3 +7552,51 @@ selection/template lifetime, B132's hover edges, advanced frontend user editor/
 format modes, numbered resident-query storage and remaining table/playback
 families prevent a full-compliance claim. RIP1.54's baseline and expectations
 are unchanged.
+
+## PR #133 metrics and retained graphics text
+
+The current pin is fork stable
+`9d666f8468036e5517f2f1395790b52bf6810c28`, containing reviewed
+[PR #133](https://github.com/bbs-land/remote-imaging-protocol/pull/133).
+B130 is answered as documentation. The adoption record retains the archive
+hash, exact source-block migration, retired implementation evidence and all
+62 derivation hashes. Existing issue threads receive no comments.
+
+Connected r now supports all four width/height modes. CHR metrics use exact
+size ratios and the actual device frame, with whole-string versus per-byte
+truncation. Bitmap metrics use size times floor(device width/80) and
+floor(device height/43), independently of the raster glyph bank or override.
+This corrects metric width on custom modes such as 720×400; ordinary drawing
+keeps its existing font/raster behavior. Outline height uses the unrotated
+signed global font bbox, rounded in 1/1440 inch before Y DPI. Ordinary outline
+text and metrics atomically prepare the same width/height snapshot; failed
+realization or an inactive viewport retains both, with cold zero. A positive
+WORLD that truncates effective DPI to zero prepares valid zero metrics. Replies
+narrow to signed WORD before current-axis WORLD conversion and narrow again.
+
+TEXTDATA starts empty outside all tables. A successful metric expansion replaces
+it before font/empty checks; a hard expansion failure retains its predecessor.
+Exact raw C-string r/@ sentinels read without re-expansion. T uses normal user
+lookup, including a distinct user variable named TEXTDATA. A nonempty outline
+expression expanding empty can prepare/reply; literal-empty outline input
+silently clears the data without preparing. Full SOFT cancels old graphical
+ownership and clears retained text, so a late prompt response cannot resurrect
+it. Table backups/restores and viewport erasure do not rewind it. HEADER and
+aggregate SAVEALL/RESTOREALL clauses remain pending with those operations.
+
+Independent native vectors cover MARIN 90/10, TRIP.CHR sizes 4/2, bitmap size 2,
+font axes/rotations, protected/inactive state, signed height overflow, final
+versus per-byte truncation, corrupt classic preparation and atomic fallback.
+Public bytewise session tests cover exact sentinel use, separate user lookup,
+normal versus forced prompt cancellation, reset while suspended, late response
+rejection and later wire recovery. Connected CP437/UTF-8 tests use both 640×480
+and 720×400, real prompts and post-prompt frame setters, no drawing/cursor change
+from queries, ordinary-outline cache preparation and full-reset empty state.
+Existing graphical/reset and ANSI controls, native text/font/cache paths and
+RIP1.54 preservation checks pass in the single native Release CMake build.
+
+The 8324-unit queue contains 1783 implemented, 1736 pending, 3323 unreviewed,
+1379 context, 67 excluded and 36 blocked units. Full RIP3 compliance remains
+unfinished, including grouped button/template state, hover lifecycle, resident
+query modes 1–4, advanced frontend formats and remaining scene/table/playback
+families. No new pixel/damage layer or terminal mode is introduced.

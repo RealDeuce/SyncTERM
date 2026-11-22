@@ -19,6 +19,8 @@
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1; } } while (0)
 extern size_t st_rip3_session_test_fail_at,st_rip3_session_test_attempts,st_rip3_session_test_live,st_rip3_session_test_stops;
 
+extern int st_rip3_session_test_soft_reset(struct st_rip3_session *session);
+
 struct fixture {
 	struct st_rip3_session *session;
 	uint8_t queue[8192],text[2048],reply[8192];
@@ -924,6 +926,57 @@ text_metrics(void)
 }
 
 static int
+metric_lifetime(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|Y00000100|r010000$TEXTDATA$|r110000$TEXTDATA$|r310000$TEXTDATA$\r")==0 && pump(&f)==0);
+	CHECK(f.errors==0 && f.reply_length==6 && memcmp(f.reply,"0\r11\r\r",6)==0);
+	f.reply_length=0;
+	char wire[128];CHECK(font_wire(wire,sizeof(wire),"Marin",90)==0 && append(&f,wire)==0 && pump(&f)==0);
+	/* Exact sentinel is classified before NUL; ordinary T/user TEXTDATA is
+	 * independent, and @ must not re-expand the retained source. */
+	CHECK(append(&f,"!|r010000F|r110000$TEXTDATA$\r")==0 && pump(&f)==0
+	    && f.reply_length==7 && memcmp(f.reply,"50\r104\r",7)==0);
+	CHECK(append(&f,"!|Y00000100|@0A0K$tExTdAtA$\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$TEXTXY$","60:20")==0);
+	CHECK(query(&f,"$-=TEXTDATA=AB$","")==0);
+	struct st_rip3_session_prompt prompt;
+	CHECK(append(&f,"!|m0A0K|T$TEXTDATA$\r")==0 && pump(&f)==0
+	    && st_rip3_session_prompt(f.session,&prompt) && strcmp(prompt.reference->name,"TEXTDATA")==0
+	    && prompt.initial->length==2 && memcmp(prompt.initial->bytes,"AB",2)==0);
+	st_rip3_session_respond(f.session,(const uint8_t *)"CD",2,false);
+	CHECK(query(&f,"$TEXTXY$","26:20")==0);
+	CHECK(query(&f,"$COPY(STYLE,TBL,BASE)$$COPY(PORT,TBL,BASE)$$COPY(ENV,TBL,BASE)$","")==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000FF\r")==0 && pump(&f)==0 && f.reply_length==3 && memcmp(f.reply,"16\r",3)==0);
+	CHECK(query(&f,"$COPY(STYLE,BASE,TBL)$$COPY(PORT,BASE,TBL)$$COPY(ENV,BASE,TBL)$$EGW(CUR)$","")==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r210000$TEXTDATA$\r")==0 && pump(&f)==0 && f.reply_length==4 && memcmp(f.reply,"8:8\r",4)==0);
+	/* Synthesized GET prompt cancellation completes with empty text; forced
+	 * session cancellation above has a different retained-data lifetime. */
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000<<ESCAPE>>\r")==0 && pump(&f)==0 && st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_respond(f.session,NULL,0,true);
+	CHECK(!st_rip3_session_pending(f.session) && f.reply_length==2 && memcmp(f.reply,"0\r",2)==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r210000$TEXTDATA$\r")==0 && pump(&f)==0 && f.reply_length==1 && memcmp(f.reply,"\r",1)==0);
+	/* A real pending prompt loses ownership on full reset. Its late response
+	 * cannot restore old text/cache, and later wire queries still execute. */
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000<<LATE>>\r")==0 && pump(&f)==0 && st_rip3_session_prompt(f.session,&prompt));
+	CHECK(st_rip3_session_test_soft_reset(f.session)==0 && !st_rip3_session_pending(f.session));
+	st_rip3_session_respond(f.session,(const uint8_t *)"resurrected",11,false);
+	CHECK(f.errors==1 && f.reply_length==0 && !st_rip3_session_pending(f.session));
+	CHECK(append(&f,"!|r010000$TEXTDATA$|r310000$TEXTDATA$\r")==0 && pump(&f)==0
+	    && f.reply_length==3 && memcmp(f.reply,"0\r\r",3)==0);
+	CHECK(query(&f,"alive","alive")==0);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 graphical_text(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -1053,7 +1106,7 @@ main(void)
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
-	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && hover_queries()==0);
+	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && hover_queries()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

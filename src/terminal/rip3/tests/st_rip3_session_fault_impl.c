@@ -141,3 +141,10 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_stream_destroy test_st_rip3_stream_destroy
 #define st_rip3_audio_stop test_audio_stop
 #include "../st_rip3_session.c"
+
+/* Exercise full-scene replacement while the public consumer owns a prompt.
+ * No production reset API or callback reentry is added for this injection. */
+int st_rip3_session_test_soft_reset(struct st_rip3_session *session)
+{
+	return soft_reset(session);
+}

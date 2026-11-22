@@ -7,9 +7,11 @@
 
 #include <stdint.h>
 
-/* All 256 raw-code 1/1440-inch metrics, before DPI/spacing. No outline path
- * is read. Revalidates the immutable file/style and preserves result on error.
+/* All 256 raw-code 1/1440-inch advances before DPI/spacing, plus the
+ * unrotated global device height. Truncated zero DPI is valid for metrics.
+ * No outline path is read. Revalidates the immutable file/style and preserves
+ * both outputs on error.
  * This service is below parser/session boundaries, whose errors stay nonfatal. */
-int st_rip3_outline_font_metric_map(uint64_t result[256], const struct st_rip3_outline_font *font);
+int st_rip3_outline_font_metric_map(uint64_t result[256], uint64_t *height, const struct st_rip3_outline_font *font);
 
 #endif

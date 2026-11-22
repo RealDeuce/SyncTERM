@@ -37,12 +37,14 @@ main(void)
 	struct st_rip3_outline_cache *cache=NULL,*other=NULL;
 	struct st_rip3_outline_font font;
 	struct st_rip3_frame frame;
-	CHECK(st_rip3_outline_cache_create(&cache)==0 && !st_rip3_outline_cache_valid(cache));
+	CHECK(st_rip3_outline_cache_create(&cache)==0 && !st_rip3_outline_cache_valid(cache) && st_rip3_outline_cache_height(cache)==0
+	    && st_rip3_outline_cache_height(NULL)==0);
 	CHECK(width(cache,(const uint8_t *)"F",1,0,0)==0 && width(NULL,(const uint8_t *)"F",1,0,0)==0);
 	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480)==0 && st_rip3_frame_world(&frame,640,960)==0);
 	for (unsigned rotation=0; rotation<4; rotation++) {
 		CHECK(st_rip3_outline_font_builtin(&font,"Marin",&frame,90,0,rotation)==0);
-		CHECK(st_rip3_outline_cache_prepare(cache,&font,100)==0 && st_rip3_outline_cache_valid(cache));
+		CHECK(st_rip3_outline_cache_prepare(cache,&font,100)==0 && st_rip3_outline_cache_valid(cache)
+		    && st_rip3_outline_cache_height(cache)==52);
 		for (unsigned string=0; string<4; string++) {
 			int32_t ordinary;
 			CHECK(st_rip3_outline_font_advances(&ordinary,&font,900*string,(const uint8_t *)"F",1)==0
@@ -82,12 +84,14 @@ main(void)
 			case 4:spacing=0;break;case 5:spacing=4096;break;
 			default:bad.flags|=0x400;bad.bounds.xmin=0;bad.bounds.xmax=INT64_MAX;spacing=4095;break;
 		}
-		CHECK(st_rip3_outline_cache_prepare(cache,&bad,spacing)!=0 && width(cache,text,1,18,18)==0);
+		CHECK(st_rip3_outline_cache_prepare(cache,&bad,spacing)!=0 && width(cache,text,1,18,18)==0
+		    && st_rip3_outline_cache_height(cache)==52);
 	}
 	CHECK(st_rip3_outline_font_builtin(&font,"absent",&frame,90,0,0)==IO_ERROR_NOT_FOUND);
 	CHECK(width(cache,text,1,18,18)==0);
 	CHECK(st_rip3_outline_cache_create(&other)==0 && width(other,text,1,0,0)==0);
 	st_rip3_outline_cache_reset(cache);
+	CHECK(st_rip3_outline_cache_height(cache)==0);
 	CHECK(!st_rip3_outline_cache_valid(cache) && width(cache,text,700,0,0)==0);
 	/* Snapshot owns metrics even after the entire backing font is freed; its
 	 * F outline is deliberately damaged while the declared advance stays 556. */
@@ -115,6 +119,14 @@ main(void)
 	CHECK(st_rip3_outline_cache_prepare(NULL,&font,100)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_outline_cache_prepare(cache,NULL,100)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(width(cache,NULL,0,0,0)==0);
+	/* Positive WORLD dimensions can truncate effective DPI to zero. These
+	 * are valid metric snapshots, distinct from a zero WORLD failure. */
+	CHECK(st_rip3_frame_world(&frame,65535,65535)==0);
+	CHECK(st_rip3_outline_font_builtin(&font,"Marin",&frame,90,0,0)==0
+	    && font.dpi_x==0 && font.dpi_y==0);
+	CHECK(st_rip3_outline_cache_prepare(cache,&font,100)==0
+	    && st_rip3_outline_cache_valid(cache) && st_rip3_outline_cache_height(cache)==0
+	    && width(cache,text,1,0,0)==0);
 	/* Factory failure preserves an already-owned pointer. */
 	st_rip3_outline_cache_test_fail=true;
 	struct st_rip3_outline_cache *saved=other;

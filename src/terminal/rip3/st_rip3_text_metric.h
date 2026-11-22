@@ -13,8 +13,10 @@ struct st_rip3_metric_argument {unsigned mode,domain;bool retained,literal_empty
 struct st_rip3_metric_state {
 	uint8_t bytes[4*1022+1];
 	size_t length;
-	bool defined;
 };
+
+/* Exact consumer sentinel after the raw C-string prefix; no trimming. */
+bool st_rip3_metric_sentinel(const uint8_t *bytes,size_t length);
 
 /* Decode before providers can change BASEMATH. Reserved bytes are consumed
  * without interpretation. Failure preserves argument and offset. */

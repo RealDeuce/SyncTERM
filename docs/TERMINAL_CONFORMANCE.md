@@ -2203,8 +2203,8 @@ scanner coverage, and `rip3_builtin_inventory` checks all 84 published eligible
 names plus known ineligible names. `term_key_forward` exercises the real receive
 pump's required render prompt, ordered deferred events and local shutdown.
 Filename/label bindings now also run through connected creation and full
-redraw; metric width/expansion binding is covered below, with height and full
-font/state semantics pending. Existing ANSI/RIP1 rendering uses its
+redraw; all metric modes and retained text are covered below. HEADER and
+aggregate save/restore orchestration remain pending. Existing ANSI/RIP1 rendering uses its
 prior paths and console damage/scroll tracking.
 
 The button/icon connected cases additionally verify live filename/label values,
@@ -2222,15 +2222,21 @@ rendering failures stay local to RIP3; the connection remains usable.
 
 `rip3_text_metric`, public session tests and the connected
 `syncterm_rip3_metric_CP437` / `syncterm_rip3_metric_UTF-8` cases cover live
-level-zero r width modes 0/2, decimal signed-WORD/world conversion, independent
-byte replies, ignored reserved bytes, early numeric rejection, retained
-TEXTDATA bypass, bounded graphical expansion, prompt/cancel ordering and a
-connection usable after failure. Native and bitmap captures verify no drawing
-or cursor movement. Connected cases include 640×480 and 720×400 entry rasters.
-Normalized codepage bytes and actual UTF-8 wire bytes have explicit separate
-metric vectors. This does not claim full TEXT_METRIC: height modes, initial/reset
-TEXTDATA and complete real-font/cache/axis policy remain under
-[issue #130](https://github.com/bbs-land/remote-imaging-protocol/issues/130).
+level-zero r modes 0–3, exact real-font width/height axes, signed-WORD/world
+conversion, independent byte replies, ignored reserved bytes and early numeric
+rejection. PR133 defines CHR rational truncation, device-derived bitmap 80×43
+measurement geometry and the shared atomic outline X/Hcache. Cold/warm failed
+font preparation, inactive/protected state, empty input, no query drawing/cursor
+movement, truncated-zero DPI and signed height overflow have independent native
+expectations.
+Connected cases use 640×480 and 720×400 in both encodings, real prompts and
+post-prompt frame setters. Normalized codepage and raw UTF-8 wire bytes have
+explicit separate profiles. Exact r/@ sentinels bypass expansion; ordinary T
+resolves a distinct user TEXTDATA through normal lookup. Full SOFT cancels old
+graphical ownership and clears retained text; a late prompt response cannot
+resurrect it. Table backups/restores and viewport erase retain it. The
+[PR133 adoption](RIP3_REFERENCE_ADOPTION.md) answers issue #130; mixed HEADER
+and SAVEALL/RESTOREALL clauses remain pending with those operations.
 
 The connected button cases also verify the initial selected-image flag for
 plain and clipboard faces, including bevel/recess boundaries, protected/inactive
