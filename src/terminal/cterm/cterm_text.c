@@ -167,22 +167,8 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 	}
 	cterm->screen.provisional_drawn = provisional;
 	cterm_coord_get_xy(cterm, CTERM_COORD_CURR, &x, &y);
-	for (uint8_t i = 0; i < columns; ++i) {
-		/* Legacy cputs() wrapped outside a partial scroll region before
-		 * its conditional scroll check, then rewound to the left margin.
-		 * Preserve that post-write behavior: a following LF alone scrolls.
-		 * Pending LCF and pre-placement wide-glyph wraps still scroll. */
-		if (cterm->emulation == CTERM_EMULATION_ANSI_BBS
-		    && !(cterm->extattr & CTERM_EXTATTR_ORIGINMODE)
-		    && !(cterm->last_column_flag & CTERM_LCF_ENABLED)
-		    && y == cterm->bottom_margin && y < cterm->height
-		    && (x == cterm->right_margin || x == cterm->width)) {
-			x = cterm->left_margin;
-			cterm_render_set_position(cterm, x, y);
-		}
-		else
-			cterm_advance_char(cterm, &x, &y, 1);
-	}
+	for (uint8_t i = 0; i < columns; ++i)
+		cterm_advance_char(cterm, &x, &y, 1);
 	cterm_coord_get_xy(cterm, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
 	if (cterm->emulation == CTERM_EMULATION_PRESTEL || cterm->emulation == CTERM_EMULATION_BEEB)
 		cterm_prestel_fix_line(cterm, x, y, true, false);

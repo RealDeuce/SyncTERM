@@ -8,15 +8,18 @@ for LF, RI, SU, SD, IL and DL in small/large scroll regions, including oversized
 counts and reset recovery. Native IL tests retain every input split and the
 bottom-row boundary. Existing `st_console` tests cover row-ring wraps, copies
 with/without a fill, both pixel phases and outside/status-row preservation.
-A synthetic Rainwire-style full-width bottom-row stream preserves v1.10b's
-partial-region post-write rewind with origin mode off and LCF disabled: only
-the explicit LF scrolls, without inserted blank rows. Native tests check the
-physical-bottom boundary, history counts and every input split in CP437/UTF-8;
-connected cases also cover enabled LCF, origin mode and full cell/solid-colour
-pixel rows. The comparison used the actual v1.10b executable, whose DA reply
-is `ESC[=67;84;101;114;109;1;333c`, identical to v2's. Live Rainwire verification
-uses Force LCF disabled. Expected rows and solid-colour pixels are independently
-authored; remote artwork is not used as an expected image.
+Synthetic bottom-row streams distinguish writes ending in column 79 from
+writes reaching column 80, including trailing spaces and ordinary glyphs.
+With LCF off and autowrap enabled, the latter scroll immediately; a following
+LF scrolls again. Enabled LCF defers wrapping; autowrap off prevents it.
+Native 80x25/80x43 cases cover partial/full-height regions, status-row
+reservation, split input, cursor and history counts in CP437/UTF-8. Connected
+cases cover origin mode on/off, text and independently expected solid pixels.
+The observed v1.10b failure to scroll on a partial-region wrap is a reference
+bug, not the expected behavior. Both clients return DA
+`ESC[=67;84;101;114;109;1;333c`. A captured Rainwire login includes explicit
+`ESC[23;80H` followed by a space before its LF; remote artwork is not used as
+an expected image.
 
 Per-BBS graphics caches retain the legacy `RIP/` and `SkyPix/` subdirectories;
 APC uses the BBS cache root. The RIP interaction suites check icon writes,

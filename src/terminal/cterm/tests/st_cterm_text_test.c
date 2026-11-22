@@ -167,56 +167,69 @@ test_codepages(void)
 	}
 }
 
-/* v1.10b's non-scrolling text write rewinds at the bottom of a partial
- * region with origin mode off. The following LF alone archives a row. */
+/* Reaching column 80 differs from writing it, including a trailing space.
+ * Check immediate/deferred/disabled wrap in partial and full-height regions. */
 static void
-test_partial_region_eager_wrap(void)
+test_region_wrap_modes(void)
 {
-	static const char input[] = "QQQQQQQQ\x1b[5n";
 	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
-		for (int bottom = 4; bottom <= 5; ++bottom) {
-			for (int enabled = 0; enabled <= 1; ++enabled) {
-				for (size_t split = 0; split < sizeof(input); ++split) {
-					st_console_t *console = NULL;
-					st_font_catalog_t *fonts = NULL;
-					st_cterm_t *terminal = NULL;
-					const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-					const struct st_console_config geometry = {.columns = 8, .rows = 6, .cell_width = 8, .cell_height = 16};
-					struct result result = {0};
-					CHECK(st_console_create(&console, &display, &geometry) == 0);
-					CHECK(st_font_catalog_create(&fonts, console) == 0);
-					const struct st_cterm_config config = {.console = console, .fonts = fonts,
-						.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding, .codepage = ST_CODEPAGE_CP437,
-						.terminal_rows = 5, .scrollback_lines = 16, .force_lcf = enabled != 0,
-						.output = capture, .output_context = &result, .quiet = true};
-					CHECK(st_cterm_create(&terminal, &config) == 0);
-					const char *setup = bottom == 4 ? "\x1b[2;4r\x1b[4;1H" : "\x1b[2;5r\x1b[5;1H";
-					size_t consumed;
-					CHECK(st_cterm_write(terminal, setup, strlen(setup), &consumed) == 0 && consumed == strlen(setup));
-					CHECK(st_cterm_write(terminal, input, split, &consumed) == 0 && consumed == split);
-					CHECK(st_cterm_write(terminal, input + split, sizeof(input) - 1 - split, &consumed) == 0
-					    && consumed == sizeof(input) - 1 - split);
-					struct st_cterm_state state;
-					CHECK(st_cterm_state(terminal, &state) == 0);
-					CHECK(state.x == (enabled ? 8 : 1) && state.y == bottom);
-					CHECK(state.last_column_flag.set == (enabled != 0));
-					const bool scrolled = bottom == 5 && !enabled;
-					CHECK(terminal->backfilled == (scrolled ? 1 : 0));
-					struct st_console_cell cells[8];
-					const struct st_console_rect row = {0, (uint32_t)(bottom - 1 - (scrolled ? 1 : 0)), 8, 1};
-					CHECK(st_console_read_cells(console, &row, cells, 8) == 0);
-					for (size_t x = 0; x < 8; ++x) {
-						char text[8]; size_t size;
-						CHECK(st_console_font_glyph_text(console, cells[x].glyph_font, cells[x].glyph,
-						    text, sizeof(text), &size) == 0 && size == 1 && text[0] == 'Q');
+		for (int rows = 25; rows <= 43; rows += 18) {
+			for (int bottom = rows - 2; bottom < rows; ++bottom) {
+				for (int policy = 0; policy < 3; ++policy) {
+					for (size_t written = 79; written <= 80; ++written) {
+						char input[85];
+						memset(input, 'Q', written);
+						if (written == 80) input[79] = ' ';
+						memcpy(input + written, "\x1b[5n", 5);
+						const size_t length = written + 4;
+						const size_t splits[] = {0, 78, 79, 80, length};
+						for (size_t part = 0; part < sizeof(splits) / sizeof(splits[0]); ++part) {
+							const size_t split = splits[part];
+							st_console_t *console = NULL;
+							st_font_catalog_t *fonts = NULL;
+							st_cterm_t *terminal = NULL;
+							const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+							const struct st_console_config geometry = {.columns = 80, .rows = (uint32_t)rows, .cell_width = 8, .cell_height = 16};
+							struct result result = {0};
+							CHECK(st_console_create(&console, &display, &geometry) == 0);
+							CHECK(st_font_catalog_create(&fonts, console) == 0);
+							const struct st_cterm_config config = {.console = console, .fonts = fonts,
+								.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding, .codepage = ST_CODEPAGE_CP437,
+								.terminal_rows = (uint32_t)(rows - 1), .scrollback_lines = 16, .force_lcf = policy == 1,
+								.output = capture, .output_context = &result, .quiet = true};
+							CHECK(st_cterm_create(&terminal, &config) == 0);
+							char setup[48];
+							int count = snprintf(setup, sizeof(setup), "\x1b[2;%dr\x1b[%d;1H%s",
+							    bottom, bottom, policy == 2 ? "\x1b[?7l" : "");
+							CHECK(count > 0 && (size_t)count < sizeof(setup));
+							size_t consumed;
+							CHECK(st_cterm_write(terminal, setup, (size_t)count, &consumed) == 0 && consumed == (size_t)count);
+							CHECK(st_cterm_write(terminal, input, split, &consumed) == 0 && consumed == split);
+							CHECK(st_cterm_write(terminal, input + split, length - split, &consumed) == 0 && consumed == length - split);
+							struct st_cterm_state state;
+							const bool scrolled = written == 80 && policy == 0;
+							CHECK(st_cterm_state(terminal, &state) == 0);
+							CHECK(state.x == (scrolled ? 1 : 80) && state.y == bottom);
+							CHECK(state.last_column_flag.set == (written == 80 && policy == 1));
+							CHECK(terminal->backfilled == (scrolled ? 1 : 0));
+							struct st_console_cell cells[80];
+							const struct st_console_rect row = {0, (uint32_t)(bottom - 1 - (scrolled ? 1 : 0)), 80, 1};
+							CHECK(st_console_read_cells(console, &row, cells, 80) == 0);
+							for (size_t x = 0; x < 80; ++x) {
+								char text[8]; size_t size;
+								CHECK(st_console_font_glyph_text(console, cells[x].glyph_font, cells[x].glyph,
+								    text, sizeof(text), &size) == 0 && size == 1 && text[0] == (x == 79 ? ' ' : 'Q'));
+							}
+							CHECK(result.response_size == 4 && memcmp(result.response, "\x1b[0n", 4) == 0);
+							CHECK(st_cterm_write(terminal, "\n", 1, &consumed) == 0 && consumed == 1);
+							CHECK(terminal->backfilled == (scrolled ? 2 : 1));
+							CHECK(st_cterm_state(terminal, &state) == 0 && state.x == (scrolled ? 1 : 80)
+							    && state.y == bottom && !state.last_column_flag.set);
+							st_cterm_destroy(&terminal);
+							st_font_catalog_destroy(fonts);
+							st_console_destroy(console);
+						}
 					}
-					CHECK(result.response_size == 4 && memcmp(result.response, "\x1b[0n", 4) == 0);
-					CHECK(st_cterm_write(terminal, "\n", 1, &consumed) == 0 && consumed == 1);
-					CHECK(terminal->backfilled == (scrolled ? 2 : 1));
-					CHECK(st_cterm_state(terminal, &state) == 0 && state.y == bottom && !state.last_column_flag.set);
-					st_cterm_destroy(&terminal);
-					st_font_catalog_destroy(fonts);
-					st_console_destroy(console);
 				}
 			}
 		}
@@ -1147,7 +1160,7 @@ test_diagnostics(void)
 int
 st_cterm_text_test_main(void)
 {
-	test_partial_region_eager_wrap();
+	test_region_wrap_modes();
 	test_default_tabstops();
 	test_tabstop_insertion();
 	test_diagnostics();

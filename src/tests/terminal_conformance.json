@@ -38,7 +38,7 @@
   "cases": [
     {"id": "RegionScroll", "suite": "margins", "scope": "Complete rows and both solid RGB pixel phases for LF/RI/SU/SD/IL/DL, small and large regions, oversized counts and outside-row preservation"},
     {"id": "RegionScrollRecovery", "suite": "margins", "scope": "Reset recovers cursor and text after region scrolling"},
-    {"id": "RegionFullWidthWrap", "suite": "margins", "scope": "Actual v1.10b DA 1;333 comparison: synthetic full-width output preserves partial-region rewind without a wrap scroll when origin is off and LCF disabled; exact rows, solid RGB pixels, cursor and history counts, enabled-LCF and origin-mode boundaries"},
+    {"id": "RegionFullWidthWrap", "suite": "margins", "scope": "Writes ending at column 79 versus reaching column 80, including trailing spaces; immediate/deferred/disabled wrapping, partial regions, origin on/off, exact rows, solid RGB pixels, cursor and history counts. Native cases also cover 80x25/80x43 and full-height regions. The observed v1.10b missed wrap scroll is not normative"},
     {"id": "RegionWrapRecovery", "suite": "margins", "scope": "Reset restores ordinary text after both region wrap policies"},
     {"id": "RegionClearScrollback", "suite": "margins", "scope": "ED2 and FF with origin mode on/off: exact cleared and preserved rows, blank pixels, cursor and archived row counts"},
     {"id": "RegionClearRecovery", "suite": "margins", "scope": "Reset restores text after margin-restricted clears"},

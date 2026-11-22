@@ -270,41 +270,48 @@ def region_scrolling(t):
 
 
 def region_full_width_wrap(t):
-    # Compared with the actual v1.10b executable (DA 1;333), not a changed
-    # SSH banner. Partial-region eager wrap rewinds without a scroll when
-    # origin mode is off. Only the explicit LF scrolls Rainwire's next row.
-    for top, origin in ((1, False), (3, False), (1, True)):
-        for enabled in (False, True):
-            t.case("RegionFullWidthWrap")
-            mode = ESC + (b"[=4h" if enabled else b"[=4l")
-            setup = mode + f"\x1b[{top};23r".encode() + (ESC + b"[?6h" if origin else b"")
-            before = t.exchange(setup, reset=True)
-            data = ESC + b"[38;2;24;80;120m\x1b[48;2;24;80;120m"
-            for letter in b"ABCDE":
-                data += cup(1, 23) + b"\n" + cup(1, 23) + bytes([letter]) * 80
-            frame = t.exchange(data)
-            double = origin and not enabled
-            for row in range(1, 26):
-                expected = " " * 80
-                for index, letter in enumerate("ABCDE"):
-                    target = 14 + 2 * index if double else 19 + index
-                    if row == target:
-                        expected = letter * 80
-                assert frame.lines[row - 1] == expected, (top, origin, enabled, row, frame.lines)
-                # Equal foreground/background colours give independently
-                # expected solid pixel tiles for every written cell.
-                written = expected.strip() != ""
-                for x in range(1, 81):
-                    cell = cell_at(frame, x - 1, row - 1)
-                    if written:
-                        assert colour(frame, cell) == 0x185078
-                        assert colour(frame, cell, background=True) == 0x185078
-                        for alternate in (False, True):
-                            assert all(pixel == 0x80185078 for pixel in tile(frame, x, row, alternate))
-            app = frame.application
-            assert (app["cterm.x"], app["cterm.y"]) == ((80, 23) if enabled else (1, 23))
-            assert app["cterm.last_column_flag.set"] == int(enabled)
-            assert (app["cterm.scrollback_pos"] - before.application["cterm.scrollback_pos"]) % app["cterm.scrollback_lines"] == (10 if double else 5)
+    # A 79-column run only reaches column 80. Writing the final cell, even
+    # as a space, scrolls immediately with LCF off and autowrap enabled.
+    for top, origin in ((1, False), (3, False), (1, True), (3, True)):
+        for policy in ("immediate", "deferred", "disabled"):
+            for written in (79, 80):
+                t.case("RegionFullWidthWrap")
+                mode = ESC + (b"[=4h" if policy == "deferred" else b"[=4l")
+                mode += ESC + (b"[?7l" if policy == "disabled" else b"[?7h")
+                setup = mode + f"\x1b[{top};23r".encode() + (ESC + b"[?6h" if origin else b"")
+                before = t.exchange(setup, reset=True)
+                data = ESC + b"[38;2;24;80;120m\x1b[48;2;24;80;120m" + cup(1, 23)
+                for index, letter in enumerate(b"ABCDE"):
+                    text = bytes([letter]) * 79
+                    if written == 80:
+                        text += b" " if index % 2 == 0 else bytes([letter])
+                    # Send LF from the column left by the preceding write,
+                    # including column 80 after writing just 79 characters.
+                    data += b"\n" + cup(1, 23) + text
+                frame = t.exchange(data)
+                double = written == 80 and policy == "immediate"
+                for row in range(1, 26):
+                    expected = " " * 80
+                    for index, letter in enumerate("ABCDE"):
+                        target = 14 + 2 * index if double else 19 + index
+                        if row == target:
+                            last = " " if written == 79 or index % 2 == 0 else letter
+                            expected = letter * 79 + last
+                    context = (top, origin, policy, written, row)
+                    assert frame.lines[row - 1] == expected, (context, frame.lines)
+                    if expected.strip():
+                        for x in range(1, 81):
+                            cell = cell_at(frame, x - 1, row - 1)
+                            assert colour(frame, cell, background=True) == 0x185078, context
+                        span = frame.metadata["plane_width"] * frame.metadata["cell_height"]
+                        offset = (row - 1) * span
+                        pixels = array.array("I", [0x80185078]) * span
+                        for plane in (frame.primary, frame.alternate):
+                            assert plane[offset:offset + span] == pixels, context
+                app = frame.application
+                assert (app["cterm.x"], app["cterm.y"]) == ((1, 23) if double else (80, 23))
+                assert app["cterm.last_column_flag.set"] == int(written == 80 and policy == "deferred")
+                assert (app["cterm.scrollback_pos"] - before.application["cterm.scrollback_pos"]) % app["cterm.scrollback_lines"] == (10 if double else 5)
     t.check("RegionWrapRecovery", b"RECOVERED", (10, 1), ((1, 1, "RECOVERED"),))
 
 
