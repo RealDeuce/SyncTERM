@@ -1502,7 +1502,14 @@ cterm_clearscreen(struct cterminal *cterm, char attr)
 	if(!cterm->started)
 		cterm_start(cterm);
 
-	cterm_page_to_scrollback(cterm);
+	/* Archive exactly the current addressing window, which origin mode
+	 * restricts to the margins. Session-end history still saves the page. */
+	int miny = CURR_MINY;
+	int maxy = CURR_MAXY;
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, NULL, &miny);
+	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, CTERM_COORD_SCREEN, NULL, &maxy);
+	for (int row = miny; row <= maxy; ++row)
+		cterm_line_to_scrollback(cterm, row);
 	cterm_render_clear_window(cterm);
 	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
 	if (cterm->skypix_engine != NULL)

@@ -837,8 +837,8 @@ static int
 remember_hostkey(void *context, const uint8_t fingerprint[32], bool explicit_update)
 {
 	struct connection_ui *ui = context;
-	return st_wren_host_remember_ssh_key(ui->host, ui->profile, fingerprint,
-	    explicit_update);
+	(void)explicit_update;
+	return st_wren_host_remember_ssh_key(ui->host, ui->profile, fingerprint);
 }
 
 static int
@@ -1485,14 +1485,16 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		    audio_runtime, hyperlinks, session_history, &disposition);
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: session failed (%d)\n", status);
-		if (command.url != NULL || disposition == ST_TERM_EXIT_APPLICATION) {
+		{
 			bool saved;
 			int save_status = st_wren_host_offer_save_profile(host,
 			    &selected, &saved);
 
 			if (save_status != 0)
-				fprintf(stderr, "SyncTERM: cannot offer to save the URL entry (%d)\n",
+				fprintf(stderr, "SyncTERM: cannot offer to save the connection entry (%d)\n",
 				    save_status);
+		}
+		if (command.url != NULL || disposition == ST_TERM_EXIT_APPLICATION) {
 			result = status == 0 ? 0 : 1;
 			break;
 		}

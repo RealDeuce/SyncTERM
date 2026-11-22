@@ -1457,31 +1457,29 @@ finished:
 
 int
 st_wren_host_remember_ssh_key(st_wren_host_t *host,
-	const struct st_profile *profile, const uint8_t fingerprint[32],
-	bool explicit_update)
+	struct st_profile *profile, const uint8_t fingerprint[32])
 {
 	struct st_profile copy;
 	const struct st_bbs_entry *entry;
 	int status;
 	if (host == NULL || profile == NULL || fingerprint == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (host->config.safe_mode) return 0;
-	if (host->bbs_list == NULL) {
-		if (!explicit_update) return 0;
-		status = st_bbs_list_open(&host->bbs_list, host->config.paths, NULL, 0);
-		if (status != 0) return status;
-	}
+	/* Acceptance belongs to the active connection even when it has no
+	 * persistent entry, or authentication subsequently fails. */
+	memcpy(profile->ssh_fingerprint, fingerprint, 32);
+	profile->ssh_fingerprint_size = 32;
+	if (host->config.safe_mode || profile->identifier < 0
+	    || profile->source != ST_PROFILE_SOURCE_USER || host->bbs_list == NULL)
+		return 0;
 	entry = st_bbs_list_find(host->bbs_list, profile->name);
-	if (!explicit_update && (entry == NULL || entry->source != ST_BBS_SOURCE_PERSONAL))
+	if (entry == NULL || entry->source != ST_BBS_SOURCE_PERSONAL)
 		return 0;
 	st_profile_init(&copy);
-	if (!st_profile_copy(&copy, entry == NULL ? profile : entry->profile))
+	if (!st_profile_copy(&copy, entry->profile))
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(copy.ssh_fingerprint, fingerprint, 32);
 	copy.ssh_fingerprint_size = 32;
-	status = entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL
-	    ? st_bbs_list_update(host->bbs_list, copy.name, &copy, NULL)
-	    : st_bbs_list_add(host->bbs_list, &copy, NULL);
+	status = st_bbs_list_update(host->bbs_list, copy.name, &copy, NULL);
 	st_profile_dispose(&copy);
 	return status;
 }

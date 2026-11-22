@@ -5924,26 +5924,65 @@ exercise_ssh_key_persistence(st_wren_host_t *public_host)
 	strcpy(profile.address, "ssh.example");
 	memset(fingerprint, 0xa5, sizeof(fingerprint));
 	/* First contact must not silently create a personal directory entry. */
-	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, false) == 0);
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
 	CHECK(st_bbs_list_find(host->bbs_list, profile.name) == NULL);
-	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, true) == 0);
+	CHECK(profile.ssh_fingerprint_size == 32
+	    && memcmp(profile.ssh_fingerprint, fingerprint, 32) == 0);
+	CHECK(host->bbs_list == NULL);
+	CHECK(st_bbs_list_open(&host->bbs_list, host->config.paths, NULL, 0) == 0);
+	CHECK(st_bbs_list_add(host->bbs_list, &profile, NULL) == 0);
+	entry = st_bbs_list_find(host->bbs_list, profile.name);
+	CHECK(entry != NULL && st_profile_copy(&profile, entry->profile));
+	/* The menu model assigns an identifier when selecting a saved entry. */
+	profile.identifier = 0;
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
 	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
 	entry = st_bbs_list_find(host->bbs_list, profile.name);
 	CHECK(entry != NULL && entry->source == ST_BBS_SOURCE_PERSONAL);
 	CHECK(entry->profile->ssh_fingerprint_size == 32
 	    && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+	{
+		int identifier = profile.identifier;
+		uint64_t generation = st_bbs_list_generation(host->bbs_list);
+		profile.identifier = -1;
+		memset(fingerprint, 0x11, sizeof(fingerprint));
+		CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
+		CHECK(st_bbs_list_generation(host->bbs_list) == generation);
+		profile.identifier = identifier;
+		profile.source = ST_PROFILE_SOURCE_SYSTEM;
+		CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
+		CHECK(st_bbs_list_generation(host->bbs_list) == generation);
+		profile.source = ST_PROFILE_SOURCE_USER;
+	}
 	/* Recording a key must preserve edits made since the session started. */
 	strcpy(profile.address, "stale.example");
 	memset(fingerprint, 0x5a, sizeof(fingerprint));
-	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, false) == 0);
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
 	entry = st_bbs_list_find(host->bbs_list, profile.name);
 	CHECK(entry != NULL && strcmp(entry->profile->address, "ssh.example") == 0
 	    && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
 	memset(fingerprint, 0x3c, sizeof(fingerprint));
-	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, true) == 0);
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
 	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
 	entry = st_bbs_list_find(host->bbs_list, profile.name);
 	CHECK(entry != NULL && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+	if (st_list_crypto_encryption_available()) {
+		struct st_list_crypto_options crypto = ST_LIST_CRYPTO_OPTIONS_AES256;
+		crypto.cost_log2 = 8;
+		CHECK(st_bbs_list_rewrite_encryption(host->bbs_list, &crypto, "test", 4) == 0);
+		memset(fingerprint, 0x6b, sizeof(fingerprint));
+		CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
+		CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+		const struct st_list_crypto_info *info = st_bbs_list_crypto_info(host->bbs_list);
+		CHECK(info->format == ST_LIST_CRYPTO_V2 && info->cipher == ST_LIST_CIPHER_AES
+		    && info->key_bits == 256 && info->cost_log2 == 8);
+		entry = st_bbs_list_find(host->bbs_list, profile.name);
+		CHECK(entry != NULL && strcmp(entry->profile->address, "ssh.example") == 0
+		    && memcmp(entry->profile->ssh_fingerprint, fingerprint, 32) == 0);
+		crypto.cipher = ST_LIST_CIPHER_NONE;
+		CHECK(st_bbs_list_rewrite_encryption_current_password(host->bbs_list, &crypto) == 0);
+		entry = st_bbs_list_find(host->bbs_list, profile.name);
+	}
 	CHECK(!st_wren_host_can_trust_tls(host, &profile));
 	CHECK(st_profile_copy(&profile, entry->profile));
 	CHECK(st_wren_host_can_trust_tls(host, &profile));
@@ -6005,6 +6044,10 @@ exercise_ssh_key_persistence(st_wren_host_t *public_host)
 		free(first); free(second);
 	}
 	CHECK(st_bbs_list_remove(host->bbs_list, profile.name, NULL) == 0);
+	profile.identifier = 0;
+	CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
+	CHECK(st_bbs_list_reload(host->bbs_list) == 0);
+	CHECK(st_bbs_list_find(host->bbs_list, profile.name) == NULL);
 	st_profile_dispose(&profile);
 	return 0;
 }
@@ -9058,7 +9101,8 @@ exercise_safe_mode_persistence_contract(st_wren_host_t *public_host,
 		uint64_t generation = st_bbs_list_generation(host->bbs_list);
 		st_profile_init(&profile);
 		strcpy(profile.name, "Alpha");
-		CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint, true) == 0);
+		profile.identifier = 0;
+		CHECK(st_wren_host_remember_ssh_key(host, &profile, fingerprint) == 0);
 		CHECK(st_bbs_list_generation(host->bbs_list) == generation);
 		st_profile_dispose(&profile);
 	}

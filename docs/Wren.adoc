@@ -1167,8 +1167,9 @@ An override must export class `MainMenu` with these static methods:
   DirectoryEntry or Profile to start that connection or `null` to exit.
   Connected invocations are edit-only; their return value is ignored.
 * `offerSave(source, name)` receives a detached Profile and a separate
-  suggested entry name after a
-  command-line connection and returns whether it was saved. The host
+  suggested entry name after an unsaved quick-connect or command-line
+  connection ends, including a return to the directory via Alt-H, and returns
+  whether it was saved. The host
   calls `prepare()` first, then copies the C record into menu storage;
   no connection-owned pointer or foreign value is passed into Wren.
 
@@ -1299,6 +1300,11 @@ profile visited.  New entries are inserted according to the active sort
 profile after their connection details are accepted.  Quick Connect limits
 the directory address field to 64 characters.  Current Screen Mode and
 Startup Screen Mode use distinct dialog titles and context help.
+When `PromptSave` is enabled, every unsaved quick-connect or command-line
+session offers to save its complete entry after disconnect. Accepted SSH
+host keys remain in the temporary profile until that entry is saved; host-key
+verification updates only existing personal entries and preserves their
+list encryption.
 Directory password and system-password rows are obscured in the editor
 list, but selecting one uses ordinary text editing so the existing value can
 be inspected and corrected.  Personal-directory encryption prompts are

@@ -120,6 +120,118 @@ crc16(const void *data, size_t size)
 	return crc;
 }
 
+/* Match the rows actually erased, with a viewport inside a larger console. */
+static void
+check_clear_scrollback_bounds(void)
+{
+	const char *clears[] = {"\x1b[2J", "\f"};
+	for (int encoding = ST_CTERM_ENCODING_UTF8; encoding <= ST_CTERM_ENCODING_CODEPAGE; ++encoding) {
+		for (int origin = 0; origin <= 1; ++origin) {
+			for (int offset = 0; offset <= 2; offset += 2) {
+				for (size_t command = 0; command < sizeof(clears) / sizeof(clears[0]); ++command) {
+					st_console_t *console = NULL;
+					st_font_catalog_t *fonts = NULL;
+					st_cterm_t *terminal = NULL;
+					const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+					const struct st_console_config geometry = {.columns = 8, .rows = 25, .cell_width = 8, .cell_height = 16};
+					CHECK(st_console_create(&console, &display, &geometry) == 0);
+					CHECK(st_font_catalog_create(&fonts, console) == 0);
+					const struct st_cterm_config config = {.console = console, .fonts = fonts,
+						.emulation = ST_CTERM_ANSI_BBS, .encoding = encoding, .codepage = ST_CODEPAGE_CP437,
+						.terminal_rows = 20, .scrollback_lines = 64, .quiet = true};
+					CHECK(st_cterm_create(&terminal, &config) == 0);
+					feed(terminal, "\x1b[0m", 4);
+					CHECK(st_console_set_window(console, &(const struct st_console_rect){0, 0, 8, 25}) == 0);
+					/* Seed all rows through text decoding before positioning the viewport. */
+					for (uint32_t row = 0; row < 25; ++row) {
+						CHECK(st_console_set_position(console, 0, row) == 0);
+						const char letter = (char)('A' + row);
+						CHECK(st_console_write_utf8(console, &letter, 1) == 0);
+					}
+					terminal->y += offset;
+					feed(terminal, "\x1b[5;16r", strlen("\x1b[5;16r"));
+					if (origin) feed(terminal, "\x1b[?6h", strlen("\x1b[?6h"));
+					terminal->backfilled = terminal->backpos = terminal->backstart = 0;
+					feed(terminal, clears[command], strlen(clears[command]));
+					const int first = offset + (origin ? 4 : 0);
+					const size_t count = origin ? 12 : 20;
+					uint32_t columns;
+					size_t rows;
+					CHECK(st_cterm_scrollback_size(terminal, &columns, &rows) == 0);
+					CHECK(columns == 8 && rows == count);
+					struct st_console_cell history[20 * 8], screen[25 * 8];
+					CHECK(st_cterm_copy_scrollback_rows(terminal, history, 8, count, 0, count, 0) == (int)count);
+					CHECK(st_console_read_cells(console, &(const struct st_console_rect){0, 0, 8, 25}, screen, 8) == 0);
+					for (size_t row = 0; row < count; ++row) {
+						char text[8]; size_t size;
+						CHECK(st_console_font_glyph_text(console, history[row * 8].glyph_font,
+						    history[row * 8].glyph, text, sizeof(text), &size) == 0);
+						if (size != 1 || text[0] != 'A' + first + (int)row)
+							fprintf(stderr, "clear encoding=%d origin=%d offset=%d cmd=%zu row=%zu glyph=%u text=%d expected=%d\n", encoding, origin, offset, command, row, history[row*8].glyph, (unsigned char)text[0], 'A'+first+(int)row);
+						CHECK(size == 1 && text[0] == 'A' + first + (int)row);
+					}
+					for (int row = 0; row < 25; ++row) {
+						char text[8]; size_t size;
+						CHECK(st_console_font_glyph_text(console, screen[row * 8].glyph_font,
+						    screen[row * 8].glyph, text, sizeof(text), &size) == 0);
+						CHECK(size == 1 && text[0] == (row >= first && row < first + (int)count ? ' ' : 'A' + row));
+					}
+					st_cterm_destroy(&terminal);
+					st_font_catalog_destroy(fonts);
+					st_console_destroy(console);
+				}
+			}
+		}
+	}
+}
+
+static void
+check_insert_lines_bounds(void)
+{
+	static const struct { int row; const char *command; } cases[] = {
+		{4, "\x1b[L"}, {2, "\x1b[3L"}, {2, "\x1b[99L"},
+	};
+	for (size_t test = 0; test < sizeof(cases) / sizeof(cases[0]); ++test) {
+		for (size_t split = 0; split <= strlen(cases[test].command); ++split) {
+			st_console_t *console = NULL;
+			st_font_catalog_t *fonts = NULL;
+			st_cterm_t *terminal = NULL;
+			const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+			const struct st_console_config geometry = {.columns = 8, .rows = 6, .cell_width = 8, .cell_height = 16};
+			CHECK(st_console_create(&console, &display, &geometry) == 0);
+			CHECK(st_font_catalog_create(&fonts, console) == 0);
+			const struct st_cterm_config config = {.console = console, .fonts = fonts,
+				.emulation = ST_CTERM_ANSI_BBS, .encoding = ST_CTERM_ENCODING_UTF8,
+				.terminal_rows = 5, .quiet = true};
+			CHECK(st_cterm_create(&terminal, &config) == 0);
+			feed(terminal, "\x1b[0m", 4);
+			CHECK(st_console_set_window(console, &(const struct st_console_rect){0, 0, 8, 6}) == 0);
+			for (uint32_t row = 0; row < 6; ++row) {
+				CHECK(st_console_set_position(console, 0, row) == 0);
+				const char letter = (char)('A' + row);
+				CHECK(st_console_write_utf8(console, &letter, 1) == 0);
+			}
+			const char *setup = cases[test].row == 4 ? "\x1b[2;4r\x1b[4;1H" : "\x1b[2;4r\x1b[2;1H";
+			feed(terminal, setup, strlen(setup));
+			feed(terminal, cases[test].command, split);
+			feed(terminal, cases[test].command + split, strlen(cases[test].command) - split);
+			struct st_console_cell cells[48];
+			CHECK(st_console_read_cells(console, &(const struct st_console_rect){0, 0, 8, 6}, cells, 8) == 0);
+			for (int row = 1; row <= 6; ++row) {
+				char text[8]; size_t size;
+				CHECK(st_console_font_glyph_text(console, cells[(row - 1) * 8].glyph_font,
+				    cells[(row - 1) * 8].glyph, text, sizeof(text), &size) == 0);
+				CHECK(size == 1 && text[0] == (row >= cases[test].row && row <= 4 ? ' ' : 'A' + row - 1));
+			}
+			struct st_cterm_state state;
+			CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 1 && state.y == cases[test].row);
+			st_cterm_destroy(&terminal);
+			st_font_catalog_destroy(fonts);
+			st_console_destroy(console);
+		}
+	}
+}
+
 static void
 check_local_text_position(void)
 {
@@ -835,6 +947,8 @@ test_graphics_history(void)
 int
 st_cterm_test_main(void)
 {
+	check_clear_scrollback_bounds();
+	check_insert_lines_bounds();
 	check_local_text_position();
 	check_rip3_absolute_text_position();
 	check_rip3_text_erase();

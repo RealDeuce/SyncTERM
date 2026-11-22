@@ -36,6 +36,12 @@
     {"id": "wren-direct-terminal-reset", "test": "syncterm_behavior_cterm_reset_cp437 / syncterm_behavior_cterm_reset_utf8 / cterm / cterm_rip_variables", "scope": "Direct native reset binding with RIP off/on: retained text, default modes/margins/colours, exact cursor/replies, partial escape/UTF-8 recovery including an independent boxed-cross decode-error raster, repeated/input-hook reset and pending RIP prompt. Native tests verify retained history, actual pre/post-reset failures, persisted-variable reload and failure teardown; RIS protocol expectations and historical RIP captures unchanged."}
   ],
   "cases": [
+    {"id": "RegionScroll", "suite": "margins", "scope": "Complete rows and both solid RGB pixel phases for LF/RI/SU/SD/IL/DL, small and large regions, oversized counts and outside-row preservation"},
+    {"id": "RegionScrollRecovery", "suite": "margins", "scope": "Reset recovers cursor and text after region scrolling"},
+    {"id": "RegionFullWidthWrap", "suite": "margins", "scope": "Synthetic full-width bottom-row output followed by explicit LF, with LCF enabled and disabled; exact blank rows, cursor and pending wrap"},
+    {"id": "RegionWrapRecovery", "suite": "margins", "scope": "Reset restores ordinary text after both region wrap policies"},
+    {"id": "RegionClearScrollback", "suite": "margins", "scope": "ED2 and FF with origin mode on/off: exact cleared and preserved rows, blank pixels, cursor and archived row counts"},
+    {"id": "RegionClearRecovery", "suite": "margins", "scope": "Reset restores text after margin-restricted clears"},
     {"id": "NUL", "source_line": 209, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "BEL", "source_line": 214, "suite": "extensions", "scope": "Partial: parsing/recovery only; audibility needs audio-device validation"},
     {"id": "BS", "source_line": 220, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},

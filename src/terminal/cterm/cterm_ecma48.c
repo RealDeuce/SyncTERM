@@ -345,15 +345,15 @@ cterm_handle_il(struct cterminal *cterm, int *speed)	/* CSI L */
 	i = (int)cterm->seq_param_int[0];
 	if (i < 1)
 		return;
-	if (i > TERM_MAXY - row)
-		i = TERM_MAXY - row;
+	if (i > TERM_MAXY - row + 1)
+		i = TERM_MAXY - row + 1;
 	col2 = TERM_MINX;
 	row2 = row;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &col2, &row2);
 	max_col = TERM_MAXX;
 	max_row = TERM_MAXY;
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &max_col, &max_row);
-	if (i)
+	if (row2 + i <= max_row)
 		cterm_render_move_cells(cterm, col2, row2, max_col, max_row - i, col2, row2 + i);
 	for (j = 0; j < i; j++) {
 		cterm_set_position(cterm, TERM_MINX, row + j);

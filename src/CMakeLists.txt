@@ -712,6 +712,15 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_skypix_cursor PROPERTIES
 				TIMEOUT 180 LABELS "terminal;conformance;skypix;cursor")
+			set(_quick_connect_ssh_args)
+			if(TARGET st_connection_ssh_fixture)
+				list(APPEND _quick_connect_ssh_args --ssh-fixture $<TARGET_FILE:st_connection_ssh_fixture>)
+			endif()
+			add_test(NAME syncterm_quick_connect
+				COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_quick_connect_test.py
+				$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control ${_quick_connect_ssh_args})
+			set_tests_properties(syncterm_quick_connect PROPERTIES TIMEOUT 120 LABELS "application;connection")
+			unset(_quick_connect_ssh_args)
 			foreach(_group movement editing margins attributes queries extensions keyboard recovery)
 				foreach(_encoding CP437 UTF-8)
 					add_test(NAME syncterm_conformance_${_group}_${_encoding}

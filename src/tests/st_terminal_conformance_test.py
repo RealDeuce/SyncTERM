@@ -39,7 +39,8 @@ def colour(frame, cell, background=False):
 def tile(frame, x=1, y=1, alternate=False):
     m = frame.metadata
     plane = frame.alternate if alternate else frame.primary
-    left, top = (x - 1) * m["cell_width"], (y - 1) * m["cell_height"] + m["pixel_top"]
+    # Capture planes are already in logical row order.
+    left, top = (x - 1) * m["cell_width"], (y - 1) * m["cell_height"]
     return tuple(plane[(top + row) * m["plane_width"] + left + col]
                  for row in range(m["cell_height"]) for col in range(m["cell_width"]))
 
@@ -223,7 +224,95 @@ def editing(t):
             (1, 2), ((1, 1, "KEEP"), (1, 2, "    ")))
 
 
+def region_scrolling(t):
+    # Large regions exercise the row ring; small ones use the copy path. Each
+    # row has a distinct character and solid RGB raster, independently expected.
+    width, height = 80, 25
+    for top, bottom in ((1, 20), (3, 23), (5, 10), (1, 25)):
+        for count in (1, 2, 4, bottom - top + 2):
+            for operation in ("SU", "SD", "DL", "IL", "LF", "RI"):
+                t.case("RegionScroll")
+                seed = b"".join(cup(1, row) +
+                    f"\x1b[38;2;{row};{2*row};{3*row}m\x1b[48;2;{row};{2*row};{3*row}m".encode() +
+                    bytes([64 + row]) * width for row in range(1, height + 1))
+                region = f"\x1b[{top};{bottom}r".encode()
+                start = top if operation in ("RI", "IL", "DL") else bottom
+                command = {"SU": f"\x1b[{count}S".encode(), "SD": f"\x1b[{count}T".encode(),
+                           "DL": f"\x1b[{count}M".encode(), "IL": f"\x1b[{count}L".encode(),
+                           "LF": b"\n" * count, "RI": b"\x1bM" * count}[operation]
+                frame = t.exchange(ESC + b"[?7l" + seed + region + cup(1, start) +
+                                   ESC + b"[38;2;90;80;70m\x1b[48;2;90;80;70m" + command, reset=True)
+                down = operation in ("SD", "IL", "RI")
+                shift = min(count, bottom - top + 1)
+                for row in range(1, height + 1):
+                    source = row
+                    if top <= row <= bottom:
+                        source = row - shift if down else row + shift
+                        if not top <= source <= bottom:
+                            source = None
+                    expected_text = chr(64 + source) if source else " "
+                    expected_rgb = (source << 16 | 2*source << 8 | 3*source) if source else 0x5a5046
+                    for x in range(1, width + 1):
+                        cell = cell_at(frame, x - 1, row - 1)
+                        context = (top, bottom, count, operation, x, row)
+                        assert frame.cell_text(cell) == expected_text, context
+                        assert colour(frame, cell, background=True) == expected_rgb, context
+                        for alternate in (False, True):
+                            assert all((pixel if pixel & 0x80000000 else frame.palette[pixel]) & 0xffffff == expected_rgb
+                                       for pixel in tile(frame, x, row, alternate)), (context, alternate, expected_rgb, sorted(set(tile(frame, x, row, alternate))), frame.palette[:16])
+                assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, start), (operation, frame.application)
+    t.check("RegionScrollRecovery", b"RECOVERED", (10, 1), ((1, 1, "RECOVERED"),))
+
+
+def region_full_width_wrap(t):
+    # Rainwire writes a complete bottom row, then explicitly positions there
+    # and sends LF. Immediate BBS wrap and enabled LCF have distinct results.
+    for enabled in (False, True):
+        t.case("RegionFullWidthWrap")
+        mode = ESC + (b"[=4h" if enabled else b"[=4l")
+        data = mode + ESC + b"[1;23r" + cup(1, 23)
+        for letter in b"ABCDE":
+            data += cup(1, 23) + b"\n" + cup(1, 23) + bytes([letter]) * 80
+        frame = t.exchange(data, reset=True)
+        for row in range(1, 26):
+            expected = " " * 80
+            for index, letter in enumerate("ABCDE"):
+                target = 19 + index if enabled else 14 + 2 * index
+                if row == target:
+                    expected = letter * 80
+            assert frame.lines[row - 1] == expected, (enabled, row, frame.lines)
+        assert (frame.application["cterm.x"], frame.application["cterm.y"]) == ((80, 23) if enabled else (1, 23))
+        assert frame.application["cterm.last_column_flag.set"] == int(enabled)
+    t.check("RegionWrapRecovery", b"RECOVERED", (10, 1), ((1, 1, "RECOVERED"),))
+
+
+def region_clear(t):
+    for origin in (False, True):
+        for command in (ESC + b"[2J", b"\f"):
+            t.case("RegionClearScrollback")
+            seed = b"".join(cup(1, row) + bytes([64 + row]) * 79 for row in range(1, 26))
+            before = t.exchange(seed + ESC + b"[5;16r" + (ESC + b"[?6h" if origin else b""), reset=True)
+            frame = t.exchange(command)
+            first, last = (5, 16) if origin else (1, 25)
+            for row in range(1, 26):
+                cleared = first <= row <= last
+                assert frame.lines[row - 1] == (" " * 80 if cleared else chr(64 + row) * 79 + " "), (origin, command, row)
+                if cleared:
+                    for x in range(1, 81):
+                        cell = cell_at(frame, x - 1, row - 1)
+                        assert colour(frame, cell, background=True) == 0
+                        assert all((pixel & 0xffffff) == 0 if pixel & 0x80000000 else frame.palette[pixel] == 0
+                                   for pixel in tile(frame, x, row))
+            app = frame.application
+            assert (app["cterm.x"], app["cterm.y"]) == (1, first)
+            assert (app["cterm.scrollback_pos"] - before.application["cterm.scrollback_pos"]) % app["cterm.scrollback_lines"] == last - first + 1
+    t.check("RegionClearRecovery", b"RECOVERED", (10, 1), ((1, 1, "RECOVERED"),))
+
+
 def margins(t):
+    region_clear(t)
+    region_scrolling(t)
+    region_full_width_wrap(t)
     t.check("DECSTBM", ESC + b"[10;11r" + cup(3, 11) + b"\n", (3, 11))
     t.check("DECSLRM", ESC + b"[?69h" + ESC + b"[10;11s" + cup(10, 10) + b"\b\b" + ESC + b"[10C", (11, 10))
     t.check("DECSTBMScroll", b"StayHere" + ESC + b"[3;6r" + cup(1, 3) + b"Line3\r\nLine4\r\nLine5\r\nLine6\r\n",

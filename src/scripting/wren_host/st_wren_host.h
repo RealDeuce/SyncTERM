@@ -119,9 +119,10 @@ int st_wren_host_remember_tls_version(st_wren_host_t *host,
 /* Reapplies session-only observations after a directory reload, but never
  * across changed peer/trust settings or an explicitly edited version floor. */
 void st_wren_host_apply_tls_version(st_wren_host_t *host, struct st_profile *profile);
+/* Retains an accepted key in the active profile; persists only an existing
+ * personal entry, without creating entries or changing encryption policy. */
 int st_wren_host_remember_ssh_key(st_wren_host_t *host,
-	const struct st_profile *profile, const uint8_t fingerprint[32],
-	bool explicit_update);
+	struct st_profile *profile, const uint8_t fingerprint[32]);
 
 /*
  * Creates the same temporary profile as Menu.quickConnect(). An UNKNOWN
