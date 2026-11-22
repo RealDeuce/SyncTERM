@@ -393,6 +393,9 @@ struct st_rip3_command_sink {
  * a bound user processor, unknown user references execute its prompt/storage
  * matrix and suspend the same source pump until a response. A final prompt
  * remains pending; cancellation/EOF releases only query-owned prompt state.
+ * Modes 5/6 copy unexpanded entry/exit expressions into the mouse owner;
+ * $OFF$ removes them. Movement invokes them under a stable field identity,
+ * exits before entries. Modes 1..4 storage is a separate unfinished family.
  * Exactly two ordinary passes buffer each response before transmission, with
  * outer controls/backslashes deferred to pass two. Inserted values are skipped
  * in their producing pass, and neither angle nor bracket stages restart on them.

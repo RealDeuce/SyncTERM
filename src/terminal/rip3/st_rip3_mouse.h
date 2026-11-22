@@ -62,6 +62,14 @@ struct st_rip3_mouse_paint {
  * fail before mutation. Paint bindings must already be snapshotted. */
 int st_rip3_mouse_remove(struct st_rip3_mouse *mouse,
 	const struct st_rip3_rect *area, unsigned flags, const struct st_rip3_mouse_paint *paint);
+/* Global mode-5 entry / mode-6 exit expressions. Copy unexpanded source;
+ * case-insensitive $OFF$ removes it. Empty source leaves it unchanged.
+ * These definitions survive field deletion; they own no pixel buffers. */
+int st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length);
+/* One movement at a time, serialized by pending(). Snapshot field tokens;
+ * exits precede entries, newest first. A callback may delete/redefine fields.
+ * Hover never acquires, releases or transfers click capture. */
+void st_rip3_mouse_move(struct st_rip3_mouse *mouse,int32_t x,int32_t y);
 size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);

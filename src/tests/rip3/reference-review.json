@@ -965,9 +965,9 @@
   ],
   "upstream_issue_resolutions": 64,
   "pending_followups": [
-    "B130 portable complete TEXT_METRIC font/height/state contract.",
-    "B131 grouped radio/checkbox selection and template continuation/required lifetime.",
-    "Advanced frontend user editor/format modes, hover and remaining table/playback work."
+    "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
+    "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
+    "Advanced frontend user editor/format modes and remaining table/playback families."
   ],
   "derivations": [
     {
@@ -6851,6 +6851,73 @@
           "rip3_preservation_guard"
         ],
         "scope": "The focused native expectation failed on the old ICON-only guard, then passed after removing that guard. Both connected encodings pass on 640x480, 800x600, 1024x768 and 720x400. Checks cover selected plain/clipboard image, bevel versus recess, padded source, no double inversion, outside cancellation, once-only keyboard/pointer host activation and no creation-time execution. Native auto-stamp captures retain unselected source pixels before the final image inversion. The final builds are warning-free; unchanged ICON behavior is reused by code equivalence rather than replaying its passed suite. All six distinct relevant checks pass, including the contract/preservation guards and the unchanged 93-file/41-helper RIP1.54 freeze with its recorded historical exceptions."
+      }
+    },
+    {
+      "after_commit": "b169425c",
+      "revision": "21728db6fd3ff7623e36d5ff59e8c64421f57c14",
+      "scope": "Connect resident mode-5/6 hover queries to physical motion with owned resumable traversal and scoped FIELDID.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:26",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:73",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:120",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:25",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:26",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:27",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:31",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:45",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:50",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:51",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:77"
+      ],
+      "newly_blocked_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:51",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:53"
+      ],
+      "tests": [
+        "rip3_hover",
+        "rip3_mouse",
+        "rip3_session",
+        "syncterm_rip3_hover_CP437",
+        "syncterm_rip3_hover_UTF-8"
+      ],
+      "policy": "Store definition source without providers; snapshot field tokens per motion, exits before entries/newest first. Allocate only requested callback actions; no-handler motion updates membership in one pass and unchanged motion creates no pending traversal. Reuse the existing input FIFO, renderer/query busy gate, host processor and FIELDID callback scope. No scene pixel/damage layer, new terminal mode or normal ANSI/RIP1 rendering path is introduced. Query and handler failures stay below void processing.",
+      "states_after_update": {
+        "unreviewed": 3323,
+        "context": 1370,
+        "pending": 1732,
+        "implemented": 1740,
+        "excluded": 67,
+        "blocked": 47
+      },
+      "pending_followups": [
+        "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
+        "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
+        "Advanced frontend user editor/format modes and remaining table/playback families."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; single CMake build tree build.",
+        "passed_tests": [
+          "rip3_hover",
+          "rip3_mouse",
+          "rip3_session",
+          "rip3_query_commands",
+          "rip3_button_create",
+          "term_key_forward",
+          "syncterm_rip3_hover_CP437",
+          "syncterm_rip3_hover_UTF-8",
+          "syncterm_rip3_mouse_CP437",
+          "syncterm_rip3_mouse_UTF-8",
+          "syncterm_rip3_keyboard_CP437",
+          "syncterm_rip3_keyboard_UTF-8",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "rip154_source_freeze",
+          "rip3_contract",
+          "rip3_preservation_guard"
+        ],
+        "scope": "Seventeen distinct relevant checks pass, including the final contract/preservation guards and RIP1.54 preservation of 93 files and 41 helper definitions with only the recorded historical exceptions. Native allocation injection proves failed definition replacement retains the old source, action allocation failure is nonfatal and owner destruction releases all allocations. Native traversal tests cover overlap/order, edges, anonymous fields, mutation/reused IDs, suspension and query replacement. Public session tests retain FIELDID through self-deletion plus a delay and through successive prompts. Actual CP437/UTF-8 sessions at 640x480 and 720x400 cover simple/button hover, held click ownership, normal pointer shape, two real editor prompts, ordered later wire input and malformed-handler recovery. Existing mouse/keyboard and ANSI controls pass. The final build is warning-free.",
+        "correction": "The query dispatcher initially lacked the mouse API include; the declaration warning was fixed and the final native build is clean. No original downloaded code or scene/client was executed."
       }
     }
   ]

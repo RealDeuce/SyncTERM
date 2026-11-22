@@ -3,6 +3,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_input.h"
+#include "st_rip3_mouse.h"
 #include "st_rip3_query_internal.h"
 #include "st_rip3_number.h"
 #include "st_rip3_palettes.h"
@@ -118,7 +119,7 @@ desktop_palette(const struct st_rip3_command_host *host,
 }
 
 static int
-immediate_query(const struct st_rip3_command_host *host,
+host_query(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
 	struct st_rip3_environment environment;
@@ -137,10 +138,13 @@ immediate_query(const struct st_rip3_command_host *host,
 		status = st_rip3_command_field(&reserved,command+4,2,environment.base_math);
 	if (status != 0)
 		return status;
-	(void)window; /* Immediate queries do not address a text window or port. */
-	if (mode != 0 || reserved != 0)
-		return IO_ERROR_NOT_SUPPORTED;
-	*operation = true;
+	(void)window; /* Immediate and hover queries have no numbered target. */
+	if ((mode!=0 && mode!=5 && mode!=6) || reserved!=0) return IO_ERROR_NOT_SUPPORTED;
+	*operation=true;
+	if (mode==5 || mode==6) {
+		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
+		return st_rip3_mouse_query(host->mouse,mode==5,command+6,length-6);
+	}
 	/* Private ownership/preflight status is consumed by the void command
 	 * boundary. Rejected source syntax has not started an operation. Nested
 	 * execution diagnostics remain inside the evaluator's void processing. */
@@ -387,7 +391,7 @@ execute(const struct st_rip3_command_host *host,
 	if (length >= 2 && command[0] == '2' && command[1] == 'T')
 		return switch_text_window(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
-		return immediate_query(host,command,length,operation);
+		return host_query(host,command,length,operation);
 	if (length >= 2 && (command[0] == '1' || command[0] == '2') && command[1] == 'W')
 		return st_rip3_bitmap_commands_execute(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && command[1] == 'C')

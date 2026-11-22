@@ -2189,8 +2189,8 @@ Windows/macOS sources and tests are updated but were not run locally. Reviewed
 issue #125 with canonical 0..7 mapping, including raised palm 5 and prohibited 7.
 [PR #126](https://github.com/bbs-land/remote-imaging-protocol/pull/126) answers
 issue #124's graphical-expansion contract; its unfinished runtime consumers
-remain pending. RIP hover host-query execution and HEADER input-lock
-orchestration remain pending.
+remain pending. RIP hover host-query execution is covered below; full hover
+lifecycle and HEADER input-lock orchestration remain pending.
 
 `syncterm_rip3_graphical_CP437` and `syncterm_rip3_graphical_UTF-8` cover
 connected T/@ angle preprocessing and one ordinary graphical expansion pass,
@@ -2239,3 +2239,15 @@ keyboard activation with opaque creation-time host source. Native tests cover
 auto-stamp capture before the final selected-image inversion. Persistent
 radio/checkbox state and associated-template lifetime remain separately under
 [issue #131](https://github.com/bbs-land/remote-imaging-protocol/issues/131).
+
+`rip3_hover`, public session tests and `syncterm_rip3_hover_CP437` /
+`syncterm_rip3_hover_UTF-8` cover connected query modes 5/6: exits before entries,
+newest-first overlap, valid-ID membership, half-open edges, callback FIELDID,
+held click capture, asynchronous button redraw, self-deletion, delay/prompt
+suspension and ordered later wire input. Two real editor prompts retain IDs 8
+and 7; malformed handlers remain nonfatal. Native allocation injection checks
+retained definitions and leak-free shutdown. Unchanged motion creates no pending
+traversal, and no-handler motion uses one membership pass. Pointer-only captures
+retain their pixel planes. Modes 1..4 storage and complete resident-handler/
+membership/reset edges remain pending, with the latter tracked in
+[issue #132](https://github.com/bbs-land/remote-imaging-protocol/issues/132).

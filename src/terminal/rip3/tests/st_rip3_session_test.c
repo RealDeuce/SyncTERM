@@ -835,6 +835,47 @@ static int mouse_pointer(void)
 }
 
 static int
+hover_queries(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0 && query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(append(&f,"!|1\0335000E$FIELDID$;|1\0336000X$FIELDID$;|1M000A0A1O1O0000000ID=7:A$FIELDID$|1M000K0K28280000000ID=8:B$FIELDID$\r")==0
+	    && pump(&f)==0 && f.errors==0 && f.reply_length==0);
+	st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(f.reply_length==6 && memcmp(f.reply,"E8;E7;",6)==0 && !st_rip3_session_pending(f.session));
+	f.reply_length=0;CHECK(st_rip3_session_mouse(f.session,30,30,true));
+	st_rip3_session_mouse_move(f.session,90,90);st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(f.reply_length==12 && memcmp(f.reply,"X8;X7;E8;E7;",12)==0);
+	CHECK(st_rip3_session_mouse(f.session,30,30,false));
+	CHECK(f.reply_length==14 && memcmp(f.reply+12,"B8",2)==0);
+	/* Mutation during the newest entry invalidates older snapshot tokens;
+	 * the active callback keeps its own FIELDID after deleting itself. */
+	f.reply_length=0;st_rip3_session_mouse_move(f.session,90,90);f.reply_length=0;
+	CHECK(append(&f,"!|1\0335000$MKILL$$FIELDID$\r")==0 && pump(&f)==0);
+	st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(f.errors==0 && f.reply_length==1 && f.reply[0]=='8' && !st_rip3_session_mouse_active(f.session));
+	CHECK(append(&f,"!|1\0335000$MKILL$$D(1)$$FIELDID$|1M000A0A1O1O0000000ID=7:A|1M000K0K28280000000ID=8:B\r")==0
+	    && pump(&f)==0);f.reply_length=0;
+	st_rip3_session_mouse_move(f.session,30,30);
+	CHECK(st_rip3_session_pending(f.session) && st_rip3_session_wait_ns(f.session)!=0 && f.reply_length==0);
+	f.now+=UINT64_C(1000000000);CHECK(pump(&f)==0 && !st_rip3_session_pending(f.session)
+	    && f.reply_length==1 && f.reply[0]=='8' && !st_rip3_session_mouse_active(f.session));
+	CHECK(append(&f,"!|1\0335000E$FIELDID$:$=LIVE,8@Entry <<FIELDID>>$|1M000A0A1O1O0000000ID=7:A|1M000K0K28280000000ID=8:B\r")==0
+	    && pump(&f)==0);f.reply_length=0;
+	st_rip3_session_mouse_move(f.session,30,30);
+	struct st_rip3_session_prompt prompt;
+	CHECK(st_rip3_session_prompt(f.session,&prompt) && st_rip3_session_graphical_pending(f.session));
+	CHECK(append(&f,"later\r\n")==0);size_t stopped=f.read;
+	CHECK(pump(&f)==0 && f.read==stopped && f.reply_length==0);
+	st_rip3_session_respond(f.session,(const uint8_t *)"Ready",5,false);
+	CHECK(f.reply_length==8 && memcmp(f.reply,"E8:Ready",8)==0 && st_rip3_session_prompt(f.session,&prompt));
+	st_rip3_session_respond(f.session,(const uint8_t *)"Done",4,false);
+	CHECK(f.reply_length==15 && memcmp(f.reply,"E8:ReadyE7:Done",15)==0 && !st_rip3_session_pending(f.session));
+	CHECK(pump(&f)==0 && f.text_length==7 && memcmp(f.text,"later\r\n",7)==0);
+	CHECK(query(&f,"alive","alive")==0);st_rip3_session_destroy(f.session);return 0;
+}
+
+static int
 text_metrics(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -1012,7 +1053,7 @@ main(void)
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
-	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0);
+	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && hover_queries()==0);
 	CHECK(world_state()==0);
 	CHECK(soft_reset()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0

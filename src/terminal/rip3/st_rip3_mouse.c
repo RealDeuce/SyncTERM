@@ -10,7 +10,7 @@ struct field {
 	struct st_rip3_mouse_binding binding;
 	struct st_rip3_mouse_visual visual;
 	uint64_t instance;
-	bool invert,reset;
+	bool invert,reset,hovered;
 	int identity;
 	size_t length;
 	uint8_t program[];
@@ -31,6 +31,12 @@ struct st_rip3_mouse {
 	uint64_t sequence,scene,gesture;
 	struct activation *activation;
 	bool left, inverted,hotkeys,pointer_capture;
+	struct {uint8_t *bytes;size_t length;} queries[2]; /* Entry, exit. */
+	/* One bounded motion snapshot, independent of resident field storage. */
+	struct {uint64_t instance;bool inside;} hover[128];
+	size_t hover_count,hover_cursor;
+	unsigned hover_phase;
+	int32_t hover_x,hover_y;
 };
 
 int
@@ -90,7 +96,7 @@ void
 st_rip3_mouse_kill(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	++mouse->scene;
+	++mouse->scene;mouse->hover_phase=0;
 	st_rip3_mouse_cancel(mouse);
 	for (size_t i=0;i<mouse->count;i++) destroy_field(mouse->fields[i]);
 	mouse->count=0;
@@ -100,7 +106,8 @@ void
 st_rip3_mouse_destroy(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	st_rip3_mouse_abort(mouse);st_rip3_mouse_kill(mouse);free(mouse);
+	st_rip3_mouse_abort(mouse);st_rip3_mouse_kill(mouse);
+	free(mouse->queries[0].bytes);free(mouse->queries[1].bytes);free(mouse);
 }
 
 bool
@@ -131,7 +138,7 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	if (invert && visual==NULL && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	field->area=*area;field->kind=kind;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
+	field->hovered=false;field->area=*area;field->kind=kind;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
 	field->binding=kind==ST_RIP3_MOUSE_BUTTON && binding!=NULL ? *binding : (struct st_rip3_mouse_binding){0};
 	field->visual=visual!=NULL ? *visual : (struct st_rip3_mouse_visual){0};
 	field->instance=++mouse->sequence;
@@ -197,7 +204,7 @@ st_rip3_mouse_scene(const struct st_rip3_mouse *mouse)
 bool
 st_rip3_mouse_pending(const struct st_rip3_mouse *mouse)
 {
-	return mouse!=NULL && mouse->activation!=NULL;
+	return mouse!=NULL && (mouse->activation!=NULL || mouse->hover_phase!=0);
 }
 
 void
@@ -216,7 +223,7 @@ void
 st_rip3_mouse_abort(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	st_rip3_mouse_cancel_silent(mouse);free(mouse->activation);mouse->activation=NULL;
+	st_rip3_mouse_cancel_silent(mouse);mouse->hover_phase=0;free(mouse->activation);mouse->activation=NULL;
 }
 
 uint64_t
@@ -225,12 +232,86 @@ st_rip3_mouse_press_token(const struct st_rip3_mouse *mouse)
 	return mouse==NULL || !mouse->pointer_capture || mouse->pressed==NULL ? 0 : mouse->gesture;
 }
 
+int
+st_rip3_mouse_query(struct st_rip3_mouse *mouse,bool entry,const uint8_t *bytes,size_t length)
+{
+	if (mouse==NULL || (bytes==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
+	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
+	if (end!=NULL) length=(size_t)(end-bytes);
+	if (length==0) return 0;
+	bool off=length==5;
+	static const char remove[]="$OFF$";
+	for (size_t i=0;off && i<5;i++) {
+		uint8_t c=bytes[i];if (c>='a' && c<='z') c-='a'-'A';off=c==(uint8_t)remove[i];
+	}
+	uint8_t *copy=off ? NULL : malloc(length);
+	if (!off && copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	if (!off) memcpy(copy,bytes,length);
+	unsigned slot=entry ? 0 : 1;
+	free(mouse->queries[slot].bytes);mouse->queries[slot].bytes=copy;mouse->queries[slot].length=off ? 0 : length;
+	return 0;
+}
+
+static bool
+next_hover(struct st_rip3_mouse *mouse)
+{
+	while (mouse->hover_phase!=0) {
+		if (mouse->hover_cursor==0) {
+			if (mouse->hover_phase==2) {mouse->hover_phase=0;return false;}
+			mouse->hover_phase=2;mouse->hover_cursor=mouse->hover_count;continue;
+		}
+		size_t at=--mouse->hover_cursor;struct field *field=NULL;
+		for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->instance==mouse->hover[at].instance) {field=mouse->fields[i];break;}
+		if (field==NULL) continue;
+		bool entry=mouse->hover_phase==2;
+		if (mouse->hover[at].inside!=entry || field->hovered==entry) continue;
+		field->hovered=entry;
+		unsigned slot=entry ? 0 : 1;size_t length=mouse->queries[slot].length;
+		if (length==0) continue;
+		struct activation *action=length>SIZE_MAX-sizeof(*action) ? NULL : malloc(sizeof(*action)+length);
+		if (action==NULL) {
+			if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
+			continue;
+		}
+		*action=(struct activation){.length=length,.instance=field->instance,.identity=field->identity,
+		    .x=mouse->hover_x,.y=mouse->hover_y};
+		memcpy(action->program,mouse->queries[slot].bytes,length);mouse->activation=action;return true;
+	}
+	return false;
+}
+
+void
+st_rip3_mouse_move(struct st_rip3_mouse *mouse,int32_t x,int32_t y)
+{
+	if (mouse==NULL) return;
+	if (mouse->hover_phase!=0) {
+		if (mouse->sink.render_failure!=NULL) mouse->sink.render_failure(mouse->sink.context);
+		return;
+	}
+	/* With no callbacks there can be no traversal mutation. Keep membership
+	 * in one pass without creating a pending action for ordinary motion. */
+	if (mouse->queries[0].length==0 && mouse->queries[1].length==0) {
+		for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->identity>=0)
+			mouse->fields[i]->hovered=inside(mouse->fields[i],x,y);
+		return;
+	}
+	mouse->hover_count=0;mouse->hover_x=x;mouse->hover_y=y;
+	for (size_t i=0;i<mouse->count;i++) if (mouse->fields[i]->identity>=0
+	    && mouse->fields[i]->hovered!=inside(mouse->fields[i],x,y)) {
+		size_t at=mouse->hover_count++;
+		mouse->hover[at].instance=mouse->fields[i]->instance;mouse->hover[at].inside=inside(mouse->fields[i],x,y);
+	}
+	if (mouse->hover_count==0) return;
+	mouse->hover_phase=1;mouse->hover_cursor=mouse->hover_count;st_rip3_mouse_resume(mouse);
+}
+
 void
 st_rip3_mouse_resume(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	while (mouse->activation!=NULL) {
+	for (;;) {
 		if (mouse->sink.busy!=NULL && mouse->sink.busy(mouse->sink.context)) return;
+		if (mouse->activation==NULL && !next_hover(mouse)) return;
 		struct activation *action=mouse->activation;
 		if (action->stage==0) {
 			action->stage=1;

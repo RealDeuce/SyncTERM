@@ -627,6 +627,12 @@ st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, boo
 	return session!=NULL && st_rip3_mouse_event(session->commands.mouse,x,y,left);
 }
 
+void
+st_rip3_session_mouse_move(struct st_rip3_session *session,int32_t x,int32_t y)
+{
+	if (session!=NULL) st_rip3_mouse_move(session->commands.mouse,x,y);
+}
+
 bool
 st_rip3_session_key(struct st_rip3_session *session, uint8_t byte)
 {

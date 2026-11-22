@@ -2,7 +2,7 @@
 """Live RIPv3 simple fields: hit geometry, host commands and native feedback.
 
 Gesture commitment and identity scope follow the adopted PR115 contract. This
-does not claim button faces or hover-query integration.
+does not claim button faces; separate hover cases cover resident queries.
 """
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse

@@ -7496,3 +7496,59 @@ The 8279-unit ledger is 1729 implemented, 1741 pending, 3328 unreviewed,
 track B131. B130's complete metric/font/height/state rules, advanced frontend
 user editor/format modes, hover and remaining table/playback work also remain
 unfinished. RIP1.54's sources, baseline and historical expectations remain intact.
+
+## Connected mouse-field entry and exit queries
+
+Wire `1ESC` modes 5/6 now copy unexpanded global entry/exit expressions into
+the mouse owner. Definitions execute no providers. Exact case-insensitive
+`$OFF$` removes the corresponding expression. Physical movement invokes
+identified fields' exits before entries, newest first in each pass, with each
+callback's FIELDID and movement point. Both simple fields and mouse buttons
+participate; anonymous fields do not. Click press/release and keyboard capture
+remain independent, including movement while a button is held.
+
+A bounded event snapshot stores stable instance tokens, not pointers into a
+mutable field array. Deleted instances are skipped, new/reused-ID fields wait
+for the next movement, and a dispatched callback owns its source through
+query replacement, deletion and suspension. The existing session query worker,
+FIELDID scope and ordered input FIFO serialize prompts and delays before later
+callbacks or wire input. Self-deletion does not remove the active callback's
+identity or synthesize removed-field exits. Temporary button redraw can finish
+before its hover callback without transferring the held click. Invalid stored
+expressions are diagnosed inside the parser and leave the connection usable.
+
+Ordinary motion with no handlers updates membership in one pass; unchanged
+membership creates no pending traversal. Only callbacks allocate action copies.
+This adds required field/event metadata, with no screen pixel buffer, damage
+map, alternate terminal mode or normal ANSI/RIP1 rendering path. The existing
+mouse owner releases stored expressions and pending actions at shutdown.
+
+The pinned original TELKILL.FN bytes explicitly issue `1K` followed by separate
+mode-5 and mode-6 `$OFF$` commands. They were read as data, without executing an
+original scene/client. New [issue #132](https://github.com/bbs-land/remote-imaging-protocol/issues/132)
+requests the full definition/membership lifecycle for absent/OFF handlers,
+replacement while already inside or suspended, resets/restores/input gates,
+empty definitions and numeric/storage edges. Current basic dispatch is
+connected; those edge policies remain explicitly unaccepted under B132.
+Stored-but-unexecuted click query modes 1–4 and their numbered table ownership
+are also still pending. No old issue receives comments.
+
+Native tests cover overlap and exit-first ordering, half-open edges, anonymous
+fields, independent membership, same-ID replacement, deletion, source ownership,
+suspension and allocation failure. Injected allocation failures preserve old
+query definitions or consume the failed action nonfatally; destruction releases
+all owner allocations. Public session tests retain FIELDID through self-deletion
+plus a delay and through successive prompts. Live CP437/UTF-8 cases on 640×480
+and 720×400 entries verify pointer metadata without pixel changes, simple/button
+hover, held click ownership, two actual menu-editor prompts with IDs 8 then 7,
+ordered later wire input, `$OFF$`, field clearing and malformed-handler recovery.
+Existing mouse, keyboard and normal ANSI controls pass. The final native build
+is warning-free; the missing mouse API include found during integration is fixed.
+
+At unchanged pin `21728db6fd3ff7623e36d5ff59e8c64421f57c14`, the 8279-unit
+ledger contains 1740 implemented, 1732 pending, 3323 unreviewed, 1370 context,
+67 excluded and 47 blocked units. B130's full metrics, B131's persistent grouped
+selection/template lifetime, B132's hover edges, advanced frontend user editor/
+format modes, numbered resident-query storage and remaining table/playback
+families prevent a full-compliance claim. RIP1.54's baseline and expectations
+are unchanged.

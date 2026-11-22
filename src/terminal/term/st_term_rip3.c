@@ -915,6 +915,8 @@ st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *even
 	st_term_rip3_flush(rip);feedback_begin(rip);
 	bool handled=st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
 	    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
+	if (event->data.mouse.action==ST_CONSOLE_MOUSE_MOVE)
+		st_rip3_session_mouse_move(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	present(rip);flush_text(rip);feedback_end(rip);return handled;
 }
 
