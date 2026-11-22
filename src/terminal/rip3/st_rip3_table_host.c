@@ -9,6 +9,7 @@
 #include "st_rip3_styles.h"
 #include "st_rip3_button_styles.h"
 #include "st_rip3_text_window.h"
+#include "st_rip3_mouse.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -439,7 +440,7 @@ enum table_reset_kind { RESET_ENTRY, RESET_CURRENT, RESET_TABLE, RESET_BASE,
 
 static int
 table_reset(const struct st_rip3_table_binding *binding,
-    const struct st_rip3_builtin_reference *reference, bool buttons)
+    const struct st_rip3_builtin_reference *reference, enum st_rip3_table_type type)
 {
 	struct {enum table_reset_kind kind; unsigned index;} actions[39];
 	size_t count=reference->count==1 ? 1 : reference->count-1;
@@ -447,7 +448,7 @@ table_reset(const struct st_rip3_table_binding *binding,
 	/* Validate the complete selector list and every required binding before
 	 * executing anything, including a mixed live-table/backup reset. */
 	for (size_t i=0; i<count; i++) {
-		const char *word=reference->count==1 ? "CUR" : reference->parameters[i+1].text;
+		const char *word=reference->count==1 ? (type==ST_RIP3_TABLE_MOUSE ? "TBL" : "CUR") : reference->parameters[i+1].text;
 		enum table_reset_kind kind;unsigned index=0;
 		if (equal(word,"CUR")) kind=RESET_CURRENT;
 		else if (equal(word,"TBL")) kind=RESET_TABLE;
@@ -461,6 +462,7 @@ table_reset(const struct st_rip3_table_binding *binding,
 		}
 		else if (st_rip3_host_number(word,0,35,&index)==0) kind=RESET_ENTRY;
 		else return IO_ERROR_INVALID_FORMAT;
+		if (type==ST_RIP3_TABLE_MOUSE && (kind==RESET_ENTRY || kind==RESET_CURRENT)) return IO_ERROR_INVALID_FORMAT;
 		actions[i].kind=kind;actions[i].index=index;
 		needs_live|=kind==RESET_ENTRY || kind==RESET_CURRENT || kind==RESET_TABLE || kind==RESET_ALL;
 		needs_backup|=kind!=RESET_ENTRY && kind!=RESET_CURRENT && kind!=RESET_TABLE;
@@ -470,7 +472,10 @@ table_reset(const struct st_rip3_table_binding *binding,
 	for (size_t i=0; i<count; i++) {
 		enum table_reset_kind kind=actions[i].kind;unsigned index=actions[i].index;
 		int status=0;
-		if (buttons) {
+		if (type==ST_RIP3_TABLE_MOUSE) {
+			if (kind==RESET_TABLE || kind==RESET_ALL) st_rip3_mouse_kill(binding->live);
+		}
+		else if (type==ST_RIP3_TABLE_BUT) {
 			if (kind==RESET_CURRENT) status=st_rip3_button_styles_reset_current(binding->live);
 			else if (kind==RESET_ENTRY) status=st_rip3_button_styles_reset_entry(binding->live,index);
 			else if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_button_styles_reset_table(binding->live);
@@ -545,9 +550,12 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 			if (status==0) result[0]=0;
 			return status;
 		}
-		bool buttons=equal(reference->parameters[0].text,"BUT");
-		if (!buttons && !equal(reference->parameters[0].text,"PAL")) return IO_ERROR_NOT_SUPPORTED;
-		status=table_reset(&host->tables[buttons ? ST_RIP3_TABLE_BUT : ST_RIP3_TABLE_PAL],reference,buttons);
+		enum st_rip3_table_type reset_type;
+		if (equal(reference->parameters[0].text,"BUT")) reset_type=ST_RIP3_TABLE_BUT;
+		else if (equal(reference->parameters[0].text,"PAL")) reset_type=ST_RIP3_TABLE_PAL;
+		else if (equal(reference->parameters[0].text,"MOUSE")) reset_type=ST_RIP3_TABLE_MOUSE;
+		else return IO_ERROR_NOT_SUPPORTED;
+		status=table_reset(&host->tables[reset_type],reference,reset_type);
 		if (status==0) result[0]=0;
 		return status;
 	}
@@ -562,8 +570,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	}
 	copy = strcmp(reference->name, "COPY") == 0;
 	backstat = strcmp(reference->name, "BACKSTAT") == 0;
-	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0;
-	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0;
+	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0;
+	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0;
 	if (!copy && !backstat && !save && !restore)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity == 0)
@@ -587,7 +595,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 					return IO_ERROR_INVALID_FORMAT;
 			}
 		}
-		binding = &host->tables[reference->name[1]=='B' ? ST_RIP3_TABLE_BUT : ST_RIP3_TABLE_PAL];
+		binding = &host->tables[reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
+		    : reference->name[1]=='M' ? ST_RIP3_TABLE_MOUSE : ST_RIP3_TABLE_PAL];
 		if (binding->live == NULL || binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
 		status = save ? st_rip3_backup_save(binding->backup, place.place, place.index, binding->live)

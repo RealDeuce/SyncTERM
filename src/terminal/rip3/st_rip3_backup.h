@@ -15,10 +15,12 @@ enum st_rip3_backup_place {
 };
 
 /* One documented RIP data-object class per backup area. Callbacks must return
- * independent owned snapshots, preserve outputs/live state on failure, and
+ * independent owned snapshots, preserve outputs/live definitions on failure, and
  * restore a whole table including its protection flags. Snapshots are immutable
  * after cloning (restore must not modify them). The area owns each
- * successful snapshot until destruction/overwrite/consumption. Ops are copied;
+ * successful snapshot until destruction/overwrite/consumption. An applying
+ * mouse restore still cancels transient input on failure; it cannot revive a
+ * saved gesture or traversal. Ops are copied;
  * their function code must outlive the area. All operations share one owner
  * thread, including callbacks; callbacks must not reenter the area. */
 struct st_rip3_backup_ops {
@@ -60,7 +62,9 @@ struct st_rip3_backup_location {
  * numbered sources are consumed only if restoring a live TABLE and unprotected;
  * base sources are retained. TABLE requires a non-NULL live object; otherwise
  * object may be NULL. A table source is cloned once, and a table destination
- * is restored before the infallible backup commit, so errors preserve all state.
+ * is restored before the infallible backup commit, so errors preserve saved
+ * data. Applying a mouse table still cancels transient input if a later
+ * preparation step fails.
  * Immutable snapshots may share internal
  * ownership, preserving independent value semantics without live-object casts.
  * Wire syntax and intra-table entry copying are handled separately. */

@@ -7855,6 +7855,132 @@
         "build_diagnostics": "No compiler diagnostics in the final native builds. GNU make reported filesystem clock skew for regenerated dependency files in one build; the requested targets completed successfully.",
         "source_integrity": "Reference unchanged at stable 49a69454a0bd6055c0d11bb415759d309519de33. Source/text/heading/line/hash fields for all 8410 units are unchanged; only review status/evidence changes."
       }
+    },
+    {
+      "after_commit": "d9b1b8b0",
+      "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+      "scope": "Connect mouse-family backup/reset operations for simple fields, ordinary button definitions and shared hover handlers; record grouped capture/publication gap as B136.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:42",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:43",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:74",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:77",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:103",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:122",
+        "version/3.0/ripscrip/5.1-text-variables.md:2863",
+        "version/3.0/ripscrip/5.1-text-variables.md:2982",
+        "version/3.0/ripscrip/5.1-text-variables.md:2986",
+        "version/3.0/ripscrip/5.1-text-variables.md:2987",
+        "version/3.0/ripscrip/5.1-text-variables.md:2988",
+        "version/3.0/ripscrip/5.1-text-variables.md:2989",
+        "version/3.0/ripscrip/5.1-text-variables.md:2990",
+        "version/3.0/ripscrip/5.1-text-variables.md:2991",
+        "version/3.0/ripscrip/5.1-text-variables.md:2992",
+        "version/3.0/ripscrip/5.1-text-variables.md:2994",
+        "version/3.0/ripscrip/5.1-text-variables.md:3835",
+        "version/3.0/ripscrip/5.1-text-variables.md:3839",
+        "version/3.0/ripscrip/5.1-text-variables.md:3851",
+        "version/3.0/ripscrip/5.1-text-variables.md:3853",
+        "version/3.0/ripscrip/5.1-text-variables.md:3855",
+        "version/3.0/ripscrip/5.1-text-variables.md:3857",
+        "version/3.0/ripscrip/5.1-text-variables.md:3859",
+        "version/3.0/ripscrip/5.1-text-variables.md:3865",
+        "version/3.0/ripscrip/5.1-text-variables.md:3869",
+        "version/3.0/ripscrip/5.1-text-variables.md:3881",
+        "version/3.0/ripscrip/5.1-text-variables.md:3883",
+        "version/3.0/ripscrip/5.1-text-variables.md:3885",
+        "version/3.0/ripscrip/5.1-text-variables.md:3887"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2984",
+        "version/3.0/ripscrip/5.1-text-variables.md:2985",
+        "version/3.0/ripscrip/5.1-text-variables.md:3833",
+        "version/3.0/ripscrip/5.1-text-variables.md:3837",
+        "version/3.0/ripscrip/5.1-text-variables.md:3863",
+        "version/3.0/ripscrip/5.1-text-variables.md:3867",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:260"
+      ],
+      "newly_blocked_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3849",
+        "version/3.0/ripscrip/5.1-text-variables.md:3879",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:258",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:262"
+      ],
+      "pending_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:45",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:59",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:75",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:76"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_mouse.c",
+        "src/terminal/rip3/st_rip3_button_create.c",
+        "src/terminal/rip3/st_rip3_table_host.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/rip3/st_rip3_backup.c"
+      ],
+      "tests": [
+        "rip3_mouse_backup",
+        "rip3_table_host",
+        "rip3_session",
+        "rip3_backup",
+        "rip3_backup_copy",
+        "syncterm_rip3_mouse_backup_CP437",
+        "syncterm_rip3_mouse_backup_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3282,
+        "context": 1407,
+        "pending": 1739,
+        "implemented": 1885,
+        "excluded": 67,
+        "blocked": 30
+      },
+      "policy": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set. Existing decoded ICON resources are immutable/refcounted across detached descriptors; no scene-pixel capture or new renderer damage layer. Snapshot destruction runs no client/render callbacks; backup teardown precedes borrowed session services.",
+      "pending_followups": [
+        "B136 grouped selection/association/publication capture and restore contract; SMF with any grouped field is currently unsupported, preserving previous backups.",
+        "RESTOREALL/SAVEALL, HEADER/hard reset/global orchestration, stored resident click modes 1..4 and remaining table/UI/playback families."
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc; one CMake build tree build.",
+        "passed_tests": [
+          "rip154_source_freeze",
+          "rip3_backup",
+          "rip3_backup_copy",
+          "rip3_button_create",
+          "rip3_button_styles",
+          "rip3_contract",
+          "rip3_hover",
+          "rip3_mouse",
+          "rip3_mouse_backup",
+          "rip3_palette_lifecycle",
+          "rip3_preservation_guard",
+          "rip3_query_commands",
+          "rip3_session",
+          "rip3_table_host",
+          "rip3_table_objects",
+          "syncterm_control_cp437",
+          "syncterm_control_utf8",
+          "syncterm_rip3_buttons_CP437",
+          "syncterm_rip3_buttons_UTF-8",
+          "syncterm_rip3_groups_CP437",
+          "syncterm_rip3_groups_UTF-8",
+          "syncterm_rip3_hover_CP437",
+          "syncterm_rip3_hover_UTF-8",
+          "syncterm_rip3_icon_buttons_CP437",
+          "syncterm_rip3_icon_buttons_UTF-8",
+          "syncterm_rip3_keyboard_CP437",
+          "syncterm_rip3_keyboard_UTF-8",
+          "syncterm_rip3_mouse_backup_CP437",
+          "syncterm_rip3_mouse_backup_UTF-8",
+          "term_key_forward"
+        ],
+        "scope": "Native snapshots independently check owned definitions/handlers and saved absence, save while held, reusable BASE, protected/consumed numbered slots and stacks, every mouse-owner allocation failure, failed visual-copy cleanup, restore boundaries after later failure, no-op missing restore, fresh hover tokens and invalidation of uncommitted traversal, grouped rejection before overwrite, copy/reset/status dispatch and constructor/shutdown ownership. Actual CP437/UTF-8 TCP sessions at 640x480 and 720x400 cover no-paint restoration, old held release suppression, fresh hover, handler absence, ordinary plain/clipboard/ICON copies, hot feedback undo from retained decoded resources, an action restoring its own definition before a real prompt and retained FIELDID/source afterward, SOFT backup survival, protection and reset selectors. Existing buttons/groups/hover/keyboard/ANSI and typed table regressions plus RIP1.54 guards are checked.",
+        "build_diagnostics": "The initial session constructor fault fixture did not track the new mouse-backup factory; its factory hook was added, retaining full fail-every-construction-boundary and zero-live-owner expectations. Final native builds have no compiler diagnostics.",
+        "source_integrity": "Reference pin and all 8410 exact normative source/text/heading/line/hash records are unchanged. Issue #136 is a new follow-up referencing covered #131/#132 and their PRs; no existing issue was edited or commented on."
+      }
     }
   ]
 }

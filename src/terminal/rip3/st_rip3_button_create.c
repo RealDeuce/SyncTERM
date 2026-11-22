@@ -262,8 +262,12 @@ paint_effects(const struct st_rip3_command_host *host,const struct st_rip3_port_
 	return status;
 }
 
+/* Immutable decoded file resources can be shared by detached definitions.
+ * Retaining these objects never captures a screen/clipboard pixel plane. */
+struct prepared_icon {size_t references;struct st_rip3_bitmap *bitmap;};
+
 /* A resident field and at most one renderer job share this logical descriptor.
- * No pixels are retained here. The field destructor invalidates it before
+ * No scene pixels are retained here. The field destructor invalidates it before
  * dropping its reference; a suspended job cannot observe a reused instance. */
 struct button {
 	struct st_rip3_command_host host;
@@ -284,7 +288,7 @@ struct button {
 	uint8_t label_value[4*255+1];size_t label_value_length;
 	/* Reuse prepared ICON resources for provider/file-free feedback undo.
 	 * These are the existing decoded objects, never a new scene pixel plane. */
-	struct st_rip3_bitmap *images[2];
+	struct prepared_icon *images[2];
 	uint8_t program[];
 };
 enum render_stage { FILENAME, FILENAME_VALUE, FACE, LABEL, LABEL_VALUE, FINISH };
@@ -304,9 +308,15 @@ struct st_rip3_button_renderer {
 };
 
 static void
+release_icon(struct prepared_icon *icon)
+{
+	if (icon!=NULL && --icon->references==0) {st_rip3_bitmap_destroy(icon->bitmap);free(icon);}
+}
+
+static void
 release_button(struct button *button)
 {
-	if (--button->references==0) {st_rip3_bitmap_destroy(button->images[0]);st_rip3_bitmap_destroy(button->images[1]);free(button);}
+	if (--button->references==0) {release_icon(button->images[0]);release_icon(button->images[1]);free(button);}
 }
 
 static void clear_inversion(struct button *button);
@@ -315,10 +325,12 @@ static void
 remove_button(void *context)
 {
 	struct button *button=context;
-	clear_inversion(button);button->alive=false;
-	struct st_rip3_button_renderer *renderer=button->host.buttons;
-	if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==button)
-		st_rip3_button_renderer_cancel(renderer);
+	if (button->alive) {
+		clear_inversion(button);button->alive=false;
+		struct st_rip3_button_renderer *renderer=button->host.buttons;
+		if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==button)
+			st_rip3_button_renderer_cancel(renderer);
+	}
 	release_button(button);
 }
 
@@ -569,6 +581,7 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 static int select_button(void *context,bool selected);
 static int restore_button(void *context,bool selected);
 static void commit_button(void *context,bool selected);
+static int copy_button(const void *context,void **result,struct st_rip3_mouse *owner);
 
 static int
 finish_button(struct render_job *job)
@@ -587,7 +600,7 @@ finish_button(struct render_job *job)
 	    .group_kind=(b->style.flags&16384)!=0 ? ST_RIP3_GROUP_RADIO : (b->style.flags2&1)!=0 ? ST_RIP3_GROUP_CHECKBOX : ST_RIP3_GROUP_NONE,
 	    .selected=b->selected};
 	const struct st_rip3_mouse_visual visual={.context=b,.select=select_button,.destroy=remove_button,.abort=abort_button,
-	    .restore=restore_button,.committed=commit_button};
+	    .restore=restore_button,.committed=commit_button,.copy=copy_button};
 	bool redraw=binding.group_kind!=ST_RIP3_GROUP_NONE || (b->style.flags&(2|4096))!=0;
 	if (redraw) b->references++;
 	int status=st_rip3_mouse_define(b->host.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,(b->style.flags&2)!=0,(b->style.flags&4)!=0,
@@ -611,13 +624,20 @@ face_stage(struct render_job *job)
 		}
 	}
 	if (b->mouse && job->creation && st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	struct prepared_icon *prepared=NULL;
+	if (job->bitmap!=NULL && (b->style.flags&4096)!=0) {
+		prepared=calloc(1,sizeof(*prepared));if (prepared==NULL) return IO_ERROR_OUT_OF_MEMORY;
+		prepared->references=1;
+	}
 	job->operation=true;
 	status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,job);
-	if (status==0 && job->bitmap!=NULL && (b->style.flags&4096)!=0) {
-		unsigned state=b->selected ? 1 : 0;st_rip3_bitmap_destroy(b->images[state]);b->images[state]=job->bitmap;job->bitmap=NULL;
+	if (status==0 && prepared!=NULL) {
+		unsigned state=b->selected ? 1 : 0;release_icon(b->images[state]);
+		prepared->bitmap=job->bitmap;b->images[state]=prepared;job->bitmap=NULL;prepared=NULL;
 	}
+	free(prepared);
 	if ((b->style.flags&4096)==0) {
-		st_rip3_bitmap_destroy(b->images[0]);st_rip3_bitmap_destroy(b->images[1]);b->images[0]=b->images[1]=NULL;
+		release_icon(b->images[0]);release_icon(b->images[1]);b->images[0]=b->images[1]=NULL;
 	}
 	st_rip3_bitmap_destroy(job->bitmap);job->bitmap=NULL;
 	if (status!=0) return status;
@@ -712,13 +732,32 @@ restore_button(void *context,bool selected)
 		int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,invert_button,b);
 		if (status==0) b->inversion_applied=desired;return status;
 	}
-	struct st_rip3_bitmap *image=b->images[selected ? 1 : 0];
+	struct prepared_icon *prepared=b->images[selected ? 1 : 0];
+	struct st_rip3_bitmap *image=prepared==NULL ? NULL : prepared->bitmap;
 	if (image==NULL) return 0; /* A failed preview never replaces prepared art. */
 	struct render_job job={.button=b,.bitmap=image,.scene=st_rip3_mouse_scene(b->host.mouse)};
 	int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,&job);
 	struct label_paint paint={b,b->label_value,b->label_value_length,b->label_expanded};
 	if (status==0) status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,render_label,&paint);
 	if (status==0) status=finish_button(&job);return status;
+}
+
+static int
+copy_button(const void *context,void **result,struct st_rip3_mouse *owner)
+{
+	const struct button *source=context;
+	for (unsigned i=0;i<2;i++) if (source->images[i]!=NULL && source->images[i]->references==SIZE_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct button *copy=malloc(sizeof(*copy)+source->program_length);if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(copy,source,sizeof(*copy)+source->program_length);
+	copy->references=1;copy->alive=owner!=NULL;copy->selected=false;copy->inversion_applied=false;
+	copy->host.text=source->host.text!=NULL ? &copy->text : NULL;
+	if (owner!=NULL) {
+		copy->host.mouse=owner;
+		copy->generation=st_rip3_ports_generation(copy->host.ports,copy->target);
+	}
+	for (unsigned i=0;i<2;i++) if (copy->images[i]!=NULL) copy->images[i]->references++;
+	*result=copy;return 0;
 }
 
 int

@@ -542,6 +542,7 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	/* Query destruction precedes every borrowed processor/store/table and the
 	 * input gate. Saves own independent snapshots and precede live-table teardown. */
 	st_rip3_query_destroy(session->commands.query);
+	for (unsigned i=0; i<ST_RIP3_TABLE_COUNT; i++) st_rip3_backup_destroy(session->tables.tables[i].backup);
 	st_rip3_mouse_destroy(session->commands.mouse);
 	st_rip3_button_renderer_destroy(session->commands.buttons);
 	st_rip3_graphical_destroy(session->graphical);
@@ -551,7 +552,6 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	st_rip3_variables_destroy(session->session_values);st_rip3_variables_destroy(session->persistent_values);
 	st_rip3_templates_destroy(session->templates.slots);
 	st_rip3_outline_cache_destroy(session->text.outline_cache);
-	for (unsigned i=0; i<ST_RIP3_TABLE_COUNT; i++) st_rip3_backup_destroy(session->tables.tables[i].backup);
 	st_rip3_environments_destroy(session->commands.environments);
 	st_rip3_styles_destroy(session->commands.styles);
 	st_rip3_button_styles_destroy(session->commands.button_styles);
@@ -742,6 +742,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_button_styles_backup_create(&session->tables.tables[ST_RIP3_TABLE_BUT].backup);
 	if (status==0) status=st_rip3_palettes_backup_create(&session->tables.tables[ST_RIP3_TABLE_PAL].backup);
 	if (status==0) status=st_rip3_ports_backup_create(&session->tables.tables[ST_RIP3_TABLE_PORT].backup);
+	if (status==0) status=st_rip3_mouse_backup_create(&session->tables.tables[ST_RIP3_TABLE_MOUSE].backup);
+	session->tables.tables[ST_RIP3_TABLE_MOUSE].live=session->commands.mouse;
 	session->tables.tables[ST_RIP3_TABLE_ENV].live=session->commands.environments;
 	session->tables.tables[ST_RIP3_TABLE_STYLE].live=session->commands.styles;
 	session->tables.tables[ST_RIP3_TABLE_BUT].live=session->commands.button_styles;

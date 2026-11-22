@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_mouse.h"
 #include "st_rip3_graphical_bytes.h"
+#include "st_rip3_backup.h"
 #include "io_error.h"
 #include <stdlib.h>
 #include <string.h>
@@ -540,4 +541,94 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 	mouse->pressed=NULL;mouse->pointer_capture=false;
 	if (hit && mouse->sink.activate!=NULL) commit(mouse,field,false,x,y);
 	return true;
+}
+
+
+/* Saved definitions own their text and detached visual descriptors. They never
+ * own live input or scene pixels and never execute providers on save/restore. */
+struct mouse_snapshot {
+	struct field *fields[128];size_t count;
+	struct {uint8_t *bytes;size_t length;} queries[2];
+};
+static void
+free_snapshot(void *object)
+{
+	struct mouse_snapshot *snapshot=object;if (snapshot==NULL) return;
+	for (size_t i=0;i<snapshot->count;i++) {
+		struct field *field=snapshot->fields[i];
+		if (field->visual.destroy!=NULL) field->visual.destroy(field->visual.context);
+		free(field);
+	}
+	for (unsigned i=0;i<2;i++) free(snapshot->queries[i].bytes);
+	free(snapshot);
+}
+static int
+copy_fields(struct mouse_snapshot *copy,struct field *const *fields,size_t count,struct st_rip3_mouse *owner)
+{
+	for (size_t i=0;i<count;i++) {
+		const struct field *source=fields[i];
+		struct field *field=malloc(sizeof(*field)+source->length);
+		if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
+		memcpy(field,source,sizeof(*field)+source->length);field->instance=0;field->hovered=false;
+		if (source->visual.select!=NULL) {
+			field->visual.context=NULL;
+			int status=source->visual.copy(source->visual.context,&field->visual.context,owner);
+			if (status!=0 || field->visual.context==NULL) {free(field);return status!=0 ? status : IO_ERROR_INVALID_FORMAT;}
+		}
+		copy->fields[copy->count++]=field;
+	}
+	return 0;
+}
+static int
+copy_handler(struct mouse_snapshot *copy,unsigned index,const uint8_t *bytes,size_t length)
+{
+	if (length!=0) {
+		copy->queries[index].bytes=malloc(length);if (copy->queries[index].bytes==NULL) return IO_ERROR_OUT_OF_MEMORY;
+		memcpy(copy->queries[index].bytes,bytes,length);
+	}
+	copy->queries[index].length=length;return 0;
+}
+static int
+snapshot_mouse(const void *object,void **result)
+{
+	if (object==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	const struct st_rip3_mouse *mouse=object;
+	for (size_t i=0;i<mouse->count;i++) {
+		const struct field *field=mouse->fields[i];
+		if (field->binding.group_kind!=ST_RIP3_GROUP_NONE || (field->visual.select!=NULL && field->visual.copy==NULL))
+			return IO_ERROR_NOT_SUPPORTED;
+	}
+	struct mouse_snapshot *copy=calloc(1,sizeof(*copy));if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	int status=copy_fields(copy,mouse->fields,mouse->count,NULL);
+	for (unsigned i=0;status==0 && i<2;i++) status=copy_handler(copy,i,mouse->queries[i].bytes,mouse->queries[i].length);
+	if (status!=0) {free_snapshot(copy);return status;}
+	*result=copy;return 0;
+}
+static int
+restore_mouse(void *object,const void *saved)
+{
+	if (object==NULL || saved==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_mouse *mouse=object;const struct mouse_snapshot *source=saved;
+	if (source->count>UINT64_MAX-mouse->sequence) return IO_ERROR_OUT_OF_RANGE;
+	/* The manager validates existence/location/protection before calling us.
+	 * Once applying starts, later allocation failure cannot revive a press or
+	 * old uncommitted hover traversal. Definitions/handlers already live remain
+	 * usable on failure; committed source/FIELDID continuations remain owned. */
+	st_rip3_mouse_boundary(mouse);
+	struct mouse_snapshot *copy=calloc(1,sizeof(*copy));if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	int status=copy_fields(copy,source->fields,source->count,mouse);
+	for (unsigned i=0;status==0 && i<2;i++) status=copy_handler(copy,i,source->queries[i].bytes,source->queries[i].length);
+	if (status!=0) {free_snapshot(copy);return status;}
+	st_rip3_mouse_kill(mouse);st_rip3_mouse_clear_queries(mouse);
+	for (size_t i=0;i<copy->count;i++) {
+		copy->fields[i]->instance=++mouse->sequence;mouse->fields[mouse->count++]=copy->fields[i];
+	}
+	for (unsigned i=0;i<2;i++) {mouse->queries[i].bytes=copy->queries[i].bytes;mouse->queries[i].length=copy->queries[i].length;}
+	free(copy);return 0;
+}
+int
+st_rip3_mouse_backup_create(struct st_rip3_backup **result)
+{
+	static const struct st_rip3_backup_ops ops={snapshot_mouse,restore_mouse,free_snapshot};
+	return st_rip3_backup_create(result,&ops);
 }

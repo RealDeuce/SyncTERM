@@ -2258,7 +2258,7 @@ committed callbacks. Real modal editor focus loss works without a held guest
 press. Full SOFT clears both handlers; field-only deletion retains them.
 Actual CP437/UTF-8 sessions cover both 640×480 and 720×400 plus held click/button
 ownership and coherent unchanged-pixel checks. Native allocation injection and
-pending-focus/reset cases cover ownership/error paths. Mouse-family backup/
+pending-focus/reset cases cover ownership/error paths. Complete mouse-family backup/
 restore, HEADER/input-lock operations and stored click modes 1–4 remain pending
 with those subsystems. PR134 grouped selection/template state is covered below.
 
@@ -2282,3 +2282,25 @@ with same-ID replacement, allocation-failure preservation and full SOFT during
 a grouped host prompt. Existing plain/clipboard/ICON tests use grouped initial
 selection under the clarified contract. Mouse-family backup/restore, explicit
 host-template clearing and HEADER operations remain separate pending work.
+
+
+`syncterm_rip3_mouse_backup_CP437` and `syncterm_rip3_mouse_backup_UTF-8`
+cover connected SMF/RMF, whole-table COPY, status/protection and RESET(MOUSE)
+for simple fields and ordinary button definitions on 640×480 and 720×400.
+They compare coherent scene planes to verify no painting/provider work during
+save or restore, except required removal of temporary pressed feedback. They
+check save while held, canceled old release after applying restore, fresh hover
+membership with saved E/X or saved absence, reusable BASE, consumed/protected
+numbered saves, PUSH/POP, SOFT retaining backups and clearing live handlers,
+shared handlers retained by field-only reset and protected snapshots retained
+by backup reset. Ordinary PLAIN, CLIPBOARD and HOT ICON definitions survive
+live-field destruction; prepared file resources support provider-free feedback
+undo without saving screen pixels. A callback restores its own definition,
+suspends in the actual editor, then finishes its owned source/FIELDID once;
+subsequent input uses the restored definition. Grouped capture rejects without
+replacing a previous valid snapshot under the unresolved B136 contract.
+`rip3_mouse_backup` adds allocation and visual-copy failures, no-op versus
+applying restore boundaries, fresh tokens and suspended traversal invalidation;
+`rip3_session` covers the new owner's construction failure/teardown boundaries.
+Complete grouped snapshot publication, aggregate restore and HEADER behavior
+remain unaccepted; no changes to normal ANSI/RIP1 rendering are introduced.

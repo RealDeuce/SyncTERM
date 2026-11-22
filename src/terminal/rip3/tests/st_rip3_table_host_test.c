@@ -4,6 +4,7 @@
 #include "st_rip3_backup.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_mouse.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -306,6 +307,37 @@ port_expressions(void)
 	return 0;
 }
 
+static int
+mouse_expressions(void)
+{
+	struct st_rip3_mouse *mouse=NULL;struct st_rip3_backup *backup=NULL;
+	const struct st_rip3_mouse_sink sink={0};const struct st_rip3_rect area={10,10,30,30};
+	CHECK(st_rip3_mouse_create(&mouse,&sink)==0 && st_rip3_mouse_backup_create(&backup)==0);
+	CHECK(st_rip3_mouse_define(mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,false,false,7,(const uint8_t *)"a",1,NULL)==0);
+	struct st_rip3_table_host host={0};host.tables[ST_RIP3_TABLE_MOUSE]=(struct st_rip3_table_binding){mouse,backup};
+	char output[100];
+	CHECK(execute(&host,"$SMF$",output,sizeof(output))==0 && execute(&host,"$SMF(0)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$SMF(PUSH)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$BACKSTAT(MOUSE)$",output,sizeof(output))==0 && strcmp(output,"1:1:1:8:1:0:0:0:0:0:0:0:0:0")==0);
+	CHECK(execute(&host,"$RESET(MOUSE,BASE,CUR)$",output,sizeof(output))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$RESET(MOUSE,BASE)$",output,0)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(execute(&host,"$INUSE(MOUSE,BASE)$",output,sizeof(output))==0 && strcmp(output,"1")==0);
+	CHECK(execute(&host,"$RESET(MOUSE)$",output,sizeof(output))==0 && st_rip3_mouse_count(mouse)==0);
+	CHECK(execute(&host,"$RMF$",output,sizeof(output))==0 && st_rip3_mouse_count(mouse)==1);
+	CHECK(execute(&host,"$PROT(MOUSE,S0)$",output,sizeof(output))==0 && execute(&host,"$RESET(MOUSE,ALL)$",output,sizeof(output))==0);
+	CHECK(st_rip3_mouse_count(mouse)==0);
+	CHECK(execute(&host,"$INUSE(MOUSE,BASE)$",output,sizeof(output))==0 && strcmp(output,"0")==0);
+	CHECK(execute(&host,"$INUSE(MOUSE,STACK)$",output,sizeof(output))==0 && strcmp(output,"0")==0);
+	CHECK(execute(&host,"$RMF(0)$",output,sizeof(output))==0 && st_rip3_mouse_count(mouse)==1);
+	CHECK(execute(&host,"$INUSE(MOUSE,S0)$",output,sizeof(output))==0 && strcmp(output,"1")==0);
+	CHECK(execute(&host,"$UNPROT(MOUSE,S0)$",output,sizeof(output))==0 && execute(&host,"$RESET(MOUSE,BACKUP)$",output,sizeof(output))==0);
+	CHECK(st_rip3_mouse_count(mouse)==1);
+	CHECK(execute(&host,"$INUSE(MOUSE,S0)$",output,sizeof(output))==0 && strcmp(output,"0")==0);
+	CHECK(execute(&host,"$RESET(MOUSE,TBL)$",output,sizeof(output))==0 && st_rip3_mouse_count(mouse)==0);
+	CHECK(execute(&host,"$COPY(MOUSE,0,1)$",output,sizeof(output))!=0);
+	st_rip3_backup_destroy(backup);st_rip3_mouse_destroy(mouse);return 0;
+}
+
 int
 main(void)
 {
@@ -313,5 +345,6 @@ main(void)
 	CHECK(argument_bytes() == 0);
 	CHECK(palette_expressions() == 0);
 	CHECK(port_expressions() == 0);
+	CHECK(mouse_expressions() == 0);
 	return 0;
 }

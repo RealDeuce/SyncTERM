@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 struct st_rip3_mouse;
+struct st_rip3_backup;
 enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
 struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;unsigned group;enum st_rip3_group_kind group_kind;bool selected;};
 struct st_rip3_mouse_visual {
@@ -24,6 +25,10 @@ struct st_rip3_mouse_visual {
 	int (*restore)(void *context,bool selected);
 	/* Logical state has already committed; this notification cannot undo it. */
 	void (*committed)(void *context,bool selected);
+	/* Copy owned definition/render resources without drawing or providers.
+	 * owner==NULL creates a detached snapshot; otherwise a fresh live field.
+	 * Failure preserves result. Copied contexts use destroy for release. */
+	int (*copy)(const void *context,void **result,struct st_rip3_mouse *owner);
 };
 /* Scoped callback value; an inactive context has no numeric fallback. */
 struct st_rip3_field_context {bool active;int identity;};
@@ -44,6 +49,12 @@ struct st_rip3_mouse_sink {
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
+/* Definition-only snapshots include shared entry/exit handlers. Saving does
+ * not change capture/membership; applying restores cancels them, even on later
+ * allocation failure. No pixels, providers or input gestures are restored.
+ * Snapshot services borrow this session and must not move between sessions.
+ * Grouped capture is unsupported pending the capture/publication contract #136. */
+int st_rip3_mouse_backup_create(struct st_rip3_backup **);
 /* Bind before definitions; template state outlives every live mouse field. */
 void st_rip3_mouse_bind_templates(struct st_rip3_mouse *,struct st_rip3_templates *);
 int st_rip3_mouse_group_check(const struct st_rip3_mouse *,unsigned,enum st_rip3_group_kind);

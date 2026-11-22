@@ -7712,3 +7712,64 @@ modes 1–4 and other scene/table/playback work remain unfinished. Mixed source
 clauses including those operations stay pending. Existing issue threads receive
 no comments; PR134/135 are already in the pinned stable reference. RIP1.54's
 baseline and expectations remain unchanged.
+
+
+## Mouse definition backups and input boundaries
+
+The unchanged reference pin now drives connected `$SMF$` / `$RMF$` and generic
+`COPY(MOUSE,...)` for simple fields and ordinary PLAIN/CLIPBOARD/ICON buttons.
+The existing backup manager supplies reusable BASE, numbered slots, independent
+PUSH/POP, protection, shared slot/stack capacity and status queries. Snapshots
+own raw sources, absolute bounds, button configuration and both hover handlers,
+including saved absence. They save no screen pixels, current physical input or
+hover membership. Saving does not cancel a held press or run providers.
+
+Applying a restore first cancels capture, temporary feedback and uncommitted
+hover traversal. This boundary remains even if later allocation/copy preparation
+fails; earlier live definitions and handlers remain usable on that failure.
+A request rejected before applying, such as an absent slot or invalid selector,
+retains interaction. Successfully restored fields get fresh stable tokens and
+outside membership, even with identical numeric IDs and geometry. The old
+physical release cannot activate them. Already committed source and FIELDID
+survive self-replacement and a later actual editor prompt, without retargeting
+cleanup or replaying the activation. Restoring definitions runs no filename,
+label or host provider and does not repaint the scene.
+
+Button descriptors are independently owned. Their immutable, already decoded
+ICON resources use reference counts across snapshots, retaining provider-free
+feedback undo without copying a screen/clipboard plane. Restored descriptors
+bind their private text context and current destination generation. Detached
+snapshot destruction runs no rendering/input/provider work; session teardown
+destroys backups before the services they borrow.
+
+`RESET(MOUSE)` defaults to TBL. Explicit TBL/BASE/S0–S9/SLOTS/STACK/BACKUP/ALL
+selectors validate before changing anything, retain protected snapshots and
+keep live definitions separate from backup storage. Field-only reset retains
+hover handlers. Full SOFT still deletes live fields/handlers while retaining
+independent backups, so a later RMF can restore their owned definitions.
+
+**Grouped capture remains unsupported.** The new
+[issue #136](https://github.com/bbs-land/remote-imaging-protocol/issues/136)
+asks which committed selection/A[N] state is captured and how restoration
+interacts with live ordinary B[N] and group-publication tags. It references
+PR134/135 without editing or commenting on their covered issues. If any live
+field is grouped, SMF/COPY from TBL rejects nonfatally before overwriting the
+previous snapshot or changing live interaction. This does not change the live
+grouped selection/template behavior completed in the preceding milestone.
+Complete mouse-family capture/restore clauses remain blocked under B136;
+RESTOREALL/SAVEALL and HEADER orchestration remain pending with those operations.
+
+Thirty distinct relevant CTest checks pass in the native FreeBSD amd64 Release
+CMake configuration. Independent native vectors cover every mouse-owner
+allocation failure during capture/restore, failed visual-copy cleanup,
+constructor/teardown ownership, rejected versus applying restore boundaries,
+saved absence, no providers, fresh instances and suspended traversal. Actual
+CP437/UTF-8 sessions at 640×480 and 720×400 cover held saves/restores, generic
+copy, protection, SOFT lifetime, all three ordinary face types, hot feedback,
+coherent no-repaint captures and a self-replacing host continuation through a
+real prompt. Existing grouped/plain/clipboard/ICON/hover/keyboard/ANSI and typed
+table checks pass, along with RIP1.54 contract/preservation guards.
+
+The 8410-unit queue now has 1885 implemented, 1739 pending, 3282 unreviewed,
+1407 context, 67 excluded and 30 blocked units. Full RIP3 compliance remains
+unfinished. The RIP1.54 baseline and historical expectations are unchanged.

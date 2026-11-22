@@ -29,7 +29,7 @@ struct st_rip3_table_host {
 };
 
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
- * SCP/RCP, CUR, INUSE, individual
+ * SCP/RCP, SBS/RBS, SMF/RMF, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
  * supports PAL/PORT/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
@@ -61,6 +61,10 @@ struct st_rip3_table_host {
  * uses the ordinary table reset and then selects zero, not that CUR path.
  * Undefined-current explicit writes and protected-but-undefined first selection
  * remain unsupported under documentation issue #112.
+ * MOUSE snapshots bind simple fields/ordinary buttons and shared hover handlers.
+ * RESET(MOUSE) defaults to TBL; explicit backup selectors preserve protected
+ * slots, and field-only resets retain handlers. Grouped capture is unsupported
+ * under #136; failed saves preserve earlier backups and current interaction.
  * No host transmission, prompting, stream parsing or app/session routing occurs here. Execution
  * statuses are private to parser-owned recovery; use the public host-variable
  * process entry to consume malformed references without a session error. */
