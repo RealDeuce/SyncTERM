@@ -9710,6 +9710,77 @@
         "result": "25 distinct relevant CTests passed. Native group/deep-copy/failure tests; CP437/UTF-8 mouse backups, groups, plain/ICON buttons at 640x480 and720x400; session/query/table/copy and existing ANSI/keyboard controls; contract/freeze preservation checks. Full build has no warnings.",
         "limits": "No exact RIPtel raster, native display, additional compiler/platform or aggregate/HEADER acceptance claim. Unchanged passed screen checks were not repeated for editorial PR139."
       }
+    },
+    {
+      "after_commit": "759c4ac8",
+      "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "scope": "Connect stored query modes1-4; preserve RIPtel3.1 no-click-dispatch behavior and complete resident source ownership in PORT snapshots, TW first-use cloning/defaulting and SOFT lifetime.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:342",
+        "version/3.0/ripscrip/5.0-host-commands.md:116",
+        "version/3.0/ripscrip/5.0-host-commands.md:120",
+        "version/3.0/ripscrip/5.0-host-commands.md:121",
+        "version/3.0/ripscrip/5.0-host-commands.md:122",
+        "version/3.0/ripscrip/5.0-host-commands.md:123",
+        "version/3.0/ripscrip/5.0-host-commands.md:124",
+        "version/3.0/ripscrip/5.0-host-commands.md:125",
+        "version/3.0/ripscrip/5.0-host-commands.md:126",
+        "version/3.0/ripscrip/5.0-host-commands.md:130",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:41",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:46",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:47",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:48",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:49",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:53",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:73",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:235"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:114",
+        "version/3.0/ripscrip/5.0-host-commands.md:118",
+        "version/3.0/ripscrip/5.0-host-commands.md:119",
+        "version/3.0/ripscrip/5.0-host-commands.md:132",
+        "version/3.0/ripscrip/5.0-host-commands.md:134",
+        "version/3.0/ripscrip/5.0-host-commands.md:139",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:43",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:44"
+      ],
+      "pending_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:128",
+        "version/3.0/ripscrip/5.1-text-variables.md:4154"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_resident_query.c",
+        "src/terminal/rip3/st_rip3_commands.c",
+        "src/terminal/rip3/st_rip3_ports.c",
+        "src/terminal/rip3/st_rip3_session.c"
+      ],
+      "tests": [
+        "rip3_resident_query",
+        "rip3_session",
+        "rip3_ports_backup",
+        "syncterm_rip3_resident_query_CP437",
+        "syncterm_rip3_resident_query_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3201,
+        "context": 1435,
+        "pending": 1749,
+        "implemented": 1972,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "research_review": {
+        "path": "version/3.0/research/issue-51-deferred-query-order.md",
+        "sha256": "1f031f1eb2608720ad60402744f9e3f67128ecf0a03b52247044cff1f529fa7a",
+        "method": "Read pinned text after matching its adoption-record hash; no original/client/probe/downloaded code executed."
+      },
+      "policy": "Modes1/2 store global floating sources, ignoring the numeric target; 3/4 require existing unprotected screen PORT/TW targets without selection/creation effects. Copy opaque C-prefix sources with 1023 original protocol-unit limit and exact case-insensitive OFF sentinel; definition and events never evaluate these sources. PORT backups deep-copy floating and numbered sources with preparation failure preserving prior live/saved ownership. Wire2T first use clones resident TW source, CUR first use has none, existing targets retain it. SOFT clears floating/TW0/deleted entries and retains protected entries and independent saved copies. Cancellation retains completed definitions; destruction releases them. Private statuses are consumed by the existing void parser/session boundary. Native tests prove state and allocation-failure preservation; connected CP437/UTF8 tests prove event non-execution with immediate/hover/field positive controls. Full TW backups, individual TW entry COPY, clipboard selection in PORT snapshots, aggregate execution and HEADER remain pending. No new raster/damage ownership, per-byte rendering work, VT102 mode or RIP154 change.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration, /usr/bin/cc, control bitmap fixtures.",
+        "result": "17 distinct relevant CTests passed: resident/session/PORT backup/PORT/query/table/copy native checks, connected resident/window-table/hover in CP437 and UTF8, existing ANSI control CP437/UTF8, and contract/preservation guards. Focused added TW allocation/view-failure and source-release checks passed; modified test targets and full native application build compile without warnings.",
+        "limits": "No native display, other toolchain/platform, original-client raster/probe execution or full TW/aggregate acceptance claim. Previous unchanged grouped/screen checks were not rerun."
+      }
     }
   ]
 }

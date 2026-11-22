@@ -30,6 +30,9 @@ struct st_rip3_text_window_host {
 	int (*define)(void *context, const struct st_rip3_text_window_layout *layout);
 	int (*select)(void *context, unsigned number);
 	int (*deactivate)(void *context);
+	/* Stored floating/numbered TW expressions (modes 2/4). Definition only;
+	 * no provider work or click dispatch. Numeric/reserved framing is consumed. */
+	int (*resident_query)(void *context,bool floating,unsigned number,const uint8_t *bytes,size_t length,bool converted);
 	/* Zero-based full-window g/H position, independent of ANSI origin/margins.
 	 * The owner gates deactivated windows. */
 	int (*position)(void *context, uint32_t column, uint32_t row);

@@ -48,7 +48,7 @@ contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. Scene reset `*` and `$RESET(SOFT)$` now clear the
 physical canvas to palette-independent RGB black and reset the represented
 TW/STYLE/BUT/PAL/PORT/ENV families on connected sessions. The complete reset contract
-still awaits header/resident-query and remaining ANSI state work.
+still awaits header/refresh-expression and remaining ANSI state work.
 The entry-versus-default-MicroANSI policy remains a separate open client decision.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
@@ -7899,3 +7899,60 @@ query modes and remaining table/UI/playback work stay pending. Mixed paragraphs
 that include aggregate orchestration remain pending even where their MOUSE
 clauses pass. RIP1.54's original freeze, entry-selected raster, existing ANSI
 route and explicit exclusion of a new VT-102 mode remain intact.
+
+## Stored viewport and text-window query definitions
+
+Connected `1` + ESC query modes 1–4 now retain owned raw source under the
+already pinned RIPtel 3.1 contract. Modes 1/2 store one global floating PORT/TW
+expression and ignore the consumed numeric target. Modes 3/4 address existing
+unprotected screen PORT/TW entries in 0..35, without selecting or creating them.
+Offscreen PORTs cannot own resident expressions. Every stored definition keeps
+its opaque C-string prefix: no angle, variable, control or host work runs on
+storage. Empty sources reject; exact case-insensitive `$OFF$` removes; other
+sources must fit 1023 original protocol units. Invalid/framing/resource failures
+remain inside the void parser/session boundary and retain the old definition.
+
+RIPtel stores these four modes but does not dispatch them on clicks or movement.
+SyncTERM retains that documented omission. There is no inferred historical
+click order or same-click mutation policy. Immediate mode 0 and hover modes 5/6
+continue to execute through their existing paths, as do actual mouse fields.
+The pinned issue #51 derivation was read with its recorded hash verified; no
+original client or downloaded probe was executed for this implementation.
+
+PORT owns its floating and numbered queries. Whole-PORT save/restore now
+independently copies them along with its represented table and offscreen
+pixels. Replacement preparation completes before the live table changes;
+query-copy failures preserve prior live definitions/generations and reusable
+saved state. Deletion/redefinition frees the removed record's query. Full SOFT
+clears floating/PORT0 and deleted unprotected entries; protected entries retain
+their own definitions, and independently saved sources survive.
+
+TW owns its floating expression and each entry's source. Wire `2T` first use
+copies that source independently before publishing a destination; a failed
+query copy or native view preparation keeps the original selection/source.
+First `$CUR(TW,n)$` has no resident expression. Existing targets retain theirs,
+and ordinary geometry changes do not expand it. SOFT clears floating/TW0 and
+deleted entries, retaining protected entries. Session cancellation retains
+completed definitions; destruction releases all owned sources. No persistent
+scene/raster/damage layer or ordinary-byte rendering work is added.
+
+`rip3_resident_query` tests exact C-prefix/sentinel/size edges, converted
+single-byte accounting, ownership and allocation failures. `rip3_ports_backup`
+checks every floating/entry query-copy failure during capture and restore,
+protected/reset/delete/offscreen lifetimes and independent saved strings.
+`rip3_session` checks actual wire storage bytes, rejected writes, first-use
+copy/default behavior, callback/resource failures, split input, ignored numeric
+fields, SOFT and cancellation. Native allocation tracking verifies all resident
+sources are released. Connected CP437/UTF-8 tests cover 640×480 and 720×400,
+overlapping stored targets, no paint/provider work, non-execution at interior
+and boundary points, generic PORT COPY and nonfatal recovery. Immediate query,
+hover entry/exit and field-click positive controls prove the input paths are
+active. Existing window-table, hover and ANSI control checks remain passing.
+
+The queue now contains 1972 implemented, 1749 pending, 3201 unreviewed,
+1435 context, 67 excluded and 25 blocked units, still 8449 total. Full TW
+backups, individual TW-entry COPY, clipboard selection in full PORT snapshots,
+eight-family aggregate save/restore, HEADER/hard reset and remaining work are
+pending. Mixed source paragraphs mentioning those operations remain pending.
+RIP1.54's freeze, selected device raster, existing ANSI route and no-VT102
+constraint remain unchanged; no full-compliance claim is made.

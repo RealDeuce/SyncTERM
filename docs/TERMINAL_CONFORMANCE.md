@@ -2348,3 +2348,23 @@ cold previews prepare fresh cancel artwork. Existing native/connected button,
 group and ANSI checks pass; no additional console pixel/damage layer is added.
 PR139 reconciles the backup index with the existing detailed screen/aggregate
 contract. Full aggregate orchestration and HEADER behavior remain pending.
+
+
+`syncterm_rip3_resident_query_CP437` and
+`syncterm_rip3_resident_query_UTF-8` cover actual query modes 1–4 through TCP,
+with overlapping floating/numbered PORT/TW definitions at 640×480 and 720×400.
+Coherent captures show storage does not paint. Physical movement/press/release
+at interior and boundary points produces no stored-query output or side
+effects, matching RIPtel 3.1's absence of click dispatch. Immediate queries,
+hover entry/exit and field-click actions provide positive controls in the same
+connection. Tests cover protected/undefined writes, generic PORT backups,
+first-use TW selections, source-size/malformed recovery and continued connection
+use. Native session tests inspect actual stored bytes and independent first-use
+query copies, including split input, ignored selectors, allocation/native-view
+failure, protection, SOFT and cancellation. `rip3_resident_query` verifies
+C-prefix/empty/OFF/1023-unit boundaries, encoded counting and failure
+preservation; `rip3_ports_backup` independently fails every resident query copy
+in capture/restore and checks saved/live state and protected/deleted/offscreen
+ownership. Allocation tracking checks release on failure and teardown. No
+historical deferred-query click execution is added. Full TW backups, individual
+TW-entry COPY and aggregate orchestration remain pending.

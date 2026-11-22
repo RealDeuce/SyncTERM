@@ -8,6 +8,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_surface.h"
+#include "st_rip3_resident_query.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -1206,10 +1207,87 @@ construction(bool device)
 	return 0;
 }
 
+extern const struct st_rip3_resident_query *st_rip3_session_test_resident(struct st_rip3_session *,unsigned,unsigned);
+static int resident_value(struct fixture *f,unsigned mode,unsigned number,const char *expected)
+{
+	const struct st_rip3_resident_query *value=st_rip3_session_test_resident(f->session,mode,number);
+	CHECK(value!=NULL && value->length==strlen(expected));
+	CHECK(value->length==0 || memcmp(value->bytes,expected,value->length)==0);return 0;
+}
+static int store_query(struct fixture *f,unsigned mode,char number,const char *source,bool error)
+{
+	char wire[2048];CHECK(strlen(source)<sizeof(wire)-16);
+	snprintf(wire,sizeof(wire),"!|1\033%u%c00%s\r",mode,number,source);
+	unsigned before=f->errors;f->reply_length=0;
+	CHECK(append(f,wire)==0 && pump(f)==0 && f->errors==before+(error ? 1 : 0) && f->reply_length==0);
+	return 0;
+}
+static int stored_queries(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;options.sink.text_window=window;options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$-=EFFECT=cold$","")==0);
+	CHECK(store_query(&f,1,'Z',"$-=EFFECT=bad$PORT",false)==0);
+	CHECK(store_query(&f,2,'Z',"$-=EFFECT=bad$TW",false)==0);
+	CHECK(store_query(&f,3,'0',"$TIME$<<NAME>>^m",false)==0);
+	CHECK(store_query(&f,4,'0',"$-=EFFECT=bad$ZERO",false)==0);
+	CHECK(resident_value(&f,1,0,"$-=EFFECT=bad$PORT")==0 && resident_value(&f,2,0,"$-=EFFECT=bad$TW")==0);
+	CHECK(resident_value(&f,3,0,"$TIME$<<NAME>>^m")==0 && resident_value(&f,4,0,"$-=EFFECT=bad$ZERO")==0);
+	CHECK(append(&f,"!|w00000A0510|w00000B0510\r")==0 && pump(&f)==0);
+	CHECK(resident_value(&f,4,0,"$-=EFFECT=bad$ZERO")==0);
+	CHECK(store_query(&f,3,'Z',"undefined",true)==0 && store_query(&f,4,'Z',"undefined",true)==0);
+	CHECK(query(&f,"$INUSE(PORT,35)$:$INUSE(TW,35)$:$&EFFECT$","0:0:cold")==0);
+	CHECK(query(&f,"$CUR(PORT,1)$","")==0 && store_query(&f,3,'1',"ONE",false)==0);
+	CHECK(query(&f,"$PROT(PORT,1)$","")==0 && store_query(&f,3,'1',"$OFF$",true)==0);
+	CHECK(resident_value(&f,3,1,"ONE")==0);
+	CHECK(query(&f,"$COPY(PORT,TBL,BASE)$","")==0);
+	CHECK(store_query(&f,1,'0',"new",false)==0 && store_query(&f,3,'0',"new",false)==0);
+	CHECK(query(&f,"$COPY(PORT,BASE,TBL)$","")==0);
+	CHECK(resident_value(&f,1,0,"$-=EFFECT=bad$PORT")==0 && resident_value(&f,3,0,"$TIME$<<NAME>>^m")==0);
+	extern bool st_rip3_resident_test_fail;
+	st_rip3_resident_test_fail=true;
+	CHECK(store_query(&f,4,'0',"lost",true)==0 && resident_value(&f,4,0,"$-=EFFECT=bad$ZERO")==0);
+	unsigned errors=f.errors;
+	CHECK(append(&f,"!|2T10\r")==0 && pump(&f)==0 && f.errors==errors+1);
+	st_rip3_resident_test_fail=false;
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,1)$","0:0")==0);
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;errors=f.errors;
+	CHECK(append(&f,"!|2T10\r")==0 && pump(&f)==0 && f.errors==errors+1);
+	f.window_status=0;
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,1)$","0:0")==0);
+	CHECK(resident_value(&f,4,0,"$-=EFFECT=bad$ZERO")==0);
+	CHECK(append(&f,"!|2T10\r")==0 && pump(&f)==0);
+	CHECK(resident_value(&f,4,1,"$-=EFFECT=bad$ZERO")==0);
+	CHECK(store_query(&f,4,'0',"changed",false)==0 && resident_value(&f,4,1,"$-=EFFECT=bad$ZERO")==0);
+	CHECK(query(&f,"$CUR(TW,2)$","")==0 && resident_value(&f,4,2,"")==0);
+	CHECK(query(&f,"$PROT(TW,1)$","")==0 && store_query(&f,4,'1',"$OFF$",true)==0);
+	CHECK(store_query(&f,4,'0',"$oFf$",false)==0 && resident_value(&f,4,0,"")==0);
+	CHECK(store_query(&f,2,'0',"$OFF$ ",false)==0 && resident_value(&f,2,0,"$OFF$ ")==0);
+	CHECK(store_query(&f,2,'0',"",true)==0 && resident_value(&f,2,0,"$OFF$ ")==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,true)==false && st_rip3_session_mouse(f.session,20,20,false)==false);
+	CHECK(query(&f,"$&EFFECT$","cold")==0);
+	/* One byte at a time must not publish a partial expression. Numeric
+	 * reserved fields are consumed but unused for stored modes. */
+	CHECK(append(&f,"!|1\033203Zsplit^m\r")==0);
+	while (f.read+1<f.length) {
+		st_rip3_session_process(f.session,1);CHECK(resident_value(&f,2,0,"$OFF$ ")==0);
+	}
+	CHECK(pump(&f)==0 && resident_value(&f,2,0,"split^m")==0);
+	CHECK(st_rip3_session_test_soft_reset(f.session)==0);
+	CHECK(resident_value(&f,1,0,"")==0 && resident_value(&f,2,0,"")==0
+	    && resident_value(&f,3,0,"")==0 && resident_value(&f,4,0,"")==0);
+	CHECK(resident_value(&f,3,1,"ONE")==0 && resident_value(&f,4,1,"$-=EFFECT=bad$ZERO")==0);
+	CHECK(query(&f,"$COPY(PORT,BASE,TBL)$","")==0 && resident_value(&f,1,0,"$-=EFFECT=bad$PORT")==0);
+	st_rip3_session_cancel(f.session);CHECK(resident_value(&f,1,0,"$-=EFFECT=bad$PORT")==0);
+	st_rip3_session_destroy(f.session);CHECK(st_rip3_session_test_live==0);
+	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);return 0;
+}
+
 int
 main(void)
 {
-	CHECK(screen_backups()==0);
+	CHECK(stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);

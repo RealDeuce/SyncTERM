@@ -25,6 +25,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
+#include "st_rip3_resident_query.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -67,7 +68,9 @@ struct st_rip3_session {
 		struct st_rip3_text_window_info info;
 		bool has_layout;
 		struct st_rip3_text_window_layout layout;
+		struct st_rip3_resident_query query;
 	} windows[36];
+	struct st_rip3_resident_query floating_window_query;
 	struct st_rip3_text_window_host window_host;
 	struct st_rip3_text_window_operations window_operations;
 	uint64_t revision;
@@ -209,6 +212,17 @@ protect_window(void *context, unsigned number, bool protect)
 }
 
 static int
+window_resident_query(void *context,bool floating,unsigned number,const uint8_t *bytes,size_t length,bool converted)
+{
+	struct st_rip3_session *session=context;
+	if (floating) return st_rip3_resident_query_set(&session->floating_window_query,bytes,length,converted);
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	if (!session->windows[number].info.defined) return IO_ERROR_NOT_FOUND;
+	if (session->windows[number].info.protected) return IO_ERROR_PERMISSION_DENIED;
+	return st_rip3_resident_query_set(&session->windows[number].query,bytes,length,converted);
+}
+
+static int
 select_text_window(struct st_rip3_session *session, unsigned number, bool clone)
 {
 	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
@@ -222,11 +236,13 @@ select_text_window(struct st_rip3_session *session, unsigned number, bool clone)
 	    session->default_text_wrap,session->default_text_font) : 0;
 	if (status!=0) return status;
 	bool active=defaults || (first ? session->text_active : session->windows[number].info.active);
-	status=session->sink.text_select(session->sink.context,number,first,active,defaults ? &fresh : NULL);
-	if (status!=0) return status;
+	struct st_rip3_resident_query resident={0};
+	if (first && clone) status=st_rip3_resident_query_copy(&resident,&session->windows[previous].query);
+	if (status==0) status=session->sink.text_select(session->sink.context,number,first,active,defaults ? &fresh : NULL);
+	if (status!=0) {st_rip3_resident_query_clear(&resident);return status;}
 	session->windows[previous].info.active=session->text_active;
 	if (first) {
-		if (clone) session->windows[number]=session->windows[previous];
+		if (clone) {session->windows[number]=session->windows[previous];session->windows[number].query=resident;}
 		else {
 			session->windows[number].layout=fresh;session->windows[number].has_layout=true;
 			session->windows[number].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
@@ -288,9 +304,12 @@ soft_reset(void *context)
 	if (status!=0) return status;
 	session->windows[session->current_window].info.active=session->text_active;
 	for (unsigned i=1;i<36;i++) if (!keep[i]) {
+		st_rip3_resident_query_clear(&session->windows[i].query);
 		session->windows[i].info=(struct st_rip3_text_window_info){0};
 		session->windows[i].has_layout=false;
 	}
+	st_rip3_resident_query_clear(&session->windows[0].query);
+	st_rip3_resident_query_clear(&session->floating_window_query);
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
 	session->windows[0].layout=layout;session->windows[0].has_layout=true;
 	session->current_window=0;session->text_active=true;
@@ -565,6 +584,8 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	st_rip3_button_styles_destroy(session->commands.button_styles);
 	st_rip3_palettes_destroy(session->commands.palettes);
 	st_rip3_ports_destroy(session->commands.ports);
+	for (unsigned i=0;i<36;i++) st_rip3_resident_query_clear(&session->windows[i].query);
+	st_rip3_resident_query_clear(&session->floating_window_query);
 	free(session);
 }
 
@@ -702,7 +723,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
 	session->window_host=(struct st_rip3_text_window_host){.context=session,.define=define_text_window,
-	    .position=position_text_cursor,.erase=erase_text_window,.select=select_window,.deactivate=deactivate_window};
+	    .position=position_text_cursor,.erase=erase_text_window,.select=select_window,.deactivate=deactivate_window,
+	    .resident_query=window_resident_query};
 	session->commands.text_window=&session->window_host;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;

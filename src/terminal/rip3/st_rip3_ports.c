@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_ports.h"
 #include "st_rip3_backup.h"
+#include "st_rip3_resident_query.h"
 
 #include "io_error.h"
 
@@ -10,6 +11,7 @@
 
 struct port {
 	struct st_rip3_port_info info;
+	struct st_rip3_resident_query query;
 	/* Only offscreen ports own a surface. Screen ports share screen. */
 	struct st_rip3_surface *bitmap;
 };
@@ -26,6 +28,7 @@ struct st_rip3_ports {
 	unsigned current;
 	uint64_t sequence,generations[36];
 	struct port entries[36];
+	struct st_rip3_resident_query floating_query;
 };
 
 static bool
@@ -79,6 +82,7 @@ static void
 clear_port(struct port *port)
 {
 	st_rip3_surface_destroy(port->bitmap);
+	st_rip3_resident_query_clear(&port->query);
 	*port = (struct port){0};
 }
 
@@ -123,8 +127,9 @@ st_rip3_ports_destroy(struct st_rip3_ports *ports)
 {
 	if (ports == NULL)
 		return;
-	for (unsigned i = 1; i < 36; i++)
+	for (unsigned i = 0; i < 36; i++)
 		clear_port(&ports->entries[i]);
+	st_rip3_resident_query_clear(&ports->floating_query);
 	st_rip3_surface_destroy(ports->screen);
 	free(ports);
 }
@@ -321,6 +326,8 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 		}
 	}
 	ports->generations[0]=++ports->sequence;
+	st_rip3_resident_query_clear(&ports->entries[0].query);
+	st_rip3_resident_query_clear(&ports->floating_query);
 	ports->entries[0].info = (struct st_rip3_port_info){
 		.defined = true,
 		.viewport_active = true,
@@ -838,6 +845,7 @@ struct port_snapshot {
 	struct st_rip3_rect screen_bounds;
 	unsigned current;
 	struct port entries[36];
+	struct st_rip3_resident_query floating_query;
 };
 
 static void
@@ -849,6 +857,7 @@ port_backup_destroy(void *object)
 		return;
 	for (size_t i = 0; i < 36; i++)
 		clear_port(&snapshot->entries[i]);
+	st_rip3_resident_query_clear(&snapshot->floating_query);
 	free(snapshot);
 }
 
@@ -865,6 +874,8 @@ clone_entry(struct port *result, const struct port *source)
 		if (status != 0)
 			return status;
 	}
+	status=st_rip3_resident_query_copy(&value.query,&source->query);
+	if (status!=0) {clear_port(&value);return status;}
 	*result = value;
 	return 0;
 }
@@ -880,6 +891,8 @@ port_backup_clone(const void *object, void **result)
 		return IO_ERROR_OUT_OF_MEMORY;
 	snapshot->screen_bounds = ports->screen_bounds;
 	snapshot->current = ports->current;
+	status=st_rip3_resident_query_copy(&snapshot->floating_query,&ports->floating_query);
+	if (status!=0) {port_backup_destroy(snapshot);return status;}
 	for (size_t i = 0; i < 36; i++) {
 		status = clone_entry(&snapshot->entries[i], &ports->entries[i]);
 		if (status != 0) {
@@ -897,6 +910,7 @@ port_backup_restore(void *object, const void *saved)
 	struct st_rip3_ports *ports = object;
 	const struct port_snapshot *snapshot = saved;
 	struct port entries[36] = {0};
+	struct st_rip3_resident_query floating={0};
 	int status;
 
 	if (ports->screen_bounds.x0 != snapshot->screen_bounds.x0
@@ -905,6 +919,8 @@ port_backup_restore(void *object, const void *saved)
 	    || ports->screen_bounds.y1 != snapshot->screen_bounds.y1)
 		return IO_ERROR_CONFLICT;
 	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
+	status=st_rip3_resident_query_copy(&floating,&snapshot->floating_query);
+	if (status!=0) return status;
 	/* No live entry or screen pixel changes until every owned bitmap has
 	 * been copied. Screen ports have definitions only, never a pixel copy. */
 	for (size_t i = 0; i < 36; i++) {
@@ -912,6 +928,7 @@ port_backup_restore(void *object, const void *saved)
 		if (status != 0) {
 			for (size_t j = 0; j < i; j++)
 				clear_port(&entries[j]);
+			st_rip3_resident_query_clear(&floating);
 			return status;
 		}
 		/* Shipping restore reads saved screen cursor bytes but never copies
@@ -923,6 +940,7 @@ port_backup_restore(void *object, const void *saved)
 		ports->entries[i] = entries[i];
 		ports->generations[i]=++ports->sequence;
 	}
+	st_rip3_resident_query_clear(&ports->floating_query);ports->floating_query=floating;
 	ports->current = snapshot->current;
 	return 0;
 }
@@ -935,4 +953,27 @@ st_rip3_ports_backup_create(struct st_rip3_backup **result)
 	};
 
 	return st_rip3_backup_create(result, &ops);
+}
+
+int
+st_rip3_ports_define_query(struct st_rip3_ports *ports,bool floating,unsigned number,
+    const uint8_t *bytes,size_t length,bool converted)
+{
+	if (ports==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (floating) return st_rip3_resident_query_set(&ports->floating_query,bytes,length,converted);
+	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	const struct st_rip3_port_info *info=&ports->entries[number].info;
+	if (!info->defined) return IO_ERROR_NOT_FOUND;
+	if (info->protected) return IO_ERROR_PERMISSION_DENIED;
+	if (info->offscreen) return IO_ERROR_NOT_SUPPORTED;
+	return st_rip3_resident_query_set(&ports->entries[number].query,bytes,length,converted);
+}
+
+const struct st_rip3_resident_query *
+st_rip3_ports_query(const struct st_rip3_ports *ports,bool floating,unsigned number)
+{
+	if (ports==NULL) return NULL;
+	if (floating) return &ports->floating_query;
+	return number>=36 || !ports->entries[number].info.defined || ports->entries[number].info.offscreen
+	    ? NULL : &ports->entries[number].query;
 }

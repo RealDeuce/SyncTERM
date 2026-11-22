@@ -153,3 +153,11 @@ int st_rip3_session_test_soft_reset(struct st_rip3_session *session)
 {
 	return soft_reset(session);
 }
+
+const struct st_rip3_resident_query *
+st_rip3_session_test_resident(struct st_rip3_session *session,unsigned mode,unsigned number)
+{
+	if (mode==1 || mode==3) return st_rip3_ports_query(session->commands.ports,mode==1,number);
+	if (mode==2) return &session->floating_window_query;
+	return mode==4 && number<36 && session->windows[number].info.defined ? &session->windows[number].query : NULL;
+}

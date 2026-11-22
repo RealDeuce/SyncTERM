@@ -3,6 +3,8 @@
 #include "st_rip3_ports.h"
 #include "io_error.h"
 #include "st_pixels.h"
+#include "st_rip3_resident_query.h"
+#include <string.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -158,10 +160,58 @@ canvas_mismatch(void)
 	return 0;
 }
 
+static int query_value(struct st_rip3_ports *ports,bool floating,unsigned number,const char *expected)
+{
+	const struct st_rip3_resident_query *q=st_rip3_ports_query(ports,floating,number);
+	CHECK(q!=NULL && q->length==strlen(expected) && (q->length==0 || memcmp(q->bytes,expected,q->length)==0));return 0;
+}
+static int query_set(struct st_rip3_ports *ports,bool floating,unsigned number,const char *source)
+{
+	return st_rip3_ports_define_query(ports,floating,number,(const uint8_t *)source,strlen(source),false);
+}
+static int resident_ownership(void)
+{
+	struct st_rip3_ports *ports=NULL;struct st_rip3_backup *backup=NULL;
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480)==0 && st_rip3_ports_backup_create(&backup)==0);
+	const struct st_rip3_rect bounds={0,0,100,100};
+	CHECK(st_rip3_ports_define(ports,1,&bounds,false)==0);
+	CHECK(query_set(ports,true,63,"F")==0 && query_set(ports,false,0,"A")==0 && query_set(ports,false,1,"B")==0);
+	CHECK(query_set(ports,false,35,"undefined")==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_ports_protect(ports,1,true)==0 && query_set(ports,false,1,"$OFF$")==IO_ERROR_PERMISSION_DENIED);
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,ports)==0);
+	extern size_t st_rip3_resident_test_attempts,st_rip3_resident_test_fail_at;
+	for (size_t fail=0;fail<3;fail++) {
+		CHECK(query_set(ports,true,0,"newF")==0 && query_set(ports,false,0,"newA")==0);
+		st_rip3_resident_test_fail_at=st_rip3_resident_test_attempts+fail;
+		CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,ports)==IO_ERROR_OUT_OF_MEMORY);
+		st_rip3_resident_test_fail_at=SIZE_MAX;
+		CHECK(query_value(ports,true,0,"newF")==0 && query_value(ports,false,0,"newA")==0);
+		CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,ports)==0);
+		CHECK(query_value(ports,true,0,"F")==0 && query_value(ports,false,0,"A")==0 && query_value(ports,false,1,"B")==0);
+	}
+	for (size_t fail=0;fail<3;fail++) {
+		CHECK(query_set(ports,true,0,"liveF")==0 && query_set(ports,false,0,"liveA")==0);
+		uint64_t generation=st_rip3_ports_generation(ports,0);
+		st_rip3_resident_test_fail_at=st_rip3_resident_test_attempts+fail;
+		CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,ports)==IO_ERROR_OUT_OF_MEMORY);
+		st_rip3_resident_test_fail_at=SIZE_MAX;
+		CHECK(query_value(ports,true,0,"liveF")==0 && query_value(ports,false,0,"liveA")==0
+		    && st_rip3_ports_generation(ports,0)==generation);
+	}
+	CHECK(st_rip3_ports_reset(ports,false)==0 && query_value(ports,true,0,"")==0 && query_value(ports,false,0,"")==0
+	    && query_value(ports,false,1,"B")==0);
+	CHECK(st_rip3_ports_protect(ports,1,false)==0 && st_rip3_ports_delete(ports,1)==0);
+	CHECK(st_rip3_ports_query(ports,false,1)==NULL);
+	CHECK(st_rip3_ports_define(ports,1,&bounds,true)==0 && query_set(ports,false,1,"offscreen")==IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,ports)==0 && query_value(ports,false,1,"B")==0);
+	st_rip3_backup_destroy(backup);st_rip3_ports_destroy(ports);return 0;
+}
+
 int
 main(void)
 {
-	CHECK(restoration() == 0);
+	CHECK(resident_ownership()==0 && restoration() == 0);
 	CHECK(canvas_mismatch() == 0);
+	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);
 	return 0;
 }

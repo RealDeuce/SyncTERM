@@ -218,13 +218,21 @@ int st_rip3_ports_button_view(struct st_rip3_ports *ports, const struct st_rip3_
 /* Outer-reset physical RGB-black clear, independent of PAL/PORT/STYLE. */
 int st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports);
 
+/* Modes 1/3 own floating/screen-entry expressions. Floating ignores number;
+ * numbered targets must be defined, unprotected screen ports. Storage has no
+ * execution or selection effects. Returned views are borrowed until mutation. */
+struct st_rip3_resident_query;
+int st_rip3_ports_define_query(struct st_rip3_ports *,bool floating,unsigned number,
+	const uint8_t *,size_t,bool converted);
+const struct st_rip3_resident_query *st_rip3_ports_query(const struct st_rip3_ports *,bool floating,unsigned number);
 /* Backup the device port definitions/current selection and owned offscreen
  * pixels. Onscreen pixels belong to the separate screen backup area. Restore
  * prepares all bitmap copies before replacing any live entry, bypasses live
  * protection, and requires the same device canvas. The backup survives the
  * original ports object. Image styles are included. Restore retains each live
  * cursor instead of the saved screen cursor; offscreen cursors are not saved.
- * Query/clipboard metadata and complete scene orchestration remain separate. */
+ * Floating and numbered query sources are deep-owned. Clipboard selection
+ * metadata and complete scene orchestration remain separate. */
 int st_rip3_ports_backup_create(struct st_rip3_backup **result);
 
 #endif

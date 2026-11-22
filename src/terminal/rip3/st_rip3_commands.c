@@ -138,9 +138,16 @@ host_query(const struct st_rip3_command_host *host,
 		status = st_rip3_command_field(&reserved,command+4,2,environment.base_math);
 	if (status != 0)
 		return status;
-	(void)window; /* Immediate and hover queries have no numbered target. */
-	if ((mode!=0 && mode!=5 && mode!=6) || (mode==0 && reserved!=0)) return IO_ERROR_NOT_SUPPORTED;
+	if (mode>6 || (mode==0 && reserved!=0)) return IO_ERROR_NOT_SUPPORTED;
 	*operation=true;
+	if (mode==1 || mode==3) {
+		if (host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
+		return st_rip3_ports_define_query(host->ports,mode==1,(unsigned)window,command+6,length-6,host->codepage_converted);
+	}
+	if (mode==2 || mode==4) {
+		if (host->text_window==NULL || host->text_window->resident_query==NULL) return IO_ERROR_NOT_SUPPORTED;
+		return host->text_window->resident_query(host->text_window->context,mode==2,(unsigned)window,command+6,length-6,host->codepage_converted);
+	}
 	if (mode==5 || mode==6) {
 		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
 		return st_rip3_mouse_query_encoded(host->mouse,mode==5,command+6,length-6,host->codepage_converted);
