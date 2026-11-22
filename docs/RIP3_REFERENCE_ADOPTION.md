@@ -921,3 +921,41 @@ references covered reports without commenting on them. The original RIP1.54
 freeze, arbitrary entry raster and no-VT102/external-launch exclusions remain
 controlling. This is a reference-only change; unchanged runtime verification
 is reused and the contract/preservation guards pass.
+
+
+## PR149 live text-window reset completion
+
+The selected fork stable revision advances to
+[`393c5ebee54687f329c85d8b17db641e4210a18a`](https://github.com/RealDeuce/remote-imaging-protocol/tree/393c5ebee54687f329c85d8b17db641e4210a18a),
+including reviewed [PR149](https://github.com/bbs-land/remote-imaging-protocol/pull/149)
+head `174853b8aad354448f88335cdfb900e2469f3a8b`. The exact compare from the
+previous pin is five commits ahead and none behind. The archive SHA-256 is
+`1dd4fedad69ab99d0730c7cb1deddc22cf4d90418f2831a9eb196090ad863370`.
+
+Five normative documents change in the same 68-document scope. The complete
+reindex retains 8550 identical source blocks, moving 1009 line references; 110
+heading-only moves preserve exact operative text and evidence, including
+repeated RESET table rows matched by source order and section displacement.
+There are 58 new blocks and 2 retired blocks, both fully retained in the adoption
+record; no implemented claim is retired. The 8608-unit queue now contains 2190
+implemented, 1747 pending, 3076 unreviewed, 1503 context, 67 excluded and 25 blocked.
+All 70 previous research hashes and the original ALPHA4 text hash are unchanged;
+the new #148 derivation is separately pinned. Upstream workflow text remains
+reference data and supplies no instructions to this agent. No downloaded code,
+original client, probe or upstream checker is executed.
+
+B148 is resolved as a documentation question. The explicit portable profile
+forces fresh ordinary user-default-font state for TW 0 without the ordinary-w
+identity shortcut, deletes applied entries' fixed queries while retaining the
+floating query, keeps a protected current nonzero TW selected through TBL/ALL,
+and resolves CUR left to right after complete syntax validation. Per-target
+resource failures retain that target and continue later valid operations;
+ALL still deletes independent backups. Connection parsing, the larger ESC 7/8
+snapshot and the entry raster remain separate. This does not authorize a
+VT-102 mode or change the original RIP1.54 implementation.
+
+New and reopened live-reset clauses remain pending runtime acceptance. The
+contract and original preservation guards pass; unchanged native builds and
+functional/rendering evidence are reused for this reference-only change. The
+owned archive is removed. No existing issue receives comments and no code is
+pushed or PR published.

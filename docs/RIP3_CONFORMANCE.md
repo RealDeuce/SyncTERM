@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-4c8672d935e9faccdb74eb702ab7c056cf24071e](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c8672d935e9faccdb74eb702ab7c056cf24071e/version/3.0)
+393c5ebee54687f329c85d8b17db641e4210a18a](https://github.com/RealDeuce/remote-imaging-protocol/tree/393c5ebee54687f329c85d8b17db641e4210a18a/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8428,3 +8428,25 @@ has 8552 units: 2190 implemented, 1691 pending, 3077 unreviewed, 1496 context,
 B148, remaining reset/ANSI fields and startup-font policy remain incomplete.
 RIP1.54's original freeze, arbitrary entry raster and no-VT102/external-launch
 constraints remain authoritative.
+
+
+## PR149 live TW reset reference adoption
+
+The exact selected stable reference is now
+`393c5ebee54687f329c85d8b17db641e4210a18a`, including reviewed PR149 head
+`174853b8aad354448f88335cdfb900e2469f3a8b`. The [adoption record](RIP3_REFERENCE_ADOPTION.md#pr149-live-text-window-reset-completion)
+retains the complete inventory, hashes, moved reviews and retired source text.
+B148 is answered by explicit fresh-zero defaults, fixed/floating query lifetime,
+protected current selection, dynamically resolved CUR, whole-list validation and
+per-target failure continuation. These are portable state rules, distinct from
+historical native-client observations. They preserve arbitrary entry raster,
+connection parsing and the original RIP1.54/no-VT102 boundary.
+
+Live `$RESET(TW,...)$` remains pending runtime integration and independent
+connected acceptance; adopting its answer does not make the command usable.
+The 8608-unit queue contains 2190 implemented, 1747 pending, 3076 unreviewed, 1503
+context, 67 excluded and 25 blocked. No implemented source claim is discarded;
+all 70 earlier derivations and original ALPHA4 bytes remain unchanged. Contract
+and original preservation guards pass. No unchanged product build or rendering
+suite is repeated for this reference-only update, and the owned archive is
+removed. Other RESET/HEADER work and full RIP3 compliance remain unfinished.
