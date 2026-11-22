@@ -86,8 +86,9 @@ int st_rip3_styles_soft_reset(struct st_rip3_styles *styles);
  * Whole restore bypasses live protection and retains the immutable snapshot.
  * The shipping restore retains the LIVE current index, reselecting/defaulting
  * it after restoring table contents; the saved index does not become current.
- * This does not capture the unresolved parts of a complete RIP STYLE context,
- * implement SGS/RGS or perform scene reset/default initialization. */
+ * This does not capture the unresolved parts of a complete RIP STYLE context or
+ * perform scene reset/default initialization. SGS/RGS and whole-table COPY
+ * use this same snapshot family. */
 int st_rip3_styles_backup_create(struct st_rip3_backup **result);
 
 #endif

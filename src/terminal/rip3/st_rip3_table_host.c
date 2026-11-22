@@ -532,10 +532,9 @@ palette_copy(const struct st_rip3_table_binding *binding,
 }
 
 static int
-screen_action(const struct st_rip3_table_host *host,const struct st_rip3_builtin_reference *reference,
-    bool save,int fixed,char *result,size_t capacity)
+action_location(const struct st_rip3_builtin_reference *reference,bool save,int fixed,
+    struct st_rip3_backup_location *result)
 {
-	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_backup_location place={ST_RIP3_BACKUP_BASE,0};
 	if (fixed>=0) {
 		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
@@ -553,6 +552,17 @@ screen_action(const struct st_rip3_table_host *host,const struct st_rip3_builtin
 			}
 		}
 	}
+	*result=place;return 0;
+}
+
+static int
+screen_action(const struct st_rip3_table_host *host,const struct st_rip3_builtin_reference *reference,
+    bool save,int fixed,char *result,size_t capacity)
+{
+	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_backup_location place;
+	int syntax=action_location(reference,save,fixed,&place);
+	if (syntax!=0) return syntax;
 	const struct st_rip3_table_binding *binding=&host->tables[ST_RIP3_TABLE_SCREEN];
 	if (binding->live==NULL || binding->backup==NULL) return IO_ERROR_NOT_SUPPORTED;
 	int status=save ? st_rip3_backup_save(binding->backup,place.place,place.index,binding->live)
@@ -561,6 +571,35 @@ screen_action(const struct st_rip3_table_host *host,const struct st_rip3_builtin
 	 * Protected snapshots survive; POP consumption stays success-dependent. */
 	if (!save && place.place==ST_RIP3_BACKUP_SLOT) (void)st_rip3_backup_clear(binding->backup,place.place,place.index);
 	if (status!=0 && host->operation_failed!=NULL) host->operation_failed(host->operation_context,status);
+	result[0]=0;return 0;
+}
+
+static int
+aggregate_action(const struct st_rip3_table_host *host,const struct st_rip3_builtin_reference *reference,
+    bool save,char *result,size_t capacity)
+{
+	static const enum st_rip3_table_type order[]={ST_RIP3_TABLE_TW,ST_RIP3_TABLE_PORT,
+	    ST_RIP3_TABLE_MOUSE,ST_RIP3_TABLE_SCREEN,ST_RIP3_TABLE_PAL,ST_RIP3_TABLE_BUT,
+	    ST_RIP3_TABLE_STYLE,ST_RIP3_TABLE_ENV};
+	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_backup_location place;
+	int status=action_location(reference,save,-1,&place);
+	if (status!=0) return status;
+	for (size_t i=0;i<sizeof(order)/sizeof(order[0]);i++) {
+		const struct st_rip3_table_binding *binding=&host->tables[order[i]];
+		if (binding->live==NULL || binding->backup==NULL) status=IO_ERROR_NOT_SUPPORTED;
+		else if (save) status=st_rip3_backup_save(binding->backup,place.place,place.index,binding->live);
+		else if (place.place==ST_RIP3_BACKUP_SLOT)
+			status=st_rip3_backup_restore_slot_retained(binding->backup,place.index,binding->live);
+		else status=st_rip3_backup_restore(binding->backup,place.place,place.index,binding->live);
+		/* Each family is independent: diagnostics never stop the sequence or
+		 * turn a valid action into a variable error. There is no rollback. */
+		if (status!=0 && host->operation_failed!=NULL) host->operation_failed(host->operation_context,status);
+	}
+	if (!save && place.place==ST_RIP3_BACKUP_SLOT) for (size_t i=0;i<sizeof(order)/sizeof(order[0]);i++) {
+		struct st_rip3_backup *backup=host->tables[order[i]].backup;
+		if (backup!=NULL) (void)st_rip3_backup_clear(backup,place.place,place.index);
+	}
 	result[0]=0;return 0;
 }
 
@@ -579,6 +618,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	status=st_rip3_builtin_reference_words(&words,reference);
 	if (status!=0) return status;
 	reference=&words;
+	if (strcmp(reference->name,"SAVEALL")==0 || strcmp(reference->name,"RESTOREALL")==0)
+		return aggregate_action(host,reference,reference->name[0]=='S',result,capacity);
 	if (strcmp(reference->name,"SAVE")==0 || strcmp(reference->name,"RESTORE")==0)
 		return screen_action(host,reference,reference->name[0]=='S',-1,result,capacity);
 	size_t name_length=strlen(reference->name);
@@ -618,8 +659,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	}
 	copy = strcmp(reference->name, "COPY") == 0;
 	backstat = strcmp(reference->name, "BACKSTAT") == 0;
-	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0 || strcmp(reference->name,"STW")==0 || strcmp(reference->name,"SCB")==0;
-	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0 || strcmp(reference->name,"RTW")==0 || strcmp(reference->name,"RCB")==0;
+	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0 || strcmp(reference->name,"STW")==0 || strcmp(reference->name,"SCB")==0 || strcmp(reference->name,"SGS")==0 || strcmp(reference->name,"SENV")==0;
+	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0 || strcmp(reference->name,"RTW")==0 || strcmp(reference->name,"RCB")==0 || strcmp(reference->name,"RGS")==0 || strcmp(reference->name,"RENV")==0;
 	if (!copy && !backstat && !save && !restore)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity == 0)
@@ -643,7 +684,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 					return IO_ERROR_INVALID_FORMAT;
 			}
 		}
-		binding = &host->tables[reference->name[2]=='B' ? ST_RIP3_TABLE_PORT : reference->name[1]=='T' ? ST_RIP3_TABLE_TW : reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
+		binding = &host->tables[reference->name[1]=='E' ? ST_RIP3_TABLE_ENV : reference->name[1]=='G' ? ST_RIP3_TABLE_STYLE
+		    : reference->name[2]=='B' ? ST_RIP3_TABLE_PORT : reference->name[1]=='T' ? ST_RIP3_TABLE_TW : reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
 		    : reference->name[1]=='M' ? ST_RIP3_TABLE_MOUSE : ST_RIP3_TABLE_PAL];
 		if (binding->live == NULL || binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;

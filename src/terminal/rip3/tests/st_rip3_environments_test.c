@@ -377,16 +377,14 @@ host_variables(void)
 	    && data.coordinate_size == 2 && data.rgb_bits == 0 && data.baud_rate == 0
 	    && data.port == 3 && data.palette == 5 && data.mouse_pointer == 6);
 	CHECK(st_rip3_environments_select(environments, 35) == 0);
-	CHECK(run(&host, "$SENV$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(run(&host, "$INUSE(ENV,BASE)$", "0", -1) == 0);
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, environments) == 0);
-	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_STACK, 0, environments) == 0);
+	CHECK(run(&host, "$SENV$", "", -1) == 0);
+	CHECK(run(&host, "$INUSE(ENV,BASE)$", "1", -1) == 0);
+	CHECK(run(&host, "$SENV(PUSH)$", "", -1) == 0);
 	CHECK(run(&host, "$INUSE(ENV,BASE)$", "1", -1) == 0);
 	CHECK(run(&host, "$BASEMATH(CUR,64)$", "", -1) == 0);
 	CHECK(st_rip3_environments_select(environments, 0) == 0);
-	CHECK(run(&host, "$RENV(POP)$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
-	CHECK(run(&host, "$INUSE(ENV,STACK)$", "1", -1) == 0);
-	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_STACK, 0, environments) == 0);
+	CHECK(run(&host, "$RENV(POP)$", "", -1) == 0);
+	CHECK(run(&host, "$INUSE(ENV,STACK)$", "0", -1) == 0);
 	CHECK(run(&host, "$CUR(ENV)$", "35", -1) == 0);
 	CHECK(run(&host, "$BASEMATH$", "36", -1) == 0);
 	CHECK(run(&host, "$COMPAT$", "", -1) == 0);

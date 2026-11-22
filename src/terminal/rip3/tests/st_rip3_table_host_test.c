@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(expression) do { \
@@ -349,9 +350,115 @@ mouse_expressions(void)
 	st_rip3_backup_destroy(backup);st_rip3_mouse_destroy(mouse);return 0;
 }
 
+/* Literal family IDs/order from the adopted wrapper contract. The callbacks
+ * expose restore-versus-delete timing independently of the real payloads. */
+struct action_log {char bytes[1024];size_t used;unsigned errors,early_delete;bool check_slots;struct st_rip3_table_host *host;};
+struct action_value {struct action_log *log;unsigned id;int value;bool fail_save,fail_restore;};
+static void action_event(struct action_log *log,char kind,unsigned id)
+{
+	if (log->used+2<sizeof(log->bytes)) {log->bytes[log->used++]=kind;log->bytes[log->used++]=(char)('0'+id);log->bytes[log->used]=0;}
+}
+static int action_clone(const void *source,void **result)
+{
+	const struct action_value *value=source;
+	action_event(value->log,'S',value->id);
+	if (value->fail_save) return IO_ERROR_OUT_OF_MEMORY;
+	struct action_value *saved=malloc(sizeof(*saved));
+	if (saved==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*saved=*value;*result=saved;return 0;
+}
+static int action_restore(void *object,const void *snapshot)
+{
+	struct action_value *value=object;const struct action_value *saved=snapshot;
+	action_event(value->log,'R',value->id);
+	if (value->log->check_slots) for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) {
+		struct st_rip3_backup_info info;
+		if (st_rip3_backup_info(value->log->host->tables[i].backup,&info)!=0 || !info.slot_used[2]) value->log->early_delete++;
+	}
+	if (value->fail_restore) return IO_ERROR_IO;
+	value->value=saved->value;return 0;
+}
+static void action_destroy(void *object)
+{
+	struct action_value *value=object;action_event(value->log,'D',value->id);free(value);
+}
+static void action_error(void *context,int status)
+{
+	struct action_log *log=context;if (status!=0) log->errors++;
+}
+static int aggregate_actions(void)
+{
+	struct st_rip3_table_host host={0};struct action_log log={.host=&host};
+	struct action_value values[ST_RIP3_TABLE_COUNT];
+	static const unsigned ids[]={3,0,1,4,2,5,7,6};
+	const struct st_rip3_backup_ops ops={action_clone,action_restore,action_destroy};
+	host.operation_context=&log;host.operation_failed=action_error;
+	for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) {
+		values[i]=(struct action_value){.log=&log,.id=ids[i],.value=10+(int)ids[i]};
+		host.tables[i].live=&values[i];CHECK(st_rip3_backup_create(&host.tables[i].backup,&ops)==0);
+	}
+	char output[20]="unchanged";
+	CHECK(execute(&host,"$SAVEALL(2)$",output,sizeof(output))==0 && output[0]==0);
+	CHECK(strcmp(log.bytes,"S3S2S5S6S4S0S1S7")==0);
+	for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) values[i].value=99;
+	values[ST_RIP3_TABLE_MOUSE].fail_restore=true;values[ST_RIP3_TABLE_SCREEN].fail_restore=true;
+	CHECK(st_rip3_backup_protect(host.tables[ST_RIP3_TABLE_STYLE].backup,2,true)==0);
+	log.used=0;log.check_slots=true;
+	CHECK(execute(&host,"$RESTOREALL(2)$",output,sizeof(output))==0 && output[0]==0);
+	CHECK(strcmp(log.bytes,"R3R2R5R6R4R0R1R7D3D2D5D6D4D0D7")==0);
+	CHECK(log.errors==2 && log.early_delete==0);
+	for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) {
+		struct st_rip3_backup_info info;CHECK(st_rip3_backup_info(host.tables[i].backup,&info)==0);
+		CHECK(info.slot_used[2]==(i==ST_RIP3_TABLE_STYLE));
+		CHECK(values[i].value==(i==ST_RIP3_TABLE_MOUSE || i==ST_RIP3_TABLE_SCREEN ? 99 : 10+(int)ids[i]));
+		values[i].fail_restore=false;
+	}
+	log.used=0;log.check_slots=false;log.errors=0;
+	values[ST_RIP3_TABLE_STYLE].value=88;
+	CHECK(execute(&host,"$SAVEALL(2)$",output,sizeof(output))==0);
+	CHECK(strcmp(log.bytes,"S3S2S5S6S4S0S7")==0 && log.errors==1);
+	log.used=0;log.check_slots=true;
+	CHECK(execute(&host,"$RESTOREALL(2)$",output,sizeof(output))==0);
+	CHECK(strcmp(log.bytes,"R3R2R5R6R4R0R1R7D3D2D5D6D4D0D7")==0 && values[ST_RIP3_TABLE_STYLE].value==11 && log.early_delete==0);
+	log.used=0;log.check_slots=false;log.errors=0;
+	values[ST_RIP3_TABLE_PORT].fail_save=true;
+	CHECK(execute(&host,"$SAVEALL(PUSH)$",output,sizeof(output))==0);
+	CHECK(strcmp(log.bytes,"S3S2S5S6S4S0S1S7")==0 && log.errors==1);
+	log.used=0;values[ST_RIP3_TABLE_PORT].fail_save=false;
+	CHECK(execute(&host,"$RESTOREALL(POP)$",output,sizeof(output))==0);
+	CHECK(strcmp(log.bytes,"R3D3R5D5R6D6R4D4R0D0R1D1R7D7")==0 && log.errors==2);
+	log.used=0;CHECK(execute(&host,"$SAVEALL$",output,sizeof(output))==0);
+	CHECK(strcmp(log.bytes,"S3S2S5S6S4S0S1S7")==0);
+	for (unsigned i=0;i<2;i++) {
+		log.used=0;CHECK(execute(&host,"$RESTOREALL(BASE)$",output,sizeof(output))==0);
+		CHECK(strcmp(log.bytes,"R3R2R5R6R4R0R1R7")==0);
+	}
+	log.used=0;log.errors=0;
+	for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) values[i].fail_restore=true;
+	CHECK(execute(&host,"$RESTOREALL$",output,sizeof(output))==0 && log.errors==8);
+	CHECK(strcmp(log.bytes,"R3R2R5R6R4R0R1R7")==0);
+	for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) values[i].fail_restore=false;
+	log.used=0;strcpy(output,"unchanged");
+	const char *invalid[]={"$SAVEALL(POP)$","$RESTOREALL(PUSH)$","$SAVEALL(10)$","$SAVEALL(BASE,2)$"};
+	for (unsigned i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) CHECK(execute(&host,invalid[i],output,sizeof(output))==IO_ERROR_INVALID_FORMAT);
+	CHECK(execute(&host,"$SAVEALL$",output,0)==IO_ERROR_OUT_OF_RANGE && log.used==0 && strcmp(output,"unchanged")==0);
+	void *old_live=host.tables[ST_RIP3_TABLE_TW].live;
+	host.tables[ST_RIP3_TABLE_TW].live=NULL;log.errors=0;
+	CHECK(execute(&host,"$SAVEALL(4)$",output,sizeof(output))==0 && log.errors==1);
+	CHECK(strcmp(log.bytes,"S2S5S6S4S0S1S7")==0);
+	host.tables[ST_RIP3_TABLE_TW].live=old_live;log.used=0;
+	/* The four newly connected names select their own payload families. */
+	CHECK(execute(&host,"$SGS(0)$",output,sizeof(output))==0 && execute(&host,"$RGS(0)$",output,sizeof(output))==0);
+	CHECK(execute(&host,"$SENV(0)$",output,sizeof(output))==0 && execute(&host,"$RENV(0)$",output,sizeof(output))==0);
+	CHECK(strcmp(log.bytes,"S1R1D1S7R7D7")==0);
+	for (unsigned i=0;i<ST_RIP3_TABLE_COUNT;i++) st_rip3_backup_destroy(host.tables[i].backup);
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(aggregate_actions()==0);
 	CHECK(parser() == 0);
 	CHECK(argument_bytes() == 0);
 	CHECK(palette_expressions() == 0);

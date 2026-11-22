@@ -148,6 +148,15 @@ st_rip3_backup_restore(struct st_rip3_backup *backup,
 }
 
 int
+st_rip3_backup_restore_slot_retained(struct st_rip3_backup *backup,unsigned index,void *object)
+{
+	if (backup==NULL || object==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (index>=10) return IO_ERROR_OUT_OF_RANGE;
+	if (backup->slots[index]==NULL) return IO_ERROR_NOT_FOUND;
+	return backup->ops.restore(object,backup->slots[index]->value);
+}
+
+int
 st_rip3_backup_copy(struct st_rip3_backup *backup,
     struct st_rip3_backup_location source,
     const struct st_rip3_backup_location *destinations, size_t count, void *object)

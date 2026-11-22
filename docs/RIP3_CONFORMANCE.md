@@ -8066,3 +8066,56 @@ The 8449-unit queue now has 2004 implemented, 1748 pending, 3159 unreviewed,
 1445 context, 67 excluded and 26 blocked units. Original RIP1.54 freeze, arbitrary
 entry raster and no-VT102 scope remain unchanged. Full RIP3 compliance remains
 unfinished.
+
+
+## Connected eight-family backup composition
+
+At unchanged stable pin `95493d2643eaecfc1a02ca4264da2c0d8a1f406e`,
+`SGS`/`RGS` and `SENV`/`RENV` now use their existing typed families through
+connected sessions. STYLE restore retains the live current style index while
+restoring represented records. ENV restore reinstates its own settings/table
+and current ENV index; current STYLE/BUT/PORT/TW/PAL selections remain live.
+ENV selection/activation commands remain separate unfinished work.
+
+`SAVEALL` and `RESTOREALL` now visit TW, PORT, MOUSE, SCREEN, PAL, BUT, STYLE,
+ENV in that exact order. Each failure is diagnosed privately and later families
+still run, without rollback. Valid aggregate actions return no value or variable
+error. Numbered `RESTOREALL` applies all eight snapshots through a narrow
+retained-slot service, then attempts all eight deletes in the same order, even
+for failed restores. Protected snapshots survive deletion. Ordinary COPY and
+single-family manager consumption are unchanged. BASE is reusable; PUSH/POP use
+each family's independent capacity and success-dependent stack consumption.
+
+Native event logs assert literal save/restore/delete order and detect any early
+numbered consumption from inside later restore callbacks. They cover failed,
+protected, missing and wholly failed families; non-atomic save continuation;
+independent stacks; reusable BASE and preflight errors. The retained-slot API's
+invalid/missing/failure paths are covered. ENV native tests replace old unsupported
+expectations with real host actions, including restoration of slot 35.
+
+Connected CP437/UTF-8 suites run all three presets and custom 720×400. Coherent
+captures/replies verify restored screen colors, offscreen contents, native ANSI
+attributes/cursor, button keyboard commitment, whole PAL/BUT selections, STYLE's
+live-index defect and ENV-owned values. An absent PAL backup still permits the
+screen step to overwrite the current palette's RGB and later ENV restoration.
+Both encodings exercise protected saves, numbered consumption, independent
+stacks and nonfatal missing/invalid action recovery. Nine distinct relevant
+CTests pass, including contract/preservation guards, in the one native FreeBSD
+Release CMake configuration. The application and affected targets build without
+introduced C compiler warnings; Make emits timestamp-skew notices. Unrelated
+passed rendering suites are reused. No ordinary-byte or drawing hot path changes.
+
+New [issue #142](https://github.com/bbs-land/remote-imaging-protocol/issues/142)
+requests reconciliation of SENV's inherited foreign-selection list with the
+accepted #24/PR57 ENV ownership. That list remains blocked; runtime follows the
+explicit corrected table boundary. [PR #141](https://github.com/bbs-land/remote-imaging-protocol/pull/141)
+is recorded as a proposed answer to #140, awaiting a separate exact reference
+adoption. No covered issue receives comments.
+
+The 8449-unit queue now has 2057 implemented, 1712 pending, 3121 unreviewed,
+1465 context, 67 excluded and 27 blocked units. Wrapper composition acceptance
+is separate from complete payload inventories: remembered PORT_COPY rectangles /
+PCB, remaining STYLE scope, ENV selection, HEADER and many other requirements
+remain unfinished. RIP1.54's original freeze, arbitrary entry raster and the
+no-VT102/external-launch exclusions remain unchanged. No full-compliance claim
+is made.

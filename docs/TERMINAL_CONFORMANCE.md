@@ -2403,3 +2403,18 @@ source-owner teardown, allocation failures, canvas conflict and exact protected
 survivor pixels/viewport/generation. Remembered PORT_COPY rectangles/PCB and
 aggregate backup orchestration remain pending; issue140 records the stale
 empty-clipboard deletion paragraph. RIP1.54's freeze is unchanged.
+
+
+The connected `syncterm_rip3_aggregate_CP437` / `_UTF-8` suites now exercise
+`SGS`/`RGS`, `SENV`/`RENV` and `SAVEALL`/`RESTOREALL` at all presets and custom
+720×400. Coherent observations check screen colors, offscreen contents, ANSI
+window metadata, button input, separate table selections, ENV-only settings,
+protected/consumed saves, independent stacks and continued execution after a
+missing PAL family. Native backup/table-host tests independently assert exact
+TW/PORT/MOUSE/SCREEN/PAL/BUT/STYLE/ENV dispatch, all restores before numbered
+deletions, failed/protected/missing/all-failed continuation and invalid preflight.
+Native ENV tests restore actual table/index/value state through SENV/RENV.
+These tests accept the wrapper composition and represented payloads, not the
+unfinished complete PORT/STYLE inventories or full RIP3 compliance. Source pin
+and RIP1.54 preservation remain unchanged; issues140/142 retain their separate
+editorial status, with PR141 awaiting adoption.

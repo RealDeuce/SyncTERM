@@ -52,6 +52,10 @@ int st_rip3_backup_save(struct st_rip3_backup *backup,
 	enum st_rip3_backup_place place, unsigned index, const void *object);
 int st_rip3_backup_restore(struct st_rip3_backup *backup,
 	enum st_rip3_backup_place place, unsigned index, void *object);
+/* RESTOREALL's numbered restore phase applies all families before any slot
+ * deletion. Apply one numbered snapshot without consuming it, independent of
+ * its protection flag; the wrapper performs the later delete phase. */
+int st_rip3_backup_restore_slot_retained(struct st_rip3_backup *,unsigned index,void *object);
 struct st_rip3_backup_location {
 	enum st_rip3_backup_place place;
 	unsigned index;

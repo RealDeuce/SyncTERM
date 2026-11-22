@@ -9908,6 +9908,135 @@
         "coverage": "Pointer changes from5 back to2, unset/assignedzero distinction, source teardown, capture/restore allocation failures, canvas conflict, exact protected survivor pixels/viewport/generation, no screen repaint, independent live PAL/STYLE, protected/consumed snapshots, generic COPY, SOFT and invalid/missing nonfatal recovery.",
         "limits": "No complete PORT record or PCB claim; no full RIP3 compliance, original-client/native-display/pixel-parity or additional platform claim. Existing unrelated passed rendering/ANSI tests are reused. Make emitted host timestamp-skew notices; no introduced C compiler warnings."
       }
+    },
+    {
+      "after_commit": "b3fc95a6",
+      "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "scope": "Connect SGS/RGS, SENV/RENV and ordered eight-family SAVEALL/RESTOREALL with a distinct numbered restore/delete phase. Keep full payload inventories separate from wrapper acceptance.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3281",
+        "version/3.0/ripscrip/5.1-text-variables.md:3285",
+        "version/3.0/ripscrip/5.1-text-variables.md:3295",
+        "version/3.0/ripscrip/5.1-text-variables.md:3297",
+        "version/3.0/ripscrip/5.1-text-variables.md:3299",
+        "version/3.0/ripscrip/5.1-text-variables.md:3301",
+        "version/3.0/ripscrip/5.1-text-variables.md:3303",
+        "version/3.0/ripscrip/5.1-text-variables.md:3533",
+        "version/3.0/ripscrip/5.1-text-variables.md:3537",
+        "version/3.0/ripscrip/5.1-text-variables.md:3562",
+        "version/3.0/ripscrip/5.1-text-variables.md:3564",
+        "version/3.0/ripscrip/5.1-text-variables.md:3566",
+        "version/3.0/ripscrip/5.1-text-variables.md:3568",
+        "version/3.0/ripscrip/5.1-text-variables.md:3570",
+        "version/3.0/ripscrip/5.1-text-variables.md:3376",
+        "version/3.0/ripscrip/5.1-text-variables.md:3380",
+        "version/3.0/ripscrip/5.1-text-variables.md:3392",
+        "version/3.0/ripscrip/5.1-text-variables.md:3578",
+        "version/3.0/ripscrip/5.1-text-variables.md:3582",
+        "version/3.0/ripscrip/5.1-text-variables.md:3594",
+        "version/3.0/ripscrip/5.1-text-variables.md:3309",
+        "version/3.0/ripscrip/5.1-text-variables.md:3313",
+        "version/3.0/ripscrip/5.1-text-variables.md:3323",
+        "version/3.0/ripscrip/5.1-text-variables.md:3325",
+        "version/3.0/ripscrip/5.1-text-variables.md:3334",
+        "version/3.0/ripscrip/5.1-text-variables.md:3336",
+        "version/3.0/ripscrip/5.1-text-variables.md:3338",
+        "version/3.0/ripscrip/5.1-text-variables.md:3340",
+        "version/3.0/ripscrip/5.1-text-variables.md:3446",
+        "version/3.0/ripscrip/5.1-text-variables.md:3450",
+        "version/3.0/ripscrip/5.1-text-variables.md:3460",
+        "version/3.0/ripscrip/5.1-text-variables.md:3462",
+        "version/3.0/ripscrip/5.1-text-variables.md:3471",
+        "version/3.0/ripscrip/5.1-text-variables.md:3473",
+        "version/3.0/ripscrip/5.1-text-variables.md:3475",
+        "version/3.0/ripscrip/5.1-text-variables.md:3477",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:365",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:369",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:370",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:371",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:372",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:373",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:374",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:375",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:376",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:378",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:380",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:386",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:390",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:200",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:202",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:206",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:210"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3277",
+        "version/3.0/ripscrip/5.1-text-variables.md:3279",
+        "version/3.0/ripscrip/5.1-text-variables.md:3283",
+        "version/3.0/ripscrip/5.1-text-variables.md:3529",
+        "version/3.0/ripscrip/5.1-text-variables.md:3531",
+        "version/3.0/ripscrip/5.1-text-variables.md:3535",
+        "version/3.0/ripscrip/5.1-text-variables.md:3372",
+        "version/3.0/ripscrip/5.1-text-variables.md:3374",
+        "version/3.0/ripscrip/5.1-text-variables.md:3378",
+        "version/3.0/ripscrip/5.1-text-variables.md:3574",
+        "version/3.0/ripscrip/5.1-text-variables.md:3576",
+        "version/3.0/ripscrip/5.1-text-variables.md:3580",
+        "version/3.0/ripscrip/5.1-text-variables.md:3307",
+        "version/3.0/ripscrip/5.1-text-variables.md:3311",
+        "version/3.0/ripscrip/5.1-text-variables.md:3444",
+        "version/3.0/ripscrip/5.1-text-variables.md:3448",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:367",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:368",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:384",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:388"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_table_host.c",
+        "src/terminal/rip3/st_rip3_backup.c",
+        "src/terminal/rip3/st_rip3_environments.c",
+        "src/terminal/rip3/st_rip3_styles.c"
+      ],
+      "tests": [
+        "rip3_backup",
+        "rip3_table_host",
+        "rip3_environments",
+        "rip3_screen",
+        "rip3_session",
+        "syncterm_rip3_aggregate_CP437",
+        "syncterm_rip3_aggregate_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3121,
+        "context": 1465,
+        "pending": 1712,
+        "implemented": 2057,
+        "excluded": 67,
+        "blocked": 27
+      },
+      "research_review": [
+        {
+          "path": "version/3.0/research/issue-16-table-lifecycle.md",
+          "sha256": "2df08c1e1c5d95d64df3f857dbca4fede6836e76ee32cd6d19baa025754a4757",
+          "method": "Read pinned text after matching recorded SHA256; no downloaded code, original client or probes executed."
+        },
+        {
+          "path": "version/3.0/research/issue-24-drawing-state-ownership.md",
+          "sha256": "d1094046ecff37fc17326823a7aa18a4dc788740c191daf307039b4f79e3f292",
+          "method": "Read pinned text after matching recorded SHA256; no downloaded code, original client or probes executed."
+        },
+        {
+          "path": "version/3.0/research/issue-26-screen-backups.md",
+          "sha256": "d766b3fb662d69f247057dde9a072a263c895123691b5d7fe7d10728a4a61555",
+          "method": "Read pinned text after matching recorded SHA256; no downloaded code, original client or probes executed."
+        }
+      ],
+      "policy": "Reuse all eight existing bound families in TW/PORT/MOUSE/SCREEN/PAL/BUT/STYLE/ENV order. Do not capture extra live scene/buffer state. Apply numbered snapshots through a narrow retained-slot API, then delete in the same order regardless of restore failures; protected slots survive. No cross-family preflight/rollback or first-error stop is imposed. BASE/PUSH/POP use normal independent manager lifetimes. ENV restore changes only its own table/current/value state; foreign selections stay live. RGS preserves the shipping live current STYLE index. Valid aggregate actions remain empty success at the variable layer while private lower-level diagnostics report each failure; parser/session boundaries stay void. New issue142 requests SENV list reconciliation and references covered #24/PR57 without comments. PR141 is recorded as a proposed answer to B140, awaiting an exact pinned reference adoption. Full PORT_COPY/PCB, complete STYLE inventory, ENV selection, HEADER and other unfinished features remain outstanding.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc and headless bitmap/control TCP sessions.",
+        "result": "Native application and affected targets built. Seven distinct relevant native/connected tests passed before final contract/preservation guards: backup, table host, environments, screen, session and both connected aggregate encodings at640x480,800x600,1024x768 and720x400.",
+        "coverage": "Independent literal S/R/D family logs prove dispatch order, no early numbered consumption, failed/protected save continuation, failed/missing/all-failed restore continuation, independent POP, reusable BASE, retained-slot input/failure guards and invalid syntax preflight. Actual session captures/replies prove restored pixels, offscreen data, native ANSI attributes/cursor, button keyboard commitment, whole PAL/BUT selection, live STYLE selection defect and ENV-only values. Missing PAL restoration still permits screen RGB binding and the later ENV phase.",
+        "limits": "Wrapper/represented payload acceptance only; full RIP3 and full PORT/STYLE payload conformance remain incomplete. No additional platform/toolchain, original-client/probe/native-display/pixel-parity claim. Unchanged unrelated passed suites are reused. Make emitted timestamp-skew notices; no C compiler warnings were introduced."
+      }
     }
   ]
 }

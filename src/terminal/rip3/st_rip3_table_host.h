@@ -33,7 +33,8 @@ struct st_rip3_table_host {
 };
 
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
- * SCP/RCP, SBS/RBS, SMF/RMF, STW/RTW, CUR, INUSE, individual
+ * SCP/RCP, SBS/RBS, SMF/RMF, STW/RTW, SCB/RCB, SGS/RGS, SENV/RENV,
+ * SAVEALL/RESTOREALL, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
  * supports PAL/PORT/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
@@ -47,12 +48,11 @@ struct st_rip3_table_host {
  * Parameter defaults and decimal slot syntax follow the reference. Remaining
  * live-entry COPY and RESET families return NOT_SUPPORTED for wider dispatch.
  * CUR(STYLE,n) selects/defaults the represented style and its font family,
- * independently of PORT/ENV/text-cursor state. CUR(ENV,n), SENV, RENV, SGS and
- * RGS remain unsupported until
- * complete scene context capture/activation is available. Generic ENV record snapshots do not
- * activate referenced table/UI state. STYLE snapshots capture only the resolved
- * drawing attributes currently stored in st_rip3_styles, not the unresolved
- * complete context under #24.
+ * independently of PORT/ENV/text-cursor state. CUR(ENV,n) remains separate
+ * activation work. SENV/RENV snapshot ENV-owned settings and the table/current
+ * index, leaving other table selections live as specified by the corrected
+ * ownership contract. SGS/RGS snapshot represented STYLE fields and retain the
+ * shipping live-current-index restore defect.
  * A TW live binding borrows st_rip3_text_window_operations; its native owner
  * handles selection/protection and complete definition-only STW/RTW snapshots.
  * Whole-TW COPY/status/protection and backup-only RESET selectors are bound;
@@ -76,7 +76,13 @@ struct st_rip3_table_host {
  * failure; a lower-level callback may diagnose it. Numeric RESTORE requests
  * slot deletion even after failure, while POP remains success-dependent.
  * Screen snapshots capture pixels/current RGB only; selection/metadata and
- * status visibility remain live. SAVEALL/RESTOREALL are still separate work.
+ * status visibility remain live. SAVEALL/RESTOREALL visit TW, PORT, MOUSE,
+ * SCREEN, PAL, BUT, STYLE and ENV in that order, continuing after each failure
+ * without rollback. Numbered RESTOREALL applies every family before deleting
+ * any slot; a failed restore can still consume its unprotected saved slot.
+ * BASE stays reusable; PUSH/POP use independent per-family stacks. Completed
+ * bindings are usable now; full conformance still requires every payload
+ * family, including unfinished PORT_COPY/PCB metadata, to be complete.
  * No host transmission, prompting, stream parsing or app/session routing occurs here. Execution
  * statuses are private to parser-owned recovery; use the public host-variable
  * process entry to consume malformed references without a session error. */

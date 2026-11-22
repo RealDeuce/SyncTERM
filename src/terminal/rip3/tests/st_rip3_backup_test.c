@@ -200,6 +200,13 @@ failures(void)
 	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, &source) == 0);
 	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_SLOT, 0, &source) == 0);
 	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_STACK, 0, &source) == 0);
+	CHECK(st_rip3_backup_restore_slot_retained(NULL,0,&live)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_backup_restore_slot_retained(backup,0,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_backup_restore_slot_retained(backup,10,&live)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_backup_restore_slot_retained(backup,9,&live)==IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_backup_restore_slot_retained(backup,0,&live)==0 && live==1);
+	CHECK(st_rip3_backup_info(backup,&info)==0 && info.slot_used[0]);
+	live=99;
 	fail_clone = true;
 	source = 2;
 	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, &source) == IO_ERROR_OUT_OF_MEMORY);
@@ -208,6 +215,7 @@ failures(void)
 	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_STACK, 0, &source) == IO_ERROR_OUT_OF_MEMORY);
 	fail_clone = false;
 	fail_restore = true;
+	CHECK(st_rip3_backup_restore_slot_retained(backup,0,&live)==IO_ERROR_IO && live==99);
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_BASE, 0, &live) == IO_ERROR_IO && live == 99);
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_SLOT, 0, &live) == IO_ERROR_IO && live == 99);
 	CHECK(st_rip3_backup_restore(backup, ST_RIP3_BACKUP_STACK, 0, &live) == IO_ERROR_IO && live == 99);

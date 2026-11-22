@@ -84,8 +84,9 @@ int st_rip3_environments_device(const struct st_rip3_environments *environments,
 
 /* Whole record table/current index, including protection, in owned snapshots.
  * Restore bypasses live protection and requires the same device canvas.
- * Referenced table contents, pixels and external UI/playback state are not
- * captured or activated; that scene-level orchestration remains separate. */
+ * Current settings are read from the restored ENV by their normal consumers.
+ * Other table selections/contents, pixels and external UI/playback state are
+ * not captured or activated. SENV/RENV use this same snapshot family. */
 int st_rip3_environments_backup_create(struct st_rip3_backup **result);
 
 #endif
