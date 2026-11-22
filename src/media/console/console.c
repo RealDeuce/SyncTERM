@@ -3114,6 +3114,43 @@ st_console_copy_font(st_console_t *destination, st_console_t *source,
 	return status;
 }
 
+struct st_console_font_snapshot {struct st_console_font_registration *resource;};
+
+int
+st_console_font_snapshot_create(struct st_console_font_snapshot **result,
+    st_console_t *console,uint16_t identifier)
+{
+	if (result==NULL || console==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_console_font_snapshot *snapshot=calloc(1,sizeof(*snapshot));
+	if (snapshot==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	if (st_rwlock_read_lock(st_console_state_lock(console))!=ST_THREAD_SUCCESS) {
+		free(snapshot);return IO_ERROR_IO;
+	}
+	size_t index;bool found=find_font(console,identifier,&index);
+	if (found) {
+		const struct st_console_font_registration *registration=console->fonts[index];
+		snapshot->resource=font_registration_create(&registration->font,true);
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	if (!found || snapshot->resource==NULL) {free(snapshot);return found ? IO_ERROR_OUT_OF_MEMORY : IO_ERROR_NOT_FOUND;}
+	*result=snapshot;return 0;
+}
+
+int
+st_console_font_snapshot_register(st_console_t *console,
+    const struct st_console_font_snapshot *snapshot,uint16_t *identifier)
+{
+	if (console==NULL || snapshot==NULL || identifier==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint16_t assigned;int status=st_console_register_font_copy(console,&snapshot->resource->font,&assigned);
+	if (status==0) *identifier=assigned;return status;
+}
+
+void
+st_console_font_snapshot_destroy(struct st_console_font_snapshot *snapshot)
+{
+	if (snapshot!=NULL) {font_registration_free(snapshot->resource);free(snapshot);}
+}
+
 int
 st_console_font_registered(st_console_t *console, uint16_t identifier,
 	bool *registered)

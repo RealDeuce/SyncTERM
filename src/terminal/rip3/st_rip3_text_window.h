@@ -38,6 +38,11 @@ struct st_rip3_text_window_operations {
 	int (*erase)(void *context, const unsigned *numbers, size_t count);
 	/* TWERASEEOL: display row from cursor inclusive, target ANSI background. */
 	int (*erase_eol)(void *context, const unsigned *numbers, size_t count);
+	/* Whole TW snapshots own logical definitions/native metadata, never screen pixels
+	 * or connection parser input. Saved objects release without the live owner. */
+	int (*backup_capture)(void *context,void **result);
+	int (*backup_restore)(void *context,const void *saved);
+	void (*backup_destroy)(void *saved);
 };
 
 struct st_rip3_text_window_layout {
@@ -63,6 +68,8 @@ struct st_rip3_text_window_snapshot {
 	bool cursor_visible,font_known;
 };
 struct st_rip3_rect;
+struct st_rip3_backup;
+int st_rip3_text_window_backup_create(struct st_rip3_backup **result);
 
 /* Geometry service below the parser's void recovery boundary. These are
  * non-deactivation w layouts: the all-zero tuple's gate operation belongs

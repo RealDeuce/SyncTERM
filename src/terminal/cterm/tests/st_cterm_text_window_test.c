@@ -244,9 +244,51 @@ soft_ansi_reset(void)
 	return 0;
 }
 
+static int definition_backups(void)
+{
+	struct fixture source={0},target={0};CHECK(create(&source,17)==0);
+	const char setup[]="\x1b[3g\x1b[1;6H\x1bH\x1b[3;1H\x1bJ\x1b[2;4r\x1b[?7l\x1b[?25l\x1b[2;3H\x1b[s\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m";
+	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
+	CHECK(source.text->tab_count==1 && source.text->vtab_count==1 && source.text->fg_tc_str!=NULL && source.text->bg_tc_str!=NULL);
+	struct st_cterm_window_definition *saved=NULL;
+	CHECK(st_cterm_window_definition_create(&saved,source.text)==0);
+	extern size_t st_cterm_definition_test_fonts;
+	extern size_t st_cterm_definition_test_resources(const struct st_cterm_window_definition *);
+	size_t resources=st_cterm_definition_test_resources(saved);CHECK(resources!=0 && st_cterm_definition_test_fonts==resources);
+	for (size_t fail=0;fail<5+resources;fail++) {
+		struct st_cterm_window_definition *failed=NULL;
+		st_cterm_window_test_tracking=true;st_cterm_window_test_attempts=0;st_cterm_window_test_fail_at=fail;
+		CHECK(st_cterm_window_definition_create(&failed,source.text)==IO_ERROR_OUT_OF_MEMORY && failed==NULL);
+		CHECK(st_cterm_window_test_live==0 && st_cterm_definition_test_fonts==resources);
+		st_cterm_window_test_tracking=false;st_cterm_window_test_fail_at=SIZE_MAX;
+	}
+	for (size_t fail=0;fail<4+resources;fail++) {
+		CHECK(create(&target,17)==0);
+		st_cterm_window_test_tracking=true;st_cterm_window_test_attempts=0;st_cterm_window_test_fail_at=fail;
+		CHECK(st_cterm_window_definition_restore(target.text,saved)==IO_ERROR_OUT_OF_MEMORY);
+		CHECK(st_cterm_window_test_live==0 && st_cterm_definition_test_fonts==resources && target.text->attr==7);
+		st_cterm_window_test_tracking=false;st_cterm_window_test_fail_at=SIZE_MAX;destroy(&target);
+	}
+	destroy(&source); /* Saved resources and pointers must now be independent. */
+	for (unsigned pass=0;pass<2;pass++) {
+		CHECK(create(&target,17)==0);
+		CHECK(feed(&target,"B\x1b[3",4)==0); /* Live parser differs from saved state. */
+		CHECK(st_cterm_window_definition_restore(target.text,saved)==0 && position(&target,3,2)==0);
+		CHECK(target.text->top_margin==2 && target.text->bottom_margin==4 && target.text->save_xpos==3 && target.text->save_ypos==2
+		    && target.text->fg_color==UINT32_C(0x800c2238) && target.text->bg_color==UINT32_C(0x80412b15)
+		    && !(target.text->extattr&CTERM_EXTATTR_AUTOWRAP));
+		bool visible=true;CHECK(st_cterm_get_text_cursor_visible(target.text,&visible)==0 && !visible);
+		CHECK(feed(&target,"1mF",3)==0 && target.text->attr==4); /* Continue live CSI, never saved syntax. */
+		CHECK(st_cterm_position_text(target.text,0,0)==0 && feed(&target,"\t",1)==0 && position(&target,6,1)==0);
+		CHECK(feed(&target,"\x1b[u",3)==0 && position(&target,3,2)==0);
+		destroy(&target);
+	}
+	st_cterm_window_definition_destroy(saved);CHECK(st_cterm_definition_test_fonts==0);return 0;
+}
+
 int
 main(void)
 {
-	CHECK(continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
+	CHECK(definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
 	    && window_copy()==0 && selection_continuations()==0 && default_window()==0 && soft_ansi_reset()==0);return 0;
 }

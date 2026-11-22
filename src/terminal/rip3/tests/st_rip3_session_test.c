@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1; } } while (0)
@@ -1284,10 +1285,78 @@ static int stored_queries(void)
 	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);return 0;
 }
 
+struct native_test_window_save {unsigned column,row;struct st_rip3_text_window_layout layout;};
+static size_t native_window_saves;
+static int capture_test_windows(void *context,const bool defined[36],void **result)
+{
+	struct fixture *f=context;if (f->window_status!=0) return f->window_status;
+	if (!defined[0]) return IO_ERROR_INVALID_ARGUMENT;
+	struct native_test_window_save *save=malloc(sizeof(*save));if (save==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*save=(struct native_test_window_save){f->column,f->row,f->window};native_window_saves++;*result=save;return 0;
+}
+static int restore_test_windows(void *context,const void *object,unsigned current,bool active)
+{
+	(void)current;(void)active;struct fixture *f=context;if (f->window_status!=0) return f->window_status;
+	const struct native_test_window_save *save=object;f->column=save->column;f->row=save->row;f->window=save->layout;return 0;
+}
+static void destroy_test_windows(void *object)
+{
+	if (object!=NULL) {native_window_saves--;free(object);}
+}
+static int text_backups(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;options.sink.text_window=window;options.sink.text_reset=reset_text;
+	options.sink.text_backup_capture=capture_test_windows;
+	CHECK(st_rip3_session_create(&f.session,&options)==IO_ERROR_INVALID_ARGUMENT && f.session==NULL);
+	options.sink.text_backup_restore=restore_test_windows;
+	CHECK(st_rip3_session_create(&f.session,&options)==IO_ERROR_INVALID_ARGUMENT && f.session==NULL);
+	options.sink.text_backup_destroy=destroy_test_windows;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(store_query(&f,4,'0',"zero",false)==0 && store_query(&f,2,'Z',"floating",false)==0);
+	CHECK(query(&f,"$CUR(TW,1)$","")==0 && store_query(&f,4,'1',"one",false)==0);
+	CHECK(query(&f,"$DTW$$PROT(TW,1)$$STW$$STW(1)$$STW(PUSH)$","")==0 && native_window_saves==3);
+	CHECK(query(&f,"$CUR(TW,2)$$UNPROT(TW,1)$","")==0);
+	CHECK(store_query(&f,4,'1',"changed",false)==0 && store_query(&f,2,'0',"new floating",false)==0);
+	CHECK(query(&f,"$RTW$$CUR(TW)$:$INUSE(TW,2)$:$ISPROT(TW,1)$:$TWIN$","1:0:1:NO")==0);
+	CHECK(resident_value(&f,4,0,"zero")==0 && resident_value(&f,4,1,"one")==0 && resident_value(&f,2,0,"floating")==0);
+	CHECK(!st_rip3_session_text_active(f.session));
+	CHECK(query(&f,"$UNPROT(TW,1)$","")==0 && store_query(&f,4,'1',"changed again",false)==0);
+	CHECK(query(&f,"$RTW$","")==0 && resident_value(&f,4,1,"one")==0);
+	CHECK(query(&f,"$CUR(TW,2)$","")==0);
+	/* Failed record copying and failed native preparation preserve selection,
+	 * live query ownership, the reusable BASE and unconsumed numbered saves. */
+	extern bool st_rip3_resident_test_fail;
+	st_rip3_resident_test_fail=true;unsigned errors=f.errors;
+	CHECK(append(&f,"!|1\0330000$RTW(1)$\r")==0 && pump(&f)==0 && f.errors==errors+1);
+	st_rip3_resident_test_fail=false;
+	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,S1)$","2:1")==0);
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;errors=f.errors;
+	CHECK(append(&f,"!|1\0330000$RTW$\r!|1\0330000$STW$\r")==0 && pump(&f)==0 && f.errors==errors+2);
+	f.window_status=0;CHECK(query(&f,"$CUR(TW)$","2")==0);
+	CHECK(query(&f,"$PROT(TW,S1)$$RTW(1)$$INUSE(TW,S1)$","1")==0);
+	CHECK(query(&f,"$UNPROT(TW,S1)$$RTW(1)$$INUSE(TW,S1)$","0")==0);
+	CHECK(query(&f,"$COPY(TW,BASE,S7)$$COPY(TW,S7,TBL)$$RTW(POP)$","")==0);
+	CHECK(resident_value(&f,4,1,"one")==0);
+	CHECK(st_rip3_session_test_soft_reset(f.session)==0 && query(&f,"$RTW$","")==0);
+		CHECK(query(&f,"$CUR(TW)$:$ISPROT(TW,1)$:$TWIN$","1:1:NO")==0);
+		CHECK(query(&f,"$CUR(TW,35)$","")==0 && store_query(&f,4,'Z',"last",false)==0);
+	CHECK(query(&f,"$STW(4)$","")==0 && st_rip3_session_test_soft_reset(f.session)==0);
+	CHECK(query(&f,"$INUSE(TW,35)$$RTW(4)$$CUR(TW)$","035")==0 && resident_value(&f,4,35,"last")==0);
+	CHECK(query(&f,"$RTW$$CUR(TW)$:$INUSE(TW,35)$","1:0")==0);
+	errors=f.errors;CHECK(append(&f,"!|1\0330000$RESET(TW,BASE,CUR)$\r")==0 && pump(&f)==0 && f.errors==errors+1);
+	CHECK(query(&f,"$INUSE(TW,BASE)$","1")==0);
+	CHECK(query(&f,"$STW(3)$$PROT(TW,S3)$$RESET(TW,BACKUP)$$INUSE(TW,BASE)$$INUSE(TW,S3)$","01")==0);
+	CHECK(resident_value(&f,4,1,"one")==0);
+	CHECK(query(&f,"$UNPROT(TW,S3)$$RESET(TW,S3)$$INUSE(TW,S3)$","0")==0);
+	st_rip3_session_destroy(f.session);CHECK(native_window_saves==0 && st_rip3_session_test_live==0);
+	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);return 0;
+}
+
 int
 main(void)
 {
-	CHECK(stored_queries()==0 && screen_backups()==0);
+	CHECK(text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);

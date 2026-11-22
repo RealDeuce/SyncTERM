@@ -33,6 +33,13 @@
 
 enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC };
 
+struct session_window {
+	struct st_rip3_text_window_info info;
+	bool has_layout;
+	struct st_rip3_text_window_layout layout;
+	struct st_rip3_resident_query query;
+};
+
 struct st_rip3_session {
 	struct st_rip3_session_source source;
 	struct st_rip3_session_sink sink;
@@ -64,12 +71,7 @@ struct st_rip3_session {
 	unsigned current_window;
 	unsigned default_text_font;
 	bool default_text_wrap;
-	struct {
-		struct st_rip3_text_window_info info;
-		bool has_layout;
-		struct st_rip3_text_window_layout layout;
-		struct st_rip3_resident_query query;
-	} windows[36];
+	struct session_window windows[36];
 	struct st_rip3_resident_query floating_window_query;
 	struct st_rip3_text_window_host window_host;
 	struct st_rip3_text_window_operations window_operations;
@@ -200,6 +202,68 @@ window_snapshot(void *context, unsigned number, struct st_rip3_text_window_snaps
 	value.font_known=session->windows[number].has_layout;
 	if (value.font_known) value.layout=session->windows[number].layout;
 	*result=value;return 0;
+}
+
+struct window_save {
+	unsigned current;bool active;
+	struct session_window windows[36];
+	struct st_rip3_resident_query floating;
+	void *native;void (*native_destroy)(void *);
+};
+static void
+destroy_window_save(void *object)
+{
+	struct window_save *save=object;if (save==NULL) return;
+	for (unsigned i=0;i<36;i++) st_rip3_resident_query_clear(&save->windows[i].query);
+	st_rip3_resident_query_clear(&save->floating);
+	if (save->native!=NULL && save->native_destroy!=NULL) save->native_destroy(save->native);
+	free(save);
+}
+static int
+copy_window_records(struct window_save *save,const struct session_window windows[36],
+    const struct st_rip3_resident_query *floating)
+{
+	int status=0;
+	for (unsigned i=0;status==0 && i<36;i++) {
+		save->windows[i]=windows[i];save->windows[i].query=(struct st_rip3_resident_query){0};
+		status=st_rip3_resident_query_copy(&save->windows[i].query,&windows[i].query);
+	}
+	if (status==0) status=st_rip3_resident_query_copy(&save->floating,floating);
+	return status;
+}
+static int
+capture_window_save(void *context,void **result)
+{
+	struct st_rip3_session *session=context;
+	if (session->sink.text_backup_capture==NULL || session->sink.text_backup_restore==NULL || session->sink.text_backup_destroy==NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	struct window_save *save=calloc(1,sizeof(*save));if (save==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	save->current=session->current_window;save->active=session->text_active;
+	int status=copy_window_records(save,session->windows,&session->floating_window_query);
+	save->windows[save->current].info.active=save->active;
+	bool defined[36];for (unsigned i=0;i<36;i++) defined[i]=save->windows[i].info.defined;
+	save->native_destroy=session->sink.text_backup_destroy;
+	if (status==0) status=session->sink.text_backup_capture(session->sink.context,defined,&save->native);
+	if (status!=0 || save->native==NULL) {destroy_window_save(save);return status!=0 ? status : IO_ERROR_INVALID_FORMAT;}
+	*result=save;return 0;
+}
+static int
+restore_window_save(void *context,const void *object)
+{
+	struct st_rip3_session *session=context;const struct window_save *saved=object;
+	if (session->sink.text_backup_restore==NULL) return IO_ERROR_NOT_SUPPORTED;
+	struct window_save *prepared=calloc(1,sizeof(*prepared));if (prepared==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	int status=copy_window_records(prepared,saved->windows,&saved->floating);
+	if (status==0) status=session->sink.text_backup_restore(session->sink.context,saved->native,saved->current,saved->active);
+	if (status!=0) {destroy_window_save(prepared);return status;}
+	for (unsigned i=0;i<36;i++) {
+		st_rip3_resident_query_clear(&session->windows[i].query);session->windows[i]=prepared->windows[i];
+		prepared->windows[i].query=(struct st_rip3_resident_query){0};
+	}
+	st_rip3_resident_query_clear(&session->floating_window_query);session->floating_window_query=prepared->floating;
+	prepared->floating=(struct st_rip3_resident_query){0};
+	session->current_window=saved->current;session->text_active=saved->active;
+	destroy_window_save(prepared);return 0;
 }
 
 static int
@@ -705,6 +769,9 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || config->default_text_font>=5
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if ((config->sink.screen_capture==NULL)!=(config->sink.screen_restore==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	bool text_backup=config->sink.text_backup_capture!=NULL;
+	if ((config->sink.text_backup_restore!=NULL)!=text_backup || (config->sink.text_backup_destroy!=NULL)!=text_backup)
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL
 	    || config->services->text_windows!=NULL || config->services->mouse!=NULL
@@ -739,7 +806,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
 	    .protect=protect_window,.activate=activate_text_windows,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
-	    .erase_eol=erase_window_lines};
+	    .erase_eol=erase_window_lines,.backup_capture=capture_window_save,.backup_restore=restore_window_save,
+	    .backup_destroy=destroy_window_save};
 	session->variables.text_windows=&session->window_operations;
 	session->tables.tables[ST_RIP3_TABLE_TW].live=&session->window_operations;
 	session->random.state=config->random_seed;
@@ -775,6 +843,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_ports_backup_create(&session->tables.tables[ST_RIP3_TABLE_PORT].backup);
 	if (status==0) status=st_rip3_mouse_backup_create(&session->tables.tables[ST_RIP3_TABLE_MOUSE].backup);
 	if (status==0) status=st_rip3_screen_backup_create(&session->tables.tables[ST_RIP3_TABLE_SCREEN].backup);
+	if (status==0) status=st_rip3_text_window_backup_create(&session->tables.tables[ST_RIP3_TABLE_TW].backup);
 	session->screen=(struct st_rip3_screen){.ports=session->commands.ports,.palettes=session->commands.palettes,
 	    .context=session->sink.context,.capture=session->sink.screen_capture,.restore=session->sink.screen_restore};
 	session->tables.tables[ST_RIP3_TABLE_SCREEN].live=&session->screen;

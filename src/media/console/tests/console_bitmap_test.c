@@ -1073,9 +1073,40 @@ test_pixel_raster_cache(void)
 	st_console_destroy(console);
 }
 
+static void
+test_font_definition_snapshot(void)
+{
+	const struct st_console_display_config display={.backend=ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry={.columns=2,.rows=1,.cell_width=2,.cell_height=4};
+	st_console_t *source=NULL,*target=NULL;
+	CHECK(st_console_create(&source,&display,&geometry)==0 && st_console_create(&target,&display,&geometry)==0);
+	uint8_t pixels[8]={0,0,0,0,0x80,0x40,0x80,0x40};
+	const struct st_console_font_mapping map[]={{'Z',1}};
+	const struct st_console_font font={.bitmap=pixels,.bitmap_size=sizeof(pixels),.width=2,.height=4,
+	    .glyph_count=2,.row_stride=1,.glyph_stride=4,.mapping=map,.mapping_count=1,.fallback_glyph=0};
+	uint16_t id;CHECK(st_console_register_font_copy(source,&font,&id)==0);
+	struct st_console_font_snapshot *snapshot=NULL,*old=NULL;
+	CHECK(st_console_font_snapshot_create(&snapshot,source,id)==0);old=snapshot;
+	CHECK(st_console_font_snapshot_create(&snapshot,source,UINT16_MAX)==IO_ERROR_NOT_FOUND && snapshot==old);
+	uint16_t unchanged=123;
+	CHECK(st_console_font_snapshot_register(NULL,snapshot,&unchanged)==IO_ERROR_INVALID_ARGUMENT && unchanged==123);
+	st_console_destroy(source);for (size_t i=0;i<sizeof(pixels);i++) pixels[i]=0;
+	for (unsigned attempt=0;attempt<2;attempt++) {
+		uint16_t copy,glyph_font;uint32_t glyph;uint8_t columns;
+		CHECK(st_console_font_snapshot_register(target,snapshot,&copy)==0);
+		CHECK(st_console_font_lookup(target,copy,'Z',&glyph_font,&glyph,&columns)==0 && glyph==1);
+		CHECK(st_rwlock_read_lock(st_console_state_lock(target))==ST_THREAD_SUCCESS);
+		const struct st_console_font *restored=st_console_font_locked(target,copy);
+		CHECK(restored!=NULL && restored->bitmap[4]==0x80 && restored->bitmap[5]==0x40);
+		CHECK(st_rwlock_unlock(st_console_state_lock(target))==ST_THREAD_SUCCESS);
+	}
+	st_console_font_snapshot_destroy(snapshot);st_console_destroy(target);
+}
+
 int
 main(void)
 {
+	test_font_definition_snapshot();
 	struct st_console_display_config config_display = {
 		.backend = ST_CONSOLE_BACKEND_HEADLESS,
 	};

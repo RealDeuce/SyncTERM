@@ -142,6 +142,7 @@ add_library(st_cterm STATIC
 	${ST_CTERM_RIP_TIME_SOURCE}
 	st_cterm.c
 	st_cterm_text_window.c
+	st_cterm_window_definition.c
 	cterm_vt52.c)
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink

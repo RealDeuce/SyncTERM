@@ -686,6 +686,16 @@ int st_console_register_font_copy(st_console_t *console,
  * cannot invalidate the destination. Failure preserves identifier. */
 int st_console_copy_font(st_console_t *destination, st_console_t *source,
 	uint16_t identifier, uint16_t *result);
+/* Explicit definition backups may outlive the source console. This owned
+ * immutable font copy contains glyph/mapping resources only, no cells or screen pixels,
+ * registry identity or console state. Registering returns a target-local ID.
+ * Failures preserve caller outputs; each successful capture is destroyed once. */
+struct st_console_font_snapshot;
+int st_console_font_snapshot_create(struct st_console_font_snapshot **result,
+	st_console_t *console,uint16_t identifier);
+int st_console_font_snapshot_register(st_console_t *console,
+	const struct st_console_font_snapshot *snapshot,uint16_t *identifier);
+void st_console_font_snapshot_destroy(struct st_console_font_snapshot *snapshot);
 int st_console_font_registered(st_console_t *console, uint16_t identifier,
 	bool *registered);
 /* Designate one registered fallback per pixel size. Later lookups search

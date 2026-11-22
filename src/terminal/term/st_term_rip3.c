@@ -534,6 +534,87 @@ text_reset(void *context, const struct st_rip3_text_window_layout *layout,
 	return 0;
 }
 
+struct native_window_save {
+	uint32_t width,height;
+	struct {
+		bool defined;
+		struct st_rip3_text_window_layout layout;
+		struct st_cterm_window_definition *definition;
+	} windows[36];
+};
+
+static void
+text_backup_destroy(void *object)
+{
+	struct native_window_save *save=object;if (save==NULL) return;
+	for (unsigned i=0;i<36;i++) st_cterm_window_definition_destroy(save->windows[i].definition);
+	free(save);
+}
+
+static int
+text_backup_capture(void *context,const bool defined[36],void **result)
+{
+	struct st_term_rip3 *rip=context;flush_text(rip);
+	struct native_window_save *save=calloc(1,sizeof(*save));if (save==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	int status=st_cterm_text_boundary(st_term_rip3_text(rip));
+	if (status==0) status=st_console_pixel_size(rip->config.console,&save->width,&save->height);
+	for (unsigned i=0;status==0 && i<36;i++) if (defined[i]) {
+		if (i!=0 && rip->windows[i]==NULL) {status=IO_ERROR_NOT_FOUND;break;}
+		struct st_rip3_text_window_snapshot view;
+		status=text_snapshot(rip,i,&view);
+		if (status==0) status=st_cterm_window_definition_create(&save->windows[i].definition,
+		    rip->windows[i]==NULL ? rip->text : st_term_rip3_view_text(rip->windows[i]));
+		if (status==0) {save->windows[i].defined=true;save->windows[i].layout=view.layout;}
+	}
+	if (status!=0) {text_backup_destroy(save);return status;}
+	*result=save;return 0;
+}
+
+static int
+text_backup_restore(void *context,const void *object,unsigned current,bool active)
+{
+	struct st_term_rip3 *rip=context;const struct native_window_save *save=object;
+	if (current>=36 || !save->windows[current].defined) return IO_ERROR_INVALID_ARGUMENT;
+	uint32_t width,height;int status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status!=0) return status;
+	if (width!=save->width || height!=save->height) return IO_ERROR_CONFLICT;
+	uint64_t remaining=rip->pixel_budget;
+	for (unsigned i=0;i<36;i++) if (save->windows[i].defined) {
+		const struct st_rip3_text_window_layout *layout=&save->windows[i].layout;
+		uint64_t pw=(uint64_t)layout->columns*layout->cell_width,ph=(uint64_t)layout->rows*layout->cell_height;
+		if (pw>UINT32_MAX || ph>UINT32_MAX || pw*ph>remaining) return IO_ERROR_OUT_OF_MEMORY;
+		remaining-=pw*ph;
+	}
+	flush_text(rip);present(rip);
+	st_cterm_t *source=st_term_rip3_text(rip);
+	struct st_term_rip3_view *prepared[36]={0};
+	for (unsigned i=0;status==0 && i<36;i++) if (save->windows[i].defined) {
+		status=st_term_rip3_view_create(&prepared[i],&rip->text_config,&save->windows[i].layout,width,height);
+		st_cterm_t *target=st_term_rip3_view_text(prepared[i]);
+		if (status==0 && i==current) status=st_cterm_select_window_interpreter(target,source);
+		if (status==0) status=st_cterm_window_definition_restore(target,save->windows[i].definition);
+		if (status==0) {
+			st_cterm_set_music_mode(target,st_cterm_music_mode(source));
+			st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(source));
+		}
+	}
+	struct st_term_rip3_view *previous=rip->view;
+	if (status==0) {rip->view=prepared[current];status=present_window(rip,active);}
+	if (status!=0) {
+		rip->view=previous;
+		for (unsigned i=0;i<36;i++) st_term_rip3_view_destroy(prepared[i]);
+		return status;
+	}
+	for (unsigned i=0;i<36;i++) {st_term_rip3_view_destroy(rip->windows[i]);rip->windows[i]=prepared[i];}
+	rip->selected_window=current;
+	if (rip->text_config.size_changed!=NULL) {
+		const struct st_rip3_text_window_layout *layout=&save->windows[current].layout;
+		rip->text_config.size_changed(rip->text_config.size_context,layout->columns,layout->rows,
+		    layout->columns*layout->cell_width,layout->rows*layout->cell_height);
+	}
+	return 0;
+}
+
 static void
 before_command(void *context)
 {
@@ -1201,7 +1282,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .encoding=ST_RIP3_TEXT_UTF8,.graphical_codepage_converted=config->encoding==ST_CTERM_ENCODING_CODEPAGE,
 	    .source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
-	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_cursor=text_cursor,
+	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_backup_capture=text_backup_capture,
+	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
 	        .screen_capture=screen_capture,.screen_restore=screen_restore},

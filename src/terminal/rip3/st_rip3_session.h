@@ -58,6 +58,14 @@ struct st_rip3_session_sink {
 		const bool keep[36], bool old_active);
 	/* Observe the specified native owner without selecting it or presenting. */
 	int (*text_snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
+	/* Explicit whole-TW backup support. Capture owns native definitions/fonts,
+	 * not screen pixels, cells, history or connection parser syntax. Restore prepares
+	 * replacement views before publishing, preserves displayed pixels and
+	 * retains current partial ANSI input. All three or none; destroy has no
+	 * session dependency. Saved objects are private to this connection. */
+	int (*text_backup_capture)(void *context,const bool defined[36],void **result);
+	int (*text_backup_restore)(void *context,const void *saved,unsigned current,bool active);
+	void (*text_backup_destroy)(void *saved);
 	/* Native text-window cursor movement, without synthesized received bytes. */
 	int (*text_cursor)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
 	int (*text_cursor_visible)(void *context, unsigned number, bool visible);
@@ -126,9 +134,9 @@ struct st_rip3_session_config {
  * Creation prepares all represented tables/backups, font cache, variables,
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
- * This does not select an application terminal mode or implement unbound
- * full text-window backups, field zoom or complete scene
- * headers. T/@, button filename/label and metric arguments share the bounded
+ * This does not select an application terminal mode or implement field zoom
+ * or complete scene headers. Full TW backups require the three native
+ * text_backup callbacks; clients may leave that service unbound. T/@, button filename/label and metric arguments share the bounded
  * graphical preprocessor. Metrics retain expanded TEXTDATA outside the tables;
  * exact r/@ sentinels read it without expansion. Full drawing resets empty it.
  * Immediate host queries include their angle preprocessor. */

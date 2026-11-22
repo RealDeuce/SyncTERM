@@ -33,7 +33,7 @@ struct st_rip3_table_host {
 };
 
 /* The RIP parser's internal dispatcher handles BACKSTAT, whole-table COPY,
- * SCP/RCP, SBS/RBS, SMF/RMF, CUR, INUSE, individual
+ * SCP/RCP, SBS/RBS, SMF/RMF, STW/RTW, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
  * supports PAL/PORT/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
  * work for any bound object class. INUSE(BACKUP)
@@ -54,7 +54,9 @@ struct st_rip3_table_host {
  * drawing attributes currently stored in st_rip3_styles, not the unresolved
  * complete context under #24.
  * A TW live binding borrows st_rip3_text_window_operations; its native owner
- * handles selection/protection. Complete TW backup/copy/reset remains separate.
+ * handles selection/protection and complete definition-only STW/RTW snapshots.
+ * Whole-TW COPY/status/protection and backup-only RESET selectors are bound;
+ * individual TW-entry COPY and live TW reset remain separate.
  * Parsed references must come from builtin_reference_parse. Empty outputs
  * require capacity >= 1, validated before any active operation. Validation and
  * binding failures leave caller output and bound table/save state unchanged.
@@ -65,10 +67,10 @@ struct st_rip3_table_host {
  * uses the ordinary table reset and then selects zero, not that CUR path.
  * Undefined-current explicit writes and protected-but-undefined first selection
  * remain unsupported under documentation issue #112.
- * MOUSE snapshots bind simple fields/ordinary buttons and shared hover handlers.
+ * MOUSE snapshots bind fields/buttons, persistent group maps/selection and shared hover handlers.
  * RESET(MOUSE) defaults to TBL; explicit backup selectors preserve protected
- * slots, and field-only resets retain handlers. Grouped capture is unsupported
- * under #136; failed saves preserve earlier backups and current interaction.
+ * slots, and field-only resets retain handlers. Group restoration reconciles
+ * current publications with fresh owners; failed saves preserve prior backups.
  * SCREEN has SAVE/RESTORE, all numbered aliases, COPY/status and RESET
  * selectors. Valid screen actions return no value/variable error after manager
  * failure; a lower-level callback may diagnose it. Numeric RESTORE requests

@@ -26,7 +26,7 @@ Source indexing is discovery, not adjudication or working-feature evidence.
 
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
-fonts, live ENV/STYLE/PAL/PORT tables and backups, bitmap/clipboard operations,
+fonts, live ENV/STYLE/PAL/PORT tables and backups, full TW definition backups, bitmap/clipboard operations,
 trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts,
 session/persistent variables, local modifier/capacity queries and WAV playback
 through the existing mixer when audio is available. Persistent variables use
@@ -7956,3 +7956,63 @@ eight-family aggregate save/restore, HEADER/hard reset and remaining work are
 pending. Mixed source paragraphs mentioning those operations remain pending.
 RIP1.54's freeze, selected device raster, existing ANSI route and no-VT102
 constraint remain unchanged; no full-compliance claim is made.
+
+## Full text-window definition backups
+
+Connected STW/RTW now save and restore all 36 possible TW records, current
+selection and activation, protection/layout state, and floating/per-entry raw
+query definitions. BASE is reusable; numbered/stack saves, status/protection,
+whole-table COPY and backup-only RESET(TW,...) use the existing shared manager.
+Protected saves survive clearing; unprotected slot restores/copies into TBL and
+POP consume their source under the manager contract. Mixed reset requests are
+fully prevalidated before clearing any snapshot. Individual TW-entry COPY and
+live TW reset remain separate pending operations.
+
+The native capture contains cursor and CSI-saved coordinates, ANSI attributes
+and direct colors, rendition/modes, requested cursor visibility/style, margins,
+tab maps and independently owned font resources with selector mappings. It
+contains no text cells, displayed screen pixels, history, renderer damage or
+old connection parser input. Font captures deduplicate console-local identifiers
+within each definition; restore registers them under fresh native identifiers.
+The saved font data survives destruction of its original console, and reusable
+snapshots remain immutable through later live rendering or definition changes.
+
+Restore prepares complete logical records, queries, native views and fonts
+before publishing them. On failure, release prepared resources and retain the
+old complete definitions/selection and saved objects. The three native sink
+callbacks are all-or-none; actual connections bind all three. Native standalone
+clients may leave that service unbound and receive nonfatal unsupported actions.
+No parse/restore failure returns through the void connection/session boundary.
+
+New live views use the existing shared-raster console and external-pixel/damage
+flags. Restoring changes definitions/cursor presentation without replaying saved
+art, resizing the entry raster or restoring PORT/PAL/STYLE/ENV/WORLD state.
+It keeps the current partial ANSI sequence and continues it on the restored TW;
+old parser input is not part of a backup. UTF-8 retains the existing external
+text-boundary policy. SOFT keeps independent saved copies. Inactive/protected
+views retain their logical state, while subsequent valid activation and text
+use the restored native owner normally. No ordinary-byte capture or additional
+resident scene/damage layer is added.
+
+`rip3_session` checks owned metadata/query copies, slot 35, immutable BASE,
+protected slots, stack/copy/backup reset, native/record preparation failures,
+callback binding validation and release. `cterm_text_window` independently
+checks saved scalar state, tabs, direct colors, parser separation and failure
+at every metadata/font capture/register boundary. `st_console_bitmap` checks
+font data surviving source-console teardown and repeated independent register.
+The connected CP437/UTF-8 suites exercise 640×480, 800×600, 1024×768 and custom
+720×400 through TCP. They preserve the entry font on a predefinition save,
+restore different ordinary/extended windows and requested cursor state, compare
+both scene planes for no repaint, retain other table/WORLD selections, resume
+live CSI, and verify inactive restoration, protected/consumed saves and reset.
+A deferred right-edge wrap after restore scrolls current red artwork and fills
+the new row with saved blue background, exercising the native scrolling path
+without replaying saved cells. RIP-only fences leave the tested ANSI state intact.
+Existing ANSI controls and the RIP1.54 preservation boundary remain covered.
+
+The 8449-unit queue now has 1993 implemented, 1747 pending, 3177 unreviewed,
+1440 context, 67 excluded and 25 blocked units. Full TW backup clauses are
+accepted; full PORT clipboard selection, individual TW-entry COPY/live reset,
+eight-family aggregate operations, HEADER/hard reset and remaining families
+are pending. Source pin, original RIP1.54 freeze, arbitrary entry raster and
+no-VT102 scope remain unchanged; no full-compliance claim is made.

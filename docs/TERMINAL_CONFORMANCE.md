@@ -2368,3 +2368,24 @@ in capture/restore and checks saved/live state and protected/deleted/offscreen
 ownership. Allocation tracking checks release on failure and teardown. No
 historical deferred-query click execution is added. Full TW backups, individual
 TW-entry COPY and aggregate orchestration remain pending.
+
+
+`syncterm_rip3_text_backup_CP437` and `syncterm_rip3_text_backup_UTF-8`
+cover full STW/RTW and whole-table COPY/status/protection/backup RESET through
+TCP at all three presets plus custom 720×400. Tests preserve the original
+entry font/raster on an early save, restore ordinary and extended layouts,
+current selection/protection/activation, ANSI cursor/saved coordinates, margins,
+wrap/origin, direct colors and native font output. Coherent captures compare
+both scene planes to prove saved text/graphics are not restored or repainted;
+PAL/STYLE/PORT/WORLD state remains live. RIP-only acknowledgements preserve
+partial CSI and deferred wrap. Post-restore scrolling retains current red
+artwork and uses the saved blue ANSI background for the vacated row, covering
+existing external-pixel/row-mapping behavior without new damage tracking.
+Protected save clearing, reusable BASE, slot/stack consumption, SOFT lifetime,
+inactive input discard and nonfatal recovery are checked. Native session tests
+add slot-35 ownership, failed record/native preparation and callback validation;
+CTerm tests fail every metadata/font boundary and verify independent tabs,
+colors and parser state. Console bitmap tests prove font resources survive
+source teardown. Saved definitions contain no cells, screen pixels or history.
+Individual TW-entry COPY/live reset, aggregate orchestration and HEADER remain
+pending; RIP1.54's original freeze is unchanged.

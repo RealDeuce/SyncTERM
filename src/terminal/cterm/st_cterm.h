@@ -308,6 +308,14 @@ int st_cterm_inherit_window_interpreter(st_cterm_t *destination, const st_cterm_
  * Copy targets must be fresh, same-sized private consoles; discard on error. */
 int st_cterm_select_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);
 int st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source);
+/* Explicit RIP3 definition saves own metadata/font resources, never cells,
+ * pixels, history or connection parser state. Capture survives source teardown.
+ * Restore into a fresh same-sized unpublished target and discard on error.
+ * The caller supplies the current connection interpreter independently. */
+struct st_cterm_window_definition;
+int st_cterm_window_definition_create(struct st_cterm_window_definition **result,const st_cterm_t *source);
+int st_cterm_window_definition_restore(st_cterm_t *target,const struct st_cterm_window_definition *definition);
+void st_cterm_window_definition_destroy(struct st_cterm_window_definition *definition);
 /* CUR first use: fresh per-window defaults and empty explicit tabs, retaining
  * only connection-owned ordinary ANSI syntax. Target must be fresh and idle. */
 int st_cterm_default_window_interpreter(st_cterm_t *destination, const st_cterm_t *source);

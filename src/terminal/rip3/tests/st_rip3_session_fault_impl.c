@@ -1,6 +1,7 @@
 /* Fail every session-owned construction boundary and count released objects. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_session.h"
+#include "st_rip3_text_window.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_button_styles.h"
@@ -70,6 +71,7 @@ FACTORY(st_rip3_palettes_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_ports_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_mouse_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_screen_backup_create,(struct st_rip3_backup **p),(p))
+FACTORY(st_rip3_text_window_backup_create,(struct st_rip3_backup **p),(p))
 FACTORY(st_rip3_outline_cache_create,(struct st_rip3_outline_cache **p),(p))
 FACTORY(st_rip3_templates_create,(struct st_rip3_templates **p),(p))
 FACTORY(st_rip3_variables_create,(struct st_rip3_variables **p),(p))
@@ -119,6 +121,7 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_ports_backup_create test_st_rip3_ports_backup_create
 #define st_rip3_mouse_backup_create test_st_rip3_mouse_backup_create
 #define st_rip3_screen_backup_create test_st_rip3_screen_backup_create
+#define st_rip3_text_window_backup_create test_st_rip3_text_window_backup_create
 #define st_rip3_outline_cache_create test_st_rip3_outline_cache_create
 #define st_rip3_templates_create test_st_rip3_templates_create
 #define st_rip3_variables_create test_st_rip3_variables_create

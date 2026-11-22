@@ -463,6 +463,7 @@ table_reset(const struct st_rip3_table_binding *binding,
 		}
 		else if (st_rip3_host_number(word,0,35,&index)==0) kind=RESET_ENTRY;
 		else return IO_ERROR_INVALID_FORMAT;
+		if (type==ST_RIP3_TABLE_TW && (kind==RESET_ENTRY || kind==RESET_CURRENT || kind==RESET_TABLE || kind==RESET_ALL)) return IO_ERROR_NOT_SUPPORTED;
 		if (type==ST_RIP3_TABLE_MOUSE && (kind==RESET_ENTRY || kind==RESET_CURRENT)) return IO_ERROR_INVALID_FORMAT;
 		if (type==ST_RIP3_TABLE_SCREEN && (kind==RESET_ENTRY || kind==RESET_CURRENT || (kind==RESET_TABLE && reference->count!=1))) return IO_ERROR_INVALID_FORMAT;
 		actions[i].kind=kind;actions[i].index=index;
@@ -485,7 +486,7 @@ table_reset(const struct st_rip3_table_binding *binding,
 			else if (kind==RESET_ENTRY) status=st_rip3_button_styles_reset_entry(binding->live,index);
 			else if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_button_styles_reset_table(binding->live);
 		}
-		else {
+		else if (type==ST_RIP3_TABLE_PAL) {
 			if (kind==RESET_CURRENT) status=st_rip3_palettes_current(binding->live,&index);
 			if (status==0 && (kind==RESET_ENTRY || kind==RESET_CURRENT))
 				status=st_rip3_palettes_reset_entry(binding->live,index);
@@ -600,6 +601,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		else if (equal(reference->parameters[0].text,"PAL")) reset_type=ST_RIP3_TABLE_PAL;
 		else if (equal(reference->parameters[0].text,"MOUSE")) reset_type=ST_RIP3_TABLE_MOUSE;
 		else if (equal(reference->parameters[0].text,"SCREEN")) reset_type=ST_RIP3_TABLE_SCREEN;
+		else if (equal(reference->parameters[0].text,"TW")) reset_type=ST_RIP3_TABLE_TW;
 		else return IO_ERROR_NOT_SUPPORTED;
 		status=table_reset(&host->tables[reset_type],reference,reset_type);
 		if (status==0) result[0]=0;
@@ -616,8 +618,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	}
 	copy = strcmp(reference->name, "COPY") == 0;
 	backstat = strcmp(reference->name, "BACKSTAT") == 0;
-	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0;
-	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0;
+	save = strcmp(reference->name, "SCP") == 0 || strcmp(reference->name,"SBS")==0 || strcmp(reference->name,"SMF")==0 || strcmp(reference->name,"STW")==0;
+	restore = strcmp(reference->name, "RCP") == 0 || strcmp(reference->name,"RBS")==0 || strcmp(reference->name,"RMF")==0 || strcmp(reference->name,"RTW")==0;
 	if (!copy && !backstat && !save && !restore)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity == 0)
@@ -641,7 +643,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 					return IO_ERROR_INVALID_FORMAT;
 			}
 		}
-		binding = &host->tables[reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
+		binding = &host->tables[reference->name[1]=='T' ? ST_RIP3_TABLE_TW : reference->name[1]=='B' ? ST_RIP3_TABLE_BUT
 		    : reference->name[1]=='M' ? ST_RIP3_TABLE_MOUSE : ST_RIP3_TABLE_PAL];
 		if (binding->live == NULL || binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;

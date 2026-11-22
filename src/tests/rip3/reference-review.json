@@ -9781,6 +9781,76 @@
         "result": "17 distinct relevant CTests passed: resident/session/PORT backup/PORT/query/table/copy native checks, connected resident/window-table/hover in CP437 and UTF8, existing ANSI control CP437/UTF8, and contract/preservation guards. Focused added TW allocation/view-failure and source-release checks passed; modified test targets and full native application build compile without warnings.",
         "limits": "No native display, other toolchain/platform, original-client raster/probe execution or full TW/aggregate acceptance claim. Previous unchanged grouped/screen checks were not rerun."
       }
+    },
+    {
+      "after_commit": "47191492",
+      "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "scope": "Connect full TW definition/ANSI/font/query snapshots via STW/RTW, whole-table COPY/status/protection and backup-only RESET selectors. Preserve current physical raster and connection parser without saving pixels/cells/history.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1533",
+        "version/3.0/ripscrip/5.1-text-variables.md:1537",
+        "version/3.0/ripscrip/5.1-text-variables.md:1547",
+        "version/3.0/ripscrip/5.1-text-variables.md:1549",
+        "version/3.0/ripscrip/5.1-text-variables.md:1551",
+        "version/3.0/ripscrip/5.1-text-variables.md:1553",
+        "version/3.0/ripscrip/5.1-text-variables.md:1555",
+        "version/3.0/ripscrip/5.1-text-variables.md:1557",
+        "version/3.0/ripscrip/5.1-text-variables.md:1559",
+        "version/3.0/ripscrip/5.1-text-variables.md:1565",
+        "version/3.0/ripscrip/5.1-text-variables.md:1569",
+        "version/3.0/ripscrip/5.1-text-variables.md:1579",
+        "version/3.0/ripscrip/5.1-text-variables.md:1581",
+        "version/3.0/ripscrip/5.1-text-variables.md:1583",
+        "version/3.0/ripscrip/5.1-text-variables.md:1585",
+        "version/3.0/ripscrip/5.1-text-variables.md:1587",
+        "version/3.0/ripscrip/5.1-text-variables.md:1589",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:239",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:243",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:95",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:96"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1531",
+        "version/3.0/ripscrip/5.1-text-variables.md:1535",
+        "version/3.0/ripscrip/5.1-text-variables.md:1563",
+        "version/3.0/ripscrip/5.1-text-variables.md:1567",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:241"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_text_window_backup.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/rip3/st_rip3_table_host.c",
+        "src/terminal/term/st_term_rip3.c",
+        "src/terminal/cterm/st_cterm_window_definition.c",
+        "src/media/console/console.c"
+      ],
+      "tests": [
+        "rip3_session",
+        "cterm_text_window",
+        "st_console_bitmap",
+        "syncterm_rip3_text_backup_CP437",
+        "syncterm_rip3_text_backup_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3177,
+        "context": 1440,
+        "pending": 1747,
+        "implemented": 1993,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "research_review": {
+        "path": "version/3.0/research/issue-16-table-lifecycle.md",
+        "sha256": "2df08c1e1c5d95d64df3f857dbca4fede6836e76ee32cd6d19baa025754a4757",
+        "method": "Read pinned text after matching its adoption-record hash; no downloaded code or original client/probe execution."
+      },
+      "policy": "One TW snapshot owns current selection/gate, all36 metadata records, floating/per-entry raw query sources, native cursor/saved coordinates, rendition/direct colors, margins, modes/tabs and owned font registrations. Deduplicate console-local fonts within each saved definition, remap new native IDs on restore and keep snapshots independent of source view teardown. Capture no native cells, scene pixels, history, renderer damage or old connection ANSI syntax. Prepare replacement metadata/views and fonts before publishing; failure retains complete old live/saved state. Successful restore bypasses live definition protection, reinstates saved flags and preserves current PORT/PAL/STYLE/WORLD and parent raster. BASE/copies are reusable immutable objects, unprotected numbered/POP consumption follows the manager and backup clearing retains protected saves without resetting live windows. Native callbacks are all-or-none and optional for standalone clients; actual connections bind all three. Explicit operations add no ordinary-byte/render hot-path work. Individual TW entry COPY, live TW RESET, full PORT clipboard selection, aggregate operations and HEADER remain pending. RIP154 baseline, arbitrary entry raster and no-VT102 scope stay intact.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc; headless console/control-bitmap fixtures.",
+        "result": "10 distinct relevant CTests passed: native TW/session/table/font-definition tests; CP437 and UTF8 full TW backups over TCP at640x480,800x600,1024x768 and720x400; existing ANSI control CP437/UTF8; contract/preservation guards. Final full native application build and modified native test targets compile without warnings.",
+        "coverage": "Independent literal state/direct-color assertions, all36 record loop with explicit slot35 coverage, font/source teardown, every metadata/font API fault boundary, current parser continuation, no-paint/both planes, inactive/protected records, manager consumption, backup-reset prevalidation and native external-pixel scrolling.",
+        "limits": "No additional toolchain/platform, native-display, original-client/probe or exact RIPtel raster claim. Individual TW-entry COPY/live reset, full PORT clipboard binding, aggregate execution and HEADER are pending. Unchanged passed grouped/screen suites were not repeated."
+      }
     }
   ]
 }
