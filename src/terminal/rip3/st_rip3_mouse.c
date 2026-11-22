@@ -548,6 +548,7 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
  * own live input or scene pixels and never execute providers on save/restore. */
 struct mouse_snapshot {
 	struct field *fields[128];size_t count;
+	struct st_rip3_group_snapshot *groups;
 	struct {uint8_t *bytes;size_t length;} queries[2];
 };
 static void
@@ -560,10 +561,11 @@ free_snapshot(void *object)
 		free(field);
 	}
 	for (unsigned i=0;i<2;i++) free(snapshot->queries[i].bytes);
+	st_rip3_templates_free_groups(snapshot->groups);
 	free(snapshot);
 }
 static int
-copy_fields(struct mouse_snapshot *copy,struct field *const *fields,size_t count,struct st_rip3_mouse *owner)
+copy_fields(struct mouse_snapshot *copy,struct field *const *fields,size_t count,struct st_rip3_mouse *owner,const struct st_rip3_templates *templates)
 {
 	for (size_t i=0;i<count;i++) {
 		const struct field *source=fields[i];
@@ -574,6 +576,10 @@ copy_fields(struct mouse_snapshot *copy,struct field *const *fields,size_t count
 			field->visual.context=NULL;
 			int status=source->visual.copy(source->visual.context,&field->visual.context,owner);
 			if (status!=0 || field->visual.context==NULL) {free(field);return status!=0 ? status : IO_ERROR_INVALID_FORMAT;}
+		}
+		if (field->binding.group_kind!=ST_RIP3_GROUP_NONE) {
+			field->binding.selected=owner==NULL ? st_rip3_templates_button_selected(templates,source->instance) : source->binding.selected;
+			if (field->visual.committed!=NULL) field->visual.committed(field->visual.context,field->binding.selected);
 		}
 		copy->fields[copy->count++]=field;
 	}
@@ -595,11 +601,13 @@ snapshot_mouse(const void *object,void **result)
 	const struct st_rip3_mouse *mouse=object;
 	for (size_t i=0;i<mouse->count;i++) {
 		const struct field *field=mouse->fields[i];
-		if (field->binding.group_kind!=ST_RIP3_GROUP_NONE || (field->visual.select!=NULL && field->visual.copy==NULL))
+		if (field->visual.select!=NULL && field->visual.copy==NULL)
 			return IO_ERROR_NOT_SUPPORTED;
 	}
 	struct mouse_snapshot *copy=calloc(1,sizeof(*copy));if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	int status=copy_fields(copy,mouse->fields,mouse->count,NULL);
+	uint64_t tokens[128];for (size_t i=0;i<mouse->count;i++) tokens[i]=mouse->fields[i]->instance;
+	int status=st_rip3_templates_capture_groups(mouse->templates,tokens,mouse->count,&copy->groups);
+	if (status==0) status=copy_fields(copy,mouse->fields,mouse->count,NULL,mouse->templates);
 	for (unsigned i=0;status==0 && i<2;i++) status=copy_handler(copy,i,mouse->queries[i].bytes,mouse->queries[i].length);
 	if (status!=0) {free_snapshot(copy);return status;}
 	*result=copy;return 0;
@@ -616,9 +624,12 @@ restore_mouse(void *object,const void *saved)
 	 * usable on failure; committed source/FIELDID continuations remain owned. */
 	st_rip3_mouse_boundary(mouse);
 	struct mouse_snapshot *copy=calloc(1,sizeof(*copy));if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	int status=copy_fields(copy,source->fields,source->count,mouse);
+	uint64_t tokens[128];for (size_t i=0;i<source->count;i++) tokens[i]=mouse->sequence+i+1;
+	int status=copy_fields(copy,source->fields,source->count,mouse,NULL);
+	if (status==0) status=st_rip3_templates_prepare_groups(source->groups,tokens,source->count,&copy->groups);
 	for (unsigned i=0;status==0 && i<2;i++) status=copy_handler(copy,i,source->queries[i].bytes,source->queries[i].length);
 	if (status!=0) {free_snapshot(copy);return status;}
+	st_rip3_templates_apply_groups(mouse->templates,copy->groups);copy->groups=NULL;
 	st_rip3_mouse_kill(mouse);st_rip3_mouse_clear_queries(mouse);
 	for (size_t i=0;i<copy->count;i++) {
 		copy->fields[i]->instance=++mouse->sequence;mouse->fields[mouse->count++]=copy->fields[i];

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-49a69454a0bd6055c0d11bb415759d309519de33](https://github.com/RealDeuce/remote-imaging-protocol/tree/49a69454a0bd6055c0d11bb415759d309519de33/version/3.0)
+95493d2643eaecfc1a02ca4264da2c0d8a1f406e](https://github.com/RealDeuce/remote-imaging-protocol/tree/95493d2643eaecfc1a02ca4264da2c0d8a1f406e/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -48,7 +48,7 @@ contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. Scene reset `*` and `$RESET(SOFT)$` now clear the
 physical canvas to palette-independent RGB black and reset the represented
 TW/STYLE/BUT/PAL/PORT/ENV families on connected sessions. The complete reset contract
-still awaits mouse-family backup/restore, header/resident-query and remaining ANSI state work.
+still awaits header/resident-query and remaining ANSI state work.
 The entry-versus-default-MicroANSI policy remains a separate open client decision.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
@@ -7752,7 +7752,7 @@ keep live definitions separate from backup storage. Field-only reset retains
 hover handlers. Full SOFT still deletes live fields/handlers while retaining
 independent backups, so a later RMF can restore their owned definitions.
 
-**Grouped capture remains unsupported.** The new
+**At that milestone, grouped capture remained unsupported.** The new
 [issue #136](https://github.com/bbs-land/remote-imaging-protocol/issues/136)
 asks which committed selection/A[N] state is captured and how restoration
 interacts with live ordinary B[N] and group-publication tags. It references
@@ -7837,3 +7837,65 @@ stored query modes and remaining table/UI/playback families are still pending.
 The 8410-unit queue now has 1919 implemented, 1747 pending, 3225 unreviewed,
 1422 context, 67 excluded and 30 blocked units. Full RIP3 compliance remains
 unfinished; RIP1.54's baseline and historical expectations are unchanged.
+
+## Grouped mouse backups and current template publication
+
+Adopt [PR #137](https://github.com/bbs-land/remote-imaging-protocol/pull/137)
+and [PR #139](https://github.com/bbs-land/remote-imaging-protocol/pull/139) through
+selected fork stable `95493d2643eaecfc1a02ca4264da2c0d8a1f406e`.
+The earlier grouped-SMF rejection is superseded. Connected SMF/RMF and
+whole-MOUSE COPY now include ordered fields, persistent selection and complete
+deep-owned per-owner A[N] maps, including OFF and initially selected owners,
+cross-slot bodies and defined-empty entries. Each body retains its own 4096-byte
+cap; a capped effective aggregate never replaces its underlying bodies.
+Shared hover handlers remain independently owned, including saved absence.
+
+Snapshots exclude ordinary B[N], slot publishers/effective values, global input
+settings, gestures, membership, continuations and feedback caches. Restore keeps
+the current ordinary assignments and publisher frame across its own teardown.
+A current group publisher survives only if the same kind and group number occur
+in the restored fields. It then composes restored selected bodies in creation
+order. Vanished/type-changed publishers release to current baselines; saved maps
+cannot steal another group's slot or resurrect old publication tags. SOFT's
+preserved ordinary values remain ordinary through later RMF.
+
+Restored definitions receive fresh tokens and start outside, without a held
+press. Restoring itself runs no filename, label, host or template providers,
+loads no images, performs no auto-stamp and adds no button painting. It can
+therefore restore logical ON while existing pixels remain OFF. Required radios
+are checked only on a later lookup; selected-empty succeeds. Old committed
+sources retain FIELDID and continue once, but their stale tokens cannot write
+associations into restored fields with matching public IDs.
+
+Preparation owns all replacement allocations before swapping complete maps.
+Failure after entering restore retains complete old owners/maps and cancels old
+input; rejected requests before application retain capture. The swap preserves
+surviving publications before destroying old fields. Reusable BASE and
+backup-to-backup copies remain immutable through later restored-owner mutation.
+All snapshot copies discard decoded ICON and expanded filename/label feedback
+resources. The first actual preview after restore prepares fresh undo resources
+within its regular render operation; cancellation remains provider/file-free.
+Deleting definitions does not erase persistently selected button pixels.
+
+`rip3_templates` and `rip3_mouse_backup` verify deep ownership, defined-empty
+entries, OFF maps, initially selected fields, cross-slot/other-group/type-change
+publication, raw TIME bytes, caps, stale identities and allocation failures.
+`syncterm_rip3_mouse_backup_CP437` and
+`syncterm_rip3_mouse_backup_UTF-8` exercise actual TCP sessions at 640×480 and
+720×400. They include the literal PR137 AB/XY → Z/XY → AB/XY sequence, reusable
+and copied backups, held ON/preview OFF capture, coherent no-paint checks,
+current HKEYOFF, radio selection, SOFT publication, a self-replacing grouped
+prompt and cold HOT ICON feedback after files change. Existing grouped,
+plain/ICON/clipboard buttons, hover/keyboard/session and normal ANSI controls
+remain covered. These are protocol/state and bitmap tests, not exact RIPtel
+pixel or native display claims.
+
+The 8449-unit queue now contains 1954 implemented, 1752 pending, 3224 unreviewed,
+1427 context, 67 excluded and 25 blocked units. B136 is answered by PR137; the
+stale index in issue #138 is answered by editorial PR139 without changing the
+detailed screen contract. Existing issue threads receive no added content.
+Full TW backups, eight-family SAVEALL/RESTOREALL, HEADER/hard reset, stored
+query modes and remaining table/UI/playback work stay pending. Mixed paragraphs
+that include aggregate orchestration remain pending even where their MOUSE
+clauses pass. RIP1.54's original freeze, entry-selected raster, existing ANSI
+route and explicit exclusion of a new VT-102 mode remain intact.

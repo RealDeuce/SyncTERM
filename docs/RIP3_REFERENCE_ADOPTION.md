@@ -767,3 +767,53 @@ receives comments.
 The implementation queue now has 1811 implemented, 1794 pending, 3316 unreviewed,
 1397 context, 67 excluded and 25 blocked units. RIP1.54's frozen source baseline,
 entry-selected raster and explicit exclusion of a new VT-102 mode are unchanged.
+
+## PRs #137 and #139: grouped backups and corrected index summaries
+
+Adopt reviewed [PR #137](https://github.com/bbs-land/remote-imaging-protocol/pull/137)
+head `7f074ac5fd569938a2368d2948a0a78931bf58f0` through fork stable
+`3313754a814641befacc434ca5bd4af59402b3fb` (two commits ahead, none behind).
+Archive SHA-256:
+`9ced3bf488a1f20956bac316845b5e1f443c4cd0836e65d271fedf7ad06d4ac3`.
+Four of the same 68 normative documents change. Preserve 8403 exact
+source/heading/text blocks, relocate 42, retire seven and review 44 new blocks,
+yielding 8447 units. Retain all seven retired source units and the four retired
+implemented claims with their previous evidence in the adoption history.
+All 64 previous derivation hashes remain unchanged; add the #136 note for 65.
+B136 is answered as documentation, then independently accepted through the
+connected grouped-MOUSE implementation described in the conformance inventory.
+
+PR137 explicitly completes the portable per-owner/per-slot model beyond the
+original one-body serializer. Capture logical persistent selection and full
+A[N] maps; exclude global B[N]/publishers, temporary interaction and feedback
+caches. Restore with fresh tokens while retaining current ordinary assignments
+and surviving same-kind/number group publications. Pure rebuilds run no
+providers or painting. The already adopted manager/error/graphics rules stay
+controlling; aggregate orchestration is assessed separately.
+
+Review [PR #139](https://github.com/bbs-land/remote-imaging-protocol/pull/139)
+head `bbccbcb42c7e5dea96f5d52fd606a8bffc37b99b`, initially before consolidation,
+then pin selected fork stable `95493d2643eaecfc1a02ca4264da2c0d8a1f406e`.
+The actual reviewed PR head is ancestral (two commits ahead, none behind), and
+all normative hashes match it. Archive SHA-256:
+`5baa384e45eb5baf1fe7cd571291fbe9c9d3557b106e478b663fcca4451828be`.
+Only the variable index changes among the same 68 normative documents. Preserve
+8440 exact source/heading/text blocks, relocate 44, retire seven and review nine
+new blocks, yielding 8449 units. No retired implemented claims occur in this
+second adoption. All 65 previous derivation hashes remain unchanged; add the
+#138 note for 66. Stable consolidation updates only workflow metadata and the
+new #138 research checkpoint, not the reviewed normative text.
+
+PR139 answers issue #138 editorially: screen-only capture, current palette
+binding, all twenty aliases and the correct eight-family aggregate order now
+agree with the detailed accepted contract. The old SyncTERM RESTORE0 omission
+is explicitly historical. No new screen runtime behavior or repeated screen
+verification is required for this index correction. Full aggregate execution
+remains pending. Archive contents are read as data; no downloaded code or
+original client/probe is executed. No content is added to covered issue threads.
+
+After the grouped implementation, the queue has 1954 implemented, 1752 pending,
+3224 unreviewed, 1427 context, 67 excluded and 25 blocked units. Mixed aggregate,
+HEADER and host-template-clearing clauses remain pending. RIP1.54's original
+freeze, selected entry raster and the exclusion of a new VT-102 mode remain
+unchanged.

@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/129",
-  "revision": "49a69454a0bd6055c0d11bb415759d309519de33",
-  "previous_revision": "9d666f8468036e5517f2f1395790b52bf6810c28",
+  "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+  "previous_revision": "3313754a814641befacc434ca5bd4af59402b3fb",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "b38c508c2370437675e089a349d8807e22ca2dad21db1049fa6765b878cb3a83",
+  "archive_sha256": "5baa384e45eb5baf1fe7cd571291fbe9c9d3557b106e478b663fcca4451828be",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -977,9 +977,75 @@
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
+      "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
+      "sha256": "25ed5048bb063e4a257eca5b129da0b87419b234be83355bd3d7b47e2d758d26",
+      "title": "Issue #100: Ordinary text-window redefinition",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
+      "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
+      "title": "Issue #101: Extended text windows and terminal controls",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-104-terminal-character-sets.md",
+      "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+      "title": "Issue #104: Terminal character sets",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-105-outer-soft-reset.md",
+      "sha256": "c3c63d2e4de8d6464a1165656fdc07312ab03c9b9e852c2e843ef0e4ddd6a60a",
+      "title": "Issue #105: Outer SOFT drawing reset",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-106-text-window-selection.md",
+      "sha256": "db4d51fe2df2808cf1d3b037c272f1a0ffc7f199e900cac73897bea5f9ffefd5",
+      "title": "Issue #106: Text-window selection state boundary",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-108-text-window-query-grammar.md",
+      "sha256": "da7c04d2b1343ea4138d183b14e34d029fe7f09f0372e096a10325026c173e78",
+      "title": "Issue #108: Text-window geometry-query grammar",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
       "path": "version/3.0/research/issue-11-pixel-pen-units.md",
       "sha256": "e70757f43c1b0d36618add863551690697a754c412425e73f6ed592e265e290c",
       "title": "Issue #11: Pixel/point coordinates and pen-thickness units",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-112-undefined-button-style.md",
+      "sha256": "44a49cd52c0fbad68d31ed8ae5eae1702f893d4fd382972247b48da16c796923",
+      "title": "Issue #112: Undefined current button-style state",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-113-mouse-gesture-identity.md",
+      "sha256": "b93ae44ac92e7d14c2d3ad79276094b2fc7525f5239d44dd5146d13bde747880",
+      "title": "Issue #113: Mouse gesture commitment and field identities",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-116-button-payload-hit-geometry.md",
+      "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
+      "title": "Issue #116: Button payload, validation and hit geometry",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-118-button-keyboard-activation.md",
+      "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
+      "title": "Issue #118: Button keyboard activation",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-119-image-button-sizing.md",
+      "sha256": "5c7a6b08273db380f934b4d5025c296c1efe989d9f932963e777c83b67036a83",
+      "title": "Issue #119: Image-button face sizing",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -989,9 +1055,63 @@
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
+      "path": "version/3.0/research/issue-120-selective-field-deletion.md",
+      "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
+      "title": "Issue #120: Selective mouse-field deletion and painting",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-124-graphical-expansion.md",
+      "sha256": "0506e6ecec4e588ccd43bbe4f2a6431df94c1064e12f31932f03d3607f8c0035",
+      "title": "Issue #124: Graphical expansion and prompt lifetime",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-125-cursor-number-mapping.md",
+      "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
+      "title": "Issue #125: Cursor numbering and presentation",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-128-auto-stamp-redraw.md",
+      "sha256": "96fbe0a30ed0f943cad986c84b8c1e00e4db55a10cd90fc32e5891d2c6ea9628",
+      "title": "Issue #128: Auto-stamp redraw and destination handoff",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
       "path": "version/3.0/research/issue-13-polygon-counts.md",
       "sha256": "5345a79611a8e7a381f23458b352831607f62a02ae31778446d32b3eb29ec45d",
       "title": "Issue #13: Polygon wire counts and multi-contour limits",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-130-text-metric-state.md",
+      "sha256": "29e2e6a9f6c24e7ee5fee6e6eb5fea449b1666dbf4e952bfbf6dafef3f42deaa",
+      "title": "Issue #130: Real-font metrics and retained TEXTDATA",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-131-grouped-button-lifetime.md",
+      "sha256": "6688333fe89c34ede8b8263604b9697c9de2ab3f2b9dea68f5b0621026e53274",
+      "title": "Issue #131: Grouped selection and template lifetime",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-132-hover-handler-lifetime.md",
+      "sha256": "84795ccd30010ab89ef970893e7de6411d461606ec3e6f8195959f0ca97f82f9",
+      "title": "Issue #132: Resident hover handler lifetime",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-136-grouped-mouse-backups.md",
+      "sha256": "28f2dd7d3ba7ef05e7e0e542610a8f05d8f2c153fbc5622719534cf2d715848e",
+      "title": "Issue #136: Grouped mouse backup capture and publication",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-138-backup-index-summaries.md",
+      "sha256": "1dfdf802acc0dfa4b00164e77853608ffe9c1d3b9835f230c1fc0859e55bda28",
+      "title": "Issue #138: Backup variable index summaries",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1147,7 +1267,7 @@
     {
       "path": "version/3.0/research/issue-58-load-bitmap-flags.md",
       "sha256": "5c631b6b95194ce17879519b030fa1762f60011a703375f86d231961cf4b789d",
-      "title": "Issue #58: LOAD_BITMAP flag16 and unknown bits",
+      "title": "Issue #58: LOAD_BITMAP flag 16 and unknown bits",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1163,9 +1283,51 @@
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
+      "path": "version/3.0/research/issue-72-define-port-contract.md",
+      "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
+      "title": "Issue #72: DEFINE_PORT protocol contract",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-78-border-normalization.md",
+      "sha256": "bab1ab7f41b7f9a3d4f27259c2b2cd873d175476577066a8bf97fadcfa17757e",
+      "title": "Issue #78: SET_BORDER value normalization",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-79-switch-style-flags.md",
+      "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5",
+      "title": "Issue #79: SWITCH_STYLE width and protection flags",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
       "path": "version/3.0/research/issue-8-bmm-masks.md",
       "sha256": "534d10842be1500203ccd541d0d8ec6ba2f9cf76e73fc2b270432df4c94d8875",
       "title": "Issue #8: BMM masks and compositing",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-82-rff-global-bounds.md",
+      "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982",
+      "title": "Issue #82: FastFont global bounding-box fields",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
+      "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f",
+      "title": "Issue #84: dollar-reference argument byte grammar",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-86-outline-advance-policy.md",
+      "sha256": "bb386f79e8d3135f2944bd485f636f858cbb4a2e7009935038b3174175a9fc94",
+      "title": "Issue #86: outline advances and cached cursor width",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+    },
+    {
+      "path": "version/3.0/research/issue-87-user-variable-directives.md",
+      "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02",
+      "title": "Issue #87: user-variable prefixes, scope and transparency",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
@@ -1175,164 +1337,34 @@
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
-      "path": "version/3.0/research/issue-72-define-port-contract.md",
-      "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
-      "title": "Issue #72: DEFINE_PORT protocol contract",
-      "role": "Protocol-source derivation for DEFINE_PORT; implementation observations do not override explicit documented rules or define unspecified failure guarantees."
-    },
-    {
-      "path": "version/3.0/research/issue-78-border-normalization.md",
-      "sha256": "bab1ab7f41b7f9a3d4f27259c2b2cd873d175476577066a8bf97fadcfa17757e",
-      "role": "Primary-artifact/protocol source-boundary derivation for the adopted N and 2Y contract; intermediate research statements are not additional normative requirements."
-    },
-    {
-      "path": "version/3.0/research/issue-79-switch-style-flags.md",
-      "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5",
-      "role": "Primary-artifact/protocol source-boundary derivation for the adopted N and 2Y contract; intermediate research statements are not additional normative requirements."
-    },
-    {
-      "path": "version/3.0/research/issue-82-rff-global-bounds.md",
-      "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982",
-      "role": "Read-only byte/consumer derivation for signed global coordinate bounds and realized horizontal spacing width; no new exact hinting or raster guarantee."
-    },
-    {
-      "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
-      "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f"
-    },
-    {
-      "path": "version/3.0/research/issue-86-outline-advance-policy.md",
-      "sha256": "bb386f79e8d3135f2944bd485f636f858cbb4a2e7009935038b3174175a9fc94"
-    },
-    {
-      "path": "version/3.0/research/issue-87-user-variable-directives.md",
-      "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02"
-    },
-    {
       "path": "version/3.0/research/issue-90-conditional-operand-grammar.md",
-      "sha256": "0a4dd0c5c2f421cca110a4e12016d24e76571fc8cc1ab362d3c6bb96ca54abd7"
+      "sha256": "0a4dd0c5c2f421cca110a4e12016d24e76571fc8cc1ab362d3c6bb96ca54abd7",
+      "title": "Issue #90: conditional operand byte grammar",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-91-outline-anchor-placement.md",
-      "sha256": "eddbe32105fd2b426714d4a5bb79ca5ef4d668d15ae6d1489e8300f7f4bb2391"
+      "sha256": "eddbe32105fd2b426714d4a5bb79ca5ef4d668d15ae6d1489e8300f7f4bb2391",
+      "title": "Issue #91: ordinary outline anchor and justification",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-93-template-embedding-limits.md",
-      "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114"
+      "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114",
+      "title": "Issue #93: template embedding limits and suffix effects",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-96-angle-worker-boundaries.md",
       "sha256": "1ac94a1df5f3a89f0a11d7ea1f010802e20918dd67856b830cd77f469e85c4ac",
-      "role": "Primary source/policy derivation; intermediate leads are not independent normative obligations."
+      "title": "Issue #96: outer angle scanner and branch state",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
     {
       "path": "version/3.0/research/issue-97-outline-effects-boundary.md",
       "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86",
-      "role": "Primary source/policy derivation; intermediate leads are not independent normative obligations."
-    },
-    {
-      "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
-      "sha256": "25ed5048bb063e4a257eca5b129da0b87419b234be83355bd3d7b47e2d758d26"
-    },
-    {
-      "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
-      "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
-      "role": "Primary source/policy derivation; explicit portable completion rules are distinguished from original implementation observations."
-    },
-    {
-      "path": "version/3.0/research/issue-104-terminal-character-sets.md",
-      "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
-      "title": "Issue #104: Terminal character sets",
-      "role": "Read-only original byte/handler provenance and explicit portable syntax/glyph boundary; VT-102-specific runtime behavior is excluded by user scope."
-    },
-    {
-      "path": "version/3.0/research/issue-105-outer-soft-reset.md",
-      "sha256": "c3c63d2e4de8d6464a1165656fdc07312ab03c9b9e852c2e843ef0e4ddd6a60a",
-      "title": "Issue #105: Outer SOFT drawing reset",
-      "role": "Read-only outer/callee provenance, eight independent protocol vectors, and explicit portable black-clear/protected-STYLE policy."
-    },
-    {
-      "path": "version/3.0/research/issue-106-text-window-selection.md",
-      "sha256": "db4d51fe2df2808cf1d3b037c272f1a0ffc7f199e900cac73897bea5f9ffefd5",
-      "title": "Issue #106: Text-window selection state boundary",
-      "role": "Read-only selector provenance and explicit distinction between wire first-use clone and CUR fresh defaults; connection-wide ANSI syntax and pixel-preserving selection."
-    },
-    {
-      "path": "version/3.0/research/issue-108-text-window-query-grammar.md",
-      "sha256": "da7c04d2b1343ea4138d183b14e34d029fe7f09f0372e096a10325026c173e78",
-      "title": "Issue #108: Text-window geometry-query grammar",
-      "role": "Read-only original-source derivation with explicit normative reconciliation or portable ownership/lifetime completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-112-undefined-button-style.md",
-      "sha256": "44a49cd52c0fbad68d31ed8ae5eae1702f893d4fd382972247b48da16c796923",
-      "title": "Issue #112: Undefined current button-style state",
-      "role": "Read-only original-source derivation with explicit normative reconciliation or portable ownership/lifetime completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-113-mouse-gesture-identity.md",
-      "sha256": "b93ae44ac92e7d14c2d3ad79276094b2fc7525f5239d44dd5146d13bde747880",
-      "title": "Issue #113: Mouse gesture commitment and field identities",
-      "role": "Read-only original-source derivation with explicit normative reconciliation or portable ownership/lifetime completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-116-button-payload-hit-geometry.md",
-      "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
-      "title": "Issue #116: Button payload, validation and hit geometry",
-      "role": "Read-only original-source derivation and explicitly adopted portable payload/validation/half-open input policy; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-118-button-keyboard-activation.md",
-      "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
-      "title": "Issue #118: Button keyboard activation",
-      "role": "Read-only source evidence distinguished from explicit portable keyboard matching/event/gate/lifetime completion. No original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-119-image-button-sizing.md",
-      "sha256": "5c7a6b08273db380f934b4d5025c296c1efe989d9f932963e777c83b67036a83",
-      "title": "Issue #119: Image-button face sizing",
-      "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-120-selective-field-deletion.md",
-      "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
-      "title": "Issue #120: Selective mouse-field deletion and painting",
-      "role": "Read-only original-source findings separated from explicit portable geometry, eligibility, painting and failure completion. No original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-124-graphical-expansion.md",
-      "sha256": "0506e6ecec4e588ccd43bbe4f2a6431df94c1064e12f31932f03d3607f8c0035",
-      "title": "Issue #124: Graphical expansion permissions, bounds and continuation lifetime",
-      "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-125-cursor-number-mapping.md",
-      "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
-      "title": "Issue #125: Canonical cursor numbering and prohibited cursor 7",
-      "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-128-auto-stamp-redraw.md",
-      "sha256": "96fbe0a30ed0f943cad986c84b8c1e00e4db55a10cd90fc32e5891d2c6ea9628",
-      "title": "Issue #128: Auto-stamp redraw and destination handoff",
-      "role": "Read-only original-source derivation and explicit portable completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-130-text-metric-state.md",
-      "sha256": "29e2e6a9f6c24e7ee5fee6e6eb5fea449b1666dbf4e952bfbf6dafef3f42deaa",
-      "title": "Issue #130: Real-font metrics and retained TEXTDATA state",
-      "role": "Read-only source/font derivation and explicit portable completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-131-grouped-button-lifetime.md",
-      "sha256": "6688333fe89c34ede8b8263604b9697c9de2ab3f2b9dea68f5b0621026e53274",
-      "title": "Issue #131: grouped-button-lifetime",
-      "role": "Read-only original source/corpus evidence and explicit portable completion; no original code executed."
-    },
-    {
-      "path": "version/3.0/research/issue-132-hover-handler-lifetime.md",
-      "sha256": "84795ccd30010ab89ef970893e7de6411d461606ec3e6f8195959f0ca97f82f9",
-      "title": "Issue #132: hover-handler-lifetime",
-      "role": "Read-only original source/corpus evidence and explicit portable completion; no original code executed."
+      "title": "Issue #97: synthetic outline effects and decoration boundary",
+      "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     }
   ],
   "documents": [
@@ -1474,7 +1506,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "59ee8954948d6d82e803e1989f6a173248ce2356ec3f3f621c09320977a0824e"
+      "sha256": "33cb3751fcb324cbd4b64b1502bc1eaa5c2fc395cea5484227b3bfb05e7e62a6"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
@@ -1494,11 +1526,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "1c958d63dec6df6516e7067418a03d2ee3cb0afb2e097a5a852265f3c1d41b07"
+      "sha256": "3a440c4992f9bc414f6d1c5dbeeab2d14e5f98c205d762d15767fbefd5ac4de5"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "8ace42afa39995f1b4e4110440b2f6ea20237e0e56c309f406f705a9f22bb740"
+      "sha256": "2f91060d6b51b752e46056cee451471ab6beca0e0e529fecd41165497a78d93e"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1534,7 +1566,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "949d11c360b301b693d7939ed10a5e35a17ecdd449bab3aa74d357ac1b70945c"
+      "sha256": "2890649a789ab7e28e9e7fec221a0724cdebb855f4c2f9e694c9a08e6b51f260"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
@@ -1542,7 +1574,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "23c0c2f7352ed8c53ce4ed65515d2dd1ffd9b34120bef4d97152d7e52dfe8268"
+      "sha256": "96b9917c72dab702b86365fae7f2e5c2a34dbaaf9f8a0f217ef68c181001e654"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -6934,6 +6966,1455 @@
           "rip154_source_freeze"
         ]
       }
+    },
+    {
+      "previous_revision": "49a69454a0bd6055c0d11bb415759d309519de33",
+      "revision": "3313754a814641befacc434ca5bd4af59402b3fb",
+      "archive_sha256": "9ced3bf488a1f20956bac316845b5e1f443c4cd0836e65d271fedf7ad06d4ac3",
+      "pull_requests": [
+        {
+          "number": 137,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/137",
+          "head": "7f074ac5fd569938a2368d2948a0a78931bf58f0"
+        }
+      ],
+      "upstream_state": "Actual open reviewed PR head consolidated into selected fork stable; stable is two commits ahead and none behind.",
+      "authorization": "Standing user-selected stable reference and authorization to adopt reviewed contracts.",
+      "prior_adoption_commit": "78e34976",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "59ee8954948d6d82e803e1989f6a173248ce2356ec3f3f621c09320977a0824e",
+          "sha256": "33cb3751fcb324cbd4b64b1502bc1eaa5c2fc395cea5484227b3bfb05e7e62a6"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "1c958d63dec6df6516e7067418a03d2ee3cb0afb2e097a5a852265f3c1d41b07",
+          "sha256": "3a440c4992f9bc414f6d1c5dbeeab2d14e5f98c205d762d15767fbefd5ac4de5"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "8ace42afa39995f1b4e4110440b2f6ea20237e0e56c309f406f705a9f22bb740",
+          "sha256": "2f91060d6b51b752e46056cee451471ab6beca0e0e529fecd41165497a78d93e"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "949d11c360b301b693d7939ed10a5e35a17ecdd449bab3aa74d357ac1b70945c",
+          "sha256": "2890649a789ab7e28e9e7fec221a0724cdebb855f4c2f9e694c9a08e6b51f260"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8403,
+      "moved_source_blocks": 42,
+      "new_source_blocks": 44,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+        "version/3.0/ripscrip/5.1-text-variables.md:3849",
+        "version/3.0/ripscrip/5.1-text-variables.md:3851",
+        "version/3.0/ripscrip/5.1-text-variables.md:3857",
+        "version/3.0/ripscrip/5.1-text-variables.md:3879",
+        "version/3.0/ripscrip/5.1-text-variables.md:3881",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:267",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:269",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:270",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:271",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:272",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:273",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:274",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:275",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:276",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:278",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:280",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:282",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:284",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:285",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:286",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:287",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:288",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:289",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:291",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:293",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:295",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:299",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:301",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:307",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:309",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:310",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:311",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:312",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:313",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:314",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:315",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:316",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:317",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:318",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:319",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:321",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:323"
+      ],
+      "retired_source_blocks": 7,
+      "retired_implemented_claims": [
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+          "heading": "Hover Handler and Membership Lifetime",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            80,
+            80
+          ],
+          "text": "An applying mouse-family restore begins its boundary even if later restore work fails; no all-or-nothing rollback is added. Restore handler values according to the portions actually applied, preserving the existing backup-manager/error rules. New entries wait for a following movement. The [definition edges and source bound](5.5-file-transfer-and-queries.md#resident-hover-definitions) govern new mode-5/6 definitions; changing a window selector does not create another handler namespace.\n",
+          "sha256": "6506c5880d9272986d23290af18ba7548357129308447ce974897e3ebba120bf",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3851",
+          "heading": "$RMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3851,
+            3851
+          ],
+          "text": "If no slot parameter is specified, then the non-slot specific mouse fields saved with a `$SMF$` command is restored (the saved mouse field file is not deleted). If a slot parameter is specified then the mouse fields saved with `$SMF(slot)$` is restored then the disk file is deleted. _(v2.A1)_\n",
+          "sha256": "728a197d12d9665236e19a2695f82b29611db127a7c362f18bf1a76bfe80edf3",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3857",
+          "heading": "$RMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3857,
+            3857
+          ],
+          "text": "> **NOTE:** You may restore slot-less saved Mouse Fields more than once is you wish. In other words, if you do a `$SMF$` command, you may execute `$RMF$` one or more times. But if you do a `$SMF(1)$` you may only do a `$RMF(1)$` once. _(v2.A1)_\n",
+          "sha256": "21a2f71725153e960885d7c9fd6339ff64ab3ba1a0dfee83f2ecad8454050fc6",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3881",
+          "heading": "$SMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3881,
+            3881
+          ],
+          "text": "If no slot parameter is specified then the mouse field definitions will be stored to a non-slot specific file (similar to [`$SAVE$`](#save) with no parameter). This file can be restored multiple times. If you specify a slot, then the fields are stored to slot-specific files. When a saved mouse field definition in a particular slot is restored, the corresponding file is automatically deleted upon restoration. _(v2.A1)_\n",
+          "sha256": "3519cb59113cdb77441f1053dfd460db965b807294bfcbe904132e6b4d4fb64b",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        }
+      ],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+          "heading": "Hover Handler and Membership Lifetime",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            80,
+            80
+          ],
+          "text": "An applying mouse-family restore begins its boundary even if later restore work fails; no all-or-nothing rollback is added. Restore handler values according to the portions actually applied, preserving the existing backup-manager/error rules. New entries wait for a following movement. The [definition edges and source bound](5.5-file-transfer-and-queries.md#resident-hover-definitions) govern new mode-5/6 definitions; changing a window selector does not create another handler namespace.\n",
+          "sha256": "6506c5880d9272986d23290af18ba7548357129308447ce974897e3ebba120bf",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3849",
+          "heading": "$RMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3849,
+            3849
+          ],
+          "text": "This Active Text Variable restores any Mouse Fields saved with [`$SMF$`](#smf). You may have only one set of mouse fields saved at once. If no mouse fields were saved, or if the number of fields saved is 0, then no mouse fields are active.\n",
+          "sha256": "a97395b0e1ba041159462361624873ecef358921424502d79c82425ee6fa84b8",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/136"
+          ],
+          "reason": "B136 asks which grouped selection/association and slot-publication state SMF captures and RMF applies. Simple/ordinary definitions, handler copies and reset/backup-manager lifetimes are connected, but a complete all-button capture claim remains unproven. Grouped capture rejects before replacing an existing save or changing live interaction. Mixed explicit host-template clearing/restore clauses also await their own runtime operations."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3851",
+          "heading": "$RMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3851,
+            3851
+          ],
+          "text": "If no slot parameter is specified, then the non-slot specific mouse fields saved with a `$SMF$` command is restored (the saved mouse field file is not deleted). If a slot parameter is specified then the mouse fields saved with `$SMF(slot)$` is restored then the disk file is deleted. _(v2.A1)_\n",
+          "sha256": "728a197d12d9665236e19a2695f82b29611db127a7c362f18bf1a76bfe80edf3",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3857",
+          "heading": "$RMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3857,
+            3857
+          ],
+          "text": "> **NOTE:** You may restore slot-less saved Mouse Fields more than once is you wish. In other words, if you do a `$SMF$` command, you may execute `$RMF$` one or more times. But if you do a `$SMF(1)$` you may only do a `$RMF(1)$` once. _(v2.A1)_\n",
+          "sha256": "21a2f71725153e960885d7c9fd6339ff64ab3ba1a0dfee83f2ecad8454050fc6",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3879",
+          "heading": "$SMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3879,
+            3879
+          ],
+          "text": "This Active Text Variable saves all defined Mouse Fields and Mouse Buttons to a temporary file for later retrieval. This is designed especially for the graphical designer who wishes to pop-up a dialog box on the screen with one or more mouse fields, and when finished, to restore the screen and original mouse fields. This command is intended to be used with the Restore Mouse Fields text variable [`$RMF$`](#rmf).\n",
+          "sha256": "23e1c0e60275618a6f1bab26831bc2c83b8408d4ca59d6949ea8702bc50ac244",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/136"
+          ],
+          "reason": "B136 asks which grouped selection/association and slot-publication state SMF captures and RMF applies. Simple/ordinary definitions, handler copies and reset/backup-manager lifetimes are connected, but a complete all-button capture claim remains unproven. Grouped capture rejects before replacing an existing save or changing live interaction. Mixed explicit host-template clearing/restore clauses also await their own runtime operations."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3881",
+          "heading": "$SMF$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3881,
+            3881
+          ],
+          "text": "If no slot parameter is specified then the mouse field definitions will be stored to a non-slot specific file (similar to [`$SAVE$`](#save) with no parameter). This file can be restored multiple times. If you specify a slot, then the fields are stored to slot-specific files. When a saved mouse field definition in a particular slot is restored, the corresponding file is automatically deleted upon restoration. _(v2.A1)_\n",
+          "sha256": "3519cb59113cdb77441f1053dfd460db965b807294bfcbe904132e6b4d4fb64b",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_session",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "Mouse backups are bound to actual sessions for simple fields and ordinary plain/clipboard/ICON button definitions. Typed owned snapshots include source, absolute hit/configuration and both entry/exit handlers, including absence. Save preserves capture/membership and runs no providers. Applying restore cancels capture/uncommitted traversal even on later allocation failure, retains committed source/FIELDID, gives fresh tokens/outside membership and neither restores screen pixels nor runs providers. Missing/invalid requests before application retain interaction. BASE is reusable; numbered/stack/protection/COPY/status use the existing manager. RESET(MOUSE) defaults to TBL; explicit selectors prevalidate and retain protected snapshots; field-only reset retains handlers. All failures remain below void parsing. Grouped capture is separately unsupported under B136; this acceptance covers the stated grammar/lifetime/input/handler operations, not a complete mouse-family capture set."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435",
+          "heading": "Associated Template Ownership and Lifetime",
+          "source": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "lines": [
+            435,
+            435
+          ],
+          "text": "For `[N:]` outside a grouped association, ordinary storage remains the existing plain slot operation. These baselines/publication tags clarify lifetime; they add no new wire syntax. A later explicit assignment is not lost merely because an old selected field is deleted. Mouse-field deletion removes its associations and reassembles affected publications but preserves ordinary baselines. For SOFT/drawing reset, preserve the already effective slot values as ordinary definitions before discarding deleted owners and their publication tags. This adopts the existing [SOFT template-preservation rule](1.3-world-view-virtual-canvas.md#state-that-survives), rather than importing the original field-clear helper's numbered-slot deletion. Do not evaluate any source while preserving those bytes. A reset explicitly clearing host-template storage instead clears the affected baselines/publications; table/style selection alone does not assemble or evaluate host text. Applying restored/replaced fields gives fresh instance tokens: any restored associated definition data belongs to those fresh owners, never to a suspended former instance, and affected publications are recomputed without host execution.\n",
+          "sha256": "004ebb25284e600c287049ff6f99b1003c2d5e4580aabeebfba35efac278cea4",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_templates.c",
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_button_create.c",
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c"
+          ],
+          "tests": [
+            "rip3_templates",
+            "rip3_mouse",
+            "rip3_button_create",
+            "rip3_query_commands",
+            "rip3_session",
+            "syncterm_rip3_groups_CP437",
+            "syncterm_rip3_groups_UTF-8",
+            "syncterm_rip3_buttons_CP437",
+            "syncterm_rip3_buttons_UTF-8",
+            "syncterm_rip3_icon_buttons_CP437",
+            "syncterm_rip3_icon_buttons_UTF-8",
+            "rip3_mouse_backup",
+            "rip3_table_host",
+            "rip3_backup",
+            "rip3_backup_copy",
+            "syncterm_rip3_mouse_backup_CP437",
+            "syncterm_rip3_mouse_backup_UTF-8"
+          ],
+          "reason": "B136 asks which grouped selection/association and slot-publication state SMF captures and RMF applies. Simple/ordinary definitions, handler copies and reset/backup-manager lifetimes are connected, but a complete all-button capture claim remains unproven. Grouped capture rejects before replacing an existing save or changing live interaction. Mixed explicit host-template clearing/restore clauses also await their own runtime operations.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/136"
+          ]
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-10-port-geometry.md",
+          "sha256": "799617764268f8b2ada3eebe9cbe26e3e8621a812dd1620a971048b369497ee3",
+          "title": "Issue #10: Port extents, copy clipping and viewport arithmetic",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
+          "sha256": "25ed5048bb063e4a257eca5b129da0b87419b234be83355bd3d7b47e2d758d26",
+          "title": "Issue #100: Ordinary text-window redefinition",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
+          "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
+          "title": "Issue #101: Extended text windows and terminal controls",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-104-terminal-character-sets.md",
+          "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+          "title": "Issue #104: Terminal character sets",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-105-outer-soft-reset.md",
+          "sha256": "c3c63d2e4de8d6464a1165656fdc07312ab03c9b9e852c2e843ef0e4ddd6a60a",
+          "title": "Issue #105: Outer SOFT drawing reset",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-106-text-window-selection.md",
+          "sha256": "db4d51fe2df2808cf1d3b037c272f1a0ffc7f199e900cac73897bea5f9ffefd5",
+          "title": "Issue #106: Text-window selection state boundary",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-108-text-window-query-grammar.md",
+          "sha256": "da7c04d2b1343ea4138d183b14e34d029fe7f09f0372e096a10325026c173e78",
+          "title": "Issue #108: Text-window geometry-query grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-11-pixel-pen-units.md",
+          "sha256": "e70757f43c1b0d36618add863551690697a754c412425e73f6ed592e265e290c",
+          "title": "Issue #11: Pixel/point coordinates and pen-thickness units",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-112-undefined-button-style.md",
+          "sha256": "44a49cd52c0fbad68d31ed8ae5eae1702f893d4fd382972247b48da16c796923",
+          "title": "Issue #112: Undefined current button-style state",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-113-mouse-gesture-identity.md",
+          "sha256": "b93ae44ac92e7d14c2d3ad79276094b2fc7525f5239d44dd5146d13bde747880",
+          "title": "Issue #113: Mouse gesture commitment and field identities",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-116-button-payload-hit-geometry.md",
+          "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
+          "title": "Issue #116: Button payload, validation and hit geometry",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-118-button-keyboard-activation.md",
+          "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
+          "title": "Issue #118: Button keyboard activation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-119-image-button-sizing.md",
+          "sha256": "5c7a6b08273db380f934b4d5025c296c1efe989d9f932963e777c83b67036a83",
+          "title": "Issue #119: Image-button face sizing",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-12-fill-masks.md",
+          "sha256": "54e785f1b6270024e4cc7b0bed0343591f49412d54fdb0716daa8cc147763f7c",
+          "title": "Issue #12: Preset fill-mask bytes, radix examples and tiling phase",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-120-selective-field-deletion.md",
+          "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
+          "title": "Issue #120: Selective mouse-field deletion and painting",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-124-graphical-expansion.md",
+          "sha256": "0506e6ecec4e588ccd43bbe4f2a6431df94c1064e12f31932f03d3607f8c0035",
+          "title": "Issue #124: Graphical expansion and prompt lifetime",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-125-cursor-number-mapping.md",
+          "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
+          "title": "Issue #125: Cursor numbering and presentation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-128-auto-stamp-redraw.md",
+          "sha256": "96fbe0a30ed0f943cad986c84b8c1e00e4db55a10cd90fc32e5891d2c6ea9628",
+          "title": "Issue #128: Auto-stamp redraw and destination handoff",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-13-polygon-counts.md",
+          "sha256": "5345a79611a8e7a381f23458b352831607f62a02ae31778446d32b3eb29ec45d",
+          "title": "Issue #13: Polygon wire counts and multi-contour limits",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-130-text-metric-state.md",
+          "sha256": "29e2e6a9f6c24e7ee5fee6e6eb5fea449b1666dbf4e952bfbf6dafef3f42deaa",
+          "title": "Issue #130: Real-font metrics and retained TEXTDATA",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-131-grouped-button-lifetime.md",
+          "sha256": "6688333fe89c34ede8b8263604b9697c9de2ab3f2b9dea68f5b0621026e53274",
+          "title": "Issue #131: Grouped selection and template lifetime",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-132-hover-handler-lifetime.md",
+          "sha256": "84795ccd30010ab89ef970893e7de6411d461606ec3e6f8195959f0ca97f82f9",
+          "title": "Issue #132: Resident hover handler lifetime",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-136-grouped-mouse-backups.md",
+          "sha256": "28f2dd7d3ba7ef05e7e0e542610a8f05d8f2c153fbc5622719534cf2d715848e",
+          "title": "Issue #136: Grouped mouse backup capture and publication",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-14-arc-sweeps.md",
+          "sha256": "270c01396eff99dbffe3d43ae5e61f9b3e011278efc5f0b57aa0d9ad5778f57b",
+          "title": "Issue #14: Arc angle ordering and sweep policy",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-15-bezier-contracts.md",
+          "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
+          "title": "Issue #15: Bézier equations, subdivision and block grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-16-table-lifecycle.md",
+          "sha256": "2df08c1e1c5d95d64df3f857dbca4fede6836e76ee32cd6d19baa025754a4757",
+          "title": "Issue #16: Live table copy and reset lifecycle",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-17-chr-scan-records.md",
+          "sha256": "590368ce8390f15edb582577548179fb902037d56e5242cd009dace47f58cbba",
+          "title": "Issue #17: CHR scan records and unused header bytes",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-18-date-time-format.md",
+          "sha256": "61a97268db9ec55fd6c794ff44fcd9d9184cb0f838a4b267316a7ceb6e05ea6b",
+          "title": "Issue #18: YEAR syntax and exact DATETIME bytes",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-19-legacy-icon-conversion.md",
+          "sha256": "a5b2ffa2b7a451bbf0194dec74b531edd6483cc73ee8691db042d1544d104ba5",
+          "title": "Issue #19: legacy icon conversion palette and filesystem effects",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-20-filedel-scope.md",
+          "sha256": "875f09013d4f670e4be7806f244dc3ab3217eac7b5901459aa0f069f6e250263",
+          "title": "Issue #20: FILEDEL directory scope, ownership and path handling",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-21-image-style.md",
+          "sha256": "868317ba2ffa02a20637160716360fd85281377dfcaf6c292788489a11eea4b9",
+          "title": "Issue #21: image-style flags, target defaults, reset and clear modes",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-22-fastfont-rendering.md",
+          "sha256": "bfb694cfec613e1c78b1974234b44c2be3a7bf316770930a363a8301f9acb01d",
+          "title": "Issue #22: FastFont fill, hollow width, overlap and byte mapping",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-23-environment-query-names.md",
+          "sha256": "d8c26213400db2b01570182c932673b8eaea71d1fb1928efd05d36372351e05b",
+          "title": "Issue #23: COLORMODE sentinel, WORLD names and environment ranges",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-24-drawing-state-ownership.md",
+          "sha256": "d1094046ecff37fc17326823a7aa18a4dc788740c191daf307039b4f79e3f292",
+          "title": "Issue #24: drawing-state ownership, defaults and text cursors",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-25-port-query-grammar.md",
+          "sha256": "5e0ac9de5d1305dee68d59c3552bcc59545706b93043aca4346d17c52b7fdaa4",
+          "title": "Issue #25: port-query argument grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-26-screen-backups.md",
+          "sha256": "d766b3fb662d69f247057dde9a072a263c895123691b5d7fe7d10728a4a61555",
+          "title": "Issue #26: screen backup capture and restore transactions",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-27-button-style-contract.md",
+          "sha256": "ba5ac2b55ac1a3224620d094718fbc6935c06592095cbccc855027d5d92f52f3",
+          "title": "Issue #27: button-style defaults, validation, geometry and transparency",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-28-tone-variable-contract.md",
+          "sha256": "fd37287bd763a3ef3363945720fc89b9db627f5bf60a2906e2e2951bf3d658ac",
+          "title": "Issue #28: tone defaults, sweep validation and MUSIC sequence",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-3-extended-font-style.md",
+          "sha256": "9d2a8ea1a836a5e48e3c71931d49f08d34af8d6932dec43af7b518c1651ceb82",
+          "title": "Issue #3: shipped extended font style derivation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-33-filled-rectangle-borders.md",
+          "sha256": "5a9c9a3e89efe6c1b072e8c6b251f1956790889d19861dbf355c46e7a93122f4",
+          "title": "Issue #33: filled-rectangle border pattern and write mode",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-38-rounded-rectangle-geometry.md",
+          "sha256": "94e48a3001328abe79bdd431b7da62e49285d548bb4a1a319a14e6e7eff25f93",
+          "title": "Issue #38: rounded-rectangle wire radius, geometry and interior",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-4-column-overflow.md",
+          "sha256": "412254a70b6176062fd56ab3a1293d62835e3b8c9042d5a1dfd179bbbe078eda",
+          "title": "Issue #4: column, article and overflow derivation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-42-clipboard-capture-state.md",
+          "sha256": "5311e505fd0f994f675c5a6a14c5b975034abf24a2cda21f3b90feac8d0c319f",
+          "title": "Issue #42: GET_IMAGE clipboard selection, protection and failure state",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-46-delay-variable-units.md",
+          "sha256": "3774af50a4b1c6ecea90e9572820996bea0f6192ea33bba93c55690334e879dc",
+          "title": "Issue #46: D text-variable delay units and timing",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-5-scene-headers.md",
+          "sha256": "678fee87426ccf7a67e67bd1317f7afc5aec26ce2132b618e3f666c64580c0a2",
+          "title": "Issue #5: scene headers and wire entry points",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-51-deferred-query-order.md",
+          "sha256": "1f031f1eb2608720ad60402744f9e3f67128ecf0a03b52247044cff1f529fa7a",
+          "title": "Issue #51: deferred query order and live mutation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-53-host-control-brackets.md",
+          "sha256": "68650c291d76b0fb096b3110e24121494a873ae961e325c54addbfea127cc0cc",
+          "title": "Issue #53: host control notation, special keys and brackets",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-54-switch-port-precedence.md",
+          "sha256": "68d664c3c0a37a0c703097741e23b1fb1a10f32e8bda8ce26851d9e5423e79fc",
+          "title": "Issue #54: SWITCH_PORT protection order and undefined targets",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-58-load-bitmap-flags.md",
+          "sha256": "5c631b6b95194ce17879519b030fa1762f60011a703375f86d231961cf4b789d",
+          "title": "Issue #58: LOAD_BITMAP flag 16 and unknown bits",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-6-macro-evaluation.md",
+          "sha256": "4a9cdf428332f9b0177b2e338c974ba957fb5f2840e7669977371853ee7b1592",
+          "title": "Issue #6: macro evaluation and predefined variables",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-7-framing-identification.md",
+          "sha256": "7c79594f0e4d9242ad44854accdc227b7fe2e91852a8501cb6a9b7e698481e22",
+          "title": "Issue #7: framing and identification",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-72-define-port-contract.md",
+          "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
+          "title": "Issue #72: DEFINE_PORT protocol contract",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-78-border-normalization.md",
+          "sha256": "bab1ab7f41b7f9a3d4f27259c2b2cd873d175476577066a8bf97fadcfa17757e",
+          "title": "Issue #78: SET_BORDER value normalization",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-79-switch-style-flags.md",
+          "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5",
+          "title": "Issue #79: SWITCH_STYLE width and protection flags",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-8-bmm-masks.md",
+          "sha256": "534d10842be1500203ccd541d0d8ec6ba2f9cf76e73fc2b270432df4c94d8875",
+          "title": "Issue #8: BMM masks and compositing",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-82-rff-global-bounds.md",
+          "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982",
+          "title": "Issue #82: FastFont global bounding-box fields",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
+          "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f",
+          "title": "Issue #84: dollar-reference argument byte grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-86-outline-advance-policy.md",
+          "sha256": "bb386f79e8d3135f2944bd485f636f858cbb4a2e7009935038b3174175a9fc94",
+          "title": "Issue #86: outline advances and cached cursor width",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-87-user-variable-directives.md",
+          "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02",
+          "title": "Issue #87: user-variable prefixes, scope and transparency",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-9-rgb-examples.md",
+          "sha256": "64e154428a5e4d0d89163b5482f9b5c5c46d554fc7c5909391c723aea8396820",
+          "title": "Issue #9: RGB example and palette-index arithmetic",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-90-conditional-operand-grammar.md",
+          "sha256": "0a4dd0c5c2f421cca110a4e12016d24e76571fc8cc1ab362d3c6bb96ca54abd7",
+          "title": "Issue #90: conditional operand byte grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-91-outline-anchor-placement.md",
+          "sha256": "eddbe32105fd2b426714d4a5bb79ca5ef4d668d15ae6d1489e8300f7f4bb2391",
+          "title": "Issue #91: ordinary outline anchor and justification",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-93-template-embedding-limits.md",
+          "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114",
+          "title": "Issue #93: template embedding limits and suffix effects",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-96-angle-worker-boundaries.md",
+          "sha256": "1ac94a1df5f3a89f0a11d7ea1f010802e20918dd67856b830cd77f469e85c4ac",
+          "title": "Issue #96: outer angle scanner and branch state",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-97-outline-effects-boundary.md",
+          "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86",
+          "title": "Issue #97: synthetic outline effects and decoration boundary",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 3225,
+        "context": 1422,
+        "pending": 1793,
+        "implemented": 1915,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8447,
+      "policy": "Capture ordered complete logical fields, persistent selection, deep per-owner A[N] maps and hover definitions. Exclude B[N]/publisher/effective global state, gestures and caches; restore fresh tokens and reconcile current same-kind/number group publications once, without host/render providers or painting. RIP154 freeze and VT102 exclusion remain unchanged."
+    },
+    {
+      "previous_revision": "3313754a814641befacc434ca5bd4af59402b3fb",
+      "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "archive_sha256": "5baa384e45eb5baf1fe7cd571291fbe9c9d3557b106e478b663fcca4451828be",
+      "pull_requests": [
+        {
+          "number": 139,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/139",
+          "head": "bbccbcb42c7e5dea96f5d52fd606a8bffc37b99b"
+        }
+      ],
+      "upstream_state": "Actual reviewed open PR139 head is ancestral to selected fork stable, two commits ahead and none behind; all 68 normative hashes match that reviewed head. Consolidation changes only workflow metadata and the new #138 derivation checkpoint.",
+      "authorization": "Standing user-selected stable reference and authorization to adopt reviewed contracts.",
+      "prior_adoption_revision": "3313754a814641befacc434ca5bd4af59402b3fb",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "23c0c2f7352ed8c53ce4ed65515d2dd1ffd9b34120bef4d97152d7e52dfe8268",
+          "sha256": "96b9917c72dab702b86365fae7f2e5c2a34dbaaf9f8a0f217ef68c181001e654"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8440,
+      "moved_source_blocks": 44,
+      "new_source_blocks": 9,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:7",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:190",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:192",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:201",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:202",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:204",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:205",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:206",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:212"
+      ],
+      "retired_source_blocks": 7,
+      "retired_implemented_claims": [],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:7",
+          "heading": "9.1 Text Variable Reference",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            7,
+            7
+          ],
+          "text": "Every pre-defined [text variable](../../glossary.md) known for RIPscrip 3.x, with its parameter form, type, effect, and evidence status, linked to its full entry. **Value** variables return text to the host; **Active** variables perform an action on the terminal (some also return data when used to query). Parameters shown in parentheses are optional unless the full entry says otherwise; the 2.0 parameterized forms supersede the 1.54 fixed names (`$SAVE(8)$` vs `$SAVE8$`). The 3.x inventory combines the original driver’s 179 registrations with the RIPtel help files (roughly 60 data-returning and 60 command-performing variables), the demo corpus (269 distinct `$…$` forms in shipping scripts), and SyncTERM's 103-entry built-in table.\n",
+          "sha256": "ed81942dcac2392eefe126ad00dcba73d27311c7751c1783d7e7b95f1ab3953b",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/138"
+          ],
+          "reason": "Index wording about parameterized versus fixed aliases is tracked by editorial follow-up #138; detailed 5.1 entries explicitly retain all twenty numbered screen aliases. The broader inventory remains unreviewed."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:197",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            197,
+            197
+          ],
+          "text": "| `$RESTORE(source)$` / `$RESTORE0-9$` | Active | Restore graphics screen (+viewport, styles); SyncTERM lacks `RESTORE0` - prefer `$RESTORE(0)$` | 2.00a4; HLP; ST | [5.1](5.1-text-variables.md#restore) |\n",
+          "sha256": "c3ff8c26728b99c4fb0a6268d22fee08ec04034dc7d2ee5d78a94b6dbd7eeea7",
+          "status": "context",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "Inherited index summary repeats superseded viewport/style capture or the obsolete aggregate order. The specific corrected 5.1 and 7.2 contracts control implementation; this historical summary does not add state or alter the actual eight-family sequence. New editorial follow-up #138 references covered #26 without modifying that issue.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/138"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:198",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            198,
+            198
+          ],
+          "text": "| `$RESTOREALL(source)$` | Active | Restore everything (`$RTW$ $RCB$ $RMF$ $RGS$ $RBS$ $RESTORE$ $RCP$ $RENV$`) | 2.00a4; HLP | [5.1](5.1-text-variables.md#restoreall) |\n",
+          "sha256": "60a707e413f2aff36c29264aa81a1187523ceccb3c1c96096e782b70f7e90a00",
+          "status": "context",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "Inherited index summary repeats superseded viewport/style capture or the obsolete aggregate order. The specific corrected 5.1 and 7.2 contracts control implementation; this historical summary does not add state or alter the actual eight-family sequence. New editorial follow-up #138 references covered #26 without modifying that issue.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/138"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:200",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            200,
+            200
+          ],
+          "text": "| `$RMF(source)$` | Active | Restore mouse fields | 2.00a4; HLP; ST | [5.1](5.1-text-variables.md#rmf) |\n",
+          "sha256": "d53946f099cfde7694acd15db3fee220ea24c188c5d865f536d5a5738273e5b6",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "The pinned built-in name (including fixed-slot families) is recognized case-insensitively by the compiled catalog, with independent source-inventory coverage. Recognition alone does not establish this row's executable semantics: remaining handlers, blocked policy/format details, adapters and stream/session routing remain pending. Recognized unsupported processors do not fall through as unknown user names."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:201",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            201,
+            201
+          ],
+          "text": "| `$SAVE(dest)$` / `$SAVE0-9$` | Active | Save graphics screen (+viewport, styles) | 2.00a4; HLP; ST | [5.1](5.1-text-variables.md#save) |\n",
+          "sha256": "dcaf513e6d1cc71538a015317550746646c0d88894216356009366e42c010030",
+          "status": "context",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "Inherited index summary repeats superseded viewport/style capture or the obsolete aggregate order. The specific corrected 5.1 and 7.2 contracts control implementation; this historical summary does not add state or alter the actual eight-family sequence. New editorial follow-up #138 references covered #26 without modifying that issue.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/138"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:202",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            202,
+            202
+          ],
+          "text": "| `$SAVEALL(dest)$` | Active | Save everything (`$STW$ $SCB$ $SMF$ $SGS$ $SBS$ $SAVE$ $SCP$ $SENV$`) | 2.00a4; HLP | [5.1](5.1-text-variables.md#saveall) |\n",
+          "sha256": "65465a531acdfe6c679006006789e3727fe4b67b17ce363232047638e936ad01",
+          "status": "context",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "Inherited index summary repeats superseded viewport/style capture or the obsolete aggregate order. The specific corrected 5.1 and 7.2 contracts control implementation; this historical summary does not add state or alter the actual eight-family sequence. New editorial follow-up #138 references covered #26 without modifying that issue.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/138"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:208",
+          "heading": "Save/Restore & Backup Areas",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            208,
+            208
+          ],
+          "text": "| `$SMF(dest)$` | Active | Save mouse fields to backup area | 2.00a4; HLP; ST | [5.1](5.1-text-variables.md#smf) |\n",
+          "sha256": "1e166d1c185d64205caea3186897f01755d0dcd9d9b157c3aef6f354ebfd8293",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "The pinned built-in name (including fixed-slot families) is recognized case-insensitively by the compiled catalog, with independent source-inventory coverage. Recognition alone does not establish this row's executable semantics: remaining handlers, blocked policy/format details, adapters and stream/session routing remain pending. Recognized unsupported processors do not fall through as unknown user names."
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-10-port-geometry.md",
+          "sha256": "799617764268f8b2ada3eebe9cbe26e3e8621a812dd1620a971048b369497ee3",
+          "title": "Issue #10: Port extents, copy clipping and viewport arithmetic",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-100-ordinary-text-window-state.md",
+          "sha256": "25ed5048bb063e4a257eca5b129da0b87419b234be83355bd3d7b47e2d758d26",
+          "title": "Issue #100: Ordinary text-window redefinition",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-101-extended-text-window-contract.md",
+          "sha256": "467df2fb7f4800f68838082628b3ae839f6856c6f04f421c3322840b17b7e8b9",
+          "title": "Issue #101: Extended text windows and terminal controls",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-104-terminal-character-sets.md",
+          "sha256": "12d3606cffabd8424fad79d76993835df7aaede92f7a4aef877a146eacb00567",
+          "title": "Issue #104: Terminal character sets",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-105-outer-soft-reset.md",
+          "sha256": "c3c63d2e4de8d6464a1165656fdc07312ab03c9b9e852c2e843ef0e4ddd6a60a",
+          "title": "Issue #105: Outer SOFT drawing reset",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-106-text-window-selection.md",
+          "sha256": "db4d51fe2df2808cf1d3b037c272f1a0ffc7f199e900cac73897bea5f9ffefd5",
+          "title": "Issue #106: Text-window selection state boundary",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-108-text-window-query-grammar.md",
+          "sha256": "da7c04d2b1343ea4138d183b14e34d029fe7f09f0372e096a10325026c173e78",
+          "title": "Issue #108: Text-window geometry-query grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-11-pixel-pen-units.md",
+          "sha256": "e70757f43c1b0d36618add863551690697a754c412425e73f6ed592e265e290c",
+          "title": "Issue #11: Pixel/point coordinates and pen-thickness units",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-112-undefined-button-style.md",
+          "sha256": "44a49cd52c0fbad68d31ed8ae5eae1702f893d4fd382972247b48da16c796923",
+          "title": "Issue #112: Undefined current button-style state",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-113-mouse-gesture-identity.md",
+          "sha256": "b93ae44ac92e7d14c2d3ad79276094b2fc7525f5239d44dd5146d13bde747880",
+          "title": "Issue #113: Mouse gesture commitment and field identities",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-116-button-payload-hit-geometry.md",
+          "sha256": "66742a60987f7f3cf285285cc5cd9e7d9c96d41975bc4c4440f3226efe947740",
+          "title": "Issue #116: Button payload, validation and hit geometry",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-118-button-keyboard-activation.md",
+          "sha256": "0e285d414a15fc9cecdd8d4bb173b353b2f080dfa4e2dbffd2a298667876e93a",
+          "title": "Issue #118: Button keyboard activation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-119-image-button-sizing.md",
+          "sha256": "5c7a6b08273db380f934b4d5025c296c1efe989d9f932963e777c83b67036a83",
+          "title": "Issue #119: Image-button face sizing",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-12-fill-masks.md",
+          "sha256": "54e785f1b6270024e4cc7b0bed0343591f49412d54fdb0716daa8cc147763f7c",
+          "title": "Issue #12: Preset fill-mask bytes, radix examples and tiling phase",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-120-selective-field-deletion.md",
+          "sha256": "29c3f110d8ec0a3c8510fa12f85ecddb13362f0e4abff64683fe0296d3b7d6dd",
+          "title": "Issue #120: Selective mouse-field deletion and painting",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-124-graphical-expansion.md",
+          "sha256": "0506e6ecec4e588ccd43bbe4f2a6431df94c1064e12f31932f03d3607f8c0035",
+          "title": "Issue #124: Graphical expansion and prompt lifetime",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-125-cursor-number-mapping.md",
+          "sha256": "1667fe970602061d21f0e4c559f326d4822091961c808c1ce2e11bdd47f7745c",
+          "title": "Issue #125: Cursor numbering and presentation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-128-auto-stamp-redraw.md",
+          "sha256": "96fbe0a30ed0f943cad986c84b8c1e00e4db55a10cd90fc32e5891d2c6ea9628",
+          "title": "Issue #128: Auto-stamp redraw and destination handoff",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-13-polygon-counts.md",
+          "sha256": "5345a79611a8e7a381f23458b352831607f62a02ae31778446d32b3eb29ec45d",
+          "title": "Issue #13: Polygon wire counts and multi-contour limits",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-130-text-metric-state.md",
+          "sha256": "29e2e6a9f6c24e7ee5fee6e6eb5fea449b1666dbf4e952bfbf6dafef3f42deaa",
+          "title": "Issue #130: Real-font metrics and retained TEXTDATA",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-131-grouped-button-lifetime.md",
+          "sha256": "6688333fe89c34ede8b8263604b9697c9de2ab3f2b9dea68f5b0621026e53274",
+          "title": "Issue #131: Grouped selection and template lifetime",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-132-hover-handler-lifetime.md",
+          "sha256": "84795ccd30010ab89ef970893e7de6411d461606ec3e6f8195959f0ca97f82f9",
+          "title": "Issue #132: Resident hover handler lifetime",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-136-grouped-mouse-backups.md",
+          "sha256": "28f2dd7d3ba7ef05e7e0e542610a8f05d8f2c153fbc5622719534cf2d715848e",
+          "title": "Issue #136: Grouped mouse backup capture and publication",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-138-backup-index-summaries.md",
+          "sha256": "1dfdf802acc0dfa4b00164e77853608ffe9c1d3b9835f230c1fc0859e55bda28",
+          "title": "Issue #138: Backup variable index summaries",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-14-arc-sweeps.md",
+          "sha256": "270c01396eff99dbffe3d43ae5e61f9b3e011278efc5f0b57aa0d9ad5778f57b",
+          "title": "Issue #14: Arc angle ordering and sweep policy",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-15-bezier-contracts.md",
+          "sha256": "698496f76e788ec859e01d85d6ccf76907a8f27997db59c8edd77e961a0ac0fa",
+          "title": "Issue #15: Bézier equations, subdivision and block grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-16-table-lifecycle.md",
+          "sha256": "2df08c1e1c5d95d64df3f857dbca4fede6836e76ee32cd6d19baa025754a4757",
+          "title": "Issue #16: Live table copy and reset lifecycle",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-17-chr-scan-records.md",
+          "sha256": "590368ce8390f15edb582577548179fb902037d56e5242cd009dace47f58cbba",
+          "title": "Issue #17: CHR scan records and unused header bytes",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-18-date-time-format.md",
+          "sha256": "61a97268db9ec55fd6c794ff44fcd9d9184cb0f838a4b267316a7ceb6e05ea6b",
+          "title": "Issue #18: YEAR syntax and exact DATETIME bytes",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-19-legacy-icon-conversion.md",
+          "sha256": "a5b2ffa2b7a451bbf0194dec74b531edd6483cc73ee8691db042d1544d104ba5",
+          "title": "Issue #19: legacy icon conversion palette and filesystem effects",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-20-filedel-scope.md",
+          "sha256": "875f09013d4f670e4be7806f244dc3ab3217eac7b5901459aa0f069f6e250263",
+          "title": "Issue #20: FILEDEL directory scope, ownership and path handling",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-21-image-style.md",
+          "sha256": "868317ba2ffa02a20637160716360fd85281377dfcaf6c292788489a11eea4b9",
+          "title": "Issue #21: image-style flags, target defaults, reset and clear modes",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-22-fastfont-rendering.md",
+          "sha256": "bfb694cfec613e1c78b1974234b44c2be3a7bf316770930a363a8301f9acb01d",
+          "title": "Issue #22: FastFont fill, hollow width, overlap and byte mapping",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-23-environment-query-names.md",
+          "sha256": "d8c26213400db2b01570182c932673b8eaea71d1fb1928efd05d36372351e05b",
+          "title": "Issue #23: COLORMODE sentinel, WORLD names and environment ranges",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-24-drawing-state-ownership.md",
+          "sha256": "d1094046ecff37fc17326823a7aa18a4dc788740c191daf307039b4f79e3f292",
+          "title": "Issue #24: drawing-state ownership, defaults and text cursors",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-25-port-query-grammar.md",
+          "sha256": "5e0ac9de5d1305dee68d59c3552bcc59545706b93043aca4346d17c52b7fdaa4",
+          "title": "Issue #25: port-query argument grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-26-screen-backups.md",
+          "sha256": "d766b3fb662d69f247057dde9a072a263c895123691b5d7fe7d10728a4a61555",
+          "title": "Issue #26: screen backup capture and restore transactions",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-27-button-style-contract.md",
+          "sha256": "ba5ac2b55ac1a3224620d094718fbc6935c06592095cbccc855027d5d92f52f3",
+          "title": "Issue #27: button-style defaults, validation, geometry and transparency",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-28-tone-variable-contract.md",
+          "sha256": "fd37287bd763a3ef3363945720fc89b9db627f5bf60a2906e2e2951bf3d658ac",
+          "title": "Issue #28: tone defaults, sweep validation and MUSIC sequence",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-3-extended-font-style.md",
+          "sha256": "9d2a8ea1a836a5e48e3c71931d49f08d34af8d6932dec43af7b518c1651ceb82",
+          "title": "Issue #3: shipped extended font style derivation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-33-filled-rectangle-borders.md",
+          "sha256": "5a9c9a3e89efe6c1b072e8c6b251f1956790889d19861dbf355c46e7a93122f4",
+          "title": "Issue #33: filled-rectangle border pattern and write mode",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-38-rounded-rectangle-geometry.md",
+          "sha256": "94e48a3001328abe79bdd431b7da62e49285d548bb4a1a319a14e6e7eff25f93",
+          "title": "Issue #38: rounded-rectangle wire radius, geometry and interior",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-4-column-overflow.md",
+          "sha256": "412254a70b6176062fd56ab3a1293d62835e3b8c9042d5a1dfd179bbbe078eda",
+          "title": "Issue #4: column, article and overflow derivation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-42-clipboard-capture-state.md",
+          "sha256": "5311e505fd0f994f675c5a6a14c5b975034abf24a2cda21f3b90feac8d0c319f",
+          "title": "Issue #42: GET_IMAGE clipboard selection, protection and failure state",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-46-delay-variable-units.md",
+          "sha256": "3774af50a4b1c6ecea90e9572820996bea0f6192ea33bba93c55690334e879dc",
+          "title": "Issue #46: D text-variable delay units and timing",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-5-scene-headers.md",
+          "sha256": "678fee87426ccf7a67e67bd1317f7afc5aec26ce2132b618e3f666c64580c0a2",
+          "title": "Issue #5: scene headers and wire entry points",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-51-deferred-query-order.md",
+          "sha256": "1f031f1eb2608720ad60402744f9e3f67128ecf0a03b52247044cff1f529fa7a",
+          "title": "Issue #51: deferred query order and live mutation",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-53-host-control-brackets.md",
+          "sha256": "68650c291d76b0fb096b3110e24121494a873ae961e325c54addbfea127cc0cc",
+          "title": "Issue #53: host control notation, special keys and brackets",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-54-switch-port-precedence.md",
+          "sha256": "68d664c3c0a37a0c703097741e23b1fb1a10f32e8bda8ce26851d9e5423e79fc",
+          "title": "Issue #54: SWITCH_PORT protection order and undefined targets",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-58-load-bitmap-flags.md",
+          "sha256": "5c631b6b95194ce17879519b030fa1762f60011a703375f86d231961cf4b789d",
+          "title": "Issue #58: LOAD_BITMAP flag 16 and unknown bits",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-6-macro-evaluation.md",
+          "sha256": "4a9cdf428332f9b0177b2e338c974ba957fb5f2840e7669977371853ee7b1592",
+          "title": "Issue #6: macro evaluation and predefined variables",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-7-framing-identification.md",
+          "sha256": "7c79594f0e4d9242ad44854accdc227b7fe2e91852a8501cb6a9b7e698481e22",
+          "title": "Issue #7: framing and identification",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-72-define-port-contract.md",
+          "sha256": "799c658bf076bcb0cf74c03e13cc96a74b3f50a269cee4722e56791129d5e9c5",
+          "title": "Issue #72: DEFINE_PORT protocol contract",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-78-border-normalization.md",
+          "sha256": "bab1ab7f41b7f9a3d4f27259c2b2cd873d175476577066a8bf97fadcfa17757e",
+          "title": "Issue #78: SET_BORDER value normalization",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-79-switch-style-flags.md",
+          "sha256": "5fc3b479390fc70c7904f48d6f272e940a8eae4e4bc96a18c3c9ea3aa28e35b5",
+          "title": "Issue #79: SWITCH_STYLE width and protection flags",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-8-bmm-masks.md",
+          "sha256": "534d10842be1500203ccd541d0d8ec6ba2f9cf76e73fc2b270432df4c94d8875",
+          "title": "Issue #8: BMM masks and compositing",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-82-rff-global-bounds.md",
+          "sha256": "3289cc3f0bb85e3db6445e448a90bd21c82eb922507c85cc19eaa73c5727d982",
+          "title": "Issue #82: FastFont global bounding-box fields",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-84-dollar-argument-grammar.md",
+          "sha256": "716029d580fc54fb83cf51d5458e7713609fc1fcca39e7bac07be9d7f654778f",
+          "title": "Issue #84: dollar-reference argument byte grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-86-outline-advance-policy.md",
+          "sha256": "bb386f79e8d3135f2944bd485f636f858cbb4a2e7009935038b3174175a9fc94",
+          "title": "Issue #86: outline advances and cached cursor width",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-87-user-variable-directives.md",
+          "sha256": "2703a703d1edcce1e5852bde687a5b62e4bfdff63148162998c8c30cc43f8d02",
+          "title": "Issue #87: user-variable prefixes, scope and transparency",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-9-rgb-examples.md",
+          "sha256": "64e154428a5e4d0d89163b5482f9b5c5c46d554fc7c5909391c723aea8396820",
+          "title": "Issue #9: RGB example and palette-index arithmetic",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-90-conditional-operand-grammar.md",
+          "sha256": "0a4dd0c5c2f421cca110a4e12016d24e76571fc8cc1ab362d3c6bb96ca54abd7",
+          "title": "Issue #90: conditional operand byte grammar",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-91-outline-anchor-placement.md",
+          "sha256": "eddbe32105fd2b426714d4a5bb79ca5ef4d668d15ae6d1489e8300f7f4bb2391",
+          "title": "Issue #91: ordinary outline anchor and justification",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-93-template-embedding-limits.md",
+          "sha256": "acf56d18792a8d626ceabdce606d79e1d506b27ca049a2f5d93319578f586114",
+          "title": "Issue #93: template embedding limits and suffix effects",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-96-angle-worker-boundaries.md",
+          "sha256": "1ac94a1df5f3a89f0a11d7ea1f010802e20918dd67856b830cd77f469e85c4ac",
+          "title": "Issue #96: outer angle scanner and branch state",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        },
+        {
+          "path": "version/3.0/research/issue-97-outline-effects-boundary.md",
+          "sha256": "b5a0dc45ecfd999783336e5490be1e3617aae4b92f4d2c3c18363b7d762b9a86",
+          "title": "Issue #97: synthetic outline effects and decoration boundary",
+          "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 3224,
+        "context": 1418,
+        "pending": 1800,
+        "implemented": 1915,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8449,
+      "policy": "Editorial correction of backup index only; detailed screen and aggregate semantics unchanged. Historical SyncTERM alias omission is not a protocol restriction. RIP154 freeze and VT102 exclusion remain unchanged."
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -8135,6 +9616,99 @@
         "fixture_corrections": "Native ANSI red is the existing console 0xa80000, distinct from RIP normalized 0xaa0000. Rejected built-in arguments suppress that reference but retain the ordinary suffix. The bytewise fixture explicitly sets decimal WORLD=640x480; its earlier fZKQO literal meant 1280x960 in base36. These corrections preserve independent expected colors/coordinates and parser behavior.",
         "build_diagnostics": "No compiler diagnostics in the final native builds.",
         "source_integrity": "Reference pin and all 8410 exact source/text/heading/line/hash records are unchanged; state/evidence review and new upstream follow-up metadata only."
+      }
+    },
+    {
+      "after_commit": "78e34976",
+      "revision": "95493d2643eaecfc1a02ca4264da2c0d8a1f406e",
+      "scope": "Connect grouped SMF/RMF and whole-MOUSE COPY with persistent selection/deep owner maps, fresh field identities and current publication reconciliation; discard feedback caches from all mouse snapshots. Adopt reviewed PR137/139 via selected stable.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:80",
+        "version/3.0/ripscrip/5.1-text-variables.md:3849",
+        "version/3.0/ripscrip/5.1-text-variables.md:3851",
+        "version/3.0/ripscrip/5.1-text-variables.md:3857",
+        "version/3.0/ripscrip/5.1-text-variables.md:3879",
+        "version/3.0/ripscrip/5.1-text-variables.md:3881",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:258",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:262",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:271",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:272",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:273",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:274",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:275",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:276",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:278",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:282",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:286",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:287",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:288",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:289",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:291",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:295",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:301",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:307",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:311",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:312",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:313",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:314",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:315",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:316",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:317",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:318",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:319",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:321",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:323",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:201",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:204",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:205",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:212"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:267",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:269",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:270",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:284",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:285",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:299",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:309",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:310",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:192"
+      ],
+      "pending_source_units": [
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:280",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:293"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_mouse.c",
+        "src/terminal/rip3/st_rip3_templates.c",
+        "src/terminal/rip3/st_rip3_button_create.c"
+      ],
+      "tests": [
+        "rip3_templates",
+        "rip3_mouse_backup",
+        "syncterm_rip3_mouse_backup_CP437",
+        "syncterm_rip3_mouse_backup_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 3224,
+        "context": 1427,
+        "pending": 1752,
+        "implemented": 1954,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "policy": "Capture only complete reached logical owner maps and committed bits, including OFF/initially selected/defined-empty owners. Keep ordinary baselines and publisher frame live, retaining only same-kind/number current group publications across teardown. Prepared replacement owners apply without allocations/providers/painting; failures before swap retain complete old owners after cancellation. Stale continuation tokens cannot retarget matching public IDs. BASE and backup-to-backup copies remain immutable, per-body caps survive aggregate caps, SOFT ordinary publications stay ordinary and required radios are checked only on lookup. No snapshots retain ICON, filename or label feedback caches; first actual preview prepares fresh undo art. Definition deletion does not erase persistent button pixels. Full TW backups, aggregate SAVEALL/RESTOREALL, HEADER and remaining families are pending. RIP154 freeze, entry raster, ANSI route and VT102 exclusion stay unchanged.",
+      "documentation_followups": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/138",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/139",
+          "state": "Answered by reviewed head bbccbcb42c7e5dea96f5d52fd606a8bffc37b99b consolidated on selected stable; no existing issue content added."
+        }
+      ],
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release, /usr/bin/cc, single existing out-of-source CMake build; headless control bitmap fixtures.",
+        "result": "25 distinct relevant CTests passed. Native group/deep-copy/failure tests; CP437/UTF-8 mouse backups, groups, plain/ICON buttons at 640x480 and720x400; session/query/table/copy and existing ANSI/keyboard controls; contract/freeze preservation checks. Full build has no warnings.",
+        "limits": "No exact RIPtel raster, native display, additional compiler/platform or aggregate/HEADER acceptance claim. Unchanged passed screen checks were not repeated for editorial PR139."
       }
     }
   ]

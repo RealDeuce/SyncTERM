@@ -2280,7 +2280,7 @@ with ordinary text, and last-member deletion removes the requirement. Native
 mouse/template/session tests add failed-redraw commitment, suspended feedback
 with same-ID replacement, allocation-failure preservation and full SOFT during
 a grouped host prompt. Existing plain/clipboard/ICON tests use grouped initial
-selection under the clarified contract. Mouse-family backup/restore, explicit
+selection under the clarified contract. Explicit
 host-template clearing and HEADER operations remain separate pending work.
 
 
@@ -2294,15 +2294,15 @@ membership with saved E/X or saved absence, reusable BASE, consumed/protected
 numbered saves, PUSH/POP, SOFT retaining backups and clearing live handlers,
 shared handlers retained by field-only reset and protected snapshots retained
 by backup reset. Ordinary PLAIN, CLIPBOARD and HOT ICON definitions survive
-live-field destruction; prepared file resources support provider-free feedback
-undo without saving screen pixels. A callback restores its own definition,
+live-field destruction; fresh file resources prepared on actual preview support provider-free feedback
+undo without saving screen pixels or retaining snapshot feedback caches. A callback restores its own definition,
 suspends in the actual editor, then finishes its owned source/FIELDID once;
-subsequent input uses the restored definition. Grouped capture rejects without
-replacing a previous valid snapshot under the unresolved B136 contract.
+subsequent input uses the restored definition. Grouped capture/publication is
+covered by the PR137 extension described below.
 `rip3_mouse_backup` adds allocation and visual-copy failures, no-op versus
 applying restore boundaries, fresh tokens and suspended traversal invalidation;
 `rip3_session` covers the new owner's construction failure/teardown boundaries.
-Complete grouped snapshot publication, aggregate restore and HEADER behavior
+Aggregate restore and HEADER behavior
 remain unaccepted; no changes to normal ANSI/RIP1 rendering are introduced.
 
 
@@ -2326,3 +2326,25 @@ failed actions. Public session tests feed actions bytewise and cover paired
 native-service validation and failure/destruction boundaries. Aggregate
 SAVEALL/RESTOREALL, full TW/grouped mouse capture and HEADER remain separate
 unfinished operations; this is not full RIPtel compliance.
+
+
+The PR137 extension to both connected mouse-backup tests accepts persistent
+grouped selection/maps through real TCP sessions, in CP437 and UTF-8 at 640×480
+and 720×400. Literal documented checkbox commands independently produce
+AB/XY, later ordinary Z/XY and rebuilt AB/XY across reusable restores. Tests
+cover copied snapshots, current cross-slot publication, absent/type-changed
+publishers, OFF-owner maps, held-preview versus committed selection, zero
+implicit provider work, fresh tokens, saved radio selection, HKEYOFF and SOFT
+ordinary-publication preservation. Coherent captures prove restore does not
+repaint saved button art; logical selection can intentionally differ from
+current pixels until actual redraw. A grouped callback restores matching public
+IDs, suspends in the editor and completes FIELDID/direct output without writing
+associations into its replacement. Separate 3000/2000-byte bodies survive the
+4096-byte aggregate limit. Native template tests add defined-empty/absent maps,
+surviving empty other-group publication, literal TIME preservation and failure
+at every capture/prepare allocation. ICON files are absent during restore and
+changed before later input, proving snapshots exclude feedback resources and
+cold previews prepare fresh cancel artwork. Existing native/connected button,
+group and ANSI checks pass; no additional console pixel/damage layer is added.
+PR139 reconciles the backup index with the existing detailed screen/aggregate
+contract. Full aggregate orchestration and HEADER behavior remain pending.

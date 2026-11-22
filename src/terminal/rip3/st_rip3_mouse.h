@@ -25,7 +25,7 @@ struct st_rip3_mouse_visual {
 	int (*restore)(void *context,bool selected);
 	/* Logical state has already committed; this notification cannot undo it. */
 	void (*committed)(void *context,bool selected);
-	/* Copy owned definition/render resources without drawing or providers.
+	/* Copy owned definitions without drawing, providers or feedback caches.
 	 * owner==NULL creates a detached snapshot; otherwise a fresh live field.
 	 * Failure preserves result. Copied contexts use destroy for release. */
 	int (*copy)(const void *context,void **result,struct st_rip3_mouse *owner);
@@ -53,7 +53,8 @@ void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
  * not change capture/membership; applying restores cancels them, even on later
  * allocation failure. No pixels, providers or input gestures are restored.
  * Snapshot services borrow this session and must not move between sessions.
- * Grouped capture is unsupported pending the capture/publication contract #136. */
+ * Persistent group selection and per-owner maps are deep-owned. Current
+ * ordinary templates/publications are reconciled across fresh field tokens. */
 int st_rip3_mouse_backup_create(struct st_rip3_backup **);
 /* Bind before definitions; template state outlives every live mouse field. */
 void st_rip3_mouse_bind_templates(struct st_rip3_mouse *,struct st_rip3_templates *);

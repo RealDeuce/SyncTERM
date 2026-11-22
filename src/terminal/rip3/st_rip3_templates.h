@@ -54,6 +54,20 @@ int st_rip3_templates_associate(struct st_rip3_templates *,uint64_t token,unsign
  * owners are deleted. Allocation failure preserves every publication/owner. */
 int st_rip3_templates_preserve(struct st_rip3_templates *);
 
+/* Mouse snapshots own selection/maps only, indexed by field ordinal. Neither
+ * ordinary baselines nor publication tags enter the snapshot. Prepare all
+ * allocations with fresh field tokens before applying. Apply consumes the
+ * prepared object and preserves current ordinary slots; group publications
+ * survive only for the same kind/number. No providers, drawing or allocations
+ * occur during apply. NULL represents no grouped owners. */
+struct st_rip3_group_snapshot;
+int st_rip3_templates_capture_groups(const struct st_rip3_templates *,const uint64_t *tokens,
+	size_t count,struct st_rip3_group_snapshot **result);
+int st_rip3_templates_prepare_groups(const struct st_rip3_group_snapshot *,const uint64_t *tokens,
+	size_t count,struct st_rip3_group_snapshot **result);
+void st_rip3_templates_apply_groups(struct st_rip3_templates *,struct st_rip3_group_snapshot *);
+void st_rip3_templates_free_groups(struct st_rip3_group_snapshot *);
+
 /* Compose 1..36 numeric slot indexes in list order, replacing every literal
  * $?$ in a template with its current feed. A template without a marker discards
  * the feed. Insertions are not rescanned within that step. Correct the native

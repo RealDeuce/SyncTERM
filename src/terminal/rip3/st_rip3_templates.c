@@ -9,7 +9,7 @@ struct slot { uint8_t *bytes; size_t length; int publisher; };
 struct member {
 	struct member *next;
 	uint64_t token;unsigned group;enum st_rip3_group_kind kind;bool selected;
-	struct {uint8_t *bytes;size_t length;} bodies[36];
+	struct {uint8_t *bytes;size_t length;bool defined;} bodies[36];
 };
 struct st_rip3_templates {
 	struct slot slots[36];
@@ -165,7 +165,7 @@ st_rip3_templates_associate(struct st_rip3_templates *templates,uint64_t token,u
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);if (end!=NULL) length=(size_t)(end-bytes);
 	uint8_t *copy=length==0 ? NULL : malloc(length);if (length!=0 && copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (length!=0) memcpy(copy,bytes,length);free(m->bodies[number].bytes);
-	m->bodies[number].bytes=copy;m->bodies[number].length=length;templates->slots[number].publisher=(int)m->group;return 0;
+	m->bodies[number].bytes=copy;m->bodies[number].length=length;m->bodies[number].defined=true;templates->slots[number].publisher=(int)m->group;return 0;
 }
 
 int
@@ -185,6 +185,96 @@ st_rip3_templates_preserve(struct st_rip3_templates *templates)
 		free(templates->slots[i].bytes);templates->slots[i].bytes=copies[i];templates->slots[i].length=lengths[i];templates->slots[i].publisher=-1;
 	}
 	return 0;
+}
+
+struct st_rip3_group_snapshot {struct member *members;size_t count;};
+
+static void
+free_members(struct member *members)
+{
+	while (members!=NULL) {
+		struct member *next=members->next;
+		for (unsigned n=0;n<36;n++) free(members->bodies[n].bytes);
+		free(members);members=next;
+	}
+}
+
+void
+st_rip3_templates_free_groups(struct st_rip3_group_snapshot *snapshot)
+{
+	if (snapshot!=NULL) {free_members(snapshot->members);free(snapshot);}
+}
+
+static int
+copy_member(struct st_rip3_group_snapshot **snapshot,const struct member *source,uint64_t token)
+{
+	if (*snapshot==NULL) {
+		*snapshot=calloc(1,sizeof(**snapshot));if (*snapshot==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	}
+	struct member *copy=calloc(1,sizeof(*copy));if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*copy=(struct member){.token=token,.group=source->group,.kind=source->kind,.selected=source->selected};
+	struct member **tail=&(*snapshot)->members;while (*tail!=NULL) tail=&(*tail)->next;*tail=copy;(*snapshot)->count++;
+	for (unsigned n=0;n<36;n++) {
+		copy->bodies[n].defined=source->bodies[n].defined;
+		size_t length=source->bodies[n].length;
+		if (length!=0) {
+			copy->bodies[n].bytes=malloc(length);if (copy->bodies[n].bytes==NULL) return IO_ERROR_OUT_OF_MEMORY;
+			memcpy(copy->bodies[n].bytes,source->bodies[n].bytes,length);copy->bodies[n].length=length;
+		}
+	}
+	return 0;
+}
+
+int
+st_rip3_templates_capture_groups(const struct st_rip3_templates *templates,const uint64_t *tokens,
+    size_t count,struct st_rip3_group_snapshot **result)
+{
+	if (result==NULL || (count!=0 && tokens==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if (count>128) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_group_snapshot *copy=NULL;int status=0;
+	for (size_t i=0;templates!=NULL && i<count && status==0;i++) {
+		const struct member *m=find_member(templates,tokens[i]);
+		/* Detached snapshots retain field ordinals, never old instance tokens. */
+		if (m!=NULL) status=copy_member(&copy,m,i+1);
+	}
+	if (status!=0) {st_rip3_templates_free_groups(copy);return status;}
+	*result=copy;return 0;
+}
+
+int
+st_rip3_templates_prepare_groups(const struct st_rip3_group_snapshot *snapshot,const uint64_t *tokens,
+    size_t count,struct st_rip3_group_snapshot **result)
+{
+	if (result==NULL || (count!=0 && tokens==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if (count>128) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_group_snapshot *copy=NULL;int status=0;
+	for (const struct member *m=snapshot==NULL ? NULL : snapshot->members;m!=NULL && status==0;m=m->next) {
+		if (m->token==0 || m->token>count || tokens[m->token-1]==0) status=IO_ERROR_INVALID_ARGUMENT;
+		else status=copy_member(&copy,m,tokens[m->token-1]);
+	}
+	if (status!=0) {st_rip3_templates_free_groups(copy);return status;}
+	*result=copy;return 0;
+}
+
+void
+st_rip3_templates_apply_groups(struct st_rip3_templates *templates,struct st_rip3_group_snapshot *prepared)
+{
+	if (templates==NULL) {st_rip3_templates_free_groups(prepared);return;}
+	enum st_rip3_group_kind old[36]={0},current[36]={0};
+	for (const struct member *m=templates->members;m!=NULL;m=m->next) old[m->group]=m->kind;
+	for (const struct member *m=prepared==NULL ? NULL : prepared->members;m!=NULL;m=m->next) current[m->group]=m->kind;
+	for (unsigned n=0;n<36;n++) {
+		int publisher=templates->slots[n].publisher;
+		if (publisher>=0 && (current[publisher]==ST_RIP3_GROUP_NONE || current[publisher]!=old[publisher]))
+			templates->slots[n].publisher=-1;
+	}
+	/* Swap complete owners before old mouse fields are destroyed. Their stale
+	 * token removals then cannot clear surviving publications. Effective bytes
+	 * are composed lazily by the existing lookup path from these fresh owners. */
+	free_members(templates->members);
+	templates->members=prepared==NULL ? NULL : prepared->members;
+	templates->count=prepared==NULL ? 0 : prepared->count;
+	free(prepared);
 }
 
 static void

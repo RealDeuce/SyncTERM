@@ -111,24 +111,49 @@ static int failures(void)
 	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0);
 	st_rip3_mouse_destroy(f.mouse);st_rip3_backup_destroy(backup);CHECK(st_rip3_hover_test_live==0);return 0;
 }
+static int template_value(struct st_rip3_templates *templates,unsigned n,const char *expected)
+{
+	struct st_rip3_template_bytes value;
+	CHECK(st_rip3_templates_resolve(templates,n,&value)==0 && value.length==strlen(expected));
+	CHECK(value.length==0 || memcmp(value.bytes,expected,value.length)==0);return 0;
+}
 static int grouped_capture(void)
 {
 	struct fixture f={0};struct st_rip3_backup *backup=NULL;CHECK(begin(&f,&backup)==0);
 	struct st_rip3_templates *templates=NULL;CHECK(st_rip3_templates_create(&templates)==0);
-	/* Bind a fresh owner before definitions; the ordinary snapshot remains a
-	 * valid previous save when a later grouped capture is rejected. */
 	st_rip3_mouse_kill(f.mouse);st_rip3_mouse_bind_templates(f.mouse,templates);
-	const struct st_rip3_rect a={10,10,30,30};
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&a,true,false,7,(const uint8_t *)"a",1,NULL)==0);
-	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0);
+	const struct st_rip3_rect area={10,10,30,30};
 	const struct st_rip3_mouse_binding binding={.hotkey='b',.group=2,.group_kind=ST_RIP3_GROUP_CHECKBOX,.selected=true};
-	const struct st_rip3_rect b={40,10,60,30};
-	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&b,false,false,8,(const uint8_t *)"b",1,NULL)==0);
-	size_t attempts=st_rip3_hover_test_attempts;
-	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==IO_ERROR_NOT_SUPPORTED && st_rip3_hover_test_attempts==attempts);
-	CHECK(st_rip3_mouse_count(f.mouse)==2 && st_rip3_mouse_key(f.mouse,'b') && strcmp(f.output,"b8")==0);clear(&f);
-	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0 && st_rip3_mouse_count(f.mouse)==1);
-	CHECK(!st_rip3_mouse_key(f.mouse,'b'));
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,false,false,8,(const uint8_t *)"b",1,NULL)==0);
+	/* Definition sequence is three: the two begin() fields were removed.
+	 * A selected field has no associations until actually reached. */
+	CHECK(st_rip3_templates_associate(templates,3,2,(const uint8_t *)"A",1)==0);
+	CHECK(st_rip3_templates_associate(templates,3,3,(const uint8_t *)"X",1)==0);
+	CHECK(st_rip3_backup_save(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0);
+	CHECK(st_rip3_mouse_key(f.mouse,'b') && strcmp(f.output,"b8")==0);clear(&f);
+	CHECK(template_value(templates,2,"")==0 && template_value(templates,3,"")==0);
+	CHECK(st_rip3_templates_set(templates,2,(const uint8_t *)"Z",1)==0);
+	st_rip3_mouse_hotkeys(f.mouse,false);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0 && f.used==0);
+	CHECK(template_value(templates,2,"Z")==0 && template_value(templates,3,"X")==0);
+	CHECK(!st_rip3_mouse_key(f.mouse,'b'));st_rip3_mouse_hotkeys(f.mouse,true);
+	CHECK(st_rip3_templates_button_selected(templates,4) && !st_rip3_templates_button_selected(templates,3));
+	CHECK(st_rip3_templates_associate(templates,3,2,(const uint8_t *)"stale",5)==0);
+	CHECK(template_value(templates,2,"Z")==0);
+	CHECK(st_rip3_templates_associate(templates,4,2,(const uint8_t *)"changed",7)==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0);
+	CHECK(template_value(templates,2,"A")==0 && template_value(templates,3,"X")==0);
+	/* Applying failure cancels input but leaves complete old maps/publications.
+	 * No restored field is admitted by a failed definition allocation. */
+	CHECK(st_rip3_mouse_event(f.mouse,20,20,true));
+	st_rip3_hover_test_fail_at=st_rip3_hover_test_attempts+1;
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==IO_ERROR_OUT_OF_MEMORY);
+	st_rip3_hover_test_fail_at=SIZE_MAX;
+	CHECK(!st_rip3_mouse_event(f.mouse,20,20,false) && f.used==0);
+	CHECK(template_value(templates,2,"A")==0 && st_rip3_templates_button_selected(templates,5));
+	st_rip3_mouse_kill(f.mouse);CHECK(template_value(templates,2,"Z")==0 && template_value(templates,3,"")==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,f.mouse)==0);
+	CHECK(template_value(templates,2,"Z")==0 && template_value(templates,3,"")==0);
 	st_rip3_mouse_destroy(f.mouse);st_rip3_backup_destroy(backup);st_rip3_templates_destroy(templates);
 	CHECK(st_rip3_hover_test_live==0);return 0;
 }

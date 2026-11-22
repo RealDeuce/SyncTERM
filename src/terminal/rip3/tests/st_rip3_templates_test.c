@@ -97,10 +97,95 @@ static int groups(void)
 	st_rip3_templates_destroy(t);return 0;
 }
 
+static int snapshot_groups(void)
+{
+	struct st_rip3_templates *t=NULL;uint64_t redraw[128];size_t count;
+	struct st_rip3_group_snapshot *saved=NULL,*prepared=NULL;
+	CHECK(st_rip3_templates_create(&t)==0);
+	CHECK(st_rip3_templates_button_add(t,10,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
+	CHECK(st_rip3_templates_button_add(t,20,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,10,2,(const uint8_t *)"A",1)==0);
+	CHECK(st_rip3_templates_associate(t,10,3,(const uint8_t *)"X",1)==0);
+	CHECK(st_rip3_templates_associate(t,20,2,(const uint8_t *)"B",1)==0);
+	CHECK(st_rip3_templates_associate(t,20,3,(const uint8_t *)"Y",1)==0);
+	CHECK(value(t,2,"AB")==0 && value(t,3,"XY")==0);
+	CHECK(st_rip3_templates_capture_groups(t,(const uint64_t[]){10,20},2,&saved)==0);
+	CHECK(st_rip3_templates_button_activate(t,10,redraw,&count)==0 && set(t,2,"Z")==0);
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){30,40},2,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);prepared=NULL;
+	CHECK(value(t,2,"Z")==0 && value(t,3,"XY")==0);
+	CHECK(st_rip3_templates_button_activate(t,30,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,30,2,(const uint8_t *)"changed",7)==0);
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){50,60},2,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);prepared=NULL;
+	CHECK(value(t,2,"AB")==0 && value(t,3,"XY")==0);
+	st_rip3_templates_button_remove(t,50);st_rip3_templates_button_remove(t,60);
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){70,80},2,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);prepared=NULL;
+	CHECK(value(t,2,"Z")==0 && value(t,3,"")==0);
+	/* Same numeric group with the other kind cannot retain publication. */
+	st_rip3_templates_button_remove(t,70);st_rip3_templates_button_remove(t,80);
+	CHECK(st_rip3_templates_button_add(t,90,2,ST_RIP3_GROUP_RADIO,true,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,90,3,(const uint8_t *)"radio",5)==0);
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){100,110},2,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);prepared=NULL;
+	CHECK(value(t,3,"")==0);
+	/* Another surviving group retains cross-slot publication, even empty. */
+	CHECK(st_rip3_templates_button_add(t,120,4,ST_RIP3_GROUP_CHECKBOX,false,redraw,&count)==0);
+	CHECK(st_rip3_templates_associate(t,120,3,(const uint8_t *)"H",1)==0);
+	st_rip3_templates_free_groups(saved);saved=NULL;
+	CHECK(st_rip3_templates_capture_groups(t,(const uint64_t[]){100,110,120},3,&saved)==0);
+	CHECK(st_rip3_templates_button_activate(t,120,redraw,&count)==0 && value(t,3,"H")==0);
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){130,140,150},3,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);prepared=NULL;
+	CHECK(value(t,3,"")==0);
+	CHECK(st_rip3_templates_button_activate(t,150,redraw,&count)==0 && value(t,3,"H")==0);
+	st_rip3_templates_free_groups(saved);saved=NULL;
+	/* Full per-owner bodies survive the aggregate cap; OFF and empty entries
+	 * are retained, never replaced by the currently assembled bytes. */
+	uint8_t a[3000],b[2000];memset(a,'A',sizeof(a));memset(b,'B',sizeof(b));
+	CHECK(st_rip3_templates_associate(t,130,2,a,sizeof(a))==0);
+	CHECK(st_rip3_templates_associate(t,140,2,b,sizeof(b))==0);
+	CHECK(st_rip3_templates_associate(t,140,35,NULL,0)==0);
+	CHECK(st_rip3_templates_associate(t,140,34,(const uint8_t *)"$TIME$",6)==0);
+	CHECK(st_rip3_templates_capture_groups(t,(const uint64_t[]){130,140,150},3,&saved)==0);
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){160,170,180},3,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);prepared=NULL;
+	extern bool st_rip3_templates_test_defined(const struct st_rip3_templates *,uint64_t,unsigned);
+	CHECK(st_rip3_templates_test_defined(t,170,35) && !st_rip3_templates_test_defined(t,170,33));
+	CHECK(value(t,34,"$TIME$")==0);
+	CHECK(st_rip3_templates_button_activate(t,160,redraw,&count)==0);
+	struct st_rip3_template_bytes v;CHECK(st_rip3_templates_resolve(t,2,&v)==0 && v.length==2000);
+	for (size_t i=0;i<v.length;i++) CHECK(v.bytes[i]=='B');
+	/* Every capture/prepare allocation fails independently, leaving both live
+	 * state and a reusable saved snapshot intact. */
+	extern size_t st_rip3_templates_test_attempts,st_rip3_templates_test_fail_at;
+	for (size_t fail=0;;fail++) {
+		st_rip3_templates_test_fail_at=st_rip3_templates_test_attempts+fail;
+		int status=st_rip3_templates_capture_groups(t,(const uint64_t[]){160,170,180},3,&prepared);
+		st_rip3_templates_test_fail_at=SIZE_MAX;
+		if (status==0) {st_rip3_templates_free_groups(prepared);prepared=NULL;break;}
+		CHECK(status==IO_ERROR_OUT_OF_MEMORY && prepared==NULL && fail<32);
+		CHECK(st_rip3_templates_resolve(t,2,&v)==0 && v.length==2000);
+	}
+	for (size_t fail=0;;fail++) {
+		st_rip3_templates_test_fail_at=st_rip3_templates_test_attempts+fail;
+		int status=st_rip3_templates_prepare_groups(saved,(const uint64_t[]){190,200,210},3,&prepared);
+		st_rip3_templates_test_fail_at=SIZE_MAX;
+		if (status==0) {st_rip3_templates_free_groups(prepared);prepared=NULL;break;}
+		CHECK(status==IO_ERROR_OUT_OF_MEMORY && prepared==NULL && fail<32);
+	}
+	CHECK(st_rip3_templates_prepare_groups(saved,(const uint64_t[]){190,200,210},3,&prepared)==0);
+	st_rip3_templates_apply_groups(t,prepared);
+	CHECK(st_rip3_templates_resolve(t,2,&v)==0 && v.length==4096);
+	for (size_t i=0;i<v.length;i++) CHECK(v.bytes[i]==(i<3000 ? 'A' : 'B'));
+	st_rip3_templates_free_groups(saved);st_rip3_templates_destroy(t);return 0;
+}
+
 int
 main(void)
 {
-	CHECK(groups()==0);
+	CHECK(groups()==0 && snapshot_groups()==0);
 	struct st_rip3_templates *slots=NULL;struct st_rip3_template_bytes view;
 	CHECK(st_rip3_templates_create(&slots)==0);
 	for (unsigned i=0; i<36; i++) CHECK(st_rip3_templates_resolve(slots,i,&view)==0 && view.length==0);

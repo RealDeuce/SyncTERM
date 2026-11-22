@@ -262,10 +262,6 @@ paint_effects(const struct st_rip3_command_host *host,const struct st_rip3_port_
 	return status;
 }
 
-/* Immutable decoded file resources can be shared by detached definitions.
- * Retaining these objects never captures a screen/clipboard pixel plane. */
-struct prepared_icon {size_t references;struct st_rip3_bitmap *bitmap;};
-
 /* A resident field and at most one renderer job share this logical descriptor.
  * No scene pixels are retained here. The field destructor invalidates it before
  * dropping its reference; a suspended job cannot observe a reused instance. */
@@ -288,7 +284,7 @@ struct button {
 	uint8_t label_value[4*255+1];size_t label_value_length;
 	/* Reuse prepared ICON resources for provider/file-free feedback undo.
 	 * These are the existing decoded objects, never a new scene pixel plane. */
-	struct prepared_icon *images[2];
+	struct st_rip3_bitmap *images[2];
 	uint8_t program[];
 };
 enum render_stage { FILENAME, FILENAME_VALUE, FACE, LABEL, LABEL_VALUE, FINISH };
@@ -297,7 +293,7 @@ struct render_job {
 	struct st_rip3_bitmap *bitmap;
 	enum render_stage stage;
 	uint64_t scene;
-	bool creation,worker_owned,operation;
+	bool creation,worker_owned,operation,prepare_undo,undo_selected;
 };
 struct st_rip3_button_renderer {
 	const struct st_rip3_command_host *host;
@@ -308,15 +304,9 @@ struct st_rip3_button_renderer {
 };
 
 static void
-release_icon(struct prepared_icon *icon)
-{
-	if (icon!=NULL && --icon->references==0) {st_rip3_bitmap_destroy(icon->bitmap);free(icon);}
-}
-
-static void
 release_button(struct button *button)
 {
-	if (--button->references==0) {release_icon(button->images[0]);release_icon(button->images[1]);free(button);}
+	if (--button->references==0) {st_rip3_bitmap_destroy(button->images[0]);st_rip3_bitmap_destroy(button->images[1]);free(button);}
 }
 
 static void clear_inversion(struct button *button);
@@ -326,7 +316,9 @@ remove_button(void *context)
 {
 	struct button *button=context;
 	if (button->alive) {
-		clear_inversion(button);button->alive=false;
+		/* Capture cancellation has already removed temporary feedback. Deleting
+		 * a definition must not erase persistently selected button pixels. */
+		button->alive=false;
 		struct st_rip3_button_renderer *renderer=button->host.buttons;
 		if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==button)
 			st_rip3_button_renderer_cancel(renderer);
@@ -624,20 +616,24 @@ face_stage(struct render_job *job)
 		}
 	}
 	if (b->mouse && job->creation && st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
-	struct prepared_icon *prepared=NULL;
-	if (job->bitmap!=NULL && (b->style.flags&4096)!=0) {
-		prepared=calloc(1,sizeof(*prepared));if (prepared==NULL) return IO_ERROR_OUT_OF_MEMORY;
-		prepared->references=1;
+	if (job->prepare_undo && (b->style.flags&4096)!=0 && b->images[job->undo_selected ? 1 : 0]==NULL) {
+		/* Restored definitions have no feedback cache. Prepare the committed
+		 * ICON state during this actual preview, with the same resolved name,
+		 * so later cancellation runs no providers or file operations. */
+		struct st_rip3_bitmap *undo=NULL;bool selected=b->selected;b->selected=job->undo_selected;
+		status=load_icon(b,&undo);b->selected=selected;
+		if (status!=0) return status;
+		if ((b->style.flags&4096)!=0) b->images[job->undo_selected ? 1 : 0]=undo;
+		else st_rip3_bitmap_destroy(undo);
 	}
 	job->operation=true;
 	status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,job);
-	if (status==0 && prepared!=NULL) {
-		unsigned state=b->selected ? 1 : 0;release_icon(b->images[state]);
-		prepared->bitmap=job->bitmap;b->images[state]=prepared;job->bitmap=NULL;prepared=NULL;
+	if (status==0 && job->bitmap!=NULL && (b->style.flags&4096)!=0) {
+		unsigned state=b->selected ? 1 : 0;st_rip3_bitmap_destroy(b->images[state]);
+		b->images[state]=job->bitmap;job->bitmap=NULL;
 	}
-	free(prepared);
 	if ((b->style.flags&4096)==0) {
-		release_icon(b->images[0]);release_icon(b->images[1]);b->images[0]=b->images[1]=NULL;
+		st_rip3_bitmap_destroy(b->images[0]);st_rip3_bitmap_destroy(b->images[1]);b->images[0]=b->images[1]=NULL;
 	}
 	st_rip3_bitmap_destroy(job->bitmap);job->bitmap=NULL;
 	if (status!=0) return status;
@@ -688,9 +684,10 @@ step_job(struct render_job *job,struct st_rip3_graphical *worker)
 }
 
 static int
-run_synchronous(struct button *b,bool creation,bool *operation)
+run_synchronous(struct button *b,bool creation,bool previous,bool *operation)
 {
-	struct render_job job={.button=b,.creation=creation,.scene=st_rip3_mouse_scene(b->host.mouse)};
+	struct render_job job={.button=b,.creation=creation,.scene=st_rip3_mouse_scene(b->host.mouse),
+	    .prepare_undo=!creation && previous!=b->selected,.undo_selected=previous};
 	int status=0;
 	while (status==0 && job.stage!=FINISH && valid_job(&job)) status=step_job(&job,NULL);
 	if (status==0 && valid_job(&job) && (!creation || !b->mouse || (b->hit.x0<b->hit.x1 && b->hit.y0<b->hit.y1))) status=finish_button(&job);
@@ -701,13 +698,14 @@ run_synchronous(struct button *b,bool creation,bool *operation)
 static int
 select_button(void *context,bool selected)
 {
-	struct button *b=context;b->selected=selected;
+	struct button *b=context;bool previous=b->selected;b->selected=selected;
 	struct st_rip3_button_renderer *renderer=b->host.buttons;
-	if (renderer==NULL) return run_synchronous(b,false,NULL);
+	if (renderer==NULL) return run_synchronous(b,false,previous,NULL);
 	if (renderer->job!=NULL && renderer->job->button==b) st_rip3_button_renderer_cancel(renderer);
 	if (renderer->job!=NULL || st_rip3_graphical_pending(renderer->worker)) return IO_ERROR_BUSY;
 	struct render_job *job=calloc(1,sizeof(*job));if (job==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	b->references++;*job=(struct render_job){.button=b,.scene=st_rip3_mouse_scene(b->host.mouse)};
+	b->references++;*job=(struct render_job){.button=b,.scene=st_rip3_mouse_scene(b->host.mouse),
+	    .prepare_undo=previous!=selected,.undo_selected=previous};
 	renderer->job=job;return 0;
 }
 
@@ -732,8 +730,7 @@ restore_button(void *context,bool selected)
 		int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,invert_button,b);
 		if (status==0) b->inversion_applied=desired;return status;
 	}
-	struct prepared_icon *prepared=b->images[selected ? 1 : 0];
-	struct st_rip3_bitmap *image=prepared==NULL ? NULL : prepared->bitmap;
+	struct st_rip3_bitmap *image=b->images[selected ? 1 : 0];
 	if (image==NULL) return 0; /* A failed preview never replaces prepared art. */
 	struct render_job job={.button=b,.bitmap=image,.scene=st_rip3_mouse_scene(b->host.mouse)};
 	int status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,&job);
@@ -746,8 +743,6 @@ static int
 copy_button(const void *context,void **result,struct st_rip3_mouse *owner)
 {
 	const struct button *source=context;
-	for (unsigned i=0;i<2;i++) if (source->images[i]!=NULL && source->images[i]->references==SIZE_MAX)
-		return IO_ERROR_OUT_OF_RANGE;
 	struct button *copy=malloc(sizeof(*copy)+source->program_length);if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(copy,source,sizeof(*copy)+source->program_length);
 	copy->references=1;copy->alive=owner!=NULL;copy->selected=false;copy->inversion_applied=false;
@@ -756,7 +751,9 @@ copy_button(const void *context,void **result,struct st_rip3_mouse *owner)
 		copy->host.mouse=owner;
 		copy->generation=st_rip3_ports_generation(copy->host.ports,copy->target);
 	}
-	for (unsigned i=0;i<2;i++) if (copy->images[i]!=NULL) copy->images[i]->references++;
+	/* Logical configuration/source survives; held-preview resources do not. */
+	copy->images[0]=copy->images[1]=NULL;copy->name[0]=0;
+	memset(copy->label_value,0,sizeof(copy->label_value));copy->label_value_length=0;copy->label_expanded=false;
 	*result=copy;return 0;
 }
 
@@ -842,6 +839,6 @@ st_rip3_button_create_execute(const struct st_rip3_command_host *host,const uint
 {
 	if (host->buttons!=NULL) {st_rip3_button_renderer_start(host->buttons,command,length);*operation=true;return 0;}
 	struct button *b=NULL;int status=prepare_button(host,command,length,false,&b);
-	if (status==0 && b!=NULL) {status=run_synchronous(b,true,operation);release_button(b);}
+	if (status==0 && b!=NULL) {status=run_synchronous(b,true,b->selected,operation);release_button(b);}
 	return status;
 }
