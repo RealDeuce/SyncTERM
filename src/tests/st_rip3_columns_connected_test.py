@@ -14,9 +14,14 @@ from st_rip3_scroll_connected_test import plane_pixel
 from st_terminal_conformance_test import Terminal
 
 
-# RIPtel MicroANSI 640x480 80x43 bank, glyph codes 0x41 and 0x82.
+# RIPtel MicroANSI 640x480 80x43 bank, with the accent at glyph code 0x82.
 CAPITAL_A = bytes.fromhex("38 6c c6 c6 fe fe c6 c6 c6 00 00")
 ACCENT = bytes.fromhex("04 08 10 00 78 cc fc c0 78 00 00")
+DOLLAR = bytes.fromhex("00 30 30 7c c0 78 0c f8 30 30 00")
+AMPERSAND = bytes.fromhex("38 38 6c 38 70 de cc 76 76 00 00")
+CAPITAL_V = bytes.fromhex("c6 c6 c6 c6 c6 c6 6c 38 38 00 00")
+BACKSLASH = bytes.fromhex("80 c0 60 30 18 0c 06 03 01 00 00")
+PIPE = bytes.fromhex("00 30 30 30 30 00 30 30 30 30 00")
 RED = 0xAA0000
 GREEN = 0x00AA00
 
@@ -244,6 +249,73 @@ def check_prewrapped(terminal, accent):
     check_pixels(frame, (428, 282, 440, 298), [(430, 285, CAPITAL_A, GREEN)])
 
 
+def check_prewrapped_contract(terminal, accent, encoding):
+    terminal.case("Prewrapped text is literal after framing and strips backslashes once")
+    terminal.exchange(query(b"$-=V=A$", at_cursor=True))
+    frame = terminal.exchange(commands(
+        b"c02", region((500, 28, 619, 60), 35, 31), b"1t0A$&V$" + accent,
+        b"1t0A\\A A\\\\A A\\|A \t", b"1E"))
+    check_pixels(frame, (499, 27, 620, 61),
+                 [(500, 28, CAPITAL_A, GREEN), (508, 28, DOLLAR, GREEN),
+                  (516, 28, AMPERSAND, GREEN), (524, 28, CAPITAL_V, GREEN),
+                  (532, 28, DOLLAR, GREEN), (540, 28, ACCENT, GREEN),
+                  (500, 39, CAPITAL_A, GREEN), (508, 39, CAPITAL_A, GREEN),
+                  (524, 39, CAPITAL_A, GREEN), (532, 39, BACKSLASH, GREEN),
+                  (540, 39, CAPITAL_A, GREEN), (556, 39, CAPITAL_A, GREEN),
+                  (564, 39, PIPE, GREEN), (572, 39, CAPITAL_A, GREEN)])
+
+    terminal.case("Inactive viewport and invalid or unsupported justification leave placement intact")
+    invalid_encoding = (b"1t0\xc3",) if encoding == "UTF-8" else ()
+    frame = terminal.exchange(commands(region((500, 85, 539, 117), 35, 32), b"v00000000", b"1t0A",
+                                       b"v0000" + number(639, 2) + number(479, 2))
+                              + query(b"$BASEMATH(CUR,64)$", at_cursor=True)
+                              + commands(b"1t2A", b"1t#A", b"1t&A", b"1t?A", *invalid_encoding,
+                                       b"1t0" + accent, b"1t0\\ \t", b"1t0A", b"1E")
+                              + query(b"alive$BASEMATH(CUR,36)$", at_cursor=True), b"alive")
+    check_pixels(frame, (499, 84, 540, 118),
+                 [(500, 85, ACCENT, GREEN), (500, 107, CAPITAL_A, GREEN)])
+
+    terminal.case("Classic stroke top adjustment, inclusive fit, and line step are independent")
+    # Original LITT.CHR has cap=7, descent=-2 and a pipe from (0,6) to (0,0).
+    # Size 2 is 2/3: A=6, D=1, K=2, L=7. The first two fitted references
+    # are 134 and 141. At a column top of 130 the fit thresholds are 135 and 142.
+    frame = terminal.exchange(commands(
+        b"Y02010200", region((510, 130, 519, 142), 34, 33), region((535, 130, 544, 141), 35, 33),
+        b"1t0\\|", b"1t0\\|", b"1t0\\|", b"1t0\\|", b"1E", b"Y00000100"))
+    stroke = b"\x80" * 5
+    check_pixels(frame, (508, 128, 548, 148),
+                 [(510, 130, stroke, GREEN), (510, 137, stroke, GREEN), (535, 130, stroke, GREEN)])
+
+    terminal.case("Changing font preserves a continuation column's recorded first line")
+    frame = terminal.exchange(commands(
+        region((510, 174, 519, 184), 34, 34), region((535, 174, 544, 192), 35, 34),
+        b"1t0A", b"Y02000200", b"1t0\\|", b"1E", b"Y00000100"))
+    check_pixels(frame, (508, 172, 548, 193), [(510, 174, CAPITAL_A, GREEN), (535, 176, stroke, GREEN)])
+
+    terminal.case("Classic strokes project WORLD metrics and justify in the device column")
+    # Half scale gives A=3, D=0, K=1, L=3, with a two-pixel stroke above each
+    # reference. The three glyph advances measure four device pixels in a
+    # ten-pixel column, so the second pipe shifts six pixels to the right.
+    frame = terminal.exchange(query(b"$WORLD(CUR,1280,960)$", at_cursor=True)
+                              + commands(b"Y02000200", region((1020, 420, 1038, 430), 35, 35),
+                                         b"1t1\\| \\|", b"1t1\\| \\|", b"1t0\\|", b"1E", b"Y00000100")
+                              + query(b"$WORLD(CUR,640,480)$", at_cursor=True))
+    stroke = b"\x80" * 3
+    check_pixels(frame, (508, 208, 522, 218),
+                 [(510, 210, stroke, GREEN), (519, 210, stroke, GREEN),
+                  (510, 213, stroke, GREEN), (519, 213, stroke, GREEN)])
+
+    terminal.case("Prewrapped exhaustion leaves overflow available for subsequent prose")
+    frame = terminal.exchange(commands(extended((595, 175, 602, 185), 35, 35, 1),
+                                       b"1t1AA", b"1t0A", b"1E")
+                              + query(b"$OVERFLOW(35,NEXT,QUERY)$", at_cursor=True), b"<NONE>")
+    check_pixels(frame, (594, 174, 611, 186), [(595, 175, CAPITAL_A, GREEN), (603, 175, CAPITAL_A, GREEN)])
+    frame = terminal.exchange(commands(region((595, 190, 602, 200), 35, 35)) + b"A A\r\n!|1E\r\n"
+                              + query(b"$OVERFLOW(35,NEXT,QUERY)$", at_cursor=True),
+                              re.compile(rb"\d{3,5}Z0001\.OVR"))
+    check_pixels(frame, (594, 189, 611, 201), [(595, 190, CAPITAL_A, GREEN)])
+
+
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -338,6 +410,7 @@ def run(args):
         terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
         check_selection(terminal, accent)
         check_prewrapped(terminal, accent)
+        check_prewrapped_contract(terminal, accent, args.encoding)
 
         terminal.case("RIPv3 regions use the selected outline font and preserve the drawing cursor")
         wire(full_view, b"m8C8C", b"c04",

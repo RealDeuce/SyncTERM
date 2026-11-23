@@ -9289,29 +9289,38 @@ pacing, rate queries across a scene reset, ENV selection and backup restore.
 ## Connected prewrapped column text
 
 `1T` projects its normalized corners to device coordinates and assigns the
-selected global column slot to an article. `1t` expands one prewrapped line
-and draws it horizontally with the live classic or outline font, drawing
-color and write mode. A protected port skips the line and preserves the
-article cursor. The column supplies the absolute device anchor and the
-current viewport clips the ink. A line too tall for its current slot moves
+selected global column slot to an article. `1t` draws one literal prewrapped
+line horizontally with the live classic or outline font, drawing color and
+write mode. An inactive viewport or protected port skips placement and
+preserves the article cursor. The column supplies the absolute device anchor
+and the viewport clips the ink. A line too tall for its current slot moves
 once to the next slot of the selected article. Each painted line advances
-using the font selected for that line and can leave the cursor in the next
-slot. A blank at the start of a continuation column advances only when the
-previous column overlaps it and begins above it. A prewrapped line leaves
-pending raw prose for the article's normal flush.
+using its current font and can leave the cursor at the next slot's first
+line position. A blank at the start of a continuation column advances only
+when the previous column overlaps it and begins above it. Pending raw prose
+stays queued for the article's normal flush. Overflow capture receives only
+ordinary article prose.
 
-The original routine at RVA `0x03c00a` accepts justification 0 and 1 and trims
-trailing whitespace. Mode 1 keeps a single word or a space-indented line
-left-aligned. Otherwise it distributes signed padding across the existing
-space-separated runs, so a line wider than the column can compress its
-gaps. Search highlighting compares the complete painted run, including any
-spaces. The original wire handler sets the viewport clip through
-`0x0342ad` and `0x013d27`.
+The numeric justification digit uses the active radix. Values above 1 skip
+placement. The original routine at RVA `0x03c00a` trims trailing whitespace,
+supplies a space for an empty result and then removes backslashes in a
+forward pass that retains the second of two adjacent backslashes. Mode 1
+keeps a single word or a space-indented line left-aligned. Otherwise it
+distributes signed padding across the existing space-separated runs, so a
+line wider than the column can compress its gaps. Search highlighting
+compares the complete painted run, including any spaces.
 
-Raw and prewrapped lines share their vertical metrics. The bitmap font uses
-the magnified cell height. CHR uses the scaled cap-to-descender span,
-truncated before adding one for the inclusive height. The upright outline
-path rounds the RFF cap, ascender and descender alignments at the live Y DPI.
+The bitmap font uses the magnified cell height. For prewrapped CHR text,
+`H` is the cap-to-descender span scaled by the size ratio and truncated in
+WORLD units. The baseline, first-line adjustment, bottom fit and line step
+project `H`, `H − scaled cap`, `H − scaled descender` and `H + 1` separately.
+Each newly selected column starts above its nominal top by the first-line adjustment
+and a font change retains its recorded ordinate. The stroke reference uses
+the native device-to-WORLD round trip. At unequal WORLD and device scales,
+horizontal justification uses device widths throughout.
+
+The upright outline path rounds the RFF cap, ascender and descender
+alignments at the live Y DPI.
 The cap alignment sets the baseline relative to the column top. Bottom fit is
 the cap alignment plus descent and one. Line advance uses the separate
 ascender alignment plus descent and the face's leading from style byte
@@ -9331,11 +9340,13 @@ still accepts prewrapped lines after either command. Drawing resets remove
 the column definitions.
 
 Connected CP437 and UTF-8 cases compare both pixel planes with original
-MicroANSI glyph masks. They exercise signed padding, mixed raw and prewrapped
-input, column transitions, protected ports, viewport clipping and a font size
-change between lines. They also draw with Dixon and check the graphics cursor.
-The adopted `1t` contract specifies literal input, a no-op under an inactive
-viewport and further classic font metric rules. Those changes remain pending.
+MicroANSI glyph masks and stroke endpoints from LITT.CHR. They cover literal
+variable syntax, adjacent and trailing backslashes, ignored modes, invalid
+input recovery, an inactive viewport, both signs of padding, mixed raw and
+prewrapped input, column transitions and clipping. The CHR checks cover exact
+bottom fit, font changes at a continuation, identity and half-scale WORLD
+geometry. The Dixon cases check placement and preservation of the graphics
+cursor.
 [PR #180](https://github.com/bbs-land/remote-imaging-protocol/pull/180)
 
 ## Connected raw article flow and search highlighting

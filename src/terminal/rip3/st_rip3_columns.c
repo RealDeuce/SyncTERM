@@ -95,13 +95,16 @@ struct column_line {
 	struct st_rip3_classic_font classic;
 	struct st_rip3_outline_font outline;
 	struct st_rip3_outline_layout layout;
+	struct st_rip3_classic_scale stroke_scale;
+	struct st_rip3_frame frame;
+	struct st_rip3_point viewport_origin;
 	const uint8_t *glyphs;
 	size_t length;
 	unsigned rgb_bits;
 	uint8_t foreground, background;
 	const struct st_rip3_column_search *search;
-	int64_t baseline, fit, advance;
-	int32_t x, y;
+	int64_t baseline, fit, advance, first_offset;
+	int64_t x, y;
 	double width;
 	bool prewrapped, justify;
 };
@@ -119,12 +122,40 @@ struct st_rip3_article_flow {
 	bool prepared, newline, previous_cr, dropping_word, retention_failed;
 };
 
+static int64_t
+device_y(const struct st_rip3_frame *frame, int64_t world_y)
+{
+	return world_y * frame->device_height / frame->world_height;
+}
+
+static int
+prepare_stroke_column(struct column_line *line)
+{
+	const struct st_rip3_chr *stroke = &line->classic.data.stroke;
+	const struct st_rip3_frame *frame = &line->frame;
+	line->stroke_scale = st_rip3_classic_stroke_scale(line->style.font.magnification);
+	int64_t numerator = line->stroke_scale.numerator;
+	int64_t denominator = line->stroke_scale.denominator;
+	if (denominator == 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	int64_t reference = (stroke->capital - stroke->descender) * numerator / denominator;
+	int64_t cap = stroke->capital * numerator / denominator;
+	int64_t descender = stroke->descender * numerator / denominator;
+	/* The CHR height, top adjustment, fit and line step convert separately
+	 * from WORLD units. Combining them before truncation changes fit. */
+	line->baseline = device_y(frame, reference);
+	line->first_offset = -device_y(frame, reference - cap);
+	line->fit = device_y(frame, reference - descender) + 1;
+	line->advance = device_y(frame, reference + 1);
+	return 0;
+}
+
 static int
 prepare_line(struct column_line *line)
 {
 	const struct st_rip3_command_host *host = line->host;
 	struct st_rip3_environment env;
-	struct st_rip3_frame frame;
+	struct st_rip3_frame *frame = &line->frame;
 	unsigned current;
 	int status = st_rip3_styles_current(host->styles, &current);
 	if (status == 0)
@@ -132,17 +163,17 @@ prepare_line(struct column_line *line)
 	if (status == 0)
 		status = st_rip3_command_environment(host, &current, &env);
 	if (status == 0)
-		status = st_rip3_command_frame(host, current, &frame);
+		status = st_rip3_command_frame(host, current, frame);
 	if (status != 0)
 		return status;
 	line->rgb_bits = env.rgb_bits;
 	if (line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
 		line->style.outline.string_rotation = 0;
 		line->style.outline.character_rotation = 0;
-		status = st_rip3_outline_layout_prepare(&line->layout, &line->style.outline, &frame);
+		status = st_rip3_outline_layout_prepare(&line->layout, &line->style.outline, frame);
 		if (status == 0)
 			status = st_rip3_command_outline_font(&line->outline, host->text, &line->style.outline,
-			    &frame, line->layout.font_orientation);
+			    frame, line->layout.font_orientation);
 		if (status != 0)
 			return status;
 		line->layout.justification = 0;
@@ -157,14 +188,17 @@ prepare_line(struct column_line *line)
 	if (host->text->font != NULL && host->text->font->number == line->style.font.font)
 		line->classic = *host->text->font;
 	else
-		status = st_rip3_classic_font_builtin_device(&line->classic, frame.device_width, frame.device_height,
+		status = st_rip3_classic_font_builtin_device(&line->classic, frame->device_width, frame->device_height,
 		    line->style.font.font);
-	struct st_rip3_classic_text_plan plan;
-	if (status == 0)
+	if (status == 0 && line->prewrapped && line->classic.number != 0)
+		status = prepare_stroke_column(line);
+	else if (status == 0) {
+		struct st_rip3_classic_text_plan plan;
 		status = st_rip3_classic_text_plan(&line->classic, &line->style.font, line->glyphs, line->length,
 		    &(struct st_rip3_text_position){0, 0}, &plan);
-	if (status == 0)
-		line->fit = line->advance = (int64_t)plan.cell_height;
+		if (status == 0)
+			line->fit = line->advance = (int64_t)plan.cell_height;
+	}
 	if (status == 0 && line->style.write_mode != ST_RIP3_NOT) {
 		status = st_rip3_command_ink(host, env.rgb_bits, line->style.drawing_color, &line->foreground);
 		if (status == 0 && (line->style.font.flags & 32))
@@ -182,6 +216,16 @@ measure_span(const struct column_line *line, const uint8_t *bytes, size_t length
 		    bytes, length);
 		if (status == 0)
 			*width = (double)measure.advance;
+		return status;
+	}
+	if (line->stroke_scale.denominator != 0) {
+		struct st_rip3_chr_text_metrics metrics;
+		int status = st_rip3_chr_text_measure(&line->classic.data.stroke, bytes, length, &metrics);
+		if (status == 0) {
+			uint64_t world_width = (uint64_t)metrics.advance * line->stroke_scale.numerator
+			    / line->stroke_scale.denominator;
+			*width = (double)(world_width * line->frame.device_width / line->frame.world_width);
+		}
 		return status;
 	}
 	struct st_rip3_classic_text_plan plan;
@@ -203,6 +247,16 @@ draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip
 		at.x -= line->layout.baseline.x;
 		return st_rip3_command_draw_outline(line->host, &line->style, &line->layout, &line->outline,
 		    line->rgb_bits, &at, line->glyphs + start, end - start, foreground);
+	}
+	if (line->stroke_scale.denominator != 0) {
+		double scale = (double)line->stroke_scale.numerator / line->stroke_scale.denominator;
+		const struct st_rip3_chr_text_matrix matrix = {
+			.xx = scale * line->frame.device_width / line->frame.world_width,
+			.yy = -scale * line->frame.device_height / line->frame.world_height,
+		};
+		return st_rip3_draw_chr_text(line->host->ports, &line->classic.data.stroke,
+		    line->glyphs + start, end - start, &at, &matrix, (line->style.font.flags & 32) != 0,
+		    foreground != NULL ? *foreground : line->foreground, line->background, line->style.write_mode);
 	}
 	return st_rip3_draw_classic_text(line->host->ports, &line->classic, &line->style.font,
 	    line->glyphs + start, end - start, &at, foreground != NULL ? *foreground : line->foreground,
@@ -305,6 +359,8 @@ static int
 draw_line(void *context, struct st_rip3_point origin)
 {
 	const struct column_line *line = context;
+	if (line->length == 0)
+		return 0;
 	struct st_rip3_text_position at = {(double)line->x - origin.x, (double)line->y - origin.y};
 	size_t start, end = 0;
 	if (line->justify && line->glyphs[0] != ' ') {
@@ -343,24 +399,27 @@ draw_line(void *context, struct st_rip3_point origin)
 }
 
 static const struct st_rip3_column *
-current_column(const struct st_rip3_columns *columns, struct st_rip3_column_cursor *cursor)
+current_column(const struct st_rip3_columns *columns, struct st_rip3_column_cursor *cursor, int64_t first_offset)
 {
 	while (cursor->slot < ST_RIP3_COLUMN_COUNT) {
 		const struct st_rip3_column *slot = &columns->slots[cursor->slot];
-		if (slot->defined && slot->article == columns->article)
+		if (slot->defined && slot->article == columns->article) {
+			if (!cursor->positioned) {
+				cursor->offset = first_offset;
+				cursor->positioned = true;
+			}
 			return slot;
-		++cursor->slot;
-		cursor->offset = 0;
+		}
+		*cursor = (struct st_rip3_column_cursor){.slot = cursor->slot + 1};
 	}
 	return NULL;
 }
 
 static const struct st_rip3_column *
-next_column(const struct st_rip3_columns *columns, struct st_rip3_column_cursor *cursor)
+next_column(const struct st_rip3_columns *columns, struct st_rip3_column_cursor *cursor, int64_t first_offset)
 {
-	++cursor->slot;
-	cursor->offset = 0;
-	return current_column(columns, cursor);
+	*cursor = (struct st_rip3_column_cursor){.slot = cursor->slot + 1};
+	return current_column(columns, cursor, first_offset);
 }
 
 static bool
@@ -373,9 +432,9 @@ static const struct st_rip3_column *
 available_column(struct st_rip3_columns *columns, int64_t line_height)
 {
 	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
-	const struct st_rip3_column *slot = current_column(columns, cursor);
+	const struct st_rip3_column *slot = current_column(columns, cursor, 0);
 	while (slot != NULL && !line_fits(cursor, slot, line_height))
-		slot = next_column(columns, cursor);
+		slot = next_column(columns, cursor, 0);
 	return slot;
 }
 
@@ -384,29 +443,27 @@ paint_line(struct st_rip3_columns *columns, struct column_line *line, const stru
 {
 	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
 	line->x = slot->area.x0;
-	line->y = (int32_t)(slot->area.y0 + cursor->offset);
+	line->y = slot->area.y0 + cursor->offset;
 	line->width = (double)slot->area.x1 - slot->area.x0 + 1;
 	line->search = &slot->search;
 	int status = 0;
 	if (line->prewrapped) {
-		unsigned current;
-		struct st_rip3_port_info port;
-		status = st_rip3_ports_current(line->host->ports, &current);
-		if (status == 0)
-			status = st_rip3_ports_info(line->host->ports, current, &port);
-		/* RIPtel uses the column to position the run and the current
-		 * viewport to clip its ink. */
-		if (status == 0 && port.viewport_active)
-			status = draw_line(line, (struct st_rip3_point){
-				port.bounds.x0 + port.viewport.x0, port.bounds.y0 + port.viewport.y0,
-			});
+		if (line->stroke_scale.denominator != 0) {
+			/* The stroke adapter sets its private pen in WORLD coordinates.
+			 * The device stroke kernel uses the projected reference directly. */
+			int64_t world_y = (line->y + line->baseline) * line->frame.world_height
+			    / line->frame.device_height;
+			line->y = device_y(&line->frame, world_y);
+		}
+		status = draw_line(line, line->viewport_origin);
 	}
 	else if (line->length != 0)
 		status = st_rip3_ports_draw_clipped(line->host->ports, &slot->area, draw_line, line);
 	if (status == 0) {
 		cursor->offset += line->advance;
+		cursor->has_line = true;
 		if (!line_fits(cursor, slot, line->fit))
-			(void)next_column(columns, cursor);
+			(void)next_column(columns, cursor, line->first_offset);
 	}
 	return status;
 }
@@ -768,6 +825,35 @@ keep_leading_blank(const struct st_rip3_columns *columns, const struct st_rip3_c
 	return true;
 }
 
+static int
+strip_backslashes(struct column_line *line, uint8_t **owned)
+{
+	const uint8_t *slash = memchr(line->glyphs, '\\', line->length);
+	if (slash == NULL)
+		return 0;
+	size_t first = (size_t)(slash - line->glyphs);
+	if (*owned == NULL) {
+		*owned = malloc(line->length);
+		if (*owned == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		memcpy(*owned, line->glyphs, first);
+	}
+	/* The forward deletion pass leaves the byte immediately following each
+	 * removed backslash, including the second of two adjacent backslashes. */
+	size_t output = first;
+	for (size_t i = first; i < line->length; i++) {
+		if (line->glyphs[i] == '\\') {
+			++i;
+			if (i == line->length)
+				break;
+		}
+		(*owned)[output++] = line->glyphs[i];
+	}
+	line->glyphs = *owned;
+	line->length = output;
+	return 0;
+}
+
 int
 st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
     const uint8_t *text, size_t length, bool justify)
@@ -775,9 +861,18 @@ st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_comma
 	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
 	if (!columns->active || cursor->slot == ST_RIP3_COLUMN_COUNT)
 		return 0;
-	struct column_line line = {.host = host, .prewrapped = true, .justify = justify};
+	unsigned current;
+	struct st_rip3_port_info port;
+	int status = st_rip3_ports_current(host->ports, &current);
+	if (status == 0)
+		status = st_rip3_ports_info(host->ports, current, &port);
+	if (status != 0 || !port.viewport_active || port.protected)
+		return status;
+	/* The column places the text. The drawing path clips to the viewport. */
+	struct column_line line = {.host = host, .prewrapped = true, .justify = justify,
+		.viewport_origin = {port.bounds.x0 + port.viewport.x0, port.bounds.y0 + port.viewport.y0}};
 	uint8_t *owned = NULL;
-	int status = st_rip3_command_expanded_glyphs(host->text, text, length, &line.glyphs, &line.length, &owned);
+	status = st_rip3_command_expanded_glyphs(host->text, text, length, &line.glyphs, &line.length, &owned);
 	bool blank = false;
 	if (status == 0) {
 		while (line.length != 0 && space(line.glyphs[line.length - 1]))
@@ -788,13 +883,16 @@ st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_comma
 			line.glyphs = &spacer;
 			line.length = 1;
 		}
-		status = prepare_line(&line);
+		else
+			status = strip_backslashes(&line, &owned);
 	}
+	if (status == 0)
+		status = prepare_line(&line);
 	if (status == 0) {
-		const struct st_rip3_column *slot = current_column(columns, cursor);
+		const struct st_rip3_column *slot = current_column(columns, cursor, line.first_offset);
 		if (slot != NULL && !line_fits(cursor, slot, line.fit))
-			slot = next_column(columns, cursor);
-		if (slot != NULL && (!blank || cursor->offset != 0 || keep_leading_blank(columns, cursor, slot)))
+			slot = next_column(columns, cursor, line.first_offset);
+		if (slot != NULL && (!blank || cursor->has_line || keep_leading_blank(columns, cursor, slot)))
 			status = paint_line(columns, &line, slot);
 	}
 	free(owned);

@@ -1237,9 +1237,9 @@ other 83 prior derivations, original publications and license retain their
 hashes. Four new derivations resolve B173, B174, B175 and B179.
 
 Connected SyncTERM implements the portable palette publication and readback
-rules and uses common scene framing for `.TXT` playback into articles.
-The literal prewrapped text and classic font changes from PR #180 and the
-confirmation and cancellation changes from PR #182 remain pending.
+rules, common scene framing for `.TXT` playback into articles, and the
+literal prewrapped text and CHR placement rules. The confirmation and
+cancellation changes from PR #182 remain pending.
 [PR #180](https://github.com/bbs-land/remote-imaging-protocol/pull/180),
 [PR #181](https://github.com/bbs-land/remote-imaging-protocol/pull/181),
 [PR #182](https://github.com/bbs-land/remote-imaging-protocol/pull/182),

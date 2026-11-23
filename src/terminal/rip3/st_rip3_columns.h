@@ -39,6 +39,7 @@ struct st_rip3_article_flow;
 struct st_rip3_column_cursor {
 	unsigned slot;
 	int64_t offset;
+	bool positioned, has_line;
 };
 
 struct st_rip3_columns {

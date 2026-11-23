@@ -18,6 +18,13 @@ struct st_rip3_classic_text_style {
 	unsigned flags;
 };
 
+struct st_rip3_classic_scale {
+	unsigned numerator, denominator;
+};
+
+/* Magnifications outside 1..10 return a zero denominator. */
+struct st_rip3_classic_scale st_rip3_classic_stroke_scale(unsigned magnification);
+
 /* Immutable borrowed views. A custom binding may supply a validated MAF/CHR
  * view for the corresponding font number. The selected canvas determines
  * physical scaling; it does not select a world-coordinate frame. */

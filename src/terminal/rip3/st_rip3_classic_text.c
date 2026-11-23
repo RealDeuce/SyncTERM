@@ -23,6 +23,17 @@ st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
 	return 0;
 }
 
+struct st_rip3_classic_scale
+st_rip3_classic_stroke_scale(unsigned magnification)
+{
+	static const struct st_rip3_classic_scale scales[] = {
+		{3,5}, {2,3}, {3,4}, {1,1}, {4,3}, {5,3}, {2,1}, {5,2}, {3,1}, {4,1},
+	};
+	if (magnification < 1 || magnification > sizeof(scales) / sizeof(scales[0]))
+		return (struct st_rip3_classic_scale){0};
+	return scales[magnification - 1];
+}
+
 int
 st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
     enum st_rip3_canvas canvas, unsigned number)
@@ -93,8 +104,6 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
     const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
     const struct st_rip3_text_position *anchor, struct st_rip3_classic_text_plan *result)
 {
-	static const unsigned numerator[] = {3,2,3,1,4,5,2,5,3,4};
-	static const unsigned denominator[] = {5,3,4,1,3,3,1,2,1,1};
 	struct st_rip3_classic_text_plan plan = {0};
 	struct st_rip3_classic_text_style checked;
 	struct st_rip3_frame frame;
@@ -133,7 +142,8 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 	}
 	else {
 		struct st_rip3_chr_text_metrics metrics;
-		double factor = (double)numerator[style->magnification - 1] / denominator[style->magnification - 1];
+		struct st_rip3_classic_scale scale = st_rip3_classic_stroke_scale(style->magnification);
+		double factor = (double)scale.numerator / scale.denominator;
 		double sx = factor * frame.device_width / 640;
 		double sy = factor * frame.device_height / 350;
 
@@ -141,10 +151,10 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 		if (status != 0)
 			return status;
 		plan.advance = metrics.advance * sx;
-		plan.integer_advance = (uint64_t)metrics.advance*numerator[style->magnification-1]*frame.device_width
-		    / ((uint64_t)denominator[style->magnification-1]*640);
-		plan.cell_height = (uint64_t)metrics.height*numerator[style->magnification-1]*frame.device_height
-		    / ((uint64_t)denominator[style->magnification-1]*350) + 1;
+		plan.integer_advance = (uint64_t)metrics.advance*scale.numerator*frame.device_width
+		    / ((uint64_t)scale.denominator*640);
+		plan.cell_height = (uint64_t)metrics.height*scale.numerator*frame.device_height
+		    / ((uint64_t)scale.denominator*350) + 1;
 		plan.ascent = (font->data.stroke.capital - font->data.stroke.baseline) * sy;
 		plan.descent = (font->data.stroke.baseline - font->data.stroke.descender) * sy;
 		baseline = font->data.stroke.baseline * sy;

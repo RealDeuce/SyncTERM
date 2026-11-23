@@ -1035,9 +1035,9 @@ text into that article. [RIPv3 scene playback coverage](RIP3_CONFORMANCE.md#conn
 
 RIPv3 `1T`, `1t` and `1E` lay out prewrapped text in global column slots.
 Connected CP437 and UTF-8 tests verify original MicroANSI glyphs in both pixel
-planes, viewport clipping, signed justification, column transitions, protected
-ports and recovery. A live Dixon case checks baseline, fit and line advance
-independently. [RIPv3 column coverage](RIP3_CONFORMANCE.md#connected-prewrapped-column-text)
+planes, literal text, viewport clipping and suppression, signed justification,
+column transitions and recovery. Live Dixon and LITT.CHR cases independently
+check stroke or outline placement, fit and advance. [RIPv3 column coverage](RIP3_CONFORMANCE.md#connected-prewrapped-column-text)
 
 RIPv3 `1e` and nonzero-article `1T` accept inline or cached text. The same
 connected fixtures check wrapping, search highlighting, definition changes

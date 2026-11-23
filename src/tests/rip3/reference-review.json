@@ -19855,6 +19855,36 @@
         "blocked": 25
       },
       "verification": "Native palette, host and session fixtures. Connected CP437 and UTF-8 HEADER, screen, reset, aggregate and column fixtures. The scene fixture also checks nested playback and ordinary TXT delivery to ANSI."
+    },
+    {
+      "after_commit": "41e962b9",
+      "revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
+      "scope": "Apply PR #180 literal prewrapped text, viewport suppression, and CHR column positioning in the connected interpreter.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:704",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:710",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:728",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:730",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:732",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:734",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:740",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:741",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:744",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:746",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:748",
+        "version/3.0/ripscrip/3.1-column-text-system.md:106",
+        "version/3.0/ripscrip/9.0-command-reference.md:141"
+      ],
+      "partially_covered_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2487,
+        "context": 1724,
+        "pending": 1681,
+        "implemented": 3021,
+        "excluded": 70,
+        "blocked": 25
+      },
+      "verification": "Connected CP437 and UTF-8 column fixtures verify both pixel planes, literal framing, radix and inactive viewport suppression, malformed input recovery, classic stroke reference and fit, signed justification and overflow isolation. Native classic text, vector stroke, text command and session fixtures cover existing callers."
     }
   ]
 }

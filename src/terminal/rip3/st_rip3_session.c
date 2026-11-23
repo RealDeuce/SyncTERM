@@ -44,7 +44,7 @@
 
 enum graphical_job {
 	GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE,
-	GRAPHICAL_REGION_TEXT, GRAPHICAL_COLUMN_SEARCH,
+	GRAPHICAL_COLUMN_SEARCH,
 };
 
 enum { SCENE_LIMIT = 8 };
@@ -86,7 +86,6 @@ struct st_rip3_session {
 	struct st_rip3_text_context text;
 	struct st_rip3_columns columns;
 	struct st_rip3_column_definition column_definition;
-	bool justify_region_text;
 	struct st_rip3_graphical *graphical;
 	struct st_rip3_text_argument text_argument;
 	enum graphical_job graphical_job;
@@ -1136,11 +1135,6 @@ prepare(void *context)
 					operation=true;
 					status=open_scene(session,(const char *)result->bytes,false);
 				}
-				else if (session->graphical_job==GRAPHICAL_REGION_TEXT) {
-					operation=true;
-					status=st_rip3_columns_line(&session->columns,&session->commands,
-					    result->bytes,result->length,session->justify_region_text);
-				}
 				else if (session->graphical_job==GRAPHICAL_COLUMN_SEARCH)
 					status=st_rip3_columns_define(&session->columns,&session->commands,&session->column_definition,
 					    result->bytes,result->length,session->graphical_codepage_converted);
@@ -1533,21 +1527,17 @@ select_article(struct st_rip3_session *session, const uint8_t *bytes, size_t len
 static int
 region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
-	if (length < 3 || (bytes[2] != '0' && bytes[2] != '1'))
+	if (length < 3)
 		return IO_ERROR_INVALID_FORMAT;
-	if (!session->columns.active)
-		return 0;
-	struct st_rip3_port_info port;
+	struct st_rip3_environment env;
 	unsigned current;
-	int status = st_rip3_ports_current(session->commands.ports, &current);
+	uint64_t justify;
+	int status = st_rip3_command_environment(&session->commands, &current, &env);
 	if (status == 0)
-		status = st_rip3_ports_info(session->commands.ports, current, &port);
-	if (status != 0 || port.protected)
+		status = st_rip3_command_field(&justify, bytes + 2, 1, env.base_math);
+	if (status != 0 || justify > 1)
 		return status;
-	session->justify_region_text = bytes[2] == '1';
-	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_TEXT, bytes + 3, length - 3);
-	session->graphical_job = GRAPHICAL_REGION_TEXT;
-	return 0;
+	return st_rip3_columns_line(&session->columns, &session->commands, bytes + 3, length - 3, justify == 1);
 }
 
 static void
