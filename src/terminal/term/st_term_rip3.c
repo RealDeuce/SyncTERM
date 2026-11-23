@@ -56,7 +56,7 @@ struct st_term_rip3 {
 	struct st_rip3_audio *audio;
 	struct st_rip3_resource_paths resources;
 	struct st_rip3_host_directory host_directory;
-	char host_directory_name[ST_RIP3_HOST_DIRECTORY_LIMIT+1];
+	char host_directory_name[ST_RIP3_HOST_DIRECTORY_CAPACITY];
 	char *named_host_path;
 	struct st_rip3_features features;
 	struct st_rip3_terminal_identity identity;

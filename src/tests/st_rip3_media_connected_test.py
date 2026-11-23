@@ -109,7 +109,7 @@ def check_bitmap(t, assets, values):
     assert frame.application["connected"] == 1
 
 
-def check_host_directory(t, root, rip, values):
+def check_host_directory(t, root, rip, values, encoding):
     def wire(commands):
         return t.exchange(b"\x01|" + commands + b"\r\n")
 
@@ -260,6 +260,37 @@ def check_host_directory(t, root, rip, values):
     values(b"$HOSTDIR$", b"<NONE>")
     wire(b"2\x1b0000   ")
     values(b"$HOSTDIR$", b"<NONE>")
+
+    t.case("Directory name limits count protocol bytes before UTF-8 storage")
+    codec = "cp437" if encoding == "CP437" else "utf-8"
+    suffix = "│" * (11 if encoding == "CP437" else 3)
+    if encoding == "UTF-8":
+        suffix += "§"
+
+    def directory_name(prefix):
+        result = (prefix + suffix).encode(codec)
+        assert len(result) == 12
+        return result
+
+    named = directory_name("a")
+    values(b"$HOSTDIR( " + named + b" )$$HOSTDIR$", directory_name("A"))
+    assert (rip / ("HOST-A" + suffix)).is_dir()
+    values(b"$HOSTDIR(" + named + b"b)$ok:$HOSTDIR$", b"ok:" + directory_name("A"))
+    assert not (rip / ("HOST-A" + suffix + "B")).exists()
+
+    named = directory_name("b")
+    wire(b"T$HOSTDIR(" + named + b")$")
+    values(b"$HOSTDIR$", directory_name("B"))
+    assert (rip / ("HOST-B" + suffix)).is_dir()
+
+    named = directory_name("c")
+    values(b"$-=DIR=" + named + b"$")
+    wire(b"2\x1b0000$&DIR$")
+    values(b"$HOSTDIR$", directory_name("C"))
+    assert (rip / ("HOST-C" + suffix)).is_dir()
+    wire(b"2\x1b0000$&DIR$X")
+    values(b"$HOSTDIR$", directory_name("C"))
+    assert not (rip / ("HOST-C" + suffix + "X")).exists()
 
 
 def check_read_scene(t, root, assets, encoding):
@@ -477,7 +508,7 @@ def run(args):
         frame = values(b"$(" + encoded + b"\\$$good", b"good")
         assert pixel(frame, 170, 180) == (0x454545 if supported == b"1" else 0)
         check_bitmap(t, assets, values)
-        check_host_directory(t, root, assets, values)
+        check_host_directory(t, root, assets, values, args.encoding)
 
 
 if __name__ == "__main__":

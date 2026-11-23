@@ -1131,7 +1131,8 @@ prepare(void *context)
 					    session->graphical_codepage_converted,&session->host_sink);
 				}
 				else if (session->graphical_job==GRAPHICAL_DIRECTORY)
-					status=st_rip3_directory_select(session->variables.directory,result->bytes,result->length,true);
+					status=st_rip3_directory_select(session->variables.directory,result->bytes,
+					    result->length,session->variables.codepage_converted,true);
 				else if (session->graphical_job==GRAPHICAL_SCENE) {
 					operation=true;
 					status=open_scene(session,(const char *)result->bytes,false);
@@ -1422,7 +1423,7 @@ switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t l
 	memcpy(name,bytes+6,length-6);
 	size_t size = st_rip3_directory_normalize(name,length-6);
 	if (size == 0 || (size == 5 && memcmp(name,"$OFF$",5) == 0))
-		status = st_rip3_directory_select(directory,name,0,size == 0);
+		status = st_rip3_directory_select(directory,name,0,session->variables.codepage_converted,size == 0);
 	else {
 		/* This command shares the ordinary graphical expansion flags with T. */
 		st_rip3_graphical_start(session->graphical,ST_RIP3_GRAPHICAL_TEXT,name,size);
@@ -1861,6 +1862,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->graphical_codepage_converted=config->graphical_codepage_converted;
 	session->commands.codepage_converted=config->graphical_codepage_converted;
 	if (config->services!=NULL) session->variables=*config->services;
+	session->variables.codepage_converted=config->graphical_codepage_converted;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->variables.field_context=&session->field_context;
 	session->variables.offscreen_pixel_budget=config->offscreen_pixel_budget;

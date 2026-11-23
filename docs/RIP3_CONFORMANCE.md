@@ -9179,8 +9179,11 @@ files remain read-only, including when a requested name is absent from the cache
 
 Connected CP437 and UTF-8 cases cover the normal and graphical variable paths,
 wire command expansion, file lookup and replacement, deletion and link handling,
-and malformed input recovery. The 12-byte name limit currently uses SyncTERM's
-normalized UTF-8 bytes. DOS high-byte name boundaries still need coverage.
+and malformed input recovery. The 12-byte limit counts one byte per original
+codepage character and the actual encoded byte count for UTF-8 sessions.
+Connected tests accept 12-byte names and reject 13-byte names through the
+variable and the expanded wire command, including names whose storage grows
+when decoded from CP437.
 
 ## Connected RIP_FILE_QUERY
 

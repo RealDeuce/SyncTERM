@@ -3,6 +3,7 @@
 
 #include "st_rip3_features.h"
 #include "st_rip3_geometry.h"
+#include "st_rip3_graphical_bytes.h"
 #include "st_rip3_input.h"
 #include "st_rip3_mouse.h"
 #include "st_rip3_table_host.h"
@@ -70,10 +71,12 @@ st_rip3_directory_normalize(uint8_t *text, size_t length)
 
 int
 st_rip3_directory_select(const struct st_rip3_host_directory *directory,
-    const uint8_t *text, size_t length, bool create)
+    const uint8_t *text, size_t length, bool converted, bool create)
 {
-	char name[ST_RIP3_HOST_DIRECTORY_LIMIT+1];
-	if (length >= sizeof(name)) return IO_ERROR_OUT_OF_RANGE;
+	char name[ST_RIP3_HOST_DIRECTORY_CAPACITY];
+	if (length >= sizeof(name)
+	    || st_rip3_graphical_units(text,length,converted)>ST_RIP3_HOST_DIRECTORY_LIMIT)
+		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < length; i++) {
 		uint8_t ch = text[i];
 		if (ch < 32 || ch == 127 || strchr("\\:*?+/\",;><=[]|",ch) != NULL)
@@ -87,7 +90,7 @@ st_rip3_directory_select(const struct st_rip3_host_directory *directory,
 
 static int
 host_directory(const struct st_rip3_host_directory *directory,
-    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+    const struct st_rip3_builtin_reference *reference, bool converted, char *result, size_t capacity)
 {
 	if (reference->count > 1) return IO_ERROR_INVALID_FORMAT;
 	if (capacity == 0) return IO_ERROR_OUT_OF_RANGE;
@@ -103,11 +106,13 @@ host_directory(const struct st_rip3_host_directory *directory,
 	uint8_t text[sizeof(reference->parameters[0].text)];
 	size_t length = reference->parameters[0].length;
 	if (length >= sizeof(text)) return IO_ERROR_INVALID_FORMAT;
+	if (st_rip3_graphical_units((const uint8_t *)reference->parameters[0].text,length,converted)
+	    > ST_RIP3_BUILTIN_PARAMETER_LIMIT) return IO_ERROR_OUT_OF_RANGE;
 	memcpy(text,reference->parameters[0].text,length);
 	length = st_rip3_directory_normalize(text,length);
 	bool create = length != 3 || memcmp(text,"OFF",3) != 0;
 	result[0] = '\0';
-	return st_rip3_directory_select(directory,text,create ? length : 0,create);
+	return st_rip3_directory_select(directory,text,create ? length : 0,converted,create);
 }
 
 int
@@ -146,7 +151,7 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		return 0;
 	}
 	if (strcmp(reference->name,"HOSTDIR") == 0)
-		return host_directory(host->directory,reference,result,capacity);
+		return host_directory(host->directory,reference,host->codepage_converted,result,capacity);
 	if (strcmp(reference->name, "FILEEXISTS") == 0) {
 		if (reference->count != 1)
 			return IO_ERROR_INVALID_FORMAT;

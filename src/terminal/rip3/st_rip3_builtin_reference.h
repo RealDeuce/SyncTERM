@@ -6,9 +6,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+enum { ST_RIP3_BUILTIN_PARAMETER_LIMIT = 20 };
+
 struct st_rip3_builtin_parameter {
 	size_t length;
-	char text[21];
+	char text[4 * ST_RIP3_BUILTIN_PARAMETER_LIMIT + 1];
 };
 
 struct st_rip3_builtin_reference {
@@ -24,7 +26,8 @@ struct st_rip3_builtin_reference {
  * parameter bytes retain case and surrounding spaces for handler normalization.
  * Empty () and empty comma-separated fields occupy no parameter slots. At most
  * 40 nonempty parameters of 20 bytes each; oversized input rejects rather than
- * silently truncating. Limits count decoded bytes. Double quotes, controls,
+ * silently truncating. HOSTDIR validates the protocol byte count against its
+ * input encoding after structural decoding. Double quotes, controls,
  * asterisk/plus/slash/comparison/bracket/pipe punctuation reject even when
  * locally quoted. A backslash occupies a slot until the next accepted byte
  * overwrites it; consecutive backslashes reject. Opening parentheses are

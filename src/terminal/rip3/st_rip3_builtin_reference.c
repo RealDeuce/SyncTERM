@@ -246,6 +246,10 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 	}
 	if (text[at] != '(')
 		return IO_ERROR_INVALID_FORMAT;
+	/* HOSTDIR can receive UTF-8 normalized from single-byte input. Its
+	 * handler has the input encoding needed to check the logical limit. */
+	size_t capacity = strcmp(reference.name, "HOSTDIR") == 0
+	    ? sizeof(reference.parameters[0].text) - 1 : ST_RIP3_BUILTIN_PARAMETER_LIMIT;
 	at++;
 	size_t stored=0;
 	bool quote=false;
@@ -268,7 +272,7 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 			return 0;
 		}
 		if (ch=='$' || !argument_byte(ch)) return IO_ERROR_INVALID_FORMAT;
-		if (reference.count==40 || stored==20) return IO_ERROR_OUT_OF_RANGE;
+		if (reference.count==40 || stored==capacity) return IO_ERROR_OUT_OF_RANGE;
 		reference.parameters[reference.count].text[stored++]=(char)ch;
 		quote=ch=='\\';
 	}
@@ -284,7 +288,8 @@ st_rip3_builtin_reference_words(struct st_rip3_builtin_reference *result,
 	struct st_rip3_builtin_reference value=*reference;
 	for (size_t i=0; i<value.count; i++) {
 		const struct st_rip3_builtin_parameter *source=&reference->parameters[i];
-		if (source->length>20 || source->text[source->length]!=0) return IO_ERROR_INVALID_FORMAT;
+		if (source->length>ST_RIP3_BUILTIN_PARAMETER_LIMIT || source->text[source->length]!=0)
+			return IO_ERROR_INVALID_FORMAT;
 		size_t first=0, last=source->length;
 		while (first<last && source->text[first]==' ') first++;
 		while (last>first && source->text[last-1]==' ') last--;

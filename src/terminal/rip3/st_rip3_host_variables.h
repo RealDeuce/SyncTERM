@@ -21,7 +21,10 @@ struct st_rip3_refresh;
 struct st_rip3_builtin_reference;
 struct st_rip3_tones;
 
-enum { ST_RIP3_HOST_DIRECTORY_LIMIT = 12 };
+enum {
+	ST_RIP3_HOST_DIRECTORY_LIMIT = 12,
+	ST_RIP3_HOST_DIRECTORY_CAPACITY = 4 * ST_RIP3_HOST_DIRECTORY_LIMIT + 1,
+};
 
 /* Borrowed connection owner. current returns the selected uppercase spelling
  * (empty when unset). select receives a validated name that lives only for the
@@ -97,6 +100,8 @@ struct st_rip3_host_variables {
 	 * default keyboard/mouse state. The client owns their platform mechanism. */
 	const struct st_rip3_local_queries *local;
 	const struct st_rip3_host_directory *directory;
+	/* The session normalized one wire codepage byte per UTF-8 scalar. */
+	bool codepage_converted;
 	/* The text-window owner supplies activation with its protection/undefined
 	 * policy. Parameter lists are validated completely before any callback. */
 	const struct st_rip3_text_window_operations *text_windows;
