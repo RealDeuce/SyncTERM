@@ -146,6 +146,18 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	if (strcmp(reference->name,"HOSTDIR") == 0)
 		return host_directory(host->directory,reference,result,capacity);
+	if (strcmp(reference->name, "FILEDEL") == 0) {
+		if (reference->count == 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (host->directory == NULL || host->directory->remove_file == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		for (size_t i = 0; i < reference->count; ++i)
+			host->directory->remove_file(host->directory->context, reference->parameters[i].text);
+		result[0] = '\0';
+		return 0;
+	}
 	if (strcmp(reference->name, "REFRESH") == 0 || strcmp(reference->name, "NOREFRESH") == 0) {
 		if (reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;

@@ -69,6 +69,9 @@ int st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
  * No clipboard/port capture, encoding, reset or connection setup is implied. */
 int st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	const char *name, const void *bytes, size_t size);
+/* Remove a unique regular file from the active BBS RIP directory. Uses the
+ * same bare-name and caseless matching as writes. No fallback or creation. */
+int st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *name);
 void st_rip3_resource_dispose(struct st_rip3_resource *resource);
 
 #endif

@@ -140,12 +140,26 @@ def check_host_directory(t, root, rip, values):
     wire(b"2W0000001010000Override.bmp")
     cached = (rip / "Override.bmp").read_bytes()
     assert cached.startswith(b"BM") and cached != original
-    values(b"$FILEDEL(Override.bmp)$")
+    t.case("FILEDEL deletes regular files only in the selected BBS cache directory")
+    other_bbs = root / "cache" / "other-bbs" / "RIP"
+    store(other_bbs, b"\x00\xaa\x00")
+    other_copy = (other_bbs / "Override.bmp").read_bytes()
+    (rip / "KeepDir").mkdir()
+    values(b"$FILEDEL()$alive", b"alive")
+    values(b"$FILEDEL(../Override.bmp)$")
     assert (rip / "Override.bmp").read_bytes() == cached
+    values(b"$FILEDEL(AfterOff.ICN)$")
+    assert (rip / "AfterOff.bmp").is_file()
+    values(b"$HOSTDIR(Mix Ed)$$FILEDEL(Capture.bmp)$$HOSTDIR(Off)$")
+    assert not (named / "Capture.bmp").exists()
+    assert (named / "Override.bmp").is_file() and (rip / "Override.bmp").is_file()
+    values(b"before$FILEDEL(Missing.bmp,KeepDir,oVERRIDE.BMP,AfterOff.bmp)$after", b"beforeafter")
+    assert not (rip / "Override.bmp").exists() and not (rip / "AfterOff.bmp").exists()
+    assert (rip / "KeepDir").is_dir()
+    frame = values(b"$FILEDEL(Override.bmp)$$<Override$")
+    assert pixel(frame, 2, 2) == 0x0000aa
     assert (shared / "Override.bmp").read_bytes() == original
-    (rip / "Override.bmp").unlink()
-    values(b"$FILEDEL(Override.bmp)$")
-    assert (shared / "Override.bmp").read_bytes() == original
+    assert (other_bbs / "Override.bmp").read_bytes() == other_copy
 
     t.case("HOSTDIR retains selection after creation failure and rejects invalid names")
     (rip / "HOST-BLOCKED").write_bytes(b"ordinary file")
@@ -163,15 +177,19 @@ def check_host_directory(t, root, rip, values):
     store(outside, b"\x00\x00\xaa")
     try:
         (rip / "HOST-LINKED").symlink_to(outside, target_is_directory=True)
+        (rip / "Link.bmp").symlink_to(outside / "Override.bmp")
     except (NotImplementedError, PermissionError):
         pass  # Some Windows fixtures lack directory-link privileges.
     else:
+        values(b"$FILEDEL(Link.bmp)$")
+        assert (rip / "Link.bmp").is_symlink()
         frame = values(b"$HOSTDIR(Linked)$$<Override$$HOSTDIR$", b"LINKED")
         assert pixel(frame, 2, 2) == 0x0000aa
         wire(b"2W0000001010000Escape.bmp")
-        assert not (outside / "Escape.bmp").exists()
+        values(b"$FILEDEL(Override.bmp)$")
+        assert not (outside / "Escape.bmp").exists() and (outside / "Override.bmp").is_file()
 
-    t.case("A linked RIP cache root cannot receive remote writes or new directories")
+    t.case("A linked RIP cache root cannot receive remote writes, deletions or new directories")
     saved = rip.with_name("RIP.saved")
     rip.rename(saved)
     try:
@@ -181,6 +199,8 @@ def check_host_directory(t, root, rip, values):
             pass  # Some Windows fixtures lack directory-link privileges.
         else:
             wire(b"2W0000001010000EscapeRoot.bmp")
+            values(b"$FILEDEL(Override.bmp)$")
+            assert (shared / "Override.bmp").read_bytes() == original
             values(b"$HOSTDIR(Link-Root)$$HOSTDIR$", b"LINK-ROOT")
             wire(b"2W0000001010000EscapeNamed.bmp")
             values(b"$HOSTDIR(Off)$$HOSTDIR$", b"<NONE>")
@@ -190,6 +210,23 @@ def check_host_directory(t, root, rip, values):
         if rip.is_symlink():
             rip.unlink()
         saved.rename(rip)
+
+    t.case("FILEDEL ignores a BBS cache bucket redirected to another BBS")
+    bucket = rip.parent
+    saved = bucket.with_name(bucket.name + ".saved")
+    bucket.rename(saved)
+    try:
+        try:
+            bucket.symlink_to(other_bbs.parent, target_is_directory=True)
+        except (NotImplementedError, PermissionError):
+            pass  # Some Windows fixtures lack directory-link privileges.
+        else:
+            values(b"$FILEDEL(Override.bmp)$")
+            assert (other_bbs / "Override.bmp").read_bytes() == other_copy
+    finally:
+        if bucket.is_symlink():
+            bucket.unlink()
+        saved.rename(bucket)
 
     t.case("Graphical HOSTDIR actions retain their documented side effects")
     values(b"$HOSTDIR(Mix Ed)$")

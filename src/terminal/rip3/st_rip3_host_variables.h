@@ -28,6 +28,8 @@ struct st_rip3_host_directory {
 	void *context;
 	const char *(*current)(void *context);
 	int (*select)(void *context, const char *name, bool create);
+	/* FILEDEL attempts each parsed filename without reporting a result. */
+	void (*remove_file)(void *context, const char *name);
 };
 
 /* Client identity values, not protocol-version/capability advertisements.

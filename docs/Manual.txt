@@ -1163,7 +1163,7 @@ File Locations::
 Shows the paths to the various files and directories
 that SyncTERM will access. The Global RIP Directory is a read-only fallback
 for RIPv3 files. Place shared assets there to make them available across BBSes.
-Files written by RIPv3 commands go into the connected BBS's RIP cache.
+RIPv3 commands can write and delete files in the connected BBS's RIP cache.
 
 Build Options::
 Shows which components SyncTERM was built to support, including the compiled

@@ -9091,8 +9091,11 @@ directory. On XDG systems this defaults to `~/.local/share/syncterm/RIP`.
 File Locations lists it as **Global RIP Directory (Read-Only)**. Host commands
 can create directories and write assets inside the connected BBS's RIP cache.
 Writes reject linked cache roots and linked named directories. The selected name
-remains available if directory creation fails. SyncTERM disallows server-initiated
-resource deletion, including `$FILEDEL(...)$`, in both locations.
+remains available if directory creation fails. `$FILEDEL(...)$` removes regular
+files in the active directory inside the BBS's RIP cache. It uses caseless
+filename matching with the supplied extension and leaves links, directories and
+ambiguous matches alone. Each filename is attempted independently. Global RIP
+files remain read-only, including when a requested name is absent from the cache.
 
 Connected CP437 and UTF-8 cases cover the normal and graphical variable paths,
 wire command expansion, file lookup and replacement, deletion and link handling,

@@ -117,6 +117,13 @@ select_host_directory(void *context, const char *name, bool create)
 	return 0;
 }
 
+static void
+remove_host_resource(void *context, const char *name)
+{
+	struct st_term_rip3 *rip = context;
+	(void)st_rip3_resource_remove(&rip->resources, name);
+}
+
 st_cterm_t *
 st_term_rip3_text(struct st_term_rip3 *rip)
 {
@@ -1580,7 +1587,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	/* Thirty-six full-canvas index planes is the session's offscreen policy. */
 	rip->pixel_budget=UINT64_C(36)*width*height;
 	rip->resources=(struct st_rip3_resource_paths){.host=config->rip_directory,.shared=config->rip3_data_directory};
-	rip->host_directory=(struct st_rip3_host_directory){rip,current_host_directory,select_host_directory};
+	rip->host_directory=(struct st_rip3_host_directory){.context=rip,.current=current_host_directory,
+	    .select=select_host_directory,.remove_file=remove_host_resource};
 	rip->identity=(struct st_rip3_terminal_identity){"SyncTERM","Stephen Hurd",
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;

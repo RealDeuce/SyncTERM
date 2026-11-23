@@ -984,8 +984,9 @@ draws with the existing indexed palette and dither renderer. [RIPv3 bitmap cover
 
 RIPv3 `$HOSTDIR$` and `2<ESC>` select a directory within the connected BBS's
 RIP cache. Media lookup falls back to the read-only Global RIP Directory.
-Connected fixtures check named overrides, bitmap reads and writes, protection
-against deletion and directory links, and recovery after malformed names. [RIPv3 host directory coverage](RIP3_CONFORMANCE.md#connected-ripv3-host-directory-selection)
+Connected fixtures check named overrides, bitmap reads and writes, `$FILEDEL$`
+of cached files, protection of global and other-BBS files, and recovery after
+malformed names. [RIPv3 host directory coverage](RIP3_CONFORMANCE.md#connected-ripv3-host-directory-selection)
 
 RIPv3 `1F` reports resource metadata through the active connection.
 Connected CP437 and UTF-8 fixtures cover exact reply bytes and bitmap alias

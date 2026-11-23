@@ -29,6 +29,15 @@ ensure_directory(const char *path)
 	return status == IO_ERROR_ALREADY_EXISTS ? directory_status(path) : status;
 }
 
+static int
+host_directory_status(const struct st_rip3_resource_paths *paths)
+{
+	int status = 0;
+	if (paths->named_host_root != NULL)
+		status = directory_status(paths->named_host_root);
+	return status == 0 ? directory_status(paths->host) : status;
+}
+
 int
 st_rip3_resource_prepare_cache(const char *root, const char *child)
 {
@@ -150,13 +159,7 @@ open_resource(struct st_rip3_resource *result,
 		fixed_count = 2;
 	}
 	for (size_t i = 0; i < fixed_count; i++) {
-		status = 0;
-		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0) {
-			if (paths->named_host_root != NULL)
-				status = directory_status(paths->named_host_root);
-			if (status == 0)
-				status = directory_status(fixed[i]);
-		}
+		status = kind == ST_RIP3_RESOURCE_MEDIA && i == 0 ? host_directory_status(paths) : 0;
 		if (status == 0)
 			status = open_directory(result, fixed[i], key, key_size, matched);
 		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY || (matched != NULL && *matched))
@@ -217,5 +220,41 @@ st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	 * function never follows a host-named link or writes a fallback tier. */
 	if (status == 0) status = fs_replace_file(match.path,bytes,size);
 	free(match.path); free(key);
+	return status;
+}
+
+int
+st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *name)
+{
+	struct st_rip3_resource_match match = {.writing = true};
+	char *key = NULL;
+
+	if (paths == NULL || !st_rip3_resource_name_valid(name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	int status = host_directory_status(paths);
+	if (status != 0)
+		return status;
+	/* The BBS bucket was checked at connection time. Recheck it before
+	 * removing a file in case the local cache was relocated while open. */
+	const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
+	size_t capacity = strlen(root) + 1;
+	char *bucket = malloc(capacity);
+	if (bucket == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	ptrdiff_t length = path_parent(bucket, capacity, root);
+	status = length < 0 ? (int)length : directory_status(bucket);
+	free(bucket);
+	if (status != 0)
+		return status;
+	status = st_unicode_caseless_key(&key, &match.key_size, name, strlen(name));
+	if (status != 0)
+		return status;
+	match.directory = paths->host;
+	match.key = key;
+	status = st_rip3_resource_directory_scan(&match);
+	if (status == 0)
+		status = match.path == NULL ? IO_ERROR_NOT_FOUND : fs_remove_file(match.path);
+	free(match.path);
+	free(key);
 	return status;
 }
