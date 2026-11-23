@@ -9183,6 +9183,24 @@ gaps. Search highlighting compares the complete painted run, including any
 spaces. The original wire handler sets the viewport clip through
 `0x0342ad` and `0x013d27`.
 
+Raw and prewrapped lines share their vertical metrics. The bitmap font uses
+the magnified cell height. CHR uses the scaled cap-to-descender span,
+truncated before adding one for the inclusive height. The upright outline
+path rounds the RFF cap, ascender and descender alignments at the live Y DPI.
+The cap alignment sets the baseline relative to the column top. Bottom fit is
+the cap alignment plus descent and one. Line advance uses the separate
+ascender alignment plus descent and the face's leading from style byte
+`+0x05`. The original descriptor setup at `0x051490` and leading calculation
+at `0x051ffa` feed the line advance routine at `0x03fc70`. The draw handoff
+at `0x03ae10` supplies upright orientations even when the style is rotated.
+
+With Dixon at 22 points and 72 DPI, the original alignment calculation gives
+a 16-pixel baseline offset, a minimum fit of 22 pixels, and a 55-pixel line
+advance. The connected fixture checks the baseline against an explicitly
+positioned drawing command, then switches to MicroANSI and checks the next
+line at the expected advance. These checks cover column placement. The
+portable outline renderer supplies the glyph rasterization.
+
 `1E` and `#` end the block for a nonzero article. The legacy article zero
 still accepts prewrapped lines after either command. Drawing resets remove
 the column definitions.
@@ -9191,8 +9209,7 @@ Connected CP437 and UTF-8 cases compare both pixel planes with original
 MicroANSI glyph masks. They exercise signed padding, mixed raw and prewrapped
 input, column transitions, protected ports, viewport clipping and a font size
 change between lines. They also draw with Dixon and check the graphics cursor.
-Full native font-metric equivalence and the reference's conflicting count of
-justify modes remain tracked in
+The reference's conflicting count of justify modes remains tracked in
 [issue #173](https://github.com/bbs-land/remote-imaging-protocol/issues/173).
 
 ## Connected raw article flow and search highlighting

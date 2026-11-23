@@ -14,6 +14,7 @@ struct st_rip3_rff {
 	/* Signed y-down font-unit rectangle from the validated metrics block.
 	 * Header copies repeat these edges; none is a typographic ascent/advance. */
 	int xmin, ymin, xmax, ymax;
+	int cap_alignment, ascent_alignment, descent_alignment; /* Signed y-down font units. */
 	uint8_t bold_hollow_strength, hollow_strength;
 };
 
@@ -21,6 +22,7 @@ struct st_rip3_rff_style {
 	/* NUL-terminated inside its validated 34-byte field; padding is ignored. */
 	const char *name;
 	unsigned flags, horizontal_percent;
+	int leading;
 	bool hollow;
 };
 

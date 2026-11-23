@@ -40,6 +40,7 @@ struct st_rip3_classic_text_plan {
 	/* Whole-string metric, rationally scaled then truncated once. Raster
 	 * advance above remains fractional; wire consumers own WORD narrowing. */
 	uint64_t integer_advance;
+	uint64_t cell_height; /* Stable for an empty run. */
 	struct st_rip3_text_position origin;
 	struct st_rip3_chr_text_matrix matrix;
 };

@@ -100,7 +100,7 @@ struct column_line {
 	unsigned rgb_bits;
 	uint8_t foreground, background;
 	const struct st_rip3_column_search *search;
-	int64_t height;
+	int64_t baseline, fit, advance;
 	int32_t x, y;
 	double width;
 	bool prewrapped, justify;
@@ -138,6 +138,7 @@ prepare_line(struct column_line *line)
 	line->rgb_bits = env.rgb_bits;
 	if (line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
 		line->style.outline.string_rotation = 0;
+		line->style.outline.character_rotation = 0;
 		status = st_rip3_outline_layout_prepare(&line->layout, &line->style.outline, &frame);
 		if (status == 0)
 			status = st_rip3_command_outline_font(&line->outline, host->text, &line->style.outline,
@@ -145,9 +146,10 @@ prepare_line(struct column_line *line)
 		if (status != 0)
 			return status;
 		line->layout.justification = 0;
-		line->height = line->outline.bounds.ymax - line->outline.bounds.ymin;
-		if (line->height < 1)
-			line->height = 1;
+		struct st_rip3_outline_column_metrics metrics = st_rip3_outline_font_column_metrics(&line->outline);
+		line->baseline = metrics.baseline;
+		line->fit = metrics.fit;
+		line->advance = metrics.advance;
 		return st_rip3_outline_cache_prepare(host->text->outline_cache, &line->outline, line->layout.spacing);
 	}
 	line->style.font.direction = 0;
@@ -162,7 +164,7 @@ prepare_line(struct column_line *line)
 		status = st_rip3_classic_text_plan(&line->classic, &line->style.font, line->glyphs, line->length,
 		    &(struct st_rip3_text_position){0, 0}, &plan);
 	if (status == 0)
-		line->height = (int64_t)ceil(plan.ascent + plan.descent) + 1;
+		line->fit = line->advance = (int64_t)plan.cell_height;
 	if (status == 0 && line->style.write_mode != ST_RIP3_NOT) {
 		status = st_rip3_command_ink(host, env.rgb_bits, line->style.drawing_color, &line->foreground);
 		if (status == 0 && (line->style.font.flags & 32))
@@ -197,7 +199,7 @@ draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip
 	if (start == end)
 		return 0;
 	if (line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
-		at.y -= (double)line->outline.bounds.ymin + line->layout.baseline.y;
+		at.y += (double)line->baseline - line->layout.baseline.y;
 		at.x -= line->layout.baseline.x;
 		return st_rip3_command_draw_outline(line->host, &line->style, &line->layout, &line->outline,
 		    line->rgb_bits, &at, line->glyphs + start, end - start, foreground);
@@ -401,8 +403,11 @@ paint_line(struct st_rip3_columns *columns, struct column_line *line, const stru
 	}
 	else if (line->length != 0)
 		status = st_rip3_ports_draw_clipped(line->host->ports, &slot->area, draw_line, line);
-	if (status == 0)
-		cursor->offset += line->height;
+	if (status == 0) {
+		cursor->offset += line->advance;
+		if (!line_fits(cursor, slot, line->fit))
+			(void)next_column(columns, cursor);
+	}
 	return status;
 }
 
@@ -466,7 +471,7 @@ finish_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 		return 0;
 	int status = prepare_flow(flow, host);
 	if (status == 0) {
-		const struct st_rip3_column *slot = available_column(columns, flow->pen.height);
+		const struct st_rip3_column *slot = available_column(columns, flow->pen.fit);
 		if (slot != NULL) {
 			flow->pen.glyphs = flow->line.bytes;
 			flow->pen.length = flow->line.length;
@@ -496,7 +501,7 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 	flow->word.length = 0;
 	if (status == 0)
 		status = prepare_flow(flow, host);
-	const struct st_rip3_column *slot = status == 0 ? available_column(columns, flow->pen.height) : NULL;
+	const struct st_rip3_column *slot = status == 0 ? available_column(columns, flow->pen.fit) : NULL;
 	if (status == 0 && slot == NULL) {
 		size_t start = flow->line.length != 0 ? 0 : flow->word_start;
 		status = retain_from(columns, host, start);
@@ -512,7 +517,7 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 		double width = (double)slot->area.x1 - slot->area.x0 + 1;
 		if (status == 0 && flow->line.length != 0 && flow->width + separator_width + word_width > width) {
 			status = finish_line(columns, host, false, changed);
-			slot = available_column(columns, flow->pen.height);
+			slot = available_column(columns, flow->pen.fit);
 			if (status == 0 && slot == NULL)
 				status = retain_from(columns, host, flow->word_start);
 			separator_width = 0;
@@ -787,13 +792,10 @@ st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_comma
 	}
 	if (status == 0) {
 		const struct st_rip3_column *slot = current_column(columns, cursor);
-		if (slot != NULL && !line_fits(cursor, slot, line.height))
+		if (slot != NULL && !line_fits(cursor, slot, line.fit))
 			slot = next_column(columns, cursor);
-		if (slot != NULL && (!blank || cursor->offset != 0 || keep_leading_blank(columns, cursor, slot))) {
+		if (slot != NULL && (!blank || cursor->offset != 0 || keep_leading_blank(columns, cursor, slot)))
 			status = paint_line(columns, &line, slot);
-			if (status == 0 && !line_fits(cursor, slot, line.height))
-				(void)next_column(columns, cursor);
-		}
 	}
 	free(owned);
 	return status;

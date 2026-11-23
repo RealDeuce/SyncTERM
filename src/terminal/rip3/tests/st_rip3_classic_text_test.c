@@ -71,6 +71,8 @@ native_fonts(enum st_rip3_canvas canvas, unsigned cell_width, unsigned cell_heig
 	CHECK(plan.advance == cell_width * 4 && plan.origin.x == 100 && plan.origin.y == 100);
 	CHECK(fabs(plan.ascent - cell_height * 13.0 / 8) < 1e-10);
 	CHECK(fabs(plan.ascent + plan.descent - (cell_height * 2 - 1)) < 1e-10);
+	CHECK(st_rip3_classic_text_plan(&font, &style, NULL, 0, &anchor, &plan) == 0);
+	CHECK(plan.advance == 0 && plan.cell_height == cell_height * 2);
 	for (unsigned number = 1; number <= 10; number++) {
 		CHECK(st_rip3_classic_font_builtin(&font, canvas, number) == 0);
 		for (unsigned mag = 1; mag <= 10; mag++) {
@@ -151,6 +153,7 @@ vector_layout_and_scene(void)
 	const uint8_t text[] = {'A','A'};
 	static const double advances[] = {63,70,78.75,105,140,175,210,262.5,315,420};
 	static const double heights[] = {28.8,32,36,48,64,80,96,120,144,192};
+	static const unsigned inclusive_heights[] = {29,33,37,49,65,81,97,121,145,193};
 
 	memcpy(bytes, "PK\010\010TEST\032", 9);
 	bytes[9] = 128; memcpy(bytes + 11, "TEST", 4); bytes[15] = 31;
@@ -164,6 +167,7 @@ vector_layout_and_scene(void)
 		CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0);
 		CHECK(fabs(plan.advance - advances[mag - 1]) < 1e-10);
 		CHECK(fabs(plan.ascent - heights[mag - 1]) < 1e-10 && plan.descent == 0);
+		CHECK(plan.cell_height == inclusive_heights[mag - 1]);
 	}
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 3, 0) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 2, &anchor, &plan) == 0);

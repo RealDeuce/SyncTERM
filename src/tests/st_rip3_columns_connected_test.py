@@ -225,6 +225,24 @@ def check_prewrapped(terminal, accent):
                   (460, 91, CAPITAL_A, RED), (492, 91, CAPITAL_A, GREEN),
                   (460, 102, CAPITAL_A, RED)])
 
+    terminal.case("Outline columns use separate baseline, bottom fit and line advance")
+    dixon = b"y0000000M000000001a1a000000Dixon"
+    rotated = dixon[:11] + b"E4E4" + dixon[15:]
+    frame = terminal.exchange(commands(
+        rotated, region((430, 230, 461, 309), 33, 29), b"1t0F",
+        b"Y00000100", b"1t0A", b"1E",
+        dixon, region((490, 230, 521, 251), 34, 30), b"1t0F", b"1E",
+        b"@" + number(550, 2) + number(246, 2) + b"F", b"Y00000100"))
+    for phase in ("primary", "alternate"):
+        expected = [plane_pixel(frame, 550+dx, y, phase)
+                    for y in range(225, 257) for dx in range(-2, 26)]
+        assert GREEN in expected
+        for x in (430, 490):
+            actual = [plane_pixel(frame, x+dx, y, phase)
+                      for y in range(225, 257) for dx in range(-2, 26)]
+            assert actual == expected, (phase, x)
+    check_pixels(frame, (428, 282, 440, 298), [(430, 285, CAPITAL_A, GREEN)])
+
 
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,

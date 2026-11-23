@@ -39,6 +39,35 @@ edge(int64_t scaled, unsigned points, unsigned dpi, unsigned units)
 	return quotient;
 }
 
+struct st_rip3_outline_column_metrics
+st_rip3_outline_font_column_metrics(const struct st_rip3_outline_font *font)
+{
+	const struct st_rip3_rff *file = &font->file;
+	int cap = file->cap_alignment;
+	int descent = file->descent_alignment;
+	struct st_rip3_rff_glyph glyph;
+	if (cap == 0)
+		cap = st_rip3_rff_glyph(&glyph, file, 'H') == 0 && !glyph.damaged ? glyph.ymin : file->ymin;
+	if (descent == 0)
+		descent = st_rip3_rff_glyph(&glyph, file, 'g') == 0 && !glyph.damaged ? glyph.ymax : file->ymax;
+	int ascent = file->ascent_alignment != 0 ? file->ascent_alignment : cap;
+	int64_t baseline = edge(-100 * (int64_t)cap, font->points, font->dpi_y, file->units_per_em);
+	int64_t above = edge(-100 * (int64_t)ascent, font->points, font->dpi_y, file->units_per_em);
+	int64_t below = edge(100 * (int64_t)descent, font->points, font->dpi_y, file->units_per_em);
+	if (above < 0)
+		above = 0;
+	if (below < 0)
+		below = 0;
+	/* The face coefficient consumes decipoints in the original realization.
+	 * Produce its 1/1440-inch value before computing the device advance. */
+	int64_t leading = ((int64_t)font->points * 10 * 1440 * font->style.leading + 3600) / 7200;
+	int64_t advance = ((above + below) * 1440 + leading * font->dpi_y) / 1440;
+	int64_t fit = baseline + below + 1;
+	return (struct st_rip3_outline_column_metrics){
+		.baseline = baseline, .fit = fit > 0 ? fit : 1, .advance = advance > 0 ? advance : 1,
+	};
+}
+
 static void
 realize_bounds(struct st_rip3_outline_font *font)
 {

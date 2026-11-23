@@ -71,6 +71,9 @@ st_rip3_rff_open(struct st_rip3_rff *result, const void *bytes, size_t size)
 	file.ymin = signed_word(data + file.base + 0x18);
 	file.xmax = signed_word(data + file.base + 0x1a);
 	file.ymax = signed_word(data + file.base + 0x1c);
+	file.cap_alignment = signed_word(data + file.base + 0x42);
+	file.ascent_alignment = signed_word(data + file.base + 0x44);
+	file.descent_alignment = signed_word(data + file.base + 0x46);
 	advances = word(data + file.base + 38);
 	offsets = word(data + file.base + 46);
 	if (advances > size - file.base || offsets > size - file.base)
@@ -101,6 +104,7 @@ st_rip3_rff_style_at(struct st_rip3_rff_style *result,
 	*result = (struct st_rip3_rff_style){
 		.name = (const char *)style + 12,
 		.flags = style[2], .horizontal_percent = style[3],
+		.leading = style[5] < 128 ? style[5] : (int)style[5] - 256,
 		.hollow = style[4] != 0,
 	};
 	return 0;

@@ -363,9 +363,37 @@ advance_policy(void)
 	return 0;
 }
 
+static int
+column_metrics(void)
+{
+	static const struct {
+		const char *face;
+		unsigned points, world_height;
+		int64_t baseline, fit, advance;
+	} cases[] = {
+		{"Dixon", 22, 480, 16, 22, 55},
+		{"Dixon", 22, 350, 21, 28, 73},
+		{"Dixon Wd", 48, 480, 34, 45, 119},
+		{"Marin", 22, 480, 15, 21, 54},
+		{"DEFAULT", 22, 480, 14, 18, 53},
+		{"Symbol", 22, 480, 14, 22, 64},
+	};
+	struct st_rip3_frame frame;
+	CHECK(st_rip3_frame_init(&frame, ST_RIP3_CANVAS_640_480)==0);
+	for (size_t i=0; i<sizeof(cases)/sizeof(*cases); ++i) {
+		struct st_rip3_outline_font font;
+		CHECK(st_rip3_frame_world(&frame, 640, cases[i].world_height)==0);
+		CHECK(st_rip3_outline_font_builtin(&font, cases[i].face, &frame, cases[i].points, 0, 0)==0);
+		struct st_rip3_outline_column_metrics metrics=st_rip3_outline_font_column_metrics(&font);
+		CHECK(metrics.baseline==cases[i].baseline && metrics.fit==cases[i].fit && metrics.advance==cases[i].advance);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
 	CHECK(catalogue()==0 && sizes()==0 && coefficients()==0 && errors()==0 && bounds()==0 && advances()==0 && advance_policy()==0);
+	CHECK(column_metrics()==0);
 	return 0;
 }

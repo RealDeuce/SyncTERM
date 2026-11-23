@@ -32,6 +32,16 @@ struct st_rip3_outline_font {
 	uint32_t hollow_thickness;
 };
 
+struct st_rip3_outline_column_metrics {
+	int64_t baseline, fit, advance; /* Device pixels, upright text. */
+};
+
+/* Column fit is inclusive and uses the cap alignment and descent. The
+ * advance uses the separate ascender alignment, descent and face leading.
+ * This consumes a successfully bound font. */
+struct st_rip3_outline_column_metrics st_rip3_outline_font_column_metrics(
+	const struct st_rip3_outline_font *);
+
 /* Pure font realization services, not parser/session entry points. Bind an
  * already-loaded RFF face, revalidating its immutable bytes. The caller owns
  * those bytes for the complete lifetime of the returned view. Point size is
