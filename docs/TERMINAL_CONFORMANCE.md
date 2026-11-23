@@ -992,6 +992,10 @@ RIPv3 `1F` reports resource metadata through the active connection.
 Connected CP437 and UTF-8 fixtures cover exact reply bytes and bitmap alias
 sizes. Native fixtures exercise open and metadata failures. [RIPv3 file-query coverage](RIP3_CONFORMANCE.md#connected-rip_file_query)
 
+RIPv3 `1R` plays cached scenes through the live console. Connected CP437 and
+UTF-8 fixtures check nested return, persistent drawing state, local ANSI text,
+reply suppression, and continued processing after a missing or recursive file. [RIPv3 scene playback coverage](RIP3_CONFORMANCE.md#connected-rip_read_scene)
+
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

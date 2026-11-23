@@ -122,6 +122,9 @@ struct st_rip3_session_sink {
 	int (*text_ansi_capture)(void *context,bool font_known,void **result);
 	int (*text_ansi_restore)(void *context,const void *saved);
 	void (*text_ansi_destroy)(void *saved);
+	/* Optional conversion from the local scene's byte encoding to the
+	 * engine encoding. ASCII framing bytes are passed through unchanged. */
+	size_t (*scene_decode)(void *context, uint8_t byte, uint8_t output[4]);
 };
 
 struct st_rip3_session_config {
@@ -182,6 +185,7 @@ void st_rip3_session_destroy(struct st_rip3_session *session);
  * user prompts; no sleeping or threads. Syntax/resource/operation failures are
  * absorbed internally and never returned to a terminal/session failure path. */
 void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
+bool st_rip3_session_local_scene(const struct st_rip3_session *session);
 /* Local refresh action. Consume only the stored expression, using the normal
  * reply and prompt services. A disabled or busy interpreter has no effect. */
 void st_rip3_session_request_refresh(struct st_rip3_session *session);

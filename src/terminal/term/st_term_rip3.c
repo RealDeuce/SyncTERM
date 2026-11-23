@@ -182,6 +182,15 @@ next(void *context, uint8_t *byte)
 	return true;
 }
 
+static size_t
+decode_scene_byte(void *context, uint8_t byte, uint8_t output[4])
+{
+	struct st_term_rip3 *rip = context;
+	size_t size;
+	int status = st_term_rip_wire_to_utf8((char *)output, 4, &size, &byte, 1, rip->config.codepage);
+	return status == 0 ? size : 0;
+}
+
 static int
 modify(void *context, const struct st_pixel_buffer *destination, struct st_console_rect *changed)
 {
@@ -1507,6 +1516,12 @@ st_term_rip3_paused(const struct st_term_rip3 *rip)
 	    || st_rip3_session_wait_ns(rip->session)!=0);
 }
 
+bool
+st_term_rip3_local_scene(const struct st_term_rip3 *rip)
+{
+	return rip != NULL && st_rip3_session_local_scene(rip->session);
+}
+
 void
 st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 {
@@ -1638,7 +1653,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
 	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
-	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy},
+	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
+	        .scene_decode=config->encoding==ST_CTERM_ENCODING_CODEPAGE ? decode_scene_byte : NULL},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

@@ -26,6 +26,7 @@
 #include "st_rip3_table_host.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_file_query.h"
+#include "st_rip3_resources.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_maf.h"
@@ -34,10 +35,18 @@
 #include "st_pixels.h"
 #include "io_error.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY };
+enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE };
+
+enum { SCENE_LIMIT = 8 };
+
+struct local_scene {
+	struct st_rip3_resource file;
+	struct st_rip3_stream *stream;
+};
 
 struct session_window {
 	struct st_rip3_text_window_info info;
@@ -72,6 +81,8 @@ struct st_rip3_session {
 	int field_program_id;
 	struct st_rip3_frame frame;
 	struct st_rip3_stream *stream;
+	struct local_scene scenes[SCENE_LIMIT];
+	size_t scene_count;
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
@@ -138,7 +149,8 @@ static void
 reply(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
-	if (session->sink.reply!=NULL) session->sink.reply(session->sink.context,bytes,length);
+	if (!st_rip3_session_local_scene(session) && session->sink.reply!=NULL)
+		session->sink.reply(session->sink.context,bytes,length);
 }
 
 static bool
@@ -672,10 +684,64 @@ now(void *context)
 	return session->source.now_ns(session->source.context);
 }
 
+static void command(void *context, const uint8_t *bytes, size_t length);
+
+static int
+create_stream(struct st_rip3_session *session, struct st_rip3_stream **result)
+{
+	const struct st_rip3_stream_sink sink={.context=session,.text=text,.command=command,
+	    .at_line_start=line_start,.diagnostic=stream_diagnostic};
+	return st_rip3_stream_create(result, &sink);
+}
+
+static int
+open_scene(struct st_rip3_session *session, const char *name)
+{
+	if (session->commands.resources == NULL || name[0] == '\0')
+		return 0;
+	if (session->scene_count == SCENE_LIMIT)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct local_scene scene = {0};
+	int status = st_rip3_resource_open(&scene.file, session->commands.resources, ST_RIP3_RESOURCE_MEDIA, name);
+	if (status == IO_ERROR_NOT_FOUND)
+		return 0;
+	if (status != 0)
+		return status;
+	status = create_stream(session, &scene.stream);
+	if (status == 0)
+		session->scenes[session->scene_count++] = scene;
+	else
+		st_rip3_resource_dispose(&scene.file);
+	return status;
+}
+
+static void
+close_scene(struct st_rip3_session *session)
+{
+	struct local_scene *scene = &session->scenes[--session->scene_count];
+	st_rip3_stream_destroy(scene->stream);
+	st_rip3_resource_dispose(&scene->file);
+}
+
 static bool
 next(void *context, uint8_t *byte)
 {
 	struct st_rip3_session *session=context;
+	while (session->scene_count != 0) {
+		FILE *file = session->scenes[session->scene_count - 1].file.stream;
+		int value = fgetc(file);
+		if (value != EOF) {
+			*byte = (uint8_t)value;
+			return true;
+		}
+		if (ferror(file))
+			diagnose(session, ST_RIP3_COMMAND_OPERATION_FAILED);
+		/* Complete buffered display and its local reply handling before the
+		 * caller can consume input from its own source again. */
+		if (session->sink.before_command != NULL)
+			session->sink.before_command(session->sink.context);
+		close_scene(session);
+	}
 	return session->source.next(session->source.context,byte);
 }
 
@@ -683,14 +749,34 @@ static void
 consume(void *context, uint8_t byte)
 {
 	struct st_rip3_session *session=context;
-	st_rip3_stream_process(session->stream,&byte,1);
+	if (session->scene_count == 0) {
+		st_rip3_stream_process(session->stream, &byte, 1);
+		return;
+	}
+	struct st_rip3_stream *stream = session->scenes[session->scene_count - 1].stream;
+	if (byte >= 0x80 && session->sink.scene_decode != NULL) {
+		uint8_t output[4];
+		size_t size = session->sink.scene_decode(session->sink.context, byte, output);
+		if (size <= sizeof(output))
+			st_rip3_stream_process(stream, output, size);
+	}
+	else
+		st_rip3_stream_process(stream, &byte, 1);
+}
+
+static bool
+continuation_pending(const struct st_rip3_session *session)
+{
+	return st_rip3_query_pending(session->commands.query) || st_rip3_refresh_pending(&session->refresh)
+	    || session->graphical_job || st_rip3_button_renderer_pending(session->commands.buttons)
+	    || st_rip3_mouse_pending(session->commands.mouse);
 }
 
 static bool
 prepare(void *context)
 {
 	struct st_rip3_session *session=context;
-	bool pending=st_rip3_session_pending(session);
+	bool pending=continuation_pending(session);
 	struct st_rip3_field_context previous=session->field_context;
 	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
 	/* An active refresh is a separate reply. Resume it before the
@@ -717,6 +803,10 @@ prepare(void *context)
 				}
 				else if (session->graphical_job==GRAPHICAL_DIRECTORY)
 					status=st_rip3_directory_select(session->variables.directory,result->bytes,result->length,true);
+				else if (session->graphical_job==GRAPHICAL_SCENE) {
+					operation=true;
+					status=open_scene(session,(const char *)result->bytes);
+				}
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
@@ -730,7 +820,7 @@ prepare(void *context)
 		st_rip3_mouse_resume(session->commands.mouse);
 	}
 	if (pending) ++session->revision;
-	return !st_rip3_session_pending(session);
+	return !continuation_pending(session);
 }
 
 static void
@@ -1011,6 +1101,28 @@ switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t l
 }
 
 static void
+read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	struct st_rip3_environment env;
+	unsigned current;
+	uint64_t reserved;
+	const struct st_rip3_command_sink sink={session,diagnose};
+	int status = st_rip3_command_environment(&session->commands, &current, &env);
+	if (status == 0 && (length <= 10 || memchr(bytes + 10, 0, length - 10) != NULL))
+		status = IO_ERROR_INVALID_FORMAT;
+	if (status == 0)
+		status = st_rip3_command_field(&reserved, bytes + 2, 4, env.base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&reserved, bytes + 6, 4, env.base_math);
+	if (status != 0) {
+		st_rip3_command_result(&sink, status, false);
+		return;
+	}
+	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_FILENAME, bytes + 10, length - 10);
+	session->graphical_job = GRAPHICAL_SCENE;
+}
+
+static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
@@ -1025,6 +1137,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'F')
 		file_query(session,bytes,length);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
+		read_scene(session,bytes,length);
 	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);
@@ -1076,6 +1190,8 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
+	while (session->scene_count != 0)
+		close_scene(session);
 	if (session->ready && session->commands.audio!=NULL) (void)st_rip3_audio_stop(session->commands.audio);
 }
 
@@ -1376,8 +1492,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	const struct st_rip3_command_sink button_sink={session,diagnose};
 	if (status==0) status=st_rip3_button_renderer_create(&session->commands.buttons,&session->commands,&button_sink,
 	    session->graphical,config->graphical_codepage_converted);
-	const struct st_rip3_stream_sink sink={.context=session,.text=text,.command=command,.at_line_start=line_start,.diagnostic=stream_diagnostic};
-	if (status==0) status=st_rip3_stream_create(&session->stream,&sink);
+	if (status==0) status=create_stream(session,&session->stream);
 	if (status!=0) {st_rip3_session_destroy(session);return status;}
 	session->ready=true;*result=session;return 0;
 }
@@ -1422,9 +1537,13 @@ st_rip3_session_graphical_cancel(struct st_rip3_session *session)
 bool
 st_rip3_session_pending(const struct st_rip3_session *session)
 {
-	return session!=NULL && (st_rip3_query_pending(session->commands.query)
-	    || st_rip3_refresh_pending(&session->refresh) || session->graphical_job
-	    || st_rip3_button_renderer_pending(session->commands.buttons) || st_rip3_mouse_pending(session->commands.mouse));
+	return session!=NULL && (session->scene_count != 0 || continuation_pending(session));
+}
+
+bool
+st_rip3_session_local_scene(const struct st_rip3_session *session)
+{
+	return session != NULL && session->scene_count != 0;
 }
 
 bool

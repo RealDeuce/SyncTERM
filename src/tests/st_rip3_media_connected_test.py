@@ -9,7 +9,7 @@ from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
 from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
-from st_terminal_conformance_test import Terminal
+from st_terminal_conformance_test import Terminal, cell_at
 from syncterm_control import SHIFT
 
 
@@ -261,6 +261,33 @@ def check_host_directory(t, root, rip, values):
     values(b"$HOSTDIR$", b"<NONE>")
 
 
+def check_read_scene(t, root, assets, encoding):
+    def read_scene(name):
+        return b"1R00000000" + name
+
+    t.case("Local 1R scenes preserve drawing changes across nested returns")
+    shared = root / "RIP"
+    shared.mkdir(exist_ok=True)
+    (assets / "Parent.RIP").write_bytes(
+        b"!|c04|X0A0A|" + read_scene(b"Child.FN") + b"\r\n!|X0B0B\r\n")
+    accent = b"\x82" if encoding == "CP437" else "é".encode("utf-8")
+    (shared / "Child.FN").write_bytes(
+        b"!|c02|X0C0C\r\n\x1b[9;4H" + accent + b"\x1b[6n"
+        + query(b"local reply", at_cursor=True))
+    t.exchange(query(b"$WORLD(CUR,640,480)$$-=SCENE=Parent.RIP$", at_cursor=True))
+    frame = t.exchange(b"\x1b[3;5H\x01|" + read_scene(b"$&SCENE$") + b"|X0D0D\r\n")
+    assert pixel(frame, 10, 10) == 0xaa0000
+    assert [pixel(frame, point, point) for point in (11, 12, 13)] == [0x00aa00] * 3
+    assert frame.cell_text(cell_at(frame, 3, 8)) == "é"
+    assert frame.application["cterm.x"] == 5 and frame.application["cterm.y"] == 9
+
+    t.case("Missing and recursive 1R scenes return to the caller")
+    (assets / "Self.FN").write_bytes(b"!|" + read_scene(b"Self.FN") + b"\r\n")
+    frame = t.exchange(b"\x01|" + read_scene(b"Missing.RIP") + b"|" + read_scene(b"Self.FN")
+                       + b"|X0E0E\r\n" + query(b"alive", at_cursor=True), b"alive")
+    assert pixel(frame, 14, 14) == 0x00aa00 and frame.application["connected"] == 1
+
+
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -276,6 +303,7 @@ def run(args):
                   if p.read_text(encoding="utf-8").strip() == "Capture")
         assets = owner.parent / "RIP"
         assets.mkdir(exist_ok=True)
+        check_read_scene(t, root, assets, args.encoding)
         fixture = Path(__file__).resolve().parents[1] / "media/pixel_image/tests/jpeg/gray.jpg"
         contents = fixture.read_bytes()
         (assets / "Gray.jpg").write_bytes(contents)

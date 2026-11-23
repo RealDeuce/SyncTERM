@@ -29,6 +29,7 @@ void st_term_rip3_captured_input(struct st_term_rip3 *rip,uint64_t token,const s
 bool st_term_rip3_graphical_pending(const struct st_term_rip3 *rip);
 void st_term_rip3_graphical_failure(struct st_term_rip3 *rip);
 bool st_term_rip3_paused(const struct st_term_rip3 *rip);
+bool st_term_rip3_local_scene(const struct st_term_rip3 *rip);
 bool st_term_rip3_mouse_active(const struct st_term_rip3 *rip);
 bool st_term_rip3_pointer_shape(const struct st_term_rip3 *rip, enum st_console_pointer_shape *result);
 bool st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event);

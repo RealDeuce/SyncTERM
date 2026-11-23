@@ -9118,3 +9118,25 @@ uses `-1` when it cannot fit the signed 32-bit request. [Win32 file-position con
 Connected CP437 and UTF-8 tests compare complete replies for hits, misses,
 aliases, global fallback and malformed-command recovery. Native fault tests
 distinguish lookup, open, length, metadata and time-conversion outcomes.
+
+## Connected RIP_READ_SCENE
+
+Wire `1R` consumes eight reserved digits at the current base and expands the
+filename through the graphical argument evaluator. It resolves the name in the
+active BBS cache with the global RIP directory as fallback. Each open file uses
+its own line framer and the live drawing and text state. Nested calls return to
+the parent source, and changes to drawing and text state carry through the
+return. Local text uses the entry's encoding and renders through the connected
+console. The input pump bounds processing per poll and closes scene files on
+return or cancellation.
+
+SyncTERM currently permits eight open local scenes and suppresses RIP and ANSI
+replies while a file is running. The framer expects a command delimiter or CR
+for ordinary commands. The original client's EOF, nesting, filename preparation
+and reply rules are tracked in [issue #170](https://github.com/bbs-land/remote-imaging-protocol/issues/170).
+The `$>` invocation, `3e` pacing and article/overflow sources remain to be
+connected. The separate `$FILEEXISTS$` contract is tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
+
+Connected CP437 and UTF-8 fixtures check command ordering before and after a
+nested call, independent pixel and cell results, computed filenames, the global
+fallback, response suppression, and recovery from a missing or recursive scene.
