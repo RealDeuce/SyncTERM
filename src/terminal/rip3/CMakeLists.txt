@@ -25,6 +25,7 @@ target_sources(st_rip3 PRIVATE st_rip3_templates.c st_rip3_resident_query.c st_r
 target_sources(st_rip3 PRIVATE st_rip3_local_variables.c)
 target_sources(st_rip3 PRIVATE st_rip3_text_window.c)
 target_sources(st_rip3 PRIVATE st_rip3_text_window_host.c)
+target_sources(st_rip3 PRIVATE st_rip3_tones.c)
 target_sources(st_rip3 PRIVATE st_rip3_button_styles.c)
 target_sources(st_rip3 PRIVATE st_rip3_mouse.c)
 target_sources(st_rip3 PRIVATE st_rip3_button_payload.c)
@@ -83,7 +84,7 @@ endif()
 add_library(st_rip3_audio STATIC st_rip3_audio.c)
 target_include_directories(st_rip3_audio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_audio PUBLIC st_rip3_storage st_audio
-	PRIVATE st_audio_file syncterm_filesystem syncterm_threads)
+	PRIVATE st_audio_file syncterm_filesystem syncterm_threads st_rip3_math)
 set_target_properties(st_rip3_audio PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)

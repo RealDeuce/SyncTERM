@@ -8,6 +8,8 @@
 struct st_rip3_input {
 	struct st_rip3_input_source source;
 	uint64_t started, duration;
+	bool (*blocked)(void *context);
+	void *blocked_context;
 };
 
 int
@@ -41,10 +43,20 @@ void
 st_rip3_input_delay(struct st_rip3_input *input, uint32_t ticks)
 {
 	if (input == NULL) return;
+	input->blocked = NULL;
 	/* UINT32_MAX * 1e9 + 59 fits uint64_t. All decoded four-digit fields
 	 * fit uint32_t, while the typed service supports its complete range. */
 	input->duration = ((uint64_t)ticks*UINT64_C(1000000000)+59)/60;
 	if (input->duration != 0) input->started = input->source.now_ns(input->source.context);
+}
+
+void
+st_rip3_input_wait_for(struct st_rip3_input *input, bool (*blocked)(void *), void *context)
+{
+	if (input == NULL) return;
+	input->blocked = blocked;
+	input->blocked_context = context;
+	input->duration = blocked != NULL;
 }
 
 uint64_t
@@ -52,6 +64,8 @@ st_rip3_input_wait_ns(const struct st_rip3_input *input)
 {
 	uint64_t elapsed;
 	if (input == NULL || input->duration == 0) return 0;
+	if (input->blocked != NULL)
+		return input->blocked(input->blocked_context) ? UINT64_C(1000000) : 0;
 	/* Unsigned elapsed arithmetic retains a gate across counter rollover;
 	 * it never constructs an overflowing absolute deadline. */
 	elapsed = input->source.now_ns(input->source.context)-input->started;

@@ -19,6 +19,7 @@ struct st_rip3_mouse;
 struct st_rip3_field_context;
 struct st_rip3_refresh;
 struct st_rip3_builtin_reference;
+struct st_rip3_tones;
 
 enum { ST_RIP3_HOST_DIRECTORY_LIMIT = 12 };
 
@@ -77,6 +78,10 @@ struct st_rip3_host_variables {
 	/* Active D references set this gate. The enclosing evaluator must yield
 	 * before executing another reference/host action while its wait is nonzero. */
 	struct st_rip3_input *input;
+	/* The audio owner copies valid requests before returning. No service
+	 * means successful tone actions are silent. */
+	void *tones_context;
+	void (*tones)(void *context, const struct st_rip3_tones *);
 	/* RAND advances only this state, after validation and reply preparation. */
 	struct st_rip3_random *random;
 	/* Optional borrowed user-variable processor for the enclosing immediate

@@ -1515,7 +1515,10 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
-	if (session->ready && session->commands.audio!=NULL) (void)st_rip3_audio_stop(session->commands.audio);
+	if (session->ready && session->commands.audio != NULL) {
+		st_rip3_audio_stop_tones(session->commands.audio);
+		(void)st_rip3_audio_stop(session->commands.audio);
+	}
 }
 
 void
@@ -1666,6 +1669,20 @@ st_rip3_session_mouse_cancel(struct st_rip3_session *session)
 	if (session!=NULL) st_rip3_mouse_cancel_silent(session->commands.mouse);
 }
 
+static bool
+tones_pending(void *context)
+{
+	return st_rip3_audio_tones_pending(context);
+}
+
+static void
+play_tones(void *context, const struct st_rip3_tones *tones)
+{
+	struct st_rip3_session *session = context;
+	if (st_rip3_audio_play_tones(session->commands.audio, tones))
+		st_rip3_input_wait_for(session->commands.input, tones_pending, session->commands.audio);
+}
+
 static int
 playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
 {
@@ -1803,6 +1820,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	const struct st_rip3_input_source source={session,now,next,consume,prepare};
 	if (status==0) status=st_rip3_input_create(&session->commands.input,&source);
 	session->variables.input=session->commands.input;
+	session->variables.tones_context = session;
+	session->variables.tones = play_tones;
 	if (status==0) status=create_query(session,&session->commands.query,&session->variables);
 	session->refresh_variables = session->variables;
 	/* Refresh uses ordinary host expansion without template slots. Keep the

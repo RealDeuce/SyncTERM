@@ -6,6 +6,7 @@
 #include "st_rip3_palettes.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_backup.h"
+#include "st_rip3_tones.h"
 #include "io_error.h"
 
 #include <stdio.h>
@@ -77,6 +78,69 @@ run(const struct st_rip3_host_variables *host, const char *command,
 	return 0;
 }
 
+static void
+request_tones(void *context, const struct st_rip3_tones *tones)
+{
+	struct st_rip3_tones *received = context;
+	*received = *tones;
+}
+
+static int
+tone_requests(void)
+{
+	struct st_rip3_tones received;
+	struct st_rip3_host_variables host = {.tones_context = &received, .tones = request_tones};
+	struct observation seen = {0};
+	const struct st_rip3_host_sink sink = {&seen, receive, diagnose};
+	const struct {
+		const char *command;
+		size_t count, notes_per_repeat;
+		struct st_rip3_tone notes[6];
+		int step;
+	} cases[] = {
+		{"$ALARM$", 6, 2, {{320, 200}, {160, 225}}, 0},
+		{"$ALARM(0)$", 0, 0, {{0}}, 0},
+		{"$BEEP$", 1, 1, {{1000, 75}}, 0},
+		{"$BEEP(23)$", 1, 1, {{23, 75}}, 0},
+		{"$BLIP$", 1, 1, {{1000, 25}}, 0},
+		{"$BLIP(0,0)$", 1, 1, {{0, 0}}, 0},
+		{"$MUSIC$", 24, 6, {{1125, 17}, {775, 14}, {625, 10}, {725, 14}, {825, 10}, {600, 25}}, 0},
+		{"$MUSIC(65535)$", 393210, 6, {{1125, 17}, {775, 14}, {625, 10}, {725, 14}, {825, 10}, {600, 25}}, 0},
+		{"$PHASER$", 123, 1, {{2500, 2}}, -20},
+		{"$REVPHASER$", 123, 1, {{50, 2}}, 20},
+		{"$PHASER(100,60,20,4)$", 3, 1, {{100, 4}}, -20},
+		{"$REVPHASER(65530,65534,10)$", 32768, 1, {{65530, 2}}, 10},
+		{"$PHASER(4,0,32768,1)$", 2, 1, {{4, 1}}, -32768},
+		{"$T(65535,65535)$", 1, 1, {{65535, 65535}}, 0},
+	};
+	for (size_t i = 0; i < sizeof(cases) / sizeof(*cases); i++) {
+		memset(&received, 0, sizeof(received));
+		const char *command = cases[i].command;
+		st_rip3_host_variables_process(&host, &sink, (const uint8_t *)command, strlen(command));
+		CHECK(seen.errors == 0 && seen.replies == 0);
+		struct st_rip3_tone note;
+		for (size_t n = 0; n < cases[i].count; n++) {
+			struct st_rip3_tone expected = cases[i].notes[n % cases[i].notes_per_repeat];
+			expected.frequency = (uint16_t)((int32_t)expected.frequency + (int32_t)n * cases[i].step);
+			CHECK(st_rip3_tones_next(&received, &note));
+			CHECK(note.frequency == expected.frequency && note.milliseconds == expected.milliseconds);
+		}
+		CHECK(!st_rip3_tones_next(&received, &note));
+	}
+	const char *const invalid[] = {
+		"$T$", "$T(1000)$", "$T(1,2,3)$", "$BLIP(-1,2)$", "$BEEP(2,x)$", "$ALARM(65536)$",
+		"$MUSIC(0,1)$", "$PHASER(1,2)$", "$REVPHASER(1,1)$",
+		"$PHASER(20,1,0,2)$", "$REVPHASER(0,20,1,0)$",
+	};
+	for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); i++) {
+		size_t length = strlen(invalid[i]);
+		st_rip3_host_variables_process(&host, &sink, (const uint8_t *)invalid[i], length);
+		CHECK(received.repeats == 0 && seen.errors == i + 1 && seen.replies == i + 1);
+		CHECK(seen.kind == ST_RIP3_HOST_INVALID_REFERENCE && seen.length == length);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
@@ -94,6 +158,7 @@ main(void)
 		{ST_RIP3_CANVAS_1024_768,"1024","768"},
 	};
 
+	CHECK(tone_requests() == 0);
 	CHECK(run(&host, "$NULL$", 0, "") == 0);
 	CHECK(run(&host, "$NULL(1)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
 	CHECK(run(&host, "$IFS$", IO_ERROR_INVALID_FORMAT, NULL) == 0);

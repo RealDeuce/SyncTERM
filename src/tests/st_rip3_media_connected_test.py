@@ -331,6 +331,13 @@ def run(args):
             return t.exchange(query(program, at_cursor=True), expected)
 
         t.exchange(b"\x1b[!", b"RIPSCRIP030001")
+        t.case("RIPv3 tone actions validate and expand with audio disabled")
+        values(b"before$BEEP$$BLIP(700)$$T(0,0)$$ALARM$$MUSIC(2)$$PHASER$$REVPHASER$after",
+               b"beforeafter")
+        invalid = b"$T(1000)$$BEEP(65536)$$MUSIC(-1)$$PHASER(20,40)$$REVPHASER(50,2500,0)$"
+        values(b"before" + invalid + b"after", b"before" + invalid + b"after")
+        values(b"alive", b"alive")
+
         owner, = (p for p in (root / "cache").glob("*/syncterm-cache-name.txt")
                   if p.read_text(encoding="utf-8").strip() == "Capture")
         assets = owner.parent / "RIP"

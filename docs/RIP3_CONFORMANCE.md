@@ -8925,6 +8925,29 @@ for the [connected pick-list implementation](#connected-pick-lists). [PR #162](h
 The queue contains 2511 implemented, 1684 pending, 2930 unreviewed,
 1551 context, 67 excluded and 32 blocked units.
 
+## Connected tone variables
+
+RIPv3 BEEP, BLIP, T, ALARM, MUSIC, PHASER and REVPHASER execute through the
+ordinary host-variable evaluator in live sessions. Arguments and defaults
+follow the original RIPtel 3.1 request traces. Valid actions expand to empty
+text, including when audio is unavailable. Invalid arity or numeric values
+retain the reference in ordinary expansion and report a parser diagnostic.
+[Pinned tone contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/2900e843f911b05183620c110e43f381d90abc38/version/3.0/ripscrip/4.4-tone-and-sound-generation.md)
+
+The mixer pulls a finite sequence from a separate tone channel. It generates
+sine PCM as needed and carries fractional frames between notes. The RIP input
+pump resumes the query after the mixer consumes its final tone. Local input
+and disconnect handling can continue while the sequence plays. A wrapped
+sweep stops before repeating its starting frequency. Session cancellation
+clears the queued tones.
+
+Native tests compare independently specified frequency and duration requests
+for all seven variables, including a full modular cycle and a maximum MUSIC
+count. A pull-only session fixture checks sound samples, split pulls across
+note boundaries, query ordering, and cancellation. Connected CP437 and UTF-8
+fixtures exercise actions with audio disabled and check recovery after bad
+arguments.
+
 ## Connected local JPEG and WAVE playback
 
 Immediate and stored host programs execute `$(PHOTO.JPG$` and `$)SOUND.WAV$`

@@ -8,6 +8,7 @@
 #include "st_rip3_table_host.h"
 #include "st_rip3_refresh.h"
 #include "io_error.h"
+#include "st_rip3_tones.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -316,6 +317,21 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 
 	if (status == 0) {
 		decoded = true;
+		struct st_rip3_tones tones;
+		int tone_status = st_rip3_tones_parse(&tones, &reference);
+		if (tone_status != IO_ERROR_NOT_SUPPORTED) {
+			if (tone_status == 0) {
+				if (host != NULL && host->tones != NULL && tones.repeats != 0)
+					host->tones(host->tones_context, &tones);
+			}
+			else if (sink != NULL) {
+				if (sink->reply != NULL)
+					sink->reply(sink->context, text, length);
+				if (sink->diagnostic != NULL)
+					sink->diagnostic(sink->context, ST_RIP3_HOST_INVALID_REFERENCE);
+			}
+			return;
+		}
 		/* The zone is borrowed client text, not a formatted numeric/table
 		 * reply. Emit its complete phrase without imposing the scratch-buffer
 		 * bound or allocating a copy. Parameter errors still use recovery. */

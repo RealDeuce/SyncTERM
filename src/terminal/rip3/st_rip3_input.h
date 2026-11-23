@@ -41,6 +41,10 @@ void st_rip3_input_reset(struct st_rip3_input *input);
  * clears the gate. Consecutive in-stream commands cannot overlap: the pump
  * checks the gate before taking the next byte. */
 void st_rip3_input_delay(struct st_rip3_input *input, uint32_t ticks);
+/* Replace the gate with a completion predicate. The borrowed context
+ * remains valid until the predicate becomes false or the gate is reset.
+ * The poll hint while blocked is one millisecond. */
+void st_rip3_input_wait_for(struct st_rip3_input *, bool (*blocked)(void *), void *context);
 /* Remaining relative wait, zero when ready. Does not take any source bytes;
  * callers can use it to bound their normal poll timeout without sleeping here. */
 uint64_t st_rip3_input_wait_ns(const struct st_rip3_input *input);

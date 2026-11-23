@@ -4,6 +4,7 @@
 
 #include "audio.h"
 #include "st_rip3_resources.h"
+#include "st_rip3_tones.h"
 
 struct st_rip3_audio;
 
@@ -27,5 +28,11 @@ void st_rip3_audio_destroy(struct st_rip3_audio *player);
 int st_rip3_audio_play(struct st_rip3_audio *player,
 	const struct st_rip3_resource_paths *paths, const char *filename);
 int st_rip3_audio_stop(struct st_rip3_audio *player);
+
+/* A separate mixer stream consumes the finite sequence on demand. The
+ * session can poll completion without blocking or touching WAVE playback. */
+bool st_rip3_audio_play_tones(struct st_rip3_audio *, const struct st_rip3_tones *);
+bool st_rip3_audio_tones_pending(const struct st_rip3_audio *);
+void st_rip3_audio_stop_tones(struct st_rip3_audio *);
 
 #endif

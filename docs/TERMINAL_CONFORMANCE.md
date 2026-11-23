@@ -996,6 +996,11 @@ sizes. Native fixtures exercise open and metadata failures. [RIPv3 file-query co
 graphical fields. Connected CP437 and UTF-8 fixtures verify the cache lookup,
 alias rewriting and malformed-reference recovery. [RIPv3 FILEEXISTS coverage](RIP3_CONFORMANCE.md#connected-fileexists)
 
+RIPv3 tone variables use the mixer and resume the invoking query after
+playback. Native request and PCM fixtures cover the tone sequences and
+cancellation. Live CP437 and UTF-8 fixtures verify expansion and invalid
+argument recovery with audio disabled. [RIPv3 tone coverage](RIP3_CONFORMANCE.md#connected-tone-variables)
+
 RIPv3 `1R` and `$>NAME$` play cached scenes through the live console. Connected
 CP437 and UTF-8 fixtures check nested return, persistent drawing state, local
 ANSI text, reply suppression, `3e` pacing, mouse actions and recovery after

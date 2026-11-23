@@ -5,6 +5,7 @@
 #include "st_threads.h"
 #include "io_error.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,11 +14,16 @@
 #include <string.h>
 
 struct st_rip3_audio {
+	audio_engine_t *engine;
 	audio_stream_t *stream;
-	/* Shared only with this stream's existing mixer consumer callback. */
+	audio_stream_t *tone_stream;
+	/* Shared only with this player's existing mixer consumer callbacks. */
 	st_mutex_t mutex;
 	int16_t *frames;
 	size_t count, position;
+	struct st_rip3_tones tones;
+	uint32_t tone_frames, phase, millisecond_remainder;
+	uint16_t frequency;
 };
 
 static unsigned
@@ -147,6 +153,7 @@ st_rip3_audio_create(struct st_rip3_audio **result, audio_engine_t *engine,
 		free(player);
 		return IO_ERROR_IO;
 	}
+	player->engine = engine;
 	status = audio_stream_create(&player->stream, engine, left, right);
 	if (status == 0)
 		status = audio_stream_set_source(player->stream, source, player);
@@ -166,6 +173,7 @@ st_rip3_audio_destroy(struct st_rip3_audio *player)
 	/* Destroy waits for the current callback; no consumer can touch the PCM
 	 * or mutex after this returns. The borrowed engine remains client-owned. */
 	audio_stream_destroy(player->stream);
+	audio_stream_destroy(player->tone_stream);
 	free(player->frames);
 	st_mutex_destroy(&player->mutex);
 	free(player);
@@ -220,4 +228,78 @@ st_rip3_audio_play(struct st_rip3_audio *player,
 	player->frames = frames; player->count = count; player->position = 0;
 	(void)st_mutex_unlock(&player->mutex);
 	return audio_stream_source_active(player->stream, true);
+}
+
+static size_t
+tone_source(void *context, int16_t *output, size_t requested)
+{
+	struct st_rip3_audio *player = context;
+	if (st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
+		return 0;
+	size_t count = 0;
+	while (count < requested) {
+		if (player->tone_frames == 0) {
+			struct st_rip3_tone note;
+			if (!st_rip3_tones_next(&player->tones, &note))
+				break;
+			/* Carry subframe remainders across notes, with no inter-note gap. */
+			uint32_t scaled = (uint32_t)note.milliseconds * AUDIO_SAMPLE_RATE + player->millisecond_remainder;
+			player->tone_frames = scaled / 1000;
+			player->millisecond_remainder = scaled % 1000;
+			player->frequency = note.frequency;
+			player->phase = 0;
+			continue;
+		}
+		size_t frames = requested - count;
+		if (frames > player->tone_frames)
+			frames = player->tone_frames;
+		for (size_t i = 0; i < frames; i++) {
+			double radians = (0x1.921fb54442d18p+2 / AUDIO_SAMPLE_RATE) * player->phase;
+			int16_t sample = (int16_t)(sin(radians) * INT16_MAX);
+			*output++ = sample;
+			*output++ = sample;
+			player->phase = (player->phase + player->frequency) % AUDIO_SAMPLE_RATE;
+		}
+		player->tone_frames -= (uint32_t)frames;
+		count += frames;
+	}
+	(void)st_mutex_unlock(&player->mutex);
+	return count;
+}
+
+bool
+st_rip3_audio_play_tones(struct st_rip3_audio *player, const struct st_rip3_tones *tones)
+{
+	if (player == NULL || tones->repeats == 0 || tones->notes[0].milliseconds == 0)
+		return false;
+	if (player->tone_stream == NULL) {
+		int status = audio_stream_create(&player->tone_stream, player->engine, -12.0f, -12.0f);
+		if (status == 0)
+			status = audio_stream_set_source(player->tone_stream, tone_source, player);
+		if (status != 0) {
+			audio_stream_destroy(player->tone_stream);
+			player->tone_stream = NULL;
+			return false;
+		}
+	}
+	if (st_rip3_audio_tones_pending(player) || st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
+		return false;
+	player->tones = *tones;
+	player->tone_frames = 0;
+	player->millisecond_remainder = 0;
+	(void)st_mutex_unlock(&player->mutex);
+	return audio_stream_source_active(player->tone_stream, true) == 0;
+}
+
+bool
+st_rip3_audio_tones_pending(const struct st_rip3_audio *player)
+{
+	return player != NULL && !audio_stream_is_idle(player->tone_stream);
+}
+
+void
+st_rip3_audio_stop_tones(struct st_rip3_audio *player)
+{
+	if (player != NULL && player->tone_stream != NULL)
+		(void)audio_stream_clear(player->tone_stream);
 }

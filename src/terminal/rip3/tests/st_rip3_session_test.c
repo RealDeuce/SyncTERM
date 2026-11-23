@@ -1797,6 +1797,59 @@ hard_reset_lifetime(void)
 }
 
 static int
+tone_actions(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	audio_engine_t *engine = NULL;
+	struct st_rip3_audio *player = NULL;
+	int16_t pcm[100 * AUDIO_CHANNELS];
+	CHECK(audio_engine_create_pull(&engine) == 0 && st_rip3_audio_create(&player, engine, 0, 0) == 0);
+	options.audio = player;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(append(&f, "!|1\0330000a$T(11025,1)$$T(5512,1)$b\rTAIL\r") == 0);
+	st_rip3_session_process(f.session, 4096);
+	size_t read = f.read;
+	CHECK(read < f.length && f.reply_length == 0 && st_rip3_session_wait_ns(f.session) != 0);
+	st_rip3_session_process(f.session, 4096);
+	CHECK(f.read == read && f.reply_length == 0);
+
+	/* 1 ms at 44.1 kHz supplies 44 stereo frames. At 11025 Hz the
+	 * first four samples are a zero, positive peak, zero, negative peak. */
+	CHECK(audio_engine_pull(engine, pcm, 100) == 0);
+	CHECK(pcm[0] == 0 && pcm[2] > 7000 && pcm[4] == 0 && pcm[6] < -7000);
+	for (size_t i = 44 * AUDIO_CHANNELS; i < sizeof(pcm) / sizeof(*pcm); i++)
+		CHECK(pcm[i] == 0);
+	st_rip3_session_process(f.session, 4096);
+	CHECK(f.read == read && f.reply_length == 0 && st_rip3_session_wait_ns(f.session) != 0);
+	CHECK(audio_engine_pull(engine, pcm, 100) == 0);
+	CHECK(pcm[2] > 0 && pcm[2] < pcm[4] && pcm[4] > 7000);
+	CHECK(pump(&f) == 0 && f.reply_length == 2 && memcmp(f.reply, "ab", 2) == 0 && f.errors == 0);
+
+	CHECK(append(&f, "!|1\0330000$REVPHASER(5512,11025,5513,1)$\r") == 0);
+	st_rip3_session_process(f.session, 4096);
+	CHECK(st_rip3_session_wait_ns(f.session) != 0 && audio_engine_pull(engine, pcm, 30) == 0);
+	CHECK(st_rip3_session_wait_ns(f.session) != 0 && audio_engine_pull(engine, pcm, 70) == 0);
+	CHECK(pcm[28] == 0 && pcm[30] > 7000 && pcm[32] == 0 && pcm[34] < -7000);
+	for (size_t i = 58 * AUDIO_CHANNELS; i < 70 * AUDIO_CHANNELS; i++)
+		CHECK(pcm[i] == 0);
+	CHECK(pump(&f) == 0 && st_rip3_session_wait_ns(f.session) == 0);
+
+	CHECK(append(&f, "!|1\0330000$ALARM$after\r") == 0);
+	st_rip3_session_process(f.session, 4096);
+	CHECK(st_rip3_session_wait_ns(f.session) != 0);
+	st_rip3_session_cancel(f.session);
+	CHECK(st_rip3_session_wait_ns(f.session) == 0 && !st_rip3_session_pending(f.session));
+	CHECK(audio_engine_pull(engine, pcm, 100) == 0);
+	for (size_t i = 0; i < sizeof(pcm) / sizeof(*pcm); i++)
+		CHECK(pcm[i] == 0);
+	st_rip3_session_destroy(f.session);
+	st_rip3_audio_destroy(player);
+	audio_engine_destroy(engine);
+	return 0;
+}
+
+static int
 scene_header(void)
 {
 	struct fixture f={0};
@@ -2077,7 +2130,7 @@ overflow_navigation(void)
 int
 main(void)
 {
-	CHECK(scene_pacing()==0 && scene_query_scope()==0 && overflow_navigation()==0);
+	CHECK(scene_pacing()==0 && scene_query_scope()==0 && overflow_navigation()==0 && tone_actions()==0);
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
