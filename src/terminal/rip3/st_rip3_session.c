@@ -46,6 +46,8 @@ enum { SCENE_LIMIT = 8 };
 struct local_scene {
 	struct st_rip3_resource file;
 	struct st_rip3_stream *stream;
+	uint8_t next_byte;
+	bool byte_ready;
 };
 
 struct session_window {
@@ -83,6 +85,7 @@ struct st_rip3_session {
 	struct st_rip3_stream *stream;
 	struct local_scene scenes[SCENE_LIMIT];
 	size_t scene_count;
+	uint64_t scene_baud, scene_clock, scene_credit;
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
@@ -721,6 +724,42 @@ close_scene(struct st_rip3_session *session)
 	struct local_scene *scene = &session->scenes[--session->scene_count];
 	st_rip3_stream_destroy(scene->stream);
 	st_rip3_resource_dispose(&scene->file);
+	if (session->scene_count == 0)
+		session->scene_baud = 0;
+}
+
+static bool
+scene_byte_due(struct st_rip3_session *session)
+{
+	struct st_rip3_environment env;
+	unsigned current;
+	if (st_rip3_command_environment(&session->commands, &current, &env) != 0 || env.baud_rate == 0) {
+		session->scene_baud = 0;
+		return true;
+	}
+	/* Match the ten-bit character timing used by receive pacing. Credit is
+	 * baud times nanoseconds. Cap catch-up after a delayed poll at 100 ms. */
+	const uint64_t cost = UINT64_C(10000000000);
+	const uint64_t catchup = UINT64_C(100000000);
+	uint64_t rate = env.baud_rate;
+	uint64_t time = now(session);
+	if (session->scene_baud != rate) {
+		session->scene_baud = rate;
+		session->scene_credit = cost;
+	}
+	else {
+		uint64_t cap = rate <= UINT64_MAX / catchup ? rate * catchup : UINT64_MAX;
+		if (cap < cost)
+			cap = cost;
+		uint64_t elapsed = time - session->scene_clock;
+		uint64_t available = cap - session->scene_credit;
+		session->scene_credit += elapsed <= available / rate ? elapsed * rate : available;
+	}
+	session->scene_clock = time;
+	if (session->scene_credit < cost)
+		return false;
+	session->scene_credit -= cost;
+	return true;
 }
 
 static bool
@@ -728,19 +767,27 @@ next(void *context, uint8_t *byte)
 {
 	struct st_rip3_session *session=context;
 	while (session->scene_count != 0) {
-		FILE *file = session->scenes[session->scene_count - 1].file.stream;
-		int value = fgetc(file);
-		if (value != EOF) {
-			*byte = (uint8_t)value;
-			return true;
+		struct local_scene *scene = &session->scenes[session->scene_count - 1];
+		if (!scene->byte_ready) {
+			int value = fgetc(scene->file.stream);
+			if (value == EOF) {
+				if (ferror(scene->file.stream))
+					diagnose(session, ST_RIP3_COMMAND_OPERATION_FAILED);
+				/* Complete buffered display and its local reply handling before
+				 * the caller can consume input from its own source again. */
+				if (session->sink.before_command != NULL)
+					session->sink.before_command(session->sink.context);
+				close_scene(session);
+				continue;
+			}
+			scene->next_byte = (uint8_t)value;
+			scene->byte_ready = true;
 		}
-		if (ferror(file))
-			diagnose(session, ST_RIP3_COMMAND_OPERATION_FAILED);
-		/* Complete buffered display and its local reply handling before the
-		 * caller can consume input from its own source again. */
-		if (session->sink.before_command != NULL)
-			session->sink.before_command(session->sink.context);
-		close_scene(session);
+		if (!scene_byte_due(session))
+			return false;
+		*byte = scene->next_byte;
+		scene->byte_ready = false;
+		return true;
 	}
 	return session->source.next(session->source.context,byte);
 }

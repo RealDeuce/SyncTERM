@@ -9,6 +9,7 @@
 #include "st_rip3_text_window.h"
 #include "st_rip3_surface.h"
 #include "st_rip3_resident_query.h"
+#include "st_rip3_resources.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -1962,9 +1963,49 @@ refresh_expression(void)
 	return 0;
 }
 
+static int
+scene_pacing(void)
+{
+	struct fixture f={.now=UINT64_MAX-UINT64_C(1000000)};
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	const struct st_rip3_resource_paths resources={.host=ST_RIP3_SESSION_SCENE_DIR};
+	options.resources=&resources;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	/* 00RS is 1000 in base 36. Byte two becomes due at exactly 10 ms. */
+	CHECK(append(&f,"!|3e00RS\rTEST\r!|1R00000000Pace.TXT\rZ")==0 && pump(&f)==0);
+	CHECK(f.text_length==6 && memcmp(f.text,"TEST\rA",6)==0 && f.read+1==f.length);
+	CHECK(st_rip3_session_local_scene(f.session) && st_rip3_session_pending(f.session));
+	f.now+=UINT64_C(9999999);
+	CHECK(pump(&f)==0 && f.text_length==6 && f.read+1==f.length);
+	++f.now;
+	CHECK(pump(&f)==0 && f.text_length==7 && f.text[6]=='B' && f.read+1==f.length);
+	f.now+=UINT64_C(10000000);
+	CHECK(pump(&f)==0 && f.read==f.length && !st_rip3_session_pending(f.session));
+	CHECK(f.text_length==9 && memcmp(f.text,"TEST\rABCZ",9)==0);
+
+	/* Another call starts with fresh credit. Cancellation drops its backlog. */
+	CHECK(append(&f,"\r!|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
+	CHECK(f.text_length==11 && f.text[10]=='A' && st_rip3_session_local_scene(f.session));
+	st_rip3_session_cancel(f.session);
+	CHECK(!st_rip3_session_local_scene(f.session) && !st_rip3_session_pending(f.session));
+	CHECK(append(&f,"!|3e0|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
+	CHECK(f.text_length==14 && memcmp(f.text+11,"ABC",3)==0 && !st_rip3_session_pending(f.session));
+	CHECK(query(&f,"$BAUDEMUL(CUR,999999999999)$","")==0);
+	CHECK(append(&f,"!|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
+	CHECK(f.text_length==15 && f.text[14]=='A' && st_rip3_session_local_scene(f.session));
+	f.now+=UINT64_C(1000000000);
+	CHECK(pump(&f)==0 && f.text_length==17 && memcmp(f.text+14,"ABC",3)==0);
+	CHECK(!st_rip3_session_pending(f.session));
+	CHECK(f.errors==0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(scene_pacing()==0);
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);

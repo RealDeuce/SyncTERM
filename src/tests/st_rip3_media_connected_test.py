@@ -4,6 +4,7 @@
 import argparse
 from pathlib import Path
 import struct
+import time
 
 from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
@@ -286,6 +287,15 @@ def check_read_scene(t, root, assets, encoding):
     frame = t.exchange(b"\x01|" + read_scene(b"Missing.RIP") + b"|" + read_scene(b"Self.FN")
                        + b"|X0E0E\r\n" + query(b"alive", at_cursor=True), b"alive")
     assert pixel(frame, 14, 14) == 0x00aa00 and frame.application["connected"] == 1
+
+    t.case("Baud emulation paces local scene bytes")
+    (assets / "Pace.TXT").write_bytes(b"abcdef")
+    t.exchange(b"\x01|3e00RS\r\n")  # 1000 baud, 10 ms between bytes.
+    begin = time.monotonic()
+    frame = t.exchange(b"\x1b[12;3H\x01|" + read_scene(b"Pace.TXT") + b"\r\n")
+    assert time.monotonic() - begin >= 0.05
+    assert frame.lines[11][2:8] == "abcdef"
+    t.exchange(b"\x01|3e0\r\n")
 
 
 def run(args):

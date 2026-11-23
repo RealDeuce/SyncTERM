@@ -9134,9 +9134,20 @@ SyncTERM currently permits eight open local scenes and suppresses RIP and ANSI
 replies while a file is running. The framer expects a command delimiter or CR
 for ordinary commands. The original client's EOF, nesting, filename preparation
 and reply rules are tracked in [issue #170](https://github.com/bbs-land/remote-imaging-protocol/issues/170).
-The `$>` invocation, `3e` pacing and article/overflow sources remain to be
-connected. The separate `$FILEEXISTS$` contract is tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
+The `$>` invocation and article/overflow sources remain to be connected. The
+separate `$FILEEXISTS$` contract is tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
 
 Connected CP437 and UTF-8 fixtures check command ordering before and after a
 nested call, independent pixel and cell results, computed filenames, the global
 fallback, response suppression, and recovery from a missing or recursive scene.
+
+`3e` applies the current ENV baud setting to local scene bytes. Zero runs at
+full speed. The local clock budgets ten bits per source byte and limits catch-up
+to 100 ms or one byte, whichever is greater. The live receive path keeps its own
+rate and clock. A native fake-clock test verifies exact byte eligibility across
+timer rollover, large rates, cancellation and return to ordinary live bytes.
+Connected tests exercise a paced text file in both encodings.
+
+The playback rate follows the existing current ENV value. Whether RIPtel
+retains the active rate through a scene reset despite defaulting the ENV
+records is tracked in [issue #172](https://github.com/bbs-land/remote-imaging-protocol/issues/172).

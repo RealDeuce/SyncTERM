@@ -245,6 +245,9 @@ if(BUILD_TESTING)
 	add_executable(st_rip3_session_test tests/st_rip3_session_test.c tests/st_rip3_session_fault_impl.c
 		tests/st_rip3_resident_query_fault_impl.c)
 	target_link_libraries(st_rip3_session_test PRIVATE st_rip3_commands st_utf8)
+	file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/session-scenes/Pace.TXT" CONTENT "ABC")
+	target_compile_definitions(st_rip3_session_test PRIVATE
+		ST_RIP3_SESSION_SCENE_DIR="${CMAKE_CURRENT_BINARY_DIR}/session-scenes")
 	set_target_properties(st_rip3_session_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
