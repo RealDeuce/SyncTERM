@@ -8924,9 +8924,9 @@ The queue contains 2511 implemented, 1684 pending, 2936 unreviewed,
 
 The pinned pick-list chapter's recursive model is based on legacy SyncTERM.
 RIPtel's list parser returns a selected span to the ordinary scanner. The
-host-response executor sends its result after both passes. The remaining
-parsing, placement and expansion rules are tracked upstream.
-[Issue #159](https://github.com/bbs-land/remote-imaging-protocol/issues/159)
+host-response executor sends its result after both passes. The adopted
+specification now defines parsing, placement and expansion. Connected pick-list
+support remains pending. [PR #162](https://github.com/bbs-land/remote-imaging-protocol/pull/162)
 
 The queue contains 2511 implemented, 1684 pending, 2930 unreviewed,
 1551 context, 67 excluded and 32 blocked units.

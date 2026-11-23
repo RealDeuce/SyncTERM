@@ -1100,3 +1100,22 @@ clears template slots, preserves session and persistent variables, and keeps
 the current host program and partial ANSI syntax. HEADER and immediate HARD
 have distinct revision and input lock outcomes. The updated acceptance rows
 remain pending until the connected behavior covers the new profile.
+
+## PR #162 modal pick-list contract
+
+The fork stable pin is now
+[`1d46feda7d82001ee6f8b7c614defaa439facb43`](https://github.com/RealDeuce/remote-imaging-protocol/tree/1d46feda7d82001ee6f8b7c614defaa439facb43).
+It contains the reviewed [PR #162](https://github.com/bbs-land/remote-imaging-protocol/pull/162)
+head `1549601d9c24a6f3023ffd9e7a28d9bfa08f5b8e`. The SHA-256 of the pinned Git
+tar archive is `59be56d588b69d05a0ce48227b9e696697f86921a1c7ec8624504d8c5169410e`.
+The archive was processed in memory.
+
+Three of the 68 normative documents change. Exact-text matching retains
+8784 source blocks, with 480 moving line references. There are 68 new and
+37 retired blocks, for a total of 8852. All 76 previous derivations, both
+original protocol texts and the license retain their hashes.
+
+B159 is resolved by the published pick-list profile. It defines bounded
+position, prompt, response and label parsing, modal selection in both
+ordinary passes, and transmission after a response has completed both
+passes. Connected pick-list support remains pending.
