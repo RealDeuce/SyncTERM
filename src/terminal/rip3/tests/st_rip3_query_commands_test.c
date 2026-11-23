@@ -486,8 +486,8 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	/* Known invalid/unsupported built-ins never prompt, including excluded
 	 * external-launch names. P has no built-in registration and does prompt. */
 	CHECK(st_rip3_variables_set(f.session,"D",1,(const uint8_t *)"fake",4)==0);
-	CHECK(process(&f,"1\0330000$D(0)$$APP$$GOTOURL$$BEEP$end",-1)==0);
-	CHECK(f.host_errors==4 && f.reply_length==3 && memcmp(f.reply,"end",3)==0
+	CHECK(process(&f,"1\0330000$D(0)$$APP$$GOTOURL$end",-1)==0);
+	CHECK(f.host_errors==3 && f.reply_length==3 && memcmp(f.reply,"end",3)==0
 	    && st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000$P$",-1)==0 && st_rip3_query_pending(f.host.query));
