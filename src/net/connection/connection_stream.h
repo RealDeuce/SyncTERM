@@ -9,6 +9,7 @@
 
 struct st_connection_stream {
 	socket_handle_t socket;
+	struct st_event *activity;
 	st_tls_session_t *tls;
 	st_mutex_t mutex;
 	bool initialized;

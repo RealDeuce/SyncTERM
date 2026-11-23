@@ -320,6 +320,7 @@ telnet_bind(void *state, st_connection_t *connection)
 {
 	struct telnet_transport *t = state;
 	t->connection = connection;
+	t->stream.activity = st_connection_activity(connection);
 	atomic_store(&connection->binary_mode, false);
 	if (!t->deferred) t->error = initial_state(t);
 }

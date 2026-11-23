@@ -349,6 +349,9 @@ int st_term_session_create(st_term_session_t **result,
 void st_term_session_destroy(st_term_session_t **session);
 int st_term_session_run(st_term_session_t *session,
     enum st_term_disposition *disposition);
+int st_term_session_service(st_term_session_t *session,
+    enum st_term_disposition *disposition, bool *finished);
+int st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms);
 int st_term_session_pump(st_term_session_t *session,
     enum st_term_disposition *disposition, bool *finished);
 bool st_term_session_remote_closed(const st_term_session_t *session);
@@ -412,8 +415,17 @@ sets the handle NULL.  It neither closes nor destroys the borrowed connection.
 | Pumps until disconnect or local exit.  Writes RETURN_TO_PICKER or
 EXIT_APPLICATION and returns zero, or stops at the first `IO_ERROR_*`.
 
+| st_term_session_wait(session, timeout_ms)
+| Waits on the shared connection and console wake event after an idle pass.
+The owner supplies its next deadline in milliseconds. Pending emulation work
+and baud pacing may shorten the wait. UINT32_MAX allows an indefinite wait.
+
 | st_term_session_pump(session, disposition, finished)
-| Performs one bounded connection receive and drains currently queued console
+| Calls st_term_session_service and allows up to one millisecond of idle
+wait before returning to the caller.
+
+| st_term_session_service(session, disposition, finished)
+| Performs a nonblocking connection receive and drains currently queued console
 events. Polls APC audio notifications on a live connection even when suspended
 or no input arrives. Once the peer has closed, drains input without attempting
 asynchronous reports to the closed transport.

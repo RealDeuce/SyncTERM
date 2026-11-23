@@ -101,6 +101,7 @@ st_term_key_forward_test_main(void)
 	atomic_init(&connection.binary_mode, false);
 	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&connection.input.activity, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
@@ -258,6 +259,7 @@ st_term_key_forward_test_main(void)
 	st_console_destroy(console);
 	st_condition_destroy(&connection.output.changed);
 	st_mutex_destroy(&connection.output.mutex);
+	st_event_destroy(connection.input.activity);
 	st_condition_destroy(&connection.input.changed);
 	st_mutex_destroy(&connection.input.mutex);
 	return EXIT_SUCCESS;

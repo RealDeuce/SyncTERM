@@ -37,6 +37,7 @@ struct st_term_session {
 	int output_error;
 	bool end_requested;
 	bool igs_dispatch_pending;
+	bool did_work;
 	bool exit_requested;
 	bool remote_closed;
 	bool history_finalized;
@@ -46,6 +47,7 @@ struct st_term_session {
 	uint32_t throttle_bps;
 	uint64_t throttle_last_ms;
 	uint64_t throttle_credit;
+	bool throttle_idle;
 	const void *wire_owner;
 	bool input_dispatching;
 	uint8_t wire_pending[4096];
@@ -210,6 +212,7 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	if (session->output_error != 0
 	    || !st_connection_is_connected(session->config.connection))
 		return;
+	if (size != 0) session->did_work = true;
 	if ((session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_1 || session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 	    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
 		session->output_error = st_term_session_send_text(session,
@@ -1167,7 +1170,7 @@ handle_event(st_term_session_t *session,
 }
 
 int
-st_term_session_pump(st_term_session_t *session,
+st_term_session_service(st_term_session_t *session,
 	enum st_term_disposition *disposition, bool *finished)
 {
 	struct st_console_event event;
@@ -1178,6 +1181,7 @@ st_term_session_pump(st_term_session_t *session,
 	if (session == NULL || disposition == NULL || finished == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	*finished = false;
+	session->did_work = false;
 	status = st_connection_process_requests(session->config.connection);
 	if (status != 0) return status;
 	if (session->end_requested) {
@@ -1210,30 +1214,25 @@ st_term_session_pump(st_term_session_t *session,
 		status = st_time_monotonic_ms(&now);
 		if (status != 0)
 			return status;
-		if (cap < UINT64_C(10000))
+		bool idle = session->returned_position == session->returned_size
+		    && session->wire_position == session->wire_size
+		    && !st_connection_input_ready(session->config.connection);
+		/* An idle wait can last arbitrarily long. Only one byte of credit
+		 * carries into the first pass after the remote starts sending. */
+		if (idle || session->throttle_idle || parser_wait || cap < UINT64_C(10000))
 			cap = UINT64_C(10000);
+		session->throttle_idle = idle;
 		if (!parser_wait && session->throttle_last_ms != 0
 		    && now >= session->throttle_last_ms) {
 			uint64_t elapsed = now - session->throttle_last_ms;
-
-			if (elapsed > 100)
-				elapsed = 100;
-			session->throttle_credit += elapsed
-			    * session->throttle_bps;
-			if (session->throttle_credit > cap)
+			if (elapsed >= (cap + session->throttle_bps - 1) / session->throttle_bps)
 				session->throttle_credit = cap;
+			else
+				session->throttle_credit += elapsed * session->throttle_bps;
 		}
 		session->throttle_last_ms = now;
-		/* A protocol pause behaves like a stopped sender. Keep the
-		 * backlog paced, including the pump that ends the pause; waiting
-		 * must not bank catch-up credit for the buffered suffix. */
-		if (parser_wait && session->throttle_credit > UINT64_C(10000))
-			session->throttle_credit = UINT64_C(10000);
-		/* Idling does not bank a burst for the next remote write. */
-		if (session->wire_position == session->wire_size
-		    && st_connection_pending_raw(session->config.connection) == 0
-		    && session->throttle_credit > UINT64_C(10000))
-			session->throttle_credit = UINT64_C(10000);
+		if (session->throttle_credit > cap)
+			session->throttle_credit = cap;
 		read_size = (size_t)(session->throttle_credit / UINT64_C(10000));
 		if (read_size > sizeof(session->wire_pending))
 			read_size = sizeof(session->wire_pending);
@@ -1246,6 +1245,7 @@ st_term_session_pump(st_term_session_t *session,
 		if (status != 0) return status;
 	}
 	bool paused = !protocol_input && input_paused(session);
+	if (parser_was_waiting && !paused) session->did_work = true;
 	if (session->transfer_reserved || session->wire_owner != NULL || paused) read_size = 0;
 	if (protocol_input) {
 		size_t space = st_transfer_input_space(session->transfer);
@@ -1255,16 +1255,7 @@ st_term_session_pump(st_term_session_t *session,
 	    && session->returned_position == session->returned_size
 	    && session->wire_position == session->wire_size) {
 		received = st_connection_receive(session->config.connection, session->wire_pending,
-		    read_size, 20);
-	}
-	else if ((!session->suspended || session->transfer != NULL || session->transfer_reserved)
-	    && read_size == 0
-	    && !session->igs_dispatch_pending
-	    && (st_connection_is_connected(session->config.connection)
-	    || session->wire_position < session->wire_size)) {
-		const struct timespec pause = {.tv_nsec = 10000000L};
-
-		(void)st_thread_sleep(&pause, NULL);
+		    read_size, 0);
 	}
 	if (received < 0 && received != IO_ERROR_TIMED_OUT
 	    && received != IO_ERROR_WOULD_BLOCK) {
@@ -1279,6 +1270,7 @@ st_term_session_pump(st_term_session_t *session,
 		}
 	}
 	if (received > 0) {
+		session->did_work = true;
 		session->wire_position = 0;
 		session->wire_size = (size_t)received;
 	}
@@ -1307,7 +1299,10 @@ st_term_session_pump(st_term_session_t *session,
 				status = session->config.wire_capture(session->config.capture_context, bytes + *position, count);
 				if (status != 0) return status;
 			}
-			*position += skip ? count : st_transfer_feed(session->transfer, bytes + *position, count);
+			size_t consumed = skip ? count : st_transfer_feed(session->transfer, bytes + *position, count);
+			if (consumed == 0) break;
+			*position += consumed;
+			session->did_work = true;
 			continue;
 		}
 		if (session->transfer == NULL && session->throttle_bps != 0) {
@@ -1334,6 +1329,7 @@ st_term_session_pump(st_term_session_t *session,
 		session->wire_replaying = false;
 		if (status != 0) return status;
 		*position += count;
+		session->did_work = true;
 		protocol_input = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	}
 	if (!session->suspended && session->wire_owner == NULL && session->transfer == NULL
@@ -1341,10 +1337,6 @@ st_term_session_pump(st_term_session_t *session,
 	    && session->returned_position == session->returned_size
 	    && st_connection_pending_raw(session->config.connection) == 0)
 		st_cterm_musicomm_idle(session->cterm);
-	if (received == 0 && session->auxiliary_active) {
-		const struct timespec pause = {.tv_nsec = 10000000L};
-		(void)st_thread_sleep(&pause, NULL);
-	}
 	/* Publish the consumed text batch before local keys/scripts inspect it. */
 	st_term_rip3_flush(session->rip3);
 	for (;;) {
@@ -1360,6 +1352,7 @@ st_term_session_pump(st_term_session_t *session,
 			}
 			status=st_console_event_try(session->config.console,&saved->event);
 			if (status!=0) {free(saved);break;}
+			session->did_work = true;
 			if (saved->event.type==ST_CONSOLE_EVENT_CLOSE
 			    || local_command(session->config.console,&saved->event,disposition)) {
 				event=saved->event;free(saved);
@@ -1375,6 +1368,7 @@ st_term_session_pump(st_term_session_t *session,
 		}
 		else if (session->deferred_head!=NULL) {
 			struct deferred_event *saved=session->deferred_head;
+			session->did_work = true;
 			event=saved->event;uint64_t token=saved->capture_token;session->deferred_head=saved->next;
 			if (session->deferred_head==NULL) session->deferred_tail=NULL;
 			if (saved->embedded) session->modal_tail_queued=false;else free(saved);
@@ -1387,6 +1381,7 @@ st_term_session_pump(st_term_session_t *session,
 			status=st_console_event_try(session->config.console,&event);
 			if (status!=0) break;
 		}
+		session->did_work = true;
 		status = handle_event(session, &event, disposition, finished);
 		if (status != 0 || *finished)
 			return status;
@@ -1413,6 +1408,58 @@ st_term_session_pump(st_term_session_t *session,
 	return session->output_error;
 }
 
+int
+st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
+{
+	if (session == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->did_work || session->end_requested || session->igs_dispatch_pending || timeout_ms == 0)
+		return 0;
+
+	/* Some emulators and transfer workers expose progress only by polling.
+	 * A ready console or connection interrupts even this short wait. */
+	bool paused = input_paused(session);
+	if (!paused && !session->suspended && session->wire_owner == NULL
+	    && session->transfer == NULL && !session->transfer_reserved) {
+		bool pending = session->wire_position < session->wire_size
+		    || session->returned_position < session->returned_size
+		    || st_connection_input_ready(session->config.connection);
+		if (pending) {
+			if (session->throttle_bps == 0 || session->throttle_credit >= UINT64_C(10000))
+				return 0;
+			uint64_t credit = UINT64_C(10000) - session->throttle_credit;
+			uint64_t delay = (credit + session->throttle_bps - 1) / session->throttle_bps;
+			uint64_t now;
+			int status = st_time_monotonic_ms(&now);
+			if (status != 0) return status;
+			uint64_t elapsed = now >= session->throttle_last_ms ? now - session->throttle_last_ms : 0;
+			if (elapsed >= delay) return 0;
+			delay -= elapsed;
+			if (delay < timeout_ms)
+				timeout_ms = (uint32_t)delay;
+		}
+	}
+	if (timeout_ms > 1 && (session->transfer != NULL || session->transfer_reserved
+	    || paused || st_cterm_needs_poll(st_term_session_cterm(session))))
+		timeout_ms = 1;
+	struct timespec deadline;
+	int status = timeout_ms == UINT32_MAX ? 0 : st_time_utc_deadline_after_ms(&deadline, timeout_ms);
+	if (status == 0)
+		status = st_console_wait_activity(session->config.console,
+		    st_connection_activity(session->config.connection), timeout_ms == UINT32_MAX ? NULL : &deadline);
+	return status == IO_ERROR_TIMED_OUT ? 0 : status;
+}
+
+int
+st_term_session_pump(st_term_session_t *session,
+    enum st_term_disposition *disposition, bool *finished)
+{
+	int status = st_term_session_service(session, disposition, finished);
+	if (status == 0 && !*finished)
+		status = st_term_session_wait(session, 1);
+	return status;
+}
+
 void
 st_term_session_set_auxiliary_active(st_term_session_t *session, bool active)
 {
@@ -1430,7 +1477,9 @@ st_term_session_run(st_term_session_t *session,
 		return IO_ERROR_INVALID_ARGUMENT;
 	*disposition = ST_TERM_RETURN_TO_PICKER;
 	while (!finished) {
-		status = st_term_session_pump(session, disposition, &finished);
+		status = st_term_session_service(session, disposition, &finished);
+		if (status == 0 && !finished)
+			status = st_term_session_wait(session, UINT32_MAX);
 		if (status != 0)
 			return status;
 	}

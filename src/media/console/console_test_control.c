@@ -201,6 +201,8 @@ static void wake_application(struct test_control *c)
 	st_console_t *console = atomic_load_explicit(&c->display->input_active, memory_order_acquire);
 	if (console != NULL) {
 		(void)st_mutex_lock(&console->event_mutex);
+		if (console->activity_waiter != NULL)
+			(void)st_event_set(console->activity_waiter);
 		(void)st_condition_signal(&console->event_ready);
 		(void)st_mutex_unlock(&console->event_mutex);
 	}

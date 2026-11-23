@@ -178,6 +178,12 @@ void st_term_session_set_ooii_mode(st_term_session_t *session, int mode);
  */
 int st_term_session_run(st_term_session_t *session,
 	enum st_term_disposition *disposition);
+/* Dispatch ready work without an idle wait. The application services scripts
+ * and status next, then waits until activity or its nearest deadline. */
+int st_term_session_service(st_term_session_t *session,
+	enum st_term_disposition *disposition, bool *finished);
+/* UINT32_MAX permits an indefinite wait if no owner deadline is active. */
+int st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms);
 int st_term_session_pump(st_term_session_t *session,
 	enum st_term_disposition *disposition, bool *finished);
 

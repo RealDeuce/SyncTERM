@@ -79,6 +79,17 @@ static int publish(struct cterm_big *b, struct cterm_big_audio *a)
 	if (owned) b->numeric.random_state=rng;
 	return 0;
 }
+bool cterm_big_audio_needs_poll(const struct cterm_big *b)
+{
+	struct cterm_big_audio *a = b->audio;
+	if (a == NULL || a->clock_fault) return false;
+	if (a->stream != NULL) return true;
+	(void)st_mutex_lock(&a->mutex);
+	bool active = a->effect.active || a->speaker.playing;
+	(void)st_mutex_unlock(&a->mutex);
+	return active;
+}
+
 int cterm_big_audio_poll(struct cterm_big *b)
 {
 	struct cterm_big_audio *a=b->audio;

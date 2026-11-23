@@ -1118,7 +1118,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			st_term_session_set_auxiliary_active(session,
 			    st_connection_auxiliary_alive(connection)
 			    && st_wren_connected_auxiliary_active(connected));
-			status = st_term_session_pump(session, disposition, &finished);
+			status = st_term_session_service(session, disposition, &finished);
 			if (!shell_close_notified
 			    && (profile->connection_type == ST_CONNECTION_SHELL
 			    || ((profile->connection_type == ST_CONNECTION_SSH
@@ -1135,15 +1135,16 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 				status = st_wren_connected_pump(connected, 0);
 			if (status != 0 || finished)
 				break;
-			if (st_time_monotonic_ms(&now) != 0)
+			status = st_time_monotonic_ms(&now);
+			if (status != 0) break;
+			if (last_status_ms == 0 || now - last_status_ms >= 100) {
+				last_status_ms = now;
+				show_status = st_cterm_status_display(st_term_session_cterm(session)) == 1;
+				status = st_wren_connected_render_status(connected, show_status);
 				continue;
-			if (last_status_ms != 0 && now - last_status_ms < 100)
-				continue;
-			last_status_ms = now;
-			show_status = st_cterm_status_display(
-			    st_term_session_cterm(session)) == 1;
-			status = st_wren_connected_render_status(connected,
-			    show_status);
+			}
+			uint32_t remaining = 100 - (uint32_t)(now - last_status_ms);
+			status = st_term_session_wait(session, st_wren_connected_wait_ms(connected, remaining));
 		}
 	}
 finished:

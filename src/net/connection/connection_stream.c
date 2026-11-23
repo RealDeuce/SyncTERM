@@ -19,6 +19,7 @@ capture_tls_diagnostic(const struct st_tls_diagnostic *record, void *context)
 		    record->message == NULL ? "negotiation failed" : record->message);
 		if (stream->tls_ready) {
 			stream->error_pending = true;
+			if (stream->activity != NULL) (void)st_event_set(stream->activity);
 			(void)snprintf(stream->error_title, sizeof(stream->error_title),
 			    "TLS error %s data", stream->writing ? "sending" : "receiving");
 		}

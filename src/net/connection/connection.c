@@ -78,8 +78,17 @@ queue_init(struct st_connection_queue *queue)
 static void
 queue_destroy(struct st_connection_queue *queue)
 {
+	st_event_destroy(queue->activity);
 	st_condition_destroy(&queue->changed);
 	st_mutex_destroy(&queue->mutex);
+}
+
+void
+st_connection_queue_changed(struct st_connection_queue *queue)
+{
+	(void)st_condition_broadcast(&queue->changed);
+	if (queue->activity != NULL)
+		(void)st_event_set(queue->activity);
 }
 
 static void
@@ -90,7 +99,7 @@ queue_stop(struct st_connection_queue *queue, bool eof)
 	queue->eof = queue->eof || eof;
 	/* A dead connection cannot require a local START to deliver final EOF. */
 	queue->paused = false;
-	(void)st_condition_broadcast(&queue->changed);
+	st_connection_queue_changed(queue);
 	(void)st_mutex_unlock(&queue->mutex);
 }
 
@@ -142,7 +151,7 @@ queue_write(struct st_connection_queue *queue, const void *data, size_t size,
 		memcpy(queue->data + tail, source + written, chunk);
 		queue->count += chunk;
 		written += chunk;
-		(void)st_condition_broadcast(&queue->changed);
+		st_connection_queue_changed(queue);
 	}
 	if (written == 0 && queue->stopped) {
 		(void)st_mutex_unlock(&queue->mutex);
@@ -344,7 +353,7 @@ input_worker(void *argument)
 				if (status == ST_CONNECTION_INPUT_CONTROL_EOF) {
 					(void)st_mutex_lock(&connection->input.mutex);
 					connection->input.paused = false;
-					(void)st_condition_broadcast(&connection->input.changed);
+					st_connection_queue_changed(&connection->input);
 					(void)st_mutex_unlock(&connection->input.mutex);
 				}
 				continue;
@@ -457,6 +466,14 @@ st_connection_start(st_connection_t **result, void *transport,
 		free(connection);
 		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
 		    ST_CONNECTION_SETUP_NONE, "unable to initialize output queue");
+	}
+	if (st_event_create(&connection->input.activity, ST_EVENT_AUTO_RESET, false) != ST_THREAD_SUCCESS) {
+		operations->destroy(transport);
+		queue_destroy(&connection->output);
+		queue_destroy(&connection->input);
+		free(connection);
+		return st_connection_fail(error, IO_ERROR_OUT_OF_MEMORY,
+		    ST_CONNECTION_SETUP_NONE, "unable to initialize session wake event");
 	}
 	atomic_init(&connection->connected, true);
 	atomic_init(&connection->stopping, false);
@@ -578,6 +595,17 @@ st_connection_peek_raw(st_connection_t *connection, void *data, size_t size)
 	return queue_read(&connection->input, data, size, 0, true, false);
 }
 
+bool
+st_connection_input_ready(st_connection_t *connection)
+{
+	if (connection == NULL) return false;
+	struct st_connection_queue *queue = &connection->input;
+	(void)st_mutex_lock(&queue->mutex);
+	bool ready = queue->count != 0 && !queue->paused;
+	(void)st_mutex_unlock(&queue->mutex);
+	return ready;
+}
+
 size_t
 st_connection_pending_raw(st_connection_t *connection)
 {
@@ -588,6 +616,12 @@ size_t
 st_connection_queued(st_connection_t *connection)
 {
 	return connection == NULL ? 0 : queue_count(&connection->output);
+}
+
+st_event_t *
+st_connection_activity(st_connection_t *connection)
+{
+	return connection == NULL ? NULL : connection->input.activity;
 }
 
 bool
@@ -655,7 +689,7 @@ st_connection_set_binary_mode(st_connection_t *connection, bool enabled)
 	atomic_store(&connection->binary_mode, enabled);
 	if (enabled) {
 		connection->input.paused = false;
-		(void)st_condition_broadcast(&connection->input.changed);
+		st_connection_queue_changed(&connection->input);
 	}
 	(void)st_mutex_unlock(&connection->input.mutex);
 	return 0;
@@ -680,7 +714,7 @@ st_connection_clear_input(st_connection_t *connection)
 	(void)st_mutex_lock(&connection->input.mutex);
 	connection->input.head = 0;
 	connection->input.count = 0;
-	(void)st_condition_broadcast(&connection->input.changed);
+	st_connection_queue_changed(&connection->input);
 	(void)st_mutex_unlock(&connection->input.mutex);
 }
 
@@ -691,7 +725,7 @@ st_connection_consume_flow_control(st_connection_t *connection, uint8_t byte)
 	(void)st_mutex_lock(&connection->input.mutex);
 	if (!atomic_load(&connection->binary_mode) && (byte == 0x11 || byte == 0x13)) {
 		connection->input.paused = byte == 0x13;
-		(void)st_condition_broadcast(&connection->input.changed);
+		st_connection_queue_changed(&connection->input);
 		consumed = true;
 	}
 	(void)st_mutex_unlock(&connection->input.mutex);

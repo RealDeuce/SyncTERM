@@ -2762,6 +2762,23 @@ st_cterm_skypix_load_sample(st_cterm_t *terminal, const void *bytes, size_t size
 		: cterm_skypix_audio_load(terminal->skypix_engine, bytes, size);
 }
 
+bool
+st_cterm_needs_poll(st_cterm_t *terminal)
+{
+	if (terminal == NULL) return false;
+	if (cterm_big_needs_poll(terminal->big_engine)
+	    || st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF)
+		return true;
+	if (terminal->igs_engine != NULL && (terminal->igs_engine->input_deadline != 0
+	    || terminal->igs_engine->text_deadline != 0 || terminal->igs_engine->bitmap_deadline != 0))
+		return true;
+	if (terminal->apc != NULL) {
+		for (size_t i = 0; i < sizeof(terminal->apc->notify) / sizeof(terminal->apc->notify[0]); ++i)
+			if (terminal->apc->notify[i]) return true;
+	}
+	return false;
+}
+
 int
 st_cterm_poll(st_cterm_t *terminal)
 {

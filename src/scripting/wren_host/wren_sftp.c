@@ -11,6 +11,7 @@
 #include "sftp.h"
 #include "st_profile.h"
 #include "st_connection.h"
+#include "st_event.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
 #include "st_utf8.h"
@@ -2350,6 +2351,26 @@ fire_interval_hooks(st_wren_connected_t *connected, uint64_t now)
 	return status;
 }
 
+uint32_t
+st_wren_connected_wait_ms(st_wren_connected_t *connected, uint32_t limit)
+{
+	uint64_t now;
+	if (connected == NULL || limit == 0 || st_time_monotonic_ms(&now) != 0)
+		return 0;
+	if (limit > 1 && connected->context.send_head != NULL)
+		limit = 1;
+	for (struct pending_timer *timer = connected->timers; timer != NULL; timer = timer->next) {
+		uint64_t delay = timer->deadline > now ? timer->deadline - now : 0;
+		if (delay < limit) limit = (uint32_t)delay;
+	}
+	for (struct connected_hook *hook = connected->hooks; hook != NULL; hook = hook->next) {
+		if (hook->kind != 6 || hook->function == NULL) continue;
+		uint64_t delay = hook->next_deadline_ms > now ? hook->next_deadline_ms - now : 0;
+		if (delay < limit) limit = (uint32_t)delay;
+	}
+	return limit;
+}
+
 int
 st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 {
@@ -2371,29 +2392,7 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 	status = st_wren_send_pump(&connected->context);
 	if (status != 0)
 		return status;
-	if (connected->timers != NULL && st_time_monotonic_ms(&now) == 0) {
-		for (struct pending_timer *timer = connected->timers; timer != NULL;
-		    timer = timer->next) {
-			uint64_t remaining = timer->deadline > now
-			    ? timer->deadline - now : 0;
-
-			if (remaining < timeout_ms)
-				timeout_ms = (uint32_t)remaining;
-		}
-	}
-	if (st_time_monotonic_ms(&now) == 0) {
-		for (struct connected_hook *hook = connected->hooks; hook != NULL;
-		    hook = hook->next) {
-			uint64_t remaining;
-
-			if (hook->kind != 6 || hook->function == NULL)
-				continue;
-			remaining = hook->next_deadline_ms > now
-			    ? hook->next_deadline_ms - now : 0;
-			if (remaining < timeout_ms)
-				timeout_ms = (uint32_t)remaining;
-		}
-	}
+	timeout_ms = st_wren_connected_wait_ms(connected, timeout_ms);
 	if (connected->provider.poll != NULL) {
 		/* Drain a bounded batch without replacing poll's readiness result
 		 * with deliver_response's zero-on-success status. */
@@ -2405,6 +2404,8 @@ st_wren_connected_pump(st_wren_connected_t *connected, uint32_t timeout_ms)
 			if (polled == 0) break;
 			status = deliver_response(connected, &response);
 			if (status != 0) return status;
+			if (batch == 255 && connected->context.connection != NULL)
+				(void)st_event_set(st_connection_activity(connected->context.connection));
 		}
 	}
 	status = deliver_timers(connected);

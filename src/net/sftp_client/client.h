@@ -13,6 +13,7 @@ struct st_sftp_io {
 	ssize_t (*write)(void *context, const void *data, size_t size);
 	void (*close)(void *context);
 	void (*log)(void *context, const char *message);
+	void (*response_ready)(void *context); /* Worker notification after publication. */
 };
 /* Creation does no I/O and starts no thread. The caller keeps io.context
  * alive through destroy. Before destroy, interrupt the containing transport

@@ -1037,6 +1037,13 @@ int cterm_big_poll(struct cterm_big *big)
 	size_t used; int status=cterm_big_feed(big,NULL,0,&used);
 	return status==IO_ERROR_IN_PROGRESS?0:status;
 }
+bool cterm_big_needs_poll(const struct cterm_big *big)
+{
+	return big != NULL && (body_pending(big) || big->pair_wait || big->gang_selecting
+	    || st_graphics_parser_in_command(big->parser)
+	    || cterm_big_music_needs_poll(big) || cterm_big_audio_needs_poll(big));
+}
+
 bool cterm_big_paused(const struct cterm_big *big)
 {
 	return big != NULL && (big->effect.active || cterm_big_note_paused(big) || big->sync_entry.waiting || big->rotation.active || big->flood.active || big->collect.active || big->zone.cooperative || big->zone.phase==CTERM_BIG_ZONE_FLOW

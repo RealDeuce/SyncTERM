@@ -26,6 +26,7 @@ struct cterm_big_music_command {
 void cterm_big_music_setup(struct cterm_big *);
 void cterm_big_music_begin(struct cterm_big *, bool chained);
 int cterm_big_music_command_poll(struct cterm_big *, const uint8_t *, size_t, size_t *, size_t *, bool *);
+bool cterm_big_music_needs_poll(const struct cterm_big *);
 int cterm_big_music_poll(struct cterm_big *);
 int cterm_big_music_clock(struct cterm_big *, bool restore);
 void cterm_big_music_reset(struct cterm_big *);

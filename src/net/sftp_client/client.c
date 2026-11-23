@@ -86,6 +86,7 @@ complete(struct request *r)
 	c->completed_tail = r;
 	(void)st_condition_broadcast(&c->changed);
 	(void)st_mutex_unlock(&c->mutex);
+	if (c->io.response_ready != NULL) c->io.response_ready(c->io.context);
 }
 
 static void

@@ -519,7 +519,7 @@ rlogin_send_atomic(st_connection_t *connection, const uint8_t *bytes, size_t siz
 	result = st_connection_queue_output_atomic(connection, output, used, 0);
 	if (result == (ssize_t)used && cooked) {
 		connection->input.paused = paused;
-		(void)st_condition_broadcast(&connection->input.changed);
+		st_connection_queue_changed(&connection->input);
 	}
 	(void)st_mutex_unlock(&connection->input.mutex);
 	if (result != (ssize_t)used)

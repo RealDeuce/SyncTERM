@@ -495,6 +495,10 @@ if(NOT TARGET syncterm_threads)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/threads"
 		"${CMAKE_CURRENT_BINARY_DIR}/threads")
 endif()
+if(NOT TARGET syncterm_event)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/event"
+		"${CMAKE_CURRENT_BINARY_DIR}/event")
+endif()
 if(NOT TARGET syncterm_array_list)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/array_list"
 		"${CMAKE_CURRENT_BINARY_DIR}/array_list")
@@ -614,7 +618,7 @@ target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 		${_st_wl_dir})
 target_link_libraries(st_console PRIVATE ${_st_console_dependencies})
 target_link_libraries(st_console PUBLIC syncterm_io_error syncterm_threads
-	st_pixels PRIVATE syncterm_array_list syncterm_dynamic_library st_utf8
+	st_pixels syncterm_event PRIVATE syncterm_array_list syncterm_dynamic_library st_utf8
 	st_time st_unicode_width st_unicode_text st_codepage syncterm_string_compat)
 if(WIN32)
 	target_link_libraries(st_console PRIVATE st_windows_utf)

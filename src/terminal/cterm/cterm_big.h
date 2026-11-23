@@ -25,6 +25,7 @@ void cterm_big_yield_fx(struct cterm_big *);
 /* Command failures warn/cancel and resume the unread stream. API misuse is
  * still an error; IN_PROGRESS retains normal asynchronous ownership. */
 int cterm_big_feed(struct cterm_big *, const void *, size_t, size_t *);
+bool cterm_big_needs_poll(const struct cterm_big *);
 int cterm_big_poll(struct cterm_big *);
 int cterm_big_finish(struct cterm_big *);
 bool cterm_big_paused(const struct cterm_big *);

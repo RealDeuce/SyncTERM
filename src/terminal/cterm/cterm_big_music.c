@@ -151,6 +151,11 @@ static int activate(struct cterm_big *b)
 	a->sampled=true; a->local_ns=ns; a->due=a->fraction=0;
 	attach(a,a->allowed); return 0;
 }
+bool cterm_big_music_needs_poll(const struct cterm_big *b)
+{
+	return b->music_audio != NULL && b->music_audio->requested;
+}
+
 int cterm_big_music_poll(struct cterm_big *b)
 {
 	struct cterm_big_music_audio *a=b->music_audio;

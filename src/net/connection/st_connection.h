@@ -17,6 +17,10 @@
 #include <stdint.h>
 
 typedef struct st_connection st_connection_t;
+struct st_event;
+/* Borrowed auto-reset event for the session owner. Input and disconnection
+ * signal it. The owner must finish waiting before closing the connection. */
+struct st_event *st_connection_activity(st_connection_t *connection);
 struct st_sftp_provider;
 
 /* Borrowed for the connection lifetime; querying never opens a channel. */
@@ -199,6 +203,8 @@ ssize_t st_connection_receive_raw(st_connection_t *connection, void *data,
 	size_t size, int64_t timeout_ms);
 ssize_t st_connection_peek_raw(st_connection_t *connection, void *data,
 	size_t size);
+/* True when an ordinary receive can deliver queued bytes immediately. */
+bool st_connection_input_ready(st_connection_t *connection);
 size_t st_connection_pending_raw(st_connection_t *connection);
 size_t st_connection_queued(st_connection_t *connection);
 bool st_connection_is_connected(st_connection_t *connection);

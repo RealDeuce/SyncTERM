@@ -7,6 +7,7 @@ struct st_big_effect_player;
 struct cterm_big;
 struct cterm_big_audio;
 struct st_console_test_application;
+bool cterm_big_audio_needs_poll(const struct cterm_big *);
 int cterm_big_audio_poll(struct cterm_big *);
 int cterm_big_audio_frequency(struct cterm_big *, uint16_t);
 int cterm_big_audio_stop(struct cterm_big *);

@@ -8,6 +8,7 @@
 
 #include "st_connection.h"
 #include "st_threads.h"
+#include "st_event.h"
 
 #include <stdatomic.h>
 
@@ -17,6 +18,7 @@
 struct st_connection_queue {
 	st_mutex_t mutex;
 	st_condition_t changed;
+	st_event_t *activity; /* Input queue only. Immutable while workers run. */
 	uint8_t data[ST_CONNECTION_BUFFER_SIZE];
 	size_t head;
 	size_t count;
@@ -86,6 +88,8 @@ ssize_t st_connection_queue_output(st_connection_t *connection,
 	const void *data, size_t size, int64_t timeout_ms);
 ssize_t st_connection_queue_output_atomic(st_connection_t *connection,
 	const void *data, size_t size, int64_t timeout_ms);
+/* Caller holds the queue mutex. */
+void st_connection_queue_changed(struct st_connection_queue *queue);
 void st_connection_clear_input(st_connection_t *connection);
 bool st_connection_consume_flow_control(st_connection_t *connection,
 	uint8_t byte);

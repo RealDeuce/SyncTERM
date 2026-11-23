@@ -3638,6 +3638,8 @@ append_event_locked(st_console_t *console,
 
 	console->events[tail] = *event;
 	++console->event_count;
+	if (console->activity_waiter != NULL)
+		(void)st_event_set(console->activity_waiter);
 }
 
 static bool
@@ -3999,6 +4001,38 @@ st_console_events_pending(st_console_t *console)
 		pending = st_console_test_control_pending(console->display);
 #endif
 	return pending;
+}
+
+int
+st_console_wait_activity(st_console_t *console, st_event_t *activity,
+    const struct timespec *deadline)
+{
+	if (console == NULL || activity == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_mutex_lock(&console->event_mutex) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (console->activity_waiter != NULL) {
+		(void)st_mutex_unlock(&console->event_mutex);
+		return IO_ERROR_BUSY;
+	}
+	bool ready = console->event_count != 0;
+#if ST_CONSOLE_TEST
+	if (!ready && console->display->backend == ST_CONSOLE_BACKEND_TEST)
+		ready = st_console_test_control_pending(console->display);
+#endif
+	if (ready) {
+		(void)st_mutex_unlock(&console->event_mutex);
+		return 0;
+	}
+	console->activity_waiter = activity;
+	(void)st_mutex_unlock(&console->event_mutex);
+	int status = deadline == NULL ? st_event_wait(activity) : st_event_timedwait(activity, deadline);
+	(void)st_mutex_lock(&console->event_mutex);
+	console->activity_waiter = NULL;
+	(void)st_mutex_unlock(&console->event_mutex);
+	if (status == ST_THREAD_TIMED_OUT)
+		return IO_ERROR_TIMED_OUT;
+	return status == ST_THREAD_SUCCESS ? 0 : IO_ERROR_IO;
 }
 
 int

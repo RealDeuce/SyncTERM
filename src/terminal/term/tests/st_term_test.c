@@ -681,6 +681,14 @@ test_remote_speed_transition(enum st_cterm_encoding encoding, bool close_early)
 }
 
 static int
+count_test_key(void *context, const struct st_console_event *event, bool *consumed)
+{
+	*consumed = event->type == ST_CONSOLE_EVENT_KEY_CODE && event->data.key.code == 'K';
+	if (*consumed) ++*(unsigned *)context;
+	return 0;
+}
+
+static int
 test_shell_throttle(enum st_cterm_encoding encoding)
 {
 	const struct st_console_display_config display = {
@@ -707,10 +715,12 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	profile.connection_type = ST_CONNECTION_SHELL;
 	profile.screen_mode = ST_SCREEN_MODE_80X25;
 	profile.bps_rate = 300;
-	strcpy(profile.address, "printf ABCD; sleep 1");
+	strcpy(profile.address, "sleep 1; printf ABCD; read line");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL,
 	    NULL) == 0);
+	unsigned keys = 0;
 	struct st_term_config config = {
+		.event_hook = count_test_key, .event_hook_context = &keys,
 		.console = console, .connection = connection, .fonts = fonts,
 		.screen_mode = ST_SCREEN_MODE_80X25,
 		.encoding = encoding,
@@ -725,11 +735,17 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 	CHECK(check_speed_reply(terminal, 1) == 0);
 	CHECK(st_cterm_reset_terminal(terminal) == 0);
 	CHECK(check_speed_reply(terminal, 1) == 0);
-	for (size_t attempt = 0; attempt < 100 && !first; ++attempt) {
-		CHECK(st_term_session_pump(session, &disposition, &finished) == 0);
+	/* A burst arriving after a long idle wait gets one initial byte at
+	 * 300 bps. The time spent waiting for input earns no catch-up burst. */
+	uint64_t start, now;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	do {
+		CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
 		CHECK(st_console_read_cells(console, &row, cells, 4) == 0);
 		first = cells[0].glyph == 'A';
-	}
+		if (!first) CHECK(st_term_session_wait(session, 1000) == 0);
+		CHECK(st_time_monotonic_ms(&now) == 0);
+	} while (!first && now - start < 3000);
 	CHECK(first && cells[1].glyph != 'B');
 	st_term_session_set_throttle_speed(session, 0);
 	CHECK(st_term_session_throttle_speed(session) == 0);
@@ -741,6 +757,22 @@ test_shell_throttle(enum st_cterm_encoding encoding)
 		    && cells[2].glyph == 'C' && cells[3].glyph == 'D';
 	}
 	CHECK(complete);
+	/* The peer is silent. Each posted event must be dispatched without
+	 * paying a network receive timeout first. Measure a batch to allow
+	 * scheduler jitter on individual calls. */
+	uint64_t start_ns, end_ns;
+	CHECK(st_time_monotonic_ns(&start_ns) == 0);
+	for (unsigned n = 0; n < 12; ++n) {
+		const struct st_console_event event = {.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 'K'};
+		CHECK(st_console_post_event(console, &event) == 0);
+		CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished);
+		CHECK(keys == n + 1 && !st_console_events_pending(console));
+	}
+	CHECK(st_time_monotonic_ns(&end_ns) == 0);
+	fprintf(stderr, "12 ready console events on a silent connection: %.3f ms\n",
+	    (double)(end_ns - start_ns) / 1000000.0);
+	CHECK(end_ns - start_ns < UINT64_C(180000000));
+
 	static const uint32_t speeds[] = {
 		0, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400,
 		57600, 76800, 115200,
@@ -865,7 +897,9 @@ test_shell_utf8_boundary(void)
 		.wire_filter_context = &resize,
 	};
 	CHECK(st_term_session_create(&session, &config) == 0);
-	for (size_t attempt = 0; attempt < 100 && !found; ++attempt) {
+	uint64_t start, now;
+	CHECK(st_time_monotonic_ms(&start) == 0);
+	do {
 		status = st_term_session_pump(session, &disposition, &finished);
 		CHECK(status == 0);
 		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
@@ -873,7 +907,8 @@ test_shell_utf8_boundary(void)
 		    text, sizeof(text), &required) == 0
 		    && required == 2 && memcmp(text, "\xc3\xa9", 2) == 0)
 			found = true;
-	}
+		CHECK(st_time_monotonic_ms(&now) == 0);
+	} while (!found && now - start < 3000);
 	CHECK(found);
 	CHECK(resize.posted);
 	CHECK(st_console_size(console, &columns, &rows) == 0);

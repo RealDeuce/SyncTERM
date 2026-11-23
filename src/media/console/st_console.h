@@ -800,6 +800,11 @@ int st_console_display_post_event(st_console_display_t *display,
 	const struct st_console_event *event);
 /* Whether polling the event queue has pending work for its owner. */
 bool st_console_events_pending(st_console_t *console);
+struct st_event;
+/* Single consumer. Wait for either queued console input or a producer
+ * signalling activity. Input stays in FIFO order for normal dispatch. */
+int st_console_wait_activity(st_console_t *console, struct st_event *activity,
+	const struct timespec *deadline);
 int st_console_event_try(st_console_t *console,
 	struct st_console_event *event);
 int st_console_event_wait(st_console_t *console,

@@ -441,6 +441,7 @@ mqtt_bind(void *state, st_connection_t *connection)
 {
 	struct mqtt_transport *t = state;
 	t->connection = connection;
+	t->stream.activity = st_connection_activity(connection);
 }
 static ssize_t
 mqtt_write(void *state, const void *data, size_t size, int64_t timeout)

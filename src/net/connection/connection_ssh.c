@@ -35,6 +35,7 @@ struct ssh_transport {
 	struct st_profile identity;
 	struct st_connection_hooks ui_hooks;
 	st_mutex_t request_mutex;
+	st_event_t *activity; /* Protected by request_mutex, borrowed until workers join. */
 	st_condition_t request_changed;
 	bool request_initialized, request_pending, request_accepted, stopping;
 	uint8_t pending_fingerprint[32];
@@ -249,6 +250,7 @@ ssh_notice(struct ssh_transport *t, const char *title, const uint8_t *message, s
 		else t->notices = notice;
 		t->last_notice = notice;
 		++t->notice_count;
+		if (t->activity != NULL) (void)st_event_set(t->activity);
 		notice = NULL;
 	}
 	(void)st_mutex_unlock(&t->request_mutex);
@@ -317,6 +319,7 @@ verify_hostkey(const char *algorithm, unsigned bits, const uint8_t *fingerprint,
 		(void)snprintf(t->pending_algorithm, sizeof(t->pending_algorithm), "%s", algorithm);
 		t->pending_bits = bits;
 		t->request_pending = true;
+		if (t->activity != NULL) (void)st_event_set(t->activity);
 		t->request_accepted = false;
 		while (t->request_pending && !t->stopping)
 			(void)st_condition_wait(&t->request_changed, &t->request_mutex);
@@ -751,7 +754,24 @@ st_connection_ssh_public_key(void)
 	(void)st_mutex_unlock(&init_mutex);
 	return key;
 }
+static void
+ssh_bind(void *state, st_connection_t *connection)
+{
+	struct ssh_transport *t = state;
+	(void)st_mutex_lock(&t->request_mutex);
+	t->activity = st_connection_activity(connection);
+	(void)st_mutex_unlock(&t->request_mutex);
+}
+
+static void
+sftp_ready(void *context)
+{
+	struct ssh_transport *t = context;
+	(void)st_event_set(t->activity);
+}
+
 static const struct st_connection_transport_ops operations = {
+	.bind = ssh_bind,
 	.retain_after_eof = true, .sftp = ssh_sftp,
 	.auxiliary_alive = ssh_auxiliary_alive,
 	.read = ssh_read, .write = ssh_write, .interrupt = ssh_interrupt,
@@ -925,7 +945,7 @@ st_connection_connect_ssh(st_connection_t **result, const struct st_profile *pro
 	t->profile = &t->identity;
 	const struct st_sftp_io sftp_io = {.context = t, .open = sftp_open_channel,
 	    .read = sftp_read_channel, .write = sftp_send_channel,
-	    .close = sftp_close_channel, .log = sftp_log};
+	    .close = sftp_close_channel, .log = sftp_log, .response_ready = sftp_ready};
 	status = st_sftp_client_create(&t->sftp, &sftp_io);
 	if (status != 0) { ssh_destroy(t); return status; }
 	return st_connection_start(result, t, &operations, "SSH", hooks, NULL, error);

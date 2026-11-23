@@ -29,7 +29,7 @@ int main(void) { ssize_t value = 0; return value != 0; }
 endif()
 
 foreach(_st_component_path IN ITEMS base/io_error net/socket net/tcp_client io/serial
-	base/threads config/profile config/settings)
+	base/threads base/event config/profile config/settings)
 	get_filename_component(_dependency "${_st_component_path}" NAME)
 	if(_dependency STREQUAL "serial")
 		set(_target st_serial)
@@ -259,7 +259,7 @@ target_include_directories(st_connection
 		${PROJECT_BINARY_DIR}
 	PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(st_connection
-	PUBLIC syncterm_io_error st_profile st_sftp_client
+	PUBLIC syncterm_io_error st_profile st_sftp_client syncterm_event
 	PRIVATE syncterm_socket syncterm_tcp_client st_serial
 		syncterm_threads st_settings st_time
 		st_tls st_crypto syncterm_string_compat
@@ -456,7 +456,7 @@ if(BUILD_TESTING)
 		${CMAKE_CURRENT_SOURCE_DIR}/../..
 		${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 	target_link_libraries(st_connection_serial_test PRIVATE
-		syncterm_io_error syncterm_string_compat syncterm_threads
+		syncterm_event syncterm_io_error syncterm_string_compat syncterm_threads
 		st_profile st_settings st_time)
 	syncterm_target_atomics(st_connection_serial_test)
 	set_target_properties(st_connection_serial_test PROPERTIES

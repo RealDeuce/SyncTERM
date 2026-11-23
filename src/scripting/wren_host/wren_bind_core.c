@@ -13,6 +13,7 @@
 #include "st_builtin_fonts.h"
 #include "st_console.h"
 #include "st_connection.h"
+#include "st_event.h"
 #include "st_codepage.h"
 #include "st_emoji_catalog.h"
 #include "st_emoji_locale.h"
@@ -1714,6 +1715,9 @@ st_wren_wake_enqueue(WrenVM *vm, int fiber_slot, int value_slot,
 	else
 		context->wake_tail->next = wake;
 	context->wake_tail = wake;
+	/* A resumed fiber can enqueue a successor after this pass's drain boundary. */
+	if (context->connection != NULL)
+		(void)st_event_set(st_connection_activity(context->connection));
 	return 0;
 }
 

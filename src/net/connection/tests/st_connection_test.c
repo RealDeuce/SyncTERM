@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "st_threads.h"
 #include "st_time.h"
+#include "st_event.h"
 
 #include <stdio.h>
 #include <stdatomic.h>
@@ -381,7 +382,7 @@ test_raw(void)
 	char buffer[8];
 	int thread_result;
 	uint16_t port;
-	unsigned attempts;
+	struct timespec deadline;
 
 	CHECK(socket_runtime_init() == 0);
 	CHECK(create_listener(&server, &port) == 0);
@@ -398,10 +399,11 @@ test_raw(void)
 	CHECK(st_connection_send(connection, "", 1, -2)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_connection_send(connection, "one", 3, 1000) == 3);
-	for (attempts = 0; attempts < 1000
-	    && st_connection_pending_raw(connection) == 0; ++attempts)
-		(void)st_thread_sleep(&(struct timespec){0, 1000000L}, NULL);
-	CHECK(st_connection_pending_raw(connection) == 8);
+	CHECK(st_time_utc_deadline_after_ms(&deadline, 1000) == 0);
+	/* Data and EOF may share a single wake. Inspect the queue after each. */
+	while (st_connection_pending_raw(connection) < 8 || st_connection_is_connected(connection))
+		CHECK(st_event_timedwait(st_connection_activity(connection), &deadline) == ST_THREAD_SUCCESS);
+	CHECK(st_connection_pending_raw(connection) == 8 && st_connection_input_ready(connection));
 	CHECK(st_connection_peek_raw(connection, buffer, 3) == 3);
 	CHECK(memcmp(buffer, "two", 3) == 0);
 	CHECK(st_connection_receive(connection, buffer, 3, 1000) == 3);
@@ -787,6 +789,7 @@ test_rlogin_flow(bool backpressure)
 		CHECK(wait_for_stage(&server, 3) == 0);
 		CHECK(wait_for_pending(connection, 4) == 0);
 	}
+	CHECK(!st_connection_input_ready(connection));
 	CHECK(st_connection_receive(connection, bytes, 1, 0) == IO_ERROR_WOULD_BLOCK);
 	if (!backpressure) CHECK(st_connection_peek_raw(connection, bytes, 1) == 1);
 	if (backpressure) {
@@ -803,6 +806,7 @@ test_rlogin_flow(bool backpressure)
 		CHECK(st_connection_receive(connection, bytes, 1, 0) == IO_ERROR_WOULD_BLOCK);
 	}
 	CHECK(st_connection_send(connection, "\x11", 1, 1000) == 1);
+	if (!backpressure) CHECK(st_connection_input_ready(connection));
 #if SYNCTERM_PLATFORM_WINDOWS
 	if (backpressure)
 		CHECK(receive_unpositioned_flush(connection) == 0);

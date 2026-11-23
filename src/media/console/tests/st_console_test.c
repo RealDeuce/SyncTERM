@@ -540,6 +540,64 @@ test_snapshot_state(void)
 	st_console_destroy(console);
 }
 
+struct activity_test {
+	st_console_t *console;
+	st_event_t *event;
+	struct timespec deadline;
+};
+
+static int
+wait_for_activity(void *context)
+{
+	struct activity_test *test = context;
+	return st_console_wait_activity(test->console, test->event, &test->deadline);
+}
+
+static void
+test_activity_wait(void)
+{
+	struct activity_test test = {.console = create_headless(1, 1)};
+	const struct st_console_event key = {.type = ST_CONSOLE_EVENT_KEY_CODE, .data.key.code = 'K'};
+	struct st_console_event received;
+	struct timespec expired = {0};
+	CHECK(st_event_create(&test.event, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
+	CHECK(st_console_wait_activity(test.console, test.event, &expired) == IO_ERROR_TIMED_OUT);
+	for (unsigned n = 0; n < 2; ++n) {
+		st_thread_t thread;
+		CHECK(timespec_get(&test.deadline, TIME_UTC) == TIME_UTC);
+		test.deadline.tv_sec += 5;
+		CHECK(st_thread_create(&thread, wait_for_activity, &test) == ST_THREAD_SUCCESS);
+		/* Observe registration under the producer lock. The signal may
+		 * arrive before the consumer actually enters the condition wait. */
+		for (;;) {
+			CHECK(st_mutex_lock(&test.console->event_mutex) == ST_THREAD_SUCCESS);
+			bool registered = test.console->activity_waiter == test.event;
+			CHECK(st_mutex_unlock(&test.console->event_mutex) == ST_THREAD_SUCCESS);
+			if (registered) break;
+			struct timespec now;
+			CHECK(timespec_get(&now, TIME_UTC) == TIME_UTC && now.tv_sec <= test.deadline.tv_sec);
+			st_thread_yield();
+		}
+		CHECK(st_console_wait_activity(test.console, test.event, &expired) == IO_ERROR_BUSY);
+		if (n == 0)
+			CHECK(st_console_post_event(test.console, &key) == 0);
+		else
+			CHECK(st_event_set(test.event) == ST_THREAD_SUCCESS);
+		int result;
+		CHECK(st_thread_join(thread, &result) == ST_THREAD_SUCCESS && result == 0);
+		if (n == 0) {
+			CHECK(st_console_event_try(test.console, &received) == 0);
+			CHECK(received.type == key.type && received.data.key.code == 'K');
+		}
+		CHECK(st_console_wait_activity(test.console, test.event, &expired) == IO_ERROR_TIMED_OUT);
+	}
+	CHECK(st_console_post_event(test.console, &key) == 0);
+	CHECK(st_console_wait_activity(test.console, test.event, &expired) == 0);
+	CHECK(st_console_event_try(test.console, &received) == 0 && received.data.key.code == 'K');
+	st_event_destroy(test.event);
+	st_console_destroy(test.console);
+}
+
 static void
 test_event_order(void)
 {
@@ -3343,6 +3401,7 @@ main(void)
 	test_invalid_scalar_mutations();
 	test_snapshot_drains();
 	test_snapshot_state();
+	test_activity_wait();
 	test_event_order();
 	test_alt_keypad();
 	test_resize_palette_and_errors();

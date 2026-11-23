@@ -1266,6 +1266,7 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	atomic_init(&connection.stopping, false);
 	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&connection.input.activity, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
@@ -1403,6 +1404,7 @@ exercise_upload_consent(st_wren_host_t *host, st_console_t *console)
 	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	st_condition_destroy(&connection.output.changed); st_mutex_destroy(&connection.output.mutex);
+	st_event_destroy(connection.input.activity);
 	st_condition_destroy(&connection.input.changed); st_mutex_destroy(&connection.input.mutex);
 	st_profile_dispose(&profile);
 #if SYNCTERM_PLATFORM_POSIX
@@ -1516,6 +1518,7 @@ exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
 	atomic_init(&connection.stopping, false);
 	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&connection.input.activity, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	CHECK(st_console_snapshot_create(&snapshot, console) == 0);
@@ -1702,6 +1705,7 @@ exercise_transfer_wire(st_wren_host_t *host, st_console_t *console)
 	CHECK(st_console_snapshot_restore(console, snapshot, NULL) == 0);
 	st_console_snapshot_destroy(snapshot);
 	st_condition_destroy(&connection.output.changed); st_mutex_destroy(&connection.output.mutex);
+	st_event_destroy(connection.input.activity);
 	st_condition_destroy(&connection.input.changed); st_mutex_destroy(&connection.input.mutex);
 	st_profile_dispose(&profile);
 	CHECK(fs_remove_file(filename) == 0);
@@ -3519,6 +3523,7 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 	atomic_init(&connection.stopping, false);
 	CHECK(st_mutex_init(&connection.input.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.input.changed) == ST_THREAD_SUCCESS);
+	CHECK(st_event_create(&connection.input.activity, ST_EVENT_AUTO_RESET, false) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_init(&connection.output.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&connection.output.changed) == ST_THREAD_SUCCESS);
 	for (unsigned mode = 0; mode < 2; ++mode) {
@@ -3794,6 +3799,7 @@ exercise_owned_sends(st_wren_host_t *host, st_console_t *console)
 	}
 	st_condition_destroy(&connection.output.changed);
 	st_mutex_destroy(&connection.output.mutex);
+	st_event_destroy(connection.input.activity);
 	st_condition_destroy(&connection.input.changed);
 	st_mutex_destroy(&connection.input.mutex);
 	st_profile_dispose(&profile);

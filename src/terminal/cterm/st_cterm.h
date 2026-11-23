@@ -272,6 +272,8 @@ int st_cterm_write_utf8_input(st_cterm_t *terminal, const void *bytes,
 bool st_cterm_play_fx_u8(st_cterm_t *terminal, const uint8_t *samples, size_t size);
 /* Disconnect/reset boundary: replacement for a truncated UTF-8 sequence. */
 int st_cterm_finish(st_cterm_t *terminal);
+/* Whether a local emulation clock or audio callback needs owner service. */
+bool st_cterm_needs_poll(st_cterm_t *terminal);
 /* Nonblocking asynchronous APC notification polling. Call on the same
  * serialized owner as write(), even when no input arrives. Responses use
  * the synchronous output callback. NULL is IO_ERROR_INVALID_ARGUMENT. */

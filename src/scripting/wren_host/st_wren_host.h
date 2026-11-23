@@ -159,6 +159,8 @@ const char *st_wren_host_last_error(const st_wren_host_t *host);
 int st_wren_connected_create(st_wren_connected_t **result,
 	const struct st_wren_connected_config *config);
 void st_wren_connected_destroy(st_wren_connected_t *connected);
+/* Bound an owner wait by the next script deadline. */
+uint32_t st_wren_connected_wait_ms(st_wren_connected_t *connected, uint32_t limit);
 int st_wren_connected_pump(st_wren_connected_t *connected,
 	uint32_t timeout_ms);
 /* Paints the connected status row when enabled and a callable is installed. */

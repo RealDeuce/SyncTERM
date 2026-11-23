@@ -9,6 +9,7 @@
 #include "st_console.h"
 #include "st_console_test.h"
 #include "st_threads.h"
+#include "st_event.h"
 
 #include "array_list.h"
 
@@ -135,6 +136,7 @@ struct st_console {
 	bool raster_enabled;
 	st_mutex_t event_mutex;
 	st_condition_t event_ready;
+	st_event_t *activity_waiter; /* Borrowed under event_mutex during the owner wait. */
 	st_console_display_t *display;
 	st_console_t *next_display;
 	bool owns_display;
