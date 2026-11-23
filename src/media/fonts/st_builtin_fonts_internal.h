@@ -29,6 +29,7 @@ struct st_builtin_font_record {
 	const struct st_console_font_mapping *mapping;
 	size_t mapping_count;
 	bool broken_vertical;
+	bool remapped; /* Glyph indexes differ from encoded bytes. */
 };
 
 extern const struct st_builtin_font_record

@@ -74,6 +74,28 @@ check_box_drawing(const struct st_console_font *font)
 	CHECK(count == 3);
 }
 
+static void
+check_baltic(st_console_t *console, size_t selector, uint16_t id,
+    const struct st_console_font *font)
+{
+	/* FreeBSD syscons iso04-wide-8x16, character 0x78. */
+	static const uint8_t wide_x[] = {
+		0, 0, 0, 0, 0, 0, 0xc6, 0xee, 0x7c, 0x38, 0x38, 0x7c, 0xee, 0xc6, 0, 0
+	};
+	bool vga9 = selector == 4 || selector == 11;
+	for (unsigned int byte = 0xc0; byte <= 0xdf; ++byte) {
+		uint32_t scalar = st_codepage_to_unicode(ST_CODEPAGE_ISO_8859_4, (uint8_t)byte, false);
+		uint16_t owner;
+		uint32_t glyph;
+		uint8_t columns;
+
+		CHECK(st_console_font_lookup(console, id, scalar, &owner, &glyph, &columns) == 0);
+		CHECK(owner == id && glyph == (vga9 ? byte - 0x40 : byte));
+	}
+	if (selector == 4 || selector == 13)
+		CHECK(memcmp(font->bitmap + 'x' * font->glyph_stride, wide_x, sizeof(wide_x)) == 0);
+}
+
 int
 st_fonts_test_main(void)
 {
@@ -179,6 +201,8 @@ st_fonts_test_main(void)
 			CHECK(builtin.mapping != NULL && builtin.mapping_count != 0);
 			CHECK(st_console_register_static_font(console, &builtin,
 			    &glyph_font) == 0);
+			if (codepages[selector] == ST_CODEPAGE_ISO_8859_4)
+				check_baltic(console, selector, glyph_font, &builtin);
 			if (codepages[selector] == ST_CODEPAGE_CP1251) {
 				uint16_t face;
 				CHECK(st_console_font_lookup(console, glyph_font, UINT32_C(0x2022),

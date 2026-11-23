@@ -22,6 +22,9 @@ const char *st_builtin_font_name(size_t selector);
 bool st_builtin_font_broken_vertical(size_t selector);
 enum st_codepage st_builtin_font_codepage(size_t selector);
 
+/* Attach a Unicode mapping to a font whose glyph indexes are encoded bytes. */
+bool st_builtin_font_map_codepage(enum st_codepage codepage, struct st_console_font *font);
+
 /*
  * Returns a borrowed font matching the exact cell dimensions. Bitmap and
  * mapping storage remain valid for the life of the process.

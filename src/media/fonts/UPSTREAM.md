@@ -247,6 +247,13 @@ bitmap, and the corresponding Unicode mappings. This is project-owned data
 carried forward from the legacy `conio/allfonts.c` and
 `conio/utf8_codepages.c`, not generated external data.
 
+The Baltic VGA9 faces (selectors 4 and 11) use the FreeBSD syscons
+[ISO-8859-4 VGA9 screen map](https://github.com/freebsd/freebsd-src/blob/main/share/syscons/scrnmaps/iso-8859-4_for_vga9).
+ISO-8859-4 bytes 0xC0 through 0xDF select physical glyphs 0x80 through
+0x9F in those faces. The ordinary Baltic faces use byte order. The wide
+8x16 lowercase `x` in selector 13 comes from the FreeBSD
+[iso04-wide-8x16 font](https://github.com/freebsd/freebsd-src/blob/main/share/syscons/fonts/iso04-wide-8x16.fnt).
+
 When the catalog registers an 8x8 or 8x14 built-in font, it appends the
 presentation font's narrow and wide missing-glyph boxes and decode-error
 glyph. The original 256 byte glyphs and their mappings keep their indexes.

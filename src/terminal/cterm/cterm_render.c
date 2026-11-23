@@ -686,7 +686,7 @@ cterm_render_replace_font(struct cterminal *cterm, uint8_t selector,
 {
 	uint32_t width = 8, height;
 	uint16_t identifier;
-	struct st_console_font font, mapping;
+	struct st_console_font font;
 	int variant;
 
 	(void)name;
@@ -708,19 +708,8 @@ cterm_render_replace_font(struct cterminal *cterm, uint8_t selector,
 		.row_stride = ((size_t)width + 7) / 8,
 		.glyph_stride = size / 256,
 	};
-	/* Remote fonts retain byte-glyph order, but the console's Unicode
-	 * lookup still needs the active codepage's semantic mapping. */
-	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
-		if (st_builtin_font_codepage(i) != cterm->screen.codepage
-		    || (!st_builtin_font_get(i, 8, 16, &mapping)
-		    && !st_builtin_font_get(i, 8, 14, &mapping)
-		    && !st_builtin_font_get(i, 8, 8, &mapping)
-		    && !st_builtin_font_get(i, 12, 20, &mapping))) continue;
-		font.mapping = mapping.mapping;
-		font.mapping_count = mapping.mapping_count;
-		break;
-	}
-	if (font.mapping == NULL) goto done;
+	if (!st_builtin_font_map_codepage(cterm->screen.codepage, &font))
+		goto done;
 	if (!render_succeeded(cterm, st_console_register_font_copy(
 	    cterm->screen.console, &font, &identifier)))
 		goto done;

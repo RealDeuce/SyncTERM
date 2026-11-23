@@ -87,6 +87,23 @@ st_builtin_font_codepage(size_t selector)
 }
 
 bool
+st_builtin_font_map_codepage(enum st_codepage codepage, struct st_console_font *font)
+{
+	if (font == NULL)
+		return false;
+	for (size_t i = 0; i < ST_BUILTIN_FONT_COUNT; ++i) {
+		const struct st_builtin_font_record *record = &st_builtin_font_records[i];
+
+		if (codepages[i] == codepage && !record->remapped) {
+			font->mapping = record->mapping;
+			font->mapping_count = record->mapping_count;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool
 st_builtin_font_get(size_t selector, uint32_t width, uint32_t height,
 	struct st_console_font *font)
 {

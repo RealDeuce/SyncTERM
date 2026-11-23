@@ -39,6 +39,16 @@ st_font_catalog_create(st_font_catalog_t **result, st_console_t *console)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_console_cell_pixel_size(console, &width, &height) != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (width == 9) {
+		uint32_t flags;
+		int status = st_console_get_video_flags(console, &flags);
+
+		if (status != 0)
+			return status;
+		/* VGA composes the ninth column after fetching an eight-pixel glyph. */
+		if ((flags & ST_CONSOLE_VIDEO_EXPAND) != 0)
+			width = 8;
+	}
 	catalog = calloc(1, sizeof(*catalog));
 	if (catalog == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -225,7 +235,7 @@ st_font_catalog_register_custom_codepage(st_console_t *console,
 	const char *path, enum st_codepage codepage, uint16_t *identifier,
 	struct st_font_load_error *error)
 {
-	struct st_console_font font, template;
+	struct st_console_font font;
 	uint8_t *bitmap;
 	FILE *stream;
 	uint32_t width, height;
@@ -289,18 +299,7 @@ st_font_catalog_register_custom_codepage(st_console_t *console,
 		.bitmap = bitmap, .bitmap_size = size, .width = width, .height = height,
 		.glyph_count = 256, .row_stride = row_stride, .glyph_stride = glyph_stride,
 	};
-	for (size_t i = 0; i < st_builtin_font_count(); ++i) {
-		if (st_builtin_font_codepage(i) != codepage
-		    || (!st_builtin_font_get(i, 8, 16, &template)
-		    && !st_builtin_font_get(i, 8, 14, &template)
-		    && !st_builtin_font_get(i, 8, 8, &template)
-		    && !st_builtin_font_get(i, 12, 20, &template)))
-			continue;
-		font.mapping = template.mapping;
-		font.mapping_count = template.mapping_count;
-		break;
-	}
-	if (font.mapping == NULL) {
+	if (!st_builtin_font_map_codepage(codepage, &font)) {
 		free(bitmap);
 		return load_failure(error, ST_FONT_LOAD_CODEPAGE, IO_ERROR_NOT_SUPPORTED, 0);
 	}

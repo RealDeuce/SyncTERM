@@ -149,6 +149,15 @@ check_mode_change_retained_cells(void)
 		CHECK(st_console_write_complete_cells(console, &cells, retained, 3) == 0);
 		CHECK(st_console_present(console) == 0);
 		CHECK(st_font_catalog_create(&catalog, console) == 0);
+		if (config.cell_width == 9) {
+			uint16_t owner;
+			uint32_t glyph;
+
+			CHECK(st_font_catalog_identifier(catalog, 4, &identifier));
+			CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x0100),
+			    &owner, &glyph, &columns) == 0);
+			CHECK(owner == identifier && glyph == 0x80);
+		}
 		CHECK(st_console_read_cells(console, &cells, actual, 3) == 0);
 		for (size_t i = 0; i < 6; ++i) {
 			CHECK(actual[i].font == retained[i].font);
@@ -316,6 +325,12 @@ st_font_catalog_test_main(void)
 	uint16_t fallback;
 	CHECK(st_console_get_fallback_font(console, 8, 16, &fallback) == 0);
 	CHECK(glyph_font == fallback && !missing);
+	CHECK(st_font_catalog_load_custom_codepage(catalog,
+	    ST_FONT_CATALOG_FIRST_CUSTOM, path, ST_CODEPAGE_ISO_8859_4) == 0);
+	CHECK(st_font_catalog_identifier(catalog, ST_FONT_CATALOG_FIRST_CUSTOM, &identifier));
+	CHECK(st_console_font_lookup(console, identifier, UINT32_C(0x0100),
+	    &glyph_font, &glyph, &columns) == 0);
+	CHECK(glyph_font == identifier && glyph == 0xc0);
 	CHECK(st_font_catalog_load_custom_codepage(catalog,
 	    ST_FONT_CATALOG_FIRST_CUSTOM, path, ST_CODEPAGE_CP1251) == 0);
 	CHECK(st_font_catalog_identifier(catalog,
