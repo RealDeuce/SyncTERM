@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/162",
-  "revision": "1d46feda7d82001ee6f8b7c614defaa439facb43",
-  "previous_revision": "430f052d0e1d93af6a56aff343d379a5709cdcd5",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/163",
+  "revision": "d7b49fcb929b98ec8efa792496f985d6d55971fd",
+  "previous_revision": "1d46feda7d82001ee6f8b7c614defaa439facb43",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "59be56d588b69d05a0ce48227b9e696697f86921a1c7ec8624504d8c5169410e",
+  "archive_sha256": "0f810df65d6b48a705a027fee64fb317d27c6f0033a01701567025383c45ad7c",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1431,6 +1431,12 @@
       "sha256": "b4fce44df34cd31e6d16a47f0cd10b91251eff48f18ed17d6d2d13ac9dc52c4b",
       "title": "Issue #159: pick-list parsing, placement and HCL pass boundaries",
       "role": "Read-only original scanner/choice splice and two-pass transmission evidence with portable placement and safe display bounds."
+    },
+    {
+      "path": "version/3.0/research/issue-161-playback-filenames.md",
+      "sha256": "e168c6ff42c5206debdb0cf9e28515ce7279eb542244b2ad1a75a64771c43b1a",
+      "title": "Issue #161: shared HCL playback filenames",
+      "role": "Original filename parser and shared callback derivation, bounds, state scope and independent vectors."
     }
   ],
   "documents": [
@@ -1584,7 +1590,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.5-audio-files.md",
-      "sha256": "38ab6732325bb1e56ec59d663cecd4d35460552e3da29f85a0b3fd815e0818aa"
+      "sha256": "949072bb6bf5f0c95b82c7a65fa497a6b8276de399379da9dc7bbbe4887500dc"
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
@@ -1592,15 +1598,15 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "bc472bc63e09711da67c75a8f497c6656f936e6697343c42df7ce6e5d1660c53"
+      "sha256": "e22224e1402323d3be4eafe2cce7a871dcec77a28c2fd9a523f1103d328e8ea8"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "9294fe31e294c5ea384ccd8d24587513167e998b281386b48722a864b0cd9670"
+      "sha256": "ad03342407244a14bc9959456f5253fadb9e7efe27dc3ead57ebcadf31b30168"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "sha256": "b21039c6f5ddfe40106f455014af0e377c415e01239a00d3ee8aad2b355f6fc5"
+      "sha256": "263702f953d2a61d20aa67785649b5dc81fe06d827d2d5db8ef53fb34d247478"
     },
     {
       "path": "version/3.0/ripscrip/5.4-popup-lists.md",
@@ -11721,6 +11727,211 @@
           "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
         },
         "scope": "Complete scoped normative and derivation checksums and ordered exact reindex against the stable archive."
+      }
+    },
+    {
+      "previous_revision": "1d46feda7d82001ee6f8b7c614defaa439facb43",
+      "revision": "d7b49fcb929b98ec8efa792496f985d6d55971fd",
+      "archive_sha256": "0f810df65d6b48a705a027fee64fb317d27c6f0033a01701567025383c45ad7c",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 163,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/163",
+          "head": "f6da51039a5decbe348203229d12690083069219"
+        }
+      ],
+      "upstream_state": "PR163 remains open in the parent. The actual PR head is ancestral to selected fork stable.",
+      "authorization": "Standing user-selected stable reference and reviewed-PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.5-audio-files.md",
+          "previous_sha256": "38ab6732325bb1e56ec59d663cecd4d35460552e3da29f85a0b3fd815e0818aa",
+          "sha256": "949072bb6bf5f0c95b82c7a65fa497a6b8276de399379da9dc7bbbe4887500dc"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "bc472bc63e09711da67c75a8f497c6656f936e6697343c42df7ce6e5d1660c53",
+          "sha256": "e22224e1402323d3be4eafe2cce7a871dcec77a28c2fd9a523f1103d328e8ea8"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "9294fe31e294c5ea384ccd8d24587513167e998b281386b48722a864b0cd9670",
+          "sha256": "ad03342407244a14bc9959456f5253fadb9e7efe27dc3ead57ebcadf31b30168"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.3-local-playback.md",
+          "previous_sha256": "b21039c6f5ddfe40106f455014af0e377c415e01239a00d3ee8aad2b355f6fc5",
+          "sha256": "263702f953d2a61d20aa67785649b5dc81fe06d827d2d5db8ef53fb34d247478"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8849,
+      "moved_source_blocks": 507,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 55,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/5.1-text-variables.md:4613",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:31",
+        "version/3.0/ripscrip/5.3-local-playback.md:26",
+        "version/3.0/ripscrip/5.3-local-playback.md:28",
+        "version/3.0/ripscrip/5.3-local-playback.md:32",
+        "version/3.0/ripscrip/5.3-local-playback.md:33",
+        "version/3.0/ripscrip/5.3-local-playback.md:34",
+        "version/3.0/ripscrip/5.3-local-playback.md:35",
+        "version/3.0/ripscrip/5.3-local-playback.md:36",
+        "version/3.0/ripscrip/5.3-local-playback.md:37",
+        "version/3.0/ripscrip/5.3-local-playback.md:38",
+        "version/3.0/ripscrip/5.3-local-playback.md:40",
+        "version/3.0/ripscrip/5.3-local-playback.md:42",
+        "version/3.0/ripscrip/5.3-local-playback.md:44",
+        "version/3.0/ripscrip/5.3-local-playback.md:48",
+        "version/3.0/ripscrip/5.3-local-playback.md:50",
+        "version/3.0/ripscrip/5.3-local-playback.md:52",
+        "version/3.0/ripscrip/5.3-local-playback.md:54",
+        "version/3.0/ripscrip/5.3-local-playback.md:55",
+        "version/3.0/ripscrip/5.3-local-playback.md:56",
+        "version/3.0/ripscrip/5.3-local-playback.md:57",
+        "version/3.0/ripscrip/5.3-local-playback.md:58",
+        "version/3.0/ripscrip/5.3-local-playback.md:59",
+        "version/3.0/ripscrip/5.3-local-playback.md:60",
+        "version/3.0/ripscrip/5.3-local-playback.md:62",
+        "version/3.0/ripscrip/5.3-local-playback.md:66",
+        "version/3.0/ripscrip/5.3-local-playback.md:68",
+        "version/3.0/ripscrip/5.3-local-playback.md:69",
+        "version/3.0/ripscrip/5.3-local-playback.md:70",
+        "version/3.0/ripscrip/5.3-local-playback.md:71",
+        "version/3.0/ripscrip/5.3-local-playback.md:72",
+        "version/3.0/ripscrip/5.3-local-playback.md:73",
+        "version/3.0/ripscrip/5.3-local-playback.md:75",
+        "version/3.0/ripscrip/5.3-local-playback.md:77",
+        "version/3.0/ripscrip/5.3-local-playback.md:79",
+        "version/3.0/ripscrip/5.3-local-playback.md:83",
+        "version/3.0/ripscrip/5.3-local-playback.md:85",
+        "version/3.0/ripscrip/5.3-local-playback.md:86",
+        "version/3.0/ripscrip/5.3-local-playback.md:87",
+        "version/3.0/ripscrip/5.3-local-playback.md:88",
+        "version/3.0/ripscrip/5.3-local-playback.md:89",
+        "version/3.0/ripscrip/5.3-local-playback.md:90",
+        "version/3.0/ripscrip/5.3-local-playback.md:91",
+        "version/3.0/ripscrip/5.3-local-playback.md:92",
+        "version/3.0/ripscrip/5.3-local-playback.md:93",
+        "version/3.0/ripscrip/5.3-local-playback.md:94",
+        "version/3.0/ripscrip/5.3-local-playback.md:95",
+        "version/3.0/ripscrip/5.3-local-playback.md:96",
+        "version/3.0/ripscrip/5.3-local-playback.md:97",
+        "version/3.0/ripscrip/5.3-local-playback.md:99",
+        "version/3.0/ripscrip/5.3-local-playback.md:101",
+        "version/3.0/ripscrip/5.3-local-playback.md:136",
+        "version/3.0/ripscrip/5.3-local-playback.md:213",
+        "version/3.0/ripscrip/5.3-local-playback.md:228"
+      ],
+      "retired_source_blocks": 3,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:57",
+          "heading": "Local Audio Playback - `$)FILE.WAV$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            57,
+            60
+          ],
+          "text": "- Audio plays **in the background, asynchronously** - graphics keep drawing and host data keeps arriving while sound plays.\n- There is a **single playback channel**: starting a new file terminates whatever is currently playing.\n- The reserved filename `$OFF$` (i.e. `1w` with filename `$OFF$`) silences the current sound.\n- If the file does not exist locally, the directive does nothing; hosts deliver audio files ahead of time via block transfer ([6.2](6.2-asset-delivery-and-storage.md)).\n",
+          "sha256": "7f3dc9a7034165ff7a68ea376417cdf17c64ba1cd4c668fbce5ec683286143e7",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_audio.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_commands_unavailable"
+          ],
+          "reason": "Session host commands share the waveform channel and resource loader. Native reply and pull fixtures cover ordered output, missing names, malformed media, and decoder availability."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:134",
+          "heading": "Worked examples per prefix",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            134,
+            134
+          ],
+          "text": "The terminal starts `TRAIN.WAV` playing in the background and transmits `Now boarding` plus a carriage return to the host. Stopping playback (`$OFF$` semantics) belongs to [RIP_PLAY_AUDIO](4.5-audio-files.md#rip_play_audio) - see [4.5 Audio Files](4.5-audio-files.md). _Evidence: 2.00a4._\n",
+          "sha256": "6105b8b6f69e8a2043ae7fabbd143170050f7abbfea0c4830536b2ceef6a74cd",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_audio.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_commands_unavailable"
+          ],
+          "reason": "Session host commands share the waveform channel and resource loader. Native reply and pull fixtures cover ordered output, missing names, malformed media, and decoder availability."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:149",
+          "heading": "Playback prefixes vs dedicated commands",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            149,
+            149
+          ],
+          "text": "| WAV audio | [RIP_PLAY_AUDIO](4.5-audio-files.md#rip_play_audio) | `$)FILE.WAV$` | Both start background playback; the command form also defines `$OFF$` to stop a running sound |\n",
+          "sha256": "542f9cd5d74818ef4cf411997c30c8ac253c3808b84d957bb99208d0f997c484",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_audio.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_commands_unavailable"
+          ],
+          "reason": "Session host commands share the waveform channel and resource loader. Native reply and pull fixtures cover ordered output, missing names, malformed media, and decoder availability."
+        }
+      ],
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/5.3-local-playback.md:57",
+        "version/3.0/ripscrip/5.3-local-playback.md:134",
+        "version/3.0/ripscrip/5.3-local-playback.md:149"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-161-playback-filenames.md",
+          "sha256": "e168c6ff42c5206debdb0cf9e28515ce7279eb542244b2ad1a75a64771c43b1a",
+          "title": "Issue #161: shared HCL playback filenames",
+          "role": "Original filename parser and shared callback derivation, bounds, state scope and independent vectors."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 2861,
+        "context": 1577,
+        "pending": 1753,
+        "implemented": 2613,
+        "excluded": 67,
+        "blocked": 33
+      },
+      "source_blocks_at_adoption": 8904,
+      "policy": "Review source material as data. No external or original code executed.",
+      "followup": "Connect the shared filename processing to the four local HCL playback forms and verify media dispatch.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 77,
+        "declared_prior_derivation_changes": 0,
+        "originals": {
+          "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "version/2.0/text/RIPScrip-2.0-alpha-4.txt": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
+        },
+        "scope": "Scoped document and derivation checksums and ordered exact index from the verified stable Git archive."
       }
     }
   ],

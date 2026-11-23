@@ -8947,9 +8947,10 @@ quoted name from REFRESH, image placement, and recovery after malformed media.
 The native waveform fixture verifies the reply and PCM output with the
 decoder available and the reply with it unavailable.
 
-The common native filename substitutions and their boundary cases are still
-open. Local RIP scene and BMP playback, and configuration of shared/search
-asset directories, are also pending. [Issue #161](https://github.com/bbs-land/remote-imaging-protocol/issues/161)
+The adopted shared filename profile specifies the captured input substitutions,
+decoded bounds and recovery. Runtime support for those rules is pending,
+along with local RIP scene and BMP playback and the shared/search directory
+configuration. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
 
 The queue contains 2523 implemented, 1682 pending, 2919 unreviewed,
 1551 context, 67 excluded and 33 blocked units.
@@ -9023,3 +9024,6 @@ cases and font-mode assertions. The 3.0 RIP_SCROLL entry defines a source fill
 mode and clips to the drawing port. Its destination field,
 normalization, clipping/fill order and physical text-pixel behavior need
 independent 3.0 expectations. [Issue #164](https://github.com/bbs-land/remote-imaging-protocol/issues/164)
+
+The queue at the PR #163 pin contains 2613 implemented, 1753 pending,
+2861 unreviewed, 1577 context, 67 excluded and 33 blocked units.

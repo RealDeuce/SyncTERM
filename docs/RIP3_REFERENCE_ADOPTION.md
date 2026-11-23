@@ -1119,3 +1119,22 @@ B159 is resolved by the published pick-list profile. It defines bounded
 position, prompt, response and label parsing, modal selection in both
 ordinary passes, and transmission after a response has completed both
 passes. Connected pick-list support remains pending.
+
+## PR #163 shared playback filenames
+
+Fork stable is pinned at
+[`d7b49fcb929b98ec8efa792496f985d6d55971fd`](https://github.com/RealDeuce/remote-imaging-protocol/tree/d7b49fcb929b98ec8efa792496f985d6d55971fd).
+It contains the reviewed [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
+head `f6da51039a5decbe348203229d12690083069219`. The pinned Git tar archive
+has SHA-256 `0f810df65d6b48a705a027fee64fb317d27c6f0033a01701567025383c45ad7c`.
+
+Four of the 68 normative documents change. Ordered exact-text matching
+carries 8849 source blocks, with 507 line ranges moving. The index adds
+55 blocks and retires three, for 8904 total. The 77 previous derivations,
+both original protocol texts and the license retain their hashes. The new
+#161 derivation is recorded separately.
+
+The adopted profile resolves B161. It specifies the decoded 20-byte name
+bound, ASCII uppercase, captured field and input substitutions, media
+extensions and missing-file behavior. The HCL WAV spelling of `$OFF$`
+uses ordinary lookup. The wire stop command retains its own behavior.
