@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 struct st_rip3_ports;
+struct st_rip3_port_info;
 
 /* Inclusive device rectangle relative to the current viewport. Wide endpoints
  * retain protocol projection until clipping/sampling: each must fit within
@@ -60,5 +61,12 @@ int st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
 	enum st_rip3_transfer_mode mode,
 	const uint8_t *transparent_color);
+
+/* Present an HCL bitmap into the captured active current port. The caller
+ * checks the playback gates before loading the file. Uses the stored surface
+ * rectangle or the viewport fallback, clipping to the port as well as the
+ * viewport and backing surface. COPY and dither are independent of style flags. */
+int st_rip3_draw_bitmap_playback(struct st_rip3_ports *ports, const struct st_rip3_port_info *port,
+	const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *palette);
 
 #endif

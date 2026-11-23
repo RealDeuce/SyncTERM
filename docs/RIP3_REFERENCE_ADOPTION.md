@@ -1155,3 +1155,17 @@ the original handler evidence and portable geometry.
 The published contract resolves B164. The destination uses the current XY
 width. Copy and fill use drawing-port bounds, and screen transfers preserve
 the two rendered blink phases.
+
+## PR #167 HCL bitmap presentation
+
+Fork stable is pinned at
+[`9716850d93ba720097af2a3e100e633c6797ac38`](https://github.com/RealDeuce/remote-imaging-protocol/tree/9716850d93ba720097af2a3e100e633c6797ac38).
+It includes [PR #167](https://github.com/bbs-land/remote-imaging-protocol/pull/167)
+head `e93ccd39e505a641549eecd987a316ce3df089ea`. The in-memory Git tar archive
+has SHA-256 `76c46b9657130f27a3486b0884fac5111817475ca577a25e1310b5a56b833124`.
+
+Three normative documents change. The index carries 8915 source blocks,
+moves 51 line references, adds 35 blocks and retires ten, for 8950 total.
+The 79 prior derivations, original protocol texts and license retain their
+hashes. The new #166 derivation describes the original bitmap wrapper and
+portable clipping and color rules. It resolves B166.

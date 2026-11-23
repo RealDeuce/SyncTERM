@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/165",
-  "revision": "328f8191f526234bbc554b381aa86972eb9d4ef7",
-  "previous_revision": "d7b49fcb929b98ec8efa792496f985d6d55971fd",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/167",
+  "revision": "9716850d93ba720097af2a3e100e633c6797ac38",
+  "previous_revision": "328f8191f526234bbc554b381aa86972eb9d4ef7",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "57132db332bc6fe64cc62a1c8db8166da21db660f1627466698c8e8e9dc09ac3",
+  "archive_sha256": "76c46b9657130f27a3486b0884fac5111817475ca577a25e1310b5a56b833124",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,19 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "previous_sha256": "abcc26c093a4b89313c3a9539e8e4ef22dc55bd57151a90b29dc144a7310b2d7",
-      "sha256": "a736e18a603c6861d71e8e53f8deba879290e29bd79118855738c2a9a79c0be6"
+      "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
+      "previous_sha256": "3f5ba7004bcd3a11ec02b96a32d44b6e89011fa2ebfe69f63ef90b7cdc6714c2",
+      "sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c"
     },
     {
-      "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "previous_sha256": "ee51a4afba9ea6ae066c14a5db97254585460ab290e5fd9b7e33a3f44ead9cc8",
-      "sha256": "b3d3535075aa3efde925d65bb765519ed045bc6f545681e37806ad80626db3ae"
+      "path": "version/3.0/ripscrip/5.1-text-variables.md",
+      "previous_sha256": "e22224e1402323d3be4eafe2cce7a871dcec77a28c2fd9a523f1103d328e8ea8",
+      "sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.3-local-playback.md",
+      "previous_sha256": "263702f953d2a61d20aa67785649b5dc81fe06d827d2d5db8ef53fb34d247478",
+      "sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4"
     }
   ],
   "new_documents": [],
@@ -1443,6 +1448,12 @@
       "sha256": "54b0b61b6b5bc51d4c65a3c43208f35be595a06cf3b21d5d4d745cf20728ab36",
       "title": "Issue #164: RIP_SCROLL coordinate, clipping and source fill",
       "role": "Original driver coordinate conversion, copy and fill derivation with portable clipping and independent vectors."
+    },
+    {
+      "path": "version/3.0/research/issue-166-hcl-bitmap-presentation.md",
+      "sha256": "370635451f89854fba1718081dfe1ca43da4cd6c908630074bb618de697e27f8",
+      "title": "Issue #166: HCL bitmap image-style presentation",
+      "role": "Original driver presentation, portable clipping and palette rules, and independent bitmap vectors."
     }
   ],
   "documents": [
@@ -1580,7 +1591,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "sha256": "3f5ba7004bcd3a11ec02b96a32d44b6e89011fa2ebfe69f63ef90b7cdc6714c2"
+      "sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c"
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
@@ -1604,7 +1615,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "e22224e1402323d3be4eafe2cce7a871dcec77a28c2fd9a523f1103d328e8ea8"
+      "sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1612,7 +1623,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "sha256": "263702f953d2a61d20aa67785649b5dc81fe06d827d2d5db8ef53fb34d247478"
+      "sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4"
     },
     {
       "path": "version/3.0/ripscrip/5.4-popup-lists.md",
@@ -12371,6 +12382,312 @@
         },
         "scope": "Scoped document and derivation checksums and ordered exact index from the verified stable Git archive."
       }
+    },
+    {
+      "previous_revision": "328f8191f526234bbc554b381aa86972eb9d4ef7",
+      "revision": "9716850d93ba720097af2a3e100e633c6797ac38",
+      "archive_sha256": "76c46b9657130f27a3486b0884fac5111817475ca577a25e1310b5a56b833124",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 167,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/167",
+          "head": "e93ccd39e505a641549eecd987a316ce3df089ea"
+        }
+      ],
+      "upstream_state": "PR #167 is open in the parent. Its head is ancestral to the selected fork stable.",
+      "authorization": "Standing user-selected stable reference and reviewed PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
+          "previous_sha256": "3f5ba7004bcd3a11ec02b96a32d44b6e89011fa2ebfe69f63ef90b7cdc6714c2",
+          "sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "e22224e1402323d3be4eafe2cce7a871dcec77a28c2fd9a523f1103d328e8ea8",
+          "sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.3-local-playback.md",
+          "previous_sha256": "263702f953d2a61d20aa67785649b5dc81fe06d827d2d5db8ef53fb34d247478",
+          "sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8915,
+      "moved_source_blocks": 51,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 35,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.1-jpeg-images.md:55",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:61",
+        "version/3.0/ripscrip/5.1-text-variables.md:4581",
+        "version/3.0/ripscrip/5.1-text-variables.md:4589",
+        "version/3.0/ripscrip/5.3-local-playback.md:147",
+        "version/3.0/ripscrip/5.3-local-playback.md:149",
+        "version/3.0/ripscrip/5.3-local-playback.md:153",
+        "version/3.0/ripscrip/5.3-local-playback.md:155",
+        "version/3.0/ripscrip/5.3-local-playback.md:157",
+        "version/3.0/ripscrip/5.3-local-playback.md:159",
+        "version/3.0/ripscrip/5.3-local-playback.md:161",
+        "version/3.0/ripscrip/5.3-local-playback.md:165",
+        "version/3.0/ripscrip/5.3-local-playback.md:167",
+        "version/3.0/ripscrip/5.3-local-playback.md:168",
+        "version/3.0/ripscrip/5.3-local-playback.md:169",
+        "version/3.0/ripscrip/5.3-local-playback.md:170",
+        "version/3.0/ripscrip/5.3-local-playback.md:171",
+        "version/3.0/ripscrip/5.3-local-playback.md:172",
+        "version/3.0/ripscrip/5.3-local-playback.md:173",
+        "version/3.0/ripscrip/5.3-local-playback.md:174",
+        "version/3.0/ripscrip/5.3-local-playback.md:176",
+        "version/3.0/ripscrip/5.3-local-playback.md:178",
+        "version/3.0/ripscrip/5.3-local-playback.md:182",
+        "version/3.0/ripscrip/5.3-local-playback.md:184",
+        "version/3.0/ripscrip/5.3-local-playback.md:186",
+        "version/3.0/ripscrip/5.3-local-playback.md:190",
+        "version/3.0/ripscrip/5.3-local-playback.md:192",
+        "version/3.0/ripscrip/5.3-local-playback.md:194",
+        "version/3.0/ripscrip/5.3-local-playback.md:196",
+        "version/3.0/ripscrip/5.3-local-playback.md:198",
+        "version/3.0/ripscrip/5.3-local-playback.md:200",
+        "version/3.0/ripscrip/5.3-local-playback.md:202",
+        "version/3.0/ripscrip/5.3-local-playback.md:204",
+        "version/3.0/ripscrip/5.3-local-playback.md:212",
+        "version/3.0/ripscrip/5.3-local-playback.md:273"
+      ],
+      "retired_source_blocks": 10,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/4.1-jpeg-images.md:55",
+          "heading": "RIP_IMAGE_STYLE",
+          "source": "version/3.0/ripscrip/4.1-jpeg-images.md",
+          "lines": [
+            55,
+            55
+          ],
+          "text": "This command replaces the current port’s image rectangle and flags for subsequently displayed JPEGs, including local playback and received-image display. Coordinates use current world/device conversion; reversed corners are ordered. RIPtel 3.1 stores the converted far coordinates plus one. The setter accepts flags **0..63**, replaces the previous flags and rejects a larger value without changing the style. Unlike the [IMGSTYLE macro setter](5.1-text-variables.md#imgstyle), the wire handler can change a protected current port. _Evidence: original driver 0xc39a and [native style checks](../research/issue-21-image-style.md#native-style-checkpoint)._\n",
+          "sha256": "9472b58bf4819ed9cb657b525610f22b064cd508377296b9f562cf53d83365be",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_image_style.c",
+            "src/terminal/rip3/st_rip3_image_style_host.c",
+            "src/terminal/rip3/st_rip3_image_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_image_style_test.c",
+            "src/terminal/rip3/tests/st_rip3_image_commands_test.c",
+            "src/terminal/rip3/tests/st_rip3_image_test.c"
+          ],
+          "reason": "Wire 1i is connected through the public void dispatcher. It decodes current ENV radix/XY width, orders corners, projects to DEVICE once and stores the extra far unit without viewport clipping. It accepts/replaces flags 0..63 and updates protected/inactive current ports. Four flags digits plus 0..12 reserved zeros and last-field shortening are supported; invalid flags/reserved data/coordinates retain state. Independent all-canvas matrices cover both radices, widths 2..5, all accepted flags, invalid 64, reversed coordinates, the exact full-reserved example, current selection and inactive/protection retention. IMGSTYLE shares projection but owns separate gates; JPEG wallpaper and delivery/whole-scene routing remain separate."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:4581",
+          "heading": "$IMGSTYLE$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            4581,
+            4581
+          ],
+          "text": "_Query or replace a drawing port’s JPEG image style_\n",
+          "sha256": "965297750ec8cc221cf19c4fb2ae3a21fca5219dd65c303d1bbfada25f07b717",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:4589",
+          "heading": "$IMGSTYLE$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            4589,
+            4589
+          ],
+          "text": "The optional trailing keywords are case-insensitive, may repeat, and are OR’d together: **ASPECT=1, DELETE=2, NOCLEAR=4, USEPAL=8**. These replace the target’s flags. **Omitting all keywords sets flags to zero**, rather than retaining prior flags; there is no numeric-flags argument. Unknown keywords, a selector outside 0..35/CUR, nonnumeric coordinates or a set form with fewer than four coordinates cause a variable error without changing image state. Wallpaper bits 16/32 have no IMGSTYLE keyword in this driver. DELETE is stored but has no JPEG deletion effect; see the [flag table](4.1-jpeg-images.md#rip_image_style).\n",
+          "sha256": "f245deec041738364d0d9fe12e31e65b19529e81b87dd03708cd4165abbf05ed",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_image_style.c",
+            "src/terminal/rip3/st_rip3_image_style_host.c",
+            "src/terminal/rip3/st_rip3_image_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_image_style_test.c",
+            "src/terminal/rip3/tests/st_rip3_image_commands_test.c",
+            "src/terminal/rip3/tests/st_rip3_image_test.c"
+          ],
+          "reason": "The separate IMGSTYLE callback supports bare/current/named queries and decimal setters for screen/offscreen ports. Keywords are case-insensitive OR values, including duplicates; no keywords replaces flags with zero. Undefined/inactive targets return -1 without mutation/diagnostic; protected enabled targets query successfully and setters return no value without mutation/error. Valid setters temporarily select the target and restore the previous selection even on conversion failure. Queries convert the complete stored device boundaries through the live current WORLD, without subtracting the far increment. Independent literal replies, all keyword combinations, invalid parameters, state/selection recovery and every supported canvas are tested. Enclosing multi-action host expansion is a separate acceptance requirement."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:147",
+          "heading": "Local Bitmap Playback - `$<FILE.BMP$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            147,
+            147
+          ],
+          "text": "_Evidence: 2.00a4; HLP._\n",
+          "sha256": "c5e91bcaffdd634f8dd7cbdc3cc697fc5096002692ec8ff4d1c684088f60be6c",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:149",
+          "heading": "Local Bitmap Playback - `$<FILE.BMP$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            149,
+            149
+          ],
+          "text": "`$<FILENAME.BMP$` places a local bitmap (`.BMP`) file onto the screen through the current **image style** (`1i`, [RIP_IMAGE_STYLE](4.1-jpeg-images.md#rip_image_style)): the bitmap is displayed inside the current image settings and adheres to them. This mode of displaying a BMP file is the only method for showing a BMP via the image-style settings. If no image style definition has been recorded, the bitmap is shown at the maximum size of the current viewport - scaled to fill it entirely.\n",
+          "sha256": "3e4089d8aa5d664c6441a3696e4ac2285921ec937d524d2ddd05d8544aeb7aa2",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_image.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "rip3_image"
+          ],
+          "reason": "The shared image style reference leaves bitmap-specific target geometry, edge handling, flags and automatic dithering undefined. The detailed portable placement contract covers JPEG.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/166"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:151",
+          "heading": "Local Bitmap Playback - `$<FILE.BMP$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            151,
+            151
+          ],
+          "text": "For the purposes of universality, the bitmap is shown using the current screen's color palette and \"auto-dithering\" mode. RIPTEL.HLP is explicit that the full flexibility of `RIP_LoadBitmap` (palette modes, clipping options - [RIP_LOAD_BITMAP](4.0-icons-and-bitmaps.md#rip_load_bitmap)) is _not_ available from the macro form; use the wire command when you need it. This directive is provided as a simple method of showing a bitmapped image from within a host command:\n",
+          "sha256": "6347fb5162db8b19ae4623bf5d076e23a90d2803a4130f53d3227ca73b66c83c",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_image.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "rip3_image"
+          ],
+          "reason": "The shared image style reference leaves bitmap-specific target geometry, edge handling, flags and automatic dithering undefined. The detailed portable placement contract covers JPEG.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/166"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:153",
+          "heading": "Local Bitmap Playback - `$<FILE.BMP$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            153,
+            155
+          ],
+          "text": "```text\n$<FILENAME.BMP$\n```\n",
+          "sha256": "98509a5b93340e622db8e443fdedecc0781af9ea10f2a308a59a562ff8dc5cc8",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:157",
+          "heading": "Local Bitmap Playback - `$<FILE.BMP$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            157,
+            157
+          ],
+          "text": "Note that this uses the less-than sign, unlike the greater-than sign used for local RIPscrip playback - the opposite angle-bracket marks it as a low-level primitive playback, per the bracket mnemonic above.\n",
+          "sha256": "f51fb1f0ec07f13ea529b96a45f8b13aae325e7325e10ca8a91126f7a18b8791",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:165",
+          "heading": "Local JPEG Playback - `$(FILE.JPG$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            165,
+            165
+          ],
+          "text": "`$(FILENAME.JPG$` displays a compressed photographic image the same way - through the current image style, or full-viewport when none is recorded. The JPEG file is considered a higher-level object than a raw bitmap, so it uses the parenthesis prefix instead of the angle bracket. JPEG is the only supported photo format in the 3.0 driver:\n",
+          "sha256": "a5d8ea9c80d8f3fad98a6eac0a23172c085ad63673a7d6da22adaa996caa3c6d",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/rip3/st_rip3_image_commands.c"
+          ],
+          "tests": [
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8",
+            "rip3_image_commands_native",
+            "rip3_image_commands_disabled"
+          ],
+          "reason": "Local HCL and wire IMAGE share the JPEG presenter. The connected fixtures cover active image style, computed and quoted filenames, current palette and retained source assets."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:226",
+          "heading": "Playback prefixes vs dedicated commands",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            226,
+            226
+          ],
+          "text": "| BMP bitmap | [RIP_LOAD_BITMAP](4.0-icons-and-bitmaps.md#rip_load_bitmap) / [RIP_LOAD_ICON](4.0-icons-and-bitmaps.md#rip_load_icon) | `$<file.BMP$` | The prefix displays via the image-style area with auto-dithering and the current palette only; the commands offer position, scaling, put modes, palette and transparency flags |\n",
+          "sha256": "85dd9611285d25061baa62c2fa12621d5a5fb2398ead170027f110cef2c1d180",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/166"
+          ],
+          "reason": "The shared image style reference leaves bitmap-specific target geometry, edge handling, flags and automatic dithering undefined. The detailed portable placement contract covers JPEG."
+        }
+      ],
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/4.1-jpeg-images.md:55",
+        "version/3.0/ripscrip/5.1-text-variables.md:4589",
+        "version/3.0/ripscrip/5.3-local-playback.md:165"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-166-hcl-bitmap-presentation.md",
+          "sha256": "370635451f89854fba1718081dfe1ca43da4cd6c908630074bb618de697e27f8",
+          "title": "Issue #166: HCL bitmap image-style presentation",
+          "role": "Original driver presentation, portable clipping and palette rules, and independent bitmap vectors."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 2856,
+        "context": 1592,
+        "pending": 1732,
+        "implemented": 2678,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8950,
+      "policy": "Review source material as data. No original code executed.",
+      "followup": "Connect HCL bitmap playback to the session and exercise the independent target, flag, clipping and palette cases.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 79,
+        "declared_prior_derivation_changes": 0,
+        "originals": {
+          "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "version/2.0/text/RIPScrip-2.0-alpha-4.txt": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
+        },
+        "scope": "Document, derivation and original publication checksums with ordered exact matching from the verified stable Git archive."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -15344,6 +15661,73 @@
         "blocked": 28
       },
       "verification": "Native Release CMake build and ten CTest cases covering sessions, ports, screen, pixel-copy, the RIP154 source freeze and live scroll in CP437 and UTF-8 at 640x480 and 800x600."
+    },
+    {
+      "after_commit": "97b7cff5",
+      "revision": "9716850d93ba720097af2a3e100e633c6797ac38",
+      "scope": "Connect HCL bitmap playback and record the shipped file-query conflict.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.1-jpeg-images.md:55",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:61",
+        "version/3.0/ripscrip/5.1-text-variables.md:4589",
+        "version/3.0/ripscrip/5.3-local-playback.md:149",
+        "version/3.0/ripscrip/5.3-local-playback.md:153",
+        "version/3.0/ripscrip/5.3-local-playback.md:155",
+        "version/3.0/ripscrip/5.3-local-playback.md:157",
+        "version/3.0/ripscrip/5.3-local-playback.md:159",
+        "version/3.0/ripscrip/5.3-local-playback.md:161",
+        "version/3.0/ripscrip/5.3-local-playback.md:165",
+        "version/3.0/ripscrip/5.3-local-playback.md:169",
+        "version/3.0/ripscrip/5.3-local-playback.md:170",
+        "version/3.0/ripscrip/5.3-local-playback.md:171",
+        "version/3.0/ripscrip/5.3-local-playback.md:172",
+        "version/3.0/ripscrip/5.3-local-playback.md:173",
+        "version/3.0/ripscrip/5.3-local-playback.md:174",
+        "version/3.0/ripscrip/5.3-local-playback.md:176",
+        "version/3.0/ripscrip/5.3-local-playback.md:178",
+        "version/3.0/ripscrip/5.3-local-playback.md:182",
+        "version/3.0/ripscrip/5.3-local-playback.md:184",
+        "version/3.0/ripscrip/5.3-local-playback.md:186",
+        "version/3.0/ripscrip/5.3-local-playback.md:196",
+        "version/3.0/ripscrip/5.3-local-playback.md:198",
+        "version/3.0/ripscrip/5.3-local-playback.md:200",
+        "version/3.0/ripscrip/5.3-local-playback.md:212",
+        "version/3.0/ripscrip/5.3-local-playback.md:273"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4581",
+        "version/3.0/ripscrip/5.3-local-playback.md:147",
+        "version/3.0/ripscrip/5.3-local-playback.md:167",
+        "version/3.0/ripscrip/5.3-local-playback.md:168",
+        "version/3.0/ripscrip/5.3-local-playback.md:190",
+        "version/3.0/ripscrip/5.3-local-playback.md:192",
+        "version/3.0/ripscrip/5.3-local-playback.md:194",
+        "version/3.0/ripscrip/5.3-local-playback.md:202",
+        "version/3.0/ripscrip/5.3-local-playback.md:204"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:189",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:191",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:195",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:199",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:200",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:201",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:202",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:203",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:205",
+        "version/3.0/ripscrip/9.0-command-reference.md:206",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:24"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/168",
+      "states_after_update": {
+        "unreviewed": 2845,
+        "context": 1601,
+        "pending": 1697,
+        "implemented": 2704,
+        "excluded": 67,
+        "blocked": 36
+      },
+      "verification": "Native Release build, bitmap stamp/load tests and connected CP437/UTF-8 local media fixtures on a 640x480 raster."
     }
   ]
 }

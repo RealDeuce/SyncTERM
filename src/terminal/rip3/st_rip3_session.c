@@ -1171,6 +1171,7 @@ playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
 			return IO_ERROR_NOT_SUPPORTED;
 		return st_rip3_audio_play(session->commands.audio,session->commands.resources,filename);
 	}
+	if (kind==ST_RIP3_PLAYBACK_BITMAP) return st_rip3_command_bitmap_playback(&session->commands,filename);
 	if (kind!=ST_RIP3_PLAYBACK_JPEG) return IO_ERROR_NOT_SUPPORTED;
 	bool operation=false;
 	return st_rip3_command_jpeg(&session->commands,(const uint8_t *)filename,strlen(filename),&operation);

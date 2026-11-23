@@ -3,12 +3,109 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
+import struct
 
 from st_migrated_control_test import connection
+from st_rip3_button_styles_connected_test import number
 from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
 from st_terminal_conformance_test import Terminal
 from syncterm_control import SHIFT
+
+
+def bitmap_row(depth, row, palette=b""):
+    offset = 54 + len(palette)
+    file_header = struct.pack("<2sIHHI", b"BM", offset + len(row), 0, 0, offset)
+    info_header = struct.pack("<IiiHHIIiiII", 40, 2, 1, 1, depth, 0, len(row), 0, 0, 0, 0)
+    return file_header + info_header + palette + row
+
+
+def check_bitmap(t, assets, values):
+    red, blue, green = 0xaa0000, 0x0000aa, 0x00aa00
+    local_palette = b"\x00\x00\xaa\x00\xaa\x00\x00\x00"
+    solid = bitmap_row(1, bytes(4), local_palette)
+    (assets / "Solid.BMP").write_bytes(solid)
+    (assets / "Split.BMM").write_bytes(bitmap_row(1, b"\x40" + bytes(3), local_palette))
+    (assets / "Direct.BMP").write_bytes(bitmap_row(24, b"\x00\x00\xaa" * 2 + bytes(2)))
+    (assets / "Shade.BMP").write_bytes(bitmap_row(1, b"\x40" + bytes(3),
+        b"\x29\x63\x93\x00\xfd\x86\x09\x00"))
+    (assets / "Truncated.BMP").write_bytes(solid[:-1])
+
+    def coords(*points):
+        return b"".join(number(p, 2) for p in points)
+
+    def wire(commands):
+        return t.exchange(b"\x01|" + commands + b"\r\n")
+
+    def style(*points, flags=0):
+        return b"1i" + coords(*points) + number(flags, 4)
+
+    def tint(frame, x, y, width, height):
+        return [[pixel(frame, x+dx, y+dy) for dx in range(width)] for dy in range(height)]
+
+    def reset():
+        wire(b"*")
+        values(b"$WORLD(CUR,640,480)$")
+
+    t.case("HCL BMP uses the complete stored rectangle and ignores all image flags")
+    reset()
+    before = wire(b"a0002|W0|S0102|B00000909|W1|" + style(2, 2, 5, 5, flags=63))
+    frame = values(b"before$<solid.icn$after:$IMGSTYLE$", b"beforeafter:2:2:6:6:63")
+    assert frame.palette == before.palette and (assets / "Solid.BMP").read_bytes() == solid
+    expected = [[red if 2 <= x < 6 and 2 <= y < 6 else green for x in range(8)] for y in range(8)]
+    assert tint(frame, 0, 0, 8, 8) == expected
+    wire(b"W0|S0102|B00000909")
+    frame = values(b"$IMGSTYLE(CUR,2,2,5,5)$$<Direct$")
+    assert tint(frame, 0, 0, 8, 8) == expected and frame.palette == before.palette
+
+    t.case("HCL BMP clips without refitting or restarting the dither phase")
+    wire(style(2, 2, 5, 5) + b"|v" + coords(4, 3, 9, 9))
+    values(b"$WORLD(CUR,320,240)$")
+    frame = values(b"$<Split.msk$")
+    assert tint(frame, 4, 3, 2, 3) == [[blue, blue]] * 3
+    assert pixel(frame, 3, 3) == red and pixel(frame, 4, 2) == red and pixel(frame, 6, 3) == green
+    values(b"$WORLD(CUR,640,480)$")
+    wire(b"v00000909|" + style(1, 1, 8, 8))
+    full = values(b"$<Shade$")
+    assert len({p for row in tint(full, 1, 1, 8, 8) for p in row}) > 2
+    before = wire(b"S0102|B00000909|v03030505")
+    frame = values(b"$<Shade$")
+    assert tint(frame, 3, 3, 3, 3) == tint(full, 3, 3, 3, 3)
+    assert pixel(frame, 2, 3) == pixel(before, 2, 3) == green
+    assert pixel(frame, 6, 3) == pixel(before, 6, 3) == green
+
+    t.case("HCL BMP honors default, one pixel and inactive viewport cases")
+    reset()
+    wire(b"v03030505")
+    frame = values(b"$<Solid$")
+    assert tint(frame, 3, 3, 3, 3) == [[red] * 3] * 3 and pixel(frame, 6, 5) == 0
+    wire(b"v00000909|" + style(0, 0, 0, 0))
+    frame = values(b"$<Solid$")
+    assert tint(frame, 0, 0, 2, 2) == [[red, 0], [0, 0]]
+    values(b"$DVP(CUR)$")
+    before = t.client.capture()
+    frame = values(b"$<Truncated$$<Missing$$<Direct$alive", b"alive")
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    wire(b"v00000909")
+    frame = values(b"$<Truncated$$<Missing$alive", b"alive")
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+
+    t.case("HCL BMP uses absolute screen geometry and confines writes to the current port")
+    reset()
+    wire(b"2P1" + coords(4, 3, 8, 7) + b"0|2s100|v02020909|" + style(2, 2, 5, 5))
+    values(b"$PROT(PORT,1)$")
+    frame = values(b"$<Split.msk$")
+    assert tint(frame, 4, 3, 2, 3) == [[blue, blue]] * 3
+    assert pixel(frame, 4, 2) == pixel(frame, 3, 3) == pixel(frame, 6, 3) == 0
+    values(b"$CUR(PORT)$:$ISPROT(PORT,1)$", b"1:1")
+
+    t.case("HCL BMP draws in bitmap-local coordinates on the offscreen port")
+    before = wire(b"2P2" + coords(0, 0, 8, 8) + b"1|2s200|v03030707|" + style(2, 2, 5, 5))
+    frame = values(b"$<Split.msk$")
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    frame = wire(b"v00000707|2s000|2C2" + coords(0, 0, 8, 8) + b"0" + coords(30, 30, 38, 38) + b"0")
+    assert tint(frame, 32, 32, 4, 4) == [[0, 0, 0, 0]] + [[0, red, blue, blue]] * 3
+    assert frame.application["connected"] == 1
 
 
 def run(args):
@@ -101,6 +198,7 @@ def run(args):
         assert pixel(frame, 170, 180) == 0
         frame = values(b"$(" + encoded + b"\\$$good", b"good")
         assert pixel(frame, 170, 180) == (0x454545 if supported == b"1" else 0)
+        check_bitmap(t, assets, values)
 
 
 if __name__ == "__main__":

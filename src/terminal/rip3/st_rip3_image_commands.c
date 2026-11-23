@@ -1,5 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
+#include "st_rip3_bitmap_file.h"
+#include "st_rip3_bitmap_stamp.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_image.h"
 #include "st_rip3_image_style.h"
@@ -77,6 +79,25 @@ st_rip3_command_jpeg(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_draw_image(host->ports,image,NULL,0,&palette);
 	st_pixel_buffer_destroy(image); free(name);
 	/* Every service failure remains inside the public void parser boundary. */
+	return status;
+}
+
+int
+st_rip3_command_bitmap_playback(const struct st_rip3_command_host *host, const char *filename)
+{
+	struct st_rip3_port_info port;
+	struct st_rip3_palette palette;
+	struct st_rip3_bitmap *bitmap = NULL;
+	unsigned current;
+	int status = st_rip3_ports_current(host->ports,&current);
+	if (status == 0) status = st_rip3_ports_info(host->ports,current,&port);
+	if (status != 0 || !port.viewport_active || !port.image.enabled) return status;
+	if (!port.image.automatic && (port.image.area.x1 == 0 || port.image.area.y1 == 0)) return 0;
+	if (host->resources == NULL) return IO_ERROR_NOT_SUPPORTED;
+	status = st_rip3_palettes_current_palette(host->palettes,&palette);
+	if (status == 0) status = st_rip3_bitmap_load(&bitmap,host->resources,filename);
+	if (status == 0) status = st_rip3_draw_bitmap_playback(host->ports,&port,bitmap,&palette);
+	st_rip3_bitmap_destroy(bitmap);
 	return status;
 }
 

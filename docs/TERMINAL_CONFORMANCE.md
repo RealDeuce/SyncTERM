@@ -977,6 +977,11 @@ cover all five window fonts on 640×480, 800×600, 1024×768, 1280×800 and 720�
 including font-specific cells, artwork in the default 640×350 WORLD, ANSI
 resumption, and scene reset. The RIPv1 wire fixtures retain their original
 canvas, status-font and historical pixel expectations.
+
+RIPv3 HCL bitmap playback uses the current port and its stored image
+rectangle. Connected CP437 and UTF-8 tests cover clipped screen and offscreen
+draws with the existing indexed palette and dither renderer. [RIPv3 bitmap coverage](RIP3_CONFORMANCE.md#connected-hcl-bitmap-playback)
+
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

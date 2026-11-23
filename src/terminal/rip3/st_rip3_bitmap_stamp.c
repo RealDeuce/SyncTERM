@@ -140,17 +140,15 @@ dither_pixel(const struct dither_color *color, uint64_t x, uint64_t y)
 	    ? color->other : color->nearest;
 }
 
-int
-st_rip3_draw_bitmap(struct st_rip3_ports *ports,
+static int
+draw_bitmap(struct st_rip3_ports *ports,
     const struct st_rip3_bitmap *bitmap, const struct st_rip3_bitmap_destination *destination,
     const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
     enum st_rip3_transfer_mode mode,
-    const uint8_t *transparent_color)
+    const uint8_t *transparent_color, const struct st_rip3_rect *confined_clip)
 {
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
-	struct st_rip3_port_info info;
 	struct st_rip3_rect visible;
-	unsigned current;
 	uint8_t mapped[256];
 	struct dither_color dithered[256];
 	int status;
@@ -161,15 +159,20 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (destination->x0 < -limit || destination->x1 > limit || destination->y0 < -limit || destination->y1 > limit)
 		return IO_ERROR_OUT_OF_RANGE;
-	status = st_rip3_ports_current(ports,&current);
-	if (status == 0) status = st_rip3_ports_info(ports,current,&info);
-	if (status != 0 || !info.viewport_active) return status;
+	if (confined_clip == NULL) {
+		struct st_rip3_port_info info;
+		unsigned current;
+		status = st_rip3_ports_current(ports,&current);
+		if (status == 0) status = st_rip3_ports_info(ports,current,&info);
+		if (status != 0 || !info.viewport_active) return status;
+		visible = (struct st_rip3_rect){0,0,info.clip.x1,info.clip.y1};
+	}
+	else visible = *confined_clip;
 	/* The shipped color-key mask creator rejects RGB555 before staging or
 	 * drawing. Ordinary 16-bit loads still reach the common RGB painter. */
 	if (transparent_color != NULL && bitmap != NULL && bitmap->bit_depth == 16) return IO_ERROR_NOT_SUPPORTED;
-	if (info.clip.x1 < 0 || info.clip.y1 < 0) return 0;
-	visible = (struct st_rip3_rect){0,0,info.clip.x1,info.clip.y1};
-	if (destination->x0 > visible.x1 || destination->y0 > visible.y1 || destination->x1 < 0 || destination->y1 < 0)
+	if (visible.x0 > visible.x1 || visible.y0 > visible.y1 || destination->x0 > visible.x1
+	    || destination->y0 > visible.y1 || destination->x1 < visible.x0 || destination->y1 < visible.y0)
 		return 0;
 	if (destination->x0 > visible.x0) visible.x0 = (int32_t)destination->x0;
 	if (destination->y0 > visible.y0) visible.y0 = (int32_t)destination->y0;
@@ -227,4 +230,40 @@ st_rip3_draw_bitmap(struct st_rip3_ports *ports,
 	}
 	free(pixels);
 	return 0;
+}
+
+int
+st_rip3_draw_bitmap(struct st_rip3_ports *ports,
+    const struct st_rip3_bitmap *bitmap, const struct st_rip3_bitmap_destination *destination,
+    const struct st_rip3_palette *palette, enum st_rip3_bitmap_colors colors,
+    enum st_rip3_transfer_mode mode, const uint8_t *transparent_color)
+{
+	return draw_bitmap(ports,bitmap,destination,palette,colors,mode,transparent_color,NULL);
+}
+
+int
+st_rip3_draw_bitmap_playback(struct st_rip3_ports *ports, const struct st_rip3_port_info *port,
+    const struct st_rip3_bitmap *bitmap, const struct st_rip3_palette *palette)
+{
+	struct st_rip3_rect clip = port->clip;
+	const struct st_rip3_rect view = port->viewport;
+	const struct st_rip3_rect bounds = port->bounds;
+	int64_t left = -(int64_t)view.x0, top = -(int64_t)view.y0;
+	int64_t right = (int64_t)bounds.x1 - bounds.x0 - view.x0;
+	int64_t bottom = (int64_t)bounds.y1 - bounds.y0 - view.y0;
+	if (left > clip.x1 || top > clip.y1 || right < clip.x0 || bottom < clip.y0) return 0;
+	if (left > clip.x0) clip.x0 = (int32_t)left;
+	if (top > clip.y0) clip.y0 = (int32_t)top;
+	if (right < clip.x1) clip.x1 = (int32_t)right;
+	if (bottom < clip.y1) clip.y1 = (int32_t)bottom;
+	struct st_rip3_bitmap_destination target = {0,0,(int64_t)view.x1-view.x0,(int64_t)view.y1-view.y0};
+	if (!port->image.automatic) {
+		const struct st_rip3_rect area = port->image.area;
+		int64_t x = (int64_t)bounds.x0 + view.x0, y = (int64_t)bounds.y0 + view.y0;
+		/* The rectangle is already in surface coordinates. Translate to
+		 * the stamp kernel's viewport origin and consume its half-open edges. */
+		target = (struct st_rip3_bitmap_destination){area.x0-x,area.y0-y,area.x1-x-1,area.y1-y-1};
+	}
+	if (target.x0 > target.x1 || target.y0 > target.y1) return 0;
+	return draw_bitmap(ports,bitmap,&target,palette,ST_RIP3_BITMAP_DITHER,ST_RIP3_TRANSFER_COPY,NULL,&clip);
 }

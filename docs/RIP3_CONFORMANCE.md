@@ -8947,10 +8947,9 @@ quoted name from REFRESH, image placement, and recovery after malformed media.
 The native waveform fixture verifies the reply and PCM output with the
 decoder available and the reply with it unavailable.
 
-The shared filename parser now supplies captured input substitutions, decoded
-bounds and recovery for the connected JPEG and WAVE paths. Local RIP scene
-and BMP presentation and the shared/search directory configuration remain
-pending. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
+The shared filename parser supplies captured input substitutions, decoded
+bounds and recovery to the local media paths. Local RIP scene playback and
+shared/search directory configuration remain pending. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
 
 The queue contains 2523 implemented, 1682 pending, 2919 unreviewed,
 1551 context, 67 excluded and 33 blocked units.
@@ -9054,16 +9053,40 @@ its brackets and quoted dollars. Overlong references retain their original
 spelling, and an unclosed reference leaves later scans active. Graphical
 consumers preserve playback references as literal text.
 
-HCL bitmap presentation still needs the bitmap-specific image-style geometry,
-flags and palette rules. [Issue #166](https://github.com/bbs-land/remote-imaging-protocol/issues/166)
-
 Connected JPEG cases in CP437 and UTF-8 check lookup through the real port
 presenter, including a press dragged outside a field, identity after field deletion on release,
 foreground Shift state, and decoded wire-byte bounds. Native filename vectors
 check all four request kinds. The WAVE session PCM fixture checks that a missing
 `$OFF$.wav` preserves the running sound and that a file by that name plays
-through normal lookup. Wire `1w` still recognizes its stop sentinel. The scene
-and bitmap request kinds await their media handlers.
+through normal lookup. Wire `1w` recognizes its stop sentinel. The scene
+request awaits its media handler.
 
 The queue contains 2647 implemented, 1707 pending, 2861 unreviewed,
 1589 context, 67 excluded and 33 blocked units.
+
+## Connected HCL bitmap playback
+
+`$<file.BMP$` decodes a local bitmap and uses the current drawing port's
+stored device rectangle, with exclusive far edges. An unset rectangle uses
+the viewport at playback time. All-zero wire style coordinates create a
+one-pixel target. The renderer intersects the target with the port, viewport
+and backing surface, and anchors sampling and dither to the unclipped target.
+[Reference PR #167](https://github.com/bbs-land/remote-imaging-protocol/pull/167)
+
+Bitmap playback uses opaque COPY and the current indexed drawing palette.
+It leaves the file, palette and image flags intact. The CP437 and UTF-8 TCP
+fixtures exercise source-palette translation, indexed and 24-bit BMPs,
+aliases, each placement boundary, all flags set, clipped dither and separate
+offscreen rendering. Missing and truncated files let the host program
+continue with its suffix.
+
+## RIP_FILE_QUERY documentation conflict
+
+The RIPtel 3.1 DLL uses a colon after the filename in mode 04 and returns
+the prepared name and zero metadata for a lookup miss. It also changes
+lookup extensions and the reported size for legacy bitmap aliases. The
+inherited wire tables differ from those observations. The separate v3
+command awaits the exact reply and filename contract. [Issue #168](https://github.com/bbs-land/remote-imaging-protocol/issues/168)
+
+At the PR #167 pin this queue contains 2704 implemented, 1697 pending,
+2845 unreviewed, 1601 context, 67 excluded and 36 blocked units.
