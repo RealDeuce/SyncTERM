@@ -15728,6 +15728,49 @@
         "blocked": 36
       },
       "verification": "Native Release build, bitmap stamp/load tests and connected CP437/UTF-8 local media fixtures on a 640x480 raster."
+    },
+    {
+      "after_commit": "5fd8444c",
+      "revision": "9716850d93ba720097af2a3e100e633c6797ac38",
+      "scope": "Connect HOSTDIR and wire RIP_SWITCH_DIRECTORY to live named resource selection and shared fallback.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2724",
+        "version/3.0/ripscrip/5.1-text-variables.md:2726",
+        "version/3.0/ripscrip/5.1-text-variables.md:2730",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:76",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:80",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:81",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:82",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:84",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:86",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:90",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:97",
+        "version/3.0/ripscrip/9.0-command-reference.md:233",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:157"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2728",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:66",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:72",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:92",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:99"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2732",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:78",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:79",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:88"
+      ],
+      "states_after_update": {
+        "unreviewed": 2824,
+        "context": 1605,
+        "pending": 1701,
+        "implemented": 2717,
+        "excluded": 67,
+        "blocked": 36
+      },
+      "verification": "Native Release CMake build, resource and session tests, and live TCP media in CP437/UTF-8. RIP154 source freeze and both RIP154 wire encodings pass.",
+      "followup": "Finish codepage length handling, user search paths and resource delivery."
     }
   ]
 }

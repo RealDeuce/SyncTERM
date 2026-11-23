@@ -472,7 +472,7 @@ main(int argc, char **argv)
 	CHECK(path_join_alloc(&shared,argv[1],"shared") == 0 && fs_create_directories(shared) == 0);
 	CHECK(path_join_alloc(&search,argv[1],"search") == 0 && fs_create_directories(search) == 0);
 	const char *const entries[] = {search};
-	const struct st_rip3_resource_paths paths = {host,shared,NULL,entries,1};
+	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.search=entries,.search_count=1};
 	CHECK(asset(argv[2],host,"Gray.JPG","gray.jpg",0) == 0 && asset(argv[2],host,"Scene.JPG","444.jpg",0) == 0);
 	CHECK(asset(argv[2],shared,"scene.jpg","gray.jpg",0) == 0 && asset(argv[2],shared,"Shared.JPG","gray.jpg",0) == 0);
 	CHECK(asset(argv[2],search,"\xce\xa9mega.JPG","gray.jpg",0) == 0 && asset(argv[2],host,"Odd.ext","gray.jpg",0) == 0);

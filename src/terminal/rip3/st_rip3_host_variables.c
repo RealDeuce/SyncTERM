@@ -54,6 +54,61 @@ st_rip3_terminfo_select(const struct st_rip3_host_variables *host,
 	return 0;
 }
 
+size_t
+st_rip3_directory_normalize(uint8_t *text, size_t length)
+{
+	size_t first = 0;
+	while (first < length && text[first] != 0 && strchr(" \t\n\r\v\f",text[first]) != NULL) first++;
+	while (length > first && text[length-1] != 0 && strchr(" \t\n\r\v\f",text[length-1]) != NULL) length--;
+	for (size_t i = first; i < length; i++) {
+		uint8_t ch = text[i];
+		text[i-first] = ch >= 'a' && ch <= 'z' ? (uint8_t)(ch-'a'+'A') : ch;
+	}
+	return length-first;
+}
+
+int
+st_rip3_directory_select(const struct st_rip3_host_directory *directory,
+    const uint8_t *text, size_t length, bool create)
+{
+	char name[ST_RIP3_HOST_DIRECTORY_LIMIT+1];
+	if (length >= sizeof(name)) return IO_ERROR_OUT_OF_RANGE;
+	for (size_t i = 0; i < length; i++) {
+		uint8_t ch = text[i];
+		if (ch < 32 || ch == 127 || strchr("\\:*?+/\",;><=[]|",ch) != NULL)
+			return IO_ERROR_INVALID_FORMAT;
+		name[i] = (char)ch;
+	}
+	name[length] = '\0';
+	if (strcmp(name,".") == 0 || strcmp(name,"..") == 0) return IO_ERROR_INVALID_FORMAT;
+	return directory->select(directory->context,name,create);
+}
+
+static int
+host_directory(const struct st_rip3_host_directory *directory,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	if (reference->count > 1) return IO_ERROR_INVALID_FORMAT;
+	if (capacity == 0) return IO_ERROR_OUT_OF_RANGE;
+	if (directory == NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (reference->count == 0) {
+		const char *name = directory->current(directory->context);
+		if (name[0] == '\0') name = "<NONE>";
+		size_t length = strlen(name);
+		if (length >= capacity) return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result,name,length+1);
+		return 0;
+	}
+	uint8_t text[sizeof(reference->parameters[0].text)];
+	size_t length = reference->parameters[0].length;
+	if (length >= sizeof(text)) return IO_ERROR_INVALID_FORMAT;
+	memcpy(text,reference->parameters[0].text,length);
+	length = st_rip3_directory_normalize(text,length);
+	bool create = length != 3 || memcmp(text,"OFF",3) != 0;
+	result[0] = '\0';
+	return st_rip3_directory_select(directory,text,create ? length : 0,create);
+}
+
 int
 st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -89,6 +144,8 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		result[0] = 0;
 		return 0;
 	}
+	if (strcmp(reference->name,"HOSTDIR") == 0)
+		return host_directory(host->directory,reference,result,capacity);
 	if (strcmp(reference->name, "REFRESH") == 0 || strcmp(reference->name, "NOREFRESH") == 0) {
 		if (reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;

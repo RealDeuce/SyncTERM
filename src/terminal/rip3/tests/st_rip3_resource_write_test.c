@@ -65,7 +65,7 @@ main(int argc, char **argv)
 	CHECK(path_join_alloc(&fonts,argv[1],"fonts") == 0);
 	CHECK(path_join_alloc(&outside,argv[1],"outside") == 0);
 	const char *const entries[] = {search};
-	struct st_rip3_resource_paths paths = {host,shared,fonts,entries,1};
+	struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.fonts=fonts,.search=entries,.search_count=1};
 	/* Literal 1x1 24-bit BMP, including its padded BGR pixel, is written
 	 * byte-for-byte. The expected bytes do not come from our BMP encoder. */
 	const uint8_t bitmap[] = {

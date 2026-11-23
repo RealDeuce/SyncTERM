@@ -26,6 +26,9 @@ int st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
+size_t st_rip3_directory_normalize(uint8_t *text, size_t length);
+int st_rip3_directory_select(const struct st_rip3_host_directory *directory,
+	const uint8_t *text, size_t length, bool create);
 int st_rip3_random_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,

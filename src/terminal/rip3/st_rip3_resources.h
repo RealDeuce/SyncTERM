@@ -17,14 +17,21 @@ enum st_rip3_resource_kind {
 
 /* Trusted client paths, borrowed for each resource operation. NULL/empty
  * directories are absent. Search entries are already split and ordered by
- * client configuration; no host-supplied path or directory switch is accepted. */
+ * client configuration. If a protocol name selected the host tier, the owner
+ * supplies its trusted parent separately so lookup can reject directory links. */
 struct st_rip3_resource_paths {
 	const char *host;
 	const char *shared;
 	const char *fonts;
 	const char *const *search;
 	size_t search_count;
+	const char *named_host_root;
 };
+
+/* Create the client's named-resource root and optionally its direct child.
+ * Neither path can be a symlink or reparse point. The caller owns the paths
+ * and supplies an existing trusted parent for the root. */
+int st_rip3_resource_prepare_named_host(const char *root, const char *child);
 
 struct st_rip3_resource {
 	FILE *stream;

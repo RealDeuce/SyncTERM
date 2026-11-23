@@ -11,6 +11,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int
+directory_status(const char *path)
+{
+	struct fs_info info;
+	int status = fs_get_link_info(&info,path);
+	if (status == 0 && info.kind != FS_ENTRY_DIRECTORY) return IO_ERROR_NOT_DIRECTORY;
+	return status;
+}
+
+static int
+ensure_directory(const char *path)
+{
+	int status = fs_create_directory(path);
+	return status == IO_ERROR_ALREADY_EXISTS ? directory_status(path) : status;
+}
+
+int
+st_rip3_resource_prepare_named_host(const char *root, const char *child)
+{
+	int status = ensure_directory(root);
+	if (status == 0 && child != NULL) status = ensure_directory(child);
+	return status;
+}
+
 void
 st_rip3_resource_dispose(struct st_rip3_resource *resource)
 {
@@ -125,6 +149,9 @@ st_rip3_resource_open(struct st_rip3_resource *result,
 	}
 	/* Separate loops avoid overflowing a combined count supplied by a client. */
 	for (size_t i = 0; i < fixed_count; i++) {
+		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0 && paths->named_host_root != NULL
+		    && (directory_status(paths->named_host_root) != 0 || directory_status(fixed[i]) != 0))
+			continue;
 		status = open_directory(result, fixed[i], key, key_size);
 		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY)
 			goto done;
@@ -166,7 +193,8 @@ st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	status = st_unicode_caseless_key(&key,&key_size,name,strlen(name));
 	if (status != 0) return status;
 	match.directory = paths->host; match.key = key; match.key_size = key_size;
-	status = fs_create_directories(paths->host);
+	status = paths->named_host_root == NULL ? fs_create_directories(paths->host)
+	    : st_rip3_resource_prepare_named_host(paths->named_host_root,paths->host);
 	if (status == 0) status = st_rip3_resource_directory_scan(&match);
 	if (status == 0 && match.path == NULL)
 		status = path_join_alloc(&match.path,paths->host,name);

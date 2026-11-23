@@ -8949,7 +8949,7 @@ decoder available and the reply with it unavailable.
 
 The shared filename parser supplies captured input substitutions, decoded
 bounds and recovery to the local media paths. Local RIP scene playback and
-shared/search directory configuration remain pending. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
+user search-path configuration remain pending. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
 
 The queue contains 2523 implemented, 1682 pending, 2919 unreviewed,
 1551 context, 67 excluded and 33 blocked units.
@@ -9090,3 +9090,22 @@ command awaits the exact reply and filename contract. [Issue #168](https://githu
 
 At the PR #167 pin this queue contains 2704 implemented, 1697 pending,
 2845 unreviewed, 1601 context, 67 excluded and 36 blocked units.
+
+## Connected RIPv3 host directory selection
+
+The application binds named RIPv3 directories and shared icons below its
+cache root. A connection starts with the existing per-entry RIP cache as
+its resource tier and no explicit protocol name. `$HOSTDIR(name)$` and
+`2` followed by ESC select a named tier under `RIP3/HOST-<NAME>`. Clearing
+the name starts lookup at `RIP3/ICONS`. The wire command normalizes the
+literal before expansion. A literal `$OFF$` clears the tier, while an
+expanded `$OFF$` selects that name. [Directory syntax](https://github.com/RealDeuce/remote-imaging-protocol/blob/9716850d93ba720097af2a3e100e633c6797ac38/version/3.0/ripscrip/6.2-asset-delivery-and-storage.md#rip_switch_directory)
+
+The selected name remains available if directory creation fails.
+Named directory lookups and writes check the `RIP3` directory and its named
+entry for links. Shared icons serve as a read fallback. Connected CP437
+and UTF-8 cases cover the normal and graphical variable paths, wire command
+expansion, subsequent reads and writes, and malformed input recovery. The
+12-byte name limit currently uses SyncTERM's normalized UTF-8 bytes. DOS
+high-byte name boundaries and the remaining search and delivery tiers still
+need coverage.

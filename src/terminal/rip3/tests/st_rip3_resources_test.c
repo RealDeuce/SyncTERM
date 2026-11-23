@@ -95,8 +95,8 @@ main(int argc, char **argv)
 	search[2] = "";
 	search[3] = directories[2];
 	search[4] = directories[3];
-	paths = (struct st_rip3_resource_paths){directories[0], directories[1],
-	    directories[4], search, 5};
+	paths = (struct st_rip3_resource_paths){.host=directories[0],.shared=directories[1],
+	    .fonts=directories[4],.search=search,.search_count=5};
 	for (size_t i = 0; i < 4; i++) {
 		char content[] = {(char)('0' + i), 0};
 		CHECK(put(directories[i], "Menu.BmP", content) == 0);

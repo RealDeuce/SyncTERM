@@ -83,7 +83,7 @@ main(int argc, char **argv)
 	CHECK(path_join_alloc(&shared,argv[1],"shared") == 0 && fs_create_directories(shared) == 0);
 	CHECK(path_join_alloc(&search,argv[1],"search") == 0 && fs_create_directories(search) == 0);
 	const char *const entries[] = {search};
-	const struct st_rip3_resource_paths paths = {host,shared,NULL,entries,1};
+	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.search=entries,.search_count=1};
 	const uint8_t literal[] = {
 		'B','M',58,0,0,0,0,0,0,0,54,0,0,0,40,0,0,0,1,0,0,0,1,0,0,0,
 		1,0,24,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x33,0x22,0x11,0,

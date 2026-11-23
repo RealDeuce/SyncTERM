@@ -51,6 +51,8 @@ struct st_term_config {
 	enum st_cterm_encoding encoding;
 	enum st_cterm_graphics_mode graphics_mode;
 	const char *rip_directory;
+	/* User-owned cache root for RIPv3 shared assets and named directories. */
+	const char *rip3_resource_root;
 	const char *amiga_font_directory;
 	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
 	const st_amiga_font_t *amiga_font;

@@ -20,6 +20,7 @@
 #include "io_error.h"
 #include "st_pixel_image.h"
 #include "filesystem.h"
+#include "path.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,6 +55,9 @@ struct st_term_rip3 {
 	struct st_term_rip3_pick_list *pick_list;
 	struct st_rip3_audio *audio;
 	struct st_rip3_resource_paths resources;
+	struct st_rip3_host_directory host_directory;
+	char host_directory_name[ST_RIP3_HOST_DIRECTORY_LIMIT+1];
+	char *resource_root, *shared_resources, *named_host_path;
 	struct st_rip3_features features;
 	struct st_rip3_terminal_identity identity;
 	struct st_rip3_local_queries local;
@@ -79,6 +83,40 @@ struct st_term_rip3 {
 };
 
 static void flush_text(void *context);
+
+static const char *
+current_host_directory(void *context)
+{
+	struct st_term_rip3 *rip=context;
+	for (char *ch = rip->host_directory_name; *ch != '\0'; ch++)
+		if (*ch >= 'a' && *ch <= 'z') *ch = (char)(*ch-'a'+'A');
+	return rip->host_directory_name;
+}
+
+static int
+select_host_directory(void *context, const char *name, bool create)
+{
+	struct st_term_rip3 *rip=context;
+	char *path = NULL;
+	if (name[0] != '\0') {
+		char component[sizeof("HOST-")+sizeof(rip->host_directory_name)-1];
+		(void)snprintf(component,sizeof(component),"HOST-%s",name);
+		/* Use the same cache path regardless of a computed name's spelling. */
+		for (char *ch = component+sizeof("HOST-")-1; *ch != '\0'; ch++)
+			if (*ch >= 'a' && *ch <= 'z') *ch = (char)(*ch-'a'+'A');
+		int status = path_join_alloc(&path,rip->resource_root,component);
+		if (status != 0) return status;
+	}
+	free(rip->named_host_path);
+	rip->named_host_path = path;
+	memcpy(rip->host_directory_name,name,strlen(name)+1);
+	rip->resources.host = path;
+	rip->resources.named_host_root = path != NULL ? rip->resource_root : NULL;
+	/* The selected name is observable even when its directory cannot be
+	 * created. Resource lookup can continue through the shared tier. */
+	if (create) (void)st_rip3_resource_prepare_named_host(rip->resource_root,path);
+	return 0;
+}
 
 st_cterm_t *
 st_term_rip3_text(struct st_term_rip3 *rip)
@@ -1521,6 +1559,9 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 	st_rip3_variables_destroy(rip->persistent_values);
 	st_pixel_buffer_destroy(rip->previous);
 	st_pixel_buffer_destroy(rip->mouse_saved);
+	free(rip->named_host_path);
+	free(rip->shared_resources);
+	free(rip->resource_root);
 	free(rip->variable_path);free(rip->queue);free(rip->damage);free(rip);
 }
 
@@ -1542,6 +1583,12 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	/* Thirty-six full-canvas index planes is the session's offscreen policy. */
 	rip->pixel_budget=UINT64_C(36)*width*height;
 	rip->resources=(struct st_rip3_resource_paths){.host=config->rip_directory,.fonts=config->rip_directory};
+	if (status==0 && config->rip3_resource_root!=NULL && config->rip3_resource_root[0]!='\0') {
+		status=path_join_alloc(&rip->resource_root,config->rip3_resource_root,"RIP3");
+		if (status==0) status=path_join_alloc(&rip->shared_resources,rip->resource_root,"ICONS");
+		rip->resources.shared=rip->shared_resources;
+		rip->host_directory=(struct st_rip3_host_directory){rip,current_host_directory,select_host_directory};
+	}
 	rip->identity=(struct st_rip3_terminal_identity){"SyncTERM","Stephen Hurd",
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;
@@ -1576,7 +1623,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	const struct st_rip3_user_variable_host user={.session=rip->session_values,.persistent=rip->persistent_values};
 	if (status==0) status=st_rip3_user_variables_create(&rip->user,&user);
 	const struct st_rip3_host_variables services={.features=&rip->features,.identity=&rip->identity,
-	    .local_time=&rip->local_time,.local=&rip->local,.user_variables=rip->user};
+	    .local_time=&rip->local_time,.local=&rip->local,.user_variables=rip->user,
+	    .directory=rip->resource_root!=NULL ? &rip->host_directory : NULL};
 	const struct st_rip3_session_config session={
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,
 	    .device_width=width,.device_height=height,

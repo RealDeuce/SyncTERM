@@ -2,6 +2,7 @@
 #ifndef ST_RIP3_HOST_VARIABLES_H_
 #define ST_RIP3_HOST_VARIABLES_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
@@ -17,6 +18,17 @@ struct st_rip3_text_window_operations;
 struct st_rip3_mouse;
 struct st_rip3_field_context;
 struct st_rip3_refresh;
+
+enum { ST_RIP3_HOST_DIRECTORY_LIMIT = 12 };
+
+/* Borrowed connection owner. current returns the selected uppercase spelling
+ * (empty when unset). select receives a validated name that lives only for the
+ * call. An empty name clears selection. create still applies to the root. */
+struct st_rip3_host_directory {
+	void *context;
+	const char *(*current)(void *context);
+	int (*select)(void *context, const char *name, bool create);
+};
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -75,6 +87,7 @@ struct st_rip3_host_variables {
 	 * Missing values are unsupported, never invented from palette size or a
 	 * default keyboard/mouse state. The client owns their platform mechanism. */
 	const struct st_rip3_local_queries *local;
+	const struct st_rip3_host_directory *directory;
 	/* The text-window owner supplies activation with its protection/undefined
 	 * policy. Parameter lists are validated completely before any callback. */
 	const struct st_rip3_text_window_operations *text_windows;

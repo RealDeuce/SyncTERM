@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_session.h"
 #include "st_rip3_host_variables.h"
+#include "st_rip3_host_internal.h"
 #include "st_rip3_header.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
@@ -35,7 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC };
+enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY };
 
 struct session_window {
 	struct st_rip3_text_window_info info;
@@ -698,7 +699,8 @@ prepare(void *context)
 	session->field_context=previous;
 	if (!st_rip3_query_pending(session->commands.query)) session->field_program=false;
 	if (session->graphical_job) {
-		bool retained=session->graphical_job==GRAPHICAL_METRIC ? session->metric_argument.retained : session->text_retained;
+		bool retained=session->graphical_job==GRAPHICAL_METRIC ? session->metric_argument.retained
+		    : session->graphical_job==GRAPHICAL_TEXT && session->text_retained;
 		if (!retained) st_rip3_graphical_process(session->graphical,64);
 		if (!st_rip3_graphical_pending(session->graphical)) {
 			const struct st_rip3_condition_bytes *result=st_rip3_graphical_result(session->graphical);
@@ -712,6 +714,8 @@ prepare(void *context)
 					    retained ? NULL : result->bytes,retained ? 0 : result->length,
 					    session->graphical_codepage_converted,&session->host_sink);
 				}
+				else if (session->graphical_job==GRAPHICAL_DIRECTORY)
+					status=st_rip3_directory_select(session->variables.directory,result->bytes,result->length,true);
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
@@ -950,6 +954,33 @@ scene_header(struct st_rip3_session *session, const uint8_t *bytes, size_t lengt
 		header_segment(session, &header.segments[i]);
 }
 
+static int
+switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	const struct st_rip3_host_directory *directory = session->variables.directory;
+	if (directory == NULL) return 0;
+	if (length <= 6 || memchr(bytes+6,0,length-6) != NULL) return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_environment env;
+	unsigned current;
+	uint64_t reserved;
+	int status = st_rip3_command_environment(&session->commands,&current,&env);
+	if (status == 0) status = st_rip3_command_field(&reserved,bytes+2,4,env.base_math);
+	if (status != 0) return status;
+	uint8_t *name = malloc(length-6);
+	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(name,bytes+6,length-6);
+	size_t size = st_rip3_directory_normalize(name,length-6);
+	if (size == 0 || (size == 5 && memcmp(name,"$OFF$",5) == 0))
+		status = st_rip3_directory_select(directory,name,0,size == 0);
+	else {
+		/* This command shares the ordinary graphical expansion flags with T. */
+		st_rip3_graphical_start(session->graphical,ST_RIP3_GRAPHICAL_TEXT,name,size);
+		session->graphical_job=GRAPHICAL_DIRECTORY;
+	}
+	free(name);
+	return status;
+}
+
 static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
@@ -961,6 +992,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		if (length == 1) set_input_lock(session, false);
 		else diagnose(session, ST_RIP3_COMMAND_INVALID);
 	}
+	else if (length >= 2 && bytes[0] == '2' && bytes[1] == 0x1b)
+		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);
 	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);

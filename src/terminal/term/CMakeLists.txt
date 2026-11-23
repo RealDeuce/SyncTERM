@@ -8,7 +8,7 @@ target_include_directories(st_term PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_term PUBLIC st_connection st_cterm st_font_catalog st_transfer
 	st_session_history PRIVATE st_audio st_ooii st_unicode_text st_utf8 st_time
 	st_rip3_commands st_rip3_storage st_pixel_image st_fonts st_unicode_compare
-	syncterm_filesystem
+	syncterm_filesystem syncterm_path
 	syncterm_threads
 	syncterm_io_error)
 set_target_properties(st_term PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}

@@ -108,6 +108,91 @@ def check_bitmap(t, assets, values):
     assert frame.application["connected"] == 1
 
 
+def check_host_directory(t, root, values):
+    def wire(commands):
+        return t.exchange(b"\x01|" + commands + b"\r\n")
+
+    def store(directory, color):
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "Override.bmp").write_bytes(bitmap_row(24, color * 2 + bytes(2)))
+
+    t.case("HOSTDIR selects, queries and clears named cache directories")
+    wire(b"*")
+    values(b"$WORLD(CUR,640,480)$$IMGSTYLE(CUR,2,2,2,2)$")
+    values(b"$HOSTDIR$:$HOSTDIR()$", b"<NONE>:<NONE>")
+    values(b"before$HOSTDIR( MiX Ed )$after:$HOSTDIR$", b"beforeafter:MIX ED")
+    rip = root / "cache" / "RIP3"
+    named = rip / "HOST-MIX ED"
+    shared = rip / "ICONS"
+    assert named.is_dir()
+    store(named, b"\x00\x00\xaa")
+    store(shared, b"\xaa\x00\x00")
+    frame = values(b"$<Override$")
+    assert pixel(frame, 2, 2) == 0xaa0000
+    wire(b"2W0000001010000Capture.bmp")
+    assert (named / "Capture.bmp").read_bytes().startswith(b"BM")
+    frame = values(b"$HOSTDIR(Off)$$<Override$$HOSTDIR$", b"<NONE>")
+    assert pixel(frame, 2, 2) == 0x0000aa and not (rip / "HOST-OFF").exists()
+    wire(b"2W0000001010000AfterOff.bmp")
+    assert not (shared / "AfterOff.bmp").exists() and not (named / "AfterOff.bmp").exists()
+
+    t.case("HOSTDIR retains selection after creation failure and rejects invalid names")
+    (rip / "HOST-BLOCKED").write_bytes(b"ordinary file")
+    values(b"$HOSTDIR(Blocked)$$HOSTDIR$", b"BLOCKED")
+    for bad in (b".", b"..", b"1234567890123", b"foo:bar", b"extra,argument"):
+        values(b"$HOSTDIR(" + bad + b")$after:$HOSTDIR$", b"after:BLOCKED")
+    values(b"$HOSTDIR(\"\")$")
+    frame = values(b"$<Override$$HOSTDIR$", b"BLOCKED")
+    assert pixel(frame, 2, 2) == 0x0000aa
+    values(b"$HOSTDIR(  )$$HOSTDIR$", b"<NONE>")
+    assert not (rip / "HOST-").exists()
+
+    t.case("HOSTDIR avoids following a locally created directory link")
+    outside = root / "outside-rip-cache"
+    store(outside, b"\x00\x00\xaa")
+    try:
+        (rip / "HOST-LINKED").symlink_to(outside, target_is_directory=True)
+    except (NotImplementedError, PermissionError):
+        pass  # Some Windows fixtures lack directory-link privileges.
+    else:
+        frame = values(b"$HOSTDIR(Linked)$$<Override$$HOSTDIR$", b"LINKED")
+        assert pixel(frame, 2, 2) == 0x0000aa
+        wire(b"2W0000001010000Escape.bmp")
+        assert not (outside / "Escape.bmp").exists()
+
+    t.case("Graphical HOSTDIR actions retain their documented side effects")
+    values(b"$HOSTDIR(Mix Ed)$")
+    wire(b"T$HOSTDIR(OFF)$after")
+    values(b"$HOSTDIR$", b"<NONE>")
+    assert (rip / "HOST-BLOCKED").read_bytes() == b"ordinary file"
+
+    t.case("Wire directory switching uses the same cache and pre-expansion clear sentinel")
+    wire(b"2\x1b0001  MiX Ed  ")
+    frame = values(b"$<Override$$HOSTDIR$", b"MIX ED")
+    assert pixel(frame, 2, 2) == 0xaa0000
+    wire(b"2\x1b0000")
+    values(b"$HOSTDIR$", b"MIX ED")
+    wire(b"2\x1b0000../not-a-name")
+    values(b"$HOSTDIR$", b"MIX ED")
+    wire(b"2\x1b0000 $oFF$ ")
+    frame = values(b"$<Override$$HOSTDIR$", b"<NONE>")
+    assert pixel(frame, 2, 2) == 0x0000aa
+    values(b"$-=DIR=Mix Ed$")
+    wire(b"2\x1b0000$&DIR$")
+    frame = values(b"$<Override$$HOSTDIR$", b"MIX ED")
+    assert pixel(frame, 2, 2) == 0xaa0000
+    wire(b"2\x1b0000\\$OFF$")
+    literal_off = rip / "HOST-$OFF$"
+    assert literal_off.is_dir()
+    store(literal_off, b"\x00\xaa\x00")
+    frame = values(b"$<Override$")
+    assert pixel(frame, 2, 2) == 0x00aa00
+    wire(b"2\x1b0000$NULL$")
+    values(b"$HOSTDIR$", b"<NONE>")
+    wire(b"2\x1b0000   ")
+    values(b"$HOSTDIR$", b"<NONE>")
+
+
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -199,6 +284,7 @@ def run(args):
         frame = values(b"$(" + encoded + b"\\$$good", b"good")
         assert pixel(frame, 170, 180) == (0x454545 if supported == b"1" else 0)
         check_bitmap(t, assets, values)
+        check_host_directory(t, root, values)
 
 
 if __name__ == "__main__":
