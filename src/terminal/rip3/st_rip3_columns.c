@@ -184,7 +184,7 @@ prepare_line(struct column_line *line)
 		return st_rip3_outline_cache_prepare(host->text->outline_cache, &line->outline, line->layout.spacing);
 	}
 	line->style.font.direction = 0;
-	line->style.font.flags &= 32;
+	line->style.font.flags &= ST_RIP3_CLASSIC_SHADOW;
 	if (host->text->font != NULL && host->text->font->number == line->style.font.font)
 		line->classic = *host->text->font;
 	else
@@ -201,7 +201,7 @@ prepare_line(struct column_line *line)
 	}
 	if (status == 0 && line->style.write_mode != ST_RIP3_NOT) {
 		status = st_rip3_command_ink(host, env.rgb_bits, line->style.drawing_color, &line->foreground);
-		if (status == 0 && (line->style.font.flags & 32))
+		if (status == 0 && (line->style.font.flags & ST_RIP3_CLASSIC_SHADOW) != 0)
 			status = st_rip3_command_ink(host, env.rgb_bits, line->style.background_color, &line->background);
 	}
 	return status;
@@ -255,7 +255,7 @@ draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip
 			.yy = -scale * line->frame.device_height / line->frame.world_height,
 		};
 		return st_rip3_draw_chr_text(line->host->ports, &line->classic.data.stroke,
-		    line->glyphs + start, end - start, &at, &matrix, (line->style.font.flags & 32) != 0,
+		    line->glyphs + start, end - start, &at, &matrix, (line->style.font.flags & ST_RIP3_CLASSIC_SHADOW) != 0,
 		    foreground != NULL ? *foreground : line->foreground, line->background, line->style.write_mode);
 	}
 	return st_rip3_draw_classic_text(line->host->ports, &line->classic, &line->style.font,

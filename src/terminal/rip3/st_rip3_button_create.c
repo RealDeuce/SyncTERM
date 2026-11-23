@@ -110,7 +110,9 @@ prepare_label(struct label *label,const struct st_rip3_command_host *host,
 	if (!label->extended) {
 		label->classic_style=drawing->font;
 		/* Button orientation/justification and shadow own these attributes. */
-		label->classic_style.flags=(style->flags&32)!=0 ? 32 : 0;
+		label->classic_style.flags = ST_RIP3_CLASSIC_LEFT | ST_RIP3_CLASSIC_TOP;
+		if ((style->flags & 32) != 0)
+			label->classic_style.flags |= ST_RIP3_CLASSIC_SHADOW;
 		if (host->text->font!=NULL && host->text->font->number==drawing->font.font)
 			label->classic=*host->text->font;
 		else status=st_rip3_classic_font_builtin_device(&label->classic,frame->device_width,frame->device_height,drawing->font.font);
@@ -165,7 +167,8 @@ decorate_label(struct label *label,const struct st_rip3_command_host *host,
 	int status=0;
 	if (!label->extended) {
 		struct st_rip3_classic_text_plan prefix,one;const struct st_rip3_text_position zero={0,0};
-		struct st_rip3_classic_text_style font_style=label->classic_style;font_style.flags=0;
+		struct st_rip3_classic_text_style font_style=label->classic_style;
+		font_style.flags &= ~ST_RIP3_CLASSIC_SHADOW;
 		status=st_rip3_classic_text_plan(&label->classic,&font_style,label->bytes,index,&zero,&prefix);
 		if (status==0) status=st_rip3_classic_text_plan(&label->classic,&font_style,label->bytes+index,1,&zero,&one);
 		if (status!=0) return status;

@@ -1260,3 +1260,20 @@ The #179 derivation records its delivery checkpoint. The other 87 prior
 derivations, original publications and license retain their hashes. The new
 #184 derivation resolves B184 and matches the rules exercised by the existing
 connected COPY_BLIT tests.
+
+## PRs #188 and #189 classic alignment and font realization
+
+Fork stable is pinned at
+[`306e8209b8e50b7b302dd06981cf49baeafdc83e`](https://github.com/RealDeuce/remote-imaging-protocol/tree/306e8209b8e50b7b302dd06981cf49baeafdc83e).
+Its tree matches the head of PR #189, `5b4f83a94b5a79e6f88fd05f71cb9254c42fd259`.
+The preceding stable integration `19980d6600fecde1b002f04a9a31aa0374f316cf`
+matches the head of PR #188, `89f357e5233895425d9a8541a9d3110dd7ae8609`.
+The Git tar archive has SHA-256
+`15fac138ebc631e5470806d2f360985e220dedb361ad5a9ef8d03c82bdc35f0b`.
+[PR #188](https://github.com/bbs-land/remote-imaging-protocol/pull/188),
+[PR #189](https://github.com/bbs-land/remote-imaging-protocol/pull/189)
+
+Four normative documents change. The index retains 8,979 source blocks,
+moves 296 line ranges, adds 65 blocks and retires 34, for 9,044 total.
+The COPY_BLIT derivation records stable consolidation. Two new derivations
+record the classic `Y` flags and the DEFAULT EX realization for `T` and `@`.

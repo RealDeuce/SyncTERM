@@ -223,7 +223,7 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		}
 		st_rip3_bitmap_destroy(capture);
 	}
-	style.write_mode = ST_RIP3_COPY; style.font.flags = 32; CHECK(set_style(&f,&style) == 0);
+	style.write_mode = ST_RIP3_COPY; style.font.flags = 128; CHECK(set_style(&f,&style) == 0);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0 && process(&f,"@0202A",-1) == 0 && cursor(&f).x == 5);
 	const char *const shadow[] = {".F..","F.F.","FFFS",".SSS"};
 	for (int32_t y = 0; y < 4; y++) for (int32_t x = 0; x < 4; x++) {
@@ -232,7 +232,7 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	}
 	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 2 && flat(&f,8) == 0);
 	for (unsigned variant = 0; variant < 3; variant++) {
-		style.font.flags = variant == 0 ? 0 : variant == 1 ? 1 : 2;
+		style.font.flags = variant == 0 ? 1 : variant == 1 ? 2 : 4;
 		style.font.direction = variant == 0 ? 1 : 0;
 		CHECK(set_style(&f,&style) == 0 && st_rip3_ports_erase(f.host.ports,85) == 0);
 		CHECK(position(&f,20,20)==0);
@@ -377,7 +377,7 @@ color_modes(void)
 	environment.rgb_bits = 8;
 	CHECK(st_rip3_environments_protect(f.host.environments,2,false) == 0
 	    && st_rip3_environments_set(f.host.environments,2,&environment) == 0);
-	style.drawing_color = 0x0c0c0c; style.background_color = 0x080808; style.font.flags = 32;
+	style.drawing_color = 0x0c0c0c; style.background_color = 0x080808; style.font.flags = 128;
 	CHECK(set_style(&f,&style) == 0 && process(&f,"@0202A",-1) == 0);
 	const char *const rows[] = {".F..","F.F.","FFFS",".SSS"};
 	for (int32_t y = 0; y < 4; y++) for (int32_t x = 0; x < 4; x++) {

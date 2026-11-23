@@ -11,6 +11,17 @@
 
 struct st_rip3_ports;
 
+enum st_rip3_classic_text_flag {
+	ST_RIP3_CLASSIC_LEFT = 0x01,
+	ST_RIP3_CLASSIC_RIGHT = 0x02,
+	ST_RIP3_CLASSIC_CENTER = 0x04,
+	ST_RIP3_CLASSIC_TOP = 0x08,
+	ST_RIP3_CLASSIC_BOTTOM = 0x10,
+	ST_RIP3_CLASSIC_BASELINE = 0x20,
+	ST_RIP3_CLASSIC_MIDDLE = 0x40,
+	ST_RIP3_CLASSIC_SHADOW = 0x80,
+};
+
 struct st_rip3_classic_text_style {
 	unsigned font;
 	unsigned direction;
@@ -52,9 +63,9 @@ struct st_rip3_classic_text_plan {
 	struct st_rip3_chr_text_matrix matrix;
 };
 
-/* Font 0..10, direction 0/1, magnification 1..10. Flags 1/2 are mutually
- * exclusive; at most one of 4/8/16 is allowed, and 32 adds shadow. Unknown
- * flag bits reject. Failed operations preserve result/style. */
+/* Font 0..10, direction 0/1, magnification 1..10. Each alignment group
+ * accepts at most one bit. For font zero record the two omitted defaults.
+ * Preserve higher bits in the two-digit UltraNum range. */
 int st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
 	unsigned font, unsigned direction, unsigned magnification, unsigned flags);
 /* Original bundled RIPtel resources only: bitmap font zero is that canvas's

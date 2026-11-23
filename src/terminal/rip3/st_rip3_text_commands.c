@@ -271,7 +271,7 @@ text_execute(const struct st_rip3_command_host *host,
 	}
 	if (style.write_mode != ST_RIP3_NOT) {
 		status = st_rip3_command_ink(host,environment.rgb_bits,style.drawing_color,&foreground);
-		if (status == 0 && (style.font.flags&32) != 0)
+		if (status == 0 && (style.font.flags & ST_RIP3_CLASSIC_SHADOW) != 0)
 			status = st_rip3_command_ink(host,environment.rgb_bits,style.background_color,&background);
 	}
 	if (status == 0) status = st_rip3_draw_classic_text(host->ports,font,&style.font,glyphs,glyph_count,

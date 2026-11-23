@@ -9340,6 +9340,23 @@ changing rate during playback, clock rollover, nested return, cancellation
 and SOFT within a group. Connected CP437 and UTF-8 tests cover playback
 pacing, rate queries across a scene reset, ENV selection and backup restore.
 
+## Connected classic graphics font alignment
+
+`Y` accepts one bit per alignment group, the optional `0x80` shadow bit and
+the higher bits that fit the two-digit field. It stores left/top defaults for
+horizontal font zero and right/top defaults for vertical font zero when those
+groups are omitted. CHR defaults resolve to left/top in both directions.
+Conflicting or out-of-range operands preserve the current font selection and
+the rest of the style. Shadow contributes the background drawing color one
+device pixel down and right of the ordinary text. Button alignment and shadow
+come from the button style. [PR #188](https://github.com/bbs-land/remote-imaging-protocol/pull/188)
+
+Connected CP437 and UTF-8 tests exercise `09`, `1T`, `3T`, the signature's
+projected anchor at (488,444), and retention after both kinds of conflict.
+The native fixtures cover both radices, protection, rotated alignment and
+the complete encoded flag range. PR #189 specifies the separate DEFAULT EX
+realization for ordinary text. [PR #189](https://github.com/bbs-land/remote-imaging-protocol/pull/189)
+
 ## Connected prewrapped column text
 
 `1T` projects its normalized corners to device coordinates and assigns the

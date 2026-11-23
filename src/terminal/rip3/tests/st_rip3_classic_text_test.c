@@ -36,9 +36,12 @@ styles(void)
 	unsigned valid = 0;
 
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 1, 0) == 0);
-	for (unsigned flags = 0; flags < 64; flags++) {
-		unsigned v = flags & 28;
-		bool legal = (flags & 3) != 3 && (v == 0 || (v & (v - 1)) == 0);
+	CHECK(style.flags == 9);
+	CHECK(st_rip3_classic_text_style_set(&style, 0, 1, 1, 0) == 0 && style.flags == 10);
+	for (unsigned flags = 0; flags < 256; flags++) {
+		unsigned h = flags % 8, v = (flags / 8) % 16;
+		bool legal = (h == 0 || h == 1 || h == 2 || h == 4)
+		    && (v == 0 || v == 1 || v == 2 || v == 4 || v == 8);
 		before = style;
 		CHECK(st_rip3_classic_text_style_set(&style, 10, 1, 10, flags)
 		    == (legal ? 0 : IO_ERROR_OUT_OF_RANGE));
@@ -46,12 +49,12 @@ styles(void)
 		else CHECK(style.font == before.font && style.direction == before.direction
 		    && style.magnification == before.magnification && style.flags == before.flags);
 	}
-	CHECK(valid == 24);
+	CHECK(valid == 40);
 	CHECK(st_rip3_classic_text_style_set(&style, 11, 0, 1, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 2, 1, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 0, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 11, 0) == IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 1, 64) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 1, 4096) == IO_ERROR_OUT_OF_RANGE);
 	return 0;
 }
 
@@ -95,7 +98,7 @@ bitmap_scene(void)
 	struct st_rip3_palette palette;
 	struct st_rip3_classic_text_plan plan;
 	const struct st_rip3_text_position anchor[] = {{20,10},{40,10},{60,10},{80,30},{100,30},{120,30}};
-	const unsigned flags[] = {0,1,2,4,8,16};
+	const unsigned flags[] = {0,2,4,17,33,65};
 	const uint8_t text[] = {'A','A'};
 
 	/* A is a solid 3x8 cell, independent of bundled artwork. */
@@ -175,7 +178,7 @@ vector_layout_and_scene(void)
 	struct st_rip3_classic_text_style aligned = style;
 	struct st_rip3_classic_text_plan fractional;
 	struct st_rip3_text_position fractional_anchor = {100.25,100.25};
-	aligned.flags = 1;
+	aligned.flags = 2;
 	CHECK(st_rip3_classic_text_plan(&font,&aligned,text,1,&fractional_anchor,&fractional) == 0
 	    && fractional.advance == 78.75 && fractional.origin.x == 22 && fractional.origin.y == 136);
 	fractional_anchor.x = 78.25;
@@ -193,7 +196,7 @@ vector_layout_and_scene(void)
 	/* Rejected placement and invalid styles preserve a complete prior plan. */
 	struct st_rip3_classic_text_plan saved = plan;
 	const struct st_rip3_text_position extreme = {-1024.0*INT32_MAX,-1024.0*INT32_MAX};
-	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 1) == 0);
+	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 2) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &extreme, &plan) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(same_plan(&plan, &saved));
 	style.flags = 3;
@@ -226,11 +229,11 @@ vector_layout_and_scene(void)
 	/* A nonzero file baseline must be removed from justification offsets. */
 	bytes[137] = 5; bytes[138] = 249; /* descender -7 */
 	CHECK(st_rip3_chr_open(&font.data.stroke, bytes, sizeof(bytes)) == 0);
-	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 8) == 0);
+	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 32) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 107);
-	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 4) == 0);
-	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 90);
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 16) == 0);
+	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 90);
+	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 64) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 119);
 	CHECK(st_rip3_ports_erase(ports, 1) == 0);
 	bytes[155] = 0; /* Active SCAN instead of the last DRAW. */
@@ -263,7 +266,7 @@ wide_positions(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	/* 32769 cells of 65534 pixels advance 2147483646 pixels. The far anchor
 	 * right-justifies back to device x=2; clipping must preserve those glyph
 	 * columns instead of rejecting/narrowing the original anchor. */
-	far = (struct st_rip3_text_position){2147483648.25,2}; style.flags = 1;
+	far = (struct st_rip3_text_position){2147483648.25,2}; style.flags = 2;
 	CHECK(st_rip3_classic_text_plan(&font,&style,text,32769,&far,&plan) == 0
 	    && plan.advance == 2147483646.0 && plan.origin.x == 2 && plan.origin.y == 2);
 	CHECK(st_rip3_ports_create(&ports,canvas) == 0);

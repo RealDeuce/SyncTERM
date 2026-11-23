@@ -95,13 +95,13 @@ values(void)
 				CHECK(process(&host, command, -1) == 0);
 				CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0);
 				CHECK(after.font.font == font && after.font.direction == direction
-				    && after.font.magnification == size && after.font.flags == 0);
+				    && after.font.magnification == size && after.font.flags == (font == 0 ? 9 + direction : 0));
 				CHECK(same(&initial, &after, false));
 			}
-		for (unsigned flags = 0; flags <= 64; flags++) {
-			unsigned vertical = flags & 28;
-			bool valid = flags < 64 && (flags & 3) != 3
-			    && (vertical == 0 || vertical == 4 || vertical == 8 || vertical == 16);
+		for (unsigned flags = 0; flags < base * base; flags++) {
+			unsigned horizontal = flags % 8, vertical = flags / 8 % 16;
+			bool valid = (horizontal == 0 || horizontal == 1 || horizontal == 2 || horizontal == 4)
+			    && (vertical == 0 || vertical == 1 || vertical == 2 || vertical == 4 || vertical == 8);
 			CHECK(st_rip3_styles_get(host.styles, 0, &before) == 0);
 			number(command+7, flags, base);
 			CHECK(process(&host, command, valid ? -1 : ST_RIP3_COMMAND_INVALID) == 0);
@@ -113,7 +113,7 @@ values(void)
 	CHECK(process(&host, "Y0000010", -1) == 0); /* Short final flags. */
 	CHECK(process(&host, "J10", -1) == 0 && process(&host, "Y----010-", -1) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.font.font == 0
-	    && after.font.direction == 0 && after.font.magnification == 1 && after.font.flags == 0);
+	    && after.font.direction == 0 && after.font.magnification == 1 && after.font.flags == 9);
 	st_rip3_styles_destroy(host.styles);
 	st_rip3_environments_destroy(host.environments);
 	return 0;
@@ -124,7 +124,7 @@ recovery(void)
 {
 	static const char *invalid[] = {"Y", "Y000001", "Y000001000", "Y0000010?",
 	    "Y0B000100", "Y00020100", "Y00000000", "Y00000B00", "Y00000103",
-	    "Y0000010C", "Y0000010K", "Y0000010O", "Y0000011S"};
+	    "Y00000107", "Y0000010O", "Y0000011C", "Y0000012O"};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_style before, after;
 	struct st_rip3_environment environment, saved;
@@ -154,9 +154,9 @@ recovery(void)
 		    && st_rip3_styles_define(host.styles,2,&prepared)==0);
 	}
 	CHECK(st_rip3_styles_switch(host.styles, 2) == 0);
-	CHECK(process(&host, "Y0A010A1E", -1) == 0);
+	CHECK(process(&host, "Y0A010A1U", -1) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 2, &after) == 0 && after.font.font == 10
-	    && after.font.direction == 1 && after.font.magnification == 10 && after.font.flags == 50);
+	    && after.font.direction == 1 && after.font.magnification == 10 && after.font.flags == 66);
 	CHECK(same(&before, &after, false));
 	CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&before, &after, true));
 	CHECK(st_rip3_styles_current(host.styles, &current) == 0 && current == 2);
@@ -195,7 +195,7 @@ scene_command(void *context, const uint8_t *bytes, size_t length)
 static int
 scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
-	static const char *wire[] = {"!|Y00000100\r", "!|Y0000010X\r", "!|Y00000103|Y0001021\r"};
+	static const char *wire[] = {"!|Y00000109\r", "!|Y0000013U\r", "!|Y00000103|Y0001022\r"};
 	uint8_t glyphs[255*8] = {0};
 	const uint8_t text[] = {'A',219}; /* Explicit ASCII and CP437 glyph codes. */
 	const struct st_rip3_text_position anchors[] = {{20,10},{60,20},{100,50}};

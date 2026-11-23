@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/185",
-  "revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
-  "previous_revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/189",
+  "revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
+  "previous_revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "The reviewed open PR head is consolidated into the selected fork stable with an identical tree.",
-  "archive_sha256": "b6581c5478290a7c2ed35d939e9f87d84cc227ec32f7c2d2cfe4f4f029d06aba",
+  "archive_sha256": "15fac138ebc631e5470806d2f360985e220dedb361ad5a9ef8d03c82bdc35f0b",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,24 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "f742493e2821582434fbc17c4d379a141d3c27c9ec9d77e42651750ea54690c0",
-      "sha256": "ff1f97068b856f8619183b5b51c2792fe1b141faf7f034fa3144e08a7a58dfb3"
+      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+      "previous_sha256": "4feee28b24003471fd979a8a6691a08c713c041d194d91ee22525e91ad13898f",
+      "sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c"
+    },
+    {
+      "path": "version/3.0/ripscrip/7.1-data-tables.md",
+      "previous_sha256": "d6eb849406efe4500a60b4f0022b0af62d0452db93fe53234d0d52627cf77047",
+      "sha256": "4dd987f44c437f1203e55fca1b478cc49d5f919747b5b96b2eb336c2ffe1c7e4"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "fcb1bcbabf3990cfdb55ec5adf1f91ca40019aa2d4fbefa5941a0fc5d377e83e",
-      "sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294"
+      "previous_sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294",
+      "sha256": "ccc6e68b78958a21086e2e8422f58c265a2ff565dfd9f31f90d92aaacb18980e"
+    },
+    {
+      "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+      "previous_sha256": "d0545adb95479528ce8fde7cfb770df8dc4eb463012f480a6fd5efbca4af80c0",
+      "sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91"
     }
   ],
   "new_documents": [],
@@ -1500,9 +1510,21 @@
     },
     {
       "path": "version/3.0/research/issue-184-copy-blit.md",
-      "sha256": "6944160da30c2906c7392611b1a1f2bb256b6b1318c38fe6ca72f6f90c33c6e1",
+      "sha256": "868bcb72a320bde990fc93e25fd32d1510bcc3d86dff28cda3b21f430d46e16b",
       "title": "Issue #184 - RIP_COPY_BLIT geometry and exposed-source fill",
       "role": "RIP_COPY_BLIT descriptor, reserved field, source and destination clipping, fill and rendered blink planes."
+    },
+    {
+      "path": "version/3.0/research/issue-186-font-style-flags.md",
+      "sha256": "9b49d9dd646a78638e6ac9be8489a50eb180f34f4a1b0cbd2ce7cec0c039f5c1",
+      "title": "Issue #186 - Classic font style alignment and shadow",
+      "role": "Classic Y flag map, defaults, validation and shadow."
+    },
+    {
+      "path": "version/3.0/research/issue-187-classic-font-zero.md",
+      "sha256": "dd00ee906a2706f642bcf3650d4628ed7865b9385a59eadb45d7435bc4d7139d",
+      "title": "Issue #187 - Classic graphics font zero",
+      "role": "DEFAULT EX face, size and spacing tables, device DPI and outline anchor policy."
     }
   ],
   "documents": [
@@ -1628,7 +1650,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "4feee28b24003471fd979a8a6691a08c713c041d194d91ee22525e91ad13898f"
+      "sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1700,7 +1722,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "d6eb849406efe4500a60b4f0022b0af62d0452db93fe53234d0d52627cf77047"
+      "sha256": "4dd987f44c437f1203e55fca1b478cc49d5f919747b5b96b2eb336c2ffe1c7e4"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -1708,7 +1730,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294"
+      "sha256": "ccc6e68b78958a21086e2e8422f58c265a2ff565dfd9f31f90d92aaacb18980e"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1744,7 +1766,7 @@
     },
     {
       "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
-      "sha256": "d0545adb95479528ce8fde7cfb770df8dc4eb463012f480a6fd5efbca4af80c0"
+      "sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
@@ -17198,6 +17220,58 @@
         },
         "scope": "Verified GitHub head, stable tree equality, complete normative and derivation digests and original publication hashes."
       }
+    },
+    {
+      "previous_revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
+      "revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
+      "archive_sha256": "15fac138ebc631e5470806d2f360985e220dedb361ad5a9ef8d03c82bdc35f0b",
+      "pull_requests": {
+        "188": "89f357e5233895425d9a8541a9d3110dd7ae8609",
+        "189": "5b4f83a94b5a79e6f88fd05f71cb9254c42fd259"
+      },
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "4feee28b24003471fd979a8a6691a08c713c041d194d91ee22525e91ad13898f",
+          "sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.1-data-tables.md",
+          "previous_sha256": "d6eb849406efe4500a60b4f0022b0af62d0452db93fe53234d0d52627cf77047",
+          "sha256": "4dd987f44c437f1203e55fca1b478cc49d5f919747b5b96b2eb336c2ffe1c7e4"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294",
+          "sha256": "ccc6e68b78958a21086e2e8422f58c265a2ff565dfd9f31f90d92aaacb18980e"
+        },
+        {
+          "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+          "previous_sha256": "d0545adb95479528ce8fde7cfb770df8dc4eb463012f480a6fd5efbca4af80c0",
+          "sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91"
+        }
+      ],
+      "source_blocks": {
+        "matched": 8979,
+        "retired": 34,
+        "moved": 296,
+        "added": 65
+      },
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-186-font-style-flags.md",
+          "sha256": "9b49d9dd646a78638e6ac9be8489a50eb180f34f4a1b0cbd2ce7cec0c039f5c1",
+          "title": "Issue #186 - Classic font style alignment and shadow",
+          "role": "Classic Y flag map, defaults, validation and shadow."
+        },
+        {
+          "path": "version/3.0/research/issue-187-classic-font-zero.md",
+          "sha256": "dd00ee906a2706f642bcf3650d4628ed7865b9385a59eadb45d7435bc4d7139d",
+          "title": "Issue #187 - Classic graphics font zero",
+          "role": "DEFAULT EX face, size and spacing tables, device DPI and outline anchor policy."
+        }
+      ],
+      "summary": "Adopt the classic alignment and ordinary font-zero contracts; button font-zero geometry has a distinct consumer."
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -20683,6 +20757,50 @@
         "blocked": 25
       },
       "verification": "Existing native rip3_ports and connected CP437/UTF-8 COPY_BLIT captures cover the adopted behavior. No renderer changes were necessary."
+    },
+    {
+      "after_commit": "0d154a36",
+      "revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
+      "scope": "Connect the shipped classic Y alignment and shadow flag word.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:118",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:122",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:123",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:124",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:126",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:130",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:175",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:179",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:180",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:181",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:182",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:183",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:184",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:185",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:186",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:188",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:192",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:193",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:194",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:196",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:198",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:204",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:205",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:206",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:208",
+        "version/3.0/ripscrip/9.0-command-reference.md:138",
+        "version/3.0/ripscrip/9.0-command-reference.md:231"
+      ],
+      "partially_covered_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2459,
+        "context": 1754,
+        "pending": 1652,
+        "implemented": 3084,
+        "excluded": 70,
+        "blocked": 25
+      },
+      "verification": "Native flag, layout, mode and style tests plus connected CP437 and UTF-8 anchor, shadow and malformed-style checks."
     }
   ]
 }

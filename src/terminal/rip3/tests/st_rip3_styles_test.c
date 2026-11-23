@@ -23,11 +23,12 @@
 static struct st_rip3_style
 value(unsigned number)
 {
-	static const unsigned vertical[] = {0,4,8,16};
+	static const unsigned horizontal[] = {0,2,4};
+	static const unsigned vertical[] = {0,8,16,64};
 	struct st_rip3_style style = {
 		.drawing_color=0x112200+number, .background_color=0x445500+number,
 		.fill_color=0x330000+number, .pen={0},
-		.font={number%11,number%2,number%10+1,number%3 | vertical[number%4]},
+		.font={number%11,number%2,number%10+1,horizontal[number%3] | vertical[number%4]},
 		.outline={.compatibility_s=number,.compatibility_f=35-number,.flags=number*73,.size=number,.shadow=number+1,.string_rotation=(number%4)*900,.character_rotation=((number+1)%4)*900,.spacing=100+number,.baseline=number*3},
 		.write_mode=(enum st_rip3_write_mode)(number%5), .line_type=number%5, .borders=number%2!=0, .font_mode=number%2!=0 ? ST_RIP3_FONT_OUTLINE : ST_RIP3_FONT_CLASSIC,
 	};
@@ -228,7 +229,7 @@ errors(void)
 	invalid.drawing_color = 0xffffff; invalid.background_color = 0; invalid.fill_color = 0xffffff;
 	invalid.pen.pattern = 0xffff; invalid.pen.thickness = INT32_MAX;
 	invalid.fill.origin = (struct st_rip3_point){INT32_MIN,INT32_MAX};
-	invalid.font = (struct st_rip3_classic_text_style){10,1,10,50};
+	invalid.font = (struct st_rip3_classic_text_style){10,1,10,0xfc2};
 	invalid.write_mode = ST_RIP3_NOT;
 	CHECK(st_rip3_styles_define(styles, 1, &invalid) == 0 && expect(styles, 1, &invalid) == 0);
 	CHECK(st_rip3_styles_current(styles, &current) == 0 && current == 0);

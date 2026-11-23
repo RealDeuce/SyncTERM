@@ -11,14 +11,22 @@ int
 st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
     unsigned font, unsigned direction, unsigned magnification, unsigned flags)
 {
-	unsigned vertical_flags = flags & 28;
+	unsigned horizontal_flags = flags & (ST_RIP3_CLASSIC_LEFT | ST_RIP3_CLASSIC_RIGHT | ST_RIP3_CLASSIC_CENTER);
+	unsigned vertical_flags = flags & (ST_RIP3_CLASSIC_TOP | ST_RIP3_CLASSIC_BOTTOM
+	    | ST_RIP3_CLASSIC_BASELINE | ST_RIP3_CLASSIC_MIDDLE);
 
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (font > 10 || direction > 1 || magnification == 0 || magnification > 10
-	    || flags > 63 || (flags & 3) == 3
-	    || (vertical_flags != 0 && (vertical_flags & (vertical_flags - 1)) != 0))
+	    || flags > 4095 || (horizontal_flags & (horizontal_flags - 1)) != 0
+	    || (vertical_flags & (vertical_flags - 1)) != 0)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (font == 0) {
+		if (horizontal_flags == 0)
+			flags |= direction == 0 ? ST_RIP3_CLASSIC_LEFT : ST_RIP3_CLASSIC_RIGHT;
+		if (vertical_flags == 0)
+			flags |= ST_RIP3_CLASSIC_TOP;
+	}
 	*result = (struct st_rip3_classic_text_style){font,direction,magnification,flags};
 	return 0;
 }
@@ -161,9 +169,11 @@ st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 		plan.matrix = style->direction == 0 ? (struct st_rip3_chr_text_matrix){sx,0,0,-sy}
 		    : (struct st_rip3_chr_text_matrix){0,-sy,-sx,0};
 	}
-	u = (style->flags & 1) != 0 ? -plan.advance : (style->flags & 2) != 0 ? -plan.advance / 2 : 0;
-	v = (style->flags & 4) != 0 ? -plan.descent : (style->flags & 8) != 0 ? 0
-	    : (style->flags & 16) != 0 ? (plan.ascent - plan.descent) / 2 : plan.ascent;
+	u = (checked.flags & ST_RIP3_CLASSIC_RIGHT) != 0 ? -plan.advance
+	    : (checked.flags & ST_RIP3_CLASSIC_CENTER) != 0 ? -plan.advance / 2 : 0;
+	v = (checked.flags & ST_RIP3_CLASSIC_BOTTOM) != 0 ? -plan.descent
+	    : (checked.flags & ST_RIP3_CLASSIC_BASELINE) != 0 ? 0
+	    : (checked.flags & ST_RIP3_CLASSIC_MIDDLE) != 0 ? (plan.ascent - plan.descent) / 2 : plan.ascent;
 	/* Bitmap kernels take a cell origin, CHR kernels take the untranslated
 	 * source-coordinate origin. Compensate a nonzero CHR header baseline. */
 	v += font->number == 0 ? -plan.ascent : baseline;
@@ -205,11 +215,11 @@ st_rip3_draw_classic_text(struct st_rip3_ports *ports,
 	if (font->number == 0) {
 		const struct st_rip3_bitmap_text_style bitmap = {
 			.magnification = style->magnification, .vertical = style->direction == 1,
-			.shadow = (style->flags & 32) != 0,
+			.shadow = (style->flags & ST_RIP3_CLASSIC_SHADOW) != 0,
 		};
 		return st_rip3_draw_bitmap_text(ports, &font->data.bitmap, &bitmap, text, length,
 		    &plan.origin, foreground, background, mode);
 	}
 	return st_rip3_draw_chr_text(ports, &font->data.stroke, text, length,
-	    &plan.origin, &plan.matrix, (style->flags & 32) != 0, foreground, background, mode);
+	    &plan.origin, &plan.matrix, (style->flags & ST_RIP3_CLASSIC_SHADOW) != 0, foreground, background, mode);
 }
