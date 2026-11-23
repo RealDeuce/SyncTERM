@@ -188,6 +188,65 @@ kill_mouse_fields(const struct st_rip3_host_variables *host,
 	return st_rip3_mouse_remove(host->mouse, &area, flags, NULL);
 }
 
+static bool
+transfer_keyword(const char *text, const char *keyword)
+{
+	while (*keyword != 0) {
+		char ch = *text++;
+		if (ch >= 'a' && ch <= 'z')
+			ch = (char)(ch - 'a' + 'A');
+		if (ch != *keyword++)
+			return false;
+	}
+	return *text == 0;
+}
+
+static int
+transfer(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference)
+{
+	static const char *const protocols[] = {
+		"XMODEM", "XMODEMCRC", "XMODEM1K", "XMODEM1KG", "KERMIT",
+		"YMODEM", "YMODEMG", "ZMODEM", "ZMODEMCR",
+	};
+	static const struct { const char *name; unsigned number; } types[] = {
+		{"RIP", 0}, {"NONE", 1}, {"IMAGE", 3}, {"ACTIVE", 5},
+	};
+	if (reference->count < 3)
+		return IO_ERROR_INVALID_FORMAT;
+	bool upload = transfer_keyword(reference->parameters[0].text, "SEND");
+	if (!upload && !transfer_keyword(reference->parameters[0].text, "RECEIVE"))
+		return IO_ERROR_INVALID_FORMAT;
+	unsigned protocol = 0;
+	while (protocol < sizeof(protocols) / sizeof(*protocols)
+	    && !transfer_keyword(reference->parameters[1].text, protocols[protocol]))
+		++protocol;
+	unsigned type = 0;
+	while (type < sizeof(types) / sizeof(*types)
+	    && !transfer_keyword(reference->parameters[2].text, types[type].name))
+		++type;
+	if (protocol == sizeof(protocols) / sizeof(*protocols)
+	    || type == sizeof(types) / sizeof(*types))
+		return IO_ERROR_INVALID_FORMAT;
+
+	char names[37 * sizeof(reference->parameters[0].text)] = {0};
+	if (upload || protocol < 5) {
+		if (reference->count == 3)
+			return IO_ERROR_INVALID_FORMAT;
+		size_t length = 0;
+		for (size_t i = 3; i < reference->count; ++i) {
+			if (i != 3)
+				names[length++] = ' ';
+			size_t size = reference->parameters[i].length;
+			memcpy(names + length, reference->parameters[i].text, size);
+			length += size;
+		}
+	}
+	if (host->transfer == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	return host->transfer(host->transfer_context, upload, protocol, types[type].number, names);
+}
+
 int
 st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -199,6 +258,14 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (!st_rip3_builtin_known(reference->name, strlen(reference->name)))
 		return IO_ERROR_NOT_FOUND;
+	if (strcmp(reference->name, "XFER") == 0) {
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		int status = transfer(host, reference);
+		if (status == 0)
+			result[0] = '\0';
+		return status;
+	}
 	if (strcmp(reference->name,"D")==0 || strcmp(reference->name,"IFS")==0) {
 		int status=st_rip3_builtin_reference_words(&words,reference);
 		if (status!=0) return status;

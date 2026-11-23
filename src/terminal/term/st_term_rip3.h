@@ -9,7 +9,7 @@ struct st_term_rip3;
 int st_term_rip3_prepare_console(st_console_t *console);
 int st_term_rip3_create(struct st_term_rip3 **result,
 	const struct st_term_config *config, st_cterm_t *text,
-	const struct st_cterm_config *text_config);
+	const struct st_cterm_config *text_config, st_term_session_t *owner);
 st_cterm_t *st_term_rip3_text(struct st_term_rip3 *rip);
 bool st_term_rip3_text_view(struct st_term_rip3 *rip, struct st_term_text_view *view);
 void st_term_rip3_flush(struct st_term_rip3 *rip);

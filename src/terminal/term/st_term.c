@@ -105,6 +105,12 @@ bool st_term_session_inspect_transfer(st_term_session_t *session,
 	return true;
 }
 
+bool
+st_term_session_transfer_active(const st_term_session_t *session)
+{
+	return session != NULL && (session->transfer != NULL || session->transfer_reserved);
+}
+
 static int write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
 static int ooii_render(void *context, const uint8_t *bytes, size_t size);
 static int ooii_reply(void *context, const uint8_t *bytes, size_t size);
@@ -481,7 +487,7 @@ st_term_session_create(st_term_session_t **result,
 		return status;
 	}
 	if (config->graphics_mode==ST_CTERM_GRAPHICS_RIP_3) {
-		status=st_term_rip3_create(&session->rip3,config,session->cterm,&cterm_config);
+		status=st_term_rip3_create(&session->rip3,config,session->cterm,&cterm_config,session);
 		if (status!=0) {st_term_session_destroy(&session);return status;}
 	}
 	st_term_rip3_bind_prompt_input(session->rip3,retain_prompt_tail,session);
@@ -1335,6 +1341,23 @@ st_term_session_service(st_term_session_t *session,
 			session->did_work = true;
 			continue;
 		}
+		if (session->rip3 != NULL && session->transfer_skip_lf) {
+			/* A declined upload leaves the bytes following its CR in
+			 * the ordinary wire queue. Preserve the CRLF boundary. */
+			session->transfer_skip_lf = false;
+			if (bytes[*position] == '\n') {
+				if (!replay && session->config.wire_capture != NULL
+				    && (session->config.capture_active == NULL
+				    || session->config.capture_active(session->config.capture_context))) {
+					status = session->config.wire_capture(session->config.capture_context,
+					    bytes + *position, 1);
+					if (status != 0) return status;
+				}
+				++*position;
+				session->did_work = true;
+				continue;
+			}
+		}
 		if (session->transfer == NULL && session->throttle_bps != 0) {
 			if (session->throttle_credit < UINT64_C(10000)) break;
 			session->throttle_credit -= UINT64_C(10000);
@@ -1592,6 +1615,15 @@ st_term_session_reserve_rip_transfer(st_term_session_t *session)
 		session->transfer_skip_lf = true;
 	}
 	return 0;
+}
+void
+st_term_session_cancel_rip_transfer(st_term_session_t *session)
+{
+	if (session != NULL) {
+		session->transfer_reserved = false;
+		if (session->rip3 == NULL)
+			session->transfer_skip_lf = false;
+	}
 }
 const uint8_t *
 st_term_session_prestel_frame(st_term_session_t *session, size_t *size)

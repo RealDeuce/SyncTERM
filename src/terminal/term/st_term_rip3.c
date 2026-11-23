@@ -29,6 +29,7 @@
 
 struct st_term_rip3 {
 	struct st_term_config config;
+	st_term_session_t *owner;
 	st_cterm_t *text;
 	struct st_cterm_config text_config;
 	struct st_term_rip3_view *view;
@@ -132,6 +133,28 @@ remove_host_resource(void *context, const char *name)
 {
 	struct st_term_rip3 *rip = context;
 	(void)st_rip3_resource_remove(&rip->resources, name);
+}
+
+static int
+start_transfer(void *context, bool upload, unsigned protocol, unsigned type,
+    const char *filenames, bool skip_lf)
+{
+	struct st_term_rip3 *rip = context;
+	if (rip->config.rip_transfer == NULL || rip->config.rip_directory == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	const struct st_cterm_rip_transfer_request request = {
+		.upload = upload, .protocol = protocol, .file_type = type,
+		.directory = rip->resources.host, .filename = filenames,
+		.cache_root = rip->config.rip_directory, .skip_lf = skip_lf,
+	};
+	return rip->config.rip_transfer(rip->config.rip_transfer_context, &request);
+}
+
+static bool
+transfer_active(void *context)
+{
+	struct st_term_rip3 *rip = context;
+	return st_term_session_transfer_active(rip->owner);
 }
 
 st_cterm_t *
@@ -1777,11 +1800,11 @@ read_local_clock(void *context, struct tm *local)
 
 int
 st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *config,
-    st_cterm_t *ansi, const struct st_cterm_config *text_config)
+    st_cterm_t *ansi, const struct st_cterm_config *text_config, st_term_session_t *owner)
 {
 	struct st_term_rip3 *rip=calloc(1,sizeof(*rip));
 	if (rip==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	rip->config=*config;rip->text=ansi;rip->text_config=*text_config;
+	rip->config=*config;rip->text=ansi;rip->text_config=*text_config;rip->owner=owner;
 	rip->framing_enabled = true;
 	rip->text_config.palette_mapping=NULL;rip->text_config.palette_override=NULL;
 	rip->output=text_config->output;rip->output_context=text_config->output_context;
@@ -1852,7 +1875,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
 	        .scene_begin=scene_begin,.scene_end=scene_end,
 	        .scene_decode=config->encoding==ST_CTERM_ENCODING_CODEPAGE ? decode_scene_byte : NULL,
-	        .notice=config->rip3_alert!=NULL ? notice : NULL},
+	        .notice=config->rip3_alert!=NULL ? notice : NULL,
+	        .transfer=start_transfer,.transfer_active=transfer_active},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

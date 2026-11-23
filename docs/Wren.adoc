@@ -7107,10 +7107,11 @@ can be overwritten, skipped, or renamed. ZMODEM resumes a partial file only
 after checking its prefix CRC against the sender.
 
 RIP block-transfer commands use that BBS's `RIP` cache subdirectory instead of
-the download directory. Display-only and active dynamic modes render validated
+the download directory. RIP 1.54 display-only and active dynamic modes render validated
 blocks as they arrive, using status-row progress so a modal restore cannot erase the
-scene. Host-requested uploads always require confirmation and can read only
-one regular file in the BBS cache. RIP transfers use the same cancellation,
+scene. Host-requested uploads always require confirmation and read regular
+files in the BBS cache. RIP 1.54 accepts one filename per upload. RIPv3
+batch uploads can name several files. RIP transfers use the same cancellation,
 completion and log APIs as manual transfers.
 
 [options="header",cols="2,3"]

@@ -78,6 +78,61 @@ run(const struct st_rip3_host_variables *host, const char *command,
 	return 0;
 }
 
+struct transfer_request {
+	unsigned calls, protocol, type;
+	bool upload;
+	char names[128];
+};
+
+static int
+request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
+    const char *filenames)
+{
+	struct transfer_request *seen = context;
+	++seen->calls;
+	seen->upload = upload;
+	seen->protocol = protocol;
+	seen->type = type;
+	snprintf(seen->names, sizeof(seen->names), "%s", filenames);
+	return 0;
+}
+
+static int
+transfer_requests(void)
+{
+	struct transfer_request seen = {0};
+	const struct st_rip3_host_variables host = {
+		.transfer_context = &seen, .transfer = request_transfer,
+	};
+	static const char *const protocols[] = {"XMODEM", "XMODEMCRC", "XMODEM1K",
+	    "XMODEM1KG", "KERMIT", "YMODEM", "YMODEMG", "ZMODEM", "ZMODEMCR"};
+	static const struct { const char *keyword; unsigned code; } types[] = {
+		{"RIP", 0}, {"NONE", 1}, {"IMAGE", 3}, {"ACTIVE", 5},
+	};
+	for (unsigned protocol = 0; protocol < sizeof(protocols) / sizeof(*protocols); ++protocol) {
+		for (size_t type = 0; type < sizeof(types) / sizeof(*types); ++type) {
+			char command[96];
+			snprintf(command, sizeof(command), "$XFER(sEnD,%s,%s,a.dat,b.dat)$",
+			    protocols[protocol], types[type].keyword);
+			CHECK(run(&host, command, 0, "") == 0);
+			CHECK(seen.upload && seen.protocol == protocol && seen.type == types[type].code);
+			CHECK(strcmp(seen.names, "a.dat b.dat") == 0);
+			snprintf(command, sizeof(command), "$XFER(ReCeIvE,%s,%s,a.dat)$",
+			    protocols[protocol], types[type].keyword);
+			CHECK(run(&host, command, 0, "") == 0);
+			CHECK(!seen.upload && seen.protocol == protocol && seen.type == types[type].code);
+			CHECK(strcmp(seen.names, protocol < 5 ? "a.dat" : "") == 0);
+		}
+	}
+	unsigned valid = seen.calls;
+	CHECK(run(&host, "$XFER(SEND,YMODEM,NONE,)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
+	CHECK(run(&host, "$XFER(RECEIVE,XMODEM,NONE)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
+	CHECK(run(&host, "$XFER(PLAY,ZMODEM,NONE)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
+	CHECK(run(&host, "$XFER(RECEIVE,ZMODEM,UNKNOWN)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
+	CHECK(seen.calls == valid);
+	return 0;
+}
+
 static void
 request_tones(void *context, const struct st_rip3_tones *tones)
 {
@@ -159,6 +214,7 @@ main(void)
 	};
 
 	CHECK(tone_requests() == 0);
+	CHECK(transfer_requests() == 0);
 	CHECK(run(&host, "$NULL$", 0, "") == 0);
 	CHECK(run(&host, "$NULL(1)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
 	CHECK(run(&host, "$IFS$", IO_ERROR_INVALID_FORMAT, NULL) == 0);

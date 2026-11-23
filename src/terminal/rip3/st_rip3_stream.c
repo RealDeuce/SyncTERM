@@ -108,6 +108,18 @@ st_rip3_stream_reset(struct st_rip3_stream *stream)
 	stream->line_start = true;
 }
 
+bool
+st_rip3_stream_pending_lf(const struct st_rip3_stream *stream)
+{
+	return stream->skip_lf;
+}
+
+void
+st_rip3_stream_clear_pending_lf(struct st_rip3_stream *stream)
+{
+	stream->skip_lf = false;
+}
+
 void
 st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size_t length)
 {
@@ -143,11 +155,11 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 					stream->skip_lf = byte == '\r' && !stream->sink.local_playback;
 				}
 				else {
+					stream->skip_lf = byte == '\r' && !stream->sink.local_playback;
 					dispatch(stream);
 					stream->active = false;
 					stream->line_start = true;
 					stream->previous_text = '\r';
-					stream->skip_lf = !stream->sink.local_playback;
 				}
 				continue;
 			}

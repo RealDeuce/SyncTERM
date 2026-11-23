@@ -9639,3 +9639,31 @@ palette entry zero. They clear both blink planes with a protected
 inactive offscreen port selected, verify the offscreen pixel and
 resident button, and restore the saved screen. They also exercise
 nonfatal recovery after an extra argument.
+
+## Connected block-mode asset storage
+
+Level 9 ESC and `$XFER$` use the connection's existing transfer worker.
+The wire command must end at CR with a `<>` terminator. It reads the
+numeric fields in the active ENV radix. A handoff transfers ownership of
+the optional framing LF and pending binary bytes to the transfer worker,
+then returns later input to the terminal. The macro decodes both directions
+and all documented keywords. Batch receive passes an empty name to the
+transfer bridge. Refused operations recover inside RIP3.
+
+Receive types 1, 2 and 4 store assets in the connected BBS's active RIP
+directory. This uses the same case-insensitive regular-file lookup as
+RIP3 asset writes. The shared RIP directory is read-only. Uploads use
+the transfer confirmation and read files only from the active BBS cache.
+The worker still supports its existing X/Y/ZMODEM protocols.
+
+`9U` validates the two numeric fields and accepts types 0 or 1 without
+switching the connection into encoded transfer mode. Ordinary input
+continues through the same parser.
+
+The CP437 and UTF-8 fixtures send actual XMODEM and YMODEM frames, check
+cached bytes and split CRLF handoff, decline and approve an upload, and verify recovery
+after unsupported protocols and malformed paths and commands. The native
+macro fixture checks both directions across the full documented keyword
+matrix. Receive types that play scenes or display images still need the
+RIP3 render path. The original DLL's filename gate and protocol/file-type
+limits differ from the published table. [Issue #205](https://github.com/bbs-land/remote-imaging-protocol/issues/205)

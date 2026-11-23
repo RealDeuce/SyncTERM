@@ -106,6 +106,9 @@ struct st_rip3_host_variables {
 	void *status_bar_context;
 	void (*status_bar_changed)(void *context, bool enabled);
 	const struct st_rip3_host_directory *directory;
+	void *transfer_context;
+	int (*transfer)(void *context, bool upload, unsigned protocol, unsigned type,
+		const char *filenames);
 	/* The session normalized one wire codepage byte per UTF-8 scalar. */
 	bool codepage_converted;
 	/* The text-window owner supplies activation with its protection/undefined

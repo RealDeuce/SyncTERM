@@ -25,6 +25,7 @@ void st_term_session_set_auxiliary_active(st_term_session_t *session, bool activ
 /* Serialized owner-only read. A false result means there is no transfer. */
 bool st_term_session_inspect_transfer(st_term_session_t *session,
 	struct st_transfer_inspection *state, bool *reserved);
+bool st_term_session_transfer_active(const st_term_session_t *session);
 
 enum st_term_disposition {
 	ST_TERM_RETURN_TO_PICKER,
@@ -169,6 +170,7 @@ int st_term_session_end_transfer(st_term_session_t *session);
 int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
 /* A RIP block-mode command ends with CR; its optional LF is framing. */
 int st_term_session_reserve_rip_transfer(st_term_session_t *session);
+void st_term_session_cancel_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
 /* Effective protocol, including the separate RIP3 mouse-field owner. */
 int st_term_session_mouse_mode(st_term_session_t *session);

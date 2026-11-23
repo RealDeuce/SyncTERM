@@ -309,15 +309,15 @@ st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const char *
 }
 
 int
-st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
-    const char *name, const void *bytes, size_t size)
+st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths,
+    const char *name, bool upload)
 {
 	struct st_rip3_resource_match match = {.writing=true};
 	char *key = NULL;
 	size_t key_size;
 	int status;
 
-	if (paths == NULL || !st_rip3_resource_name_valid(name) || (bytes == NULL && size != 0))
+	if (result == NULL || paths == NULL || !st_rip3_resource_name_valid(name))
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* A missing session directory is not authority to write into a shared
 	 * lookup tier. Its selection/confinement belongs to client setup. */
@@ -326,17 +326,36 @@ st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	status = st_unicode_caseless_key(&key,&key_size,name,strlen(name));
 	if (status != 0) return status;
 	match.directory = paths->host; match.key = key; match.key_size = key_size;
-	status = paths->named_host_root == NULL ? ensure_directory(paths->host)
-	    : st_rip3_resource_prepare_cache(paths->named_host_root,paths->host);
+	const char *root = paths->named_host_root == NULL ? paths->host : paths->named_host_root;
+	status = cache_bucket_status(root);
+	if (status == 0)
+		status = upload ? host_directory_status(paths)
+		    : st_rip3_resource_prepare_cache(root, paths->named_host_root == NULL ? NULL : paths->host);
 	if (status == 0) status = st_rip3_resource_directory_scan(&match);
 	if (status == 0 && match.path == NULL)
-		status = path_join_alloc(&match.path,paths->host,name);
+		status = upload ? IO_ERROR_NOT_FOUND : path_join_alloc(&match.path, paths->host, name);
+	if (status == 0)
+		*result = match.path;
+	else
+		free(match.path);
+	free(key);
+	return status;
+}
+
+int
+st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
+    const char *name, const void *bytes, size_t size)
+{
+	if (bytes == NULL && size != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	char *path = NULL;
+	int status = st_rip3_resource_transfer_path(&path, paths, name, false);
 	/* Preserve an existing unique file's spelling and prepare the whole
 	 * replacement before rename. Any failure retains its previous contents.
 	 * The directory match rejects links and other non-file entries; this
 	 * function never follows a host-named link or writes a fallback tier. */
-	if (status == 0) status = fs_replace_file(match.path,bytes,size);
-	free(match.path); free(key);
+	if (status == 0) status = fs_replace_file(path, bytes, size);
+	free(path);
 	return status;
 }
 

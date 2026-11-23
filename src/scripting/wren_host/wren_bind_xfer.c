@@ -12,6 +12,7 @@
 #include "string_util.h"
 #include "st_app_paths.h"
 #include "cterm_rip_asset.h"
+#include "st_rip3_resources.h"
 #include "st_bbs_list.h"
 #include "st_unicode_text.h"
 #include "st_utf8.h"
@@ -102,7 +103,7 @@ struct st_wren_transfer {
 	size_t prefix_size;
 	int automatic;
 	bool upload, inline_upload;
-	char *rip_directory, *rip_filename;
+	char *rip_directory, *rip_filename, *rip_cache_root;
 	char *skypix_directory, *skypix_filename, *skypix_partial;
 	unsigned skypix_mode;
 	int skypix_error;
@@ -187,9 +188,82 @@ static bool rip_extension(const char *filename, const char *extension)
 static int rip_destination(void *context, const char *directory, const char *name, char **path)
 {
 	struct st_wren_transfer *s = context;
+	if (s->rip_cache_root != NULL) {
+		const struct st_rip3_resource_paths paths = {
+			.host = directory,
+			.named_host_root = strcmp(s->rip_cache_root, directory) == 0 ? NULL : s->rip_cache_root,
+		};
+		return st_rip3_resource_transfer_path(path, &paths, name, false);
+	}
 	if (s->rip_file_type >= 4 && !rip_extension(name, ".rip") && !rip_extension(name, ".icn"))
 		return IO_ERROR_INVALID_ARGUMENT;
 	return cterm_rip_asset_transfer_path(path, directory, name, false);
+}
+
+static void rip_clear_paths(struct st_wren_transfer *s)
+{
+	free(s->rip_directory); s->rip_directory = NULL;
+	free(s->rip_filename); s->rip_filename = NULL;
+	free(s->rip_cache_root); s->rip_cache_root = NULL;
+}
+
+static int rip_upload_path(struct st_wren_transfer *s, const char *name, char **source)
+{
+	if (s->rip_cache_root == NULL)
+		return cterm_rip_asset_transfer_path(source, s->rip_directory, name, true);
+	const struct st_rip3_resource_paths paths = {
+		.host = s->rip_directory,
+		.named_host_root = strcmp(s->rip_cache_root, s->rip_directory) == 0 ? NULL : s->rip_cache_root,
+	};
+	return st_rip3_resource_transfer_path(source, &paths, name, true);
+}
+
+static void rip_free_sources(char **sources, size_t count)
+{
+	for (size_t i = 0; i < count; ++i)
+		free(sources[i]);
+	free(sources);
+}
+
+static int rip_upload_sources(struct st_wren_transfer *s, char ***paths, size_t *count)
+{
+	bool list = s->rip_cache_root != NULL && s->rip_protocol >= 5;
+	size_t capacity = 1;
+	if (list) {
+		for (const char *ch = s->rip_filename; *ch != '\0'; ++ch)
+			if (*ch == ' ') ++capacity;
+	}
+	char **sources = calloc(capacity, sizeof(*sources));
+	if (sources == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	size_t used = 0;
+	int status = 0;
+	const char *name = s->rip_filename;
+	do {
+		const char *end = list ? strchr(name, ' ') : NULL;
+		if (end == NULL)
+			end = name + strlen(name);
+		if (end == name) {
+			status = IO_ERROR_INVALID_ARGUMENT;
+			break;
+		}
+		char *component = strndup(name, (size_t)(end - name));
+		if (component == NULL) {
+			status = IO_ERROR_OUT_OF_MEMORY;
+			break;
+		}
+		status = rip_upload_path(s, component, &sources[used]);
+		free(component);
+		++used;
+		name = *end == '\0' ? NULL : end + 1;
+	} while (status == 0 && name != NULL);
+	if (status != 0) {
+		rip_free_sources(sources, used);
+		return status;
+	}
+	*paths = sources;
+	*count = used;
+	return 0;
 }
 
 static int start_rip(struct st_wren_context *context, bool upload)
@@ -207,17 +281,18 @@ static int start_rip(struct st_wren_context *context, bool upload)
 		.overwrite = true, .discard = !upload && s->rip_file_type == 0,
 		.receive_events = !upload && (s->rip_file_type == 0 || s->rip_file_type == 5),
 	};
-	char *source = NULL;
+	char **sources = NULL;
+	size_t count = 0;
 	if (upload) {
-		int status = cterm_rip_asset_transfer_path(&source, s->rip_directory, s->rip_filename, true);
+		int status = rip_upload_sources(s, &sources, &count);
 		if (status != 0) return status;
-		config.paths = (const char *const *)&source; config.path_count = 1;
+		config.paths = (const char *const *)sources; config.path_count = count;
 		/* Sending XMODEM lets the peer select checksum or CRC. */
 		if (s->rip_protocol < 3) config.protocol = s->rip_protocol == 2
 		    ? ST_TRANSFER_XMODEM_1K : ST_TRANSFER_XMODEM_128;
 	}
 	int status = start(context, &config, true, !upload && (s->rip_file_type == 0 || s->rip_file_type == 5));
-	free(source);
+	rip_free_sources(sources, count);
 	return status;
 }
 
@@ -431,23 +506,58 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 	    || !*request->directory || request->filename == NULL || request->protocol > 7
 	    || request->protocol == 4 || (!request->upload && request->file_type > 5))
 		return IO_ERROR_NOT_SUPPORTED;
+	if (request->cache_root != NULL && !request->upload
+	    && (request->file_type == 0 || request->file_type == 3 || request->file_type == 5))
+		return IO_ERROR_NOT_SUPPORTED;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0)
 		return IO_ERROR_BUSY;
 	struct fs_info info;
-	int status = fs_get_link_info(&info, request->directory);
-	if (status == IO_ERROR_NOT_FOUND && !request->upload) status = fs_create_directories(request->directory);
-	else if (status == 0 && info.kind != FS_ENTRY_DIRECTORY) status = IO_ERROR_PERMISSION_DENIED;
+	int status = 0;
+	if (request->cache_root == NULL) {
+		status = fs_get_link_info(&info, request->directory);
+		if (status == IO_ERROR_NOT_FOUND && !request->upload)
+			status = fs_create_directories(request->directory);
+		else if (status == 0 && info.kind != FS_ENTRY_DIRECTORY)
+			status = IO_ERROR_PERMISSION_DENIED;
+	}
+	else if (!request->upload) {
+		if (request->filename[0] != '\0' && !st_rip3_resource_name_valid(request->filename))
+			return IO_ERROR_INVALID_ARGUMENT;
+		status = st_rip3_resource_prepare_cache(request->cache_root,
+		    strcmp(request->cache_root, request->directory) == 0 ? NULL : request->directory);
+	}
 	if (status != 0) return status;
 	s->rip_directory = strdup(request->directory); s->rip_filename = strdup(request->filename);
-	if (s->rip_directory == NULL || s->rip_filename == NULL) { status = IO_ERROR_OUT_OF_MEMORY; goto fail; }
+	s->rip_cache_root = request->cache_root == NULL ? NULL : strdup(request->cache_root);
+	if (s->rip_directory == NULL || s->rip_filename == NULL
+	    || (request->cache_root != NULL && s->rip_cache_root == NULL)) {
+		status = IO_ERROR_OUT_OF_MEMORY;
+		goto fail;
+	}
 	s->rip_protocol = request->protocol; s->rip_file_type = request->file_type;
-	st_term_session_reserve_rip_transfer(context->session);
+	if (s->rip_cache_root != NULL && !request->upload && request->protocol < 5) {
+		char *path = NULL;
+		status = rip_destination(s, s->rip_directory, s->rip_filename, &path);
+		free(path);
+		if (status != 0) {
+			rip_clear_paths(s);
+			return status;
+		}
+	}
+	status = request->cache_root == NULL || request->skip_lf
+	    ? st_term_session_reserve_rip_transfer(context->session)
+	    : st_term_session_reserve_transfer(context->session, true);
+	if (status != 0) {
+		rip_clear_paths(s);
+		return status;
+	}
 	if (request->upload) {
-		char *source = NULL;
-		status = cterm_rip_asset_transfer_path(&source, s->rip_directory, s->rip_filename, true);
-		free(source);
+		char **sources = NULL;
+		size_t count = 0;
+		status = rip_upload_sources(s, &sources, &count);
+		rip_free_sources(sources, count);
 		if (status != 0) goto fail;
 		s->rip_upload_pending = true; s->automatic = 4;
 	} else {
@@ -458,8 +568,7 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 	return 0;
 fail:
 	st_term_session_reserve_transfer(context->session, false);
-	free(s->rip_directory); s->rip_directory = NULL;
-	free(s->rip_filename); s->rip_filename = NULL;
+	rip_clear_paths(s);
 	return status;
 }
 
@@ -476,7 +585,8 @@ void st_wren_transfer_pump(struct st_wren_context *context)
 			s->cancel_next_ms = now + 100;
 			if (sent == 1) --s->cancel_remaining;
 			else if (sent != IO_ERROR_WOULD_BLOCK && sent != IO_ERROR_TIMED_OUT) s->cancel_remaining = 0;
-			if (s->cancel_remaining == 0) st_term_session_reserve_transfer(context->session, false);
+			if (s->cancel_remaining == 0)
+				st_term_session_cancel_rip_transfer(context->session);
 		}
 	}
 	struct st_transfer_receive_event event;
@@ -570,8 +680,7 @@ static void finish(struct st_wren_context *context)
 	if(s->skypix_partial!=NULL) (void)fs_remove_file(s->skypix_partial);
 	free(s->skypix_partial); s->skypix_partial=NULL;
 	free(s->skypix_bytes); s->skypix_bytes=NULL; s->skypix_size=0;
-	free(s->rip_directory); s->rip_directory = NULL;
-	free(s->rip_filename); s->rip_filename = NULL;
+	rip_clear_paths(s);
 	s->rip_upload_pending = false; s->inline_upload = false; s->cancel_remaining = 0;
 	s->automatic = 0; s->prefix_size = 0; s->detector.size = 0;
 }
@@ -794,8 +903,7 @@ static void cancel_automatic(WrenVM *vm)
 	struct st_wren_transfer *s = context->transfer;
 	if (s != NULL && s->worker == NULL && s->rip_upload_pending) {
 		s->rip_upload_pending = false; s->automatic = 0;
-		free(s->rip_directory); s->rip_directory = NULL;
-		free(s->rip_filename); s->rip_filename = NULL;
+		rip_clear_paths(s);
 		s->cancel_remaining = 10; s->cancel_next_ms = 0;
 	} else if (s != NULL && s->worker == NULL && (s->automatic != 0 || s->prefix_size != 0)) {
 		s->automatic = 0; s->prefix_size = 0;

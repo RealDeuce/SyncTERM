@@ -113,6 +113,10 @@ struct st_cterm_rip_transfer_request {
 	bool upload;
 	unsigned protocol, file_type;
 	const char *directory, *filename;
+	/* RIPv3 supplies the BBS RIP root and hands off the optional LF.
+	 * RIPv1 always hands off at CR. */
+	const char *cache_root;
+	bool skip_lf;
 };
 /* Runs synchronously on the terminal owner at the terminating CR. Accepting
  * must claim the connection before returning; borrowed strings cannot escape

@@ -82,6 +82,10 @@ int st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const ch
  * No clipboard/port capture, encoding, reset or connection setup is implied. */
 int st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	const char *name, const void *bytes, size_t size);
+/* Resolve a regular cache file or a new download name, with no fallback.
+ * Result owns the UTF-8 path on success. Uploads never create a directory. */
+int st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths,
+	const char *name, bool upload);
 /* Remove a unique regular file from the active BBS RIP directory. Uses the
  * same bare-name and caseless matching as writes. No fallback or creation. */
 int st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *name);

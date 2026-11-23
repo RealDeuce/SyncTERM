@@ -1559,6 +1559,91 @@ region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length
 	return st_rip3_columns_line(&session->columns, &session->commands, bytes + 3, length - 3, justify == 1);
 }
 
+static bool
+transfer_active(void *context)
+{
+	struct st_rip3_session *session = context;
+	return session->sink.transfer_active != NULL
+	    && session->sink.transfer_active(session->sink.context);
+}
+
+static int
+request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
+    const char *filenames)
+{
+	struct st_rip3_session *session = context;
+	if (session->scene_count != 0 || session->sink.transfer == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if ((!upload && type > 5) || (!upload && type >= 4 && protocol < 5)
+	    || ((upload || protocol < 5) && !*filenames))
+		return IO_ERROR_INVALID_FORMAT;
+	bool skip_lf = st_rip3_stream_pending_lf(session->stream);
+	int status = session->sink.transfer(session->sink.context, upload, protocol, type,
+	    filenames, skip_lf);
+	if (status == 0) {
+		st_rip3_stream_clear_pending_lf(session->stream);
+		st_rip3_input_wait_for(session->commands.input, transfer_active, session);
+	}
+	else if (session->sink.reply != NULL) {
+		static const uint8_t cancel[] = {24,24,24,24,24,24,24,24,24,24};
+		session->sink.reply(session->sink.context, cancel, sizeof(cancel));
+	}
+	return status;
+}
+
+static int
+wire_transfer(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	if (session->scene_count != 0 || !st_rip3_stream_pending_lf(session->stream)
+	    || length < 12 || memcmp(bytes + length - 2, "<>", 2) != 0)
+		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_environment environment;
+	unsigned current;
+	int status = st_rip3_command_environment(&session->commands, &current, &environment);
+	const size_t widths[] = {1, 1, 2, 4};
+	uint64_t value[4];
+	size_t offset = 2;
+	for (size_t i = 0; status == 0 && i < 4; ++i) {
+		status = st_rip3_command_field(&value[i], bytes + offset, widths[i],
+		    environment.base_math);
+		offset += widths[i];
+	}
+	if (status != 0)
+		return status;
+	if (value[0] > 1 || value[1] > 9)
+		return IO_ERROR_INVALID_FORMAT;
+	size_t size = length - offset - 2;
+	if (memchr(bytes + offset, 0, size) != NULL)
+		return IO_ERROR_INVALID_FORMAT;
+	char *filenames = malloc(size + 1);
+	if (filenames == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(filenames, bytes + offset, size);
+	filenames[size] = '\0';
+	status = request_transfer(session, value[0] != 0, (unsigned)value[1],
+	    (unsigned)value[2], filenames);
+	free(filenames);
+	return status;
+}
+
+static int
+encoded_stream(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	if (length != 8)
+		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_environment environment;
+	unsigned current;
+	uint64_t type, reserved;
+	int status = st_rip3_command_environment(&session->commands, &current, &environment);
+	if (status == 0)
+		status = st_rip3_command_field(&type, bytes + 2, 2, environment.base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&reserved, bytes + 4, 4, environment.base_math);
+	if (status == 0 && type > 1)
+		status = IO_ERROR_INVALID_FORMAT;
+	return status;
+}
+
 static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
@@ -1576,6 +1661,10 @@ command(void *context, const uint8_t *bytes, size_t length)
 	}
 	else if (length >= 2 && bytes[0] == '2' && bytes[1] == 0x1b)
 		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);
+	else if (length >= 2 && bytes[0] == '9' && bytes[1] == 0x1b)
+		st_rip3_command_result(&sink, wire_transfer(session, bytes, length), false);
+	else if (length >= 2 && bytes[0] == '9' && bytes[1] == 'U')
+		st_rip3_command_result(&sink, encoded_stream(session, bytes, length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'F')
 		file_query(session,bytes,length);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'D')
@@ -1906,6 +1995,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->variables.status_bar = &session->status_bar;
 	session->variables.status_bar_context = config->sink.context;
 	session->variables.status_bar_changed = config->sink.status_bar_changed;
+	session->variables.transfer_context = session;
+	session->variables.transfer = request_transfer;
 	session->variables.codepage_converted=config->graphical_codepage_converted;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->variables.field_context=&session->field_context;

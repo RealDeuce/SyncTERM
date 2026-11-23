@@ -61,4 +61,8 @@ void st_rip3_stream_reset(struct st_rip3_stream *stream);
 void st_rip3_stream_process(struct st_rip3_stream *stream,
 	const uint8_t *bytes, size_t length);
 
+/* Transfer handoff may take responsibility for the optional LF of a CRLF. */
+bool st_rip3_stream_pending_lf(const struct st_rip3_stream *stream);
+void st_rip3_stream_clear_pending_lf(struct st_rip3_stream *stream);
+
 #endif
