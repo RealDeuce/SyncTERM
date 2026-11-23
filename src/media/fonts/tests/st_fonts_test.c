@@ -179,6 +179,15 @@ st_fonts_test_main(void)
 			CHECK(builtin.mapping != NULL && builtin.mapping_count != 0);
 			CHECK(st_console_register_static_font(console, &builtin,
 			    &glyph_font) == 0);
+			if (codepages[selector] == ST_CODEPAGE_CP1251) {
+				uint16_t face;
+				CHECK(st_console_font_lookup(console, glyph_font, UINT32_C(0x2022),
+				    &face, &glyph, &columns) == 0);
+				CHECK(face == glyph_font && glyph == 0x95);
+				CHECK(st_console_font_lookup(console, glyph_font, UINT32_C(0x00b6),
+				    &face, &glyph, &columns) == 0);
+				CHECK(face == glyph_font && glyph == 0xb6);
+			}
 			if (codepages[selector] == ST_CODEPAGE_ATASCII) {
 				for (unsigned byte = 0; byte < 128; ++byte) {
 					const uint8_t *base = builtin.bitmap + byte * builtin.glyph_stride;

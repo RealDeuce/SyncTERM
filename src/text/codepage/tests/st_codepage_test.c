@@ -94,11 +94,11 @@ main(void)
 		false, true, true, false, false, false, false, false, false,
 	};
 	/* Frozen legacy tables, with deterministic ordering fixes,
-	 * the CP437 graphic DEL and the lossless ST graphic mappings. */
+	 * the CP437 graphic DEL, canonical CP1251 encoding and lossless ST graphics. */
 	static const struct mapping_hashes hashes[ST_CODEPAGE_COUNT] = {
 		{UINT64_C(0xdf85318e5e41b5df), UINT64_C(0xd2a17e39773a07b1), UINT64_C(0x2715bd5691424125)},
-		{UINT64_C(0x851582fd14212a57), UINT64_C(0x775e55d6033c3cdd), UINT64_C(0x9b94819825bd27e3)},
-		{UINT64_C(0x20c9524c939df561), UINT64_C(0x644f0cdde6ab5dc3), UINT64_C(0x64fe060056bf9337)},
+		{UINT64_C(0x851582fd14212a57), UINT64_C(0x775e55d6033c3cdd), UINT64_C(0xe6774592c84f7a07)},
+		{UINT64_C(0x20c9524c939df561), UINT64_C(0x644f0cdde6ab5dc3), UINT64_C(0xef5a2da95aa6b4ad)},
 		{UINT64_C(0x65e3115aed9247b0), UINT64_C(0x386a750830181430), UINT64_C(0x73a3e62086aba713)},
 		{UINT64_C(0x1ad5f7df73d776c8), UINT64_C(0x00ed62adee404848), UINT64_C(0x4d6945146ecaa893)},
 		{UINT64_C(0x82ad8c3133b543bc), UINT64_C(0x744d9d023095213c), UINT64_C(0xc8034da73b233845)},
@@ -133,6 +133,19 @@ main(void)
 		enum st_codepage codepage = (enum st_codepage)i;
 
 		CHECK(strcmp(st_codepage_name(codepage), names[i]) == 0);
+		if (codepage == ST_CODEPAGE_CP1251 || codepage == ST_CODEPAGE_CP1251_B) {
+			for (unsigned int value = 0; value <= UINT8_MAX; ++value) {
+				uint32_t scalar = st_codepage_to_unicode(codepage, (uint8_t)value, false);
+				uint8_t encoded;
+
+				if (value == 0x98) {
+					CHECK(scalar == UINT32_C(0xfffd));
+					continue;
+				}
+				CHECK(st_codepage_from_unicode(&encoded, codepage, scalar));
+				CHECK(encoded == value);
+			}
+		}
 		CHECK(st_codepage_broken_vertical(codepage)
 		    == broken_vertical[i]);
 		/* The frozen legacy hash treats a broken 0x7c display glyph as
@@ -142,7 +155,7 @@ main(void)
 		else
 			CHECK(st_codepage_to_unicode(codepage, 0x7c, false) == '|');
 		CHECK(mapping_hash(codepage, true) == hashes[i].graphic);
-		if (!broken_vertical[i])
+		if (!broken_vertical[i] || codepage == ST_CODEPAGE_CP1251_B)
 			CHECK(reverse_hash(codepage) == hashes[i].reverse);
 	}
 	CHECK(st_codepage_name((enum st_codepage)-1) == NULL);
