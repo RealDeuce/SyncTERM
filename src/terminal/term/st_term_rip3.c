@@ -364,6 +364,14 @@ st_term_rip3_flush(struct st_term_rip3 *rip)
 	if (rip!=NULL) {feedback_begin(rip);present(rip);flush_text(rip);feedback_end(rip);}
 }
 
+static void
+notice(void *context, const char *title, const char *message)
+{
+	struct st_term_rip3 *rip = context;
+	st_term_rip3_flush(rip);
+	rip->config.rip3_alert(rip->config.rip3_alert_context, title, message);
+}
+
 int
 st_term_rip3_begin_local_text(struct st_term_rip3 *rip)
 {
@@ -1654,7 +1662,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
-	        .scene_decode=config->encoding==ST_CTERM_ENCODING_CODEPAGE ? decode_scene_byte : NULL},
+	        .scene_decode=config->encoding==ST_CTERM_ENCODING_CODEPAGE ? decode_scene_byte : NULL,
+	        .notice=config->rip3_alert!=NULL ? notice : NULL},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

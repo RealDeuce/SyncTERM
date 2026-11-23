@@ -113,9 +113,10 @@ struct article_buffer {
 
 struct st_rip3_article_flow {
 	struct column_line pen;
-	struct article_buffer word, line;
+	struct article_buffer word, line, pending;
+	size_t word_start;
 	double width;
-	bool prepared, newline, previous_cr, dropping_word;
+	bool prepared, newline, previous_cr, dropping_word, retention_failed;
 };
 
 static int
@@ -373,6 +374,20 @@ prepare_flow(struct st_rip3_article_flow *flow, const struct st_rip3_command_hos
 }
 
 static int
+retain_from(struct st_rip3_columns *columns, const struct st_rip3_command_host *host, size_t start)
+{
+	struct st_rip3_article_flow *flow = columns->flow;
+	if (flow->retention_failed || flow->pending.length <= start)
+		return 0;
+	int status = st_rip3_overflow_remainder(&columns->overflow, host->resources, columns->article,
+	    flow->pending.bytes + start, flow->pending.length - start);
+	flow->retention_failed = status != 0;
+	flow->pending.length = 0;
+	flow->word_start = 0;
+	return status;
+}
+
+static int
 finish_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *host, bool blank, bool *changed)
 {
 	struct st_rip3_article_flow *flow = columns->flow;
@@ -387,6 +402,8 @@ finish_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 			*changed |= flow->line.length != 0;
 			status = paint_line(columns, &flow->pen, slot);
 		}
+		else if (flow->line.length != 0)
+			status = retain_from(columns, host, 0);
 	}
 	flow->line.length = 0;
 	flow->width = 0;
@@ -409,6 +426,12 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 	if (status == 0)
 		status = prepare_flow(flow, host);
 	const struct st_rip3_column *slot = status == 0 ? available_column(columns, flow->pen.height) : NULL;
+	if (status == 0 && slot == NULL) {
+		size_t start = flow->line.length != 0 ? 0 : flow->word_start;
+		status = retain_from(columns, host, start);
+		flow->line.length = 0;
+		flow->width = 0;
+	}
 	if (slot != NULL) {
 		const uint8_t separator = ' ';
 		double word_width, separator_width = 0;
@@ -419,6 +442,8 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 		if (status == 0 && flow->line.length != 0 && flow->width + separator_width + word_width > width) {
 			status = finish_line(columns, host, false, changed);
 			slot = available_column(columns, flow->pen.height);
+			if (status == 0 && slot == NULL)
+				status = retain_from(columns, host, flow->word_start);
 			separator_width = 0;
 		}
 		if (status == 0 && slot != NULL) {
@@ -427,8 +452,16 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 				status = append_bytes(&flow->line, &separator, 1);
 			if (status == 0)
 				status = append_bytes(&flow->line, glyphs, length);
-			if (status == 0)
+			if (status == 0) {
 				flow->width += separator_width + word_width;
+				if (previous == 0 && flow->word_start < flow->pending.length) {
+					/* Retain raw bytes starting at the first word of the
+					 * next unpainted line, including its trailing delimiter. */
+					flow->pending.length -= flow->word_start;
+					memmove(flow->pending.bytes, flow->pending.bytes + flow->word_start, flow->pending.length);
+					flow->word_start = 0;
+				}
+			}
 			else
 				flow->line.length = previous;
 		}
@@ -458,7 +491,8 @@ int
 st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
     const uint8_t *bytes, size_t length, bool *changed)
 {
-	if (columns->current == ST_RIP3_COLUMN_COUNT)
+	bool retain = columns->overflow.articles[columns->article].enabled;
+	if (!retain && columns->current == ST_RIP3_COLUMN_COUNT)
 		return 0;
 	if (columns->flow == NULL) {
 		columns->flow = calloc(1, sizeof(*columns->flow));
@@ -466,8 +500,23 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
 			return IO_ERROR_OUT_OF_MEMORY;
 	}
 	struct st_rip3_article_flow *flow = columns->flow;
+	int storage_status = 0;
 	for (size_t i = 0; i < length; ++i) {
 		uint8_t byte = bytes[i];
+		if (retain && !flow->retention_failed) {
+			storage_status = st_rip3_overflow_source(&columns->overflow, host->resources, columns->article, byte);
+			if (storage_status == 0 && st_rip3_overflow_writing_remainder(&columns->overflow)) {
+				storage_status = st_rip3_overflow_remainder(&columns->overflow, host->resources,
+				    columns->article, &byte, 1);
+				if (storage_status == 0)
+					continue;
+			}
+			if (storage_status == 0 && (flow->pending.length != 0 || (!space(byte) && byte >= ' ')))
+				storage_status = append_bytes(&flow->pending, &byte, 1);
+			flow->retention_failed = storage_status != 0;
+		}
+		if (columns->current == ST_RIP3_COLUMN_COUNT && (!retain || flow->retention_failed))
+			continue;
 		bool lf_after_cr = flow->previous_cr && byte == '\n';
 		flow->previous_cr = byte == '\r';
 		if (lf_after_cr || (!space(byte) && byte < ' '))
@@ -475,6 +524,8 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
 		if (!space(byte)) {
 			flow->newline = false;
 			if (!flow->dropping_word) {
+				if (flow->word.length == 0 && retain && !flow->retention_failed)
+					flow->word_start = flow->pending.length - 1;
 				int status = append_bytes(&flow->word, &byte, 1);
 				if (status != 0) {
 					flow->word.length = 0;
@@ -494,11 +545,13 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
 					status = finish_line(columns, host, true, changed);
 				if (status != 0)
 					return status;
+				flow->pending.length = 0;
+				flow->word_start = 0;
 			}
 			flow->newline = true;
 		}
 	}
-	return 0;
+	return storage_status;
 }
 
 static void
@@ -507,6 +560,7 @@ clear_flow(struct st_rip3_columns *columns)
 	if (columns->flow != NULL) {
 		free(columns->flow->word.bytes);
 		free(columns->flow->line.bytes);
+		free(columns->flow->pending.bytes);
 		free(columns->flow);
 		columns->flow = NULL;
 	}
@@ -516,9 +570,10 @@ int
 st_rip3_columns_end(struct st_rip3_columns *columns, const struct st_rip3_command_host *host)
 {
 	int status = flush_pending(columns, host);
+	int output_status = st_rip3_overflow_close(&columns->overflow);
 	clear_flow(columns);
 	columns->active = false;
-	return status;
+	return status == 0 ? output_status : status;
 }
 
 void
@@ -529,9 +584,22 @@ st_rip3_columns_invalidate(struct st_rip3_columns *columns)
 }
 
 void
+st_rip3_columns_reset(struct st_rip3_columns *columns, bool hard)
+{
+	clear_flow(columns);
+	memset(columns->slots, 0, sizeof(columns->slots));
+	columns->active = false;
+	columns->article = 0;
+	columns->current = 0;
+	columns->offset = 0;
+	st_rip3_overflow_reset(&columns->overflow, hard);
+}
+
+void
 st_rip3_columns_dispose(struct st_rip3_columns *columns)
 {
 	clear_flow(columns);
+	st_rip3_overflow_dispose(&columns->overflow);
 	*columns = (struct st_rip3_columns){0};
 }
 
@@ -574,13 +642,18 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 	int status = 0;
 	if (columns->article != definition->article)
 		status = flush_pending(columns, host);
+	int output_status = st_rip3_overflow_close(&columns->overflow);
+	if (status == 0)
+		status = output_status;
 	clear_flow(columns);
 	struct st_rip3_column *slot = &columns->slots[definition->slot];
 	slot->area = definition->area;
 	slot->article = definition->article;
 	slot->defined = true;
-	if (definition->extended)
+	if (definition->extended) {
 		slot->search = search;
+		columns->overflow.articles[definition->article].enabled = (definition->flags & 1) != 0;
+	}
 	columns->article = definition->article;
 	columns->current = 0;
 	columns->offset = 0;

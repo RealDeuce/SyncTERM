@@ -53,6 +53,8 @@ struct st_term_config {
 	const char *rip_directory;
 	/* Read-only fallback for RIPv3 resources. Named directories stay under rip_directory. */
 	const char *rip3_data_directory;
+	void (*rip3_alert)(void *context, const char *title, const char *message);
+	void *rip3_alert_context;
 	const char *amiga_font_directory;
 	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
 	const st_amiga_font_t *amiga_font;

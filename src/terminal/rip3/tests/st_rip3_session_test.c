@@ -23,6 +23,7 @@
 extern size_t st_rip3_session_test_fail_at,st_rip3_session_test_attempts,st_rip3_session_test_live,st_rip3_session_test_stops;
 
 extern int st_rip3_session_test_soft_reset(struct st_rip3_session *session);
+extern void st_rip3_session_test_overflow_frontier(struct st_rip3_session *session, unsigned article, int32_t page);
 
 struct fixture {
 	struct st_rip3_session *session;
@@ -58,6 +59,7 @@ struct fixture {
 	bool selected_first,selected_fresh,selected_active;
 	uint32_t clear_rgb;
 	struct st_rip3_text_window_layout window;
+	unsigned paging_notice;
 };
 
 static uint64_t
@@ -2033,10 +2035,49 @@ scene_query_scope(void)
 	return 0;
 }
 
+static void
+paging_notice(void *context, const char *title, const char *message)
+{
+	struct fixture *f = context;
+	if (strcmp(title, "Cannot Continue") != 0) {
+		f->paging_notice = 3;
+		return;
+	}
+	f->paging_notice = strcmp(message, "End of document.") == 0 ? 1
+	    : strcmp(message, "Beginning of document.") == 0 ? 2 : 3;
+}
+
+static int
+overflow_navigation(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	options.sink.notice = paging_notice;
+	options.random_seed = 7;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(append(&f, "!|1e00000A0A0100010000000000|1E\r")==0 && pump(&f)==0);
+	CHECK(query(&f, "$OVERFLOW()$:$OVERFLOW(1,PREV,QUERY)$", "00710000.OVR:00710001.OVR")==0);
+	CHECK(query(&f, "before$OVERFLOW(1,NEXT,SETVERBOSE)$after", "")==0 && f.paging_notice==1);
+	CHECK(query(&f, "before$OVERFLOW(1,PREV,SETVERBOSE)$after", "")==0 && f.paging_notice==2);
+	/* Exercise the signed-word assignment without creating 65537 pages. */
+	st_rip3_session_test_overflow_frontier(f.session, 1, 65536);
+	CHECK(query(&f, "$OVERFLOW(1,32768)$$OVERFLOW(1,PAGE)$", "-32767")==0);
+	CHECK(query(&f, "$OVERFLOW(1,65535)$$OVERFLOW(1,PAGE)$", "0")==0);
+	CHECK(query(&f, "$OVERFLOW(1,65536)$$OVERFLOW(1,PAGE)$", "1")==0);
+	CHECK(query(&f, "$OVERFLOW(1,NEXT)$$OVERFLOW(1,PREV,SET)$$OVERFLOW(1,PAGE)$", "1")==0);
+	CHECK(append(&f, "!|1T00000A0A11|1E\r")==0 && pump(&f)==0);
+	CHECK(query(&f, "$OVERFLOW()$", "00710000.OVR")==0);
+	CHECK(append(&f, "!|1e00000A0A1100000000000000|1E\r")==0 && pump(&f)==0);
+	CHECK(query(&f, "$OVERFLOW()$", "<NONE>")==0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(scene_pacing()==0 && scene_query_scope()==0);
+	CHECK(scene_pacing()==0 && scene_query_scope()==0 && overflow_navigation()==0);
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);

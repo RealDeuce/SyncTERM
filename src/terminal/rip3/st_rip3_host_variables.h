@@ -18,6 +18,7 @@ struct st_rip3_text_window_operations;
 struct st_rip3_mouse;
 struct st_rip3_field_context;
 struct st_rip3_refresh;
+struct st_rip3_builtin_reference;
 
 enum { ST_RIP3_HOST_DIRECTORY_LIMIT = 12 };
 
@@ -98,6 +99,9 @@ struct st_rip3_host_variables {
 	 * identity across interpreter yields; unrelated work never inherits it. */
 	const struct st_rip3_field_context *field_context;
 	struct st_rip3_refresh *refresh;
+	void *overflow_context;
+	int (*overflow)(void *context, const struct st_rip3_builtin_reference *,
+	    char *result, size_t capacity);
 };
 
 enum st_rip3_host_diagnostic {
@@ -106,6 +110,7 @@ enum st_rip3_host_diagnostic {
 	ST_RIP3_HOST_UNKNOWN_REFERENCE,
 	ST_RIP3_HOST_OPERATION_FAILED,
 	ST_RIP3_HOST_RESOURCE_FAILURE,
+	ST_RIP3_HOST_ABORTED,
 };
 
 struct st_rip3_host_sink {

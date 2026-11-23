@@ -3,6 +3,7 @@
 #define ST_RIP3_COLUMNS_H_
 
 #include "st_rip3_surface.h"
+#include "st_rip3_overflow.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -37,6 +38,7 @@ struct st_rip3_article_flow;
 
 struct st_rip3_columns {
 	struct st_rip3_column slots[ST_RIP3_COLUMN_COUNT];
+	struct st_rip3_overflow overflow;
 	struct st_rip3_article_flow *flow;
 	unsigned article, current;
 	int64_t offset;
@@ -54,6 +56,7 @@ int st_rip3_columns_feed(struct st_rip3_columns *, const struct st_rip3_command_
 	const uint8_t *bytes, size_t length, bool *changed);
 int st_rip3_columns_end(struct st_rip3_columns *, const struct st_rip3_command_host *);
 void st_rip3_columns_invalidate(struct st_rip3_columns *);
+void st_rip3_columns_reset(struct st_rip3_columns *, bool hard);
 void st_rip3_columns_dispose(struct st_rip3_columns *);
 
 #endif

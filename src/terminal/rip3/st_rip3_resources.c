@@ -8,6 +8,8 @@
 #include "st_unicode_compare.h"
 
 #include <stdbool.h>
+#include <inttypes.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,6 +38,89 @@ host_directory_status(const struct st_rip3_resource_paths *paths)
 	if (paths->named_host_root != NULL)
 		status = directory_status(paths->named_host_root);
 	return status == 0 ? directory_status(paths->host) : status;
+}
+
+static int
+cache_bucket_status(const char *root)
+{
+	size_t capacity = strlen(root) + 1;
+	char *bucket = malloc(capacity);
+	if (bucket == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	ptrdiff_t length = path_parent(bucket, capacity, root);
+	int status = length < 0 ? (int)length : directory_status(bucket);
+	free(bucket);
+	return status;
+}
+
+int
+st_rip3_resource_scratch(struct st_rip3_resource *result, const struct st_rip3_resource_paths *paths)
+{
+	static atomic_uint_fast32_t sequence;
+	if (paths == NULL || paths->host == NULL || paths->host[0] == '\0')
+		return IO_ERROR_NOT_SUPPORTED;
+	const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
+	int status = cache_bucket_status(root);
+	if (status == 0)
+		status = ensure_directory(root);
+	if (status != 0)
+		return status;
+	for (unsigned attempt = 0; attempt < 256; ++attempt) {
+		uint32_t id = (uint32_t)atomic_fetch_add_explicit(&sequence, 1, memory_order_relaxed);
+		char name[sizeof(".rip3-overflow-00000000.part")];
+		(void)snprintf(name, sizeof(name), ".rip3-overflow-%08" PRIx32 ".part", id);
+		struct st_rip3_resource scratch = {0};
+		status = path_join_alloc(&scratch.path, root, name);
+		if (status == 0)
+			status = fs_open(&scratch.stream, scratch.path, "wbx");
+		if (status == 0) {
+			*result = scratch;
+			return 0;
+		}
+		free(scratch.path);
+		if (status != IO_ERROR_ALREADY_EXISTS)
+			return status;
+	}
+	return IO_ERROR_ALREADY_EXISTS;
+}
+
+static int
+scratch_parent_status(const char *path)
+{
+	size_t capacity = strlen(path) + 1;
+	char *root = malloc(capacity);
+	if (root == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	ptrdiff_t length = path_parent(root, capacity, path);
+	int status = length < 0 ? (int)length : cache_bucket_status(root);
+	if (status == 0)
+		status = directory_status(root);
+	free(root);
+	return status;
+}
+
+int
+st_rip3_resource_read_scratch(struct st_rip3_resource *result, const struct st_rip3_resource *file)
+{
+	struct fs_info info;
+	int status = scratch_parent_status(file->path);
+	if (status == 0)
+		status = fs_get_link_info(&info, file->path);
+	if (status == 0 && info.kind != FS_ENTRY_FILE)
+		status = IO_ERROR_NOT_FOUND;
+	return status == 0 ? fs_open(&result->stream, file->path, "rb") : status;
+}
+
+void
+st_rip3_resource_remove_scratch(struct st_rip3_resource *file)
+{
+	if (file->stream != NULL) {
+		(void)fclose(file->stream);
+		file->stream = NULL;
+	}
+	if (file->path != NULL && scratch_parent_status(file->path) == 0)
+		(void)fs_remove_file(file->path);
+	st_rip3_resource_dispose(file);
 }
 
 int
@@ -237,13 +322,7 @@ st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *
 	/* The BBS bucket was checked at connection time. Recheck it before
 	 * removing a file in case the local cache was relocated while open. */
 	const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
-	size_t capacity = strlen(root) + 1;
-	char *bucket = malloc(capacity);
-	if (bucket == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	ptrdiff_t length = path_parent(bucket, capacity, root);
-	status = length < 0 ? (int)length : directory_status(bucket);
-	free(bucket);
+	status = cache_bucket_status(root);
 	if (status != 0)
 		return status;
 	status = st_unicode_caseless_key(&key, &match.key_size, name, strlen(name));

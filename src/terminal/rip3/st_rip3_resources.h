@@ -35,6 +35,12 @@ struct st_rip3_resource {
 	char *path;
 };
 
+/* Exclusively create a client-owned scratch file directly in the BBS RIP
+ * cache. Removal requires a scratch resource returned by this function. */
+int st_rip3_resource_scratch(struct st_rip3_resource *, const struct st_rip3_resource_paths *);
+int st_rip3_resource_read_scratch(struct st_rip3_resource *, const struct st_rip3_resource *);
+void st_rip3_resource_remove_scratch(struct st_rip3_resource *);
+
 /*
  * Read-only storage service, not a terminal/parser processing entry point.
  * Media: active BBS cache, then the global RIP directory. Fonts: fonts only.

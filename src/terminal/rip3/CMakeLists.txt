@@ -64,10 +64,10 @@ int main(void) {
 	set(_rip3_resource_directory st_rip3_resource_directory_posix.c)
 endif()
 add_library(st_rip3_storage STATIC st_rip3_variables_file.c st_rip3_bitmap_file.c st_rip3_jpeg_file.c
-	st_rip3_resources.c st_rip3_file_query.c ${_rip3_resource_directory})
+	st_rip3_resources.c st_rip3_file_query.c st_rip3_overflow.c ${_rip3_resource_directory})
 target_include_directories(st_rip3_storage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE st_pixel_image syncterm_filesystem
-	syncterm_path st_unicode_compare syncterm_value_convert)
+	syncterm_path syncterm_string_util st_unicode_compare syncterm_value_convert)
 if(WIN32)
 	target_link_libraries(st_rip3_storage PRIVATE st_windows_utf)
 endif()

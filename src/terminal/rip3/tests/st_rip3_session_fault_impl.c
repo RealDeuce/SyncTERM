@@ -157,6 +157,11 @@ int st_rip3_session_test_soft_reset(struct st_rip3_session *session)
 	return soft_reset(session);
 }
 
+void st_rip3_session_test_overflow_frontier(struct st_rip3_session *session, unsigned article, int32_t page)
+{
+	session->columns.overflow.articles[article].frontier = page;
+}
+
 const struct st_rip3_resident_query *
 st_rip3_session_test_resident(struct st_rip3_session *session,unsigned mode,unsigned number)
 {

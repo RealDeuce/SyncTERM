@@ -8968,9 +8968,9 @@ Native checks exercise font 4 at 1024×768, protected backup and query cleanup,
 the metric and ANSI save lifetimes, a committed grouped action and the two lock
 outcomes. TCP fixtures in CP437 and UTF-8 verify both entry points on four
 rasters, including partly received CSI, fresh tabs, live default selections and
-palette-independent black pixels. The column/article and overflow reset awaits
-the flow engine. The application still uses its established default MicroANSI
-font and wrap choice.
+palette-independent black pixels. HARD also clears article layout and paging
+state. The application still uses its established default MicroANSI font and
+wrap choice.
 
 The queue contains 2556 implemented, 1690 pending, 2918 unreviewed,
 1558 context, 67 excluded and 32 blocked units.
@@ -9177,7 +9177,6 @@ color changes, slot ordering, a clipped viewport and malformed input recovery.
 They also draw with Dixon and verify that the drawing cursor is preserved.
 RIPtel's prewrapped metric, end and justify edge cases are tracked in
 [issue #173](https://github.com/bbs-land/remote-imaging-protocol/issues/173).
-Overflow navigation remains pending.
 
 ## Connected raw article flow and search highlighting
 
@@ -9199,5 +9198,29 @@ With an article active, `1R` and `$>` treat a cached `.TXT` file as literal
 prose, including bytes that resemble RIP commands. Connected CP437 and UTF-8
 tests exercise wrapping, original glyph masks and colors in both planes,
 paragraph breaks, redefinition, malformed search input and cache lookup.
-The `1e` overflow flag is accepted. Page retention and replay are pending,
-so excess prose is currently discarded when the last column fills.
+
+## Connected article pagination
+
+When the last `1e` definition for an article enables overflow, its first
+page-zero feed saves the complete source. Once the last column fills, the
+renderer saves the remainder starting at the first undisplayed word. Each
+replay can produce one further page. Replaying an earlier page that overflows
+can reduce the known forward limit.
+
+`$OVERFLOW$` reports page numbers and opaque `.OVR` names. Both `1R` and `$>`
+can replay saved pages through the active article. The session owns the
+underlying files in the connected BBS's RIP cache. Saved text uses the
+engine's encoding so replay does not decode extended characters twice.
+SyncTERM releases the saved files on disconnect.
+
+A NEXT or PREV at the boundary stops the current evaluation, including its
+pending reply and any following scene. SETVERBOSE uses the connection's
+notification policy. A per-article reset clears that article's paging state
+and retains the layout. The drawing reset removes the layout and disables
+overflow while keeping the page counters and source-capture flags. HARD and
+`$RESET(OVERFLOW)$` clear both layout and paging state.
+
+Connected CP437 and UTF-8 fixtures click a pager field, check the rendered
+pages in both pixel planes, and exercise reflow, boundaries, reset scopes and
+cache cleanup. The native session test checks both notification messages and
+signed-word page numbers.

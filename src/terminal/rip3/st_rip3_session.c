@@ -37,6 +37,7 @@
 #include "io_error.h"
 #include "string_util.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +59,7 @@ struct local_scene {
 	int field_program_id;
 	uint8_t next_byte;
 	bool byte_ready;
-	bool article_text;
+	bool article_text, normalized;
 };
 
 struct session_window {
@@ -135,11 +136,104 @@ table_operation_failed(void *context,int status)
 static void
 host_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
 {
+	if (kind==ST_RIP3_HOST_ABORTED) return;
 	enum st_rip3_command_diagnostic mapped=kind==ST_RIP3_HOST_RESOURCE_FAILURE ? ST_RIP3_COMMAND_RESOURCE_FAILURE
 	    : kind==ST_RIP3_HOST_INVALID_REFERENCE ? ST_RIP3_COMMAND_INVALID
 	    : kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE || kind==ST_RIP3_HOST_UNKNOWN_REFERENCE
 	    ? ST_RIP3_COMMAND_UNSUPPORTED : ST_RIP3_COMMAND_OPERATION_FAILED;
 	diagnose(context,mapped);
+}
+
+static int
+overflow_reference(void *context, const struct st_rip3_builtin_reference *reference,
+    char *result, size_t capacity)
+{
+	struct st_rip3_session *session = context;
+	struct st_rip3_columns *columns = &session->columns;
+	struct st_rip3_overflow *overflow = &columns->overflow;
+	struct st_rip3_builtin_reference words;
+	int status = st_rip3_builtin_reference_words(&words, reference);
+	if (status != 0)
+		return status;
+	if (capacity == 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	result[0] = '\0';
+	if (strcmp(words.name, "RESET") == 0) {
+		if (words.count != 1 || ascii_case_compare(words.parameters[0].text, "OVERFLOW") != 0)
+			return IO_ERROR_NOT_SUPPORTED;
+		status = st_rip3_overflow_close(overflow);
+		st_rip3_columns_reset(columns, true);
+		return status;
+	}
+	if (words.count > 3)
+		return IO_ERROR_INVALID_FORMAT;
+	unsigned article = columns->article;
+	if (words.count != 0 && ascii_case_compare(words.parameters[0].text, "CUR") != 0) {
+		status = st_rip3_host_number(words.parameters[0].text, 1, ST_RIP3_ARTICLE_COUNT - 1, &article);
+		if (status != 0)
+			return status;
+	}
+	const char *operation = words.count >= 2 ? words.parameters[1].text : "CUR";
+	const char *mode = words.count == 3 ? words.parameters[2].text : "";
+	struct st_rip3_overflow_article *state = &overflow->articles[article];
+	bool query = ascii_case_compare(mode, "QUERY") == 0;
+	bool current = ascii_case_compare(operation, "CUR") == 0;
+	bool page_number = ascii_case_compare(operation, "PAGE") == 0;
+	bool next = ascii_case_compare(operation, "NEXT") == 0;
+	bool prev = ascii_case_compare(operation, "PREV") == 0;
+	int32_t frontier = st_rip3_overflow_frontier(overflow, article);
+	if (current || page_number || ((next || prev) && query)) {
+		if ((current || page_number) && words.count == 3 && !query)
+			return IO_ERROR_INVALID_FORMAT;
+		if (page_number) {
+			int size = snprintf(result, capacity, "%" PRId32, state->page + 1);
+			return size < 0 || (size_t)size >= capacity ? IO_ERROR_OUT_OF_RANGE : 0;
+		}
+		if (!state->enabled || (next && state->page >= frontier)) {
+			if (capacity < sizeof("<NONE>"))
+				return IO_ERROR_OUT_OF_RANGE;
+			memcpy(result, "<NONE>", sizeof("<NONE>"));
+			return 0;
+		}
+		/* The shipped PREV,QUERY returns the next filename even at page 0. */
+		return st_rip3_overflow_name(overflow, article, state->page + !current, result, capacity);
+	}
+	if (ascii_case_compare(operation, "RESET") == 0) {
+		return words.count == 2 ? st_rip3_overflow_reset_article(overflow, article)
+		    : IO_ERROR_INVALID_FORMAT;
+	}
+	if (!state->enabled)
+		return IO_ERROR_INVALID_FORMAT;
+	int32_t destination;
+	if (next || prev) {
+		bool verbose = ascii_case_compare(mode, "SETVERBOSE") == 0;
+		if (*mode != '\0' && !verbose && ascii_case_compare(mode, "SET") != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if ((next && state->page >= frontier) || (prev && state->page <= 0)) {
+			if (verbose && session->sink.notice != NULL)
+				session->sink.notice(session->sink.context, "Cannot Continue",
+				    next ? "End of document." : "Beginning of document.");
+			return IO_ERROR_CANCELLED;
+		}
+		destination = state->page + (next ? 1 : -1);
+	}
+	else {
+		if (words.count != 2 || frontier < 0)
+			return IO_ERROR_INVALID_FORMAT;
+		unsigned page;
+		status = st_rip3_host_number(operation, 0, (unsigned)frontier, &page);
+		if (status != 0)
+			return status;
+		/* The original assigns the validated index through a signed word. */
+		destination = (uint16_t)page;
+		if (destination > INT16_MAX)
+			destination -= INT32_C(65536);
+	}
+	if (article == columns->article)
+		status = st_rip3_overflow_close(overflow);
+	if (status == 0)
+		state->page = destination;
+	return status;
 }
 
 static void
@@ -476,7 +570,9 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	 * graphical consumer. Table/viewport operations never use this path. */
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	session->metric=(struct st_rip3_metric_state){0};
-	st_rip3_columns_dispose(&session->columns);
+	int overflow_status=st_rip3_overflow_close(&session->columns.overflow);
+	st_rip3_columns_reset(&session->columns,hard);
+	if (overflow_status!=0) table_operation_failed(session,overflow_status);
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
@@ -742,14 +838,16 @@ open_scene(struct st_rip3_session *session, const char *name, bool suspend_query
 	if (session->scene_count == SCENE_LIMIT)
 		return IO_ERROR_OUT_OF_RANGE;
 	struct local_scene scene = {0};
-	int status = st_rip3_resource_open(&scene.file, session->commands.resources, ST_RIP3_RESOURCE_MEDIA, name);
+	int status = st_rip3_overflow_open(&session->columns.overflow, name, &scene.file, &scene.normalized);
+	if (!scene.normalized)
+		status = st_rip3_resource_open(&scene.file, session->commands.resources, ST_RIP3_RESOURCE_MEDIA, name);
 	if (status == IO_ERROR_NOT_FOUND)
 		return 0;
 	if (status != 0)
 		return status;
 	const char *suffix = strrchr(name, '.');
-	scene.article_text = st_rip3_columns_raw_active(&session->columns) && suffix != NULL
-	    && ascii_case_compare(suffix, ".txt") == 0;
+	scene.article_text = scene.normalized || (st_rip3_columns_raw_active(&session->columns)
+	    && suffix != NULL && ascii_case_compare(suffix, ".txt") == 0);
 	if (!scene.article_text)
 		status = create_stream(session, &scene.stream);
 	if (status == 0 && suspend_query)
@@ -889,7 +987,7 @@ consume(void *context, uint8_t byte)
 	const uint8_t *data = &byte;
 	size_t size = 1;
 	uint8_t output[4];
-	if (byte >= 0x80 && session->sink.scene_decode != NULL) {
+	if (!scene->normalized && byte >= 0x80 && session->sink.scene_decode != NULL) {
 		size = session->sink.scene_decode(session->sink.context, byte, output);
 		if (size > sizeof(output))
 			return;
@@ -1618,6 +1716,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->variables.text_windows=&session->window_operations;
 	session->tables.tables[ST_RIP3_TABLE_TW].live=&session->window_operations;
 	session->random.state=config->random_seed;
+	session->columns.overflow.instance=config->random_seed & UINT16_MAX;
+	session->variables.overflow_context=session;session->variables.overflow=overflow_reference;
 	if (session->variables.random==NULL) session->variables.random=&session->random;
 	session->templates=(struct st_rip3_template_host){.context=session,.selection_required=selection_required};
 	session->variables.templates=&session->templates;

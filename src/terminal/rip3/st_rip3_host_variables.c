@@ -274,6 +274,12 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (status != IO_ERROR_NOT_SUPPORTED)
 			return status;
 	}
+	if (host->overflow != NULL
+	    && (strcmp(reference->name, "OVERFLOW") == 0 || strcmp(reference->name, "RESET") == 0)) {
+		int status = host->overflow(host->overflow_context, reference, result, capacity);
+		if (status != IO_ERROR_NOT_SUPPORTED)
+			return status;
+	}
 	if (host->tables != NULL)
 		return st_rip3_table_host_execute(host->tables, reference, result, capacity);
 	return IO_ERROR_NOT_SUPPORTED;
@@ -322,9 +328,10 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 			sink->reply(sink->context, (const uint8_t *)reply, size);
 		return;
 	}
-	/* A command boundary was supplied by the enclosing RIP parser. Discard
-	 * this reference only; no error is propagated and no failure is latched. */
-	if (!decoded || status == IO_ERROR_INVALID_FORMAT || status == IO_ERROR_OUT_OF_RANGE
+	/* Report rejection to the evaluator that owns recovery. */
+	if (status == IO_ERROR_CANCELLED)
+		diagnostic = ST_RIP3_HOST_ABORTED;
+	else if (!decoded || status == IO_ERROR_INVALID_FORMAT || status == IO_ERROR_OUT_OF_RANGE
 	    || status == IO_ERROR_INVALID_ARGUMENT)
 		diagnostic = ST_RIP3_HOST_INVALID_REFERENCE;
 	else if (status == IO_ERROR_NOT_SUPPORTED)

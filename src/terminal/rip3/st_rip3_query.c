@@ -272,7 +272,8 @@ replace(void *context, const uint8_t *bytes, size_t length)
 static void
 forward_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
 {
-	diagnose(context,kind);
+	if (kind==ST_RIP3_HOST_ABORTED) st_rip3_query_cancel(context);
+	else diagnose(context,kind);
 }
 
 int
@@ -530,7 +531,8 @@ static void
 angle_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
 {
 	struct angle_value *value=context;
-	value->status=kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY
+	value->status=kind==ST_RIP3_HOST_ABORTED ? IO_ERROR_CANCELLED
+	    : kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY
 	    : kind==ST_RIP3_HOST_INVALID_REFERENCE ? IO_ERROR_INVALID_FORMAT
 	    : kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_IO;
 }
@@ -550,7 +552,9 @@ angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_byte
 		struct angle_value value={0};const struct st_rip3_host_sink sink={&value,angle_reply,angle_diagnostic};
 		st_rip3_host_variables_process(query->variables,&sink,ordinary,length);
 		const struct st_rip3_condition_bytes bytes={value.bytes,value.length};
-		st_rip3_angle_supply(query->angle,&bytes,value.status);free(value.bytes);
+		if (value.status==IO_ERROR_CANCELLED) st_rip3_query_cancel(query);
+		else st_rip3_angle_supply(query->angle,&bytes,value.status);
+		free(value.bytes);
 	}
 	else if (st_rip3_variable_reference_parse(&user,reference->bytes,reference->length)!=0
 	    || st_rip3_builtin_known(user.name,strlen(user.name))) st_rip3_angle_supply(query->angle,NULL,IO_ERROR_NOT_SUPPORTED);
@@ -586,6 +590,7 @@ angle_step(struct st_rip3_query *query)
 			st_rip3_angle_supply(query->angle,&bytes,status);
 		}
 	}
+	if (query->angle==NULL) return false;
 	if (st_rip3_angle_state(query->angle)==ST_RIP3_ANGLE_FAILED) {
 		enum st_rip3_angle_diagnostic kind=st_rip3_angle_diagnostic(query->angle);
 		angle_failure(query,kind==ST_RIP3_ANGLE_RESOURCE ? ST_RIP3_HOST_RESOURCE_FAILURE

@@ -134,7 +134,8 @@ static void
 rejected(void *context, enum st_rip3_host_diagnostic kind)
 {
 	struct value *value=context;
-	value->status=kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY : IO_ERROR_NOT_SUPPORTED;
+	value->status=kind==ST_RIP3_HOST_ABORTED ? IO_ERROR_CANCELLED
+	    : kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY : IO_ERROR_NOT_SUPPORTED;
 }
 
 static bool
@@ -168,7 +169,8 @@ reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool
 			const struct st_rip3_host_sink sink={&value,reply,rejected};
 			st_rip3_host_variables_process(w->variables,&sink,bytes,length);
 		}
-		if (angle) {
+		if (value.status==IO_ERROR_CANCELLED) failed(w,ST_RIP3_HOST_ABORTED);
+		else if (angle) {
 			const struct st_rip3_condition_bytes result={value.bytes,value.length};
 			st_rip3_angle_supply(w->angle,&result,value.status);
 		}

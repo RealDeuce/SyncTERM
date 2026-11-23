@@ -125,6 +125,7 @@ struct st_rip3_session_sink {
 	/* Optional conversion from the local scene's byte encoding to the
 	 * engine encoding. ASCII framing bytes are passed through unchanged. */
 	size_t (*scene_decode)(void *context, uint8_t byte, uint8_t output[4]);
+	void (*notice)(void *context, const char *title, const char *message);
 };
 
 struct st_rip3_session_config {

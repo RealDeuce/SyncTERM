@@ -3,10 +3,13 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
+import re
+import socket
 
 from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
 from st_rip3_connected_test import query
+from st_rip3_mouse_connected_test import field
 from st_rip3_scroll_connected_test import plane_pixel
 from st_terminal_conformance_test import Terminal
 
@@ -43,6 +46,69 @@ def check_pixels(frame, bounds, placements):
             for x in range(x0, x1 + 1):
                 actual = plane_pixel(frame, x, y, phase)
                 assert actual == expected.get((x, y), 0), (phase, x, y, actual, expected.get((x, y), 0))
+
+
+def check_overflow(terminal, root, accent):
+    owner, = (root / "cache").glob("*/syncterm-cache-name.txt")
+    cache = owner.parent / "RIP"
+    cache.mkdir(exist_ok=True)
+
+    def values(program, expected=b""):
+        return terminal.exchange(query(program, at_cursor=True), expected)
+
+    def column(x, article=13, flags=1):
+        return extended((x, 300, x + 7, 310), article, article, flags)
+
+    terminal.case("Overflow retains the original source and first undisplayed word")
+    (cache / "PAGING.TXT").write_bytes(b"A\r\n\r\n" + accent + b" A")
+    frame = terminal.exchange(commands(b"c02", column(30), b"1R00000000PAGING.TXT", b"1E"))
+    check_pixels(frame, (29, 299, 38, 311), [(30, 300, CAPITAL_A, GREEN)])
+    values(b"$OVERFLOW(13,PAGE)$:$OVERFLOW(13,CUR)$:$OVERFLOW(13,NEXT,QUERY)$:$OVERFLOW(13,PREV,QUERY)$",
+           re.compile(rb"1:(\d{3,5})D0000\.OVR:\1D0001\.OVR:\1D0001\.OVR"))
+
+    terminal.case("A pager field runs an HCL continuation in the live connection")
+    (cache / "SECOND.COL").write_bytes(commands(column(50), b"1R00000000$OVERFLOW(13)$", b"1E"))
+    frame = terminal.exchange(field((30, 340, 60, 365),
+                                    b"$OVERFLOW(13,NEXT,SET)$$>SECOND.COL$$OVERFLOW(13,PAGE)$"))
+    metadata = frame.metadata
+    x = metadata["destination_x"] + 45 * metadata["destination_width"] // metadata["plane_width"]
+    y = metadata["destination_y"] + 350 * metadata["destination_height"] // metadata["plane_height"]
+    terminal.client.mouse(x, y, action=1, buttons=1)
+    terminal.client.mouse(x, y, action=1, buttons=0)
+    frame = terminal.input(b"2")
+    check_pixels(frame, (49, 299, 58, 311), [(50, 300, ACCENT, GREEN)])
+    values(b"$OVERFLOW(13,NEXT,)$$OVERFLOW()$", re.compile(rb"\d{3,5}D0002\.OVR"))
+    filename = re.search(rb"\d{3,5}D0002\.OVR", (root / "replies.bin").read_bytes()).group()
+    frame = terminal.exchange(commands(column(70)) + query(b"$>" + filename + b"$", at_cursor=True)
+                              + commands(b"1E"))
+    check_pixels(frame, (69, 299, 78, 311), [(70, 300, CAPITAL_A, GREEN)])
+    values(b"$OVERFLOW(13,PAGE,QUERY)$:$OVERFLOW(13,NEXT,QUERY)$", b"3:<NONE>")
+
+    terminal.case("A boundary discards the evaluator's reply and skips the following scene")
+    (cache / "UNREACHED.COL").write_bytes(commands(column(90), b"1t0A", b"1E"))
+    frame = values(b"discard$OVERFLOW(13,NEXT,SETVERBOSE)$$>UNREACHED.COL$discard")
+    check_pixels(frame, (89, 299, 98, 311), [])
+    values(b"$OVERFLOW(13,PAGE)$:alive", b"3:alive")
+    values(b"$OVERFLOW(13,0)$")
+    values(b"discard$OVERFLOW(13,PREV)$discard")
+    frame = terminal.exchange(commands(column(110), b"1R00000000$OVERFLOW(13,CUR,QUERY)$", b"1E"))
+    check_pixels(frame, (109, 299, 118, 311), [(110, 300, CAPITAL_A, GREEN)])
+    values(b"$OVERFLOW(13,2)$$OVERFLOW(13,PAGE)$", b"1")
+    values(b"$OVERFLOW(13,NEXT)$$OVERFLOW(13,PAGE)$", b"2")
+
+    terminal.case("Article, drawing and overflow resets preserve their distinct state")
+    terminal.exchange(commands(column(130, 14)) + b"A A\r\n" + commands(b"#"))
+    values(b"$OVERFLOW(13,RESET)$$OVERFLOW(13,PAGE)$:$OVERFLOW(13)$:$OVERFLOW(14,NEXT,QUERY)$",
+           re.compile(rb"1:<NONE>:\d{3,5}E0001\.OVR"))
+    values(b"$OVERFLOW(14,NEXT)$")
+    terminal.exchange(commands(b"*"))
+    values(b"$OVERFLOW(14,PAGE)$:$OVERFLOW(14)$", b"2:<NONE>")
+    values(b"$RESET(OVERFLOW)$$OVERFLOW(14,PAGE)$:$OVERFLOW()$", b"1:<NONE>")
+    values(b"$WORLD(CUR,640,480)$")
+    terminal.exchange(commands(column(150, 14)) + b"A A\r\n" + commands(b"1E"))
+    values(b"$OVERFLOW(14,NEXT)$$RESET(HARD)$$OVERFLOW(14,PAGE)$:$OVERFLOW()$", b"1:<NONE>")
+    assert list(cache.glob(".rip3-overflow-*.part"))
+    return cache
 
 
 def run(args):
@@ -132,6 +198,9 @@ def run(args):
         frame = terminal.exchange(commands(region((300, 200, 379, 210), 5, 12)) + b"A\r\n!|1E\r\n")
         check_pixels(frame, (297, 197, 382, 213), [(300, 200, CAPITAL_A, RED)])
 
+        cache = check_overflow(terminal, root, accent)
+        terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
+
         terminal.case("RIPv3 regions use the selected outline font and preserve the drawing cursor")
         wire(full_view, b"m8C8C", b"c04",
              b"y00000W0M000000001a1a000000Dixon", region((110, 200, 190, 279), 5, 5),
@@ -141,6 +210,12 @@ def run(args):
                    for y in range(200, 280) for x in range(110, 191))
         for phase in ("primary", "alternate"):
             assert all(plane_pixel(frame, x, y, phase) == 0 for x, y in ((109, 200), (191, 200), (110, 199)))
+
+        terminal.case("Disconnect removes only the session's overflow files")
+        peer.shutdown(socket.SHUT_WR)
+        client.wait_for(lambda s: s.application.get("session_active") == 0)
+        assert not list(cache.glob(".rip3-overflow-*.part"))
+        assert (cache / "PAGING.TXT").exists()
 
 
 if __name__ == "__main__":
