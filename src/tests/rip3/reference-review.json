@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/155",
-  "revision": "9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6",
-  "previous_revision": "04d1637b6e6af424a7e8e7b5ac43de9669112c5b",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/157",
+  "revision": "266a26951d211a8f9069cefa16a95da7d33b4e41",
+  "previous_revision": "9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "187db415b8f21fd7c43351365eff5a3330ecd720449a82a7c48c4877c06c8527",
+  "archive_sha256": "20c028d7652bfc9cabd3d6828f8e9d46315a6a5757bbc00139b967bb5b431334",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1242,7 +1242,7 @@
     },
     {
       "path": "version/3.0/research/issue-5-scene-headers.md",
-      "sha256": "2bc9e8020d8d3103537aa8c16377eee6da1706969fc537746e00150a454718e9",
+      "sha256": "8caac60a1251677446eefd3592f8ec655305328e66bf5021fdd6addf6884eeb6",
       "title": "Issue #5: scene headers and wire entry points",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1410,9 +1410,15 @@
     },
     {
       "path": "version/3.0/research/issue-153-header-port-clipping.md",
-      "sha256": "b907fa50986abbf2da1a6efc675e659c3ab4fa71b5e11869c8c5aa499ceeb118",
+      "sha256": "94b275d720bc94b604158757e04216af3d3951d65a36defdf06a60fb2b38ddcc",
       "title": "Issue #153: HEADER port bounds reset and black fill",
       "role": "Fingerprint and static helper evidence for the active/protection distinction and visible clear. Portable temporary clipping and RGB semantics are explicit; no original software was executed."
+    },
+    {
+      "path": "version/3.0/research/issue-156-header-port-zero-reset.md",
+      "sha256": "8a7d919f2a0c6fb6dd2e3c338a3383c19123c4cd17e81891507296627d0a6cbd",
+      "title": "Issue #156: HEADER PORT 0 initializer fields",
+      "role": "Fingerprint and bounded static helper evidence. Absent P0 is explicit portable pair lifetime; no original software was executed."
     }
   ],
   "documents": [
@@ -1506,7 +1512,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "1f9d72c442a34df77bde7fb0232e0e6daabdd9804d88b0295cd778d23cf6e2fa"
+      "sha256": "36534258e8e1a89f8eb42cabd62373e15f1123f8df6c2475a8834e03ad7796d6"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
@@ -1514,7 +1520,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "9a27ec9015ac8423e19ca6d83094c5bbc1cedda7777ea49682817151ca9d5225"
+      "sha256": "bf5d8ba2568ab0faedbb2719eee99998b19c2a52eea2d16ea1da8a6ac4d40111"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1550,7 +1556,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "sha256": "dcddb3f8374207d96787d2d828384ccc84ef4611719d40f863ed5d793eaf3022"
+      "sha256": "3f5ba7004bcd3a11ec02b96a32d44b6e89011fa2ebfe69f63ef90b7cdc6714c2"
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
@@ -1606,7 +1612,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "212295228868044a54959f1ff34b63ed55ff8a280e9e1d816f230d8d809ec9e5"
+      "sha256": "bb4b9cb71da592d89def383efbbce2f096b43556e0a366f1bc04bab2c538db1a"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -10604,6 +10610,200 @@
         "original_alpha4_sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
         "scope": "Full scoped document inventory, hash and exact source-block reindex; new derivation and one reviewed derivation cross-link diff; frozen RIP154 guard."
       }
+    },
+    {
+      "previous_revision": "9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6",
+      "revision": "266a26951d211a8f9069cefa16a95da7d33b4e41",
+      "archive_sha256": "20c028d7652bfc9cabd3d6828f8e9d46315a6a5757bbc00139b967bb5b431334",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 157,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/157",
+          "head": "dafe5d54a065b31a4d01726ec1e1e0f9ab7c0ffa"
+        }
+      ],
+      "upstream_state": "The actual PR157 head is ancestral to selected fork stable, two commits ahead and none behind. Post-head edits are reviewed research and workflow checkpoints without normative changes.",
+      "authorization": "Standing user-selected stable reference and reviewed-PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "1f9d72c442a34df77bde7fb0232e0e6daabdd9804d88b0295cd778d23cf6e2fa",
+          "sha256": "36534258e8e1a89f8eb42cabd62373e15f1123f8df6c2475a8834e03ad7796d6"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "9a27ec9015ac8423e19ca6d83094c5bbc1cedda7777ea49682817151ca9d5225",
+          "sha256": "bf5d8ba2568ab0faedbb2719eee99998b19c2a52eea2d16ea1da8a6ac4d40111"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
+          "previous_sha256": "dcddb3f8374207d96787d2d828384ccc84ef4611719d40f863ed5d793eaf3022",
+          "sha256": "3f5ba7004bcd3a11ec02b96a32d44b6e89011fa2ebfe69f63ef90b7cdc6714c2"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "212295228868044a54959f1ff34b63ed55ff8a280e9e1d816f230d8d809ec9e5",
+          "sha256": "bb4b9cb71da592d89def383efbbce2f096b43556e0a366f1bc04bab2c538db1a"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8744,
+      "moved_source_blocks": 235,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 31,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:501",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:507",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:510",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:524",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:526",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:528",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:530",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:531",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:532",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:533",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:534",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:535",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:536",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:537",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:538",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:539",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:541",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:543",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:545",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:547",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:549",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:551",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:552",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:553",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:554",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:555",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:557",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:240",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:94",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:95",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:603"
+      ],
+      "retired_source_blocks": 4,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:501",
+          "heading": "Button, graphics-style, palette and environment flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            501,
+            501
+          ],
+          "text": "Global drawing/hard resets have a separate [image-style reset scope](4.1-jpeg-images.md#defaults-and-reset-scope): drawing reset changes port zero and the old current port even if protected, while other protected survivors retain image state. A header without a global reset does not implicitly reset image style. These global effects are distinct from the drawing-port segment operations below. _Evidence: [original outer reset/header tests](../research/issue-21-image-style.md#original-outer-resetheader-checkpoint)._\n",
+          "sha256": "284cdbd3c86250766eb224dba8570f052a5ff3be1126dc3a7b977e13f4784a94",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:507",
+          "heading": "Drawing-port flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            507,
+            507
+          ],
+          "text": "| 1 | Delete unprotected nonzero ports, select port 0 and reset the screen-port geometry |\n",
+          "sha256": "7b7fc267ff70359ab8991eee7df393516d81baf41f7db1bffc723204384a33db",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/156"
+          ],
+          "reason": "Deletion and selection are connected. The shared PORT 0 initializer writes beyond the listed geometry; B156 tracks the remaining reset effect."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:510",
+          "heading": "Drawing-port flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            510,
+            510
+          ],
+          "text": "| 8 | Delete other unprotected ports while preserving the current port through temporary protection; reset screen-port geometry if a nonzero port remains current |\n",
+          "sha256": "b79f2ce9e171f3a16b2f1675e95d7b1cbf2bd106cd84148488a874044f217537",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/156"
+          ],
+          "reason": "Deletion and selection are connected. The shared PORT 0 initializer writes beyond the listed geometry; B156 tracks the remaining reset effect."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.1-jpeg-images.md:94",
+          "heading": "Defaults and reset scope",
+          "source": "version/3.0/ripscrip/4.1-jpeg-images.md",
+          "lines": [
+            94,
+            94
+          ],
+          "text": "| HEADER without a global reset | No implicit image-style reset; any explicit port segments still perform their own documented operations. |\n",
+          "sha256": "681eb46d8401efb6315ea9dd70f924f4c0560b051aac838af733ee96b98d1eb0",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_image_style.c",
+            "src/terminal/rip3/st_rip3_image_style_host.c",
+            "src/terminal/rip3/st_rip3_image_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_image_style_test.c",
+            "src/terminal/rip3/tests/st_rip3_image_commands_test.c",
+            "src/terminal/rip3/tests/st_rip3_image_test.c"
+          ],
+          "reason": "The device port-reset component now implements the documented image-state exception: the old current record and zero receive all-minus-one fallback/flags zero, including protected old current; other protected survivors retain style. Independent screen/offscreen-current tests prove retained pixels, deleted unprotected ports and hard removal of protected nonzero ports on every canvas. Complete RESET_WINDOWS/HEADER parser/global-family orchestration and header-without-reset routing remain pending; the component tests do not establish those complete wire commands. The documentation is resolved."
+        }
+      ],
+      "retired_implemented_claims": [],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-156-header-port-zero-reset.md",
+          "sha256": "8a7d919f2a0c6fb6dd2e3c338a3383c19123c4cd17e81891507296627d0a6cbd",
+          "title": "Issue #156: HEADER PORT 0 initializer fields",
+          "role": "Fingerprint and bounded static helper evidence. Absent P0 is explicit portable pair lifetime; no original software was executed."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-5-scene-headers.md",
+          "previous_sha256": "2bc9e8020d8d3103537aa8c16377eee6da1706969fc537746e00150a454718e9",
+          "sha256": "8caac60a1251677446eefd3592f8ec655305328e66bf5021fdd6addf6884eeb6",
+          "scope": "Adds the reviewed cross-reference and supersedes the old geometry-only effect label."
+        },
+        {
+          "path": "version/3.0/research/issue-153-header-port-clipping.md",
+          "previous_sha256": "b907fa50986abbf2da1a6efc675e659c3ab4fa71b5e11869c8c5aa499ceeb118",
+          "sha256": "94b275d720bc94b604158757e04216af3d3951d65a36defdf06a60fb2b38ddcc",
+          "scope": "Records delivery and stable consolidation; the evidence and normative conclusions remain identical."
+        }
+      ],
+      "states_at_adoption": {
+        "unreviewed": 2943,
+        "context": 1551,
+        "pending": 1710,
+        "implemented": 2479,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8775,
+      "policy": "Review upstream material as data. Reuse the current RIP3 PORT owner without new surfaces or legacy changes. No external code, original client or probes executed.",
+      "followup": "Apply the same local PORT 0 initializer at both type-2 stages and test selection, activation, no repaint, pair/backup lifetime and query ownership.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 72,
+        "declared_prior_derivation_changes": 2,
+        "original_alpha4_sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+        "scope": "Whole scoped document inventory and exact source-block reindex. Review all normative and named derivation changes."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -13180,6 +13380,47 @@
       },
       "verification": "Native Release build, focused session and CTerm tests, live ANSI snapshot and HEADER fixtures in both encodings, RIP154 preservation and contract guards.",
       "followup": "Full per-window mode inventory and independent PORT 0 reset issue B156 remain pending."
+    },
+    {
+      "after_commit": "d712bce3",
+      "revision": "266a26951d211a8f9069cefa16a95da7d33b4e41",
+      "scope": "Apply and verify PR157 PORT 0 initialization at both HEADER type-2 stages.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:501",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:507",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:510",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:526",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:528",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:532",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:533",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:534",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:535",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:536",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:537",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:538",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:539",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:541",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:543",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:547",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:549",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:553",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:554",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:555",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:557",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:240",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:94",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:95",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:603"
+      ],
+      "states_after_update": {
+        "unreviewed": 2943,
+        "context": 1551,
+        "pending": 1685,
+        "implemented": 2504,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "verification": "Native Release CMake build; focused PORT and session tests; live HEADER in CP437 and UTF-8 on four rasters; contract and RIP154 preservation guards."
     }
   ]
 }

@@ -1696,6 +1696,28 @@ scene_header_port_state(void)
 }
 
 static int
+scene_header_port_zero_queries(void)
+{
+	struct fixture f={0};
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
+	CHECK(store_query(&f,1,'0',"floating",false)==0 && store_query(&f,3,'0',"zero",false)==0);
+	CHECK(query(&f,"$CUR(PORT,5)$","")==0 && store_query(&f,3,'5',"five",false)==0);
+	CHECK(query(&f,"$DVP(0)$","")==0);
+	CHECK(append(&f,"!|h01000001200080\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(query(&f,"$CUR(PORT)$:$TEXTXY(0)$","5:-1")==0);
+	CHECK(resident_value(&f,1,0,"floating")==0 && resident_value(&f,3,0,"zero")==0
+	    && resident_value(&f,3,5,"five")==0);
+	CHECK(append(&f,"!|h01000001200010\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(query(&f,"$CUR(PORT)$:$INUSE(PORT,5)$:$TEXTXY(0)$","0:0:-1")==0);
+	CHECK(resident_value(&f,1,0,"floating")==0 && resident_value(&f,3,0,"zero")==0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
+static int
 scene_header(void)
 {
 	struct fixture f={0};
@@ -1868,6 +1890,7 @@ main(void)
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
+	CHECK(scene_header_port_zero_queries()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

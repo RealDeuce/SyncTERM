@@ -563,11 +563,14 @@ st_rip3_ports_header_prune(struct st_rip3_ports *ports, bool keep_current)
 		if (i != keep && !ports->entries[i].info.protected)
 			delete_entry(ports, i);
 	}
-	if (!keep_current || keep != 0) {
-		ports->entries[0].info.bounds = ports->screen_bounds;
-		ports->entries[0].info.viewport = ports->screen_bounds;
-	}
 	if (!keep_current) ports->current = 0;
+	if (!keep_current || keep != 0) {
+		struct port *screen = &ports->entries[0];
+		screen->info.viewport = screen->info.bounds;
+		screen->info.cursor = (struct st_rip3_cursor){0};
+		screen->info.image = image_defaults;
+		screen->pair = (struct st_rip3_port_copy_pair){0};
+	}
 	return 0;
 }
 

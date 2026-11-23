@@ -247,6 +247,70 @@ def clipboard_actions(t, values, wire, width, height):
     assert frame.application['connected'] == 1
 
 
+def port_zero_actions(t, values, wire, width, height):
+    def coords(*values):
+        return b''.join(number(value, 2) for value in values)
+
+    def copy_to(slot, x):
+        return b'2C0' + coords(30, 30, 34, 34) + slot + coords(x, 30, x + 4, 34) + b'0'
+
+    cases = (
+        ('bit-1', b'h01000001200010', 5, True, 0, False, True),
+        ('bit-8-nonzero', b'h01000001200080', 5, False, 5, True, True),
+        ('bit-8-zero', b'h01000001200080', 0, False, 0, False, False),
+        ('select-before-bit-8', b'h010000012000A5', 0, True, 5, True, True),
+    )
+    for name, command, start, active, current, keep_five, initialized in cases:
+        t.case('rip3-header-port-zero-initializer-' + name)
+        wire(b'h01000100')
+        values(b'$CUR(ENV,2)$$CUR(PAL,4)$$CUR(STYLE,3)$$CUR(BUT,2)$'
+               + f'$WORLD(CUR,{width},{height})$'.encode())
+        values(b'$CUR(PORT,5)$$CUR(PORT,0)$')
+        wire(b'v' + coords(10, 20, 100, 100) + b'|W0|S0104|B' + coords(30, 30, 33, 33)
+             + b'|' + copy_to(b'0', 50) + b'|' + copy_to(b'5', 70))
+        # Change the old source so a later reverse copy is observable.
+        values(b'$CUR(PORT,5)$')
+        wire(b'm0711')
+        values(b'$IMGSTYLE(5,4,6,10,12,ASPECT)$$CUR(PORT,0)$')
+        wire(b'S0102|B' + coords(30, 30, 33, 33) + b'|m0709')
+        values(b'$IMGSTYLE(0,2,3,12,13,ASPECT,DELETE,NOCLEAR,USEPAL)$'
+               b'$CUR(PORT,6)$$PROT(PORT,6)$$CUR(PORT,7)$')
+        if not active:
+            values(b'$DVP(0)$')
+        values(f'$CUR(PORT,{start})$$SCB$'.encode())
+        before = t.exchange(b'\x1b[2;3H\x1b7\x1b[3;4H')
+        assert pixel(before, 40, 50) == 0x00aa00
+        frame = wire(command)
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+        assert xy(frame) == (4, 3)
+        values(b'$CUR(PORT)$:$INUSE(PORT,5)$:$ISPROT(PORT,6)$:$INUSE(PORT,7)$:$INUSE(PORT,BASE)$',
+               f'{current}:{int(keep_five)}:1:0:1'.encode())
+        values(b'$CUR(ENV)$:$CUR(PAL)$:$CUR(STYLE)$:$CUR(BUT)$:$WORLD$',
+               f'2:4:3:2:{width}:{height}'.encode())
+        if keep_five:
+            values(b'$ISPROT(PORT,5)$:$TEXTXY(5)$:$IMGSTYLE(5)$', b'0:7:37:4:6:11:13:1')
+        if not active:
+            values(b'$TEXTXY(0)$', b'-1')
+        else:
+            values(b'$TEXTXY(0)$', b'0:0')
+        values(b'$AVP(0)$$CUR(PORT,0)$')
+        state = (f'0:0:{width}:{height}:0:0:-1:-1:-1:-1:0' if initialized
+                 else '10:20:101:101:17:29:2:3:13:14:15')
+        values(b'$PORTX0(0,VIEW,DEVICE)$:$PORTY0(0,VIEW,DEVICE)$:$PORTX1(0,VIEW,DEVICE)$:$PORTY1(0,VIEW,DEVICE)$:'
+               b'$TEXTXY(0)$:$IMGSTYLE(0)$', state.encode())
+        frame = values(b'$PCB(CUR)$')
+        assert pixel(frame, 40, 50) == (0x00aa00 if initialized else 0xaa0000)
+        frame = t.exchange(b'\x1b8')
+        assert xy(frame) == (3, 2)
+        if keep_five:
+            # P5 applies the recorded source offset in its own zero-origin viewport.
+            frame = values(b'$CUR(PORT,5)$$PCB(CUR)$')
+            assert pixel(frame, 30, 30) == 0xaa0000
+        if initialized:
+            frame = values(b'$RCB$$AVP(0)$$CUR(PORT,0)$$PCB(CUR)$')
+            assert pixel(frame, 40, 50) == 0xaa0000 and frame.application['connected'] == 1
+
+
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -364,6 +428,7 @@ def run(args, width, height):
         geometry_actions(t, values, width, height)
         port_actions(t, values, wire, width, height)
         clipboard_actions(t, values, wire, width, height)
+        port_zero_actions(t, values, wire, width, height)
 
 
 if __name__ == '__main__':

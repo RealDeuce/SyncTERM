@@ -1054,3 +1054,27 @@ geometry reset for active unprotected ports from opaque RGB-black fill over
 active ports' physical bounds, including protected ports. The fill retains
 the viewport for later drawing. The [connected implementation](RIP3_CONFORMANCE.md#connected-header-port-black-fill)
 records runtime evidence. Existing upstream issue threads were left as filed.
+
+## PR #157 PORT 0 initializer
+
+The selected fork stable revision is now
+[`266a26951d211a8f9069cefa16a95da7d33b4e41`](https://github.com/RealDeuce/remote-imaging-protocol/tree/266a26951d211a8f9069cefa16a95da7d33b4e41).
+It incorporates reviewed [PR #157](https://github.com/bbs-land/remote-imaging-protocol/pull/157)
+head `dafe5d54a065b31a4d01726ec1e1e0f9ab7c0ffa`. The two subsequent commits add
+research delivery and workflow notes. The SHA-256 of the pinned local Git tar
+archive is `20c028d7652bfc9cabd3d6828f8e9d46315a6a5757bbc00139b967bb5b431334`.
+The archive was processed in memory.
+
+Four of the same 68 normative documents change. Ordered exact-text matching
+carries 8744 source blocks, moving 235 line references. The review records four
+retired blocks and adds 31 for 8775 total. Of the 74 previous derivations, two
+change through the earlier scene-header cross-reference and the port-fill
+delivery note. The new #156 derivation is separately hashed. The original
+ALPHA4 text and license bytes retain their hashes.
+
+B156 is resolved. When called, the local initializer restores full viewport
+geometry, homes the graphics cursor, sets image fallback and clears the
+remembered copy pair. Activation, queries and pixels persist. Bit 1 selects
+port 0 and invokes it. Bit 8 preserves the logical current port and invokes it
+only while that current port is nonzero. The [connected implementation](RIP3_CONFORMANCE.md#connected-header-port-zero-initializer)
+records runtime evidence.

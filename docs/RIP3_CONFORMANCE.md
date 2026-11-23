@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6](https://github.com/RealDeuce/remote-imaging-protocol/tree/9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6/version/3.0)
+266a26951d211a8f9069cefa16a95da7d33b4e41](https://github.com/RealDeuce/remote-imaging-protocol/tree/266a26951d211a8f9069cefa16a95da7d33b4e41/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8841,9 +8841,9 @@ protection and deletion branches, bitmap creation and reclamation, selection
 order, continued input, and backup restore. A native fixture supplies stale
 and port-zero assignments to exercise those recovery paths.
 
-Type-2 bits 1 and 8 call a separate screen-port initializer at RVA 0x33d82.
-It writes cursor and image state beyond the geometry named in the reference.
-The issue tracks the remaining reset field set. [Issue #156](https://github.com/bbs-land/remote-imaging-protocol/issues/156)
+PR #157 answers the remaining screen-port initializer questions in issue #156.
+The [connected PORT 0 milestone](#connected-header-port-zero-initializer)
+records the field effects for type-2 bits 1 and 8.
 
 The queue contains 2466 implemented, 1688 pending, 2959 unreviewed,
 1541 context, 67 excluded and 27 blocked units.
@@ -8873,3 +8873,26 @@ split ANSI input, and restoration of the earlier ESC 7 snapshot after MTW.
 
 The queue contains 2479 implemented, 1686 pending, 2944 unreviewed,
 1545 context, 67 excluded and 27 blocked units.
+
+## Connected HEADER PORT 0 initializer
+
+Bit 1 prunes unprotected nonzero ports, selects port 0 and initializes its local
+drawing state. Bit 8 retains the current definition and its protection while
+pruning other unprotected nonzero ports. It initializes port 0 only if the
+logical current port is nonzero after the earlier selection and deletion stages.
+
+The initializer writes the viewport, graphics cursor, image style and copy pair
+on the existing screen port. It restores full viewport bounds and homes the
+graphics cursor. The image style returns to viewport fallback with flags zero,
+and the pair becomes absent. Screen-port identity, activation, queries, screen
+pixels, saved PORT backups and ANSI state persist. A surviving nonzero port
+keeps its own cursor, image style and copy pair.
+
+Headless TCP tests in CP437 and UTF-8 cover bits 1 and 8 with active and inactive
+PORT 0. They verify early port selection, bit 8's zero-current skip, palette and
+environment retention, the ANSI cursor and ESC 7 snapshot, coherent scene
+pixels, and copy pair retention or removal. Restoring a PORT backup reinstates
+the saved pair. Native session tests confirm fixed and floating query ownership.
+
+The queue contains 2504 implemented, 1685 pending, 2943 unreviewed,
+1551 context, 67 excluded and 25 blocked units.
