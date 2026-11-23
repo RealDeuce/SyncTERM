@@ -1309,3 +1309,18 @@ moves 48 line ranges, adds 13 blocks and retires three, for 9,070 total.
 The two derivations address B191 and B193. The connected column fixtures
 exercise the new font metrics, and the native classic layout vectors cover
 the corrected left/middle flags.
+
+## PR #198 Tab navigation and terminal option discovery
+
+Fork stable contains integration commit
+[`78af40f04da66012587b2f10f66899d95471350e`](https://github.com/RealDeuce/remote-imaging-protocol/tree/78af40f04da66012587b2f10f66899d95471350e).
+Its tree matches PR head `741394e664db11df7fd10e87f9f78e1fca108a37`,
+and its Git tar archive has SHA-256
+`4292cf123d42870662cc3866dc4b071d1818990a627184c31c27633dfad175ba`.
+[PR #198](https://github.com/bbs-land/remote-imaging-protocol/pull/198)
+
+Four normative documents change. The inventory retains 9,042 source units,
+moves 1,021 line ranges, adds 41 units and retires 28, for 9,083 total.
+The new derivation covers the forward and backward cycles, focus lifetime,
+and supported-option discovery. The issue #193 derivation adds its stable
+integration record.

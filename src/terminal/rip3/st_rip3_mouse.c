@@ -86,6 +86,13 @@ set_tab_focus(struct st_rip3_mouse *mouse, struct field *field)
 		mouse->sink.tab_focus(mouse->sink.context, field == NULL ? NULL : &field->area);
 }
 
+void
+st_rip3_mouse_clear_tab_focus(struct st_rip3_mouse *mouse)
+{
+	if (mouse != NULL)
+		set_tab_focus(mouse, NULL);
+}
+
 void st_rip3_mouse_bind_templates(struct st_rip3_mouse *mouse,struct st_rip3_templates *templates)
 {
 	if (mouse!=NULL && mouse->count==0) mouse->templates=templates;
@@ -295,7 +302,6 @@ void
 st_rip3_mouse_boundary(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
-	set_tab_focus(mouse, NULL);
 	st_rip3_mouse_cancel_silent(mouse);mouse->hover_phase=0;
 	for (size_t i=0;i<mouse->count;i++) mouse->fields[i]->hovered=false;
 	/* An allocated activation already owns its source/FIELDID. Keep it;
@@ -315,6 +321,7 @@ void
 st_rip3_mouse_abort(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
+	set_tab_focus(mouse, NULL);
 	st_rip3_mouse_boundary(mouse);while (mouse->activation!=NULL) {struct activation *next=mouse->activation->next;free(mouse->activation);mouse->activation=next;}
 }
 
@@ -477,7 +484,6 @@ commit(struct st_rip3_mouse *mouse,struct field *field,bool keyboard,int32_t x,i
 		    .x=x,.y=y,.keyboard=keyboard,.reset=field->reset,.redraw_capacity=capacity};
 		if (field->length!=0) memcpy(action_program(action),field->program,field->length);
 	}
-	set_tab_focus(mouse, NULL);
 	if (keyboard) st_rip3_mouse_cancel(mouse);
 	if (action==NULL) {
 		if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
@@ -532,11 +538,7 @@ tab_next(struct st_rip3_mouse *mouse, bool backward)
 	for (size_t i = 0; mouse->tab_focus != NULL && i < mouse->count; i++) {
 		if (mouse->fields[i] != mouse->tab_focus)
 			continue;
-		if (backward)
-			/* RIPtel's reverse arm wraps when the decremented index is zero. */
-			next = i <= 1 ? mouse->count - 1 : i - 1;
-		else
-			next = (i + 1) % mouse->count;
+		next = backward ? (i + mouse->count - 1) % mouse->count : (i + 1) % mouse->count;
 		break;
 	}
 	set_tab_focus(mouse, mouse->fields[next]);
@@ -695,6 +697,7 @@ restore_mouse(void *object,const void *saved)
 	 * Once applying starts, later allocation failure cannot revive a press or
 	 * old uncommitted hover traversal. Definitions/handlers already live remain
 	 * usable on failure; committed source/FIELDID continuations remain owned. */
+	set_tab_focus(mouse, NULL);
 	st_rip3_mouse_boundary(mouse);
 	struct mouse_snapshot *copy=calloc(1,sizeof(*copy));if (copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	uint64_t tokens[128];for (size_t i=0;i<source->count;i++) tokens[i]=mouse->sequence+i+1;

@@ -620,7 +620,7 @@ st_term_session_set_mouse_disabled(st_term_session_t *session, bool disabled)
 {
 	if (session != NULL) {
 		session->mouse_disabled = disabled;
-		if (disabled) st_term_rip3_mouse_cancel(session->rip3);
+		if (disabled) st_term_rip3_mouse_cancel(session->rip3, false);
 	}
 }
 
@@ -1110,6 +1110,8 @@ handle_event(st_term_session_t *session,
 		if (st_cterm_musicomm_stop(st_term_session_cterm(session))) return 0;
 	}
 	st_cterm_observe_mouse(st_term_session_cterm(session), event);
+	if (event->type == ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
+		st_term_rip3_mouse_cancel(session->rip3, true);
 	if (session->config.event_hook != NULL) {
 		bool consumed;
 		int status = session->config.event_hook(
@@ -1146,7 +1148,6 @@ handle_event(st_term_session_t *session,
 		}
 		return session->output_error;
 	case ST_CONSOLE_EVENT_FOCUS:
-		if (!event->data.focus.focused) st_term_rip3_mouse_cancel(session->rip3);
 		(void)st_cterm_handle_focus(st_term_session_cterm(session),
 		    event->data.focus.focused);
 		return session->output_error;

@@ -3,6 +3,7 @@
 #include "st_rip3_host_internal.h"
 #include "st_rip3_local_variables.h"
 #include "st_rip3_environments.h"
+#include "st_rip3_mouse.h"
 #include "st_rip3_condition_internal.h"
 #include "io_error.h"
 
@@ -69,7 +70,7 @@ options(void)
 		.context = &enabled, .doorway_mode = doorway_mode, .set_doorway_mode = set_doorway_mode,
 	};
 	struct st_rip3_host_variables host = {.local = &local};
-	CHECK(query(&host, "$OPTION(LIST)$", "DOORWAY,LIST", -1) == 0);
+	CHECK(query(&host, "$OPTION(LIST)$", "DOORWAY", -1) == 0);
 	CHECK(query(&host, "$OPTION(DOORWAY)$", "0", -1) == 0);
 	struct st_rip3_builtin_reference option;
 	const char on[] = "$OPTION(DOORWAY,ON)$";
@@ -82,8 +83,15 @@ options(void)
 	CHECK(query(&host, "$OPTION(doorway, QUERY)$", "1", -1) == 0);
 	CHECK(query(&host, "$DWAYOFF(1)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0 && enabled);
 	host.local = NULL;
-	CHECK(query(&host, "$OPTION(LIST)$", "LIST", -1) == 0);
+	const char list[] = "$OPTION(LIST)$";
+	CHECK(st_rip3_builtin_reference_parse(&option, (const uint8_t *)list, sizeof(list) - 1) == 0);
+	CHECK(st_rip3_host_variables_execute(&host, &option, result, sizeof(result)) == 0 && result[0] == '\0');
 	CHECK(query(&host, "$OPTION(DOORWAY)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
+	const struct st_rip3_mouse_sink sink = {0};
+	CHECK(st_rip3_mouse_create(&host.mouse, &sink) == 0);
+	st_rip3_mouse_set_tab(host.mouse, false);
+	CHECK(query(&host, "$OPTION(LIST)$", "HOTKEY,TAB", -1) == 0);
+	st_rip3_mouse_destroy(host.mouse);
 	return 0;
 }
 

@@ -71,10 +71,10 @@ keyboard_option(const struct st_rip3_host_variables *host,
 		if (word_equal(option, "LIST")) {
 			if (words.count != 1)
 				return IO_ERROR_INVALID_FORMAT;
-			char list[sizeof("DOORWAY,HOTKEY,LIST,TAB")];
-			int length = snprintf(list, sizeof(list), "%s%sLIST%s",
-			    has_doorway ? "DOORWAY," : "", has_mouse ? "HOTKEY," : "",
-			    has_mouse ? ",TAB" : "");
+			char list[sizeof("DOORWAY,HOTKEY,TAB")];
+			int length = snprintf(list, sizeof(list), "%s%s%s",
+			    has_doorway ? "DOORWAY" : "", has_doorway && has_mouse ? "," : "",
+			    has_mouse ? "HOTKEY,TAB" : "");
 			if (length < 0 || (size_t)length >= sizeof(list))
 				return IO_ERROR_IO;
 			if ((size_t)length >= capacity)

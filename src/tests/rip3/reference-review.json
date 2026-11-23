@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/196",
-  "revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
-  "previous_revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/198",
+  "revision": "78af40f04da66012587b2f10f66899d95471350e",
+  "previous_revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The two reviewed open PR heads match their respective integration trees on fork stable.",
-  "archive_sha256": "1e10c6b490312d3fa1f3bb1af2bb688408cd6871147b899bc50570f825344edb",
+  "upstream_state_at_adoption": "The open PR head matches the integration commit contained in fork stable.",
+  "archive_sha256": "4292cf123d42870662cc3866dc4b071d1818990a627184c31c27633dfad175ba",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,24 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "previous_sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c",
-      "sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86"
+      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+      "previous_sha256": "33cb3751fcb324cbd4b64b1502bc1eaa5c2fc395cea5484227b3bfb05e7e62a6",
+      "sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e"
     },
     {
-      "path": "version/3.0/ripscrip/3.1-column-text-system.md",
-      "previous_sha256": "4af9087c14285658bef8e96a81d52ff1d5a1e728d6964e9f5deb623ae4a946c3",
-      "sha256": "ca0bff05c290327883c237deffae635d278f408fb6225ee4193e002a7b750dfd"
+      "path": "version/3.0/ripscrip/4.3-buttons.md",
+      "previous_sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce",
+      "sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.1-text-variables.md",
+      "previous_sha256": "6864031d676e5e2de46eb1f308a57fba2f88ece9ef47420244ad9acc480182af",
+      "sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664"
+    },
+    {
+      "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+      "previous_sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338",
+      "sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e"
     }
   ],
   "new_documents": [],
@@ -1530,9 +1540,15 @@
     },
     {
       "path": "version/3.0/research/issue-193-font-zero-example.md",
-      "sha256": "94294c31242af17e58e271d699aaef276d9140a520fb28bb940b8720b4885295",
+      "sha256": "aef7e5557f509cbba3dbffffadbc2a7f879665c37a36217e84828fe9b73f6994",
       "title": "Issue #193 - Correct the DEFAULT EX placement example",
       "role": "Correct classic font-zero flags in the size-five layout example."
+    },
+    {
+      "path": "version/3.0/research/issue-197-tab-navigation.md",
+      "sha256": "6da80e25a86ff3560144d3c07ddbfa481e7ca95dd8caaa815b422437af3c8126",
+      "title": "Issue #197 - Tab navigation and OPTION(LIST)",
+      "role": "Original field mutation and keyboard event evidence, portable focus lifetime, and option discovery order."
     }
   ],
   "documents": [
@@ -1674,11 +1690,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "33cb3751fcb324cbd4b64b1502bc1eaa5c2fc395cea5484227b3bfb05e7e62a6"
+      "sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce"
+      "sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1694,7 +1710,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "6864031d676e5e2de46eb1f308a57fba2f88ece9ef47420244ad9acc480182af"
+      "sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1734,7 +1750,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338"
+      "sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
@@ -17369,6 +17385,49 @@
         "added": 1,
         "retired": 1
       }
+    },
+    {
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/198",
+      "revision": "78af40f04da66012587b2f10f66899d95471350e",
+      "previous_revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+      "reviewed_head": "741394e664db11df7fd10e87f9f78e1fca108a37",
+      "archive_sha256": "4292cf123d42870662cc3866dc4b071d1818990a627184c31c27633dfad175ba",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "33cb3751fcb324cbd4b64b1502bc1eaa5c2fc395cea5484227b3bfb05e7e62a6",
+          "sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce",
+          "sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "6864031d676e5e2de46eb1f308a57fba2f88ece9ef47420244ad9acc480182af",
+          "sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338",
+          "sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-197-tab-navigation.md",
+          "sha256": "6da80e25a86ff3560144d3c07ddbfa481e7ca95dd8caaa815b422437af3c8126",
+          "title": "Issue #197 - Tab navigation and OPTION(LIST)",
+          "role": "Original field mutation and keyboard event evidence, portable focus lifetime, and option discovery order."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9042,
+        "moved": 1021,
+        "added": 41,
+        "retired": 28
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -21252,6 +21311,61 @@
         "unreviewed": 2331
       },
       "verification": "Native mouse, backup, local-variable and session tests. Connected CP437 and UTF-8 keyboard, simple-field and field-backup tests. Contract and RIP 1.54 preservation checks."
+    },
+    {
+      "after_commit": "dea34a71",
+      "revision": "78af40f04da66012587b2f10f66899d95471350e",
+      "scope": "Adopt the PR #198 portable Tab cycle, keyboard focus lifetime, and supported-option discovery.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:129",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:133",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:137",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:138",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:139",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:140",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:142",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:144",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:150",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:151",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:152",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:153",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:154",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:158",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:160",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:168",
+        "version/3.0/ripscrip/4.3-buttons.md:629",
+        "version/3.0/ripscrip/5.1-text-variables.md:2527",
+        "version/3.0/ripscrip/5.1-text-variables.md:2529",
+        "version/3.0/ripscrip/5.1-text-variables.md:2533",
+        "version/3.0/ripscrip/5.1-text-variables.md:2534",
+        "version/3.0/ripscrip/5.1-text-variables.md:2535",
+        "version/3.0/ripscrip/5.1-text-variables.md:2539",
+        "version/3.0/ripscrip/5.1-text-variables.md:2545",
+        "version/3.0/ripscrip/5.1-text-variables.md:2547",
+        "version/3.0/ripscrip/5.1-text-variables.md:2607",
+        "version/3.0/ripscrip/5.1-text-variables.md:2609",
+        "version/3.0/ripscrip/5.1-text-variables.md:2611",
+        "version/3.0/ripscrip/5.1-text-variables.md:2613",
+        "version/3.0/ripscrip/5.1-text-variables.md:2615",
+        "version/3.0/ripscrip/5.1-text-variables.md:2620",
+        "version/3.0/ripscrip/5.1-text-variables.md:2622",
+        "version/3.0/ripscrip/5.1-text-variables.md:2624",
+        "version/3.0/ripscrip/5.1-text-variables.md:2626",
+        "version/3.0/ripscrip/5.1-text-variables.md:2628",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:141"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:287"
+      ],
+      "states_after_update": {
+        "blocked": 25,
+        "context": 1829,
+        "excluded": 71,
+        "implemented": 3291,
+        "pending": 1536,
+        "unreviewed": 2331
+      },
+      "verification": "Native field, backup, local-variable and session checks. CP437 and UTF-8 live keyboard, simple-field and mouse-backup tests. Contract and RIP 1.54 preservation checks."
     }
   ]
 }

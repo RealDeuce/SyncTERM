@@ -130,6 +130,7 @@ void st_rip3_mouse_hotkeys(struct st_rip3_mouse *mouse, bool enabled);
 bool st_rip3_mouse_hotkeys_enabled(const struct st_rip3_mouse *mouse);
 bool st_rip3_mouse_tab_enabled(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_set_tab(struct st_rip3_mouse *mouse, bool enabled);
+void st_rip3_mouse_clear_tab_focus(struct st_rip3_mouse *mouse);
 /* Semantic Tab, Enter or Escape before ordinary byte hotkeys. */
 bool st_rip3_mouse_navigation(struct st_rip3_mouse *mouse, uint8_t key, bool backward);
 

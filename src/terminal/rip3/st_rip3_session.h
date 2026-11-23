@@ -218,8 +218,10 @@ bool st_rip3_session_key(struct st_rip3_session *session, uint8_t byte);
 bool st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward);
 uint64_t st_rip3_session_press_token(const struct st_rip3_session *session);
 void st_rip3_session_mouse_cancel(struct st_rip3_session *session);
-/* Focus/pointer-delivery boundary, distinct from capture-only cancellation. */
+/* Pointer-delivery boundary, distinct from capture-only cancellation. */
 void st_rip3_session_pointer_boundary(struct st_rip3_session *session);
+/* Also remove keyboard focus at a local focus loss or input-lock boundary. */
+void st_rip3_session_focus_lost(struct st_rip3_session *session);
 /* Presentation services. Revision advances after commands/host continuations;
  * it does not promise that pixels changed. Damage is borrowed through unbind
  * or destruction, one byte per canvas pixel; see surface_damage. */

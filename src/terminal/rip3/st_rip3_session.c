@@ -578,6 +578,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 		else if (status!=IO_ERROR_NOT_FOUND) return status;
 		/* Remove transient feedback without evaluating a button label or
 		 * retargeting an already committed field's owned response. */
+		st_rip3_mouse_clear_tab_focus(session->commands.mouse);
 		st_rip3_mouse_boundary(session->commands.mouse);
 		st_rip3_button_renderer_cancel(session->commands.buttons);
 	}
@@ -635,7 +636,7 @@ static void
 set_input_lock(struct st_rip3_session *session, bool locked)
 {
 	if (locked && !session->input_locked)
-		st_rip3_mouse_boundary(session->commands.mouse);
+		st_rip3_session_focus_lost(session);
 	session->input_locked = locked;
 }
 
@@ -1801,6 +1802,15 @@ void
 st_rip3_session_pointer_boundary(struct st_rip3_session *session)
 {
 	if (session!=NULL) st_rip3_mouse_boundary(session->commands.mouse);
+}
+
+void
+st_rip3_session_focus_lost(struct st_rip3_session *session)
+{
+	if (session != NULL) {
+		st_rip3_mouse_clear_tab_focus(session->commands.mouse);
+		st_rip3_mouse_boundary(session->commands.mouse);
+	}
 }
 
 void

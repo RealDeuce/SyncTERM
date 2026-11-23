@@ -80,8 +80,11 @@ def check_tab_navigation(t):
     key("enter", b"second:32")
     key("tab", modifiers=SHIFT)  # No current field starts at the first slot.
     key("tab")
-    key("tab", modifiers=SHIFT)  # Slot 1 wraps to the last on reverse.
-    key("enter", b"third:33")
+    key("tab", modifiers=SHIFT)  # Slot 1 steps back to the first field.
+    key("enter", b"first:31")
+    key("tab", modifiers=SHIFT)
+    key("tab", modifiers=SHIFT)
+    key("enter", b"third:33")  # Both directions wrap at their last slot.
     key("tab")
     key("tab")
     key("tab")
@@ -114,6 +117,63 @@ def check_tab_navigation(t):
     same_pixels(values(b"$MKILL$$HKEYON$"), cleared)
     key("tab", b"\t")
 
+    t.case("rip3-tab-focus-lifetime")
+    before = t.exchange(field(first, b"ID=31:first:$FIELDID$")
+                        + button(second, b"ID=32:<><>second:$FIELDID$", hotkey=13)
+                        + field(third, b"ID=33:third:$FIELDID$", invert=True))
+    key("tab")
+    focused = key("tab")
+    assert focused.primary != before.primary
+    same_pixels(values(b"$TABON$$OPTION(LIST)$", b"DOORWAY,HOTKEY,TAB"), focused)
+    same_pixels(values(b"$SMF$$RMF(3)$"), focused)
+    same_pixels(t.exchange(b"\x01|1Mbad\r\n" + remove_fields((0, 250, 20, 270), 1)), focused)
+    same_pixels(key(ord("q"), b"q"), focused)
+    # Clicking another field commits its own action while keyboard focus
+    # stays on B. The bitmap backend reports destination-scaled coordinates.
+    m = focused.metadata
+    px = m["destination_x"] + 600 * m["destination_width"] // (2 * 640)
+    py = m["destination_y"] + 210 * m["destination_height"] // (2 * 480)
+    client.mouse(px, py, action=1, buttons=1)
+    client.mouse(px, py, action=1, buttons=0)
+    same_pixels(t.input(b"third:33"), focused)
+    client.mouse(px, py, action=1, buttons=1)
+    held = client.wait_for(lambda frame: pixel(frame, 300, 105) == 0xffffff)
+    for y in range(480):
+        left_of_pressed = slice(y * 640, y * 640 + 270)
+        assert held.primary[left_of_pressed] == focused.primary[left_of_pressed]
+        assert held.alternate[left_of_pressed] == focused.alternate[left_of_pressed]
+    same_pixels(key("enter", b"second:32"), before)
+    dequeued = client.capture().metadata["events_dequeued"]
+    client.mouse(px, py, action=1, buttons=0)
+    client.wait_for(lambda frame: frame.metadata["events_dequeued"] > dequeued)
+    same_pixels(t.exchange(), before)
+    key("tab")
+    key("tab")
+    same_pixels(t.exchange(remove_fields(first, 1)), before)
+    same_pixels(key("tab"), focused)  # With A removed, B is the first survivor.
+    same_pixels(values(b"$RMF$"), before)
+    key("tab")
+    key("enter", b"first:31")
+    key("tab")
+    key("tab")
+    dequeued = client.capture().metadata["events_dequeued"]
+    client.focus(False)
+    client.wait_for(lambda frame: frame.metadata["events_dequeued"] > dequeued)
+    same_pixels(t.exchange(), before)
+    client.focus(True)
+    key("tab")
+    key("enter", b"first:31")
+    values(b"$MKILL$")
+
+    t.case("rip3-tab-outline-clips-the-expanded-edges")
+    before = t.exchange(field((0, 10, 12, 20), b"edge"))
+    focused = key("tab")
+    assert pixel(focused, 0, 6) != pixel(before, 0, 6)
+    assert pixel(focused, 15, 10) != pixel(before, 15, 10)
+    assert pixel(focused, 0, 10) == pixel(before, 0, 10)
+    same_pixels(key("escape"), before)
+    values(b"$MKILL$")
+
 
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
@@ -138,7 +198,7 @@ def run(args):
         values(b"$IFS(LIST, _EMULATIONS)$:$IFS(LIST, _LANGUAGES)$", b"ANSI,DOORWAY,RIPSCRIP:ENG")
 
         t.case("rip3-doorway-option-and-ansi-use-the-same-keyboard-mode")
-        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,LIST,TAB:0")
+        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,TAB:0")
         key("up", b"\x1b[A")
         values(b"$OPTION(doorway, on)$$OPTION(DOORWAY, QUERY)$", b"1")
         key("up", b"\x00\x48")

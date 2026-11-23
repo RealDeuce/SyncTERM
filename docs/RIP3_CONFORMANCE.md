@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-266a26951d211a8f9069cefa16a95da7d33b4e41](https://github.com/RealDeuce/remote-imaging-protocol/tree/266a26951d211a8f9069cefa16a95da7d33b4e41/version/3.0)
+78af40f04da66012587b2f10f66899d95471350e](https://github.com/RealDeuce/remote-imaging-protocol/tree/78af40f04da66012587b2f10f66899d95471350e/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -9368,20 +9368,20 @@ text windows with Doorway enabled and verify the arrow key's two-byte
 scancode reply and its normal ANSI sequence. `OPTION(HOTKEY)` uses the
 same button gate as `HKEYON` and `HKEYOFF`.
 
-`OPTION(LIST)` returns `DOORWAY,HOTKEY,LIST,TAB` for the connected client.
+`OPTION(LIST)` returns `DOORWAY,HOTKEY,TAB` for the connected client.
+The portable profile lists supported options in RIPtel's order, including
+options currently disabled. Status-bar control remains pending.
 `OPTION(LIST, QUERY)` preserves the literal reference and reports a
 syntax diagnostic. `IFS` reports Doorway under emulations and English
-under languages. The portable list follows the draft's alphabetical
-format. The RIPtel 3.1 option table and status-bar control remain open
-in the ledger. [Issue #197](https://github.com/bbs-land/remote-imaging-protocol/issues/197)
+under languages. [PR #198](https://github.com/bbs-land/remote-imaging-protocol/pull/198)
 
 ## Connected Tab navigation
 
 `TABON`, `TABOFF` and `OPTION(TAB)` share a single enabled flag, on at
 connection start. Turning the option off clears any focus. Tab selects
 the first field or advances in creation order. Shift+Tab also starts at
-the first field. With an existing focus it moves backward, wrapping to
-the last field when the decremented index is zero or lower. Enter
+the first field. Once a field has focus, both directions wrap through
+every field. Enter
 activates the focused field through the keyboard action path, ahead of
 CR hotkeys and independently of the hotkey option. Escape clears focus
 and consumes the key. The RIPtel event and traversal routines are at
@@ -9389,12 +9389,13 @@ RVAs `0x04fb6` and `0x45056`.
 
 The focus indicator is a clipped one-pixel inverted outline four device
 pixels outside the field. It shares the pointer feedback mechanism and
-preserves palette indices and both blink planes. Field additions and
-removals, restoration, input boundaries and activation clear focus.
-The original lifetime around rejected mutations and the exact option
-list still need documentation. Connected CP437 and UTF-8 cases check
-simple fields, button activation, return to ordinary key delivery,
-and drawing through an active outline. [Issue #197](https://github.com/bbs-land/remote-imaging-protocol/issues/197)
+preserves palette indices and both blink planes, including while a
+pointer press is displayed. Successful field additions and removals,
+applying MOUSE restores, keyboard focus loss and input lock clear focus.
+An ordinary pointer activation, rejected mutation or no-op deletion
+preserves it. Connected CP437 and UTF-8 cases check simple fields,
+button activation, held-press cancellation, focus lifetime and drawing
+through an active outline. [PR #198](https://github.com/bbs-land/remote-imaging-protocol/pull/198)
 
 ## Connected classic graphics font alignment
 

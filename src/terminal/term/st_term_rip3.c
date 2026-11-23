@@ -36,12 +36,12 @@ struct st_term_rip3 {
 	unsigned selected_window;
 	bool targeting;
 	bool mouse_feedback;
-	unsigned feedback_depth, feedback_count;
-	struct st_console_rect mouse_area, tab_area;
+	unsigned feedback_depth, feedback_count, tab_edge_count;
+	struct st_console_rect mouse_area, tab_edges[4];
 	struct {
 		struct st_console_rect area;
 		struct st_pixel_buffer *pixels;
-	} feedback[4];
+	} feedback[5];
 	struct st_rip3_point mouse_position;
 	uint8_t tty[4096];
 	size_t tty_length;
@@ -1269,7 +1269,7 @@ st_term_rip3_note_queued_input(struct st_term_rip3 *rip,const struct st_console_
 {
 	if (rip==NULL) return;
 	if (event->type==ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
-		st_rip3_session_pointer_boundary(rip->session);
+		st_rip3_session_focus_lost(rip->session);
 	if (press_tail(event)) rip->prompt_queued_token=st_rip3_session_press_token(rip->session);
 }
 
@@ -1281,7 +1281,7 @@ st_term_rip3_observe_prompt_input(struct st_term_rip3 *rip,const struct st_conso
 	 * boundary now, even when this hover prompt has no held guest press.
 	 * Keep its committed query/FIELDID; suppress the old traversal tail. */
 	if (event->type==ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
-		st_rip3_session_pointer_boundary(rip->session);
+		st_rip3_session_focus_lost(rip->session);
 	if (rip->prompt_token==0 || rip->retain_prompt_input==NULL
 	    || rip->prompt_queued_token==rip->prompt_token || !press_tail(event)) return;
 	/* Exactly one release/cancel belongs to the original guest gesture. Later
@@ -1429,30 +1429,21 @@ feedback_begin(struct st_term_rip3 *rip)
 static void
 feedback_end(struct st_term_rip3 *rip)
 {
-	if (--rip->feedback_depth != 0 || rip->pick_list != NULL
-	    || (!rip->mouse_feedback && rip->tab_area.width == 0))
+	if (--rip->feedback_depth != 0 || rip->pick_list != NULL)
 		return;
-	struct st_console_rect areas[4] = {rip->mouse_area};
-	unsigned count = 1;
-	if (!rip->mouse_feedback) {
-		const struct st_console_rect area = rip->tab_area;
-		areas[0] = (struct st_console_rect){area.x, area.y, area.width, 1};
-		if (area.height > 1)
-			areas[count++] = (struct st_console_rect){area.x, area.y + area.height - 1, area.width, 1};
-		if (area.height > 2) {
-			areas[count++] = (struct st_console_rect){area.x, area.y + 1, 1, area.height - 2};
-			if (area.width > 1)
-				areas[count++] = (struct st_console_rect){area.x + area.width - 1, area.y + 1, 1, area.height - 2};
-		}
-	}
+	unsigned pointer_regions = rip->mouse_feedback ? 1 : 0;
+	unsigned count = pointer_regions + rip->tab_edge_count;
 	for (unsigned i = 0; i < count; i++) {
+		const struct st_console_rect *area = i < pointer_regions ? &rip->mouse_area
+		    : &rip->tab_edges[i - pointer_regions];
 		/* Preserve palette indices and both blink planes. Tab only touches
-		 * the perimeter, so its temporary snapshots can stay that small. */
-		int status = st_console_get_pixels(&rip->feedback[i].pixels, rip->config.console, &areas[i], false);
+		 * the perimeter. Restore the snapshots in reverse order if a
+		 * focus edge and a pointer press overlap. */
+		int status = st_console_get_pixels(&rip->feedback[i].pixels, rip->config.console, area, false);
 		if (status == 0) {
-			rip->feedback[i].area = areas[i];
+			rip->feedback[i].area = *area;
 			rip->feedback_count++;
-			status = st_console_invert_pixels(rip->config.console, &areas[i]);
+			status = st_console_invert_pixels(rip->config.console, area);
 		}
 		if (status != 0) {
 			feedback_remove(rip);
@@ -1477,23 +1468,39 @@ mouse_invert(void *context, const struct st_rip3_rect *area)
 }
 
 static void
+tab_outline(struct st_term_rip3 *rip, const struct st_rip3_rect *area,
+    uint32_t width, uint32_t height)
+{
+	/* Clip the expanded edges independently so a line beyond the display
+	 * does not reappear on the rim. The two side spans exclude the corners. */
+	int64_t left = (int64_t)area->x0 - 4, right = (int64_t)area->x1 + 3;
+	int64_t top = (int64_t)area->y0 - 4, bottom = (int64_t)area->y1 + 3;
+	int64_t x0 = left < 0 ? 0 : left, x1 = right >= width ? (int64_t)width - 1 : right;
+	int64_t y0 = top < 0 ? 0 : top + 1, y1 = bottom > height ? height : bottom;
+	if (x0 <= x1 && top >= 0 && top < height)
+		rip->tab_edges[rip->tab_edge_count++] = (struct st_console_rect){(uint32_t)x0,
+		    (uint32_t)top, (uint32_t)(x1 - x0 + 1), 1};
+	if (x0 <= x1 && bottom >= 0 && bottom < height)
+		rip->tab_edges[rip->tab_edge_count++] = (struct st_console_rect){(uint32_t)x0,
+		    (uint32_t)bottom, (uint32_t)(x1 - x0 + 1), 1};
+	if (y0 < y1 && left >= 0 && left < width)
+		rip->tab_edges[rip->tab_edge_count++] = (struct st_console_rect){(uint32_t)left,
+		    (uint32_t)y0, 1, (uint32_t)(y1 - y0)};
+	if (y0 < y1 && right >= 0 && right < width)
+		rip->tab_edges[rip->tab_edge_count++] = (struct st_console_rect){(uint32_t)right,
+		    (uint32_t)y0, 1, (uint32_t)(y1 - y0)};
+}
+
+static void
 mouse_tab_focus(void *context, const struct st_rip3_rect *area)
 {
 	struct st_term_rip3 *rip = context;
 	feedback_begin(rip);
-	rip->tab_area = (struct st_console_rect){0};
+	rip->tab_edge_count = 0;
 	if (area != NULL) {
 		uint32_t width, height;
-		if (st_console_pixel_size(rip->config.console, &width, &height) == 0) {
-			uint32_t x = area->x0 > 4 ? (uint32_t)area->x0 - 4 : 0;
-			uint32_t y = area->y0 > 4 ? (uint32_t)area->y0 - 4 : 0;
-			uint32_t right = (uint32_t)area->x1 + 4;
-			uint32_t bottom = (uint32_t)area->y1 + 4;
-			if (right > width) right = width;
-			if (bottom > height) bottom = height;
-			if (x < right && y < bottom)
-				rip->tab_area = (struct st_console_rect){x, y, right - x, bottom - y};
-		}
+		if (st_console_pixel_size(rip->config.console, &width, &height) == 0)
+			tab_outline(rip, area, width, height);
 	}
 	feedback_end(rip);
 }
@@ -1521,6 +1528,8 @@ st_term_rip3_captured_input(struct st_term_rip3 *rip,uint64_t token,const struct
 		(void)st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
 		    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
 	}
+	else if (event->type == ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
+		st_rip3_session_focus_lost(rip->session);
 	else st_rip3_session_pointer_boundary(rip->session);
 }
 
@@ -1583,13 +1592,15 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 	case ST_CONSOLE_EVENT_KEY_CODE: {
 		unsigned code=event->data.key.code;uint32_t modifiers=event->data.key.modifiers;
 		if (code>127 || (modifiers&(ST_CONSOLE_MODIFIER_ALT|ST_CONSOLE_MODIFIER_GUI))!=0) return false;
+		if (code == '\r' || code == 0x1b)
+			navigation = (uint8_t)code;
 		if ((modifiers&ST_CONSOLE_MODIFIER_CONTROL)!=0) {
 			if (code>='a' && code<='z') code-=32;
 			if (code>='@' && code<='_') code&=31;
 			else if (code==' ') code=0;
 			else if (code=='?') code=127;
 		}
-		else if (code == '\t' || code == '\r' || code == 0x1b) {
+		else if (code == '\t') {
 			navigation = (uint8_t)code;
 			backward = (modifiers & ST_CONSOLE_MODIFIER_SHIFT) != 0;
 		}
@@ -1613,11 +1624,14 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 }
 
 void
-st_term_rip3_mouse_cancel(struct st_term_rip3 *rip)
+st_term_rip3_mouse_cancel(struct st_term_rip3 *rip, bool keyboard_focus_lost)
 {
 	if (rip!=NULL) {
 		st_term_rip3_pick_list_disarm(rip->pick_list);
-		st_rip3_session_pointer_boundary(rip->session);
+		if (keyboard_focus_lost)
+			st_rip3_session_focus_lost(rip->session);
+		else
+			st_rip3_session_pointer_boundary(rip->session);
 	}
 }
 
