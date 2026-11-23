@@ -68,12 +68,14 @@ struct st_rip3_host_variables {
 	const struct st_rip3_table_host *tables;
 	/* Borrowed live pixel limit, shared with bitmap allocation. */
 	const uint64_t *offscreen_pixel_budget;
-	/* One converted local-time snapshot for an expansion batch. The client
-	 * owns clock conversion/time-zone selection; no global TZ or locale is
-	 * changed by the parser. Years 1..9999, ordinary seconds 0..59, and
-	 * consistent tm calendar/weekday/year-day fields are required. */
+	/* Borrowed local-time snapshot for a caller with a fixed clock sample.
+	 * Live sessions supply local_clock instead. Each valid clock reference
+	 * reads it once, including references reached after a delay. */
 	const struct tm *local_time;
-	/* Borrowed word/phrase; NULL or empty means the zone is unknown. */
+	void *clock_context;
+	bool (*local_clock)(void *context, struct tm *local);
+	/* Explicit zone override, with an empty string for an unknown zone.
+	 * When NULL, a live client uses the zone associated with local_clock. */
 	const char *time_zone;
 	/* Fallback background, already resolved to a palette index. A bound live
 	 * STYLE takes precedence, using live ENV/PAL for direct-color resolution. */
@@ -144,7 +146,7 @@ struct st_rip3_host_sink {
  * Supports NULL, IFS, TERMINFO, RESX/RESY, D, RAND, MKILL, scoped FIELDID,
  * SHIFT/CTRL, MSTAT, COLORS,
  * captured XY, ATW/DTW through the bound text-window owner,
- * the resolved date/time fields and the
+ * the date/time fields and the
  * implemented table/viewport/environment-variable families, plus PORTW/PORTH
  * and PORTX0/Y0/X1/Y1 with the shared decimal-port, PORT/VIEW, WORLD/DEVICE
  * grammar (only trailing fields optional). DOMAIN in the second position is
@@ -168,7 +170,6 @@ struct st_rip3_host_sink {
  * record backup/protection is separate from future scene-wide activation.
  * COLORMODE queries undefined slots as -1 and edits defined precision 0..8,
  * bypassing ENV protection. Its wire counterpart accepts only eight-bit RGB.
- * DATETIME formatting remains blocked.
  * D requires one decimal duration 1..65535 in 60ths of a second (the detailed
  * rule; the milliseconds summary conflicts under #46). It emits no text and
  * starts the bound input gate. General same-host-command continuation/yield

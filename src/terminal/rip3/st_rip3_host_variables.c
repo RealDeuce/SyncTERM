@@ -360,7 +360,8 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 		 * reply. Emit its complete phrase without imposing the scratch-buffer
 		 * bound or allocating a copy. Parameter errors still use recovery. */
 		if (host != NULL && reference.count == 0 && strcmp(reference.name, "TIMEZONE") == 0) {
-			const char *zone = st_rip3_datetime_zone(host);
+			char buffer[ST_RIP3_TIME_ZONE_CAPACITY];
+			const char *zone = st_rip3_datetime_zone(host, buffer, sizeof(buffer));
 			if (sink != NULL && sink->reply != NULL)
 				sink->reply(sink->context, (const uint8_t *)zone, strlen(zone));
 			return;

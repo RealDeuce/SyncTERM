@@ -29,9 +29,15 @@ static const char *const months[] = {
 };
 
 const char *
-st_rip3_datetime_zone(const struct st_rip3_host_variables *host)
+st_rip3_datetime_zone(const struct st_rip3_host_variables *host, char *zone, size_t capacity)
 {
-	return host->time_zone == NULL || host->time_zone[0] == 0 ? "NONE" : host->time_zone;
+	if (host->time_zone != NULL)
+		return host->time_zone[0] == '\0' ? "NONE" : host->time_zone;
+	struct tm local;
+	if (host->local_clock != NULL && host->local_clock(host->clock_context, &local)
+	    && strftime(zone, capacity, "%Z", &local) != 0)
+		return zone;
+	return "NONE";
 }
 
 static bool
@@ -63,8 +69,10 @@ st_rip3_datetime_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
 	const struct tm *local = host->local_time;
+	struct tm current;
 	const char *text = NULL;
 	char formatted[32];
+	char zone[ST_RIP3_TIME_ZONE_CAPACITY];
 	enum field field = ADOW;
 	bool found = false;
 	int added = 0;
@@ -83,11 +91,14 @@ st_rip3_datetime_execute(const struct st_rip3_host_variables *host,
 		return IO_ERROR_NOT_SUPPORTED;
 	if (reference->count != 0)
 		return IO_ERROR_INVALID_FORMAT;
-	if (field == DATETIME)
-		return IO_ERROR_NOT_SUPPORTED; /* Day padding/newline unresolved, #18. */
 	if (field == TIMEZONE)
-		text = st_rip3_datetime_zone(host);
+		text = st_rip3_datetime_zone(host, zone, sizeof(zone));
 	else {
+		if (host->local_clock != NULL) {
+			if (!host->local_clock(host->clock_context, &current))
+				return IO_ERROR_IO;
+			local = &current;
+		}
 		if (local == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
 		if (!valid_snapshot(local))
@@ -107,6 +118,10 @@ st_rip3_datetime_execute(const struct st_rip3_host_variables *host,
 		case MONTH: text = months[month]; break;
 		case DATE:
 			added = snprintf(formatted, sizeof(formatted), "%02u/%02u/%02u", month + 1, day, year % 100);
+			break;
+		case DATETIME:
+			added = snprintf(formatted, sizeof(formatted), "%02u/%02u/%02u %02u:%02u:%02u",
+			    month + 1, day, year % 100, hour, minute, second);
 			break;
 		case TIME:
 			added = snprintf(formatted, sizeof(formatted), "%02u:%02u:%02u", hour, minute, second);

@@ -9,6 +9,7 @@ identity. Each checkpoint fences the wire before taking one coherent capture.
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
+import re
 import time
 
 from st_migrated_control_test import connection
@@ -80,6 +81,31 @@ def command_lines_keep_art(t, count):
     assert frame.primary == before.primary
     assert frame.application["connected"] == 1
     return frame
+
+
+def datetime_queries(t):
+    t.case("rip3-local-datetime-advances-within-a-query")
+    start = int(time.time())
+    replies = t.root / "replies.bin"
+    offset = replies.stat().st_size
+    stamp = rb"[0-9]{2}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"
+    frame = t.exchange(query(b"A$DATETIME$B$D(120)$C$DATETIME()$D", at_cursor=True),
+                       re.compile(rb"A(" + stamp + rb")BC(" + stamp + rb")D"))
+    end = int(time.time())
+    actual = replies.read_bytes()[offset:]
+    first, second = re.match(rb"A(" + stamp + rb")BC(" + stamp + rb")D", actual).groups()
+    expected = {time.strftime("%m/%d/%y %H:%M:%S", time.localtime(value)).encode()
+                for value in range(start, end + 1)}
+    assert first in expected and second in expected and first != second, (first, second, expected)
+    assert frame.application["connected"] == 1
+
+    t.case("rip3-timezone-and-datetime-recovery")
+    # Use the platform's zone spelling and allow either side of a transition.
+    now = int(time.time())
+    zones = {(time.strftime("%Z", time.localtime(value)) or "NONE").encode()
+             for value in (now - 1, now, now + 1)}
+    zone = re.compile(rb"(?:" + b"|".join(map(re.escape, zones)) + rb"):alive")
+    t.exchange(query(b"$TIMEZONE$:$DATETIME(1)$alive", at_cursor=True), zone)
 
 
 def run(args, width, height, advance):
@@ -195,6 +221,7 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(query(b"$-=VALUE=kept$$&VALUE$"), b"kept")
         t.exchange(query(b"$COLORS$:$SHIFT$:$CTRL$"), b"256:0:0")
         if width == 640:
+            datetime_queries(t)
             t.case("rip3-connected-prompt")
             send(query(b"$*=PROMPT,20@RIP3 validation$") + b"\x1b[5n")
             client.wait_text("RIP3 validation")

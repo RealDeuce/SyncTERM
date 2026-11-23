@@ -61,7 +61,6 @@ struct st_term_rip3 {
 	struct st_rip3_features features;
 	struct st_rip3_terminal_identity identity;
 	struct st_rip3_local_queries local;
-	struct tm local_time;
 	struct st_rip3_variables *session_values, *persistent_values;
 	struct st_rip3_user_variables *user;
 	char *variable_path;
@@ -1344,7 +1343,6 @@ static void
 process(struct st_term_rip3 *rip, bool publish)
 {
 	if (rip==NULL || rip->pick_list!=NULL) return;
-	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	st_rip3_session_process(rip->session,4096);
 	if (publish) present(rip);
 	prompt(rip);
@@ -1659,6 +1657,14 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 	free(rip->variable_path);free(rip->queue);free(rip->damage);free(rip);
 }
 
+static bool
+read_local_clock(void *context, struct tm *local)
+{
+	(void)context;
+	time_t when = time(NULL);
+	return when != (time_t)-1 && cterm_rip_localtime(when, local);
+}
+
 int
 st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *config,
     st_cterm_t *ansi, const struct st_cterm_config *text_config)
@@ -1683,7 +1689,6 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;
 	rip->local=(struct st_rip3_local_queries){.context=rip,.modifiers=modifiers,.colors=&rip->colors};
-	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_ANSI,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_RIPSCRIP,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_BMP,true);
@@ -1713,7 +1718,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	const struct st_rip3_user_variable_host user={.session=rip->session_values,.persistent=rip->persistent_values};
 	if (status==0) status=st_rip3_user_variables_create(&rip->user,&user);
 	const struct st_rip3_host_variables services={.features=&rip->features,.identity=&rip->identity,
-	    .local_time=&rip->local_time,.local=&rip->local,.user_variables=rip->user,
+	    .local_clock=read_local_clock,.local=&rip->local,.user_variables=rip->user,
 	    .directory=config->rip_directory!=NULL && config->rip_directory[0]!='\0' ? &rip->host_directory : NULL};
 	const struct st_rip3_session_config session={
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,

@@ -37,7 +37,9 @@ int st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
 int st_rip3_datetime_execute(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, char *result, size_t capacity);
-const char *st_rip3_datetime_zone(const struct st_rip3_host_variables *host);
+enum { ST_RIP3_TIME_ZONE_CAPACITY = 256 };
+const char *st_rip3_datetime_zone(const struct st_rip3_host_variables *host,
+	char *zone, size_t capacity);
 /* Select a borrowed, complete TERMINFO phrase for immediate parser emission. */
 int st_rip3_terminfo_select(const struct st_rip3_host_variables *host,
 	const struct st_rip3_builtin_reference *reference, const char **result);

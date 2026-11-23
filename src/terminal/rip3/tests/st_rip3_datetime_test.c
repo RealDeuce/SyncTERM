@@ -60,6 +60,23 @@ expect(const struct st_rip3_host_variables *host, const char *expression,
 	return 0;
 }
 
+struct test_clock {
+	unsigned calls;
+	bool fail;
+};
+
+static bool
+read_clock(void *context, struct tm *local)
+{
+	struct test_clock *clock = context;
+	clock->calls++;
+	if (clock->fail)
+		return false;
+	*local = (struct tm){.tm_year=124,.tm_mon=1,.tm_mday=29,.tm_hour=23,
+	    .tm_min=4,.tm_sec=(int)clock->calls,.tm_wday=4,.tm_yday=59};
+	return true;
+}
+
 int
 main(void)
 {
@@ -68,6 +85,7 @@ main(void)
 	struct st_rip3_host_variables host = {.local_time=&local,.time_zone="EST"};
 	const struct {const char *expression, *reply;} fields[] = {
 		{"$ADOW$","Thu"}, {"$AMPM$","PM"}, {"$DATE$","02/29/24"},
+		{"$DATETIME$","02/29/24 23:04:05"},
 		{"$DAY$","29"}, {"$DOW$","Thursday"}, {"$DOY$","060"},
 		{"$FYEAR$","2024"}, {"$HOUR$","11"}, {"$MHOUR$","23"},
 		{"$MIN$","04"}, {"$MONTH$","February"}, {"$MONTHNUM$","02"},
@@ -85,7 +103,7 @@ main(void)
 
 	for (size_t i = 0; i < sizeof(fields) / sizeof(*fields); i++)
 		CHECK(expect(&host, fields[i].expression, -1, fields[i].reply) == 0);
-	CHECK(expect(&host, "$DATETIME$", ST_RIP3_HOST_UNSUPPORTED_REFERENCE, NULL) == 0);
+	CHECK(expect(&host, "$DATETIME(1)$", ST_RIP3_HOST_INVALID_REFERENCE, NULL) == 0);
 	CHECK(expect(&host, "$DAY(1)$", ST_RIP3_HOST_INVALID_REFERENCE, NULL) == 0);
 	CHECK(expect(&host, "$DAY$", -1, "29") == 0);
 	/* All English month/day names are independent of the client's locale. */
@@ -101,11 +119,13 @@ main(void)
 		CHECK(expect(&host, "$ADOW$", -1, abbreviated[(i + 1) % 7]) == 0);
 		if (i == 4) CHECK(expect(&host, "$DAY$", -1, "05") == 0);
 	}
-	/* Literal examples from the reference, using coherent Gregorian dates
-	 * rather than its inconsistent DATETIME weekday/year combination. */
+	/* Literal examples from the pinned reference. */
 	local = (struct tm){.tm_year=93,.tm_mon=11,.tm_mday=19,.tm_wday=0,.tm_yday=352,
 	    .tm_hour=14,.tm_min=38,.tm_sec=50};
 	CHECK(expect(&host, "$DATE$", -1, "12/19/93") == 0);
+	CHECK(expect(&host, "$DATETIME$", -1, "12/19/93 14:38:50") == 0);
+	local.tm_mday=5; local.tm_yday=338;
+	CHECK(expect(&host, "$DATETIME()$", -1, "12/05/93 14:38:50") == 0);
 	CHECK(expect(&host, "$FYEAR$", -1, "1993") == 0);
 	CHECK(expect(&host, "$YEAR$", -1, "93") == 0);
 	CHECK(expect(&host, "$MONTHNUM$", -1, "12") == 0);
@@ -146,6 +166,7 @@ main(void)
 	local = (struct tm){.tm_year=99,.tm_mon=11,.tm_mday=31,.tm_wday=5,.tm_yday=364};
 	CHECK(expect(&host, "$DATE$", -1, "12/31/99") == 0);
 	local = (struct tm){.tm_year=100,.tm_mon=0,.tm_mday=1,.tm_wday=6,.tm_yday=0};
+	CHECK(expect(&host, "$DATETIME$", -1, "01/01/00 00:00:00") == 0);
 	CHECK(expect(&host, "$YEAR$", -1, "00") == 0);
 	CHECK(expect(&host, "$FYEAR$", -1, "2000") == 0);
 	local = (struct tm){.tm_year=100,.tm_mon=1,.tm_mday=29,.tm_wday=2,.tm_yday=59};
@@ -198,5 +219,17 @@ main(void)
 	CHECK(expect(&host, "$DATE$", ST_RIP3_HOST_UNSUPPORTED_REFERENCE, NULL) == 0);
 	host.time_zone = NULL;
 	CHECK(expect(&host, "$TIMEZONE$", -1, "NONE") == 0);
+	struct test_clock clock = {0};
+	host.clock_context = &clock;
+	host.local_clock = read_clock;
+	CHECK(expect(&host, "$DATETIME(1)$", ST_RIP3_HOST_INVALID_REFERENCE, NULL) == 0);
+	CHECK(clock.calls == 0);
+	CHECK(expect(&host, "$DATETIME$", -1, "02/29/24 23:04:01") == 0);
+	CHECK(expect(&host, "$TIME$", -1, "23:04:02") == 0);
+	clock.fail = true;
+	CHECK(expect(&host, "$DATETIME$", ST_RIP3_HOST_OPERATION_FAILED, NULL) == 0);
+	CHECK(expect(&host, "$TIMEZONE$", -1, "NONE") == 0);
+	clock.fail = false;
+	CHECK(expect(&host, "$DATETIME$", -1, "02/29/24 23:04:05") == 0);
 	return 0;
 }

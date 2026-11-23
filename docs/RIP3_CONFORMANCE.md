@@ -935,20 +935,17 @@ and terminal routing remain pending and must preserve the same error contract.
 Native Valgrind reports no errors or definite/indirect leaks in this recovery
 fixture, including injected clone/restore failure cleanup.
 
-`rip3_datetime` verifies nineteen resolved date/time variables through the public
+`rip3_datetime` verifies all twenty date/time variables through the public
 nonfatal processor using one borrowed, converted local-time snapshot and a
-client-selected zone phrase. Independent literal replies cover every resolved
-reference example, all English month/weekday names, decimal padding, midnight/
+client-selected zone phrase. Independent literal replies cover the documented
+`DATETIME` examples, all English month/weekday names, decimal padding, midnight/
 noon, century/leap-year and year boundaries, day-of-year 001/365/366, Sunday-first
 and Monday-first week 00/01/52/53, and unknown-zone NONE. No global clock, locale
 or TZ setting is changed. A 4,096-byte zone phrase is emitted intact through a
 borrowed reply, without the numeric/palette scratch-buffer limit. Invalid client
-clock ranges and nonexistent dates emit only a nonfatal operation diagnostic;
-the next valid query still works. Native Valgrind reports no errors or definite/
-indirect leaks. Clock collection/conversion and batch/session wiring remain
-pending client-adapter work. DATETIME stays unsupported under #18; the YEAR
-handler follows its unambiguous name/meaning while the malformed syntax block
-remains unresolved.
+clock ranges and nonexistent dates emit a nonfatal operation diagnostic,
+and the next valid query still works. A controlled clock source also checks that
+invalid parameters skip the clock read and that read failures allow recovery.
 
 `rip3_legacy_icon` checks independent v3 decoding of legacy ICN/HIC/MSK memory
 data for conversion to BMP. It preserves all sixteen indexes, copies an
@@ -9339,6 +9336,18 @@ and 15 ms per fifteen at 9,600. Native fake-clock tests check these boundaries,
 changing rate during playback, clock rollover, nested return, cancellation
 and SOFT within a group. Connected CP437 and UTF-8 tests cover playback
 pacing, rate queries across a scene reset, ENV selection and backup restore.
+
+## Connected date and time queries
+
+The connected RIPv3 terminal reads and converts the current local time when
+a date or time reference executes. `DATETIME` uses the RIPtel 3.1 format
+`MM/DD/YY HH:MM:SS` with 17 ASCII bytes. `TIMEZONE` uses the zone reported
+for that local sample, with `NONE` when unavailable.
+[PR #48](https://github.com/bbs-land/remote-imaging-protocol/pull/48)
+
+Connected CP437 and UTF-8 tests check a full reply with two timestamps
+separated by `D(120)` in the same query, the local timezone, and the next
+reply after an invalid `DATETIME` argument.
 
 ## Connected classic graphics font alignment
 
