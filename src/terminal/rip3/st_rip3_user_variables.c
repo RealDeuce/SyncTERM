@@ -12,6 +12,7 @@ struct st_rip3_user_variables {
 	struct st_rip3_variable_reference reference;
 	struct st_rip3_variable_value initial, result;
 	enum st_rip3_user_variable_state state;
+	bool definition, require_confirmation;
 };
 
 static void
@@ -57,6 +58,7 @@ st_rip3_user_variables_abort(struct st_rip3_user_variables *variables)
 	variables->initial=(struct st_rip3_variable_value){0};
 	variables->result=(struct st_rip3_variable_value){0};
 	variables->state=ST_RIP3_USER_VARIABLE_IDLE;
+	variables->definition = variables->require_confirmation = false;
 }
 
 static bool
@@ -78,12 +80,12 @@ valid_reference(const struct st_rip3_variable_reference *reference, size_t limit
 }
 
 static int
-lookup(struct st_rip3_user_variables *variables, const char *name, struct st_rip3_variable_value *value)
+lookup(struct st_rip3_user_variables *variables, const char *name, struct st_rip3_variable_entry *entry)
 {
 	size_t length = strlen(name);
-	int status = st_rip3_variables_get(variables->host.session, name, length, value);
+	int status = st_rip3_variables_get_entry(variables->host.session, name, length, entry);
 	if (status == IO_ERROR_NOT_FOUND)
-		status = st_rip3_variables_get(variables->host.persistent, name, length, value);
+		status = st_rip3_variables_get_entry(variables->host.persistent, name, length, entry);
 	return status;
 }
 
@@ -104,10 +106,14 @@ finish(struct st_rip3_user_variables *variables, const struct st_rip3_variable_v
 	unsigned flags=reference->directives;
 	struct st_rip3_variables *destination=(flags&ST_RIP3_VARIABLE_PERSISTENT)!=0 ? variables->host.persistent
 	    : (flags&ST_RIP3_VARIABLE_SESSION)!=0 ? variables->host.session : NULL;
-	if (destination!=NULL) {
-		status=st_rip3_variables_set(destination,reference->name,strlen(reference->name),value.bytes,value.length);
-		if (status!=0) { failed(variables,status); return; }
+	if (variables->definition) {
+		status = st_rip3_variables_define(variables->host.session,
+		    (flags & ST_RIP3_VARIABLE_PERSISTENT) != 0 ? variables->host.persistent : NULL,
+		    reference->name, strlen(reference->name), value.bytes, value.length, variables->require_confirmation);
 	}
+	else if (destination!=NULL)
+		status=st_rip3_variables_set(destination,reference->name,strlen(reference->name),value.bytes,value.length);
+	if (status!=0) { failed(variables,status); return; }
 	struct st_rip3_variable_value result={0};
 	if ((flags&ST_RIP3_VARIABLE_SET)==0 || (flags&ST_RIP3_VARIABLE_GET)!=0) {
 		if (value.length==0) { result.length=4;memcpy(result.bytes,"NULL",4); }
@@ -138,7 +144,8 @@ st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 		failed(variables,IO_ERROR_NOT_SUPPORTED);return;
 	}
 	variables->reference=copy;
-	struct st_rip3_variable_value existing={0},candidate={0};
+	struct st_rip3_variable_entry existing={0};
+	struct st_rip3_variable_value candidate={0};
 	int status=lookup(variables,copy.name,&existing);
 	if (status!=0 && status!=IO_ERROR_NOT_FOUND) { failed(variables,status);return; }
 	bool found=status==0, define=(copy.directives&ST_RIP3_VARIABLE_SET)!=0;
@@ -151,14 +158,14 @@ st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 		memcpy(candidate.bytes,copy.default_value.bytes,candidate.length);
 		source=ST_RIP3_USER_VARIABLE_DEFAULT;
 	}
-	else if (!define && retrieve && found) candidate=existing;
+	else if (!define && retrieve && found) candidate=existing.value;
 	else if (!define && retrieve && copy.has_default) {
 		candidate.length=copy.default_value.length;
 		memcpy(candidate.bytes,copy.default_value.bytes,candidate.length);
 		source=ST_RIP3_USER_VARIABLE_DEFAULT;
 	}
 	else {
-		if (found) variables->initial=existing;
+		if (found) variables->initial=existing.value;
 		else if (copy.has_default) {
 			variables->initial.length=copy.default_value.length;
 			memcpy(variables->initial.bytes,copy.default_value.bytes,copy.default_value.length);
@@ -185,33 +192,35 @@ st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
 		return;
 	}
 	variables->reference = *reference;
+	variables->definition = true;
+	struct st_rip3_variable_entry existing = {0};
+	int status = lookup(variables, reference->name, &existing);
+	if (status != 0 && status != IO_ERROR_NOT_FOUND) {
+		failed(variables, status);
+		return;
+	}
+	variables->require_confirmation = existing.require_confirmation;
 	struct st_rip3_variable_value value = {0};
 	enum st_rip3_user_variable_source source = ST_RIP3_USER_VARIABLE_DEFAULT;
 	if (reference->has_default) {
 		value.length = reference->default_value.length;
 		memcpy(value.bytes, reference->default_value.bytes, value.length);
 	}
-	else {
-		int status = lookup(variables, reference->name, &value);
-		if (status != 0 && status != IO_ERROR_NOT_FOUND) {
-			failed(variables, status);
-			return;
+	else if (status == 0) {
+		value = existing.value;
+		source = ST_RIP3_USER_VARIABLE_EXISTING;
+		const uint8_t *end = memchr(value.bytes, 0, value.length);
+		if (end != NULL)
+			value.length = (size_t)(end - value.bytes);
+		size_t length = st_rip3_graphical_prefix(value.bytes, value.length, 60, converted);
+		if (utf8 && length < value.length) {
+			while (length != 0 && (value.bytes[length] & 0xc0) == 0x80)
+				length--;
 		}
-		if (status == 0) {
-			source = ST_RIP3_USER_VARIABLE_EXISTING;
-			const uint8_t *end = memchr(value.bytes, 0, value.length);
-			if (end != NULL)
-				value.length = (size_t)(end - value.bytes);
-			size_t length = st_rip3_graphical_prefix(value.bytes, value.length, 60, converted);
-			if (utf8 && length < value.length) {
-				while (length != 0 && (value.bytes[length] & 0xc0) == 0x80)
-					length--;
-			}
-			value.length = length;
-			value.bytes[length] = 0;
-		}
+		value.length = length;
+		value.bytes[length] = 0;
 	}
-	if (interactive) {
+	if (interactive || variables->require_confirmation) {
 		variables->initial = value;
 		variables->state = ST_RIP3_USER_VARIABLE_PROMPT;
 	}
@@ -248,6 +257,24 @@ st_rip3_user_variables_respond(struct st_rip3_user_variables *variables,
 	accepted.length=length>255 ? 255 : length;
 	if (accepted.length!=0) memcpy(accepted.bytes,value,accepted.length);
 	finish(variables,&accepted,ST_RIP3_USER_VARIABLE_RESPONSE);
+}
+
+void
+st_rip3_user_variables_accept_definition(struct st_rip3_user_variables *variables,
+    const uint8_t *value, size_t length, const bool *require_confirmation)
+{
+	if (st_rip3_user_variables_state(variables) != ST_RIP3_USER_VARIABLE_PROMPT || !variables->definition)
+		return;
+	if (require_confirmation != NULL)
+		variables->require_confirmation = *require_confirmation;
+	st_rip3_user_variables_respond(variables, value, length, false);
+}
+
+bool
+st_rip3_user_variables_definition_confirmation(const struct st_rip3_user_variables *variables)
+{
+	return st_rip3_user_variables_state(variables) == ST_RIP3_USER_VARIABLE_PROMPT
+	    && variables->definition && variables->require_confirmation;
 }
 
 enum st_rip3_user_variable_state

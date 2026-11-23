@@ -19885,6 +19885,38 @@
         "blocked": 25
       },
       "verification": "Connected CP437 and UTF-8 column fixtures verify both pixel planes, literal framing, radix and inactive viewport suppression, malformed input recovery, classic stroke reference and fit, signed justification and overflow isolation. Native classic text, vector stroke, text command and session fixtures cover existing callers."
+    },
+    {
+      "after_commit": "16e5987f",
+      "revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
+      "scope": "Apply PR #182 confirmation, acceptance, cancellation and persistence to the live RIP_DEFINE editor and both record stores.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:123",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:127",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:131",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:133",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:135",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:120",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:121",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:139",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:145",
+        "version/3.0/ripscrip/5.0-host-commands.md:251",
+        "version/3.0/ripscrip/5.1-text-variables.md:179",
+        "version/3.0/ripscrip/5.1-text-variables.md:459",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:119",
+        "version/3.0/ripscrip/9.0-command-reference.md:204"
+      ],
+      "partially_covered_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2487,
+        "context": 1724,
+        "pending": 1666,
+        "implemented": 3036,
+        "excluded": 70,
+        "blocked": 25
+      },
+      "verification": "Native session, user variable and versioned file fixtures verify the definition parser, store updates, cancellation and migration. Live CP437 and UTF-8 tests verify editor width, exact ordered replies and restoration of the saved policy on reconnect."
     }
   ]
 }

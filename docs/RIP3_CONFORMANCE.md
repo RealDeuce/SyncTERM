@@ -9183,24 +9183,29 @@ WORD, with 60 as the fallback outside 1–60. The literal default is limited to
 one byte fewer than the width, measured in original codepage bytes for CP437
 input. A clipped UTF-8 value ends at a complete character.
 
-Flag 1 selects persistent storage. Flag 2 rejects an accepted blank editor
-response. Flag 4 allows a silent definition, including for an undefined
-name. A nonempty literal default takes precedence over an existing value,
-which is copied up to the first 60 original bytes when used as the fallback.
-Definitions use the same session and persistent stores as inline variables
-and send no automatic reply. An interactive command pauses further input
-until the editor completes. An explicit editor cancellation saves an empty
-value. A failed editor or shutdown abandons the pending write.
+Flag 1 saves the definition and updates its live record. Flag 2 requires a
+nonempty response when the editor opens. Flag 4 requests a silent update,
+which a new name allows. Lookup prefers a live record over a saved one. A
+nonempty literal default takes precedence over an existing value, which is
+copied up to the first 60 original bytes when used as the fallback.
+Definitions use the same stores as inline variables and send no automatic
+reply. An interactive command pauses further input until the editor completes.
 
-Native execution of RIPtel 3.1's definition parser and request logic confirmed
-the decoded inputs and writer calls with controlled services. The adopted
-contract also requires a per-record confirmation flag that can force the
-editor despite flag 4, and cancellation that preserves the prior record.
-Both changes remain pending in SyncTERM. [PR #182](https://github.com/bbs-land/remote-imaging-protocol/pull/182)
+The **Confirm future updates** checkbox starts with the effective record's
+policy. An accepted check forces the editor on subsequent `1D` updates,
+including flag 4. An accepted clear allows silent updates. A session-only
+definition shadows the saved record for that connection. Canceling or an
+editor failure preserves the value and policy in both stores. Accepting an
+empty field with flag 2 clear saves an empty value. Version 2 of SyncTERM's
+variable file stores the confirmation flag alongside the value. Version 1
+records load with silent updates allowed. The connection flushes the saved
+records to disk on orderly teardown. [PR #182](https://github.com/bbs-land/remote-imaging-protocol/pull/182)
 
-The native fixture covers both stores, recovery, literal payloads, retries
-and cancellation. Connected CP437 and UTF-8 fixtures exercise the wire
-command, byte limits, prompt ordering and later queries.
+The native fixtures cover both stores, literal payloads, byte limits,
+recovery, cancellation and both file versions. Connected CP437 and UTF-8
+fixtures verify keyboard acceptance, byte-limited input and queued queries.
+They reconnect to verify persisted confirmation, cancellation and session
+overrides through the live editor.
 
 ## Connected FILEEXISTS
 

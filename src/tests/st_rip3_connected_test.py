@@ -13,7 +13,7 @@ import time
 
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
-from syncterm_fixture import cell_at, receive
+from syncterm_fixture import cell_at, fixture, listener, receive
 
 
 def query(source, *, at_cursor=False):
@@ -216,7 +216,14 @@ Hook.onKey(Key.f9) {|event|
             send(b"\x01|1D00000Answer:?Cancel editor|1\x1b0000$&ANSWER$\r\n\x1b[5n")
             client.wait_text("Cancel editor?")
             client.key("escape")
-            receive(peer, b"NULL\x1b[0n", root / "replies.bin")
+            receive(peer, b"live\x1b[0n", root / "replies.bin")
+            send(b"\x01|1D00200Width,3:?Byte width|1\x1b0000$&WIDTH$\r\n\x1b[5n")
+            client.wait_text("Byte width?")
+            client.key("enter")
+            client.text("ééX")
+            client.key("enter")
+            accepted = b"\x82\x82" if args.encoding == "CP437" else "é".encode()
+            receive(peer, accepted + b"\x1b[0n", root / "replies.bin")
 
         t.case("rip3-connected-offscreen-port-and-bitmap-export")
         # Explicit device-sized WORLD, then a 2x2 offscreen port filled red.
@@ -545,6 +552,60 @@ def font_switch_with_status(args, width, height):
         assert pixel(frame, art_x, art_y) == 0xffffff
 
 
+def check_definition_persistence(args):
+    with listener() as server:
+        entry = ("[Capture]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                 f"Port={server.getsockname()[1]}\nEncoding={args.encoding}\n"
+                 "ScreenMode=80x25\nNoStatus=true\nHidePopups=true\nRIP=RIPv3\n")
+        with fixture(args.executable, entries=entry, reports=args.reports) as (client, root):
+            client.wait_text("Capture")
+            for visit in range(3):
+                client.key("enter")
+                with server.accept()[0] as peer:
+                    peer.settimeout(10)
+                    client.wait_for(lambda frame: frame.application.get("connected") == 1)
+                    terminal = Terminal(client, root, peer, peer.sendall)
+
+                    def prompt(command, question):
+                        peer.sendall(b"\x01|" + command + b"|1\x1b0000$&GUARDED$\r\n\x1b[5n")
+                        client.wait_text(question + "?")
+                        client.wait_text("Confirm future updates")
+
+                    def toggle():
+                        client.key("tab")
+                        client.text(" ")
+
+                    def accept():
+                        client.key("tab")
+                        client.key("enter")
+
+                    if visit == 0:
+                        terminal.case("rip3-definition-saves-confirmation-with-value")
+                        prompt(b"1D00100Guarded:?Save policy?original", "Save policy")
+                        toggle()
+                        accept()
+                        receive(peer, b"original\x1b[0n", root / "replies.bin")
+                    elif visit == 1:
+                        terminal.case("rip3-definition-reloads-policy-and-discards-cancelled-edits")
+                        prompt(b"1D00500Guarded:?Forced edit?network", "Forced edit")
+                        toggle()
+                        client.key("escape")
+                        receive(peer, b"original\x1b[0n", root / "replies.bin")
+                        prompt(b"1D00400Guarded:?Live override?session", "Live override")
+                        toggle()
+                        accept()
+                        receive(peer, b"session\x1b[0n", root / "replies.bin")
+                        terminal.exchange(b"\x01|1D00400Guarded:local\r\n"
+                                          + query(b"$&GUARDED$", at_cursor=True), b"local")
+                    else:
+                        terminal.case("rip3-definition-restores-saved-value-after-live-override")
+                        prompt(b"1D00400Guarded:?Saved policy?another", "Saved policy")
+                        client.key("escape")
+                        receive(peer, b"original\x1b[0n", root / "replies.bin")
+                client.wait_for(lambda frame: frame.application.get("session_active") == 0)
+                client.wait_text("Directory: Name")
+
+
 def ultra(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#&"
     return bytes(digits[(number >> shift) & 63] for shift in (18, 12, 6, 0))
@@ -556,6 +617,7 @@ def main():
     parser.add_argument("encoding", choices=("CP437", "UTF-8"))
     parser.add_argument("--reports", type=Path, default=Path("reports/test-control"))
     args = parser.parse_args()
+    check_definition_persistence(args)
     for canvas in ((640, 480, 13), (800, 600, 16), (1024, 768, 21), (1280, 800, 26), (720, 400, 15)):
         run(args, *canvas)
         font_switch_with_status(args, *canvas[:2])

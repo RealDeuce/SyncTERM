@@ -79,6 +79,10 @@ struct st_term_config {
 	uint32_t initial_throttle_bps;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
+	/* RIPv3 1D editor with an optional confirmation policy control. Shares
+	 * rip_prompt_context and the prompt's result/cancellation convention. */
+	int (*rip_define)(void *context, const char *question, const char *initial,
+		size_t max_length, bool count_bytes, bool reject_blank, bool *require_confirmation, char **result);
 	st_cterm_rip_choice_callback_t rip_choice;
 	void *rip_choice_context;
 	st_cterm_rip_transfer_callback_t rip_transfer;

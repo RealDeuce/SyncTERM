@@ -10,9 +10,11 @@
  * persistent table selection and host approval policy belong to the client.
  *
  * Private client format (not RIPscrip wire data or a legacy variable database):
- *   8 bytes: 'S','T','R','I','P','3','V',1 (format version)
+ *   8 bytes: 'S','T','R','I','P','3','V',2 (format version)
  *   u32 LE: record count
- *   records: u8 name length, u8 value length, ASCII name bytes, value bytes
+ *   records: u8 name length, u8 value length, u8 confirmation required (0/1),
+ *            ASCII name bytes, value bytes
+ * Version 1 records omit the confirmation byte and allow silent writes.
  * Writer records are sorted by canonical name; reader rejects duplicates,
  * malformed names/lengths, truncated records and trailing bytes. No C structs
  * are serialized. Values retain their explicit byte lengths, including NULs.

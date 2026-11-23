@@ -469,6 +469,14 @@ run_rip_prompt(void *context, const char *question, const char *initial,
 }
 
 static int
+run_rip_definition(void *context, const char *question, const char *initial,
+	size_t max_length, bool count_bytes, bool reject_blank, bool *require_confirmation, char **result)
+{
+	return st_wren_host_rip_define(context, "RIP Input", question, initial, max_length,
+	    count_bytes, reject_blank, require_confirmation, result);
+}
+
+static int
 run_rip_choice(void *context, const char *question,
 	const struct st_cterm_rip_choice *choices, size_t count,
 	bool required, int *selected)
@@ -1059,6 +1067,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.initial_throttle_bps = profile->bps_rate,
 		.rip_prompt = run_rip_prompt,
 		.rip_prompt_context = host,
+		.rip_define = run_rip_definition,
 		.rip_choice = run_rip_choice,
 		.rip_choice_context = host,
 		.event_hook = run_wren_event_hook,

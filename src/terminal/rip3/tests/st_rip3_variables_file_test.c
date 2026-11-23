@@ -16,10 +16,14 @@
 	} \
 } while (0)
 
-/* Independent literal client-format fixture, sorted EMPTY then NAME. */
-static const uint8_t fixture[] = {
+/* Independent literal client-format fixtures, sorted EMPTY then NAME. */
+static const uint8_t version_one[] = {
 	'S','T','R','I','P','3','V',1, 2,0,0,0,
 	5,0,'E','M','P','T','Y', 4,3,'N','A','M','E','A',0,'B',
+};
+static const uint8_t fixture[] = {
+	'S','T','R','I','P','3','V',2, 2,0,0,0,
+	5,0,0,'E','M','P','T','Y', 4,3,1,'N','A','M','E','A',0,'B',
 };
 static const char filename[] = "variables \xc3\xa9.bin";
 
@@ -49,7 +53,7 @@ write_store(const char *directory)
 	CHECK(path_join_alloc(&path, directory, filename) == 0);
 	CHECK(st_rip3_variables_create(&variables) == 0);
 	/* Insertion order deliberately differs from deterministic file order. */
-	CHECK(st_rip3_variables_set(variables, "name", 4, value, sizeof(value)) == 0);
+	CHECK(st_rip3_variables_define(variables, NULL, "name", 4, value, sizeof(value), true) == 0);
 	CHECK(st_rip3_variables_set(variables, "empty", 5, NULL, 0) == 0);
 	CHECK(st_rip3_variables_save_file(variables, path) == 0);
 	st_rip3_variables_destroy(variables);
@@ -63,6 +67,7 @@ read_store(const char *directory)
 {
 	struct st_rip3_variables *variables = NULL;
 	struct st_rip3_variable_value value;
+	struct st_rip3_variable_entry entry;
 	char *path = NULL;
 	const uint8_t utf8[] = {'c','a','f',0xc3,0xa9};
 	const char boundary[] = "ABCDEFGHIJKLMNOPQRST";
@@ -76,6 +81,7 @@ read_store(const char *directory)
 	CHECK(st_rip3_variables_count(variables, &count) == 0 && count == 2);
 	CHECK(st_rip3_variables_get(variables, "NAME", 4, &value) == 0);
 	CHECK(value.length == 3 && value.bytes[0] == 'A' && value.bytes[1] == 0 && value.bytes[2] == 'B');
+	CHECK(st_rip3_variables_get_entry(variables, "NAME", 4, &entry) == 0 && entry.require_confirmation);
 	CHECK(st_rip3_variables_get(variables, "EMPTY", 5, &value) == 0 && value.length == 0);
 	CHECK(st_rip3_variables_remove(variables, "EMPTY", 5) == 0);
 	CHECK(st_rip3_variables_set(variables, "NAME", 4, utf8, sizeof(utf8)) == 0);
@@ -90,6 +96,7 @@ read_store(const char *directory)
 	CHECK(st_rip3_variables_get(variables, "EMPTY", 5, &value) == IO_ERROR_NOT_FOUND);
 	CHECK(st_rip3_variables_get(variables, "NAME", 4, &value) == 0);
 	CHECK(value.length == sizeof(utf8) && memcmp(value.bytes, utf8, sizeof(utf8)) == 0);
+	CHECK(st_rip3_variables_get_entry(variables, "NAME", 4, &entry) == 0 && entry.require_confirmation);
 	CHECK(st_rip3_variables_get(variables, boundary, 20, &value) == 0);
 	CHECK(value.length == 255 && memcmp(value.bytes, maximum, 255) == 0 && value.bytes[255] == 0);
 	st_rip3_variables_destroy(variables);
@@ -122,7 +129,7 @@ malformed_and_io(const char *directory)
 		CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_INVALID_FORMAT);
 		CHECK(variables == original);
 	}
-	for (unsigned variant = 0; variant < 7; variant++) {
+	for (unsigned variant = 0; variant < 8; variant++) {
 		size_t length = sizeof(fixture);
 
 		memcpy(bad, fixture, sizeof(fixture));
@@ -131,15 +138,16 @@ malformed_and_io(const char *directory)
 		case 1: memset(bad + 8, 255, 4); break;
 		case 2: bad[12] = 0; break;
 		case 3: bad[12] = 21; break;
-		case 4: bad[14] = '_'; break;
-		case 5: bad[20] = 255; break;
+		case 4: bad[15] = '_'; break;
+		case 5: bad[21] = 255; break;
 		case 6: bad[length++] = 0; break;
+		case 7: bad[22] = 2; break;
 		}
 		CHECK(fs_replace_file(path, bad, length) == 0);
 		CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_INVALID_FORMAT);
 		CHECK(variables == original);
 	}
-	memcpy(bad, fixture, sizeof(fixture)); bad[7] = 2;
+	memcpy(bad, fixture, sizeof(fixture)); bad[7] = 3;
 	CHECK(fs_replace_file(path, bad, sizeof(fixture)) == 0);
 	CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(variables == original);
@@ -168,6 +176,13 @@ malformed_and_io(const char *directory)
 	CHECK(st_rip3_variables_load_file(&empty, path) == 0);
 	CHECK(st_rip3_variables_count(empty, &count) == 0 && count == 0);
 	st_rip3_variables_destroy(empty);
+	CHECK(fs_replace_file(path, version_one, sizeof(version_one)) == 0);
+	struct st_rip3_variables *old = NULL;
+	struct st_rip3_variable_entry entry;
+	CHECK(st_rip3_variables_load_file(&old, path) == 0);
+	CHECK(st_rip3_variables_get_entry(old, "NAME", 4, &entry) == 0 && !entry.require_confirmation
+	    && entry.value.length == 3 && memcmp(entry.value.bytes, "A\0B", 3) == 0);
+	st_rip3_variables_destroy(old);
 	st_rip3_variables_destroy(variables);
 	free(path); free(blocked); free(missing);
 	return 0;

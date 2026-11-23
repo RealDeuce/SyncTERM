@@ -36,6 +36,7 @@ import "ui_widget" for Rect
 import "ui_pane"   for Pane
 import "ui_input"  for SelectOnFocusInput
 import "ui_button" for Button
+import "ui_checkbox" for Checkbox
 import "ui_draw"   for Painter
 import "syncterm"  for KeyEvent, Key, Mouse, Screen
 
@@ -586,18 +587,39 @@ class Confirm is Popup {
 class Prompt is Popup {
   construct new(message, initial) {
     super(message)
+    initialize_(initial, null)
+  }
+
+  construct new(message, initial, label, checked, prepare) {
+    super(message)
+    _confirmation = Checkbox.new(label)
+    _confirmation.value = checked
+    initialize_(initial, prepare)
+  }
+
+  initialize_(initial, prepare) {
     keyHints = [["Enter", "Accept"], ["Esc", "Cancel"]]
     title  = "Prompt"
     _input = SelectOnFocusInput.new()
     _input.value = (initial == null ? "" : initial)
-    _input.onSubmit = Fn.new {|s| dismissWith_(s) }
+    _input.onSubmit = Fn.new {|s| submit_(s, prepare) }
     add(_input)
+    if (_confirmation != null) add(_confirmation)
     _ok     = Button.new("OK")
     _cancel = Button.new("Cancel")
-    _ok.onPress     = Fn.new { dismissWith_(_input.value) }
+    _ok.onPress     = Fn.new { submit_(_input.value, prepare) }
     _cancel.onPress = Fn.new { dismissWith_(null) }
     add(_ok)
     add(_cancel)
+  }
+
+  submit_(value, prepare) {
+    if (_confirmation == null) {
+      dismissWith_(value)
+      return
+    }
+    var accepted = prepare.call(value)
+    if (accepted != null) dismissWith_([accepted, _confirmation.value])
   }
 
   // Exposed for trusted callers which need to set maxLen or a display
@@ -613,7 +635,9 @@ class Prompt is Popup {
   }
   sizeForInput(inputWidth, minimumWidth, font) {
     var requested = (inputWidth + 4).max(minimumWidth)
-    bounds = Popup.centeredTitledBounds_(title, message, 2, requested,
+    var rows = _confirmation == null ? 2 : 3
+    if (_confirmation != null) requested = requested.max(_confirmation.intrinsicWidth + 4)
+    bounds = Popup.centeredTitledBounds_(title, message, rows, requested,
         false, font)
   }
 
@@ -644,6 +668,10 @@ class Prompt is Popup {
     var iw = cb.w.max(4)
     var btnRow   = bounds.y + bounds.h - 2
     var inputRow = btnRow - 1
+    if (_confirmation != null) {
+      _confirmation.bounds = Rect.new(cb.x, inputRow, cb.w, 1)
+      inputRow = inputRow - 1
+    }
     _input.bounds = Rect.new(cb.x, inputRow, iw, 1)
     var ow = _ok.intrinsicWidth
     var cw = _cancel.intrinsicWidth

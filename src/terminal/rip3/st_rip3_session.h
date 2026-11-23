@@ -239,7 +239,7 @@ void st_rip3_session_cancel(struct st_rip3_session *session);
 struct st_rip3_session_prompt {
 	const struct st_rip3_variable_reference *reference;
 	const struct st_rip3_variable_value *initial;
-	bool definition, reject_blank;
+	bool definition, reject_blank, require_confirmation;
 };
 /* Borrowed prompt views, invalidated by response/process/cancel/destruction.
  * Report only prompts owned by this session. */
@@ -247,6 +247,8 @@ bool st_rip3_session_prompt(const struct st_rip3_session *session,
 	struct st_rip3_session_prompt *result);
 void st_rip3_session_respond(struct st_rip3_session *session,
 	const uint8_t *bytes, size_t length, bool cancelled);
+void st_rip3_session_accept_definition(struct st_rip3_session *session,
+	const uint8_t *bytes, size_t length, bool require_confirmation);
 /* Abandon a 1D definition when its editor is unavailable or failed. */
 void st_rip3_session_abort_definition(struct st_rip3_session *session);
 

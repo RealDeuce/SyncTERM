@@ -73,6 +73,10 @@ void st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
  * Errors clear the pending operation, leaving both stores unchanged. */
 void st_rip3_user_variables_respond(struct st_rip3_user_variables *variables,
 	const uint8_t *value, size_t length, bool cancelled);
+/* Apply the optional editor control with a successful 1D response. */
+void st_rip3_user_variables_accept_definition(struct st_rip3_user_variables *variables,
+	const uint8_t *value, size_t length, const bool *require_confirmation);
+bool st_rip3_user_variables_definition_confirmation(const struct st_rip3_user_variables *variables);
 /* Forced cancellation for shutdown/EOF: discard pending/result state without
  * a protocol replacement or store write, even for required prompts. */
 void st_rip3_user_variables_abort(struct st_rip3_user_variables *variables);

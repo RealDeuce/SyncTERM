@@ -1013,8 +1013,9 @@ graphical fields. Connected CP437 and UTF-8 fixtures verify the cache lookup,
 ordered alias rewriting and literal recovery from rejected calls. [RIPv3 FILEEXISTS coverage](RIP3_CONFORMANCE.md#connected-fileexists)
 
 Wire `1D` defines variables in live RIPv3 sessions. The connected tests
-exercise literal defaults, the interactive editor and ordered queries in
-CP437 and UTF-8. [RIPv3 RIP_DEFINE coverage](RIP3_CONFORMANCE.md#connected-rip_define)
+exercise literal defaults, byte limits, confirmation, cancellation and
+ordered queries in CP437 and UTF-8. Reconnection verifies persistence and
+session-only overrides. [RIPv3 RIP_DEFINE coverage](RIP3_CONFORMANCE.md#connected-rip_define)
 
 RIPv3 `D`, `d` and `2A` update and select the current drawing palette.
 Live CP437 and UTF-8 fixtures verify six-bit PALENTRY replies, protection,

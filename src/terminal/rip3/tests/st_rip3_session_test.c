@@ -267,7 +267,7 @@ wire_variable_definition(void)
 	CHECK(append(&f, "!|1D0077ZSaved,5:?Question?Default|1D00400Empty:?Question\r") == 0 && pump(&f) == 0);
 	struct st_rip3_variable_value value;
 	CHECK(st_rip3_variables_get(persistent, "Saved", 5, &value) == 0 && strcmp((char *)value.bytes, "Defa") == 0);
-	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == 0 && strcmp((char *)value.bytes, "Defa") == 0);
 	CHECK(st_rip3_variables_get(values, "Empty", 5, &value) == 0 && value.length == 0);
 	CHECK(f.reply_length == 0 && f.errors == 0);
 	CHECK(append(&f, "!|1D00400Literal:x\\|y$NULL$|1D00400Saved:?Only a question\r") == 0 && pump(&f) == 0);
@@ -298,7 +298,30 @@ wire_variable_definition(void)
 	CHECK(append(&f, "!|1D00000Saved:?Another question\r") == 0 && pump(&f) == 0);
 	CHECK(st_rip3_session_prompt(f.session, &prompt) && strcmp((const char *)prompt.initial->bytes, "Ada") == 0);
 	st_rip3_session_respond(f.session, NULL, 0, true);
-	CHECK(query(&f, "$&SAVED$", "NULL") == 0);
+	CHECK(query(&f, "$&SAVED$", "Ada") == 0);
+
+	CHECK(append(&f, "!|1D00100Guarded,5:?Confirm?seed\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_prompt(f.session, &prompt) && !prompt.require_confirmation);
+	st_rip3_session_accept_definition(f.session, (const uint8_t *)"longer", 6, true);
+	CHECK(query(&f, "$&GUARDED$", "long") == 0);
+	struct st_rip3_variable_entry record;
+	CHECK(st_rip3_variables_get_entry(persistent, "guarded", 7, &record) == 0 && record.require_confirmation
+	    && strcmp((const char *)record.value.bytes, "long") == 0);
+	CHECK(append(&f, "!|1D00500Guarded:network\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_prompt(f.session, &prompt) && prompt.require_confirmation
+	    && strcmp((const char *)prompt.initial->bytes, "network") == 0);
+	st_rip3_session_respond(f.session, NULL, 0, true);
+	CHECK(query(&f, "$&GUARDED$", "long") == 0);
+	CHECK(append(&f, "!|1D00400Guarded:?Live policy\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_prompt(f.session, &prompt) && prompt.require_confirmation);
+	st_rip3_session_accept_definition(f.session, NULL, 0, false);
+	CHECK(query(&f, "$&GUARDED$", "NULL") == 0);
+	CHECK(st_rip3_variables_get_entry(persistent, "GUARDED", 7, &record) == 0 && record.require_confirmation
+	    && strcmp((const char *)record.value.bytes, "long") == 0);
+	CHECK(append(&f, "!|1D00500Guarded:replacement\r") == 0 && pump(&f) == 0);
+	CHECK(!st_rip3_session_prompt(f.session, &prompt) && query(&f, "$&GUARDED$", "replacement") == 0);
+	CHECK(st_rip3_variables_get_entry(persistent, "Guarded", 7, &record) == 0 && !record.require_confirmation
+	    && strcmp((const char *)record.value.bytes, "replacement") == 0);
 
 	CHECK(append(&f, "!|1D00100Saved:?Missing editor\r") == 0 && pump(&f) == 0);
 	CHECK(st_rip3_session_prompt(f.session, &prompt));
@@ -307,7 +330,7 @@ wire_variable_definition(void)
 	CHECK(append(&f, "!|1D00000Saved:new\r") == 0 && pump(&f) == 0 && st_rip3_session_prompt(f.session, &prompt));
 	st_rip3_session_destroy(f.session);
 	CHECK(st_rip3_user_variables_state(user) == ST_RIP3_USER_VARIABLE_IDLE);
-	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == 0 && value.length == 0);
+	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == 0 && strcmp((char *)value.bytes, "Ada") == 0);
 	st_rip3_user_variables_destroy(user);
 	st_rip3_variables_destroy(values);
 	st_rip3_variables_destroy(persistent);

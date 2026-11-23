@@ -1293,9 +1293,16 @@ prompt(struct st_term_rip3 *rip)
 	bool supported=(reference->directives&ST_RIP3_VARIABLE_MASKED)==0
 	    && !reference->has_position;
 	int status=IO_ERROR_NOT_SUPPORTED;
+	bool controlled = view.definition && rip->config.rip_define != NULL;
+	bool require_confirmation = view.require_confirmation;
 	rip->prompt_token=st_rip3_session_press_token(rip->session);
 	rip->observing_prompt=true;
-	if (supported && rip->config.rip_prompt!=NULL)
+	if (supported && controlled)
+		status = rip->config.rip_define(rip->config.rip_prompt_context,
+		    (const char *)reference->question.bytes,
+		    view.initial == NULL ? "" : (const char *)view.initial->bytes, reference->width - 1,
+		    rip->config.encoding == ST_CTERM_ENCODING_UTF8, view.reject_blank, &require_confirmation, &value);
+	else if (supported && rip->config.rip_prompt!=NULL)
 		status=rip->config.rip_prompt(rip->config.rip_prompt_context,
 		    reference->has_question ? (const char *)reference->question.bytes : reference->name,
 		    view.initial==NULL ? "" : (const char *)view.initial->bytes,
@@ -1309,12 +1316,15 @@ prompt(struct st_term_rip3 *rip)
 			return;
 		}
 	}
-	st_rip3_session_respond(rip->session,(const uint8_t *)value,value==NULL ? 0 : strlen(value),
-	    status!=0 || value==NULL);
+	if (controlled && value != NULL)
+		st_rip3_session_accept_definition(rip->session, (const uint8_t *)value, strlen(value), require_confirmation);
+	else
+		st_rip3_session_respond(rip->session,(const uint8_t *)value,value==NULL ? 0 : strlen(value),
+		    status!=0 || value==NULL);
 	free(value);
 	/* Required prompts reject user cancellation. A missing/failed editor
 	 * cannot leave an unanswerable prompt holding the connection forever. */
-	if (st_rip3_session_prompt(rip->session,&view) && (status!=0 || rip->config.rip_prompt==NULL))
+	if (st_rip3_session_prompt(rip->session,&view) && (status!=0 || (!controlled && rip->config.rip_prompt==NULL)))
 		st_rip3_session_cancel(rip->session);
 }
 

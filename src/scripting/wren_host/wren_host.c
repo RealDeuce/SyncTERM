@@ -1085,11 +1085,46 @@ drain_prompt_input(struct st_wren_host *host,st_console_t *console, bool *closed
 	return status == IO_ERROR_WOULD_BLOCK ? 0 : status;
 }
 
+struct definition_dialog {
+	bool require_confirmation, count_bytes, reject_blank;
+};
+
+static int
+read_definition_response(WrenVM *vm, char **result, bool *require_confirmation)
+{
+	if (wrenGetListCount(vm, 0) != 2)
+		return IO_ERROR_INVALID_FORMAT;
+	wrenGetListElement(vm, 0, 0, 1);
+	wrenGetListElement(vm, 0, 1, 2);
+	if (wrenGetSlotType(vm, 1) != WREN_TYPE_STRING || wrenGetSlotType(vm, 2) != WREN_TYPE_BOOL)
+		return IO_ERROR_INVALID_FORMAT;
+	int length;
+	const char *value = wrenGetSlotBytes(vm, 1, &length);
+	if (length < 0 || memchr(value, 0, (size_t)length) != NULL)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t offset = 0; offset < (size_t)length;) {
+		uint32_t scalar;
+		size_t used;
+		int status = st_utf8_decode_one(&scalar, &used, (const uint8_t *)value + offset, (size_t)length - offset);
+		if (status != 0)
+			return status;
+		offset += used;
+	}
+	*result = malloc((size_t)length + 1);
+	if (*result == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(*result, value, (size_t)length);
+	(*result)[length] = 0;
+	*require_confirmation = wrenGetSlotBool(vm, 2);
+	return 0;
+}
+
 static int
 host_dialog(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result, const char *const *choices, size_t count,
-	int *selected, const char *method, const uint32_t *hotkeys, bool required)
+	int *selected, const char *method, const uint32_t *hotkeys, bool required,
+	struct definition_dialog *definition)
 {
 	st_console_snapshot_t *snapshot = NULL;
 	struct st_console_event resize = {0};
@@ -1098,7 +1133,8 @@ host_dialog(st_wren_host_t *host, const char *title,
 	};
 	bool closed, resized = false;
 	int status, restore_status;
-	WrenHandle *choice_call = NULL;
+	WrenHandle *dialog_call = NULL;
+	bool accepted_confirmation = false;
 
 	if (host == NULL || title == NULL || question == NULL || initial == NULL
 	    || result == NULL || max_length > INT_MAX)
@@ -1116,14 +1152,14 @@ host_dialog(st_wren_host_t *host, const char *title,
 	    &resized, &resize);
 	if (status != 0 || closed)
 		goto finished;
-	wrenEnsureSlots(host->vm, 7);
+	wrenEnsureSlots(host->vm, definition == NULL ? 7 : 8);
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
 	wrenSetSlotString(host->vm, 2, question);
 	if (method != NULL)
-		choice_call = wrenMakeCallHandle(host->vm, method);
+		dialog_call = wrenMakeCallHandle(host->vm, method);
 	else if (choices != NULL) {
-		choice_call = wrenMakeCallHandle(host->vm, hotkeys == NULL
+		dialog_call = wrenMakeCallHandle(host->vm, hotkeys == NULL
 		    ? "choice(_,_,_,_)" : "ripChoice(_,_,_,_,_)");
 		wrenSetSlotNewList(host->vm, 3);
 		for (size_t i = 0; i < count; ++i) {
@@ -1142,9 +1178,16 @@ host_dialog(st_wren_host_t *host, const char *title,
 	} else {
 		wrenSetSlotString(host->vm, 3, initial);
 		wrenSetSlotDouble(host->vm, 4, (double)max_length);
-		wrenSetSlotBool(host->vm, 5, masked);
+		if (definition == NULL)
+			wrenSetSlotBool(host->vm, 5, masked);
+		else {
+			dialog_call = wrenMakeCallHandle(host->vm, "ripDefine(_,_,_,_,_,_,_)");
+			wrenSetSlotBool(host->vm, 5, definition->count_bytes);
+			wrenSetSlotBool(host->vm, 6, definition->reject_blank);
+			wrenSetSlotBool(host->vm, 7, definition->require_confirmation);
+		}
 	}
-	if (wrenCall(host->vm, choice_call != NULL ? choice_call : host->menu_prompt)
+	if (wrenCall(host->vm, dialog_call != NULL ? dialog_call : host->menu_prompt)
 	    != WREN_RESULT_SUCCESS)
 		status = IO_ERROR_IO;
 	else if (choices != NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_NUM) {
@@ -1153,7 +1196,10 @@ host_dialog(st_wren_host_t *host, const char *title,
 			status = IO_ERROR_INVALID_FORMAT;
 		else
 			*selected = (int)value;
-	} else if (choices == NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING) {
+	} else if (definition != NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_LIST) {
+		wrenEnsureSlots(host->vm, 3);
+		status = read_definition_response(host->vm, result, &accepted_confirmation);
+	} else if (choices == NULL && definition == NULL && wrenGetSlotType(host->vm, 0) == WREN_TYPE_STRING) {
 		*result = strdup(wrenGetSlotString(host->vm, 0));
 		if (*result == NULL)
 			status = IO_ERROR_OUT_OF_MEMORY;
@@ -1161,8 +1207,8 @@ host_dialog(st_wren_host_t *host, const char *title,
 	else if (wrenGetSlotType(host->vm, 0) != WREN_TYPE_NULL)
 		status = IO_ERROR_INVALID_FORMAT;
 finished:
-	if (choice_call != NULL)
-		wrenReleaseHandle(host->vm, choice_call);
+	if (dialog_call != NULL)
+		wrenReleaseHandle(host->vm, dialog_call);
 	{
 		int drain_status = drain_prompt_input(host,host->config.console,
 		    &closed, &resized, &resize);
@@ -1194,6 +1240,8 @@ finished:
 		free(*result);
 		*result = NULL;
 	}
+	else if (definition != NULL && *result != NULL)
+		definition->require_confirmation = accepted_confirmation;
 	return status;
 }
 
@@ -1202,7 +1250,7 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, false,
-	    result, NULL, 0, NULL, NULL, NULL, false);
+	    result, NULL, 0, NULL, NULL, NULL, false, NULL);
 }
 
 int
@@ -1211,7 +1259,22 @@ st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	bool masked, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, masked,
-	    result, NULL, 0, NULL, NULL, NULL, false);
+	    result, NULL, 0, NULL, NULL, NULL, false, NULL);
+}
+
+int
+st_wren_host_rip_define(st_wren_host_t *host, const char *title, const char *question,
+    const char *initial, size_t max_length, bool count_bytes, bool reject_blank,
+    bool *require_confirmation, char **result)
+{
+	if (require_confirmation == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct definition_dialog definition = {*require_confirmation, count_bytes, reject_blank};
+	int status = host_dialog(host, title, question, initial, max_length, false,
+	    result, NULL, 0, NULL, NULL, NULL, false, &definition);
+	if (status == 0)
+		*require_confirmation = definition.require_confirmation;
+	return status;
 }
 
 int
@@ -1223,7 +1286,7 @@ st_wren_host_choice(st_wren_host_t *host, const char *title,
 	if (choices == NULL || count == 0 || count > INT_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = host_dialog(host, title, question, "", 0, false, &unused,
-	    choices, count, &selected, NULL, NULL, false);
+	    choices, count, &selected, NULL, NULL, false, NULL);
 	return status == 0 ? selected : status;
 }
 
@@ -1243,7 +1306,7 @@ st_wren_host_rip_choice(st_wren_host_t *host, const char *title,
 			return IO_ERROR_INVALID_ARGUMENT;
 	}
 	status = host_dialog(host, title, question, "", 0, false, &unused,
-	    choices, count, &selected, NULL, hotkeys, required);
+	    choices, count, &selected, NULL, hotkeys, required, NULL);
 	return status == 0 ? selected : status;
 }
 
@@ -1252,7 +1315,7 @@ st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, title, message, "", 0, false, &unused,
-	    NULL, 0, NULL, "alert(_,_)", NULL, false);
+	    NULL, 0, NULL, "alert(_,_)", NULL, false, NULL);
 	free(unused);
 	return status;
 }
@@ -1262,7 +1325,7 @@ st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, title, body, "", 0, false, &unused,
-	    NULL, 0, NULL, "help(_,_)", NULL, false);
+	    NULL, 0, NULL, "help(_,_)", NULL, false, NULL);
 	free(unused);
 	return status;
 }
@@ -1272,7 +1335,7 @@ st_wren_host_disconnected(st_wren_host_t *host, const char *details)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, "Disconnected", details, "", 0, false, &unused,
-	    NULL, 0, NULL, "disconnected(_,_)", NULL, false);
+	    NULL, 0, NULL, "disconnected(_,_)", NULL, false, NULL);
 	free(unused);
 	return status;
 }

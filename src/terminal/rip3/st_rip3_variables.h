@@ -2,6 +2,7 @@
 #ifndef ST_RIP3_VARIABLES_H_
 #define ST_RIP3_VARIABLES_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -17,6 +18,7 @@ struct st_rip3_variable_value {
 struct st_rip3_variable_entry {
 	char name[21]; /* Canonical uppercase ASCII identifier. */
 	struct st_rip3_variable_value value;
+	bool require_confirmation;
 };
 
 struct st_rip3_variable_snapshot {
@@ -36,8 +38,15 @@ void st_rip3_variables_destroy(struct st_rip3_variables *variables);
  * Existing values are replaced only after all validation/allocation succeeds. */
 int st_rip3_variables_set(struct st_rip3_variables *variables,
 	const char *name, size_t name_length, const uint8_t *value, size_t value_length);
+/* Update the live definition and, if supplied, its distinct persistent
+ * record. A failed write leaves both records intact. */
+int st_rip3_variables_define(struct st_rip3_variables *variables,
+	struct st_rip3_variables *persistent, const char *name, size_t name_length,
+	const uint8_t *value, size_t value_length, bool require_confirmation);
 int st_rip3_variables_get(const struct st_rip3_variables *variables,
 	const char *name, size_t name_length, struct st_rip3_variable_value *result);
+int st_rip3_variables_get_entry(const struct st_rip3_variables *variables,
+	const char *name, size_t name_length, struct st_rip3_variable_entry *result);
 int st_rip3_variables_remove(struct st_rip3_variables *variables,
 	const char *name, size_t name_length);
 int st_rip3_variables_count(const struct st_rip3_variables *variables, size_t *result);

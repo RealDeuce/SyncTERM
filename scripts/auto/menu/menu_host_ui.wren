@@ -5,6 +5,7 @@ import "menu_ui" for MenuUi
 import "ui_app" for App
 import "ui_help" for Help
 import "ui_pane" for Pane
+import "ui_popup" for Popup, Prompt
 import "ui_progress" for ProgressText
 import "ui_draw" for Painter
 import "ui_widget" for Rect
@@ -73,6 +74,30 @@ class MenuHostUI {
 
   static prompt(title, message, initial, maxLen, masked) {
     return MenuUi.promptStandalone(title, message, initial, maxLen, masked)
+  }
+
+  static ripDefine(title, message, initial, maxLen, countBytes, rejectBlank, confirmation) {
+    var prepare = Fn.new {|value|
+      var chars = []
+      var length = 0
+      for (c in value) {
+        var size = countBytes ? c.bytes.count : 1
+        if (length + size > maxLen) break
+        chars.add(c)
+        length = length + size
+      }
+      if (rejectBlank && length == 0) return null
+      return chars.join()
+    }
+    var app = App.new()
+    var p = Prompt.new(message, initial, "Confirm future updates", confirmation, prepare)
+    p.title = title
+    p.input.maxLen = maxLen
+    p.sizeForInput(maxLen, 34, Popup.appMessageFont_(app))
+    p.onDismiss = Fn.new {|value| app.quit() }
+    app.pushModal(p)
+    app.runSync()
+    return p.result
   }
 
   static choice(title, message, options, current) {

@@ -128,17 +128,56 @@ st_rip3_variables_destroy(struct st_rip3_variables *variables)
 	free(variables);
 }
 
-int
-st_rip3_variables_set(struct st_rip3_variables *variables,
-    const char *name, size_t name_length, const uint8_t *value, size_t value_length)
+static int
+prepare_entry(struct st_rip3_variables *variables, const char *name, size_t hash,
+    struct variable **result, bool *insert)
+{
+	struct variable *entry = find(variables, name, hash);
+	*insert = entry == NULL;
+	if (*insert) {
+		entry = calloc(1, sizeof(*entry));
+		if (entry == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		int status = grow(variables);
+		if (status != 0) {
+			free(entry);
+			return status;
+		}
+		entry->hash = hash;
+		memcpy(entry->entry.name, name, strlen(name) + 1);
+	}
+	*result = entry;
+	return 0;
+}
+
+static void
+commit_entry(struct st_rip3_variables *variables, struct variable *entry, bool insert,
+    const struct st_rip3_variable_value *value, const bool *require_confirmation)
+{
+	entry->entry.value = *value;
+	if (require_confirmation != NULL)
+		entry->entry.require_confirmation = *require_confirmation;
+	if (insert) {
+		size_t bucket = entry->hash & (variables->capacity - 1);
+		entry->next = variables->buckets[bucket];
+		variables->buckets[bucket] = entry;
+		variables->count++;
+	}
+}
+
+static int
+store(struct st_rip3_variables *variables, struct st_rip3_variables *persistent,
+    const char *name, size_t name_length, const uint8_t *value, size_t value_length,
+    const bool *require_confirmation)
 {
 	struct st_rip3_variable_value replacement = {0};
-	struct variable *entry;
+	struct variable *live, *saved = NULL;
+	bool insert_live, insert_saved = false;
 	char canonical[21];
 	size_t hash;
 	int status;
 
-	if (variables == NULL || (value == NULL && value_length != 0))
+	if (variables == NULL || variables == persistent || (value == NULL && value_length != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = identifier(canonical, &hash, name, name_length);
 	if (status != 0)
@@ -148,31 +187,39 @@ st_rip3_variables_set(struct st_rip3_variables *variables,
 	replacement.length = value_length;
 	if (value_length != 0)
 		memcpy(replacement.bytes, value, value_length);
-	entry = find(variables, canonical, hash);
-	if (entry != NULL) {
-		entry->entry.value = replacement;
-		return 0;
-	}
-	entry = calloc(1, sizeof(*entry));
-	if (entry == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	entry->hash = hash;
-	memcpy(entry->entry.name, canonical, name_length + 1);
-	entry->entry.value = replacement;
-	status = grow(variables);
-	if (status != 0) {
-		free(entry);
+	status = prepare_entry(variables, canonical, hash, &live, &insert_live);
+	if (status != 0)
 		return status;
+	if (persistent != NULL) {
+		status = prepare_entry(persistent, canonical, hash, &saved, &insert_saved);
+		if (status != 0) {
+			if (insert_live)
+				free(live);
+			return status;
+		}
+		commit_entry(persistent, saved, insert_saved, &replacement, require_confirmation);
 	}
-	entry->next = variables->buckets[hash & (variables->capacity - 1)];
-	variables->buckets[hash & (variables->capacity - 1)] = entry;
-	variables->count++;
+	commit_entry(variables, live, insert_live, &replacement, require_confirmation);
 	return 0;
 }
 
 int
-st_rip3_variables_get(const struct st_rip3_variables *variables,
-    const char *name, size_t name_length, struct st_rip3_variable_value *result)
+st_rip3_variables_set(struct st_rip3_variables *variables,
+    const char *name, size_t name_length, const uint8_t *value, size_t value_length)
+{
+	return store(variables, NULL, name, name_length, value, value_length, NULL);
+}
+
+int
+st_rip3_variables_define(struct st_rip3_variables *variables, struct st_rip3_variables *persistent,
+    const char *name, size_t name_length, const uint8_t *value, size_t value_length, bool require_confirmation)
+{
+	return store(variables, persistent, name, name_length, value, value_length, &require_confirmation);
+}
+
+int
+st_rip3_variables_get_entry(const struct st_rip3_variables *variables,
+    const char *name, size_t name_length, struct st_rip3_variable_entry *result)
 {
 	const struct variable *entry;
 	char canonical[21];
@@ -187,8 +234,21 @@ st_rip3_variables_get(const struct st_rip3_variables *variables,
 	entry = find(variables, canonical, hash);
 	if (entry == NULL)
 		return IO_ERROR_NOT_FOUND;
-	*result = entry->entry.value;
+	*result = entry->entry;
 	return 0;
+}
+
+int
+st_rip3_variables_get(const struct st_rip3_variables *variables,
+    const char *name, size_t name_length, struct st_rip3_variable_value *result)
+{
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_variable_entry entry;
+	int status = st_rip3_variables_get_entry(variables, name, name_length, &entry);
+	if (status == 0)
+		*result = entry.value;
+	return status;
 }
 
 int
@@ -301,8 +361,8 @@ st_rip3_variables_from_snapshot(struct st_rip3_variables **result,
 		if (identifier(canonical, &hash, entry->name, length) != 0
 		    || find(variables, canonical, hash) != NULL)
 			goto failed;
-		status = st_rip3_variables_set(variables, canonical, length,
-		    entry->value.bytes, entry->value.length);
+		status = st_rip3_variables_define(variables, NULL, canonical, length,
+		    entry->value.bytes, entry->value.length, entry->require_confirmation);
 		if (status != 0)
 			goto failed;
 	}

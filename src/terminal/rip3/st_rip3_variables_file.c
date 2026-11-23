@@ -9,7 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const uint8_t magic[] = {'S','T','R','I','P','3','V',1};
+static const uint8_t magic[] = {'S','T','R','I','P','3','V'};
+enum { VARIABLE_FILE_VERSION = 2, CONFIRMATION_REQUIRED = 1 };
 
 static uint32_t
 read_count(const uint8_t *bytes)
@@ -46,7 +47,7 @@ st_rip3_variables_save_file(const struct st_rip3_variables *variables,
 		return status;
 	for (size_t i = 0; i < snapshot.count; i++) {
 		const struct st_rip3_variable_entry *entry = &snapshot.entries[i];
-		size_t added = 2 + strlen(entry->name) + entry->value.length;
+		size_t added = 3 + strlen(entry->name) + entry->value.length;
 
 		if (added > SIZE_MAX - size) {
 			status = IO_ERROR_OUT_OF_RANGE;
@@ -60,6 +61,7 @@ st_rip3_variables_save_file(const struct st_rip3_variables *variables,
 		goto done;
 	}
 	memcpy(bytes, magic, sizeof(magic));
+	bytes[7] = VARIABLE_FILE_VERSION;
 	write_count(bytes + 8, (uint32_t)snapshot.count);
 	for (size_t i = 0; i < snapshot.count; i++) {
 		const struct st_rip3_variable_entry *entry = &snapshot.entries[i];
@@ -67,6 +69,7 @@ st_rip3_variables_save_file(const struct st_rip3_variables *variables,
 
 		bytes[offset++] = (uint8_t)name_length;
 		bytes[offset++] = (uint8_t)entry->value.length;
+		bytes[offset++] = entry->require_confirmation ? CONFIRMATION_REQUIRED : 0;
 		memcpy(bytes + offset, entry->name, name_length);
 		offset += name_length;
 		memcpy(bytes + offset, entry->value.bytes, entry->value.length);
@@ -103,37 +106,38 @@ load_stream(struct st_rip3_variables **result, FILE *stream)
 	status = read_exact(stream, header, sizeof(header));
 	if (status != 0)
 		return status;
-	if (memcmp(header, magic, sizeof(magic) - 1) != 0)
+	if (memcmp(header, magic, sizeof(magic)) != 0)
 		return IO_ERROR_INVALID_FORMAT;
-	if (header[7] != magic[7])
+	if (header[7] != 1 && header[7] != VARIABLE_FILE_VERSION)
 		return IO_ERROR_NOT_SUPPORTED;
+	size_t record_header = header[7] == 1 ? 2 : 3;
 	count = read_count(header + 8);
-	/* Even an empty value needs two length bytes and a one-byte name. This
-	 * bounds declared records by the actual file before allocating any table. */
-	if (count > (uint64_t)(file_size - 12) / 3)
+	/* Each record contains a header and at least one name byte. */
+	if (count > (uint64_t)(file_size - 12) / (record_header + 1))
 		return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_variables_create(&variables);
 	if (status != 0)
 		return status;
 	for (uint32_t i = 0; i < count; i++) {
-		uint8_t lengths[2], value[255];
+		uint8_t fields[3] = {0}, value[255];
 		char name[21];
 		size_t stored;
 
-		status = read_exact(stream, lengths, sizeof(lengths));
+		status = read_exact(stream, fields, record_header);
 		if (status != 0)
 			goto failed;
-		if (lengths[0] == 0 || lengths[0] > 20) {
+		if (fields[0] == 0 || fields[0] > 20 || fields[2] > CONFIRMATION_REQUIRED) {
 			status = IO_ERROR_INVALID_FORMAT;
 			goto failed;
 		}
-		status = read_exact(stream, name, lengths[0]);
+		status = read_exact(stream, name, fields[0]);
 		if (status == 0)
-			status = read_exact(stream, value, lengths[1]);
+			status = read_exact(stream, value, fields[1]);
 		if (status != 0)
 			goto failed;
-		name[lengths[0]] = 0;
-		status = st_rip3_variables_set(variables, name, lengths[0], value, lengths[1]);
+		name[fields[0]] = 0;
+		status = st_rip3_variables_define(variables, NULL, name, fields[0], value, fields[1],
+		    fields[2] == CONFIRMATION_REQUIRED);
 		if (status != 0)
 			goto failed;
 		(void)st_rip3_variables_count(variables, &stored);

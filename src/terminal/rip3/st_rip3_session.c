@@ -18,6 +18,7 @@
 #include "st_rip3_stream.h"
 #include "st_rip3_query.h"
 #include "st_rip3_graphical.h"
+#include "st_rip3_graphical_bytes.h"
 #include "st_rip3_text_metric.h"
 #include "st_rip3_button_render.h"
 #include "st_rip3_command_internal.h"
@@ -2022,6 +2023,7 @@ st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_ses
 		.initial = st_rip3_user_variables_initial(session->variables.user_variables),
 		.definition = session->defining_variable,
 		.reject_blank = session->defining_variable && session->definition_reject_blank,
+		.require_confirmation = st_rip3_user_variables_definition_confirmation(session->variables.user_variables),
 	};
 	return true;
 }
@@ -2035,25 +2037,49 @@ st_rip3_session_abort_definition(struct st_rip3_session *session)
 	}
 }
 
-void
-st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, size_t length, bool cancelled)
+static void
+respond(struct st_rip3_session *session, const uint8_t *bytes, size_t length, bool cancelled,
+    const bool *require_confirmation)
 {
 	if (session==NULL) return;
 	struct st_rip3_session_prompt prompt;
 	if (!st_rip3_session_prompt(session,&prompt)) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
 	if (prompt.definition) {
-		if (!cancelled && prompt.reject_blank && length == 0)
-			return;
-		/* The 1D editor's cancellation stores an empty value. Transport
-		 * failure and loss of the editor go through abort_definition. */
-		st_rip3_user_variables_respond(session->variables.user_variables,
-		    cancelled ? NULL : bytes, cancelled ? 0 : length, false);
+		if (!cancelled) {
+			if (bytes != NULL) {
+				size_t limit = st_rip3_graphical_prefix(bytes, length, prompt.reference->width - 1,
+				    session->graphical_codepage_converted);
+				if (session->text.encoding == ST_RIP3_TEXT_UTF8 && limit < length) {
+					while (limit != 0 && (bytes[limit] & 0xc0) == 0x80)
+						--limit;
+				}
+				length = limit;
+			}
+			if (prompt.reject_blank && length == 0)
+				return;
+			st_rip3_user_variables_accept_definition(session->variables.user_variables, bytes, length,
+			    require_confirmation);
+		}
 		st_rip3_session_abort_definition(session);
 	}
 	else
 		st_rip3_user_variables_respond(session->variables.user_variables,bytes,length,cancelled);
 	(void)prepare(session);
 	++session->revision;
+}
+
+void
+st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, size_t length, bool cancelled)
+{
+	respond(session, bytes, length, cancelled, NULL);
+}
+
+void
+st_rip3_session_accept_definition(struct st_rip3_session *session, const uint8_t *bytes, size_t length,
+    bool require_confirmation)
+{
+	if (session != NULL && session->defining_variable)
+		respond(session, bytes, length, false, &require_confirmation);
 }
 
 static struct st_rip3_query *

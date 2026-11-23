@@ -97,6 +97,10 @@ int st_wren_host_prompt(st_wren_host_t *host, const char *title,
 int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result);
+/* RIPv3 definition editor. Changes the policy only with an accepted value. */
+int st_wren_host_rip_define(st_wren_host_t *host, const char *title, const char *question,
+	const char *initial, size_t max_length, bool count_bytes, bool reject_blank,
+	bool *require_confirmation, char **result);
 /* Returns a choice index, or IO_ERROR_CANCELLED when dismissed. */
 int st_wren_host_choice(st_wren_host_t *host, const char *title,
 	const char *question, const char *const *choices, size_t count);
