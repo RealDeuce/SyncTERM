@@ -25,6 +25,7 @@
 #include "st_rip3_input.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_audio.h"
+#include "st_rip3_file_query.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_maf.h"
@@ -954,6 +955,34 @@ scene_header(struct st_rip3_session *session, const uint8_t *bytes, size_t lengt
 		header_segment(session, &header.segments[i]);
 }
 
+static void
+file_query(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	const struct st_rip3_command_sink sink = {session,diagnose};
+	struct st_rip3_environment env;
+	unsigned current;
+	uint64_t mode, reserved;
+	int status = IO_ERROR_INVALID_FORMAT;
+
+	if (length > 8 && memchr(bytes+8,0,length-8) == NULL) {
+		status = st_rip3_command_environment(&session->commands,&current,&env);
+		if (status == 0) status = st_rip3_command_field(&mode,bytes+2,2,env.base_math);
+		if (status == 0) status = st_rip3_command_field(&reserved,bytes+4,4,env.base_math);
+		if (status == 0 && mode > 4) status = IO_ERROR_OUT_OF_RANGE;
+	}
+	if (status != 0) {
+		st_rip3_command_result(&sink,status,false);
+		return;
+	}
+	if (session->sink.reply == NULL || session->commands.resources == NULL) return;
+	char *output;
+	size_t size;
+	status = st_rip3_file_query(session->commands.resources,(unsigned)mode,bytes+8,length-8,&output,&size);
+	if (size != 0) reply(session,(const uint8_t *)output,size);
+	free(output);
+	st_rip3_command_result(&sink,status,true);
+}
+
 static int
 switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
@@ -994,6 +1023,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 	}
 	else if (length >= 2 && bytes[0] == '2' && bytes[1] == 0x1b)
 		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'F')
+		file_query(session,bytes,length);
 	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);

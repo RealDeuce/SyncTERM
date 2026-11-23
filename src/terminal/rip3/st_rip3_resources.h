@@ -54,6 +54,10 @@ struct st_rip3_resource {
 int st_rip3_resource_open(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths,
     enum st_rip3_resource_kind kind, const char *name);
+/* File queries stop at the first matching media file, even if its open fails.
+ * matched distinguishes that failure from a miss, including on a name race. */
+int st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
+	const struct st_rip3_resource_paths *paths, const char *name);
 /* Write complete resource bytes to the explicitly bound trusted host directory,
  * creating its hierarchy if absent. Shared/fonts/search directories are never
  * written, including after any error or when host is absent (NOT_SUPPORTED).

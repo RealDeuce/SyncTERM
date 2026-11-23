@@ -367,6 +367,12 @@ if(BUILD_TESTING)
 					--reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_rip3_media_${_encoding}
 					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip3")
+				add_test(NAME syncterm_rip3_file_query_${_encoding}
+					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip3_file_query_connected_test.py
+					$<TARGET_FILE:syncterm_app> ${_encoding}
+					--reports ${CMAKE_BINARY_DIR}/reports/rip3-file-query)
+				set_tests_properties(syncterm_rip3_file_query_${_encoding}
+					PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;rip3" ENVIRONMENT "TZ=UTC0")
 				add_test(NAME syncterm_rip3_pointer_${_encoding}
 					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip3_pointer_connected_test.py
 					$<TARGET_FILE:syncterm_app> ${_encoding}

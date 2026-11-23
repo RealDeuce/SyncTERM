@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/167",
-  "revision": "9716850d93ba720097af2a3e100e633c6797ac38",
-  "previous_revision": "328f8191f526234bbc554b381aa86972eb9d4ef7",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/169",
+  "revision": "2900e843f911b05183620c110e43f381d90abc38",
+  "previous_revision": "9716850d93ba720097af2a3e100e633c6797ac38",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "76c46b9657130f27a3486b0884fac5111817475ca577a25e1310b5a56b833124",
+  "archive_sha256": "f8a28d9d16564ef2d92c151873b4ec410cb197926974743bc8ecdbe6b7520637",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,19 +17,24 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "previous_sha256": "3f5ba7004bcd3a11ec02b96a32d44b6e89011fa2ebfe69f63ef90b7cdc6714c2",
-      "sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c"
+      "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+      "previous_sha256": "8799eef4defc1450b644b1cb4bf54cf1d24e13dde7c25b784effcd9dfb9a59fb",
+      "sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c"
     },
     {
-      "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "e22224e1402323d3be4eafe2cce7a871dcec77a28c2fd9a523f1103d328e8ea8",
-      "sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8"
+      "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+      "previous_sha256": "87df1126e0cb63cc913f3b1723976db57a50379c808bfae3c9033b57b08a108f",
+      "sha256": "aa99944ebfd20ca8d7fabe1616287f92ebc5178c2489c4f73a7dfb1fea2c8c07"
     },
     {
-      "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "previous_sha256": "263702f953d2a61d20aa67785649b5dc81fe06d827d2d5db8ef53fb34d247478",
-      "sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4"
+      "path": "version/3.0/ripscrip/9.0-command-reference.md",
+      "previous_sha256": "78cec23f8cd5e3b1f4c4deb5e27d1401547404e62288b83584adc304ba20b381",
+      "sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
+      "previous_sha256": "acad974aac2ea19501588954560494694f71828ea8153f28527b4dfe653db766",
+      "sha256": "ba2dc7a1d185b8f1881eb0ff1444a143abc26d764c3a5f754311cc99b820a1e8"
     }
   ],
   "new_documents": [],
@@ -1454,6 +1459,12 @@
       "sha256": "370635451f89854fba1718081dfe1ca43da4cd6c908630074bb618de697e27f8",
       "title": "Issue #166: HCL bitmap image-style presentation",
       "role": "Original driver presentation, portable clipping and palette rules, and independent bitmap vectors."
+    },
+    {
+      "path": "version/3.0/research/issue-168-file-query-replies.md",
+      "sha256": "ef231588a297ec7714b1cb54014f95ec5f9736c08b12eb273ec7d4c20d226b1a",
+      "title": "Issue #168: FILE_QUERY reply bytes and alias metadata",
+      "role": "Engine reply bytes, filename preparation, lookup outcomes and alias metadata vectors."
     }
   ],
   "documents": [
@@ -1631,7 +1642,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "8799eef4defc1450b644b1cb4bf54cf1d24e13dde7c25b784effcd9dfb9a59fb"
+      "sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1643,7 +1654,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "sha256": "87df1126e0cb63cc913f3b1723976db57a50379c808bfae3c9033b57b08a108f"
+      "sha256": "aa99944ebfd20ca8d7fabe1616287f92ebc5178c2489c4f73a7dfb1fea2c8c07"
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
@@ -1659,7 +1670,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "78cec23f8cd5e3b1f4c4deb5e27d1401547404e62288b83584adc304ba20b381"
+      "sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1671,7 +1682,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
-      "sha256": "acad974aac2ea19501588954560494694f71828ea8153f28527b4dfe653db766"
+      "sha256": "ba2dc7a1d185b8f1881eb0ff1444a143abc26d764c3a5f754311cc99b820a1e8"
     },
     {
       "path": "version/3.0/ripscrip/README.md",
@@ -12688,6 +12699,393 @@
         },
         "scope": "Document, derivation and original publication checksums with ordered exact matching from the verified stable Git archive."
       }
+    },
+    {
+      "previous_revision": "9716850d93ba720097af2a3e100e633c6797ac38",
+      "revision": "2900e843f911b05183620c110e43f381d90abc38",
+      "archive_sha256": "f8a28d9d16564ef2d92c151873b4ec410cb197926974743bc8ecdbe6b7520637",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 169,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/169",
+          "head": "e9f962eb66419b5a8b812f159b5728e70d8efe5a"
+        }
+      ],
+      "upstream_state": "PR #169 is open in the parent. Its head is ancestral to the selected fork stable and has an identical tree.",
+      "authorization": "Standing user-selected stable reference and reviewed PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "8799eef4defc1450b644b1cb4bf54cf1d24e13dde7c25b784effcd9dfb9a59fb",
+          "sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+          "previous_sha256": "87df1126e0cb63cc913f3b1723976db57a50379c808bfae3c9033b57b08a108f",
+          "sha256": "aa99944ebfd20ca8d7fabe1616287f92ebc5178c2489c4f73a7dfb1fea2c8c07"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "78cec23f8cd5e3b1f4c4deb5e27d1401547404e62288b83584adc304ba20b381",
+          "sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
+          "previous_sha256": "acad974aac2ea19501588954560494694f71828ea8153f28527b4dfe653db766",
+          "sha256": "ba2dc7a1d185b8f1881eb0ff1444a143abc26d764c3a5f754311cc99b820a1e8"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8934,
+      "moved_source_blocks": 125,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 40,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:181",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:189",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:191",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:193",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:197",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:199",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:204",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:208",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:210",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:211",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:212",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:213",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:214",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:215",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:216",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:218",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:220",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:222",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:224",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:228",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:230",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:232",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:234",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:236",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:240",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:242",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:244",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:246",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:248",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:249",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:250",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:251",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:252",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:253",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:254",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:256",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:20",
+        "version/3.0/ripscrip/9.0-command-reference.md:206",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:24",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:27"
+      ],
+      "retired_source_blocks": 16,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:181",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            181,
+            181
+          ],
+          "text": "_Evidence: 2.00a4 ([v2.0 entry](../../2.0/ripscrip/5.5-file-transfer-and-queries.md#rip_file_query)); HLP (`RIP_FileQuery`); SyncTERM (ripper.c:16104) - not observed in the RIPtel demo corpus._\n",
+          "sha256": "7c64023601136ce035efca682867084bcb3ffe9298f3fb255d447c733c1c3a1c",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:183",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            183,
+            183
+          ],
+          "text": "_Query existing information on a particular file_\n",
+          "sha256": "3a1783da9af4d0e0823f7c44aa9bac3aa3b92325accf321b3ec0faf78c1bfb54",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:191",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            191,
+            191
+          ],
+          "text": "**Format:** `!|1F <mode> <res> <filename>` **Example:** `!|1F010000testfile.icn`\n",
+          "sha256": "9b23a3e448c82625aeece5ba213eb93b8ed7c89de4da94d9b67d0b2dbacac1e3",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:193",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            193,
+            193
+          ],
+          "text": "**Attributes used:** Base Math (current setting)\n",
+          "sha256": "9b35ebaf6210a5d66153e33b14c023ba911b938ff83d3b9e72bc9956bebb69c9",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:195",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            195,
+            195
+          ],
+          "text": "This command queries the existence of a particular file, regardless of type. It is intended for host systems to determine if a particular icon or RIP file exists on the terminal's hard disk - the host side of the 3.x resource-caching story ([staleness check](6.2-asset-delivery-and-storage.md#the-delivery-workflow)). The `<mode>` parameter determines the command's response; the terminal sends the response to the host immediately upon execution.\n",
+          "sha256": "095471f4f7c082b25f0a2e0d228f9f33bdcb1659456f70788c30fc9ca0b155c3",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:197",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            197,
+            197
+          ],
+          "text": "| Mode | Description |\n",
+          "sha256": "0278d6c9b3bd1b44a52768305d731bcc021e25faa5c127a5fa64678d30241d7a",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:198",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            198,
+            198
+          ],
+          "text": "| --- | --- |\n",
+          "sha256": "3491e014f5503eb5b2fca81db42f6f72765980ba5b5e48ef135b6cf69d7f92cc",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:199",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            199,
+            199
+          ],
+          "text": "| 00 | Simply query the existence of the file. If it exists, a \"1\" is returned. Otherwise a \"0\" is returned to the Host (without a carriage return). |\n",
+          "sha256": "d8aacb39d85dafb45343d3b55f94c3105ad52dbe241ee3c91102826f93042fac",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:200",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            200,
+            200
+          ],
+          "text": "| 01 | Same as 0, except a carriage return is added after the response. |\n",
+          "sha256": "8007ed8f0d877630977b76cd3c362bafd8df89c7a6855af540500a6138ec2676",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:201",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            201,
+            201
+          ],
+          "text": "| 02 | Queries the existence of a file. If it does not exist, a \"0\" is returned to the Host followed by a carriage return. If it does exist, the returned text is a \"1.\" followed by the file size (in decimal). The return sequence is terminated by a carriage return. An example of the returned text could be \"1.20345\". |\n",
+          "sha256": "92e7d0e9b5652940dab964f26d8b5f96121d1ff9fd10c24716aac0d48b8e4b91",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:202",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            202,
+            202
+          ],
+          "text": "| 03 | Queries extended return information. If the file does not exist, a \"0\" is returned followed by a carriage return. If it does exist, the text returned to the Host is in the Format: `1.size.date.time <cr>`. An example of a return statement could be `1.20345.01/02/93.03:04:30<cr>` |\n",
+          "sha256": "eb3104245fc19f2b84f6dd9017c0822693a40d8ceb7986b96b938e758ba8b01f",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:203",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            203,
+            203
+          ],
+          "text": "| 04 | Queries extended return information. If the file does not exist, a \"0\" is returned followed by a carriage return. If it does exist, the text returned to the Host is in the Format: `1.filename.size.date.time <cr>`. An example of a return statement could be `1.MYFILE.RIP.20345.01/02/93.03:04:30 <cr>`. Note that the file extension adds another period into the return text. |\n",
+          "sha256": "80f29fbd6786813eb7e293dc79698244b609c59c72a96a803aa29034e5ebabf7",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:205",
+          "heading": "RIP_FILE_QUERY",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            205,
+            205
+          ],
+          "text": "The self-contained demo corpus has no host to answer, so the command never appears there; SyncTERM implements it against its per-BBS cache directory. Which directories are searched, and where downloaded files land, is the connection-directory model of [6.2](6.2-asset-delivery-and-storage.md). _Evidence: SyncTERM; HLP._\n",
+          "sha256": "62af5450d09f0d709fa5ede769820cb5123425cb77b9826a49610db1d99d6e1e",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.0-command-reference.md:206",
+          "heading": "Host interaction",
+          "source": "version/3.0/ripscrip/9.0-command-reference.md",
+          "lines": [
+            206,
+            206
+          ],
+          "text": "| [RIP_FILE_QUERY](5.5-file-transfer-and-queries.md#rip_file_query) | 1 | `F` | `mode:2 res:4 filename` |  | Query existence/size/date of a file on the terminal (host side of the 3.x resource-caching story) |\n",
+          "sha256": "86e893d0cd071b4407dc4664dc8fb548830e43d79921937b77f156175382a446",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.3-host-command-reference.md:24",
+          "heading": "Host-bound responses",
+          "source": "version/3.0/ripscrip/9.3-host-command-reference.md",
+          "lines": [
+            24,
+            24
+          ],
+          "text": "| RIP_FILE_QUERY modes 00-04 | `1`/`0`, optionally + CR, `.size`, `.size.date.time`, or `.filename.size.date.time` forms - inherited unchanged | [5.5](5.5-file-transfer-and-queries.md#rip_file_query) |\n",
+          "sha256": "b20cc2433be153e221b715a31ba1904f29c82665bfd320546aca87d2e8c461ca",
+          "status": "blocked",
+          "implementation": [],
+          "tests": [],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/168"
+          ],
+          "reason": "RIPtel 3.1 has shipped differences from the inherited file-query description, including mode-04 replies and alias-specific lengths. Exact name preparation, error handling and portable size rules need clarification."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.3-host-command-reference.md:27",
+          "heading": "Host-bound responses",
+          "source": "version/3.0/ripscrip/9.3-host-command-reference.md",
+          "lines": [
+            27,
+            27
+          ],
+          "text": "Mouse-coordinate and state variables substitute into any host-bound string - see [9.1 Text Variable Reference](9.1-text-variable-reference.md). Variables may also be set (`$-=NAME=value$`) and dereferenced (`$&NAME$`) inside host commands before transmission ([5.0](5.0-host-commands.md#setting--reading-user-variables-from-host-commands)).\n",
+          "sha256": "8458bb2b4d259fb57f65ed943e700ec534b0246b50ab8add5a92f556516714b3",
+          "status": "unreviewed",
+          "implementation": [],
+          "tests": []
+        }
+      ],
+      "retired_implemented_claims": [],
+      "resolved_carried_blockers": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:187"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-168-file-query-replies.md",
+          "sha256": "ef231588a297ec7714b1cb54014f95ec5f9736c08b12eb273ec7d4c20d226b1a",
+          "title": "Issue #168: FILE_QUERY reply bytes and alias metadata",
+          "role": "Engine reply bytes, filename preparation, lookup outcomes and alias metadata vectors."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 2818,
+        "context": 1605,
+        "pending": 1742,
+        "implemented": 2717,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 8974,
+      "policy": "Review source material as data. No original code executed.",
+      "followup": "Connect RIP_FILE_QUERY to live sessions and test exact replies, alias sizes and storage failures.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 80,
+        "declared_prior_derivation_changes": 0,
+        "originals": {
+          "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "version/2.0/text/RIPScrip-2.0-alpha-4.txt": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
+        },
+        "scope": "Document, derivation and original publication checksums with ordered exact matching from the verified stable Git archive."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -15771,6 +16169,72 @@
       },
       "verification": "Native Release CMake build, resource and session tests, and live TCP media in CP437/UTF-8. RIP154 source freeze and both RIP154 wire encodings pass.",
       "followup": "Finish codepage length handling, user search paths and resource delivery."
+    },
+    {
+      "after_commit": "26ca0510",
+      "revision": "2900e843f911b05183620c110e43f381d90abc38",
+      "scope": "Connect the shipped RIP_FILE_QUERY wire command and exact replies.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:181",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:185",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:186",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:187",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:189",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:191",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:197",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:199",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:204",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:208",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:212",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:213",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:214",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:215",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:216",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:218",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:220",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:222",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:224",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:228",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:230",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:232",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:234",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:236",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:242",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:244",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:250",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:251",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:252",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:253",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:254",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:256",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:20",
+        "version/3.0/ripscrip/9.0-command-reference.md:206",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:24",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:27"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:193"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:183",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:184",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:210",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:211",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:240",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:246",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:248",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:249"
+      ],
+      "states_after_update": {
+        "unreviewed": 2814,
+        "context": 1613,
+        "pending": 1702,
+        "implemented": 2753,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "verification": "Native Release CMake build, opened-stream filesystem metadata, file-query storage faults, live TCP replies in CP437 and UTF-8, and RIP154 source freeze and preservation guards.",
+      "followup": "Bind user-configured resource search paths and complete local scene playback."
     }
   ]
 }

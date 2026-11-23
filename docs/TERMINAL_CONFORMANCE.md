@@ -986,6 +986,10 @@ RIPv3 `$HOSTDIR$` and `2<ESC>` select the live resource cache. Connected
 fixtures check named overrides, shared fallback, real bitmap reads and
 writes, and recovery after malformed names. [RIPv3 host directory coverage](RIP3_CONFORMANCE.md#connected-ripv3-host-directory-selection)
 
+RIPv3 `1F` reports resource metadata through the active connection.
+Connected CP437 and UTF-8 fixtures cover exact reply bytes and bitmap alias
+sizes. Native fixtures exercise open and metadata failures. [RIPv3 file-query coverage](RIP3_CONFORMANCE.md#connected-rip_file_query)
+
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

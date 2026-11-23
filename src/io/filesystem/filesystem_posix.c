@@ -38,26 +38,33 @@ fs_mode_kind(mode_t mode)
 }
 
 static int
+fs_stat_result(struct fs_info *result, const struct stat *status)
+{
+	struct fs_info info;
+
+	info.kind = fs_mode_kind(status->st_mode);
+	if (info.kind == FS_ENTRY_FILE) {
+		if (status->st_size < 0)
+			return IO_ERROR_IO;
+		info.size = (uint64_t)status->st_size;
+	}
+	else
+		info.size = 0;
+	info.modified_time = (int64_t)status->st_mtime;
+	*result = info;
+	return 0;
+}
+
+static int
 fs_stat_info(struct fs_info *result, const char *path, bool follow)
 {
 	struct stat status;
-	struct fs_info info;
 
 	if (result == NULL || path == NULL || *path == '\0')
 		return IO_ERROR_INVALID_ARGUMENT;
 	if ((follow ? stat(path, &status) : lstat(path, &status)) != 0)
 		return fs_errno_error(errno);
-	info.kind = fs_mode_kind(status.st_mode);
-	if (info.kind == FS_ENTRY_FILE) {
-		if (status.st_size < 0)
-			return IO_ERROR_IO;
-		info.size = (uint64_t)status.st_size;
-	}
-	else
-		info.size = 0;
-	info.modified_time = (int64_t)status.st_mtime;
-	*result = info;
-	return 0;
+	return fs_stat_result(result, &status);
 }
 
 int
@@ -70,6 +77,19 @@ int
 fs_get_link_info(struct fs_info *result, const char *path)
 {
 	return fs_stat_info(result, path, false);
+}
+
+int
+fs_get_stream_info(struct fs_info *result, FILE *stream)
+{
+	struct stat status;
+
+	if (result == NULL || stream == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	int descriptor = fileno(stream);
+	if (descriptor < 0 || fstat(descriptor, &status) != 0)
+		return fs_errno_error(errno);
+	return fs_stat_result(result, &status);
 }
 
 int

@@ -81,7 +81,7 @@ st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name
 
 static int
 open_directory(struct st_rip3_resource *result, const char *directory,
-    const char *key, size_t key_size)
+    const char *key, size_t key_size, bool *matched)
 {
 	struct st_rip3_resource_match match = {.directory=directory,.key=key,.key_size=key_size};
 	struct st_rip3_resource resource = {0};
@@ -93,6 +93,7 @@ open_directory(struct st_rip3_resource *result, const char *directory,
 	if (status == 0 && match.path == NULL)
 		status = IO_ERROR_NOT_FOUND;
 	if (status == 0) {
+		if (matched != NULL) *matched = true;
 		resource.path = match.path;
 		status = fs_open(&resource.stream, match.path, "rb");
 	}
@@ -120,10 +121,10 @@ st_rip3_resource_name_valid(const char *name)
 	return true;
 }
 
-int
-st_rip3_resource_open(struct st_rip3_resource *result,
+static int
+open_resource(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths,
-    enum st_rip3_resource_kind kind, const char *name)
+    enum st_rip3_resource_kind kind, const char *name, bool *matched)
 {
 	char *key = NULL;
 	size_t key_size;
@@ -152,8 +153,8 @@ st_rip3_resource_open(struct st_rip3_resource *result,
 		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0 && paths->named_host_root != NULL
 		    && (directory_status(paths->named_host_root) != 0 || directory_status(fixed[i]) != 0))
 			continue;
-		status = open_directory(result, fixed[i], key, key_size);
-		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY)
+		status = open_directory(result, fixed[i], key, key_size, matched);
+		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY || (matched != NULL && *matched))
 			goto done;
 		if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
 		    && status != IO_ERROR_NOT_DIRECTORY)
@@ -161,8 +162,8 @@ st_rip3_resource_open(struct st_rip3_resource *result,
 	}
 	if (kind == ST_RIP3_RESOURCE_MEDIA) {
 		for (size_t i = 0; i < paths->search_count; i++) {
-			status = open_directory(result, paths->search[i], key, key_size);
-			if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY)
+			status = open_directory(result, paths->search[i], key, key_size, matched);
+			if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY || (matched != NULL && *matched))
 				goto done;
 			if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
 			    && status != IO_ERROR_NOT_DIRECTORY)
@@ -173,6 +174,23 @@ st_rip3_resource_open(struct st_rip3_resource *result,
 done:
 	free(key);
 	return status;
+}
+
+int
+st_rip3_resource_open(struct st_rip3_resource *result,
+    const struct st_rip3_resource_paths *paths, enum st_rip3_resource_kind kind,
+    const char *name)
+{
+	return open_resource(result,paths,kind,name,NULL);
+}
+
+int
+st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
+    const struct st_rip3_resource_paths *paths, const char *name)
+{
+	if (matched == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	*matched = false;
+	return open_resource(result,paths,ST_RIP3_RESOURCE_MEDIA,name,matched);
 }
 
 int

@@ -1169,3 +1169,17 @@ moves 51 line references, adds 35 blocks and retires ten, for 8950 total.
 The 79 prior derivations, original protocol texts and license retain their
 hashes. The new #166 derivation describes the original bitmap wrapper and
 portable clipping and color rules. It resolves B166.
+
+## PR #169 FILE_QUERY replies and alias sizes
+
+Fork stable is pinned at
+[`2900e843f911b05183620c110e43f381d90abc38`](https://github.com/RealDeuce/remote-imaging-protocol/tree/2900e843f911b05183620c110e43f381d90abc38).
+Its tree matches [PR #169](https://github.com/bbs-land/remote-imaging-protocol/pull/169)
+head `e9f962eb66419b5a8b812f159b5728e70d8efe5a`. The in-memory Git tar archive
+has SHA-256 `f8a28d9d16564ef2d92c151873b4ec410cb197926974743bc8ecdbe6b7520637`.
+
+Four normative documents change. The index carries 8934 blocks, moves 125
+source line ranges, adds 40 blocks and retires 16, for 8974 total. The prior
+80 derivations, original protocol texts and license retain their hashes. The
+new #168 derivation resolves B168 and specifies the exact `1F` replies,
+name handling and bitmap alias size conversion.

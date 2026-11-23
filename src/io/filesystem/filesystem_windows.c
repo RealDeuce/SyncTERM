@@ -101,17 +101,28 @@ fs_windows_info(struct fs_info *result, DWORD attributes, DWORD size_high,
 	result->modified_time = fs_filetime_seconds(modified_time);
 }
 
+static int
+fs_handle_info(struct fs_info *result, HANDLE handle)
+{
+	BY_HANDLE_FILE_INFORMATION native;
+	if (!GetFileInformationByHandle(handle, &native))
+		return fs_windows_error(GetLastError());
+	SetLastError(NO_ERROR);
+	DWORD type = GetFileType(handle);
+	if (type == FILE_TYPE_UNKNOWN && GetLastError() != NO_ERROR)
+		return fs_windows_error(GetLastError());
+	fs_windows_info(result, native.dwFileAttributes, native.nFileSizeHigh,
+	    native.nFileSizeLow, native.ftLastWriteTime, type);
+	return 0;
+}
+
 int
 fs_get_info(struct fs_info *result, const char *path)
 {
 	wchar_t *wide;
-	BY_HANDLE_FILE_INFORMATION native;
-	struct fs_info info;
-	int error;
-
 	if (result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	error = fs_windows_path(path, &wide);
+	int error = fs_windows_path(path, &wide);
 	if (error < 0)
 		return error;
 	HANDLE handle = CreateFileW(wide, FILE_READ_ATTRIBUTES,
@@ -120,23 +131,23 @@ fs_get_info(struct fs_info *result, const char *path)
 	free(wide);
 	if (handle == INVALID_HANDLE_VALUE)
 		return fs_windows_error(GetLastError());
-	if (!GetFileInformationByHandle(handle, &native)) {
-		error = fs_windows_error(GetLastError());
-		CloseHandle(handle);
-		return error;
-	}
-	SetLastError(NO_ERROR);
-	DWORD type = GetFileType(handle);
-	if (type == FILE_TYPE_UNKNOWN && GetLastError() != NO_ERROR) {
-		error = fs_windows_error(GetLastError());
-		CloseHandle(handle);
-		return error;
-	}
-	fs_windows_info(&info, native.dwFileAttributes, native.nFileSizeHigh,
-	    native.nFileSizeLow, native.ftLastWriteTime, type);
+	error = fs_handle_info(result, handle);
 	CloseHandle(handle);
-	*result = info;
-	return 0;
+	return error;
+}
+
+int
+fs_get_stream_info(struct fs_info *result, FILE *stream)
+{
+	if (result == NULL || stream == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	int descriptor = _fileno(stream);
+	if (descriptor < 0)
+		return fs_errno_error(errno);
+	intptr_t handle = _get_osfhandle(descriptor);
+	if (handle == -1)
+		return fs_errno_error(errno);
+	return fs_handle_info(result, (HANDLE)handle);
 }
 
 int

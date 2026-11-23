@@ -105,6 +105,15 @@ main(void)
 	CHECK(fs_set_modified_time(source, INT64_C(1700000000)) == 0);
 	CHECK(fs_get_info(&info, source) == 0);
 	CHECK(info.modified_time == INT64_C(1700000000));
+	CHECK(fs_open(&stream, source, "rb") == 0);
+	if (stream != NULL) {
+		struct fs_info opened;
+		CHECK(fs_get_stream_info(&opened, stream) == 0);
+		CHECK(opened.kind == info.kind && opened.size == info.size);
+		CHECK(opened.modified_time == info.modified_time);
+		CHECK(ftell(stream) == 0);
+		CHECK(fclose(stream) == 0);
+	}
 
 #ifndef _WIN32
 	CHECK(chmod(source, 0751) == 0);

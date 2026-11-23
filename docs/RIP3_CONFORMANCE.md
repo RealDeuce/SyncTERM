@@ -9080,14 +9080,6 @@ aliases, each placement boundary, all flags set, clipped dither and separate
 offscreen rendering. Missing and truncated files let the host program
 continue with its suffix.
 
-## RIP_FILE_QUERY documentation conflict
-
-The RIPtel 3.1 DLL uses a colon after the filename in mode 04 and returns
-the prepared name and zero metadata for a lookup miss. It also changes
-lookup extensions and the reported size for legacy bitmap aliases. The
-inherited wire tables differ from those observations. The separate v3
-command awaits the exact reply and filename contract. [Issue #168](https://github.com/bbs-land/remote-imaging-protocol/issues/168)
-
 At the PR #167 pin this queue contains 2704 implemented, 1697 pending,
 2845 unreviewed, 1601 context, 67 excluded and 36 blocked units.
 
@@ -9109,3 +9101,21 @@ expansion, subsequent reads and writes, and malformed input recovery. The
 12-byte name limit currently uses SyncTERM's normalized UTF-8 bytes. DOS
 high-byte name boundaries and the remaining search and delivery tiers still
 need coverage.
+
+## Connected RIP_FILE_QUERY
+
+RIPv3 `1F` prepares the ASCII filename tail, then strips DOS path
+components for cache lookup. Mode 04 echoes the prepared name and uses a
+colon before the size. A failed open of the first matching file is silent.
+Metadata failure on an opened file returns success with zero fields. The
+launcher transmits the engine replies with one CR where specified. [Reference PR #169](https://github.com/bbs-land/remote-imaging-protocol/pull/169)
+
+Explicit ICN, HIC and MSK aliases use the planar equivalent size for a
+supported bitmap header. For example, a 70-byte 9×2 BMP reports 22 through
+its ICN alias. Direct BMP queries use the file length. The ordinary length
+uses `-1` when it cannot fit the signed 32-bit request. [Win32 file-position contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointer)
+
+Connected CP437 and UTF-8 tests compare complete replies for hits, misses,
+aliases and malformed-command recovery. Native fault tests distinguish lookup,
+open, length, metadata and time-conversion outcomes. User-configured resource
+search paths still need to be connected to the application.

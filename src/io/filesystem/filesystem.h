@@ -40,6 +40,8 @@ struct fs_info {
  */
 int fs_get_info(struct fs_info *result, const char *path);
 int fs_get_link_info(struct fs_info *result, const char *path);
+/* Observe the opened file, including after its path is renamed or replaced. */
+int fs_get_stream_info(struct fs_info *result, FILE *stream);
 int fs_open(FILE **result, const char *path, const char *mode);
 
 /* Returns a byte size or a negative IO_ERROR_* value without seeking. */
