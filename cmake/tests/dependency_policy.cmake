@@ -41,6 +41,15 @@ foreach(kind STATIC SHARED)
 		"-DPROVIDE=${kind}" "-DCMAKE_INSTALL_PREFIX=${TEST_ROOT}/prefix-${kind}")
 	run("build-${kind}" TRUE "${CMAKE_COMMAND}" --build "${TEST_ROOT}/provide-${kind}" --target install)
 endforeach()
+# The signed macOS packager supplies FindOpenSSL hints for its cached archives.
+run(openssl-hints TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/openssl-hints"
+	"-DPROJECT_MODULES=${modules}" -DDEPENDENCY_NAME=OPENSSL -DEXPECTED=STATIC
+	"-DOPENSSL_ROOT_DIR=${TEST_ROOT}/prefix-STATIC" -DOPENSSL_USE_STATIC_LIBS=TRUE)
+run(openssl-overrides TRUE "${CMAKE_COMMAND}" -S "${source}" -B "${TEST_ROOT}/openssl-overrides"
+	"-DPROJECT_MODULES=${modules}" -DDEPENDENCY_NAME=OPENSSL
+	"-DOPENSSL_ROOT_DIR=${TEST_ROOT}/prefix-STATIC" -DOPENSSL_USE_STATIC_LIBS=TRUE
+	"-DST_DEP_OPENSSL_ROOT=${TEST_ROOT}/prefix-SHARED" -DST_DEP_OPENSSL_LINKAGE=SHARED
+	-DEXPECTED=SHARED)
 foreach(mode STATIC SHARED RUNTIME)
 	foreach(kind STATIC SHARED)
 		set(success FALSE)
