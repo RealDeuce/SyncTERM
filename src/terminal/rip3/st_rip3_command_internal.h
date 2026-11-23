@@ -30,7 +30,8 @@ int st_rip3_command_outline_font(struct st_rip3_outline_font *result,
 int st_rip3_command_draw_outline(const struct st_rip3_command_host *host,
 	const struct st_rip3_style *style, const struct st_rip3_outline_layout *layout,
 	const struct st_rip3_outline_font *font, unsigned rgb_bits,
-	const struct st_rip3_text_position *anchor, const uint8_t *glyphs, size_t length);
+	const struct st_rip3_text_position *anchor, const uint8_t *glyphs, size_t length,
+	const uint8_t *foreground_override);
 int st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,

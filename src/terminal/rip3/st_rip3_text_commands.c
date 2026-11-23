@@ -65,13 +65,14 @@ outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style
 	measured=st_rip3_ports_cursor(host->ports,port_number,&next);
 	if (measured!=0) return measured;
 	if (status!=0) return status;
-	return st_rip3_command_draw_outline(host,style,&layout,&font,rgb_bits,anchor,glyphs,length);
+	return st_rip3_command_draw_outline(host,style,&layout,&font,rgb_bits,anchor,glyphs,length,NULL);
 }
 
 int
 st_rip3_command_draw_outline(const struct st_rip3_command_host *host, const struct st_rip3_style *style,
     const struct st_rip3_outline_layout *layout, const struct st_rip3_outline_font *font, unsigned rgb_bits,
-    const struct st_rip3_text_position *anchor, const uint8_t *glyphs, size_t length)
+    const struct st_rip3_text_position *anchor, const uint8_t *glyphs, size_t length,
+    const uint8_t *foreground_override)
 {
 	if (length>SIZE_MAX/sizeof(struct st_rip3_text_position) || length>SIZE_MAX/sizeof(int32_t))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -84,7 +85,10 @@ st_rip3_command_draw_outline(const struct st_rip3_command_host *host, const stru
 	if (status==0) status=st_rip3_outline_layout_positions(layout,anchor,advances,length,bbox,positions,&total);
 	uint8_t foreground=0,background=0;
 	if (status==0 && style->write_mode!=ST_RIP3_NOT) {
-		status=st_rip3_command_ink(host,rgb_bits,style->drawing_color,&foreground);
+		if (foreground_override != NULL)
+			foreground = *foreground_override;
+		else
+			status=st_rip3_command_ink(host,rgb_bits,style->drawing_color,&foreground);
 		if (status==0 && style->outline.shadow!=0) status=st_rip3_command_ink(host,rgb_bits,style->background_color,&background);
 	}
 	if (status==0) status=st_rip3_draw_outline_positioned(host->ports,font,layout,glyphs,length,positions,

@@ -101,7 +101,7 @@ target_sources(st_rip3_commands PRIVATE st_rip3_scroll_commands.c st_rip3_column
 target_sources(st_rip3_commands PRIVATE st_rip3_mouse_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio
-	PRIVATE st_rip3_storage st_rip3_math syncterm_string_compat st_utf8 st_codepage)
+	PRIVATE st_rip3_storage st_rip3_math syncterm_string_compat syncterm_string_util st_utf8 st_codepage st_unicode_compare)
 set_target_properties(st_rip3_commands PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
@@ -244,7 +244,7 @@ if(BUILD_TESTING)
 	add_test(NAME rip3_palette_lifecycle COMMAND st_rip3_palette_lifecycle_test)
 	add_executable(st_rip3_session_test tests/st_rip3_session_test.c tests/st_rip3_session_fault_impl.c
 		tests/st_rip3_resident_query_fault_impl.c)
-	target_link_libraries(st_rip3_session_test PRIVATE st_rip3_commands st_utf8)
+	target_link_libraries(st_rip3_session_test PRIVATE st_rip3_commands syncterm_string_util st_utf8)
 	file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/session-scenes/Pace.TXT" CONTENT "ABC")
 	target_compile_definitions(st_rip3_session_test PRIVATE
 		ST_RIP3_SESSION_SCENE_DIR="${CMAKE_CURRENT_BINARY_DIR}/session-scenes")

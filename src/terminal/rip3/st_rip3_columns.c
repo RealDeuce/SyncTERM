@@ -4,20 +4,25 @@
 #include "st_rip3_classic_text.h"
 #include "st_rip3_command_internal.h"
 #include "st_rip3_environments.h"
+#include "st_rip3_graphical_bytes.h"
 #include "st_rip3_outline_cache.h"
 #include "st_rip3_outline_font.h"
 #include "st_rip3_outline_layout.h"
 #include "st_rip3_ports.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_text_commands.h"
+#include "st_codepage.h"
+#include "st_unicode_compare.h"
+#include "st_utf8.h"
 #include "io_error.h"
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 int
-st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length)
+st_rip3_columns_decode(struct st_rip3_column_definition *definition, const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, size_t *tail)
 {
 	struct st_rip3_environment env;
 	unsigned current;
@@ -25,7 +30,9 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 	if (status != 0)
 		return status;
 	size_t width = env.coordinate_size;
-	if (length != 4 + 4 * width)
+	bool extended = command[1] == 'e';
+	size_t fixed = 4 + 4 * width;
+	if (extended ? length < fixed + 14 : length != fixed)
 		return IO_ERROR_INVALID_FORMAT;
 	uint64_t field[6];
 	for (size_t i = 0; i < 6; ++i) {
@@ -36,6 +43,25 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 	}
 	if (field[4] >= ST_RIP3_COLUMN_COUNT || field[5] >= ST_RIP3_COLUMN_COUNT)
 		return IO_ERROR_OUT_OF_RANGE;
+	uint64_t flags = 0, color = 0;
+	if (extended) {
+		status = st_rip3_command_field(&flags, command + fixed, 4, env.base_math);
+		if (status != 0)
+			return status;
+		if (flags > 3 || field[5] == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		uint64_t reserved;
+		status = st_rip3_command_field(&color, command + fixed + 4, 2, env.base_math);
+		if (status == 0)
+			status = st_rip3_command_field(&reserved, command + fixed + 6, 4, env.base_math);
+		if (status == 0)
+			status = st_rip3_command_field(&reserved, command + fixed + 10, 4, env.base_math);
+		if (status != 0)
+			return status;
+		if ((flags & 2) != 0 && color > UINT8_MAX)
+			return IO_ERROR_OUT_OF_RANGE;
+		fixed += 14;
+	}
 	struct st_rip3_frame frame;
 	struct st_rip3_point first, last;
 	status = st_rip3_command_frame(host, current, &frame);
@@ -51,17 +77,15 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 	status = st_rip3_ports_current(host->ports, &current);
 	if (status == 0)
 		status = st_rip3_ports_info(host->ports, current, &port);
-	if (status != 0 || port.protected)
+	if (status != 0)
 		return status;
-	columns->slots[field[4]] = (struct st_rip3_column){
+	*definition = (struct st_rip3_column_definition){
 		.area = {first.x < last.x ? first.x : last.x, first.y < last.y ? first.y : last.y,
 		    first.x > last.x ? first.x : last.x, first.y > last.y ? first.y : last.y},
-		.article = (unsigned)field[5], .defined = true,
+		.slot = (unsigned)field[4], .article = (unsigned)field[5], .flags = (unsigned)flags,
+		.color = (uint8_t)color, .extended = extended, .suppressed = port.protected,
 	};
-	columns->article = (unsigned)field[5];
-	columns->current = 0;
-	columns->offset = 0;
-	columns->active = true;
+	*tail = fixed;
 	return 0;
 }
 
@@ -75,10 +99,23 @@ struct column_line {
 	size_t length;
 	unsigned rgb_bits;
 	uint8_t foreground, background;
+	const struct st_rip3_column_search *search;
 	int64_t height;
 	int32_t x, y;
 	double width;
 	bool justify;
+};
+
+struct article_buffer {
+	uint8_t *bytes;
+	size_t length, capacity;
+};
+
+struct st_rip3_article_flow {
+	struct column_line pen;
+	struct article_buffer word, line;
+	double width;
+	bool prepared, newline, previous_cr, dropping_word;
 };
 
 static int
@@ -134,18 +171,18 @@ prepare_line(struct column_line *line)
 }
 
 static int
-measure_word(const struct column_line *line, size_t start, size_t end, double *width)
+measure_span(const struct column_line *line, const uint8_t *bytes, size_t length, double *width)
 {
 	if (line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
 		struct st_rip3_outline_width measure;
 		int status = st_rip3_outline_cache_measure(&measure, line->host->text->outline_cache,
-		    line->glyphs + start, end - start);
+		    bytes, length);
 		if (status == 0)
 			*width = (double)measure.advance;
 		return status;
 	}
 	struct st_rip3_classic_text_plan plan;
-	int status = st_rip3_classic_text_plan(&line->classic, &line->style.font, line->glyphs + start, end - start,
+	int status = st_rip3_classic_text_plan(&line->classic, &line->style.font, bytes, length,
 	    &(struct st_rip3_text_position){0, 0}, &plan);
 	if (status == 0)
 		*width = plan.advance;
@@ -153,7 +190,8 @@ measure_word(const struct column_line *line, size_t start, size_t end, double *w
 }
 
 static int
-draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip3_text_position at)
+draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip3_text_position at,
+    const uint8_t *foreground)
 {
 	if (start == end)
 		return 0;
@@ -161,22 +199,66 @@ draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip
 		at.y -= (double)line->outline.bounds.ymin + line->layout.baseline.y;
 		at.x -= line->layout.baseline.x;
 		return st_rip3_command_draw_outline(line->host, &line->style, &line->layout, &line->outline,
-		    line->rgb_bits, &at, line->glyphs + start, end - start);
+		    line->rgb_bits, &at, line->glyphs + start, end - start, foreground);
 	}
 	return st_rip3_draw_classic_text(line->host->ports, &line->classic, &line->style.font,
-	    line->glyphs + start, end - start, &at, line->foreground, line->background, line->style.write_mode);
+	    line->glyphs + start, end - start, &at, foreground != NULL ? *foreground : line->foreground,
+	    line->background, line->style.write_mode);
+}
+
+static bool
+space(uint8_t byte)
+{
+	return byte == ' ' || (byte >= '\t' && byte <= '\r');
 }
 
 static bool
 next_word(const struct column_line *line, size_t *start, size_t *end)
 {
 	*start = *end;
-	while (*start < line->length && line->glyphs[*start] == ' ')
+	while (*start < line->length && space(line->glyphs[*start]))
 		++*start;
 	*end = *start;
-	while (*end < line->length && line->glyphs[*end] != ' ')
+	while (*end < line->length && !space(line->glyphs[*end]))
 		++*end;
 	return *end != *start;
+}
+
+static size_t
+search_utf8(char output[4 * ST_RIP3_COLUMN_SEARCH_LENGTH], const uint8_t *text, size_t length)
+{
+	size_t used = 0;
+	for (size_t i = 0; i < length; ++i) {
+		uint32_t cp = st_codepage_to_unicode(ST_CODEPAGE_CP437, text[i], false);
+		ptrdiff_t size = st_utf8_encode_one(output + used, 4 * ST_RIP3_COLUMN_SEARCH_LENGTH - used, cp);
+		if (size < 0)
+			return 0;
+		used += (size_t)size;
+	}
+	return used;
+}
+
+static int
+search_color(const struct st_rip3_column_search *search, const uint8_t *word, size_t length,
+    const uint8_t **ink)
+{
+	*ink = NULL;
+	if (search->count == 0 || length > ST_RIP3_COLUMN_SEARCH_LENGTH)
+		return 0;
+	char left[4 * ST_RIP3_COLUMN_SEARCH_LENGTH], right[4 * ST_RIP3_COLUMN_SEARCH_LENGTH];
+	size_t size = search_utf8(left, word, length);
+	for (size_t i = 0; i < search->count; ++i) {
+		bool equal;
+		size_t other = search_utf8(right, search->words[i], search->lengths[i]);
+		int status = st_unicode_caseless_equal(&equal, left, size, right, other);
+		if (status != 0)
+			return status;
+		if (equal) {
+			*ink = &search->color;
+			break;
+		}
+	}
+	return 0;
 }
 
 static int
@@ -184,32 +266,327 @@ draw_line(void *context, struct st_rip3_point origin)
 {
 	const struct column_line *line = context;
 	struct st_rip3_text_position at = {(double)line->x - origin.x, (double)line->y - origin.y};
-	if (!line->justify)
-		return draw_run(line, 0, line->length, at);
+	if (!line->justify && line->search->count == 0)
+		return draw_run(line, 0, line->length, at, NULL);
 	size_t start, end = 0, words = 0;
-	double total = 0;
-	while (next_word(line, &start, &end)) {
-		double width;
-		int status = measure_word(line, start, end, &width);
-		if (status != 0)
-			return status;
-		total += width;
-		++words;
+	double total = 0, gap = 0;
+	if (line->justify) {
+		while (next_word(line, &start, &end)) {
+			double width;
+			int status = measure_span(line, line->glyphs + start, end - start, &width);
+			if (status != 0)
+				return status;
+			total += width;
+			++words;
+		}
+		if (words > 1 && total < line->width)
+			gap = (line->width - total) / (double)(words - 1);
 	}
-	if (words < 2 || total >= line->width)
-		return draw_run(line, 0, line->length, at);
-	double gap = (line->width - total) / (double)(words - 1);
+	if (gap == 0 && line->search->count == 0)
+		return draw_run(line, 0, line->length, at, NULL);
+	size_t previous = 0;
 	end = 0;
 	while (next_word(line, &start, &end)) {
-		double width;
-		int status = measure_word(line, start, end, &width);
+		double width, space_width = 0;
+		const uint8_t *ink;
+		int status = search_color(line->search, line->glyphs + start, end - start, &ink);
+		if (status == 0 && gap == 0 && previous < start)
+			status = measure_span(line, line->glyphs + previous, start - previous, &space_width);
 		if (status == 0)
-			status = draw_run(line, start, end, at);
+			status = measure_span(line, line->glyphs + start, end - start, &width);
+		at.x += space_width;
+		if (status == 0)
+			status = draw_run(line, start, end, at, ink);
 		if (status != 0)
 			return status;
 		at.x += width + gap;
+		previous = end;
 	}
 	return 0;
+}
+
+static const struct st_rip3_column *
+available_column(struct st_rip3_columns *columns, int64_t line_height)
+{
+	while (columns->current < ST_RIP3_COLUMN_COUNT) {
+		const struct st_rip3_column *slot = &columns->slots[columns->current];
+		int64_t height = (int64_t)slot->area.y1 - slot->area.y0 + 1;
+		if (slot->defined && slot->article == columns->article && line_height <= height - columns->offset)
+			return slot;
+		++columns->current;
+		columns->offset = 0;
+	}
+	return NULL;
+}
+
+static int
+paint_line(struct st_rip3_columns *columns, struct column_line *line, const struct st_rip3_column *slot)
+{
+	line->x = slot->area.x0;
+	line->y = (int32_t)(slot->area.y0 + columns->offset);
+	line->width = (double)slot->area.x1 - slot->area.x0 + 1;
+	line->search = &slot->search;
+	int status = 0;
+	if (line->length != 0)
+		status = st_rip3_ports_draw_clipped(line->host->ports, &slot->area, draw_line, line);
+	if (status == 0)
+		columns->offset += line->height;
+	return status;
+}
+
+static int
+append_bytes(struct article_buffer *buffer, const uint8_t *bytes, size_t length)
+{
+	if (length == 0)
+		return 0;
+	if (length > SIZE_MAX - buffer->length)
+		return IO_ERROR_OUT_OF_RANGE;
+	size_t required = buffer->length + length;
+	if (required > buffer->capacity) {
+		size_t capacity = buffer->capacity <= SIZE_MAX / 2 ? buffer->capacity * 2 : required;
+		if (capacity < 64)
+			capacity = 64;
+		if (capacity < required)
+			capacity = required;
+		uint8_t *data = realloc(buffer->bytes, capacity);
+		if (data == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		buffer->bytes = data;
+		buffer->capacity = capacity;
+	}
+	memcpy(buffer->bytes + buffer->length, bytes, length);
+	buffer->length = required;
+	return 0;
+}
+
+static int
+prepare_flow(struct st_rip3_article_flow *flow, const struct st_rip3_command_host *host)
+{
+	if (flow->prepared)
+		return 0;
+	flow->pen = (struct column_line){.host = host};
+	int status = prepare_line(&flow->pen);
+	if (status == 0)
+		status = measure_span(&flow->pen, flow->line.bytes, flow->line.length, &flow->width);
+	flow->prepared = status == 0;
+	return status;
+}
+
+static int
+finish_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *host, bool blank, bool *changed)
+{
+	struct st_rip3_article_flow *flow = columns->flow;
+	if (flow->line.length == 0 && !blank)
+		return 0;
+	int status = prepare_flow(flow, host);
+	if (status == 0) {
+		const struct st_rip3_column *slot = available_column(columns, flow->pen.height);
+		if (slot != NULL) {
+			flow->pen.glyphs = flow->line.bytes;
+			flow->pen.length = flow->line.length;
+			*changed |= flow->line.length != 0;
+			status = paint_line(columns, &flow->pen, slot);
+		}
+	}
+	flow->line.length = 0;
+	flow->width = 0;
+	return status;
+}
+
+static int
+finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *host, bool *changed)
+{
+	struct st_rip3_article_flow *flow = columns->flow;
+	flow->dropping_word = false;
+	if (flow->word.length == 0)
+		return 0;
+	const uint8_t *glyphs;
+	size_t length;
+	uint8_t *owned = NULL;
+	int status = st_rip3_command_expanded_glyphs(host->text, flow->word.bytes, flow->word.length,
+	    &glyphs, &length, &owned);
+	flow->word.length = 0;
+	if (status == 0)
+		status = prepare_flow(flow, host);
+	const struct st_rip3_column *slot = status == 0 ? available_column(columns, flow->pen.height) : NULL;
+	if (slot != NULL) {
+		const uint8_t separator = ' ';
+		double word_width, separator_width = 0;
+		status = measure_span(&flow->pen, glyphs, length, &word_width);
+		if (status == 0 && flow->line.length != 0)
+			status = measure_span(&flow->pen, &separator, 1, &separator_width);
+		double width = (double)slot->area.x1 - slot->area.x0 + 1;
+		if (status == 0 && flow->line.length != 0 && flow->width + separator_width + word_width > width) {
+			status = finish_line(columns, host, false, changed);
+			slot = available_column(columns, flow->pen.height);
+			separator_width = 0;
+		}
+		if (status == 0 && slot != NULL) {
+			size_t previous = flow->line.length;
+			if (previous != 0)
+				status = append_bytes(&flow->line, &separator, 1);
+			if (status == 0)
+				status = append_bytes(&flow->line, glyphs, length);
+			if (status == 0)
+				flow->width += separator_width + word_width;
+			else
+				flow->line.length = previous;
+		}
+	}
+	free(owned);
+	return status;
+}
+
+static int
+flush_pending(struct st_rip3_columns *columns, const struct st_rip3_command_host *host)
+{
+	if (columns->flow == NULL)
+		return 0;
+	bool changed = false;
+	int status = finish_word(columns, host, &changed);
+	int line_status = finish_line(columns, host, false, &changed);
+	return status != 0 ? status : line_status;
+}
+
+bool
+st_rip3_columns_raw_active(const struct st_rip3_columns *columns)
+{
+	return columns->active && columns->article != 0;
+}
+
+int
+st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
+    const uint8_t *bytes, size_t length, bool *changed)
+{
+	if (columns->current == ST_RIP3_COLUMN_COUNT)
+		return 0;
+	if (columns->flow == NULL) {
+		columns->flow = calloc(1, sizeof(*columns->flow));
+		if (columns->flow == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+	}
+	struct st_rip3_article_flow *flow = columns->flow;
+	for (size_t i = 0; i < length; ++i) {
+		uint8_t byte = bytes[i];
+		bool lf_after_cr = flow->previous_cr && byte == '\n';
+		flow->previous_cr = byte == '\r';
+		if (lf_after_cr || (!space(byte) && byte < ' '))
+			continue;
+		if (!space(byte)) {
+			flow->newline = false;
+			if (!flow->dropping_word) {
+				int status = append_bytes(&flow->word, &byte, 1);
+				if (status != 0) {
+					flow->word.length = 0;
+					flow->dropping_word = true;
+					return status;
+				}
+			}
+			continue;
+		}
+		int status = finish_word(columns, host, changed);
+		if (status != 0)
+			return status;
+		if (byte == '\r' || byte == '\n') {
+			if (flow->newline) {
+				status = finish_line(columns, host, false, changed);
+				if (status == 0)
+					status = finish_line(columns, host, true, changed);
+				if (status != 0)
+					return status;
+			}
+			flow->newline = true;
+		}
+	}
+	return 0;
+}
+
+static void
+clear_flow(struct st_rip3_columns *columns)
+{
+	if (columns->flow != NULL) {
+		free(columns->flow->word.bytes);
+		free(columns->flow->line.bytes);
+		free(columns->flow);
+		columns->flow = NULL;
+	}
+}
+
+int
+st_rip3_columns_end(struct st_rip3_columns *columns, const struct st_rip3_command_host *host)
+{
+	int status = flush_pending(columns, host);
+	clear_flow(columns);
+	columns->active = false;
+	return status;
+}
+
+void
+st_rip3_columns_invalidate(struct st_rip3_columns *columns)
+{
+	if (columns->flow != NULL)
+		columns->flow->prepared = false;
+}
+
+void
+st_rip3_columns_dispose(struct st_rip3_columns *columns)
+{
+	clear_flow(columns);
+	*columns = (struct st_rip3_columns){0};
+}
+
+int
+st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
+    const struct st_rip3_column_definition *definition, const uint8_t *words, size_t length, bool converted)
+{
+	struct st_rip3_column_search search = {.color = definition->color};
+	bool truncated = false;
+	if ((definition->flags & 2) != 0) {
+		size_t at = 0;
+		while (at < length) {
+			while (at < length && space(words[at]))
+				++at;
+			if (at == length)
+				break;
+			if (search.count == ST_RIP3_COLUMN_SEARCH_WORDS) {
+				truncated = true;
+				break;
+			}
+			size_t start = at;
+			while (at < length && !space(words[at]))
+				++at;
+			if (st_rip3_graphical_units(words + start, at - start, converted) > ST_RIP3_COLUMN_SEARCH_LENGTH)
+				return IO_ERROR_OUT_OF_RANGE;
+			const uint8_t *glyphs;
+			size_t size;
+			uint8_t *owned = NULL;
+			int status = st_rip3_command_expanded_glyphs(host->text, words + start, at - start,
+			    &glyphs, &size, &owned);
+			if (status != 0)
+				return status;
+			memcpy(search.words[search.count], glyphs, size);
+			search.lengths[search.count++] = size;
+			free(owned);
+		}
+		if (search.count == 0)
+			return IO_ERROR_INVALID_FORMAT;
+	}
+	int status = 0;
+	if (columns->article != definition->article)
+		status = flush_pending(columns, host);
+	clear_flow(columns);
+	struct st_rip3_column *slot = &columns->slots[definition->slot];
+	slot->area = definition->area;
+	slot->article = definition->article;
+	slot->defined = true;
+	if (definition->extended)
+		slot->search = search;
+	columns->article = definition->article;
+	columns->current = 0;
+	columns->offset = 0;
+	columns->active = true;
+	/* Original reports excess words after installing the first eight. */
+	return status == 0 && truncated ? IO_ERROR_OUT_OF_RANGE : status;
 }
 
 int
@@ -218,26 +595,18 @@ st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_comma
 {
 	if (!columns->active || columns->current == ST_RIP3_COLUMN_COUNT)
 		return 0;
+	int status = flush_pending(columns, host);
+	if (status != 0)
+		return status;
 	struct column_line line = {.host = host, .justify = justify};
 	uint8_t *owned = NULL;
-	int status = st_rip3_command_expanded_glyphs(host->text, text, length, &line.glyphs, &line.length, &owned);
+	status = st_rip3_command_expanded_glyphs(host->text, text, length, &line.glyphs, &line.length, &owned);
 	if (status == 0)
 		status = prepare_line(&line);
 	if (status == 0) {
-		for (; columns->current < ST_RIP3_COLUMN_COUNT; ++columns->current) {
-			const struct st_rip3_column *slot = &columns->slots[columns->current];
-			int64_t height = (int64_t)slot->area.y1 - slot->area.y0 + 1;
-			if (slot->defined && slot->article == columns->article && line.height <= height - columns->offset) {
-				line.x = slot->area.x0;
-				line.y = (int32_t)(slot->area.y0 + columns->offset);
-				line.width = (double)slot->area.x1 - slot->area.x0 + 1;
-				status = st_rip3_ports_draw_clipped(host->ports, &slot->area, draw_line, &line);
-				if (status == 0)
-					columns->offset += line.height;
-				break;
-			}
-			columns->offset = 0;
-		}
+		const struct st_rip3_column *slot = available_column(columns, line.height);
+		if (slot != NULL)
+			status = paint_line(columns, &line, slot);
 	}
 	free(owned);
 	return status;

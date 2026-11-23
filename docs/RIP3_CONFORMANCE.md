@@ -9134,7 +9134,8 @@ SyncTERM currently permits eight open local scenes and suppresses RIP and ANSI
 replies while a file is running. The framer expects a command delimiter or CR
 for ordinary commands. The original client's EOF, nesting, filename preparation
 and reply rules are tracked in [issue #170](https://github.com/bbs-land/remote-imaging-protocol/issues/170).
-Article and overflow sources remain to be connected. The separate `$FILEEXISTS$`
+Cached `.TXT` sources feed an active article as prose. Overflow sources remain
+to be connected. The separate `$FILEEXISTS$`
 contract is tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
 
 Connected CP437 and UTF-8 fixtures check command ordering before and after a
@@ -9176,4 +9177,27 @@ color changes, slot ordering, a clipped viewport and malformed input recovery.
 They also draw with Dixon and verify that the drawing cursor is preserved.
 RIPtel's prewrapped metric, end and justify edge cases are tracked in
 [issue #173](https://github.com/bbs-land/remote-imaging-protocol/issues/173).
-Raw article flow, search highlighting and overflow navigation remain pending.
+Overflow navigation remains pending.
+
+## Connected raw article flow and search highlighting
+
+With a nonzero article active, raw text is accumulated as words and wrapped
+using the live font metrics. A single line ending acts as a word separator.
+Blank lines end a paragraph and leave space before the next one. CRLF counts
+as one line ending. The renderer visits the article's global slots in numeric
+order. An overwide word stays on one line and clips to its column.
+
+`1e` defines a column at current Base Math and coordinate width. Its optional
+search list uses graphical variable expansion and matches complete words
+caselessly. Each match changes the word's foreground to the requested palette
+index. `1T` retains the slot's search list. Before a successful redefinition,
+changing articles flushes pending prose. Redefining the active article drops
+its pending prose and rewinds to the first column. `1E` and `#` flush pending
+text and return subsequent ordinary bytes to ANSI.
+
+With an article active, `1R` and `$>` treat a cached `.TXT` file as literal
+prose, including bytes that resemble RIP commands. Connected CP437 and UTF-8
+tests exercise wrapping, original glyph masks and colors in both planes,
+paragraph breaks, redefinition, malformed search input and cache lookup.
+The `1e` overflow flag is accepted. Page retention and replay are pending,
+so excess prose is currently discarded when the last column fills.

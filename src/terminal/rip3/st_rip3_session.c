@@ -35,6 +35,7 @@
 #include "st_rip3_refresh.h"
 #include "st_pixels.h"
 #include "io_error.h"
+#include "string_util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,7 +43,7 @@
 
 enum graphical_job {
 	GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE,
-	GRAPHICAL_REGION_TEXT,
+	GRAPHICAL_REGION_TEXT, GRAPHICAL_COLUMN_SEARCH,
 };
 
 enum { SCENE_LIMIT = 8 };
@@ -57,6 +58,7 @@ struct local_scene {
 	int field_program_id;
 	uint8_t next_byte;
 	bool byte_ready;
+	bool article_text;
 };
 
 struct session_window {
@@ -78,6 +80,7 @@ struct st_rip3_session {
 	struct st_rip3_host_sink host_sink;
 	struct st_rip3_text_context text;
 	struct st_rip3_columns columns;
+	struct st_rip3_column_definition column_definition;
 	bool justify_region_text;
 	struct st_rip3_graphical *graphical;
 	struct st_rip3_text_argument text_argument;
@@ -156,7 +159,15 @@ static void
 text(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
-	if (session->sink.text!=NULL) session->sink.text(session->sink.context,bytes,length);
+	if (st_rip3_columns_raw_active(&session->columns)) {
+		bool changed = false;
+		int status = st_rip3_columns_feed(&session->columns, &session->commands, bytes, length, &changed);
+		if (changed)
+			++session->revision;
+		const struct st_rip3_command_sink sink = {session, diagnose};
+		st_rip3_command_result(&sink, status, true);
+	}
+	else if (session->sink.text!=NULL) session->sink.text(session->sink.context,bytes,length);
 }
 
 static void
@@ -171,7 +182,8 @@ static bool
 line_start(void *context)
 {
 	struct st_rip3_session *session=context;
-	return session->text_active && session->sink.at_line_start!=NULL && session->sink.at_line_start(session->sink.context);
+	return !st_rip3_columns_raw_active(&session->columns) && session->text_active
+	    && session->sink.at_line_start!=NULL && session->sink.at_line_start(session->sink.context);
 }
 
 static int
@@ -464,7 +476,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	 * graphical consumer. Table/viewport operations never use this path. */
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	session->metric=(struct st_rip3_metric_state){0};
-	session->columns=(struct st_rip3_columns){0};
+	st_rip3_columns_dispose(&session->columns);
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
@@ -735,7 +747,11 @@ open_scene(struct st_rip3_session *session, const char *name, bool suspend_query
 		return 0;
 	if (status != 0)
 		return status;
-	status = create_stream(session, &scene.stream);
+	const char *suffix = strrchr(name, '.');
+	scene.article_text = st_rip3_columns_raw_active(&session->columns) && suffix != NULL
+	    && ascii_case_compare(suffix, ".txt") == 0;
+	if (!scene.article_text)
+		status = create_stream(session, &scene.stream);
 	if (status == 0 && suspend_query)
 		status = create_query(session, &scene.query, &session->variables);
 	if (status == 0 && suspend_query)
@@ -869,15 +885,20 @@ consume(void *context, uint8_t byte)
 		st_rip3_stream_process(session->stream, &byte, 1);
 		return;
 	}
-	struct st_rip3_stream *stream = session->scenes[session->scene_count - 1].stream;
+	struct local_scene *scene = &session->scenes[session->scene_count - 1];
+	const uint8_t *data = &byte;
+	size_t size = 1;
+	uint8_t output[4];
 	if (byte >= 0x80 && session->sink.scene_decode != NULL) {
-		uint8_t output[4];
-		size_t size = session->sink.scene_decode(session->sink.context, byte, output);
-		if (size <= sizeof(output))
-			st_rip3_stream_process(stream, output, size);
+		size = session->sink.scene_decode(session->sink.context, byte, output);
+		if (size > sizeof(output))
+			return;
+		data = output;
 	}
+	if (scene->article_text)
+		text(session, data, size);
 	else
-		st_rip3_stream_process(stream, &byte, 1);
+		st_rip3_stream_process(scene->stream, data, size);
 }
 
 static bool
@@ -894,6 +915,8 @@ prepare(void *context)
 	struct st_rip3_session *session=context;
 	(void)activate_scene_queries(session);
 	bool pending=continuation_pending(session);
+	if (pending)
+		st_rip3_columns_invalidate(&session->columns);
 	struct st_rip3_field_context previous=session->field_context;
 	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
 	/* An active refresh is a separate reply. Resume it before the
@@ -938,6 +961,9 @@ prepare(void *context)
 					status=st_rip3_columns_line(&session->columns,&session->commands,
 					    result->bytes,result->length,session->justify_region_text);
 				}
+				else if (session->graphical_job==GRAPHICAL_COLUMN_SEARCH)
+					status=st_rip3_columns_define(&session->columns,&session->commands,&session->column_definition,
+					    result->bytes,result->length,session->graphical_codepage_converted);
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
@@ -1254,6 +1280,21 @@ read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 }
 
 static int
+define_column(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	size_t tail;
+	struct st_rip3_column_definition *definition = &session->column_definition;
+	int status = st_rip3_columns_decode(definition, &session->commands, bytes, length, &tail);
+	if (status != 0 || definition->suppressed)
+		return status;
+	if ((definition->flags & 2) == 0)
+		return st_rip3_columns_define(&session->columns, &session->commands, definition, NULL, 0, false);
+	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_TEXT, bytes + tail, length - tail);
+	session->graphical_job = GRAPHICAL_COLUMN_SEARCH;
+	return 0;
+}
+
+static int
 region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
 	if (length < 3 || (bytes[2] != '0' && bytes[2] != '1'))
@@ -1270,13 +1311,14 @@ static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
+	st_rip3_columns_invalidate(&session->columns);
 	if (session->sink.before_command!=NULL) session->sink.before_command(session->sink.context);
 	const struct st_rip3_command_sink sink={session,diagnose};
 	if (length != 0 && bytes[0] == 'h') scene_header(session, bytes, length);
 	else if (length != 0 && bytes[0] == '#') {
 		if (length == 1) {
 			set_input_lock(session, false);
-			session->columns.active = false;
+			st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
 		}
 		else diagnose(session, ST_RIP3_COMMAND_INVALID);
 	}
@@ -1286,13 +1328,13 @@ command(void *context, const uint8_t *bytes, size_t length)
 		file_query(session,bytes,length);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
 		read_scene(session,bytes,length);
-	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'T')
-		st_rip3_command_result(&sink, st_rip3_columns_define(&session->columns,&session->commands,bytes,length), false);
+	else if (length >= 2 && bytes[0] == '1' && (bytes[1] == 'T' || bytes[1] == 'e'))
+		st_rip3_command_result(&sink, define_column(session,bytes,length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 't')
 		st_rip3_command_result(&sink, region_text(session,bytes,length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'E') {
 		if (length == 2)
-			session->columns.active = false;
+			st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
 		else
 			diagnose(session, ST_RIP3_COMMAND_INVALID);
 	}
@@ -1346,7 +1388,7 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_query_cancel(session->refresh.query);
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
-	session->columns.active = false;
+	st_rip3_columns_dispose(&session->columns);
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
@@ -1416,6 +1458,7 @@ static void
 mouse_activate(void *context, const uint8_t *program, size_t length, bool reset, int identity, bool pointer, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
+	st_rip3_columns_invalidate(&session->columns);
 	if (st_rip3_query_pending(session->commands.query) || session->graphical_job
 	    || st_rip3_button_renderer_pending(session->commands.buttons)) {
 		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
@@ -1662,6 +1705,7 @@ st_rip3_session_request_refresh(struct st_rip3_session *session)
 {
 	if (session == NULL || session->input_locked || st_rip3_session_pending(session))
 		return;
+	st_rip3_columns_invalidate(&session->columns);
 	header_result(session, st_rip3_refresh_start(&session->refresh));
 	++session->revision;
 }

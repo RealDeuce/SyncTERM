@@ -1001,6 +1001,10 @@ RIPv3 `1T`, `1t` and `1E` lay out prewrapped text in global column slots.
 Connected CP437 and UTF-8 tests verify original MicroANSI glyphs in both pixel
 planes, clipping, justification and recovery. [RIPv3 column coverage](RIP3_CONFORMANCE.md#connected-prewrapped-column-text)
 
+RIPv3 `1e` and nonzero-article `1T` accept inline or cached text. The same
+connected fixtures check wrapping, search highlighting, definition changes
+and return to ANSI at `1E` or `#`. [RIPv3 article coverage](RIP3_CONFORMANCE.md#connected-raw-article-flow-and-search-highlighting)
+
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained
