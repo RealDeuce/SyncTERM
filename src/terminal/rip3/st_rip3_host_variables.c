@@ -6,6 +6,7 @@
 #include "st_rip3_input.h"
 #include "st_rip3_mouse.h"
 #include "st_rip3_table_host.h"
+#include "st_rip3_refresh.h"
 #include "io_error.h"
 
 #include <inttypes.h>
@@ -86,6 +87,19 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (capacity == 0)
 			return IO_ERROR_OUT_OF_RANGE;
 		result[0] = 0;
+		return 0;
+	}
+	if (strcmp(reference->name, "REFRESH") == 0 || strcmp(reference->name, "NOREFRESH") == 0) {
+		if (reference->count != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (host->refresh == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		result[0] = 0;
+		if (reference->name[0] == 'R')
+			return st_rip3_refresh_start(host->refresh);
+		st_rip3_refresh_clear(host->refresh);
 		return 0;
 	}
 	if (strcmp(reference->name,"MKILL")==0) {

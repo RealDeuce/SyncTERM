@@ -1396,6 +1396,11 @@ selected font will change text that is already on the screen.
 In most modes however, only newly displayed text will be in the
 new font.
 
+kbd:[Alt+F5]::
+Requests a screen refresh on an RIPv3 connection when the BBS has
+provided a refresh expression. The action is inactive while a scene
+header has locked input.
+
 kbd:[Alt+H]::
 Hangup and return to the main menu.
 

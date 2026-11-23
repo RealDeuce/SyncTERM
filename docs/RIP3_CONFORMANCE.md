@@ -51,7 +51,7 @@ contract. The literal `J10|n2000|M08|fZKQO` prologue sets modes and WORLD;
 it does not clear the screen. Scene reset `*` and `$RESET(SOFT)$` now clear the
 physical canvas to palette-independent RGB black and reset the represented
 TW/STYLE/BUT/PAL/PORT/ENV families on connected sessions. The complete reset contract
-still awaits header/refresh-expression and remaining ANSI state work.
+still awaits remaining header and ANSI state work.
 The entry-versus-default-MicroANSI policy remains a separate open client decision.
 
 WORLD state now follows the adopted word-range contract: wire `f` accepts
@@ -8727,7 +8727,39 @@ clipping-application branch also paints black, so issue #153 requests the
 pixel and clipping boundary for screen and bitmap ports.
 [Upstream issue #153](https://github.com/bbs-land/remote-imaging-protocol/issues/153)
 
-The queue contains 2375 implemented, 1689 pending, 2994 unreviewed, 1520
-context, 67 excluded and 30 blocked units. Refresh expressions, physical
-port deletion, palette upload parity and the full HARD state inventory
-also remain pending.
+Physical port deletion, palette upload parity and the full HARD state
+inventory also remain pending.
+
+
+## Connected refresh expressions
+
+`2R` validates four reserved digits in the current base and stores the
+expression on the connection. It produces no reply at definition time.
+`$REFRESH$` and Alt+F5 expand the stored expression using values at the time
+of the request and send it as a separate host reply. A delay or prompt in
+that expansion suspends the caller and the reading of subsequent commands.
+Membership in the ordinary host expansion classes still controls where
+the variables can execute. The refresh evaluator uses ordinary control
+notation and live lookups with template slots disabled.
+
+`$NOREFRESH$`, an empty definition, `$OFF$`, SOFT, HARD and header flag 16
+clear the binding. A malformed or failed replacement leaves the previous
+binding available. Headers without a reset or flag 16 retain the binding.
+The local shortcut respects the scene input lock.
+
+Static inspection confirmed the original slot 117 handler at RVA
+`0x46bd9`, assignment at `0x3e43c`, and the independent send path at
+`0x3e4bb`. The ordinary `REFRESH` callback at `0x29031` calls that sender
+and emits no inline replacement. These traces used the same verified
+driver cited in the scene header review. They did not involve executing
+any original binaries.
+
+The native session tests cover ordering through delays and prompts,
+cancellation, failed allocation, template and graphical exclusions, and
+recursive invocation. TCP tests cover both wire encodings, control bytes,
+late expansion and the connection's key-event handler on 640x480 and 720x400
+rasters.
+Pick-list evaluation remains pending.
+
+The queue contains 2396 implemented, 1686 pending, 2976 unreviewed, 1520
+context, 67 excluded and 30 blocked units.

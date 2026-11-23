@@ -1266,6 +1266,18 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL) return false;
 	if (st_rip3_session_input_locked(rip->session)) return true;
+	/* Bitmap backends may also deliver the physical F5 event. Keep the
+	 * shortcut off the BBS wire in Doorway mode and act on the translated key. */
+	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY && event->data.physical_key.evdev == 63
+	    && event->data.physical_key.modifiers == ST_CONSOLE_MODIFIER_ALT)
+		return true;
+	if (event->type == ST_CONSOLE_EVENT_KEY_CODE && event->data.key.code == ST_CONSOLE_KEY_F5
+	    && event->data.key.modifiers == ST_CONSOLE_MODIFIER_ALT) {
+		st_term_rip3_flush(rip);
+		st_rip3_session_request_refresh(rip->session);
+		st_term_rip3_poll(rip);
+		return true;
+	}
 	if (!st_rip3_session_mouse_active(rip->session)) return false;
 	uint8_t byte;uint32_t scalar;
 	switch (event->type) {

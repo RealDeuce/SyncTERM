@@ -55,7 +55,10 @@ struct st_rip3_bitmap_error_sink {
 /* Borrowed session-owned bindings. Missing services are unsupported. One
  * session thread processes commands and owns these objects; its audio engine
  * may concurrently pull PCM under the audio adapter's synchronization. */
+struct st_rip3_refresh;
+
 struct st_rip3_command_host {
+	struct st_rip3_refresh *refresh;
 	void *reset_context;
 	int (*soft_reset)(void *context);
 	struct st_rip3_environments *environments;

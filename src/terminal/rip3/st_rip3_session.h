@@ -173,6 +173,9 @@ void st_rip3_session_destroy(struct st_rip3_session *session);
  * user prompts; no sleeping or threads. Syntax/resource/operation failures are
  * absorbed internally and never returned to a terminal/session failure path. */
 void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
+/* Local refresh action. Consume only the stored expression, using the normal
+ * reply and prompt services. A disabled or busy interpreter has no effect. */
+void st_rip3_session_request_refresh(struct st_rip3_session *session);
 /* Text callbacks still receive ordinary bytes for ANSI/RIP control framing.
  * The client must suppress ANSI display/side effects while this gate is off;
  * RIP identification/control handling remains independent of TTY visibility. */

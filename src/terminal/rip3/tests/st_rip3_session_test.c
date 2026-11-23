@@ -1661,9 +1661,97 @@ scene_header(void)
 	return 0;
 }
 
+static int
+refresh_expression(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset = reset_text;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(query(&f, "$REFRESH$empty", "empty") == 0);
+	CHECK(append(&f, "!|2R1234R$&NAME$^m\r") == 0 && pump(&f) == 0);
+	CHECK(f.reply_length == 5 && memcmp(f.reply, "empty", 5) == 0);
+	CHECK(query(&f, "$-=NAME=old$$-=NAME=live$prefix$REFRESH$suffix", "Rlive\rprefixsuffix") == 0);
+
+	/* Replacing a valid binding can fail without running it or publishing
+	 * a partial source. A malformed numeric prefix has no effect either. */
+	extern bool st_rip3_resident_test_fail;
+	st_rip3_resident_test_fail = true;
+	CHECK(append(&f, "!|2R0000bad\r") == 0 && pump(&f) == 0);
+	st_rip3_resident_test_fail = false;
+	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	CHECK(append(&f, "!|2R00*0bad\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 2 && query(&f, "$REFRESH$", "Rlive\r") == 0);
+
+	/* The child holds the parent's suffix and subsequent wire command until
+	 * its final delay ends, even when no further data arrives. */
+	CHECK(append(&f, "!|2R0000ready$D(3)$\r") == 0 && pump(&f) == 0);
+	f.reply_length = 0;
+	CHECK(append(&f, "!|1\0330000<before>$REFRESH$parent\r!|1\0330000next\r") == 0 && pump(&f) == 0);
+	CHECK(f.reply_length == 0 && f.read < f.length && st_rip3_session_wait_ns(f.session) == 50000000);
+	f.now += 49999999;
+	CHECK(pump(&f) == 0 && f.reply_length == 0 && f.read < f.length);
+	++f.now;
+	CHECK(pump(&f) == 0 && f.reply_length == strlen("ready<before>parentnext")
+	    && memcmp(f.reply, "ready<before>parentnext", f.reply_length) == 0);
+	CHECK(f.read == f.length);
+
+	CHECK(append(&f, "!|2R0000$NOREFRESH$last\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$REFRESH$$REFRESH$", "last") == 0);
+	CHECK(append(&f, "!|2R0000$REFRESH$fin\r") == 0 && pump(&f) == 0);
+	f.reply_length = 0;
+	CHECK(append(&f, "!|1\0330000$REFRESH$tail\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 3 && f.reply_length == 7 && memcmp(f.reply, "fintail", 7) == 0);
+
+	CHECK(append(&f, "!|2R0000remember\r!|h01000G00\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$REFRESH$", "") == 0);
+	CHECK(append(&f, "!|2R0000remember\r!|*\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$REFRESH$", "") == 0);
+	CHECK(append(&f, "!|2R0000remember\r!|2R0000$oFf$\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$REFRESH$", "") == 0);
+	CHECK(append(&f, "!|2R0000remember\r!|2R0000\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$REFRESH$", "") == 0);
+	/* A refresh prompt owns its source and suspends the calling expression. */
+	CHECK(append(&f, "!|2R0000ask$*=RELOAD$^m\r") == 0 && pump(&f) == 0);
+	f.reply_length = 0;
+	CHECK(append(&f, "!|1\0330000$REFRESH$after\r") == 0 && pump(&f) == 0);
+	struct st_rip3_session_prompt prompt;
+	CHECK(st_rip3_session_prompt(f.session, &prompt) && strcmp(prompt.reference->name, "RELOAD") == 0);
+	CHECK(f.reply_length == 0);
+	st_rip3_session_respond(f.session, (const uint8_t *)"answer", 6, false);
+	CHECK(!st_rip3_session_pending(f.session) && f.reply_length == 15 && memcmp(f.reply, "askanswer\rafter", 15) == 0);
+
+	/* REFRESH remains outside the adopted graphical registration classes.
+	 * A drawing expression cannot send it or enter its delay. */
+	CHECK(query(&f, "$-=ORDER=old$", "") == 0);
+	CHECK(append(&f, "!|2R0000$D(1)$$&ORDER$\r!|T$REFRESH$$-=ORDER=new$X\r!|1\0330000$&ORDER$\r") == 0);
+	CHECK(pump(&f) == 0 && st_rip3_session_wait_ns(f.session) == 0);
+	CHECK(f.reply_length == 3 && memcmp(f.reply, "new", 3) == 0);
+
+	/* Named templates are unavailable to the refresh evaluator. */
+	CHECK(query(&f, "[A:]safe", "") == 0);
+	CHECK(append(&f, "!|2R0000[A:]wrong\r") == 0 && pump(&f) == 0);
+	f.reply_length = 0;
+	CHECK(append(&f, "!|1\0330000$REFRESH$next\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 4 && f.reply_length == 4 && memcmp(f.reply, "next", 4) == 0);
+	CHECK(query(&f, "$?A$", "safe") == 0);
+
+	CHECK(append(&f, "!|2R0000$*=CANCELREFRESH$\r") == 0 && pump(&f) == 0);
+	st_rip3_session_request_refresh(f.session);
+	CHECK(st_rip3_session_prompt(f.session, &prompt));
+	st_rip3_session_cancel(f.session);
+	CHECK(!st_rip3_session_pending(f.session) && !st_rip3_session_prompt(f.session, &prompt));
+	CHECK(query(&f, "$&CANCELREFRESH=cancelled$", "cancelled") == 0);
+
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live == 0);
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);

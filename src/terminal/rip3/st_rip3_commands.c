@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
+#include "st_rip3_refresh.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_input.h"
@@ -413,6 +414,14 @@ execute(const struct st_rip3_command_host *host,
 		return switch_environment(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'T')
 		return switch_text_window(host,command,length,operation);
+	if (length >= 2 && command[0] == '2' && command[1] == 'R') {
+		if (length < 6) return IO_ERROR_INVALID_FORMAT;
+		status = st_rip3_command_environment(host, &number, &value);
+		if (status == 0) status = st_rip3_command_field(&first, command + 2, 4, value.base_math);
+		if (status != 0) return status;
+		*operation = true;
+		return st_rip3_refresh_define(host->refresh, command + 6, length - 6);
+	}
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
 		return host_query(host,command,length,operation);
 	if (length >= 2 && (command[0] == '1' || command[0] == '2') && command[1] == 'W')

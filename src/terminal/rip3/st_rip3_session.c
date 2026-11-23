@@ -27,6 +27,7 @@
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_resident_query.h"
+#include "st_rip3_refresh.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -46,6 +47,8 @@ struct st_rip3_session {
 	struct st_rip3_session_sink sink;
 	struct st_rip3_command_host commands;
 	struct st_rip3_host_variables variables;
+	struct st_rip3_host_variables refresh_variables;
+	struct st_rip3_refresh refresh;
 	struct st_rip3_table_host tables;
 	struct st_rip3_screen screen;
 	struct st_rip3_host_sink host_sink;
@@ -418,6 +421,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
 	st_rip3_mouse_clear_queries(session->commands.mouse);
+	st_rip3_refresh_clear(&session->refresh);
 	status=st_rip3_ports_reset(session->commands.ports,hard);
 	if (status==0 && session->clipboard.set) {
 		struct st_rip3_port_info info;
@@ -476,6 +480,7 @@ hard_reset(void *context)
 	session->ansi_native = NULL;
 	st_rip3_resident_query_clear(&session->ansi_window.query);
 	session->ansi_window = (struct session_window){0};
+	st_rip3_refresh_clear(&session->refresh);
 	set_input_lock(session, false);
 	session->scene_charset = 0;
 	for (unsigned i = 0; i < ST_RIP3_TABLE_COUNT; ++i)
@@ -672,6 +677,9 @@ prepare(void *context)
 	bool pending=st_rip3_session_pending(session);
 	struct st_rip3_field_context previous=session->field_context;
 	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
+	/* An active refresh is a separate reply. Resume it before the
+	 * expression that requested it and before reading the next command. */
+	st_rip3_query_process(session->refresh.query, 64);
 	st_rip3_query_process(session->commands.query,64);
 	session->field_context=previous;
 	if (!st_rip3_query_pending(session->commands.query)) session->field_program=false;
@@ -697,7 +705,8 @@ prepare(void *context)
 			st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 		}
 	}
-	if (!st_rip3_query_pending(session->commands.query) && !session->graphical_job) {
+	if (!st_rip3_query_pending(session->commands.query) && !session->graphical_job
+	    && !st_rip3_refresh_pending(&session->refresh)) {
 		st_rip3_button_renderer_process(session->commands.buttons,64);
 		st_rip3_mouse_resume(session->commands.mouse);
 	}
@@ -911,7 +920,7 @@ scene_header(struct st_rip3_session *session, const uint8_t *bytes, size_t lengt
 		header_result(session, st_rip3_palettes_switch(session->commands.palettes, 0));
 		header_result(session, st_rip3_environments_activate(session->commands.environments, 0));
 	}
-	if (header.flags & ST_RIP3_HEADER_CLEAR_REFRESH) header_result(session, IO_ERROR_NOT_SUPPORTED);
+	if (header.flags & ST_RIP3_HEADER_CLEAR_REFRESH) st_rip3_refresh_clear(&session->refresh);
 	for (unsigned i = 0; i < header.count; ++i)
 		header_segment(session, &header.segments[i]);
 }
@@ -973,6 +982,7 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	st_rip3_button_renderer_cancel(session->commands.buttons);
 	st_rip3_mouse_abort(session->commands.mouse);
 	st_rip3_query_cancel(session->commands.query);
+	st_rip3_query_cancel(session->refresh.query);
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
@@ -988,6 +998,8 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	/* Query destruction precedes every borrowed processor/store/table and the
 	 * input gate. Saves own independent snapshots and precede live-table teardown. */
 	st_rip3_query_destroy(session->commands.query);
+	st_rip3_query_destroy(session->refresh.query);
+	st_rip3_refresh_clear(&session->refresh);
 	for (unsigned i=0; i<ST_RIP3_TABLE_COUNT; i++) st_rip3_backup_destroy(session->tables.tables[i].backup);
 	st_rip3_mouse_destroy(session->commands.mouse);
 	st_rip3_button_renderer_destroy(session->commands.buttons);
@@ -1063,7 +1075,7 @@ mouse_busy(void *context)
 {
 	struct st_rip3_session *session=context;
 	return session->graphical_job || st_rip3_query_pending(session->commands.query)
-	    || st_rip3_button_renderer_pending(session->commands.buttons);
+	    || st_rip3_refresh_pending(&session->refresh) || st_rip3_button_renderer_pending(session->commands.buttons);
 }
 
 bool
@@ -1142,7 +1154,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (config->services!=NULL && (config->services->frame!=NULL || config->services->tables!=NULL
 	    || config->services->input!=NULL || config->services->templates!=NULL
 	    || config->services->text_windows!=NULL || config->services->mouse!=NULL
-	    || config->services->field_context!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	    || config->services->field_context!=NULL || config->services->refresh!=NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	bool device=config->device_width!=0 || config->device_height!=0;
 	struct st_rip3_frame frame;
 	int status=device ? st_rip3_frame_init_device(&frame,config->device_width,config->device_height)
@@ -1170,6 +1182,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->variables.field_context=&session->field_context;
+	session->variables.refresh=&session->refresh;
+	session->commands.refresh=&session->refresh;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
 	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
 	    .protect=protect_window,.activate=activate_text_windows,
@@ -1240,6 +1254,12 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_input_create(&session->commands.input,&source);
 	session->variables.input=session->commands.input;
 	if (status==0) status=st_rip3_query_create(&session->commands.query,&session->variables,&session->host_sink);
+	session->refresh_variables = session->variables;
+	/* Refresh uses ordinary host expansion without template slots. Keep the
+	 * same stores, delay gate and client reply sink for both evaluators. */
+	session->refresh_variables.templates = NULL;
+	if (status == 0)
+		status = st_rip3_query_create(&session->refresh.query, &session->refresh_variables, &session->host_sink);
 	if (status==0) status=st_rip3_graphical_create(&session->graphical,&session->variables,&session->host_sink,config->graphical_codepage_converted);
 	const struct st_rip3_command_sink button_sink={session,diagnose};
 	if (status==0) status=st_rip3_button_renderer_create(&session->commands.buttons,&session->commands,&button_sink,
@@ -1254,6 +1274,15 @@ void
 st_rip3_session_process(struct st_rip3_session *session, size_t budget)
 {
 	if (session!=NULL) st_rip3_input_process(session->commands.input,budget);
+}
+
+void
+st_rip3_session_request_refresh(struct st_rip3_session *session)
+{
+	if (session == NULL || session->input_locked || st_rip3_session_pending(session))
+		return;
+	header_result(session, st_rip3_refresh_start(&session->refresh));
+	++session->revision;
 }
 
 uint64_t
@@ -1281,7 +1310,8 @@ st_rip3_session_graphical_cancel(struct st_rip3_session *session)
 bool
 st_rip3_session_pending(const struct st_rip3_session *session)
 {
-	return session!=NULL && (st_rip3_query_pending(session->commands.query) || session->graphical_job
+	return session!=NULL && (st_rip3_query_pending(session->commands.query)
+	    || st_rip3_refresh_pending(&session->refresh) || session->graphical_job
 	    || st_rip3_button_renderer_pending(session->commands.buttons) || st_rip3_mouse_pending(session->commands.mouse));
 }
 
@@ -1289,7 +1319,7 @@ bool
 st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_session_prompt *result)
 {
 	if (session==NULL || result==NULL || (!st_rip3_query_prompt_pending(session->commands.query)
-	    && st_rip3_graphical_state(session->graphical)!=ST_RIP3_GRAPHICAL_PROMPT)) return false;
+	    && !st_rip3_query_prompt_pending(session->refresh.query) && st_rip3_graphical_state(session->graphical)!=ST_RIP3_GRAPHICAL_PROMPT)) return false;
 	const struct st_rip3_variable_reference *reference=st_rip3_user_variables_prompt(session->variables.user_variables);
 	if (reference==NULL) return false;
 	*result=(struct st_rip3_session_prompt){reference,st_rip3_user_variables_initial(session->variables.user_variables)};

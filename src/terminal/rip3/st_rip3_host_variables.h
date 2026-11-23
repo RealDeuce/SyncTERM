@@ -16,6 +16,7 @@ struct st_rip3_local_queries;
 struct st_rip3_text_window_operations;
 struct st_rip3_mouse;
 struct st_rip3_field_context;
+struct st_rip3_refresh;
 
 /* Client identity values, not protocol-version/capability advertisements.
  * All three strings must be supplied; their literal bytes are emitted unchanged.
@@ -79,6 +80,7 @@ struct st_rip3_host_variables {
 	/* Callback-scoped numeric snapshot. Logical field programs retain their
 	 * identity across interpreter yields; unrelated work never inherits it. */
 	const struct st_rip3_field_context *field_context;
+	struct st_rip3_refresh *refresh;
 };
 
 enum st_rip3_host_diagnostic {

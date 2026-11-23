@@ -12549,6 +12549,63 @@
         "limits": "Issues #152 and #153 track header geometry, erase color and clipping fill. Physical target deletion, refresh expression and complete HARD inventory remain pending.",
         "result": "The app and session fixture built with the existing native Release CMake configuration. The session test and both TCP header encodings passed, including all four fixture rasters. The contract and RIP1.54 preservation guards passed."
       }
+    },
+    {
+      "after_commit": "8b0feb1c",
+      "revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
+      "scope": "Connect RIP_SET_REFRESH and its host and local triggers with reset lifecycle.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:435",
+        "version/3.0/ripscrip/5.0-host-commands.md:302",
+        "version/3.0/ripscrip/5.0-host-commands.md:303",
+        "version/3.0/ripscrip/5.0-host-commands.md:304",
+        "version/3.0/ripscrip/5.0-host-commands.md:306",
+        "version/3.0/ripscrip/5.0-host-commands.md:308",
+        "version/3.0/ripscrip/5.0-host-commands.md:310",
+        "version/3.0/ripscrip/5.1-text-variables.md:2515",
+        "version/3.0/ripscrip/5.1-text-variables.md:2517",
+        "version/3.0/ripscrip/5.1-text-variables.md:2519",
+        "version/3.0/ripscrip/5.1-text-variables.md:2521",
+        "version/3.0/ripscrip/5.1-text-variables.md:2588",
+        "version/3.0/ripscrip/5.1-text-variables.md:2590",
+        "version/3.0/ripscrip/5.1-text-variables.md:2592",
+        "version/3.0/ripscrip/5.1-text-variables.md:2594",
+        "version/3.0/ripscrip/5.1-text-variables.md:3120",
+        "version/3.0/ripscrip/9.0-command-reference.md:201",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:140",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:142",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:166",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:259"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_refresh.c",
+        "src/terminal/rip3/st_rip3_commands.c",
+        "src/terminal/rip3/st_rip3_host_variables.c",
+        "src/terminal/rip3/st_rip3_query.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/term/st_term_rip3.c"
+      ],
+      "tests": [
+        "rip3_session",
+        "rip3_query_commands",
+        "syncterm_rip3_refresh_CP437",
+        "syncterm_rip3_refresh_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 2976,
+        "context": 1520,
+        "pending": 1686,
+        "implemented": 2396,
+        "blocked": 30,
+        "excluded": 67
+      },
+      "policy": "The session owns one raw refresh expression and a dedicated instance of the existing host evaluator. The evaluator borrows the same host bindings, prompt, delay and reply services with template slots unbound. A refresh send is an independent output, matching RIP_RefreshSend and the REFRESH callback in the pinned DLL. Alt+F5 is the SyncTERM connection action. Parent expansion and wire reads wait for its active continuation. A recursive request fails inside the evaluator and an allocation failure leaves the prior binding usable.",
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release CMake using the control bitmap TCP fixtures.",
+        "coverage": "Deferred current named values and control bytes, independent output, two accepted radices, malformed and failed replacement, parent query ordering through delay, graphical consumer exclusion, prompted answer/cancel, template exclusion, recursive request recovery, disabled and locked local action, header retention and flag16/SOFT/HARD clearing, OFF and empty definition. CP437 and UTF-8 each run at 640x480 and 720x400.",
+        "limits": "The required pick-list implementation remains pending. No claims about native RIPtel client UI parity.",
+        "result": "The application and native test targets built with the configured Release compiler. The session, query command and both connected refresh tests passed. The requirements and RIP1.54 guards passed."
+      }
     }
   ]
 }

@@ -2,6 +2,7 @@
 #include "st_rip3_query_internal.h"
 #include "st_rip3_host_internal.h"
 #include "st_rip3_input.h"
+#include "st_rip3_refresh.h"
 #include "st_rip3_user_variables.h"
 #include "st_rip3_templates.h"
 #include "st_rip3_angle.h"
@@ -416,6 +417,13 @@ angle_step(struct st_rip3_query *query)
 	return true;
 }
 
+static bool
+refresh_waiting(const struct st_rip3_query *query)
+{
+	const struct st_rip3_refresh *refresh = query->variables->refresh;
+	return refresh != NULL && refresh->query != query && st_rip3_refresh_pending(refresh);
+}
+
 /* Pass boundaries do not rescan inserted text in its producing pass. Take the
  * completed buffer as the next immutable input, then emit only after pass two.
  * Even a final active delay suspends this transition and later source reads. */
@@ -425,7 +433,7 @@ settle(struct st_rip3_query *query)
 	if (query->allocation_failed) {
 		st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_RESOURCE_FAILURE);return;
 	}
-	if (query->active_user!=NULL || st_rip3_input_wait_ns(query->variables->input)!=0) return;
+	if (query->active_user!=NULL || st_rip3_input_wait_ns(query->variables->input)!=0 || refresh_waiting(query)) return;
 	if (query->pass==3 && query->program_cursor==query->program_length) { st_rip3_query_cancel(query);return; }
 	while (query->cursor==query->length && (query->pass==1 || query->pass==2)) {
 		if (query->pass==2) {
@@ -445,7 +453,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 {
 	if (query==NULL || budget==0) return;
 	for (size_t i=0; i<budget && st_rip3_query_pending(query); i++) {
-		if (st_rip3_input_wait_ns(query->variables->input)!=0) return;
+		if (st_rip3_input_wait_ns(query->variables->input)!=0 || refresh_waiting(query)) return;
 		settle(query);
 		if (!st_rip3_query_pending(query)) return;
 		if (query->pass==4) {if (!angle_step(query)) return;continue;}
