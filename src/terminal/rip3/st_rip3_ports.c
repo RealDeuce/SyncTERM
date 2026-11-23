@@ -688,13 +688,13 @@ copy_native_screen(struct st_rip3_ports *ports,const struct st_rip3_rect *from,
 	st_pixel_buffer_destroy(snapshot);return status;
 }
 
-struct scroll_patch {
+struct blit_patch {
 	struct st_rip3_rect area;
 	struct st_pixel_buffer *pixels;
 };
 
 static int
-scroll_capture(const struct st_rip3_ports *ports,const struct st_rip3_surface *surface,
+blit_capture(const struct st_rip3_ports *ports,const struct st_rip3_surface *surface,
     const struct st_rip3_rect *area,bool screen,struct st_pixel_buffer **result)
 {
 	int status=st_rip3_surface_capture_area_raw(surface,area,result);
@@ -706,7 +706,7 @@ scroll_capture(const struct st_rip3_ports *ports,const struct st_rip3_surface *s
 
 static void
 scroll_corner(const struct st_rip3_ports *ports,const struct st_rip3_surface *surface,
-    const struct st_rip3_rect *bounds,bool screen,const struct st_rip3_scroll_area *source,
+    const struct st_rip3_rect *bounds,bool screen,const struct st_rip3_surface_blit_area *source,
     bool down,uint32_t color[2])
 {
 	int64_t x=down ? source->x0 : source->x1;
@@ -724,7 +724,7 @@ scroll_corner(const struct st_rip3_ports *ports,const struct st_rip3_surface *su
 }
 
 static int
-scroll_fill(struct scroll_patch *patch,const struct st_rip3_scroll_fill *fill,
+blit_fill(struct blit_patch *patch,const struct st_rip3_surface_blit_fill *fill,
     const uint32_t ink[2],bool alternate)
 {
 	const struct st_rip3_rect *a=&patch->area;
@@ -733,7 +733,7 @@ scroll_fill(struct scroll_patch *patch,const struct st_rip3_scroll_fill *fill,
 	if (status!=0) return status;
 	for (uint32_t y=0;y<height;y++) for (uint32_t x=0;x<width;x++) {
 		size_t at=(size_t)y*width+x;
-		bool background=fill->mode==ST_RIP3_SCROLL_PATTERN
+		bool background=fill->mode==ST_RIP3_BLIT_PATTERN
 		    && (fill->pattern[((uint32_t)a->y0+y)&7] & (0x80u>>(((uint32_t)a->x0+x)&7)))==0;
 		patch->pixels->primary[at]=background ? fill->background : ink[0];
 		if (alternate) patch->pixels->alternate[at]=background ? fill->background : ink[1];
@@ -742,15 +742,17 @@ scroll_fill(struct scroll_patch *patch,const struct st_rip3_scroll_fill *fill,
 }
 
 int
-st_rip3_ports_scroll(struct st_rip3_ports *ports,const struct st_rip3_scroll_area *source,
-    const struct st_rip3_scroll_fill *fill,const struct st_rip3_palette *palette)
+st_rip3_ports_blit_surface(struct st_rip3_ports *ports,const struct st_rip3_surface_blit_area *source,
+    const struct st_rip3_surface_blit_fill *fill,const struct st_rip3_palette *palette)
 {
 	if (ports==NULL || source==NULL || fill==NULL || palette==NULL || source->x0<0 || source->y0<0
-	    || source->x1<source->x0 || source->y1<source->y0 || source->destination_y<0)
+	    || source->x1<source->x0 || source->y1<source->y0 || source->destination_x<0 || source->destination_y<0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (source->y1>INT64_MAX/2 || source->destination_y>INT64_MAX/2) return IO_ERROR_OUT_OF_RANGE;
-	int64_t delta=source->destination_y-source->y0;
-	if (delta==0) return IO_ERROR_INVALID_ARGUMENT;
+	if (source->x1>INT64_MAX/2 || source->y1>INT64_MAX/2
+	    || source->destination_x>INT64_MAX/2 || source->destination_y>INT64_MAX/2) return IO_ERROR_OUT_OF_RANGE;
+	int64_t dx=source->destination_x-source->x0,dy=source->destination_y-source->y0;
+	if (fill->mode==ST_RIP3_BLIT_SCROLL_CORNER && (dx!=0 || dy==0)) return IO_ERROR_INVALID_ARGUMENT;
+	if (dx==0 && dy==0) return 0;
 	const struct port *port=&ports->entries[ports->current];
 	if (!port->info.defined) return IO_ERROR_NOT_FOUND;
 	if (!port->info.viewport_active) return 0;
@@ -763,21 +765,26 @@ st_rip3_ports_scroll(struct st_rip3_ports *ports,const struct st_rip3_scroll_are
 	    source->y0<bounds.y0 ? bounds.y0 : (int32_t)source->y0,
 	    source->x1>bounds.x1 ? bounds.x1 : (int32_t)source->x1,
 	    source->y1>bounds.y1 ? bounds.y1 : (int32_t)source->y1};
-	int64_t lo=(int64_t)bounds.y0-delta,hi=(int64_t)bounds.y1-delta;
-	if (lo<available.y0) lo=available.y0;
-	if (hi>available.y1) hi=available.y1;
+	/* Intersect the available source with the destination's bounds shifted
+	 * back by the copy delta. Both sides lose the same pixels. */
+	int64_t x0=(int64_t)bounds.x0-dx,x1=(int64_t)bounds.x1-dx;
+	int64_t y0=(int64_t)bounds.y0-dy,y1=(int64_t)bounds.y1-dy;
+	if (x0<available.x0) x0=available.x0;
+	if (x1>available.x1) x1=available.x1;
+	if (y0<available.y0) y0=available.y0;
+	if (y1>available.y1) y1=available.y1;
 	struct st_rip3_surface *surface=port_surface(ports,ports->current);
-	struct scroll_patch patches[3]={{0}};
+	struct blit_patch patches[5]={{0}};
 	size_t count=0;
 	int status=0;
-	if (lo<=hi) {
-		const struct st_rip3_rect from={available.x0,(int32_t)lo,available.x1,(int32_t)hi};
-		struct scroll_patch *copy=&patches[count++];
-		copy->area=(struct st_rip3_rect){available.x0,(int32_t)(lo+delta),available.x1,(int32_t)(hi+delta)};
-		status=scroll_capture(ports,surface,&from,screen,&copy->pixels);
+	if (x0<=x1 && y0<=y1) {
+		const struct st_rip3_rect from={(int32_t)x0,(int32_t)y0,(int32_t)x1,(int32_t)y1};
+		struct blit_patch *copy=&patches[count++];
+		copy->area=(struct st_rip3_rect){(int32_t)(x0+dx),(int32_t)(y0+dy),(int32_t)(x1+dx),(int32_t)(y1+dy)};
+		status=blit_capture(ports,surface,&from,screen,&copy->pixels);
 	}
 	size_t copies=count;
-	if (status==0 && fill->mode!=ST_RIP3_SCROLL_KEEP) {
+	if (status==0 && fill->mode!=ST_RIP3_BLIT_KEEP) {
 		struct st_rip3_rect covered=count==0 ? (struct st_rip3_rect){0,0,-1,-1} : patches[0].area;
 		if (!clip(&covered,&available)) patches[count++].area=available;
 		else {
@@ -785,18 +792,22 @@ st_rip3_ports_scroll(struct st_rip3_ports *ports,const struct st_rip3_scroll_are
 				patches[count++].area=(struct st_rip3_rect){available.x0,available.y0,available.x1,covered.y0-1};
 			if (covered.y1<available.y1)
 				patches[count++].area=(struct st_rip3_rect){available.x0,covered.y1+1,available.x1,available.y1};
+			if (available.x0<covered.x0)
+				patches[count++].area=(struct st_rip3_rect){available.x0,covered.y0,covered.x0-1,covered.y1};
+			if (covered.x1<available.x1)
+				patches[count++].area=(struct st_rip3_rect){covered.x1+1,covered.y0,available.x1,covered.y1};
 		}
 	}
 	if (status==0 && count>copies) {
 		uint32_t ink[2]={fill->ink,fill->ink};
-		if (fill->mode==ST_RIP3_SCROLL_CORNER) scroll_corner(ports,surface,&bounds,screen,source,delta>0,ink);
+		if (fill->mode==ST_RIP3_BLIT_SCROLL_CORNER) scroll_corner(ports,surface,&bounds,screen,source,dy>0,ink);
 		for (size_t i=copies;status==0 && i<count;i++)
-			status=scroll_fill(&patches[i],fill,ink,screen && ports->screen_writer!=NULL);
+			status=blit_fill(&patches[i],fill,ink,screen && ports->screen_writer!=NULL);
 	}
 	/* All source reads and scratch allocations finish before the first
 	 * write, including a corner that will itself be replaced. */
 	for (size_t i=0;status==0 && i<count;i++) {
-		struct scroll_patch *patch=&patches[i];
+		struct blit_patch *patch=&patches[i];
 		status=st_rip3_surface_restore_area_raw(surface,patch->pixels,(uint32_t)patch->area.x0,(uint32_t)patch->area.y0);
 		if (status==0 && screen && ports->screen_writer!=NULL)
 			status=ports->screen_writer(ports->screen_writer_context,&patch->area,patch->pixels,palette);

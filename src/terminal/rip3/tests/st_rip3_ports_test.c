@@ -446,19 +446,19 @@ scroll_preparation_and_pair(void)
 	CHECK(st_rip3_ports_copy(ports,0,&from,0,&to,ST_RIP3_TRANSFER_COPY)==0);
 	for (int32_t y=2;y<=4;y++)
 		CHECK(st_rip3_ports_plot(ports,3,y,(uint8_t)(10+y),ST_RIP3_COPY)==0);
-	const struct st_rip3_scroll_area area={3,2,3,4,1};
-	const struct st_rip3_scroll_fill fill={.mode=ST_RIP3_SCROLL_SOLID,.ink=ST_PIXEL_COLOR_RGB_TAG};
+	const struct st_rip3_surface_blit_area area={3,2,3,4,3,1};
+	const struct st_rip3_surface_blit_fill fill={.mode=ST_RIP3_BLIT_SOLID,.ink=ST_PIXEL_COLOR_RGB_TAG};
 	struct st_pixel_buffer *before=NULL,*after=NULL;
 	CHECK(st_rip3_ports_screen_capture(ports,&before)==0);
 	unsigned calls=0;
 	st_rip3_ports_bind_screen_reader(ports,&calls,scroll_read_failure);
-	CHECK(st_rip3_ports_scroll(ports,&area,&fill,&palette)==IO_ERROR_OUT_OF_MEMORY && calls==1);
+	CHECK(st_rip3_ports_blit_surface(ports,&area,&fill,&palette)==IO_ERROR_OUT_OF_MEMORY && calls==1);
 	CHECK(st_rip3_ports_screen_capture(ports,&after)==0);
 	CHECK(memcmp(before->primary,after->primary,(size_t)before->width*before->height*sizeof(*before->primary))==0);
 	st_pixel_buffer_destroy(before);st_pixel_buffer_destroy(after);
 
 	st_rip3_ports_bind_screen_reader(ports,NULL,NULL);
-	CHECK(st_rip3_ports_scroll(ports,&area,&fill,&palette)==0);
+	CHECK(st_rip3_ports_blit_surface(ports,&area,&fill,&palette)==0);
 	uint32_t pixel;
 	for (int32_t y=1;y<=3;y++) {
 		CHECK(st_rip3_ports_read_color(ports,0,3,y,false,&pixel)==0);

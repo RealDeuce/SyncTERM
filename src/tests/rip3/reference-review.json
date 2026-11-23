@@ -19917,6 +19917,38 @@
         "blocked": 25
       },
       "verification": "Native session, user variable and versioned file fixtures verify the definition parser, store updates, cancellation and migration. Live CP437 and UTF-8 tests verify editor width, exact ordered replies and restoration of the saved policy on reconnect."
+    },
+    {
+      "after_commit": "0adee402",
+      "revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
+      "scope": "Connect RIP_COPY_BLIT to the current-surface copy path with two-axis translation and exposed-source fill.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:285",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:290",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:293",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:297",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:303",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:304",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:306",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:307",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:308"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:291",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:299",
+        "version/3.0/ripscrip/9.0-command-reference.md:164"
+      ],
+      "states_after_update": {
+        "unreviewed": 2466,
+        "context": 1731,
+        "pending": 1666,
+        "implemented": 3047,
+        "excluded": 70,
+        "blocked": 28
+      },
+      "verification": "Native port preparation-failure and remembered-pair checks. Connected CP437 and UTF-8 scroll and copy-blit vectors at 640x480 and 800x600. Original slot and handler inspected statically. B184 tracks the open documentation questions."
     }
   ]
 }

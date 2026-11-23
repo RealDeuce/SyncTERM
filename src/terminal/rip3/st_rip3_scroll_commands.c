@@ -10,13 +10,13 @@
 #include <string.h>
 
 static int
-scroll_fill(const struct st_rip3_command_host *host,unsigned bits,unsigned mode,
-    struct st_rip3_scroll_fill *fill)
+blit_fill(const struct st_rip3_command_host *host,unsigned bits,unsigned mode,
+    struct st_rip3_surface_blit_fill *fill)
 {
-	*fill=(struct st_rip3_scroll_fill){0};
+	*fill=(struct st_rip3_surface_blit_fill){0};
 	if (mode==0) return 0;
 	if (mode==5 || mode==6) {
-		fill->mode=mode==5 ? ST_RIP3_SCROLL_SOLID : ST_RIP3_SCROLL_CORNER;
+		fill->mode=mode==5 ? ST_RIP3_BLIT_SOLID : ST_RIP3_BLIT_SCROLL_CORNER;
 		fill->ink=ST_PIXEL_COLOR_RGB_TAG;
 		return 0;
 	}
@@ -31,14 +31,14 @@ scroll_fill(const struct st_rip3_command_host *host,unsigned bits,unsigned mode,
 	if (status==0 && mode==4)
 		status=st_rip3_command_ink(host,bits,style.background_color,&background);
 	if (status!=0) return status;
-	fill->mode=mode==4 ? ST_RIP3_SCROLL_PATTERN : ST_RIP3_SCROLL_SOLID;
+	fill->mode=mode==4 ? ST_RIP3_BLIT_PATTERN : ST_RIP3_BLIT_SOLID;
 	fill->ink=ink;fill->background=background;
 	memcpy(fill->pattern,style.fill.rows,sizeof(fill->pattern));
 	return 0;
 }
 
 int
-st_rip3_scroll_command(const struct st_rip3_command_host *host,
+st_rip3_scroll_blit_command(const struct st_rip3_command_host *host,
     const uint8_t *command,size_t length,bool *operation)
 {
 	struct st_rip3_environment environment;
@@ -46,16 +46,22 @@ st_rip3_scroll_command(const struct st_rip3_command_host *host,
 	int status=st_rip3_command_environment(host,&number,&environment);
 	if (status!=0) return status;
 	size_t width=environment.coordinate_size;
-	if (length!=4+5*width) return IO_ERROR_INVALID_FORMAT;
-	uint64_t positions[5],mode,reserved;
-	for (size_t i=0;status==0 && i<4;i++)
+	bool scroll=command[1]=='G';
+	size_t coordinates=scroll ? 4 : 6;
+	size_t mode_offset=2+coordinates*width;
+	if (scroll ? length!=mode_offset+2+width : (length<mode_offset+1 || length>mode_offset+2))
+		return IO_ERROR_INVALID_FORMAT;
+	uint64_t positions[6],mode,reserved=0;
+	for (size_t i=0;status==0 && i<coordinates;i++)
 		status=st_rip3_command_field(&positions[i],command+2+i*width,width,environment.base_math);
-	if (status==0) status=st_rip3_command_field(&mode,command+2+4*width,1,environment.base_math);
-	if (status==0) status=st_rip3_command_field(&reserved,command+3+4*width,1,environment.base_math);
-	if (status==0) status=st_rip3_command_field(&positions[4],command+4+4*width,width,environment.base_math);
+	if (status==0) status=st_rip3_command_field(&mode,command+mode_offset,1,environment.base_math);
+	if (status==0 && length>mode_offset+1)
+		status=st_rip3_command_field(&reserved,command+mode_offset+1,1,environment.base_math);
+	if (status==0 && scroll)
+		status=st_rip3_command_field(&positions[5],command+mode_offset+2,width,environment.base_math);
 	if (status!=0) return status;
-	if (mode>6) return IO_ERROR_OUT_OF_RANGE;
-	if (reserved!=0 || host->ports==NULL || host->palettes==NULL) return IO_ERROR_NOT_SUPPORTED;
+	if (mode>(scroll ? 6u : 5u)) return IO_ERROR_OUT_OF_RANGE;
+	if ((scroll && reserved!=0) || host->ports==NULL || host->palettes==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_port_info port;
 	status=st_rip3_ports_current(host->ports,&current);
 	if (status==0) status=st_rip3_ports_info(host->ports,current,&port);
@@ -66,18 +72,22 @@ st_rip3_scroll_command(const struct st_rip3_command_host *host,
 	if (status!=0) return status;
 	unsigned left=positions[0]<=positions[2] ? 0 : 2;
 	unsigned top=positions[1]<=positions[3] ? 1 : 3;
-	const struct st_rip3_scroll_area area={
+	if (scroll) positions[4]=positions[left];
+	const struct st_rip3_surface_blit_area area={
 	    (int64_t)(positions[left]*frame.device_width/frame.world_width),
 	    (int64_t)(positions[top]*frame.device_height/frame.world_height),
 	    (int64_t)(positions[2-left]*frame.device_width/frame.world_width),
 	    (int64_t)(positions[4-top]*frame.device_height/frame.world_height),
-	    (int64_t)(positions[4]*frame.device_height/frame.world_height)};
-	if (area.y0==area.destination_y) return IO_ERROR_INVALID_FORMAT;
-	struct st_rip3_scroll_fill fill;
+	    (int64_t)(positions[4]*frame.device_width/frame.world_width),
+	    (int64_t)(positions[5]*frame.device_height/frame.world_height)};
+
+	if (area.x0==area.destination_x && area.y0==area.destination_y)
+		return scroll ? IO_ERROR_INVALID_FORMAT : 0;
+	struct st_rip3_surface_blit_fill fill;
 	struct st_rip3_palette palette;
-	status=scroll_fill(host,environment.rgb_bits,(unsigned)mode,&fill);
+	status=blit_fill(host,environment.rgb_bits,(unsigned)mode,&fill);
 	if (status==0) status=st_rip3_palettes_current_palette(host->palettes,&palette);
 	if (status!=0) return status;
 	*operation=true;
-	return st_rip3_ports_scroll(host->ports,&area,&fill,&palette);
+	return st_rip3_ports_blit_surface(host->ports,&area,&fill,&palette);
 }

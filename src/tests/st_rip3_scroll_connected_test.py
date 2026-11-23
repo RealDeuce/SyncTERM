@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RIP_SCROLL through the real TCP parser and shared bitmap console."""
+"""RIP_SCROLL and RIP_COPY_BLIT through the TCP parser and bitmap console."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from dataclasses import replace
@@ -22,6 +22,11 @@ def scroll(x0, y0, x1, y1, mode, y, *, width=2, radix=36, reserved=0):
     return (b"1G" + coords(x0, y0, x1, y1, width=width, radix=radix)
             + number(mode, 1, radix) + number(reserved, 1, radix)
             + number(y, width, radix))
+
+
+def copy_blit(x0, y0, x1, y1, x, y, mode, *, width=2, radix=36, reserved=0):
+    return (b"1g" + coords(x0, y0, x1, y1, x, y, width=width, radix=radix)
+            + number(mode, 1, radix) + (b"" if reserved is None else number(reserved, 1, radix)))
 
 
 def plane_pixel(frame, x, y, phase):
@@ -146,6 +151,72 @@ def run(args, width, height):
             replace(cell, flags=cell.flags & ~8) for cell in before.cells]
         for key in ("cterm.x", "cterm.y", "cterm.attr", "cterm.top_margin", "cterm.bottom_margin"):
             assert frame.application[key] == before.application[key]
+
+        t.case("rip3-copy-blit-preserves-physical-blink-planes-and-logical-cells")
+        frame = wire(copy_blit(2, 10, 3, 11, 24, 12, 0))
+        for phase, color in zip(("primary", "alternate"), colors):
+            assert plane_pixel(frame, 24, 12, phase) == color
+        assert [replace(cell, flags=cell.flags & ~8) for cell in frame.cells] == [
+            replace(cell, flags=cell.flags & ~8) for cell in before.cells]
+
+        t.case("rip3-copy-blit-diagonal-overlap-and-exposed-source")
+        fresh()
+        frame = wire(paint_rows(2) + b"|a0009|W4|" + copy_blit(5, 4, 3, 2, 4, 3, 5))
+        addresses(frame, 4, 3, (a, b, c))
+        for phase in ("primary", "alternate"):
+            assert [plane_pixel(frame, x, 2, phase) for x in range(3, 6)] == [0, 0, 0]
+            assert [plane_pixel(frame, 3, y, phase) for y in range(3, 6)] == [0, 0, d]
+            assert plane_pixel(frame, 7, 3, phase) == 0
+
+        t.case("rip3-copy-blit-one-pixel-fills-and-global-pattern-phase")
+        fresh()
+        mask = number(128, 2) + b"00"*7
+        for i, expected in enumerate((f, a, b, c, b, 0)):
+            y = 8 * (i + 1)
+            draw = b"c0F|X" + coords(7, y) + b"|c04|k02|s" + mask + b"01"
+            frame = wire(draw + b"|" + copy_blit(7, y, 7, y, 12, y + 1, i))
+            for phase in ("primary", "alternate"):
+                assert plane_pixel(frame, 7, y, phase) == expected
+                assert plane_pixel(frame, 12, y + 1, phase) == f
+        frame = wire(b"c0F|X" + coords(8, 40) + b"|" + copy_blit(8, 40, 8, 40, 12, 42, 4))
+        assert pixel(frame, 8, 40) == c and pixel(frame, 12, 42) == f
+
+        t.case("rip3-copy-blit-clips-source-and-destination-together-to-current-port")
+        fresh()
+        wire(paint_rows() + b"|2P1" + coords(3, 2, 6, 6) + b"0|2s100|v04030403")
+        values(b"$PROT(PORT,1)$")
+        frame = wire(copy_blit(2, 1, 4, 3, 3, 2, 5))
+        for phase in ("primary", "alternate"):
+            assert [[plane_pixel(frame, x, y, phase) for x in range(3, 6)] for y in range(1, 6)] == [
+                [b, b, b], [0, 0, c], [0, c, c], [e, d, d], [f, f, f]]
+        frame = wire(copy_blit(4, 3, 5, 3, 7, 3, 1))
+        assert pixel(frame, 4, 3) == pixel(frame, 5, 3) == 0xffffff
+        before = values(b"$UNPROT(PORT,1)$$DVP(1)$")
+        frame = wire(copy_blit(3, 2, 5, 4, 3, 3, 5))
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+
+        t.case("rip3-copy-blit-current-xy-width-and-reserved-field")
+        fresh()
+        before = wire(paint_rows())
+        values(f"$WORLD(CUR,{2*width},{2*height})$$BASEMATH(CUR,64)$$COORDSIZE(CUR,3)$".encode())
+        for bad in (copy_blit(6, 4, 10, 8, 7, 5, 5, width=3, radix=64),
+                    copy_blit(6, 4, 10, 8, 10, 2, 6, width=3, radix=64),
+                    copy_blit(6, 4, 10, 8, 10, 2, 5, width=3, radix=64)[:-3]):
+            frame = wire(bad)
+            assert frame.primary == before.primary and frame.alternate == before.alternate
+        frame = wire(copy_blit(6, 4, 10, 8, 10, 2, 5, width=3, radix=64, reserved=None))
+        addresses(frame, 5, 1, (c, d, e))
+        frame = wire(copy_blit(10, 2, 14, 6, 16, 2, 0, width=3, radix=64, reserved=1))
+        addresses(frame, 8, 1, (c, d, e))
+
+        t.case("rip3-copy-blit-offscreen-content-stays-local-until-port-copy")
+        fresh()
+        before = client.capture()
+        wire(b"2P2" + coords(0, 0, 9, 8) + b"1|2s200|" + paint_rows())
+        frame = wire(copy_blit(3, 2, 5, 4, 5, 1, 0))
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+        frame = wire(b"2s000|2C2" + coords(5, 1, 8, 4) + b"0" + coords(30, 30, 33, 33) + b"0")
+        addresses(frame, 30, 30, (c, d, e))
         values(b"alive", b"alive")
 
 

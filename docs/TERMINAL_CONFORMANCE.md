@@ -987,6 +987,11 @@ supports seven exposed-source fill modes. Connected CP437 and UTF-8 tests
 cover absolute WORLD conversion, overlap and clipping, offscreen ports and
 independent ANSI blink planes. [RIPv3 scroll coverage](RIP3_CONFORMANCE.md#connected-rip_scroll)
 
+RIPv3 `1g` copies a rectangle to a new X/Y position and applies its fill
+mode to the exposed source. Connected CP437 and UTF-8 tests cover diagonal
+overlap, one-pixel copies, clipping, offscreen ports and independent ANSI
+blink planes. [RIPv3 copy blit coverage](RIP3_CONFORMANCE.md#connected-rip_copy_blit)
+
 RIPv3 `w` changes the positioned text window. The entry console retains its
 selected raster, grid and local status row. Connected CP437 and UTF-8 captures
 cover all five window fonts on 640×480, 800×600, 1024×768, 1280×800 and 720×400,

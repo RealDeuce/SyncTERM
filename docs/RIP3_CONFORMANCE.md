@@ -9091,6 +9091,35 @@ tests cover overlap, port and surface edges, all seven fills, malformed
 coordinates, offscreen presentation and blink phases at 640×480 and 800×600.
 Native port tests cover source-read failure before writes.
 
+## Connected RIP_COPY_BLIT
+
+Level-1 `g` decodes its six coordinates at the current XY width and radix.
+It normalizes the source corners, projects all coordinates to device space,
+and copies the inclusive rectangle in either axis. The last reserved digit
+is consumed when present. An identity translation leaves the pixels in
+place. The descriptor at slot 96 and handler at RVA `0xb7a4` establish the
+dynamic widths, inclusive copy spans and same-surface COPY operation.
+
+SyncTERM clips paired source and destination pixels to the current port and
+backing surface. It fills available old-source pixels outside the actual
+copied destination. Modes 0–5 retain those pixels or fill them with drawing
+color, background color, solid fill color, the current fill mask, or RGB
+black, respectively. The viewport's active flag gates the command. The
+viewport rectangle leaves the full port available for copying. Screen
+copies read both blink phases from the rendered screen and leave the logical
+terminal cells in place. Offscreen copies operate on their local bitmap.
+
+The draft lists fixed widths, and the original fill passes inclusive far
+coordinates to half-open GDI region calls. The implementation uses the
+draft's exposed-pixel intent and coupled port clipping. The authoritative
+edge, viewport and reserved-field rules are tracked upstream. [Issue #184](https://github.com/bbs-land/remote-imaging-protocol/issues/184)
+
+The connected CP437 and UTF-8 fixtures check diagonal overlap, inclusive
+single-pixel copies, all six fills, device pattern phase, malformed bodies,
+three-digit UltraNums, screen and offscreen bounds, and separate blink
+planes. The native port fixture checks source-read failure and preservation
+of the remembered port-copy pair through the shared copy path.
+
 ## Playback filename substitutions
 
 The ordinary HCL scanner recognizes all four playback prefixes and prepares
