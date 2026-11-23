@@ -47,6 +47,47 @@ int cterm_igs_pointer_begin(struct cterm_igs *igs, struct cterm_igs_pointer *p, 
 	if (status == 0) { p->host_saved=true; status = host_pointer(igs, false); }
 	return status;
 }
+struct pointer_draw {
+	struct cterm_igs_pointer *pointer;
+	unsigned form, plane_mask;
+	int left, top;
+};
+
+static int
+draw_pointer(void *context, const struct st_pixel_buffer *screen, struct st_console_rect *changed)
+{
+	const struct pointer_draw *draw = context;
+	struct cterm_igs_pointer *p = draw->pointer;
+	struct st_pixel_buffer *saved = p->saved;
+	unsigned left = (unsigned)p->left, top = (unsigned)p->top;
+	if (left > screen->width || saved->width > screen->width-left
+	    || top > screen->height || saved->height > screen->height-top)
+		return IO_ERROR_OUT_OF_RANGE;
+	for (unsigned row = 0; row < saved->height; ++row) {
+		unsigned y = (unsigned)(p->top-draw->top)+row;
+		for (unsigned col = 0; col < saved->width; ++col) {
+			unsigned x = (unsigned)(p->left-draw->left)+col;
+			unsigned bit = 0x8000u >> x;
+			unsigned clear = mouse_forms[draw->form].mask[y] & bit ? draw->plane_mask : 0;
+			unsigned set = mouse_forms[draw->form].data[y] & bit ? draw->plane_mask : 0;
+			size_t at = (size_t)(top+row)*screen->width+left+col;
+			size_t under = (size_t)row*saved->width+col;
+			for (unsigned phase = 0; phase < 2; ++phase) {
+				uint32_t *pixels = phase ? screen->alternate : screen->primary;
+				uint32_t *background = phase ? saved->alternate : saved->primary;
+				uint32_t old = pixels[at];
+				background[under] = old;
+				if (old >= CTERM_IGS_PALETTE_FIRST && old < CTERM_IGS_PALETTE_FIRST+16)
+					pixels[at] = CTERM_IGS_PALETTE_FIRST +
+					    (((old-CTERM_IGS_PALETTE_FIRST) & ~clear) | set);
+			}
+		}
+	}
+	*changed = (struct st_console_rect){left,top,saved->width,saved->height};
+	p->drawn = true;
+	return 0;
+}
+
 int cterm_igs_pointer_move(struct cterm_igs *igs, struct cterm_igs_pointer *p, int x, int y)
 {
 	if (!p->active) return IO_ERROR_PROTOCOL;
@@ -67,31 +108,14 @@ int cterm_igs_pointer_move(struct cterm_igs *igs, struct cterm_igs_pointer *p, i
 	if (right > (int)igs->width) right = (int)igs->width;
 	if (bottom > height) bottom = height;
 	if (right <= p->left || bottom <= p->top) return 0;
-	const struct st_console_rect area = {(unsigned)p->left,(unsigned)p->top,
-	    (unsigned)(right-p->left),(unsigned)(bottom-p->top)};
-	status = st_console_get_pixels(&p->saved, igs->terminal->screen.console, &area, false);
-	struct st_pixel_buffer *pixels = NULL;
-	if (status == 0) status = st_pixel_buffer_clone(&pixels, p->saved);
-	if (status == 0) {
-		unsigned mask = cterm_igs_plane_mask(igs->resolution);
-		for (unsigned row=0;row<area.height;++row) for (unsigned col=0;col<area.width;++col) {
-			unsigned y0=(unsigned)(p->top-top)+row, x0=(unsigned)(p->left-left)+col;
-			bool clear = (mouse_forms[form].mask[y0] & (0x8000u>>x0)) != 0;
-			bool set = (mouse_forms[form].data[y0] & (0x8000u>>x0)) != 0;
-			size_t offset=(size_t)row*area.width+col;
-			uint32_t *phases[]={pixels->primary,pixels->alternate};
-			for (unsigned phase=0;phase<2;++phase) {
-				if (phases[phase]==NULL) continue;
-				uint32_t old=phases[phase][offset];
-				if (old>=CTERM_IGS_PALETTE_FIRST && old<CTERM_IGS_PALETTE_FIRST+16)
-					phases[phase][offset]=CTERM_IGS_PALETTE_FIRST
-					    + (((old-CTERM_IGS_PALETTE_FIRST)&~(clear?mask:0u)) | (set?mask:0u));
-			}
-		}
-		status = publish(igs, p, pixels);
-		if (status == 0) p->drawn = true;
+	status = st_pixel_buffer_create(&p->saved,(unsigned)(right-p->left),(unsigned)(bottom-p->top),true);
+	if (status != 0) return status;
+	struct pointer_draw draw = {p, form, cterm_igs_plane_mask(igs->resolution), left, top};
+	status = st_console_modify_pixels(igs->terminal->screen.console,draw_pointer,&draw);
+	if (!p->drawn) {
+		st_pixel_buffer_destroy(p->saved);
+		p->saved = NULL;
 	}
-	st_pixel_buffer_destroy(pixels);
 	return status;
 }
 int cterm_igs_pointer_end(struct cterm_igs *igs, struct cterm_igs_pointer *p)

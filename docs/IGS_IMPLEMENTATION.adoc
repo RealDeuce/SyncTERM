@@ -730,8 +730,8 @@ Replace and transparent modes plot the selected physical pen; XOR complements
 every active plane independent of that pen, retaining component crossings,
 closure visits and native nonfinal-segment endpoint ownership. Reverse mode
 has no pixels for a solid marker. Each blink phase is modified independently.
-The existing console bitmap remains authoritative; one small region is
-captured and published without a planar backing or per-blit conversion.
+The marker updates the locked console bitmap directly and reports the
+bounding rectangle of its plotted pixels.
 
 P always uses inherited clip bounds without changing the workstation's
 stored clip flag or replacing those bounds. Bounded native intersection
@@ -813,9 +813,8 @@ marker is clipped or reverse-transparent. I/R preserve this raster state.
 Cap spans always use inherited clip bounds; other line/polygon clipping uses
 the workstation flag. Host status cropping happens after native raster phase.
 Line/fill/text attributes, banks, palette, console cursor and memory controls
-remain intact. The authoritative indexed bitmap is read/published in a
-bounded temporary region, independently for both blink phases, with no
-planar backing or ordinary-blit conversion.
+remain intact. Drawing updates both blink phases of the authoritative
+indexed bitmap under the console write lock.
 
 Arithmetic uses bounded/wide host values for defined rendering, not native
 word overflow, division faults, stale locals or corrupt point-buffer walks.
@@ -1020,8 +1019,8 @@ segments, and retains inherited cap state. Arrowheads search beyond short or
 repeated pairs and propagate shortened tips through skipped private vertices.
 The end head sees the original first pair and begin-modified interior pairs;
 the begin-shortened first pair is restored afterward. Thin shafts precede
-heads; wide heads precede shafts/joins. Captures remain temporary indexed
-regions of the authoritative bitmap. No native layout conversion is added.
+heads; wide heads precede shafts/joins. The renderer plots directly into
+the indexed bitmap using its physical row stride.
 z preserves both remembered Drawto pairs and all attributes/clip settings;
 L/D retain their existing position publication around the shared renderer.
 
@@ -1855,8 +1854,8 @@ skipped separately by phase; their tags are never interpreted as bitplanes.
 
 Each blink phase runs its own live probes and queue. A phase mask on the
 existing raster writer selects which indexed phase is being painted; its
-ordinary default still writes both. Both completed results publish in one
-coherent blit. No persistent backing or extra planar framebuffer is added.
+ordinary default still writes both. A single console write lock covers both
+phases and publishes their combined damage.
 Attributes/palette/Drawto/clipping/source banks/active fill/math/seeds remain
 owned by their existing operations.
 
@@ -1865,8 +1864,9 @@ It retains native traversal and collision rules without the original 640-
 triple scratch/RAM overlap or capacity abort. A source-derived 34x5 comb has
 16 pending upper and 16 lower runs and exercises growth with both unchanged
 hollow-transparent pixels and solid painting. Uninitialized scratch values
-and adjacent memory aliases are not ported. Allocation/capture failure does
-not publish a partially computed screen.
+and adjacent memory aliases are not ported. If queue growth fails during
+painting, the fill returns an allocation error and reports the bounding
+rectangle of the pixels already painted.
 
 IGS calls VDI103, which installs retfalse as the quit hook. This path has no
 keyboard polling or foreign callback cancellation; the port does not invent

@@ -1198,7 +1198,8 @@ use physical fill pen, all 39 anchored patterns and writing modes; perimeter
 and line attributes are ignored. Stored bounds apply even with clipping
 disabled. Rejected seeds retain last state; accepted setup clears it.
 
-Each blink phase probes and paints independently, then both publish together.
+Each blink phase probes and paints the live raster independently under one
+console write lock. If queue growth fails, completed spans remain visible.
 The queue is owned/growable instead of native shared scratch and its 640-entry
 limit; a source-derived 32-active-run comb exercises growth. Bounds intersect
 the real host/status canvas, guard reads are omitted, and safe arithmetic

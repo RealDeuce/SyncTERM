@@ -74,8 +74,8 @@ clip_segment(const struct cterm_igs *igs, struct point *first, struct point *las
 
 struct raster {
 	struct cterm_igs *igs;
-	struct st_pixel_buffer *pixels;
-	struct st_console_rect area;
+	const struct st_pixel_buffer *pixels;
+	int width, height;
 	unsigned mode, foreground, plane_mask, phase_mask;
 	uint16_t mask;
 	bool last_line;
@@ -89,9 +89,7 @@ plot(struct raster *raster, struct point p, bool pattern)
 	if ((!pattern && (raster->mode == 2 || raster->mode == 3))
 	    || (pattern && raster->mode == 4))
 		return;
-	if (p.x < (int)raster->area.x || p.y < (int)raster->area.y
-	    || p.x >= (int)(raster->area.x+raster->area.width)
-	    || p.y >= (int)(raster->area.y+raster->area.height))
+	if (p.x < 0 || p.y < 0 || p.x >= raster->width || p.y >= raster->height)
 		return;
 	if (!raster->touched) {
 		raster->left = raster->right = p.x;
@@ -103,8 +101,7 @@ plot(struct raster *raster, struct point p, bool pattern)
 		if (p.y < raster->top) raster->top = p.y;
 		if (p.y > raster->bottom) raster->bottom = p.y;
 	}
-	size_t offset = (size_t)(p.y-(int)raster->area.y)*raster->area.width
-	    + (unsigned)(p.x-(int)raster->area.x);
+	size_t offset = (size_t)p.y*raster->pixels->width+(unsigned)p.x;
 	uint32_t *phases[] = {raster->pixels->primary, raster->pixels->alternate};
 	for (unsigned phase = 0; phase < 2; ++phase) {
 		if (raster->phase_mask != 0 && !(raster->phase_mask & (1u << phase))) continue;
@@ -153,18 +150,45 @@ pattern_segment(struct raster *raster, struct point first, struct point last, bo
 		raster->mask = (uint16_t)((unsigned)mask << rotation | mask >> (16-rotation));
 }
 
+typedef int raster_draw_fn(struct raster *, const void *);
+
+struct raster_edit {
+	struct raster raster;
+	raster_draw_fn *draw;
+	const void *arguments;
+};
+
 static int
-publish(struct raster *raster)
+edit_pixels(void *context, const struct st_pixel_buffer *pixels, struct st_console_rect *changed)
 {
-	if (!raster->touched)
-		return 0;
-	const struct st_pixel_blit blit = {
-	    .source_x = (unsigned)raster->left-raster->area.x,
-	    .source_y = (unsigned)raster->top-raster->area.y,
-	    .width = (unsigned)(raster->right-raster->left+1),
-	    .height = (unsigned)(raster->bottom-raster->top+1),
-	    .destination_x = raster->left, .destination_y = raster->top, .scale_x = 1, .scale_y = 1};
-	return st_console_blit_pixels(raster->igs->terminal->screen.console, raster->pixels, NULL, &blit);
+	struct raster_edit *edit = context;
+	struct raster *r = &edit->raster;
+	if ((unsigned)r->width > pixels->width || (unsigned)r->height > pixels->height)
+		return IO_ERROR_OUT_OF_RANGE;
+	r->pixels = pixels;
+	int status = edit->draw(r, edit->arguments);
+	r->pixels = NULL;
+	if (r->touched)
+		*changed = (struct st_console_rect){(unsigned)r->left,(unsigned)r->top,
+		    (unsigned)(r->right-r->left+1),(unsigned)(r->bottom-r->top+1)};
+	return status;
+}
+
+static int
+draw_on_screen(struct cterm_igs *igs, int pen, raster_draw_fn *draw, const void *arguments)
+{
+	int height = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
+	struct raster_edit edit = {
+		.raster = {.igs = igs, .width = (int)igs->width, .height = height,
+		    .mode = (unsigned)igs->attributes.writing_mode,
+		    .foreground = cterm_igs_physical_pen(igs,pen),
+		    .plane_mask = cterm_igs_plane_mask(igs->resolution), .last_line = igs->last_line,
+		    .mask = 0xffff},
+		.draw = draw, .arguments = arguments,
+	};
+	int status = st_console_modify_pixels(igs->terminal->screen.console,edit_pixels,&edit);
+	if (status == 0) igs->last_line = edit.raster.last_line;
+	return status;
 }
 
 /* Canonical workstation patterns have row masks 0/3/7/15, so the native
@@ -213,7 +237,7 @@ flood_pixel(const struct flood *fill, int x, int y)
 {
 	const struct raster *r = fill->raster;
 	const uint32_t *pixels = fill->phase ? r->pixels->alternate : r->pixels->primary;
-	return pixels[(size_t)(y-(int)r->area.y)*r->area.width+(unsigned)(x-(int)r->area.x)];
+	return pixels[(size_t)y*r->pixels->width+(unsigned)x];
 }
 
 static bool
@@ -343,42 +367,48 @@ flood_phase(struct flood *fill, int x, int y)
 	return fill->status;
 }
 
-int
-cterm_igs_flood(struct cterm_igs *igs, int x, int y)
+static int
+draw_flood(struct raster *raster, const void *context)
 {
+	const struct point *seed = context;
+	int x = seed->x, y = seed->y;
+	struct cterm_igs *igs = raster->igs;
 	int left = igs->clip_x1, top = igs->clip_y1, right = igs->clip_x2, bottom = igs->clip_y2;
-	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
 	if (left < 0) left = 0;
 	if (top < 0) top = 0;
-	if (right >= (int)igs->width) right = (int)igs->width-1;
-	if (bottom >= drawable) bottom = drawable-1;
+	if (right >= raster->width) right = raster->width-1;
+	if (bottom >= raster->height) bottom = raster->height-1;
 	if (x < left || x > right || y < top || y > bottom) return 0;
 	const uint16_t *rows; unsigned row_mask;
 	int status = fill_pattern(igs,&rows,&row_mask);
 	if (status != 0) return status;
-	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs,igs->attributes.fill_pen),
-	    .plane_mask = cterm_igs_plane_mask(igs->resolution),
-	    .area = {(unsigned)left,(unsigned)top,(unsigned)(right-left+1),(unsigned)(bottom-top+1)}};
-	status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
-	if (status != 0) return status;
-	struct flood fill = {.raster = &raster, .rows = rows, .row_mask = row_mask,
+	struct flood fill = {.raster = raster, .rows = rows, .row_mask = row_mask,
 	    .xmin = left, .ymin = top, .xmax = right, .ymax = bottom, .capacity = 16};
 	fill.queue = malloc(fill.capacity*sizeof(*fill.queue));
 	if (fill.queue == NULL) status = IO_ERROR_OUT_OF_MEMORY;
 	for (unsigned phase = 0; status == 0 && phase < 2; ++phase) {
 		fill.phase = phase; status = flood_phase(&fill,x,y);
 	}
-	if (status == 0) status = publish(&raster);
-	free(fill.queue); st_pixel_buffer_destroy(raster.pixels);
-	if (status == 0) igs->last_line = false;
+	free(fill.queue);
+	if (status == 0) raster->last_line = false;
 	return status;
 }
 
-
 int
-cterm_igs_rectangle(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
+cterm_igs_flood(struct cterm_igs *igs, int x, int y)
 {
+	const struct point seed = {x,y};
+	return draw_on_screen(igs,igs->attributes.fill_pen,draw_flood,&seed);
+}
+
+struct corners { int x1, y1, x2, y2; };
+
+static int
+draw_rectangle(struct raster *raster, const void *context)
+{
+	const struct corners *box = context;
+	int x1 = box->x1, y1 = box->y1, x2 = box->x2, y2 = box->y2;
+	struct cterm_igs *igs = raster->igs;
 	const uint16_t *rows;
 	unsigned mask;
 	int status = fill_pattern(igs, &rows, &mask);
@@ -394,71 +424,57 @@ cterm_igs_rectangle(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
 	}
 	/* Host canvas/status bounds restrict writes without re-anchoring rows or
 	 * turning private corner ordering into an IGS Drawto-state mutation. */
-	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
 	if (x1 < 0) x1 = 0;
 	if (y1 < 0) y1 = 0;
-	if (x2 >= (int)igs->width) x2 = (int)igs->width-1;
-	if (y2 >= drawable) y2 = drawable-1;
+	if (x2 >= raster->width) x2 = raster->width-1;
+	if (y2 >= raster->height) y2 = raster->height-1;
 	if (x1 > x2 || y1 > y2) return 0;
-	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs, igs->attributes.fill_pen),
-	    .plane_mask = cterm_igs_plane_mask(igs->resolution),
-	    .area = {(unsigned)x1,(unsigned)y1,(unsigned)(x2-x1+1),(unsigned)(y2-y1+1)}};
-	status = st_console_get_pixels(&raster.pixels, igs->terminal->screen.console, &raster.area, false);
-	if (status != 0) return status;
 	for (int y = y1; y <= y2; ++y) {
 		uint16_t bits = rows[(unsigned)y & mask];
 		for (int x = x1; x <= x2; ++x)
-			plot(&raster, (struct point){x,y}, (bits & (0x8000u >> ((unsigned)x & 15))) != 0);
+			plot(raster, (struct point){x,y}, (bits & (0x8000u >> ((unsigned)x & 15))) != 0);
 	}
-	status = publish(&raster);
-	st_pixel_buffer_destroy(raster.pixels);
-	return status;
+	return 0;
+}
+
+int
+cterm_igs_rectangle(struct cterm_igs *igs, int x1, int y1, int x2, int y2)
+{
+	const struct corners box = {x1,y1,x2,y2};
+	return draw_on_screen(igs,igs->attributes.fill_pen,draw_rectangle,&box);
+}
+
+static int
+paint_marker(struct raster *raster, const void *context)
+{
+	const struct point *center = context;
+	int x = center->x, y = center->y;
+	struct cterm_igs *igs = raster->igs;
+	int scale = igs->attributes.marker_height/11;
+	int type = igs->attributes.marker_type-1;
+	if (type < 0 || type >= 6 || scale < 1 || scale > 8)
+		return IO_ERROR_INVALID_ARGUMENT;
+	raster->last_line = true;
+	if (raster->mode == 4) return 0;
+	for (unsigned c = 0; c < markers[type].count; ++c) {
+		const struct marker_component *component = &markers[type].components[c];
+		for (unsigned p = 1; p < component->count; ++p) {
+			struct point first = {x+scale*component->points[p-1].x,y+scale*component->points[p-1].y};
+			struct point last = {x+scale*component->points[p].x,y+scale*component->points[p].y};
+			/* v_pmarker always activates inherited clip bounds. It
+			 * leaves the workstation's stored clip flag untouched. */
+			if (clip_segment(igs, &first, &last))
+				pattern_segment(raster, first, last, p+1 == component->count);
+		}
+	}
+	return 0;
 }
 
 static int
 draw_marker(struct cterm_igs *igs, int x, int y)
 {
-	int scale = igs->attributes.marker_height/11;
-	int type = igs->attributes.marker_type-1;
-	if (type < 0 || type >= 6 || scale < 1 || scale > 8)
-		return IO_ERROR_INVALID_ARGUMENT;
-	struct raster raster = {.igs = igs, .mask = 0xffff, .mode = (unsigned)igs->attributes.writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs, igs->attributes.marker_pen),
-	    .plane_mask = cterm_igs_plane_mask(igs->resolution)};
-	/* Read/modify/publish one small region in both blink phases. Clip the
-	 * native segments before restricting writes to the host terminal rows;
-	 * reserving a UI status row must not change the native line's phase. */
-	int left = x-4*scale, top = y-3*scale;
-	int right = x+4*scale, bottom = y+3*scale;
-	int drawable_height = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
-	if (left < 0) left = 0;
-	if (top < 0) top = 0;
-	if (right >= (int)igs->width) right = (int)igs->width-1;
-	if (bottom >= drawable_height) bottom = drawable_height-1;
-	int status = 0;
-	if (left <= right && top <= bottom && raster.mode != 4) {
-		raster.area = (struct st_console_rect){(unsigned)left,(unsigned)top,
-		    (unsigned)(right-left+1),(unsigned)(bottom-top+1)};
-		status = st_console_get_pixels(&raster.pixels, igs->terminal->screen.console, &raster.area, false);
-		if (status == 0) {
-			for (unsigned c = 0; c < markers[type].count; ++c) {
-				const struct marker_component *component = &markers[type].components[c];
-				for (unsigned p = 1; p < component->count; ++p) {
-					struct point first = {x+scale*component->points[p-1].x,y+scale*component->points[p-1].y};
-					struct point last = {x+scale*component->points[p].x,y+scale*component->points[p].y};
-					/* v_pmarker always activates inherited clip bounds. It
-					 * leaves the workstation's stored clip flag untouched. */
-					if (clip_segment(igs, &first, &last))
-						pattern_segment(&raster, first, last, p+1 == component->count);
-				}
-			}
-			status = publish(&raster);
-		}
-		st_pixel_buffer_destroy(raster.pixels);
-	}
-	if (status == 0) igs->last_line = true;
-	return status;
+	const struct point center = {x,y};
+	return draw_on_screen(igs,igs->attributes.marker_pen,paint_marker,&center);
 }
 
 int
@@ -639,11 +655,14 @@ text_glyph(struct raster *raster, const struct cterm_igs_font *font,
 	}
 }
 
-int
-cterm_igs_graphic_text(struct cterm_igs *igs, int x, int y, const uint8_t *bytes, size_t size)
+struct graphic_text { int x, y; const uint8_t *bytes; size_t size; };
+
+static int
+draw_text(struct raster *raster, const void *context)
 {
-	if (size == 0) return 0;
-	if (bytes == NULL || size > 128) return IO_ERROR_INVALID_ARGUMENT;
+	const struct graphic_text *text = context;
+	int x = text->x, y = text->y;
+	struct cterm_igs *igs = raster->igs;
 	const struct cterm_igs_attributes *a = &igs->attributes;
 	if (a->text_face != 1) return IO_ERROR_NOT_SUPPORTED;
 	int angle = (a->text_rotation%3600+3600)%3600;
@@ -653,7 +672,7 @@ cterm_igs_graphic_text(struct cterm_igs *igs, int x, int y, const uint8_t *bytes
 	unsigned style = (unsigned)a->text_effects & 31;
 	int outline = (style & 16) != 0, left = style & 4 ? font->left : 0, right = style & 4 ? font->right : 0;
 	int advance = font->cell_width+2*outline;
-	int width = (int)size*advance+left+right;
+	int width = (int)text->size*advance+left+right;
 	int delh = a->text_align_h == 1 ? width/2-outline : a->text_align_h == 2 ? width-2*outline : 0;
 	int delv;
 	switch (a->text_align_v) {
@@ -679,14 +698,8 @@ cterm_igs_graphic_text(struct cterm_igs *igs, int x, int y, const uint8_t *bytes
 	case 1800: start = (struct point){destination.x,destination.y+font->bottom-(font->underline+ulin)}; step = (struct point){0,-1}; break;
 	default: start = (struct point){destination.x+font->bottom-(font->underline+ulin),destination.y}; step = (struct point){-1,0}; break;
 	}
-	unsigned drawable = (unsigned)igs->terminal->height*(igs->resolution == 2 ? 16u : 8u);
-	struct raster raster = {.igs = igs, .mode = (unsigned)a->writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs,a->text_pen), .plane_mask = cterm_igs_plane_mask(igs->resolution),
-	    .last_line = igs->last_line, .area = {0,0,igs->width,drawable}};
-	int status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
-	if (status != 0) return status;
-	for (size_t i = 0; i < size; ++i) {
-		text_glyph(&raster,font,style,(unsigned)angle,bytes[i],destination.x,destination.y);
+	for (size_t i = 0; i < text->size; ++i) {
+		text_glyph(raster,font,style,(unsigned)angle,text->bytes[i],destination.x,destination.y);
 		if (angle == 0) destination.x += advance;
 		else if (angle == 900) destination.y -= advance;
 		else if (angle == 1800) destination.x -= advance;
@@ -694,16 +707,24 @@ cterm_igs_graphic_text(struct cterm_igs *igs, int x, int y, const uint8_t *bytes
 	}
 	if (style & 8) {
 		struct point end = angle%1800 == 0 ? (struct point){destination.x,start.y} : (struct point){start.x,destination.y};
-		raster.mask = style & 2 ? font->lighten : 0xffff;
+		raster->mask = style & 2 ? font->lighten : 0xffff;
 		for (int row = 0; row < font->underline; ++row) {
-			segment(&raster,start,end,false);
+			segment(raster,start,end,false);
 			start.x += step.x; end.x += step.x; start.y += step.y; end.y += step.y;
 			/* Native underline uses arithmetic shift, then ORs the old bit0. */
-			raster.mask = (uint16_t)((raster.mask >> 1) | (raster.mask & 0x8000) | ((raster.mask & 1u) << 15));
+			raster->mask = (uint16_t)((raster->mask >> 1) | (raster->mask & 0x8000) | ((raster->mask & 1u) << 15));
 		}
 	}
-	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
-	return status;
+	return 0;
+}
+
+int
+cterm_igs_graphic_text(struct cterm_igs *igs, int x, int y, const uint8_t *bytes, size_t size)
+{
+	if (size == 0) return 0;
+	if (bytes == NULL || size > 128) return IO_ERROR_INVALID_ARGUMENT;
+	const struct graphic_text text = {x,y,bytes,size};
+	return draw_on_screen(igs,igs->attributes.text_pen,draw_text,&text);
 }
 
 /* Native patterned spans and optional solid border. Pies append a center
@@ -732,9 +753,9 @@ fill_polygon(struct raster *raster, const struct point *points, unsigned count,
 		}
 	}
 	int first = high, limit = low;
-	if (first >= (int)(raster->area.y+raster->area.height))
-		first = (int)(raster->area.y+raster->area.height)-1;
-	if (limit < (int)raster->area.y-1) limit = (int)raster->area.y-1;
+	if (first >= raster->height)
+		first = raster->height-1;
+	if (limit < -1) limit = -1;
 	for (int y = first; y > limit; --y) {
 		int intersections[FILLED_CURVE_POINTS_MAX]; unsigned found = 0;
 		for (unsigned i = 0; i < count; ++i) {
@@ -754,9 +775,9 @@ fill_polygon(struct raster *raster, const struct point *points, unsigned count,
 				if (left < igs->clip_x1) left = igs->clip_x1;
 				if (right > igs->clip_x2) right = igs->clip_x2;
 			}
-			if (left < (int)raster->area.x) left = (int)raster->area.x;
-			if (right >= (int)(raster->area.x+raster->area.width))
-				right = (int)(raster->area.x+raster->area.width)-1;
+			if (left < 0) left = 0;
+			if (right >= raster->width)
+				right = raster->width-1;
 			uint16_t bits = rows[(unsigned)y & row_mask];
 			for (int x = left; x <= right; ++x)
 				plot(raster, (struct point){x,y}, (bits & (0x8000u >> ((unsigned)x & 15))) != 0);
@@ -822,37 +843,25 @@ curve_points(struct point *points, int x, int y, int radius, int yr,
 	return steps+1;
 }
 
+struct polygon_path { const struct point *points; unsigned count; };
+
+static int
+draw_polygon(struct raster *raster, const void *context)
+{
+	const struct polygon_path *path = context;
+	const uint16_t *rows;
+	unsigned row_mask;
+	int status = fill_pattern(raster->igs,&rows,&row_mask);
+	if (status == 0)
+		fill_polygon(raster,path->points,path->count,rows,row_mask,raster->igs->attributes.fill_perimeter);
+	return status;
+}
+
 static int
 patterned_polygon(struct cterm_igs *igs, const struct point *points, unsigned count)
 {
-	const uint16_t *rows; unsigned row_mask;
-	int status = fill_pattern(igs,&rows,&row_mask);
-	if (status != 0) return status;
-	int left = points[0].x, right = left, top = points[0].y, bottom = top;
-	for (unsigned i = 1; i < count; ++i) {
-		if (points[i].x < left) left = points[i].x;
-		if (points[i].x > right) right = points[i].x;
-		if (points[i].y < top) top = points[i].y;
-		if (points[i].y > bottom) bottom = points[i].y;
-	}
-	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
-	if (left < 0) left = 0;
-	if (top < 0) top = 0;
-	if (right >= (int)igs->width) right = (int)igs->width-1;
-	if (bottom >= drawable) bottom = drawable-1;
-	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs,igs->attributes.fill_pen),
-	    .plane_mask = cterm_igs_plane_mask(igs->resolution)};
-	if (left <= right && top <= bottom) {
-		raster.area = (struct st_console_rect){(unsigned)left,(unsigned)top,
-		    (unsigned)(right-left+1),(unsigned)(bottom-top+1)};
-		status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
-	}
-	if (status != 0) return status;
-	fill_polygon(&raster,points,count,rows,row_mask,igs->attributes.fill_perimeter);
-	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
-	if (status == 0) igs->last_line = raster.last_line;
-	return status;
+	const struct polygon_path path = {points,count};
+	return draw_on_screen(igs,igs->attributes.fill_pen,draw_polygon,&path);
 }
 
 int
@@ -945,48 +954,33 @@ rounded_points(const struct cterm_igs *igs, int x1, int y1, int x2, int y2,
 	points[20] = points[0];
 }
 
+static int
+draw_box(struct raster *raster, const void *context)
+{
+	const struct corners *box = context;
+	int status = draw_rectangle(raster,box);
+	if (status != 0 || !raster->igs->attributes.fill_perimeter) return status;
+	const struct point points[] = {{box->x1,box->y1},{box->x2,box->y1},
+	    {box->x2,box->y2},{box->x1,box->y2}};
+	for (unsigned i = 0; i < 4; ++i) {
+		raster->last_line = i == 3;
+		segment(raster,points[i],points[(i+1)%4],false);
+	}
+	return 0;
+}
+
 int
 cterm_igs_box(struct cterm_igs *igs, int x1, int y1, int x2, int y2, bool rounded)
 {
-	const uint16_t *rows;
-	unsigned row_mask;
-	int status = fill_pattern(igs, &rows, &row_mask);
-	if (status != 0) return status;
 	if (x1 > x2) { int swap = x1; x1 = x2; x2 = swap; }
 	if (y1 > y2) { int swap = y1; y1 = y2; y2 = swap; }
-	if (!rounded) {
-		status = cterm_igs_rectangle(igs,x1,y1,x2,y2);
-		if (status != 0 || !igs->attributes.fill_perimeter) return status;
-	}
-	struct point points[21]; unsigned count;
 	if (rounded) {
-		rounded_points(igs,x1,y1,x2,y2,points); count = 21;
-	} else {
-		points[0] = (struct point){x1,y1}; points[1] = (struct point){x2,y1};
-		points[2] = (struct point){x2,y2}; points[3] = (struct point){x1,y2}; count = 4;
+		struct point points[21];
+		rounded_points(igs,x1,y1,x2,y2,points);
+		return patterned_polygon(igs,points,21);
 	}
-	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs,igs->attributes.fill_pen),
-	    .plane_mask = cterm_igs_plane_mask(igs->resolution), .mask = 0xffff,
-	    .last_line = igs->last_line};
-	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
-	int left = x1 < 0 ? 0 : x1, top = y1 < 0 ? 0 : y1;
-	int right = x2 >= (int)igs->width ? (int)igs->width-1 : x2;
-	int bottom = y2 >= drawable ? drawable-1 : y2;
-	if (left <= right && top <= bottom) {
-		raster.area = (struct st_console_rect){(unsigned)left,(unsigned)top,
-		    (unsigned)(right-left+1),(unsigned)(bottom-top+1)};
-		status = st_console_get_pixels(&raster.pixels,igs->terminal->screen.console,&raster.area,false);
-	}
-	if (status != 0) return status;
-	if (rounded) fill_polygon(&raster,points,count,rows,row_mask,igs->attributes.fill_perimeter);
-	else for (unsigned i = 0; i < count; ++i) {
-		raster.last_line = i+1 == count;
-		segment(&raster,points[i],points[(i+1)%count],false);
-	}
-	status = publish(&raster); st_pixel_buffer_destroy(raster.pixels);
-	if (status == 0) igs->last_line = raster.last_line;
-	return status;
+	const struct corners box = {x1,y1,x2,y2};
+	return draw_on_screen(igs,igs->attributes.fill_pen,draw_box,&box);
 }
 
 static unsigned
@@ -1106,11 +1100,15 @@ arrows(struct raster *raster, struct point *points, size_t count, int width, int
 	}
 }
 
+struct polyline { const int *coordinates; size_t count; bool caps; };
+
 static int
-render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, bool caps)
+draw_polyline(struct raster *raster, const void *context)
 {
-	if (coordinates == NULL || count < 2 || count > CURVE_STEPS_MAX+1)
-		return IO_ERROR_INVALID_ARGUMENT;
+	const struct polyline *path = context;
+	const int *coordinates = path->coordinates;
+	size_t count = path->count;
+	struct cterm_igs *igs = raster->igs;
 	struct point points[CURVE_STEPS_MAX+1];
 	for (size_t i = 0; i < count; ++i)
 		points[i] = (struct point){coordinates[2*i],coordinates[2*i+1]};
@@ -1118,47 +1116,21 @@ render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, boo
 	int type = igs->attributes.line_type, width = igs->attributes.line_width;
 	if (type < 1 || type > 7 || width < 1 || width > 39 || (width & 1) == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	struct raster raster = {.igs = igs, .mode = (unsigned)igs->attributes.writing_mode,
-	    .foreground = cterm_igs_physical_pen(igs, igs->attributes.line_pen),
-	    .plane_mask = cterm_igs_plane_mask(igs->resolution), .last_line = igs->last_line,
-	    .mask = type == 7 ? igs->attributes.user_line : styles[type-1]};
-	/* Native bytes never back the screen. Restrict a temporary indexed
-	 * capture to the endpoint box plus the largest head/cap extent. */
-	int margin = 5*width+8;
-	int left = points[0].x, right = left, top = points[0].y, bottom = top;
-	for (size_t i = 1; i < count; ++i) {
-		if (points[i].x < left) left = points[i].x;
-		if (points[i].x > right) right = points[i].x;
-		if (points[i].y < top) top = points[i].y;
-		if (points[i].y > bottom) bottom = points[i].y;
-	}
-	left -= margin; right += margin; top -= margin; bottom += margin;
-	int drawable = igs->terminal->height*(igs->resolution == 2 ? 16 : 8);
-	if (left < 0) left = 0;
-	if (top < 0) top = 0;
-	if (right >= (int)igs->width) right = (int)igs->width-1;
-	if (bottom >= drawable) bottom = drawable-1;
-	int status = 0;
-	if (left <= right && top <= bottom) {
-		raster.area = (struct st_console_rect){(unsigned)left,(unsigned)top,
-		    (unsigned)(right-left+1),(unsigned)(bottom-top+1)};
-		status = st_console_get_pixels(&raster.pixels, igs->terminal->screen.console, &raster.area, false);
-	}
-	if (status != 0) return status;
+	raster->mask = type == 7 ? igs->attributes.user_line : styles[type-1];
 	int xs = igs->resolution == 0 ? 338 : igs->resolution == 1 ? 169 : 372;
-	int ys = 372, begin = caps ? igs->attributes.line_begin : 0, end = caps ? igs->attributes.line_end : 0;
+	int ys = 372, begin = path->caps ? igs->attributes.line_begin : 0, end = path->caps ? igs->attributes.line_end : 0;
 	if (width == 1) {
 		for (size_t i = 1; i < count; ++i) {
-			raster.last_line = i+1 == count;
-			segment(&raster, points[i-1], points[i], false);
+			raster->last_line = i+1 == count;
+			segment(raster, points[i-1], points[i], false);
 		}
-		if ((begin | end) & 1) arrows(&raster, points, count, width, begin, end, xs, ys);
+		if ((begin | end) & 1) arrows(raster, points, count, width, begin, end, xs, ys);
 	} else {
 		int circle[40] = {0};
 		unsigned rows = circle_table(width, xs, ys, circle);
-		if ((begin | end) & 1) arrows(&raster, points, count, width, begin, end, xs, ys);
-		raster.mask = 0xffff;
-		if (begin != 0) disc(&raster, points[0], circle, rows);
+		if ((begin | end) & 1) arrows(raster, points, count, width, begin, end, xs, ys);
+		raster->mask = 0xffff;
+		if (begin != 0) disc(raster, points[0], circle, rows);
 		struct point first = points[0];
 		for (size_t i = 1; i < count; ++i) {
 			struct point last = points[i];
@@ -1172,15 +1144,21 @@ render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, boo
 			    {first.x-offset.x,first.y-offset.y},
 			    {last.x-offset.x,last.y-offset.y},
 			    {last.x+offset.x,last.y+offset.y}};
-			polygon(&raster,box,4);
-			if (i+1 < count || end != 0) disc(&raster,last,circle,rows);
+			polygon(raster,box,4);
+			if (i+1 < count || end != 0) disc(raster,last,circle,rows);
 			first = last;
 		}
 	}
-	status = publish(&raster);
-	st_pixel_buffer_destroy(raster.pixels);
-	if (status == 0) igs->last_line = raster.last_line;
-	return status;
+	return 0;
+}
+
+static int
+render_polyline(struct cterm_igs *igs, const int *coordinates, size_t count, bool caps)
+{
+	if (coordinates == NULL || count < 2 || count > CURVE_STEPS_MAX+1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const struct polyline path = {coordinates,count,caps};
+	return draw_on_screen(igs,igs->attributes.line_pen,draw_polyline,&path);
 }
 
 int

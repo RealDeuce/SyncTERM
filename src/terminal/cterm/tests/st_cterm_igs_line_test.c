@@ -22,6 +22,29 @@ literal(void)
 	}
 }
 
+/* After a full-screen scroll, logical row zero contains old raster row eight. */
+static void
+draw_after_scroll(void)
+{
+	struct fixture f; create(&f,0,false);
+	const struct st_console_rect stripe = {16,8,16,2}, area = {15,0,18,3};
+	seed(&f,&stripe,770,773);
+	CHECK(st_console_scroll(f.console,1,' ') == 0);
+	feed(&f,"G#M>3:L 19,0,28,0:");
+	struct st_pixel_buffer *pixels = NULL;
+	CHECK(st_console_get_pixels(&pixels,f.console,&area,false) == 0);
+	for (unsigned y = 0; y < area.height; ++y) {
+		for (unsigned x = 0; x < area.width; ++x) {
+			bool striped = y < 2 && x > 0 && x < 17;
+			unsigned toggle = y == 0 && x >= 4 && x <= 13 ? 15 : 0;
+			size_t at = (size_t)y*area.width+x;
+			CHECK(pixels->primary[at] == 768+((striped ? 2u : 0u)^toggle));
+			CHECK(pixels->alternate[at] == 768+((striped ? 5u : 0u)^toggle));
+		}
+	}
+	st_pixel_buffer_destroy(pixels); destroy(&f);
+}
+
 static void
 vectors(void)
 {
@@ -197,5 +220,5 @@ extreme_and_random(void)
 
 int st_cterm_igs_line_test_main(void)
 {
-	literal(); vectors(); input_and_lifetime(); clipping_and_status(); extreme_and_random(); return 0;
+	literal(); draw_after_scroll(); vectors(); input_and_lifetime(); clipping_and_status(); extreme_and_random(); return 0;
 }
