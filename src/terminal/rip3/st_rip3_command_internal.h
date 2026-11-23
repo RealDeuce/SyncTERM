@@ -47,6 +47,8 @@ void st_rip3_command_fill(const struct st_rip3_port_info *port,
 	const struct st_rip3_fill *source, struct st_rip3_fill *result);
 int st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
+int st_rip3_scroll_command(const struct st_rip3_command_host *host,
+	const uint8_t *command,size_t length,bool *operation);
 int st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_image_commands_execute(const struct st_rip3_command_host *host,

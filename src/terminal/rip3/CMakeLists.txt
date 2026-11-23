@@ -97,6 +97,7 @@ add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_font_commands.c s
 	st_rip3_get_image_commands.c st_rip3_bitmap_load_commands.c st_rip3_image_commands.c st_rip3_text_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c st_rip3_bezier_commands.c st_rip3_skew_commands.c st_rip3_rounded_commands.c)
 target_sources(st_rip3_commands PRIVATE st_rip3_button_commands.c st_rip3_text_metric.c)
 target_sources(st_rip3_commands PRIVATE st_rip3_button_create.c)
+target_sources(st_rip3_commands PRIVATE st_rip3_scroll_commands.c)
 target_sources(st_rip3_commands PRIVATE st_rip3_mouse_commands.c)
 target_include_directories(st_rip3_commands PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_commands PUBLIC st_rip3 st_rip3_audio

@@ -853,8 +853,11 @@ screen_read(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer
 	int status=st_console_get_pixels(&native,rip->config.console,&region,false);
 	if (status!=0) return status;
 	uint32_t maximum=0;size_t count=(size_t)native->width*native->height;
-	for (size_t i=0;i<count;i++) if (!ST_PIXEL_COLOR_IS_RGB(native->primary[i]) && native->primary[i]>maximum)
-		maximum=native->primary[i];
+	const uint32_t *other=native->alternate==NULL ? native->primary : native->alternate;
+	for (size_t i=0;i<count;i++) {
+		if (!ST_PIXEL_COLOR_IS_RGB(native->primary[i]) && native->primary[i]>maximum) maximum=native->primary[i];
+		if (pixels->alternate!=NULL && !ST_PIXEL_COLOR_IS_RGB(other[i]) && other[i]>maximum) maximum=other[i];
+	}
 	if (maximum>65535 || native->width!=pixels->width || native->height!=pixels->height) {
 		st_pixel_buffer_destroy(native);return IO_ERROR_OUT_OF_RANGE;
 	}
@@ -870,8 +873,35 @@ screen_read(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer
 		if (rip->damage[absolute]!=0) continue;
 		uint32_t value=native_rgb(native->primary[at],palette);
 		if (value!=rip->previous->primary[absolute]) pixels->primary[at]=value;
+		if (pixels->alternate!=NULL) {
+			value=native_rgb(other[at],palette);
+			if (value!=rip->previous->primary[absolute]) pixels->alternate[at]=value;
+		}
 	}
 	free(palette);st_pixel_buffer_destroy(native);return status;
+}
+
+static int
+screen_write(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer *pixels,
+    const struct st_rip3_palette *palette)
+{
+	struct st_term_rip3 *rip=context;
+	for (size_t i=0;i<(size_t)pixels->width*pixels->height;i++) {
+		pixels->primary[i]=native_rgb(pixels->primary[i],palette->rgb);
+		if (pixels->alternate!=NULL) pixels->alternate[i]=native_rgb(pixels->alternate[i],palette->rgb);
+	}
+	int status=st_console_restore_pixel_region(rip->config.console,pixels,(uint32_t)area->x0,(uint32_t)area->y0);
+	if (status!=0) return status;
+	/* The native region already holds both phases. Update the existing
+	 * primary comparison baseline so the batch presenter does not replace
+	 * its prepared alternate pixels with the primary plane. */
+	for (uint32_t y=0;y<pixels->height;y++) {
+		size_t to=((size_t)area->y0+y)*rip->previous->width+(uint32_t)area->x0;
+		memcpy(rip->previous->primary+to,pixels->primary+(size_t)y*pixels->width,
+		    (size_t)pixels->width*sizeof(*pixels->primary));
+		memset(rip->damage+to,0,pixels->width);
+	}
+	return 0;
 }
 
 static int
@@ -1558,7 +1588,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
-	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,
+	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,

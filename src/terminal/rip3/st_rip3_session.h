@@ -100,6 +100,11 @@ struct st_rip3_session_sink {
 	 * Preserve raw graphic indexes where native output agrees, and do not
 	 * replace graphics written by the current still-unpresented command. */
 	int (*screen_read)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *);
+	/* Publish a clipped physical screen patch, as used by RIP_SCROLL.
+	 * Primary is already stored. Resolve the owned scratch pixels in place
+	 * if needed to present both planes without repainting unrelated pixels. */
+	int (*screen_write)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *,
+	    const struct st_rip3_palette *);
 	/* Apply geometry to an eligible target and home it without painting,
 	 * changing selection or replacing other window state. */
 	int (*text_maximize)(void *context, unsigned number, const struct st_rip3_text_window_layout *layout);

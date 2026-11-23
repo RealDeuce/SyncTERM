@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -424,6 +425,55 @@ header_clipboard_delete(void)
 	return 0;
 }
 
+static int
+scroll_read_failure(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer *pixels)
+{
+	(void)area;
+	unsigned *calls=context;
+	++*calls;
+	pixels->primary[0]=42;
+	return IO_ERROR_OUT_OF_MEMORY;
+}
+
+static int
+scroll_preparation_and_pair(void)
+{
+	struct st_rip3_ports *ports=NULL;
+	struct st_rip3_palette palette;
+	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480)==0);
+	CHECK(st_rip3_palette_defaults(&palette)==0);
+	const struct st_rip3_rect from={0,0,1,1},to={10,10,11,11};
+	CHECK(st_rip3_ports_copy(ports,0,&from,0,&to,ST_RIP3_TRANSFER_COPY)==0);
+	for (int32_t y=2;y<=4;y++)
+		CHECK(st_rip3_ports_plot(ports,3,y,(uint8_t)(10+y),ST_RIP3_COPY)==0);
+	const struct st_rip3_scroll_area area={3,2,3,4,1};
+	const struct st_rip3_scroll_fill fill={.mode=ST_RIP3_SCROLL_SOLID,.ink=ST_PIXEL_COLOR_RGB_TAG};
+	struct st_pixel_buffer *before=NULL,*after=NULL;
+	CHECK(st_rip3_ports_screen_capture(ports,&before)==0);
+	unsigned calls=0;
+	st_rip3_ports_bind_screen_reader(ports,&calls,scroll_read_failure);
+	CHECK(st_rip3_ports_scroll(ports,&area,&fill,&palette)==IO_ERROR_OUT_OF_MEMORY && calls==1);
+	CHECK(st_rip3_ports_screen_capture(ports,&after)==0);
+	CHECK(memcmp(before->primary,after->primary,(size_t)before->width*before->height*sizeof(*before->primary))==0);
+	st_pixel_buffer_destroy(before);st_pixel_buffer_destroy(after);
+
+	st_rip3_ports_bind_screen_reader(ports,NULL,NULL);
+	CHECK(st_rip3_ports_scroll(ports,&area,&fill,&palette)==0);
+	uint32_t pixel;
+	for (int32_t y=1;y<=3;y++) {
+		CHECK(st_rip3_ports_read_color(ports,0,3,y,false,&pixel)==0);
+		CHECK(pixel==(uint32_t)(11+y));
+	}
+	CHECK(st_rip3_ports_read_color(ports,0,3,4,false,&pixel)==0 && pixel==ST_PIXEL_COLOR_RGB_TAG);
+	struct st_rip3_port_copy_pair pair;
+	CHECK(st_rip3_ports_copy_pair(ports,0,&pair)==0 && pair.set);
+	CHECK(pair.source.x0==0 && pair.source.y0==0 && pair.source.x1==2 && pair.source.y1==2);
+	CHECK(pair.destination.x0==10 && pair.destination.y0==10
+	    && pair.destination.x1==12 && pair.destination.y1==12);
+	st_rip3_ports_destroy(ports);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -433,5 +483,6 @@ main(void)
 	CHECK(boundaries() == 0 && install_bitmap() == 0);
 	CHECK(screen_fill()==0 && header_clipboard_delete()==0);
 	CHECK(captured_view()==0 && destination_generations()==0 && fixed_clipboard_face()==0);
+	CHECK(scroll_preparation_and_pair()==0);
 	return 0;
 }

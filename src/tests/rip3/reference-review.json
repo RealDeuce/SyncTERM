@@ -15276,6 +15276,74 @@
       },
       "verification": "Native query/capture vectors, connected CP437/UTF-8 JPEG, REFRESH and pick-list tests, and native WAVE session PCM. RIP154 source freeze passed.",
       "followup": "Connect actual local scene and bitmap presentation. The shared/search directory configuration is pending."
+    },
+    {
+      "after_commit": "86656f28",
+      "revision": "328f8191f526234bbc554b381aa86972eb9d4ef7",
+      "scope": "Connect RIP_SCROLL and document the remaining HCL bitmap presentation questions.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:316",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:320",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:321",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:322",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:324",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:326",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:330",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:332",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:334",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:342",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:344",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:346",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:350",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:354",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:355",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:356",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:357",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:358",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:359",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:360",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:362",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:364",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:368",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:370",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:372",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:378",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:384",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:385",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:387",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:389",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:391",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:393",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:395",
+        "version/3.0/ripscrip/9.0-command-reference.md:165"
+      ],
+      "context_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:314",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:318",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:319",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:352",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:353",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:376",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:380",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:382",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:383",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:397"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.3-local-playback.md:149",
+        "version/3.0/ripscrip/5.3-local-playback.md:151",
+        "version/3.0/ripscrip/5.3-local-playback.md:226"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/166",
+      "states_after_update": {
+        "unreviewed": 2860,
+        "context": 1592,
+        "pending": 1697,
+        "implemented": 2681,
+        "excluded": 67,
+        "blocked": 28
+      },
+      "verification": "Native Release CMake build and ten CTest cases covering sessions, ports, screen, pixel-copy, the RIP154 source freeze and live scroll in CP437 and UTF-8 at 640x480 and 800x600."
     }
   ]
 }

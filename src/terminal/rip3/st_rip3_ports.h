@@ -77,6 +77,26 @@ int st_rip3_ports_clipboard_index(const struct st_rip3_ports *);
 int st_rip3_ports_bitmap_pixels(const struct st_rip3_ports *, unsigned excluding, uint64_t *result);
 void st_rip3_ports_bind_screen_reader(struct st_rip3_ports *,void *context,
 	int (*read)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *));
+/* Publish a prepared, clipped raw patch after its primary is stored. The
+ * frontend may resolve the scratch pixels in place for native presentation. */
+void st_rip3_ports_bind_screen_writer(struct st_rip3_ports *,void *context,
+	int (*write)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,const struct st_rip3_palette *));
+
+struct st_rip3_scroll_area {
+	int64_t x0,y0,x1,y1,destination_y;
+};
+enum st_rip3_scroll_mode {
+	ST_RIP3_SCROLL_KEEP, ST_RIP3_SCROLL_SOLID, ST_RIP3_SCROLL_PATTERN, ST_RIP3_SCROLL_CORNER,
+};
+struct st_rip3_scroll_fill {
+	enum st_rip3_scroll_mode mode;
+	uint32_t ink,background;
+	uint8_t pattern[8];
+};
+/* Normalized inclusive DEVICE coordinates in the backing surface. Uses
+ * current-port bounds and preserves its viewport and remembered copy pair. */
+int st_rip3_ports_scroll(struct st_rip3_ports *,const struct st_rip3_scroll_area *,
+	const struct st_rip3_scroll_fill *,const struct st_rip3_palette *);
 int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
 int st_rip3_ports_info(const struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_port_info *result);

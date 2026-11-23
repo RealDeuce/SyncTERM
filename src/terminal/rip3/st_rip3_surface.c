@@ -545,23 +545,42 @@ st_rip3_surface_capture_raw(const struct st_rip3_surface *surface,struct st_pixe
 	memcpy(copy->primary,surface->pixels,(size_t)surface->width*surface->height*sizeof(*surface->pixels));
 	*result=copy;return 0;
 }
+static int
+restore_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source,
+    uint32_t x,uint32_t y,uint32_t width,uint32_t height)
+{
+	if (source->height>SIZE_MAX/sizeof(*source->primary)/source->width) return IO_ERROR_OUT_OF_RANGE;
+	for (uint32_t row=0;row<height;row++) for (uint32_t col=0;col<width;col++) {
+		uint32_t value=source->primary[(size_t)row*source->width+col];
+		if (!ST_PIXEL_COLOR_IS_RGB(value) && value>255) return IO_ERROR_OUT_OF_RANGE;
+	}
+	for (uint32_t row=0;row<height;row++) {
+		size_t to=(size_t)(y+row)*surface->width+x;
+		memcpy(surface->pixels+to,source->primary+(size_t)row*source->width,(size_t)width*sizeof(*source->primary));
+		if (surface->damage!=NULL) memset(surface->damage+to,1,width);
+	}
+	return 0;
+}
+
 int
 st_rip3_surface_restore_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source)
 {
 	if (surface==NULL || source==NULL || source->primary==NULL || source->width==0 || source->height==0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (source->height>SIZE_MAX/sizeof(*source->primary)/source->width) return IO_ERROR_OUT_OF_RANGE;
 	uint32_t width=source->width<surface->width ? source->width : surface->width;
 	uint32_t height=source->height<surface->height ? source->height : surface->height;
-	for (uint32_t y=0;y<height;y++) for (uint32_t x=0;x<width;x++) {
-		uint32_t value=source->primary[(size_t)y*source->width+x];
-		if (!ST_PIXEL_COLOR_IS_RGB(value) && value>255) return IO_ERROR_OUT_OF_RANGE;
-	}
-	for (uint32_t y=0;y<height;y++) {
-		memcpy(surface->pixels+(size_t)y*surface->width,source->primary+(size_t)y*source->width,(size_t)width*sizeof(*source->primary));
-		if (surface->damage!=NULL) memset(surface->damage+(size_t)y*surface->width,1,width);
-	}
-	return 0;
+	return restore_raw(surface,source,0,0,width,height);
+}
+
+int
+st_rip3_surface_restore_area_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source,
+    uint32_t x,uint32_t y)
+{
+	if (surface==NULL || source==NULL || source->primary==NULL || source->width==0 || source->height==0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (x>=surface->width || y>=surface->height || source->width>surface->width-x
+	    || source->height>surface->height-y) return IO_ERROR_OUT_OF_RANGE;
+	return restore_raw(surface,source,x,y,source->width,source->height);
 }
 
 int

@@ -9020,13 +9020,29 @@ font and retained graphics. The test also covers a drawing command during an
 unfinished ANSI CSI and a fresh draw after scene reset.
 
 The RIP 1.54 wire suite retains its original byte-aligned RIP_COPY_REGION
-cases and font-mode assertions. The 3.0 RIP_SCROLL entry defines a source fill
-mode and clips to the drawing port. Its destination field,
-normalization, clipping/fill order and physical text-pixel behavior need
-independent 3.0 expectations. [Issue #164](https://github.com/bbs-land/remote-imaging-protocol/issues/164)
+cases and font-mode assertions. The separate [RIP_SCROLL profile](#connected-rip_scroll)
+covers the 3.0 command.
 
 The queue at the PR #163 pin contains 2613 implemented, 1753 pending,
 2861 unreviewed, 1577 context, 67 excluded and 33 blocked units.
+
+## Connected RIP_SCROLL
+
+Level-1 `G` reads all five coordinates at the current XY width and base,
+normalizes the source endpoints and converts absolute WORLD positions to
+device pixels. It copies the inclusive source vertically within the full
+current drawing port and applies the requested fill to the exposed source.
+Pattern fill uses the physical eight-pixel phase. Corner fill samples the
+original normalized source corner and falls back to RGB black when that
+corner is outside the port. [Reference PR #165](https://github.com/bbs-land/remote-imaging-protocol/pull/165)
+
+The engine captures the source before writing. The screen path uses the
+console raster to copy ANSI pixels in both blink phases, while the offscreen
+path reads and writes the selected port bitmap. Scroll preserves logical
+terminal cells and the remembered clipboard pair. Connected CP437 and UTF-8
+tests cover overlap, port and surface edges, all seven fills, malformed
+coordinates, offscreen presentation and blink phases at 640×480 and 800×600.
+Native port tests cover source-read failure before writes.
 
 ## Playback filename substitutions
 
@@ -9037,6 +9053,9 @@ and supplies media-specific extensions and BMP aliases. A complete token owns
 its brackets and quoted dollars. Overlong references retain their original
 spelling, and an unclosed reference leaves later scans active. Graphical
 consumers preserve playback references as literal text.
+
+HCL bitmap presentation still needs the bitmap-specific image-style geometry,
+flags and palette rules. [Issue #166](https://github.com/bbs-land/remote-imaging-protocol/issues/166)
 
 Connected JPEG cases in CP437 and UTF-8 check lookup through the real port
 presenter, including a press dragged outside a field, identity after field deletion on release,

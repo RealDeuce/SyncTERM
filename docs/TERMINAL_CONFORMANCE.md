@@ -967,8 +967,9 @@ are recorded in [RIP154_PARSER.adoc](RIP154_PARSER.adoc).
 RIP `1G` now copies absolute screen regions with RIPv1 alignment quirks and
 keeps its historical whole-plane, overlap, split-input and clipboard tests.
 The separate RIPscrip 3.0 command, RIP_SCROLL, uses drawing-port bounds and
-defines source fill modes. Its remaining coordinate and clipping questions
-are tracked against the 3.0 specification. [Issue #164](https://github.com/bbs-land/remote-imaging-protocol/issues/164)
+supports seven exposed-source fill modes. Connected CP437 and UTF-8 tests
+cover absolute WORLD conversion, overlap and clipping, offscreen ports and
+independent ANSI blink planes. [RIPv3 scroll coverage](RIP3_CONFORMANCE.md#connected-rip_scroll)
 
 RIPv3 `w` changes the positioned text window. The entry console retains its
 selected raster, grid and local status row. Connected CP437 and UTF-8 captures
