@@ -1,6 +1,8 @@
 /* Independent classic-font style, layout and coherent bitmap expectations. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_classic_text.h"
+#include "st_rip3_outline_font.h"
+#include "st_rip3_outline_layout.h"
 #include "st_rip3_ports.h"
 #include "st_pixels.h"
 #include "io_error.h"
@@ -55,6 +57,49 @@ styles(void)
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 0, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 11, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_classic_text_style_set(&style, 0, 0, 1, 4096) == IO_ERROR_OUT_OF_RANGE);
+	return 0;
+}
+
+static int
+default_outline(void)
+{
+	static const struct {
+		uint32_t width, height, world_width, world_height;
+		struct st_rip3_classic_text_style style;
+		unsigned points, spacing;
+		const char *text;
+		struct st_rip3_text_position anchor, first, last;
+		int64_t advance;
+	} vectors[] = {
+		{640,480,1280,960, {0,0,2,9}, 22,107, "B.Pommenville 95-2", {488,444}, {488,452}, {607,452}, 126},
+		{800,600,800,600, {0,0,5,65}, 56,104, "AB", {100,80}, {100,94}, {140,94}, 80},
+		{800,600,800,1200, {0,1,5,0}, 56,104, "AB", {100,80}, {142,118}, {142,99}, 38},
+		{1024,768,1024,768, {0,0,1,0}, 11,109, "AB", {100,80}, {100,88}, {107,88}, 14},
+		{640,481,640,481, {0,0,1,36}, 11,108, "AB", {100,80}, {93,80}, {100,80}, 14},
+	};
+	for (size_t i = 0; i < sizeof(vectors) / sizeof(vectors[0]); i++) {
+		struct st_rip3_frame frame;
+		struct st_rip3_outline_font font;
+		struct st_rip3_outline_layout layout;
+		CHECK(st_rip3_frame_init_device(&frame,vectors[i].width,vectors[i].height)==0);
+		CHECK(st_rip3_frame_world(&frame,vectors[i].world_width,vectors[i].world_height)==0);
+		int status = st_rip3_classic_default_outline(&font,&layout,&vectors[i].style,&frame);
+		if (status != 0)
+			fprintf(stderr, "DEFAULT EX layout vector %zu returned %d\n", i, status);
+		CHECK(status == 0);
+		CHECK(strcmp(font.style.name,"DEFAULT Ex")==0 && font.style.horizontal_percent==140
+		    && !font.style.hollow && font.points==vectors[i].points && layout.spacing==vectors[i].spacing);
+		const uint8_t *text = (const uint8_t *)vectors[i].text;
+		size_t length = strlen(vectors[i].text);
+		int32_t widths[18];
+		struct st_rip3_text_position positions[18];
+		int64_t total;
+		CHECK(length <= sizeof(widths) / sizeof(widths[0]));
+		CHECK(st_rip3_outline_font_advances(widths,&font,vectors[i].style.direction*900,text,length)==0);
+		CHECK(st_rip3_outline_layout_positions(&layout,&vectors[i].anchor,widths,length,0,positions,&total)==0);
+		CHECK(total==vectors[i].advance && positions[0].x==vectors[i].first.x && positions[0].y==vectors[i].first.y
+		    && positions[length-1].x==vectors[i].last.x && positions[length-1].y==vectors[i].last.y);
+	}
 	return 0;
 }
 
@@ -297,6 +342,7 @@ main(void)
 	CHECK(wide_positions(ST_RIP3_CANVAS_800_600,800,600) == 0);
 	CHECK(wide_positions(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
 	CHECK(styles() == 0);
+	CHECK(default_outline() == 0);
 	CHECK(native_fonts(ST_RIP3_CANVAS_640_480, 8, 11) == 0);
 	CHECK(native_fonts(ST_RIP3_CANVAS_800_600, 10, 13) == 0);
 	CHECK(native_fonts(ST_RIP3_CANVAS_1024_768, 12, 17) == 0);

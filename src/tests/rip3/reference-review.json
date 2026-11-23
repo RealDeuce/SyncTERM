@@ -977,7 +977,8 @@
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
-    "Advanced frontend user editor/format modes and remaining table/playback families."
+    "Advanced frontend user editor/format modes and remaining table/playback families.",
+    "B190 button font zero, B191 article font zero, and B193 the malformed size-five layout vector."
   ],
   "derivations": [
     {
@@ -20788,8 +20789,7 @@
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:205",
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:206",
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:208",
-        "version/3.0/ripscrip/9.0-command-reference.md:138",
-        "version/3.0/ripscrip/9.0-command-reference.md:231"
+        "version/3.0/ripscrip/9.0-command-reference.md:138"
       ],
       "partially_covered_source_units": [],
       "states_after_update": {
@@ -20801,6 +20801,55 @@
         "blocked": 25
       },
       "verification": "Native flag, layout, mode and style tests plus connected CP437 and UTF-8 anchor, shadow and malformed-style checks."
+    },
+    {
+      "after_commit": "6e8e3b8d",
+      "revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
+      "scope": "Realize DEFAULT EX for ordinary classic font zero through T and @.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:45",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:138",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:154",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:441",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:447",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:451",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:452",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:453",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:454",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:455",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:457",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:461",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:463",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:465",
+        "version/3.0/ripscrip/7.1-data-tables.md:109",
+        "version/3.0/techspecs/2.4-outline-advance-and-cache.md:47"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:469",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:786",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:788",
+        "version/3.0/ripscrip/3.1-column-text-system.md:106",
+        "version/3.0/ripscrip/3.1-column-text-system.md:122",
+        "version/3.0/ripscrip/4.3-buttons.md:293",
+        "version/3.0/ripscrip/4.3-buttons.md:294",
+        "version/3.0/ripscrip/4.3-buttons.md:295",
+        "version/3.0/ripscrip/4.3-buttons.md:296",
+        "version/3.0/ripscrip/4.3-buttons.md:297",
+        "version/3.0/ripscrip/4.3-buttons.md:298",
+        "version/3.0/ripscrip/4.3-buttons.md:299",
+        "version/3.0/ripscrip/4.3-buttons.md:300",
+        "version/3.0/ripscrip/4.3-buttons.md:301",
+        "version/3.0/ripscrip/4.3-buttons.md:302"
+      ],
+      "states_after_update": {
+        "unreviewed": 2449,
+        "context": 1754,
+        "pending": 1635,
+        "implemented": 3096,
+        "excluded": 70,
+        "blocked": 40
+      },
+      "verification": "Native placement, cursor, session and text commands. Connected CP437 and UTF-8 graphical, metric and full connected checks. Issues #190, #191 and #193 track unresolved documentation."
     }
   ]
 }

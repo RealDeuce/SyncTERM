@@ -1,6 +1,8 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_classic_text.h"
 #include "st_rip3_font_data.h"
+#include "st_rip3_outline_font.h"
+#include "st_rip3_outline_layout.h"
 #include "st_rip3_ports.h"
 #include "io_error.h"
 
@@ -28,6 +30,58 @@ st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
 			flags |= ST_RIP3_CLASSIC_TOP;
 	}
 	*result = (struct st_rip3_classic_text_style){font,direction,magnification,flags};
+	return 0;
+}
+
+int
+st_rip3_classic_default_outline(struct st_rip3_outline_font *font,
+    struct st_rip3_outline_layout *layout, const struct st_rip3_classic_text_style *style,
+    const struct st_rip3_frame *frame)
+{
+	static const unsigned points[] = {11,22,33,44,56,68,78,90,101,112};
+	static const unsigned spacing[][10] = {
+		{127,107,105,107,103,103,104,103,103,103},
+		{115,109,109,107,104,102,104,103,103,103},
+		{109,109,109,107,104,102,104,103,103,103},
+		{108,109,109,107,104,102,104,103,103,103},
+	};
+	if (font == NULL || layout == NULL || style == NULL || frame == NULL || style->font != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_classic_text_style checked;
+	int status = st_rip3_classic_text_style_set(&checked, 0, style->direction,
+	    style->magnification, style->flags);
+	if (status != 0)
+		return status;
+	uint32_t width = frame->device_width, height = frame->device_height;
+	unsigned row = 3;
+	if (width <= 640 && height <= 480)
+		row = 0;
+	else if (width > 640 && width <= 800 && height <= 600)
+		row = 1;
+	else if (width > 800 && width <= 1024 && height <= 768)
+		row = 2;
+	unsigned size = checked.magnification - 1;
+	bool vertical = checked.direction != 0;
+	unsigned orientation = vertical ? 3 : 0;
+	status = st_rip3_outline_font_builtin(font, "DEFAULT EX", frame, points[size], 0, orientation);
+	if (status != 0)
+		return status;
+	int reference = (checked.flags & ST_RIP3_CLASSIC_BASELINE) != 0 ? 0
+	    : (checked.flags & ST_RIP3_CLASSIC_BOTTOM) != 0 ? 250
+	    : (checked.flags & ST_RIP3_CLASSIC_MIDDLE) != 0 ? -250 : -750;
+	unsigned dpi = vertical ? font->dpi_x : font->dpi_y;
+	int32_t cross = (int32_t)(-(int64_t)reference * points[size] * dpi / (72 * 1000));
+	*layout = (struct st_rip3_outline_layout){
+		.direction = vertical ? (struct st_rip3_point){0,-1} : (struct st_rip3_point){1,0},
+		.baseline = vertical ? (struct st_rip3_point){cross,0} : (struct st_rip3_point){0,cross},
+		.shadow = (checked.flags & ST_RIP3_CLASSIC_SHADOW) != 0
+		    ? (struct st_rip3_point){1,1} : (struct st_rip3_point){0,0},
+		.character_turns = checked.direction,
+		.font_orientation = orientation,
+		.spacing = spacing[row][size],
+		.justification = (checked.flags & ST_RIP3_CLASSIC_RIGHT) != 0 ? 1
+		    : (checked.flags & ST_RIP3_CLASSIC_CENTER) != 0 ? 2 : 0,
+	};
 	return 0;
 }
 

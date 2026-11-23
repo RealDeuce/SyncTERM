@@ -9354,8 +9354,31 @@ come from the button style. [PR #188](https://github.com/bbs-land/remote-imaging
 Connected CP437 and UTF-8 tests exercise `09`, `1T`, `3T`, the signature's
 projected anchor at (488,444), and retention after both kinds of conflict.
 The native fixtures cover both radices, protection, rotated alignment and
-the complete encoded flag range. PR #189 specifies the separate DEFAULT EX
-realization for ordinary text. [PR #189](https://github.com/bbs-land/remote-imaging-protocol/pull/189)
+the complete encoded flag range.
+
+## Connected DEFAULT EX graphics text
+
+Ordinary `T` and `@` select the expanded DEFAULT EX face when the active
+drawing STYLE has classic font zero. They resolve the style at draw time,
+including the initial style, SOFT and HARD resets, a new `2Y` slot and styles
+loaded from backup. The nominal point size comes from the classic size
+table. The device canvas picks the spacing row, and the current WORLD
+determines X and Y DPI. Classic alignment uses the logical run length and
+the perpendicular reference line. [PR #189](https://github.com/bbs-land/remote-imaging-protocol/pull/189)
+
+The STYLE remains classic. The `T` and `@` cursor stores retain their
+separate calculations, including `@`'s read of the prior cached outline
+width. The portable TEXT_METRIC query and ANSI text windows use their cell
+metrics. Native layout vectors check the signature's 126-pixel advance,
+vertical placement at unequal DPI and the larger-size example with `1T`
+for left/middle. The published `21` sets both top and middle and rejects.
+[Issue #193](https://github.com/bbs-land/remote-imaging-protocol/issues/193)
+
+Connected CP437 and UTF-8 tests check the signature's placement and shadow,
+default-style drawing across reset and restore, ordinary text cursor
+replies and classic TEXT_METRIC. Button labels and article columns still
+need their separate font-zero layout rules. [Issue #190](https://github.com/bbs-land/remote-imaging-protocol/issues/190),
+[Issue #191](https://github.com/bbs-land/remote-imaging-protocol/issues/191)
 
 ## Connected prewrapped column text
 

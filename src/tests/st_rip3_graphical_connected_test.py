@@ -16,7 +16,19 @@ def run(args):
         t=Terminal(client,root,peer,send)
         def values(source,expected=b''):
             return t.exchange(query(source,at_cursor=True),expected)
+
+        def default_glyph():
+            t.exchange(b'\x01|k00|E|c0F\r\n')
+            values(b'$WORLD(CUR,1280,960)$')
+            frame = t.exchange(b'\x01|@1414A\r\n' + query(b'$TEXTXY$', at_cursor=True), b'40:40')
+            points = {(x, y) for y in range(15, 44) for x in range(15, 44)
+                      if pixel(frame, x, y) == 0xffffff}
+            assert points and all(19 <= x <= 24 and 19 <= y <= 26 for x, y in points)
+            return points
+
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
+        t.case('classic font zero draws DEFAULT EX on a fresh connection')
+        glyph = default_glyph()
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$WORLD(CUR,640,480)$')
         t.exchange(b'\x01|Y00000100|c0F\r\n')
@@ -77,6 +89,7 @@ def run(args):
 
         top = ink(signature(b'09'), 0xffffff)
         assert top and min(x for x, _ in top) >= 488 and min(y for _, y in top) >= 444
+        assert max(x for x, _ in top) <= 615
         middle = ink(signature(b'1T'), 0xffffff)
         shift = min(y for _, y in middle) - min(y for _, y in top)
         assert shift < 0 and middle == {(x, y + shift) for x, y in top}
@@ -86,6 +99,18 @@ def run(args):
         assert shadow and ink(shadowed, 0x555555) == shadow
         rejected = signature(b'3T|Y01000303|Y0100030O')
         assert rejected.primary == shadowed.primary and rejected.alternate == shadowed.alternate
+
+        t.case('classic font zero uses DEFAULT EX on default style paths')
+
+        t.exchange(b'\x01|*\r\n')
+        assert default_glyph() == glyph
+        values(b'$SAVEALL$')
+        t.exchange(b'\x01|Y01000309|2Y100\r\n')
+        assert default_glyph() == glyph
+        values(b'$RESTOREALL$')
+        assert default_glyph() == glyph
+        values(b'$RESET(HARD)$')
+        assert default_glyph() == glyph
 
 
 if __name__=='__main__':

@@ -10,6 +10,8 @@
 #include <stdint.h>
 
 struct st_rip3_ports;
+struct st_rip3_outline_font;
+struct st_rip3_outline_layout;
 
 enum st_rip3_classic_text_flag {
 	ST_RIP3_CLASSIC_LEFT = 0x01,
@@ -68,6 +70,11 @@ struct st_rip3_classic_text_plan {
  * Preserve higher bits in the two-digit UltraNum range. */
 int st_rip3_classic_text_style_set(struct st_rip3_classic_text_style *result,
 	unsigned font, unsigned direction, unsigned magnification, unsigned flags);
+/* Realize classic font zero for graphics. The active WORLD determines DPI;
+ * the device canvas selects the inter-glyph spacing table. */
+int st_rip3_classic_default_outline(struct st_rip3_outline_font *font,
+	struct st_rip3_outline_layout *layout, const struct st_rip3_classic_text_style *style,
+	const struct st_rip3_frame *frame);
 /* Original bundled RIPtel resources only: bitmap font zero is that canvas's
  * native 80x43 MAF bank, not the frozen 1.54 font. BGI fonts use their original
  * CHR views; unresolved SCAN glyphs remain unsupported during painting. */

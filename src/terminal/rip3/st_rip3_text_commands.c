@@ -239,6 +239,7 @@ text_execute(const struct st_rip3_command_host *host,
 		goto done;
 	}
 	const struct st_rip3_classic_font *font = host->text->font;
+	bool default_outline = style.font.font == 0 && (font == NULL || font->number != 0);
 	if (font == NULL || font->number != style.font.font) {
 		status = st_rip3_classic_font_builtin_device(&builtin,frame.device_width,frame.device_height,style.font.font);
 		if (status != 0) goto done;
@@ -268,6 +269,22 @@ text_execute(const struct st_rip3_command_host *host,
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
 	if (next.x < -limit || next.x > limit || next.y < -limit || next.y > limit) {
 		status = IO_ERROR_OUT_OF_RANGE; goto done;
+	}
+	if (default_outline) {
+		struct st_rip3_outline_font face;
+		struct st_rip3_outline_layout layout;
+		/* Realizing DEFAULT EX for ink does not prepare the cached outline
+		 * metric. Classic cursor stores use their existing font-mode rules. */
+		status = st_rip3_ports_cursor(host->ports, port_number, &next);
+		if (status == 0)
+			status = st_rip3_classic_default_outline(&face, &layout, &style.font, &frame);
+		if (status == 0) {
+			style.outline.string_rotation = style.font.direction * 900;
+			style.outline.shadow = (style.font.flags & ST_RIP3_CLASSIC_SHADOW) != 0;
+			status = st_rip3_command_draw_outline(host, &style, &layout, &face,
+			    environment.rgb_bits, &anchor, glyphs, glyph_count, NULL);
+		}
+		goto done;
 	}
 	if (style.write_mode != ST_RIP3_NOT) {
 		status = st_rip3_command_ink(host,environment.rgb_bits,style.drawing_color,&foreground);
