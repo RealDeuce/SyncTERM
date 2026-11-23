@@ -9351,9 +9351,15 @@ reply after an invalid `DATETIME` argument.
 
 ## Connected engine identity and keyboard options
 
-`RIPVER` expands to the same 14 ASCII bytes as the default connected
-autosense reply. Both the bare and empty-parentheses forms work, and a
-call with arguments produces a nonfatal syntax diagnostic.
+`RIPVER` expands to the same 14 ASCII bytes as connected autosense selectors
+0 and default. Selector 3 appends one CR. Selectors 1 and 2 disable and
+enable RIP framing immediately, preserving buffered RIP commands. While
+disabled, ordinary input goes to the text path and selectors 0 and 3
+produce no reply. CTerm decodes the first ANSI parameter with 16-bit wrap
+for this control, including on a split sequence. Private and unused
+selectors send no reply. A pending RIP command keeps its ESC bytes, and a
+pending ANSI sequence survives a SOH command or a local scene. The inactive
+text-window discard rule applies to autosense on the ordinary text path.
 [PR #34](https://github.com/bbs-land/remote-imaging-protocol/pull/34)
 
 `DWAYON`, `DWAYOFF` and `OPTION(DOORWAY)` share the active ANSI
@@ -9365,8 +9371,8 @@ same button gate as `HKEYON` and `HKEYOFF`.
 `OPTION(LIST)` returns `DOORWAY,HOTKEY,LIST` for the connected client.
 `OPTION(LIST, QUERY)` preserves the literal reference and reports a
 syntax diagnostic. `IFS` reports Doorway under emulations and English
-under languages. Tab navigation, status-bar control and the remaining
-autosense selectors retain separate ledger entries.
+under languages. Tab navigation and status-bar control have separate
+ledger entries.
 
 ## Connected classic graphics font alignment
 

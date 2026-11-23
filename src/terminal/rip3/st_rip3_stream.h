@@ -35,6 +35,11 @@ struct st_rip3_stream_sink {
 	void (*diagnostic)(void *context, enum st_rip3_stream_diagnostic kind);
 	/* With normalized file input, LF and FF also delimit ordinary commands. */
 	bool local_playback;
+	/* The host ANSI decoder can claim a bang before RIP checks for !|.
+	 * Read the live framing flag ahead of each byte. Disabled input bypasses
+	 * framing and preserves any unfinished RIP command for re-enable. */
+	bool (*ansi_owns_bang)(void *context);
+	const bool *framing_enabled;
 };
 
 /* Creation is a lifetime/resource service, not incoming-data processing. */
@@ -50,9 +55,9 @@ void st_rip3_stream_reset(struct st_rip3_stream *stream);
  * and resynchronizes at its next unquoted | or terminating CR. Quoting parity
  * and continuation are tracked even while discarding. No fixed line limit.
  * NULL bytes with zero length is a no-op; invalid spans preserve parser state.
- * This does not implement ANSI queries, RIP enable/disable, expansion, binary
- * transfer modes or terminal routing. ESC bytes remain in opaque command spans
- * until their command-specific dispatcher can adjudicate them (#7). */
+ * ANSI decoding, expansion, binary transfer modes and terminal routing are
+ * external. ESC bytes remain in opaque command spans until their own
+ * dispatcher can adjudicate them (#7). */
 void st_rip3_stream_process(struct st_rip3_stream *stream,
 	const uint8_t *bytes, size_t length);
 

@@ -38,6 +38,8 @@ struct st_rip3_session_sink {
 	void (*text)(void *context, const uint8_t *bytes, size_t length);
 	void (*reply)(void *context, const uint8_t *bytes, size_t length);
 	bool (*at_line_start)(void *context);
+	bool (*ansi_owns_bang)(void *context);
+	const bool *framing_enabled;
 	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
 	void (*selection_required)(void *context, unsigned group);
 	/* Commit pending ordinary text before changing graphics/window state. */

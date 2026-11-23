@@ -9,6 +9,36 @@ from st_rip3_buttons_connected_test import button,style,remove_fields
 from st_rip3_connected_test import query
 from st_terminal_conformance_test import Terminal
 from syncterm_control import CONTROL
+from syncterm_fixture import receive
+
+
+def check_autosense(t):
+    ident = b"RIPSCRIP030001"
+    t.case("rip3-autosense-selectors-and-first-parameter")
+    t.send(b"\x1b[6553")
+    t.send(b"9!")  # Low 16 bits are three. The peer waits for the response here.
+    receive(t.peer, ident + b"\r", t.root / "replies.bin")
+    t.exchange(b"\x1b[!\x1b[0;1!\x1b[65536!\x1b[3;2!\x1b[4!\x1b[?0!",
+               ident * 4 + b"\r")
+
+    t.case("rip3-autosense-disable-and-enable-within-one-input-buffer")
+    t.exchange(b"\x1b[8;1H\x01|fHSDC|m0A0A\r\n")
+    frame = t.exchange(b"\x1b[1;2!\x1b[!\x1b[3!"
+                       b"\x1b[8;1H!|m0B0B\r\n" + query(b"ignored", at_cursor=True)
+                       + b"\x1b[2!\x1b[3!" + query(b"$TEXTXY$", at_cursor=True),
+                       ident + b"\r10:10")
+    assert frame.lines[7].startswith("!|m0B0B")
+    t.exchange(b"\x1b[1!\x1b[2!\x01|m0C0C\r\n" + query(b"$TEXTXY$", at_cursor=True), b"12:12")
+
+    t.case("rip3-autosense-obeys-ansi-and-rip-input-boundaries")
+    t.exchange(b"\x1b\x1b[!\x1b[12\x1b[!\x1b[12\x18\x1b[!"
+               b"\x1b[12\x1a\x1b[!", ident + ident)
+    t.exchange(b"\x1b[0" + query(b"inside", at_cursor=True) + b"!", b"inside" + ident)
+    t.exchange(b"\x1b[1;1H!\x1b[!", ident)
+    t.exchange(b"\x01|!embedded\x1b[3!\r\n" + query(b"alive", at_cursor=True), b"alive")
+    t.exchange(query(b"$DTW$", at_cursor=True) + b"\x1b[!"
+               + query(b"$ATW$alive", at_cursor=True), b"alive")
+    t.exchange(b"\x1b[2J\x1b[H")
 
 
 def run(args):
@@ -26,6 +56,7 @@ def run(args):
             client.key(code,modifiers)
             return t.input(expected) if expected else t.exchange()
         t.exchange(b"\x1b[!",b"RIPSCRIP030001")
+        check_autosense(t)
         t.exchange(b"\x01|*\r\n\x1b[?25l")
         t.case("rip3-keyboard-capability-and-engine-identity")
         values(b"A$RIPVER$B$RIPVER()$C$RIPVER(1)$D", b"ARIPSCRIP030001BRIPSCRIP030001CD")

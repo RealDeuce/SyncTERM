@@ -79,7 +79,8 @@ example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_leng
 	 * expected transcript. No output from the parser supplies expectations. */
 	for (size_t split = 0; split <= length + 1; split++) {
 		struct observation seen = {0};
-		const struct st_rip3_stream_sink sink = {&seen,text,command,column_one,diagnostic,local_playback};
+		const struct st_rip3_stream_sink sink = {.context=&seen,.text=text,.command=command,.at_line_start=column_one,
+		    .diagnostic=diagnostic,.local_playback=local_playback};
 		struct st_rip3_stream *stream = NULL;
 
 		CHECK(st_rip3_stream_create(&stream, &sink) == 0);
@@ -129,6 +130,7 @@ boundaries(void)
 	EXAMPLE("!|!$Name$\\|J10|!comment\\\r\ncontinued|n2\r", "", "!$Name$\\\0J10\0!commentcontinued\0n2\0", 4);
 	/* Levels, ESC command characters and host quoting stay opaque here. */
 	EXAMPLE("!|15Largs|1\x1b" "0000\\$Name\\$|123456789X0\r", "", "15Largs\0" "1\x1b" "0000\\$Name\\$\0" "123456789X0\0", 3);
+	EXAMPLE("!|Tbefore\x1b[!after\r\n", "", "Tbefore\x1b[!after\0", 1);
 	EXAMPLE("\x1b[31m\xc4\xb3\r!|@0000\xc4\xb3\r", "\x1b[31m\xc4\xb3\r", "@0000\xc4\xb3\0", 1);
 	EXAMPLE("\xc3\xa9\xe2\x94\x82\r!|@0000\xc3\xa9\xe2\x94\x82\r", "\xc3\xa9\xe2\x94\x82\r", "@0000\xc3\xa9\xe2\x94\x82\0", 1);
 	static const uint8_t local[] = "!|G\\\n00\f\n!|Z00\n!|unfinished";
@@ -143,7 +145,8 @@ static int
 lifetime(void)
 {
 	struct observation seen = {0};
-	const struct st_rip3_stream_sink sink = {&seen,text,command,column_one,diagnostic,false};
+	const struct st_rip3_stream_sink sink = {.context=&seen,.text=text,.command=command,
+	    .at_line_start=column_one,.diagnostic=diagnostic};
 	struct st_rip3_stream *stream = NULL, *sentinel = NULL;
 
 	CHECK(st_rip3_stream_create(NULL, &sink) == IO_ERROR_INVALID_ARGUMENT);
@@ -176,6 +179,36 @@ lifetime(void)
 	st_rip3_stream_reset(NULL);
 	st_rip3_stream_destroy(NULL);
 	st_rip3_stream_process(NULL, NULL, 0);
+	return 0;
+}
+
+static bool
+ansi_owns_bang(void *context)
+{
+	return ((struct observation *)context)->text_length == 2;
+}
+
+static int
+framing_gate(void)
+{
+	bool enabled = true;
+	struct observation seen = {.column_one = true};
+	const struct st_rip3_stream_sink sink = {.context=&seen,.text=text,.command=command,
+	    .at_line_start=column_one,.ansi_owns_bang=ansi_owns_bang,.framing_enabled=&enabled};
+	struct st_rip3_stream *stream = NULL;
+	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	/* Even at column one, a bang already owned by ANSI is emitted immediately. */
+	st_rip3_stream_process(stream, (const uint8_t *)"\x1b[!", 3);
+	CHECK(seen.text_length == 3 && memcmp(seen.text, "\x1b[!", 3) == 0);
+	st_rip3_stream_process(stream, (const uint8_t *)"!|TBEFORE", 9);
+	enabled = false;
+	st_rip3_stream_process(stream, (const uint8_t *)"ignored\r!|X0000\r", 16);
+	CHECK(seen.calls == 0 && seen.text_length == 19);
+	enabled = true;
+	st_rip3_stream_process(stream, (const uint8_t *)"AFTER\r", 6);
+	CHECK(seen.calls == 1 && seen.command_length == 13
+	    && strcmp((const char *)seen.commands, "TBEFOREAFTER") == 0);
+	st_rip3_stream_destroy(stream);
 	return 0;
 }
 
@@ -304,6 +337,7 @@ main(void)
 	static const uint8_t ansi[] = "Z\r\nA";
 	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3, false)==0);
 	CHECK(boundaries() == 0);
+	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);
 	CHECK(noops() == 0);

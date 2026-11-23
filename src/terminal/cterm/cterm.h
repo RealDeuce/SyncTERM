@@ -107,6 +107,8 @@ struct cterminal {
 	uint64_t cursor_position_changes;
 	enum st_cterm_graphics_mode graphics_mode;
 	bool rip3_session_owner;
+	void (*rip3_autosense)(void *context, uint16_t selector);
+	void *rip3_autosense_context;
 	int rip3_visible_cursor;
 	/* RIP3 ANSI records designations, but always displays the CP437 bank.
 	 * SI/SO do not invoke G1 in this profile. Values are ESC final bytes. */

@@ -1097,6 +1097,32 @@ cterm_accumulate_ecma_seq(struct cterminal *cterm, unsigned char byte, int *spee
 	if (byte == 0)
 		return true;	/* NUL: media-fill, ignore (ECMA-48 §8.3.88) */
 
+	struct cterminal *owner = cterm->parent == NULL ? cterm : cterm->parent;
+	if (owner->rip3_autosense != NULL && cterm->saved_accumulator == NULL) {
+		if (byte == 0x18 || byte == 0x1a || byte == 0x1b) {
+			/* RIPtel closes pending ANSI without reusing an inner ESC. */
+			cterm->seq_phase = SEQ_PHASE_IDLE;
+			cterm->sequence = 0;
+			cterm->accumulator = NULL;
+			return true;
+		}
+		if (byte == '!' && cterm->seq_phase == SEQ_PHASE_PARAMS) {
+			/* RIP autosense uses an ANSI intermediate as its final byte.
+			 * Let the usual parameter parser finalize the first field. */
+			(void)seq_feed(cterm, byte);
+			bool query = cterm->seq_key == (SEQ_CSI | SEQ_INTERM('!')) && !cterm->seq_overflow;
+			uint16_t selector = 0;
+			if (cterm->seq_param_count != 0 && cterm->seq_params[0] >= '0' && cterm->seq_params[0] <= '9')
+				selector = (uint16_t)cterm->seq_param_int[0];
+			cterm->seq_phase = SEQ_PHASE_IDLE;
+			cterm->sequence = 0;
+			cterm->accumulator = NULL;
+			if (query)
+				owner->rip3_autosense(owner->rip3_autosense_context, selector);
+			return true;
+		}
+	}
+
 	s = seq_feed(cterm, byte);
 	if (s == SEQ_INCOMPLETE)
 		return true;

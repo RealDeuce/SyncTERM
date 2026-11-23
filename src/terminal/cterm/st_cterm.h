@@ -170,6 +170,10 @@ struct st_cterm_config {
 	 * text into this CTerm. Keep the public mode identity, without creating
 	 * a second parser/raster for that connected session. RIP3 only. */
 	bool rip3_session_owner;
+	/* Synchronous RIP3 autosense notification from the ANSI parser. This
+	 * callback must not write to or replace the CTerm during notification. */
+	void (*rip3_autosense)(void *context, uint16_t selector);
+	void *rip3_autosense_context;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
 	const char *rip_directory;
 	const char *amiga_font_directory;
@@ -340,6 +344,7 @@ enum st_cterm_rip3_window_action {
 	ST_CTERM_RIP3_WINDOW_NONE, ST_CTERM_RIP3_WINDOW_SAVE, ST_CTERM_RIP3_WINDOW_RESTORE
 };
 enum st_cterm_rip3_window_action st_cterm_take_rip3_window_action(st_cterm_t *terminal);
+bool st_cterm_rip3_ansi_pending(st_cterm_t *terminal);
 /* ANSI saves own metadata and logical font selectors only. Restore prepares
  * a fresh unpublished target, resolving fonts from the current compatible
  * resource owner. It neither restores encoding nor owns saved font resources.

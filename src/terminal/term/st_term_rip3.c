@@ -77,8 +77,7 @@ struct st_term_rip3 {
 	uint8_t *queue, *damage;
 	size_t position, length, capacity, pixels;
 	struct st_pixel_buffer *previous;
-	uint8_t escape[3];
-	size_t escape_length;
+	bool framing_enabled;
 };
 
 static void flush_text(void *context);
@@ -869,40 +868,22 @@ before_command(void *context)
 	else rip->text_since_boundary=false;
 }
 
-struct scene_input {
-	struct st_cterm_suspended_input *cterm;
-	uint8_t escape[3];
-	size_t escape_length;
-};
-
 static int
 scene_begin(void *context, void **result)
 {
 	struct st_term_rip3 *rip = context;
-	struct scene_input *saved = malloc(sizeof(*saved));
-	if (saved == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	int status = st_cterm_suspend_rip3_input(st_term_rip3_text(rip), &saved->cterm);
-	if (status != 0) {
-		free(saved);
-		return status;
-	}
-	saved->escape_length = rip->escape_length;
-	memcpy(saved->escape, rip->escape, saved->escape_length);
-	rip->escape_length = 0;
-	*result = saved;
-	return 0;
+	struct st_cterm_suspended_input *saved;
+	int status = st_cterm_suspend_rip3_input(st_term_rip3_text(rip), &saved);
+	if (status == 0)
+		*result = saved;
+	return status;
 }
 
 static void
 scene_end(void *context, void *state)
 {
 	struct st_term_rip3 *rip = context;
-	struct scene_input *saved = state;
-	st_cterm_resume_rip3_input(st_term_rip3_text(rip), saved->cterm);
-	rip->escape_length = saved->escape_length;
-	memcpy(rip->escape, saved->escape, saved->escape_length);
-	free(saved);
+	st_cterm_resume_rip3_input(st_term_rip3_text(rip), state);
 }
 
 /* Explicit screen saves merge native ANSI ink into the existing raw graphics
@@ -1179,28 +1160,40 @@ text_erase_eol(void *context, unsigned number)
 	return finish_target(rip,previous,text_erase_eol_current(context));
 }
 
+static bool
+ansi_owns_bang(void *context)
+{
+	struct st_term_rip3 *rip = context;
+	flush_text(rip);
+	return st_cterm_rip3_ansi_pending(st_term_rip3_text(rip));
+}
+
 static void
 text(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_term_rip3 *rip=context;
 	present(rip);
 	if (text_visibility(rip)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
-	for (size_t i=0;i<length;i++) {
-		uint8_t byte=bytes[i];
-		if ((rip->escape_length==2 || rip->escape_length==3) && byte=='!') {
-			static const uint8_t identity[]=ST_RIP3_IDENTIFICATION;
-			rip->escape_length=0;
-			rip->output(rip->output_context,ST_CTERM_OUTPUT_RESPONSE,identity,sizeof(identity)-1);
-			continue;
-		}
-		if ((rip->escape_length==1 && byte=='[') || (rip->escape_length==2 && byte=='0')) {
-			rip->escape[rip->escape_length++]=byte;continue;
-		}
-		if (rip->escape_length!=0) {
-			ansi(rip,rip->escape,rip->escape_length);rip->escape_length=0;
-		}
-		if (byte==0x1b) rip->escape[rip->escape_length++]=byte;
-		else ansi(rip,&byte,1);
+	bool pending = length == 1 && bytes[0] == '!' && ansi_owns_bang(context);
+	ansi(rip, bytes, length);
+	/* Commit a possible emulation change before the stream sees another byte. */
+	if (pending)
+		flush_text(rip);
+}
+
+void
+st_term_rip3_autosense(struct st_term_rip3 *rip, uint16_t selector)
+{
+	if (rip == NULL)
+		return;
+	if (selector == 1 || selector == 2)
+		rip->framing_enabled = selector == 2;
+	else if (rip->framing_enabled && (selector == 0 || selector == 3)) {
+		static const uint8_t version[] = ST_RIP3_IDENTIFICATION "\r";
+		size_t length = sizeof(ST_RIP3_IDENTIFICATION) - 1;
+		if (selector == 3)
+			length++;
+		rip->output(rip->output_context, ST_CTERM_OUTPUT_RESPONSE, version, length);
 	}
 }
 
@@ -1648,7 +1641,6 @@ st_term_rip3_cancel(struct st_term_rip3 *rip)
 	}
 	present(rip);st_rip3_session_cancel(rip->session);
 	rip->position=rip->length=0;
-	if (rip->escape_length!=0) {ansi(rip,rip->escape,rip->escape_length);rip->escape_length=0;}
 }
 
 void
@@ -1688,6 +1680,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	struct st_term_rip3 *rip=calloc(1,sizeof(*rip));
 	if (rip==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	rip->config=*config;rip->text=ansi;rip->text_config=*text_config;
+	rip->framing_enabled = true;
 	rip->text_config.palette_mapping=NULL;rip->text_config.palette_override=NULL;
 	rip->output=text_config->output;rip->output_context=text_config->output_context;
 	uint32_t width,height;
@@ -1746,6 +1739,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    .encoding=ST_RIP3_TEXT_UTF8,.graphical_codepage_converted=config->encoding==ST_CTERM_ENCODING_CODEPAGE,
 	    .source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,
+	        .ansi_owns_bang=ansi_owns_bang,.framing_enabled=&rip->framing_enabled,
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_copy=text_copy,.text_backup_capture=text_backup_capture,
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,

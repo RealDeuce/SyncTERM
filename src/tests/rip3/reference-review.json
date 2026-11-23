@@ -21177,6 +21177,45 @@
         "unreviewed": 2390
       },
       "verification": "Native host, capability, mouse and local-variable cases plus CP437 and UTF-8 connections with exact autosense/RIPVER, OPTION, ANSI and Doorway key output, window switching, and hotkey vectors."
+    },
+    {
+      "after_commit": "fc88a9c5",
+      "revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+      "scope": "ANSI-owned RIP3 autosense, exact identification responses, and suspension/resumption of RIP framing.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:179",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:181",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:193",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:195",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:196",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:197",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:198",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:199",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:232",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:236",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:237",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:238",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:239",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:241",
+        "version/3.0/ripscrip/9.2-versions.md:27",
+        "version/3.0/ripscrip/9.2-versions.md:28",
+        "version/3.0/ripscrip/9.2-versions.md:29",
+        "version/3.0/ripscrip/9.2-versions.md:30",
+        "version/3.0/ripscrip/9.2-versions.md:33",
+        "version/3.0/ripscrip/9.2-versions.md:35"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:177"
+      ],
+      "states_after_update": {
+        "blocked": 25,
+        "context": 1825,
+        "excluded": 70,
+        "implemented": 3267,
+        "pending": 1541,
+        "unreviewed": 2342
+      },
+      "verification": "Live CP437 and UTF-8 selector, boundary, and nested local playback cases. Native RIP3 stream and session tests, ordinary CTerm, legacy RIP parser and RIP 1.54 source freeze."
     }
   ]
 }

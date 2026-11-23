@@ -2228,6 +2228,10 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	terminal->graphics_mode = config->graphics_mode;
 	terminal->rip3_session_owner = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3
 	    && config->rip3_session_owner;
+	if (terminal->rip3_session_owner) {
+		terminal->rip3_autosense = config->rip3_autosense;
+		terminal->rip3_autosense_context = config->rip3_autosense_context;
+	}
 	terminal->skypix_transfer = config->skypix_transfer;
 	terminal->skypix_transfer_context = config->skypix_transfer_context;
 	terminal->quiet = config->quiet;
@@ -2512,6 +2516,15 @@ input_display(st_cterm_t *owner)
 {
 	return owner->status_sub != NULL && owner->status_display_active == 1
 	    ? owner->status_sub : owner;
+}
+
+bool
+st_cterm_rip3_ansi_pending(st_cterm_t *terminal)
+{
+	if (terminal == NULL)
+		return false;
+	st_cterm_t *owner = input_owner(terminal);
+	return owner->rip3_autosense != NULL && input_display(owner)->accumulator != NULL;
 }
 
 /* Own only incomplete syntax. Completed settings, text, macros and graphics

@@ -236,6 +236,13 @@ igs_loop_service_pending(void *context)
 	return session->igs_dispatch_pending;
 }
 
+static void
+rip3_autosense(void *context, uint16_t selector)
+{
+	st_term_session_t *session = context;
+	st_term_rip3_autosense(session->rip3, selector);
+}
+
 static uint32_t
 cterm_speed_query(void *context)
 {
@@ -400,6 +407,8 @@ st_term_session_create(st_term_session_t **result,
 		    ? ST_CTERM_ENCODING_UTF8 : config->encoding,
 		.graphics_mode = config->graphics_mode,
 		.rip3_session_owner = config->graphics_mode==ST_CTERM_GRAPHICS_RIP_3,
+		.rip3_autosense = rip3_autosense,
+		.rip3_autosense_context = session,
 		.rip_directory = config->rip_directory,
 		.amiga_font_directory = config->amiga_font_directory,
 		.amiga_font = config->amiga_font,

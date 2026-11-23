@@ -291,6 +291,14 @@ line_start(void *context)
 	    && session->sink.at_line_start!=NULL && session->sink.at_line_start(session->sink.context);
 }
 
+static bool
+ansi_owns_bang(void *context)
+{
+	struct st_rip3_session *session = context;
+	return !st_rip3_columns_raw_active(&session->columns) && session->text_active
+	    && session->sink.ansi_owns_bang != NULL && session->sink.ansi_owns_bang(session->sink.context);
+}
+
 static int
 define_text_window(void *context, const struct st_rip3_text_window_layout *layout)
 {
@@ -836,7 +844,8 @@ static int
 create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, bool playback_file)
 {
 	const struct st_rip3_stream_sink sink={.context=session,.text=playback_file ? scene_text : text,.command=command,
-	    .at_line_start=line_start,.diagnostic=stream_diagnostic,.local_playback=playback_file};
+	    .at_line_start=line_start,.diagnostic=stream_diagnostic,.local_playback=playback_file,
+	    .ansi_owns_bang=ansi_owns_bang,.framing_enabled=session->sink.framing_enabled};
 	return st_rip3_stream_create(result, &sink);
 }
 
