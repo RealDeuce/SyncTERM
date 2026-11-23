@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent outer SOFT reset vectors through a live TCP/bitmap session."""
+"""Independent reset and palette realization vectors through a live TCP/bitmap session."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
@@ -122,6 +122,54 @@ def run(args, width, height):
         assert frame.application["connected"] == 1
         assert (frame.metadata["plane_width"], frame.metadata["plane_height"],
                 frame.metadata["columns"], frame.metadata["rows"]) == (width, height, width//8, height//8)
+        t.case('rip3-header-palette-uploads-on-the-indexed-renderer')
+        values(f'$WORLD(CUR,{width},{height})$$CUR(PAL,5)$'.encode())
+        before = capture(b'\x01|a0409|c04|X1414\r\n\x1b[1;1H\x1b[48;2;19;37;53m ')
+        assert pixel(before, 40, 40) == 0x0000ff and pixel(before, 0, 0) == 0x132535
+        values(b'$CUR(PAL,6)$')
+        capture(b'\x01|a0402\r\n')
+        values(b'$CUR(PAL,5)$')
+        for command in (b'h010000014106', b'h010000014206', b'h010000014306'):
+            before = capture()
+            frame = capture(b'\x01|' + command + b'\r\n')
+            assert frame.primary == before.primary and frame.alternate == before.alternate
+            values(b'$CUR(PAL)$:$PALENTRY(5,4)$:$PALENTRY(6,4)$', b'5:8;0:0:255:8;0:170:0')
+        values(b'$PROT(PAL,5)$')
+        before = capture()
+        frame = capture(b'\x01|h010000014306\r\n')
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+        values(b'$ISPROT(PAL,5)$', b'1')
+        # Selection in the same segment realizes the new palette before upload.
+        frame = capture(b'\x01|h010000014326\r\n')
+        assert pixel(frame, 40, 40) == 0x00aa00 and pixel(frame, 0, 0) == 0x132535
+        values(b'$RESET(SOFT)$')
+        capture(b'\x01|h010000014305\r\n')
+        values(b'$CUR(PAL)$:$INUSE(PAL,6)$:$ISPROT(PAL,5)$', b'6:0:1')
+
+        live_families = ('TW', 'BUT', 'STYLE', 'PORT', 'PAL', 'ENV')
+        saved_families = (*live_families, 'MOUSE', 'SCREEN')
+        current = ':'.join(f'$CUR({family})$' for family in live_families).encode()
+        protected = ''.join(f'$CUR({family},5)$$PROT({family},5)$' for family in live_families)
+        live_entries = ''.join(f'$INUSE({family},5)$' for family in live_families).encode()
+        saves = ''.join(f'$INUSE({family},{place})$' for place in ('BASE', 'S2', 'STACK')
+                        for family in saved_families).encode()
+        protections = ''.join(f'$ISPROT({family},S2)$' for family in saved_families).encode()
+        for name, operation in (('header', b'\x01|h01000100\r\n'),
+                                ('macro', query(b'$RESET(HARD)$alive', at_cursor=True))):
+            t.case('rip3-hard-known-table-and-backup-profile-' + name)
+            values(protected.encode() + f'$WORLD(CUR,{width},{height})$'.encode())
+            capture(b'\x01|1C0A0A0C0C\r\n')
+            values(b'$OFFSCREEN(CLIP)$', b'1')
+            values(b'$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$'
+                   + ''.join(f'$PROT({family},S2)$' for family in saved_families).encode())
+            values(current, b'5:5:5:5:5:5')
+            values(saves + protections + live_entries, b'1' * 38)
+            frame = capture(operation, b'alive' if name == 'macro' else b'')
+            values(current, b'0:0:0:0:0:0')
+            values(live_entries + saves, b'0' * 30)
+            values(b'$PALENTRY(0,4)$:$OFFSCREEN(CLIP)$:continued', b'8;170:0:0:-1:continued')
+            assert frame.application['connected'] == 1
+            assert (frame.metadata['plane_width'], frame.metadata['plane_height']) == (width, height)
 
 
 def main():

@@ -13421,6 +13421,34 @@
         "blocked": 25
       },
       "verification": "Native Release CMake build; focused PORT and session tests; live HEADER in CP437 and UTF-8 on four rasters; contract and RIP154 preservation guards."
+    },
+    {
+      "after_commit": "b3e76a72",
+      "revision": "266a26951d211a8f9069cefa16a95da7d33b4e41",
+      "scope": "Realize HEADER palette uploads and verify the documented HARD reset cleanup.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:479",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:482",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:431",
+        "version/3.0/ripscrip/5.1-text-variables.md:2774",
+        "version/3.0/ripscrip/5.1-text-variables.md:2855",
+        "version/3.0/ripscrip/5.1-text-variables.md:2874",
+        "version/3.0/ripscrip/7.1-data-tables.md:72"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/7.1-data-tables.md:195"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/158",
+      "states_after_update": {
+        "unreviewed": 2936,
+        "context": 1551,
+        "pending": 1684,
+        "implemented": 2511,
+        "excluded": 67,
+        "blocked": 26
+      },
+      "verification": "Native Release CMake build, session and palette lifecycle tests, live TCP reset and palette uploads on four rasters in CP437 and UTF-8, and the contract and RIP154 preservation guards.",
+      "followup": "B158 requests the remaining HARD reset field and ownership rules."
     }
   ]
 }

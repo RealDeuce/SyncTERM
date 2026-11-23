@@ -8717,7 +8717,8 @@ palette's index 0 erase.
 The [completed type-2 bounds and fill profile](#connected-header-port-black-fill)
 uses separate gates for bounds reset and literal black fill.
 
-Palette upload parity and the full HARD state inventory remain pending.
+The [palette upload and HARD reset milestone](#header-palette-uploads-and-hard-reset-coverage)
+records palette realization and the verified part of the HARD state inventory.
 
 
 ## Connected refresh expressions
@@ -8896,3 +8897,26 @@ the saved pair. Native session tests confirm fixed and floating query ownership.
 
 The queue contains 2504 implemented, 1685 pending, 2943 unreviewed,
 1551 context, 67 excluded and 25 blocked units.
+
+## HEADER palette uploads and HARD reset coverage
+
+Type-4 flags 64 and 128 leave RGB values, definitions and protection unchanged.
+SyncTERM resolves the selected palette when presenting indexed pixels, so
+uploading the same entries has no visible effect. That also covers both outcomes
+of RIPtel's flag 128 guard, which reads outside the palette array. An explicit
+palette selection earlier in the segment still changes the indexed pixels.
+Direct-RGB pixels keep their colors. [Pinned HEADER palette contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/266a26951d211a8f9069cefa16a95da7d33b4e41/version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md#button-graphics-style-palette-and-environment-flags)
+
+The headless TCP fixtures in CP437 and UTF-8 verify both upload flags, combined
+flags, palette selection and protected or undefined current palettes. They also
+exercise HEADER bit 1 and `RESET(HARD)` with protected live entries, protected
+numbered saves, base and stack saves, and an assigned clipboard. Both reset
+paths clear those entries and saves, select slot zero in all six live tables,
+restore the default palette and keep the connection usable.
+
+Exact HARD lifetimes for templates, variables and pending ANSI syntax, along
+with the full TW 0, ENV 0 and raster postconditions, still need clarification.
+[Upstream issue #158](https://github.com/bbs-land/remote-imaging-protocol/issues/158)
+
+The queue contains 2511 implemented, 1684 pending, 2936 unreviewed,
+1551 context, 67 excluded and 26 blocked units.

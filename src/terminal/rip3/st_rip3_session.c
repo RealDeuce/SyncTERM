@@ -874,9 +874,8 @@ header_segment(struct st_rip3_session *session, const struct st_rip3_header_segm
 		(void)st_rip3_palettes_current(host->palettes, &current);
 		if (flags & 4) st_rip3_palettes_header_prune(host->palettes, current);
 		header_backups(session, ST_RIP3_TABLE_PAL, flags >> 3);
-		/* Active indexed pixels already use the current palette on presentation.
-		 * The undocumented pre-array guard for bit 128 has no safe state. */
-		if (flags & 128) header_result(session, IO_ERROR_NOT_SUPPORTED);
+		/* The indexed renderer resolves the current palette on presentation.
+		 * Uploading its existing entries under bit 64 or 128 is idempotent. */
 		break;
 	case 5:
 		st_rip3_environments_header(host->environments, flags & 7, slot, 0, 0);
