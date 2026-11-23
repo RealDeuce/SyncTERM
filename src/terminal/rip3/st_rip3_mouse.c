@@ -33,10 +33,11 @@ struct st_rip3_mouse {
 	struct field *fields[128];
 	size_t count;
 	struct field *pressed;
+	struct field *tab_focus;
 	uint64_t sequence,scene,gesture;
 	struct activation *activation;
 	struct st_rip3_templates *templates;
-	bool left, inverted,hotkeys,pointer_capture;
+	bool left, inverted,hotkeys,pointer_capture,tab_enabled;
 	struct {uint8_t *bytes;size_t length;} queries[2]; /* Entry, exit. */
 	/* One bounded motion snapshot, independent of resident field storage. */
 	struct {uint64_t instance;bool inside;} hover[128];
@@ -72,7 +73,17 @@ st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_s
 	if (result==NULL || sink==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_mouse *mouse=calloc(1,sizeof(*mouse));
 	if (mouse==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	mouse->sink=*sink;mouse->hotkeys=true;*result=mouse;return 0;
+	mouse->sink=*sink;mouse->hotkeys=true;mouse->tab_enabled=true;*result=mouse;return 0;
+}
+
+static void
+set_tab_focus(struct st_rip3_mouse *mouse, struct field *field)
+{
+	if (mouse->tab_focus == field)
+		return;
+	mouse->tab_focus = field;
+	if (mouse->sink.tab_focus != NULL)
+		mouse->sink.tab_focus(mouse->sink.context, field == NULL ? NULL : &field->area);
 }
 
 void st_rip3_mouse_bind_templates(struct st_rip3_mouse *mouse,struct st_rip3_templates *templates)
@@ -133,6 +144,7 @@ st_rip3_mouse_kill(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
 	++mouse->scene;mouse->hover_phase=0;
+	set_tab_focus(mouse, NULL);
 	st_rip3_mouse_cancel(mouse);
 	for (size_t i=0;i<mouse->count;i++) destroy_field(mouse,mouse->fields[i]);
 	mouse->count=0;
@@ -194,6 +206,7 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 			if (initial->redraw_count!=0) enqueue(mouse,initial);else free(initial);
 		}
 	}
+	set_tab_focus(mouse, NULL);
 	mouse->fields[mouse->count++]=field;return 0;
 }
 
@@ -222,6 +235,8 @@ st_rip3_mouse_remove(struct st_rip3_mouse *mouse, const struct st_rip3_rect *are
 	}
 	for (size_t i=0;i<mouse->count;i++)
 		if (selected[i] && mouse->pressed==mouse->fields[i]) st_rip3_mouse_cancel(mouse);
+	if (count != 0)
+		set_tab_focus(mouse, NULL);
 	size_t kept=0;
 	for (size_t i=0;i<mouse->count;i++) {
 		struct field *field=mouse->fields[i];
@@ -280,6 +295,7 @@ void
 st_rip3_mouse_boundary(struct st_rip3_mouse *mouse)
 {
 	if (mouse==NULL) return;
+	set_tab_focus(mouse, NULL);
 	st_rip3_mouse_cancel_silent(mouse);mouse->hover_phase=0;
 	for (size_t i=0;i<mouse->count;i++) mouse->fields[i]->hovered=false;
 	/* An allocated activation already owns its source/FIELDID. Keep it;
@@ -461,6 +477,7 @@ commit(struct st_rip3_mouse *mouse,struct field *field,bool keyboard,int32_t x,i
 		    .x=x,.y=y,.keyboard=keyboard,.reset=field->reset,.redraw_capacity=capacity};
 		if (field->length!=0) memcpy(action_program(action),field->program,field->length);
 	}
+	set_tab_focus(mouse, NULL);
 	if (keyboard) st_rip3_mouse_cancel(mouse);
 	if (action==NULL) {
 		if (mouse->sink.resource_failure!=NULL) mouse->sink.resource_failure(mouse->sink.context);
@@ -488,6 +505,56 @@ bool
 st_rip3_mouse_hotkeys_enabled(const struct st_rip3_mouse *mouse)
 {
 	return mouse != NULL && mouse->hotkeys;
+}
+
+bool
+st_rip3_mouse_tab_enabled(const struct st_rip3_mouse *mouse)
+{
+	return mouse != NULL && mouse->tab_enabled;
+}
+
+void
+st_rip3_mouse_set_tab(struct st_rip3_mouse *mouse, bool enabled)
+{
+	if (mouse == NULL)
+		return;
+	mouse->tab_enabled = enabled;
+	if (!enabled)
+		set_tab_focus(mouse, NULL);
+}
+
+static bool
+tab_next(struct st_rip3_mouse *mouse, bool backward)
+{
+	if (!st_rip3_mouse_tab_enabled(mouse) || mouse->count == 0)
+		return false;
+	size_t next = 0;
+	for (size_t i = 0; mouse->tab_focus != NULL && i < mouse->count; i++) {
+		if (mouse->fields[i] != mouse->tab_focus)
+			continue;
+		if (backward)
+			/* RIPtel's reverse arm wraps when the decremented index is zero. */
+			next = i <= 1 ? mouse->count - 1 : i - 1;
+		else
+			next = (i + 1) % mouse->count;
+		break;
+	}
+	set_tab_focus(mouse, mouse->fields[next]);
+	return true;
+}
+
+bool
+st_rip3_mouse_navigation(struct st_rip3_mouse *mouse, uint8_t key, bool backward)
+{
+	if (key == '\t')
+		return tab_next(mouse, backward);
+	if (mouse == NULL || mouse->tab_focus == NULL || (key != '\r' && key != 0x1b))
+		return false;
+	struct field *field = mouse->tab_focus;
+	set_tab_focus(mouse, NULL);
+	if (key == '\r')
+		commit(mouse, field, true, 0, 0);
+	return true;
 }
 
 static uint8_t

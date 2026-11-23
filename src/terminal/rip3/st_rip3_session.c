@@ -1687,6 +1687,13 @@ mouse_invert(void *context, const struct st_rip3_rect *area)
 }
 
 static void
+mouse_tab_focus(void *context, const struct st_rip3_rect *area)
+{
+	struct st_rip3_session *session = context;
+	session->sink.mouse_tab_focus(session->sink.context, area);
+}
+
+static void
 mouse_resource_failure(void *context)
 {
 	diagnose(context,ST_RIP3_COMMAND_RESOURCE_FAILURE);
@@ -1775,6 +1782,13 @@ bool
 st_rip3_session_key(struct st_rip3_session *session, uint8_t byte)
 {
 	return session!=NULL && (session->input_locked || st_rip3_mouse_key(session->commands.mouse,byte));
+}
+
+bool
+st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward)
+{
+	return session != NULL && (session->input_locked
+	    || st_rip3_mouse_navigation(session->commands.mouse, key, backward));
 }
 
 uint64_t
@@ -1902,6 +1916,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status==0) status=st_rip3_button_styles_create(&session->commands.button_styles);
 	const struct st_rip3_mouse_sink mouse_sink={.context=session,.busy=mouse_busy,
 	    .invert=config->sink.mouse_invert!=NULL ? mouse_invert : NULL,
+	    .tab_focus=config->sink.mouse_tab_focus!=NULL ? mouse_tab_focus : NULL,
 	    .activate=mouse_activate,.resource_failure=mouse_resource_failure,
 	    .render_failure=mouse_render_failure,.changed=mouse_changed};
 	if (status==0) status=st_rip3_mouse_create(&session->commands.mouse,&mouse_sink);

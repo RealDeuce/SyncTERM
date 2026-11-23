@@ -9368,11 +9368,33 @@ text windows with Doorway enabled and verify the arrow key's two-byte
 scancode reply and its normal ANSI sequence. `OPTION(HOTKEY)` uses the
 same button gate as `HKEYON` and `HKEYOFF`.
 
-`OPTION(LIST)` returns `DOORWAY,HOTKEY,LIST` for the connected client.
+`OPTION(LIST)` returns `DOORWAY,HOTKEY,LIST,TAB` for the connected client.
 `OPTION(LIST, QUERY)` preserves the literal reference and reports a
 syntax diagnostic. `IFS` reports Doorway under emulations and English
-under languages. Tab navigation and status-bar control have separate
-ledger entries.
+under languages. The portable list follows the draft's alphabetical
+format. The RIPtel 3.1 option table and status-bar control remain open
+in the ledger. [Issue #197](https://github.com/bbs-land/remote-imaging-protocol/issues/197)
+
+## Connected Tab navigation
+
+`TABON`, `TABOFF` and `OPTION(TAB)` share a single enabled flag, on at
+connection start. Turning the option off clears any focus. Tab selects
+the first field or advances in creation order. Shift+Tab also starts at
+the first field. With an existing focus it moves backward, wrapping to
+the last field when the decremented index is zero or lower. Enter
+activates the focused field through the keyboard action path, ahead of
+CR hotkeys and independently of the hotkey option. Escape clears focus
+and consumes the key. The RIPtel event and traversal routines are at
+RVAs `0x04fb6` and `0x45056`.
+
+The focus indicator is a clipped one-pixel inverted outline four device
+pixels outside the field. It shares the pointer feedback mechanism and
+preserves palette indices and both blink planes. Field additions and
+removals, restoration, input boundaries and activation clear focus.
+The original lifetime around rejected mutations and the exact option
+list still need documentation. Connected CP437 and UTF-8 cases check
+simple fields, button activation, return to ordinary key delivery,
+and drawing through an active outline. [Issue #197](https://github.com/bbs-land/remote-imaging-protocol/issues/197)
 
 ## Connected classic graphics font alignment
 

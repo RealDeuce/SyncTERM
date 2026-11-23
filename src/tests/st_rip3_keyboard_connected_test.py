@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""PR121 literal keyboard vectors through TCP and the real event path."""
+"""RIPv3 hotkeys and Tab navigation through TCP and the real event path."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
 
 from st_migrated_control_test import connection
 from st_rip3_buttons_connected_test import button,style,remove_fields
-from st_rip3_connected_test import query
+from st_rip3_connected_test import pixel, query
+from st_rip3_mouse_connected_test import field
 from st_terminal_conformance_test import Terminal
-from syncterm_control import CONTROL
+from syncterm_control import CONTROL, SHIFT
 from syncterm_fixture import receive
 
 
@@ -41,6 +42,79 @@ def check_autosense(t):
     t.exchange(b"\x1b[2J\x1b[H")
 
 
+def check_tab_navigation(t):
+    client = t.client
+
+    def values(source, expected=b""):
+        return t.exchange(query(source, at_cursor=True), expected)
+
+    def key(code, expected=b"", modifiers=0):
+        before = client.capture().metadata["events_dequeued"]
+        client.key(code, modifiers)
+        if expected:
+            return t.input(expected)
+        client.wait_for(lambda frame: frame.metadata["events_dequeued"] > before)
+        return t.exchange()
+
+    def same_pixels(actual, expected):
+        assert actual.primary == expected.primary and actual.alternate == expected.alternate
+
+    t.case("rip3-tab-traversal-and-activation")
+    values(b"$MKILL$$OPTION(TAB,QUERY)$", b"1")
+    first, second, third = (80, 90, 120, 120), (180, 90, 220, 120), (280, 90, 320, 120)
+    before = t.exchange(field(first, b"ID=31:first:$FIELDID$")
+                        + style(flags=256 | 1024 | 512)
+                        + button(second, b"ID=32:<><>second:$FIELDID$", hotkey=13)
+                        + field(third, b"ID=33:third:$FIELDID$"))
+    highlighted = key("tab")
+    # The half-open first rectangle is inflated by four pixels. XOR only
+    # the perimeter, leaving both planes and all colors outside it intact.
+    outline = {y * 640 + x for y in range(86, 124) for x in range(76, 124)
+               if x in (76, 123) or y in (86, 123)}
+    for old, new in ((before.primary, highlighted.primary),
+                     (before.alternate, highlighted.alternate)):
+        assert {i for i, (a, b) in enumerate(zip(old, new)) if a != b} == outline
+    same_pixels(key("enter", b"first:31"), before)  # Beats the explicit CR binding.
+    key("tab")
+    key("tab")
+    key("enter", b"second:32")
+    key("tab", modifiers=SHIFT)  # No current field starts at the first slot.
+    key("tab")
+    key("tab", modifiers=SHIFT)  # Slot 1 wraps to the last on reverse.
+    key("enter", b"third:33")
+    key("tab")
+    key("tab")
+    key("tab")
+    key("tab")
+    key("enter", b"first:31")
+
+    t.case("rip3-tab-clearing-and-option-gates")
+    key("tab")
+    same_pixels(key("escape"), before)
+    key("enter", b"second:32")
+    key("tab")
+    # Draw to the same native pixel while focused. Deselecting must reveal
+    # the new indexed drawing, including in the alternate blink plane.
+    focused = t.exchange(b"\x01|c0C|X262E\r\n")  # x=78, y=86
+    assert pixel(focused, 78, 86) == 0x00aaaa
+    cleared = values(b"$TABOFF$$OPTION(TAB)$", b"0")
+    assert pixel(cleared, 78, 86) == 0xff5555
+    assert cleared.primary[86 * 640 + 78] == cleared.alternate[86 * 640 + 78]
+    key("tab", b"\t")
+    values(b"$TABON$$OPTION(TAB)$", b"1")
+    key("tab")
+    still_focused = values(b"$TABOFF(1)$$OPTION(TAB)$", b"1")
+    same_pixels(still_focused, focused)
+    cleared_by_option = values(b"$OPTION(tab, off)$$OPTION(TAB,QUERY)$", b"0")
+    same_pixels(cleared_by_option, cleared)
+    values(b"$OPTION(TAB,ON)$$HKEYOFF$$OPTION(TAB)$", b"1")
+    key("tab")
+    key("enter", b"first:31")
+    key("tab")
+    same_pixels(values(b"$MKILL$$HKEYON$"), cleared)
+    key("tab", b"\t")
+
+
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -64,7 +138,7 @@ def run(args):
         values(b"$IFS(LIST, _EMULATIONS)$:$IFS(LIST, _LANGUAGES)$", b"ANSI,DOORWAY,RIPSCRIP:ENG")
 
         t.case("rip3-doorway-option-and-ansi-use-the-same-keyboard-mode")
-        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,LIST:0")
+        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,LIST,TAB:0")
         key("up", b"\x1b[A")
         values(b"$OPTION(doorway, on)$$OPTION(DOORWAY, QUERY)$", b"1")
         key("up", b"\x00\x48")
@@ -170,6 +244,8 @@ def run(args):
                    +button((10,100,60,130),b"ID=22:<><>reset:$FIELDID$:$CUR(BUT)$",hotkey=ord("R")))
         text("r",b"reset:22:0")
         text("a",b"a")
+        values(b"$WORLD(CUR,640,480)$")
+        check_tab_navigation(t)
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
 

@@ -87,6 +87,7 @@ struct st_rip3_session_sink {
 	int (*text_erase_eol)(void *context, unsigned number);
 	/* Transient mouse feedback on the shared native text/graphics raster. */
 	void (*mouse_invert)(void *context, const struct st_rip3_rect *area);
+	void (*mouse_tab_focus)(void *context, const struct st_rip3_rect *area);
 	/* Publish completed owned-button redraws, including momentary keyboard
 	 * feedback before its action runs. No additional raster ownership. */
 	void (*mouse_redraw)(void *context);
@@ -214,6 +215,7 @@ bool st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y
 /* Physical movement only; shares pending()/prompt ownership with clicks. */
 void st_rip3_session_mouse_move(struct st_rip3_session *session,int32_t x,int32_t y);
 bool st_rip3_session_key(struct st_rip3_session *session, uint8_t byte);
+bool st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward);
 uint64_t st_rip3_session_press_token(const struct st_rip3_session *session);
 void st_rip3_session_mouse_cancel(struct st_rip3_session *session);
 /* Focus/pointer-delivery boundary, distinct from capture-only cancellation. */

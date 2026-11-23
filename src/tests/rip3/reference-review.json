@@ -21216,6 +21216,42 @@
         "unreviewed": 2342
       },
       "verification": "Live CP437 and UTF-8 selector, boundary, and nested local playback cases. Native RIP3 stream and session tests, ordinary CTerm, legacy RIP parser and RIP 1.54 source freeze."
+    },
+    {
+      "after_commit": "03ae0eb8",
+      "revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+      "scope": "Connected Tab field navigation, option aliases and native transient focus.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2549",
+        "version/3.0/ripscrip/5.1-text-variables.md:2637",
+        "version/3.0/ripscrip/5.1-text-variables.md:2639",
+        "version/3.0/ripscrip/5.1-text-variables.md:2641",
+        "version/3.0/ripscrip/5.1-text-variables.md:2643",
+        "version/3.0/ripscrip/5.1-text-variables.md:2645",
+        "version/3.0/ripscrip/5.1-text-variables.md:2650",
+        "version/3.0/ripscrip/5.1-text-variables.md:2652",
+        "version/3.0/ripscrip/5.1-text-variables.md:2654",
+        "version/3.0/ripscrip/5.1-text-variables.md:2656",
+        "version/3.0/ripscrip/5.1-text-variables.md:2658",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:146",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:147"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2533",
+        "version/3.0/ripscrip/5.1-text-variables.md:2552",
+        "version/3.0/ripscrip/5.1-text-variables.md:2556",
+        "version/3.0/ripscrip/5.1-text-variables.md:2562",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:141"
+      ],
+      "states_after_update": {
+        "blocked": 28,
+        "context": 1826,
+        "excluded": 70,
+        "implemented": 3277,
+        "pending": 1538,
+        "unreviewed": 2331
+      },
+      "verification": "Native mouse, backup, local-variable and session tests. Connected CP437 and UTF-8 keyboard, simple-field and field-backup tests. Contract and RIP 1.54 preservation checks."
     }
   ]
 }

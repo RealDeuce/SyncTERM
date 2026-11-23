@@ -46,6 +46,8 @@ struct st_rip3_mouse_sink {
 	void (*changed)(void *context);
 	/* Renderer/host continuation busy; excludes this owner's pending action. */
 	bool (*busy)(void *context);
+	/* Temporary keyboard focus. NULL clears the outline. */
+	void (*tab_focus)(void *context, const struct st_rip3_rect *area);
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
@@ -126,5 +128,9 @@ bool st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool
 bool st_rip3_mouse_key(struct st_rip3_mouse *mouse, uint8_t byte);
 void st_rip3_mouse_hotkeys(struct st_rip3_mouse *mouse, bool enabled);
 bool st_rip3_mouse_hotkeys_enabled(const struct st_rip3_mouse *mouse);
+bool st_rip3_mouse_tab_enabled(const struct st_rip3_mouse *mouse);
+void st_rip3_mouse_set_tab(struct st_rip3_mouse *mouse, bool enabled);
+/* Semantic Tab, Enter or Escape before ordinary byte hotkeys. */
+bool st_rip3_mouse_navigation(struct st_rip3_mouse *mouse, uint8_t key, bool backward);
 
 #endif

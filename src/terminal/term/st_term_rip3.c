@@ -35,10 +35,13 @@ struct st_term_rip3 {
 	struct st_term_rip3_view *windows[36];
 	unsigned selected_window;
 	bool targeting;
-	bool mouse_feedback,mouse_feedback_applied;
-	unsigned mouse_feedback_depth;
-	struct st_console_rect mouse_area;
-	struct st_pixel_buffer *mouse_saved;
+	bool mouse_feedback;
+	unsigned feedback_depth, feedback_count;
+	struct st_console_rect mouse_area, tab_area;
+	struct {
+		struct st_console_rect area;
+		struct st_pixel_buffer *pixels;
+	} feedback[4];
 	struct st_rip3_point mouse_position;
 	uint8_t tty[4096];
 	size_t tty_length;
@@ -1406,31 +1409,56 @@ pick_list_input(struct st_term_rip3 *rip, const struct st_console_event *event)
 static void
 feedback_remove(struct st_term_rip3 *rip)
 {
-	if (st_console_restore_pixel_region(rip->config.console,rip->mouse_saved,rip->mouse_area.x,rip->mouse_area.y)!=0)
-		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
-	st_pixel_buffer_destroy(rip->mouse_saved);rip->mouse_saved=NULL;
+	while (rip->feedback_count != 0) {
+		unsigned i = --rip->feedback_count;
+		if (st_console_restore_pixel_region(rip->config.console, rip->feedback[i].pixels,
+		    rip->feedback[i].area.x, rip->feedback[i].area.y) != 0)
+			diagnostic(rip, ST_RIP3_COMMAND_OPERATION_FAILED);
+		st_pixel_buffer_destroy(rip->feedback[i].pixels);
+		rip->feedback[i].pixels = NULL;
+	}
 }
 
 static void
 feedback_begin(struct st_term_rip3 *rip)
 {
-	if (rip->mouse_feedback_depth++==0 && rip->mouse_feedback_applied) {
-		feedback_remove(rip);rip->mouse_feedback_applied=false;
-	}
+	if (rip->feedback_depth++ == 0 && rip->feedback_count != 0)
+		feedback_remove(rip);
 }
 
 static void
 feedback_end(struct st_term_rip3 *rip)
 {
-	if (--rip->mouse_feedback_depth==0 && rip->mouse_feedback && rip->pick_list==NULL) {
-		int status=st_console_get_pixels(&rip->mouse_saved,rip->config.console,&rip->mouse_area,false);
-		if (status==0) {
-			/* Keep original index values as well as both blink planes. An RGB
-			 * complement is visually reversible but loses palette identity. */
-			rip->mouse_feedback_applied=true;
-			status=st_console_invert_pixels(rip->config.console,&rip->mouse_area);
+	if (--rip->feedback_depth != 0 || rip->pick_list != NULL
+	    || (!rip->mouse_feedback && rip->tab_area.width == 0))
+		return;
+	struct st_console_rect areas[4] = {rip->mouse_area};
+	unsigned count = 1;
+	if (!rip->mouse_feedback) {
+		const struct st_console_rect area = rip->tab_area;
+		areas[0] = (struct st_console_rect){area.x, area.y, area.width, 1};
+		if (area.height > 1)
+			areas[count++] = (struct st_console_rect){area.x, area.y + area.height - 1, area.width, 1};
+		if (area.height > 2) {
+			areas[count++] = (struct st_console_rect){area.x, area.y + 1, 1, area.height - 2};
+			if (area.width > 1)
+				areas[count++] = (struct st_console_rect){area.x + area.width - 1, area.y + 1, 1, area.height - 2};
 		}
-		if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	}
+	for (unsigned i = 0; i < count; i++) {
+		/* Preserve palette indices and both blink planes. Tab only touches
+		 * the perimeter, so its temporary snapshots can stay that small. */
+		int status = st_console_get_pixels(&rip->feedback[i].pixels, rip->config.console, &areas[i], false);
+		if (status == 0) {
+			rip->feedback[i].area = areas[i];
+			rip->feedback_count++;
+			status = st_console_invert_pixels(rip->config.console, &areas[i]);
+		}
+		if (status != 0) {
+			feedback_remove(rip);
+			diagnostic(rip, ST_RIP3_COMMAND_OPERATION_FAILED);
+			break;
+		}
 	}
 }
 
@@ -1440,11 +1468,33 @@ mouse_invert(void *context, const struct st_rip3_rect *area)
 	struct st_term_rip3 *rip=context;
 	/* Remove the transient effect around native writes. The graphics owner
 	 * retains normal ink, while text and graphics share the actual console.
-	 * The temporary capture contains only the pressed rectangle. */
+	 * The temporary capture contains only the affected pixels. */
 	feedback_begin(rip);
 	rip->mouse_feedback=!rip->mouse_feedback;
 	if (rip->mouse_feedback) rip->mouse_area=(struct st_console_rect){(uint32_t)area->x0,(uint32_t)area->y0,
 	    (uint32_t)(area->x1-area->x0),(uint32_t)(area->y1-area->y0)};
+	feedback_end(rip);
+}
+
+static void
+mouse_tab_focus(void *context, const struct st_rip3_rect *area)
+{
+	struct st_term_rip3 *rip = context;
+	feedback_begin(rip);
+	rip->tab_area = (struct st_console_rect){0};
+	if (area != NULL) {
+		uint32_t width, height;
+		if (st_console_pixel_size(rip->config.console, &width, &height) == 0) {
+			uint32_t x = area->x0 > 4 ? (uint32_t)area->x0 - 4 : 0;
+			uint32_t y = area->y0 > 4 ? (uint32_t)area->y0 - 4 : 0;
+			uint32_t right = (uint32_t)area->x1 + 4;
+			uint32_t bottom = (uint32_t)area->y1 + 4;
+			if (right > width) right = width;
+			if (bottom > height) bottom = height;
+			if (x < right && y < bottom)
+				rip->tab_area = (struct st_console_rect){x, y, right - x, bottom - y};
+		}
+	}
 	feedback_end(rip);
 }
 
@@ -1516,7 +1566,9 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 		return true;
 	}
 	if (!st_rip3_session_mouse_active(rip->session)) return false;
-	uint8_t byte;uint32_t scalar;
+	uint8_t byte, navigation = 0;
+	bool backward = false;
+	uint32_t scalar;
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_TEXT:
 		scalar=event->data.text.codepoint;
@@ -1537,6 +1589,10 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 			else if (code==' ') code=0;
 			else if (code=='?') code=127;
 		}
+		else if (code == '\t' || code == '\r' || code == 0x1b) {
+			navigation = (uint8_t)code;
+			backward = (modifiers & ST_CONSOLE_MODIFIER_SHIFT) != 0;
+		}
 		byte=(uint8_t)code;break;
 	}
 	default:
@@ -1547,9 +1603,12 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 	}
 	/* Unlike per-byte wire batching, keyboard feedback must reach the
 	 * console during its callback and be restored by the field owner. */
+	feedback_begin(rip);
 	st_term_rip3_flush(rip);
-	bool handled=st_rip3_session_key(rip->session,byte);
+	bool handled = (navigation != 0 && st_rip3_session_navigation(rip->session, navigation, backward))
+	    || st_rip3_session_key(rip->session, byte);
 	if (handled) {present(rip);flush_text(rip);}
+	feedback_end(rip);
 	return handled;
 }
 
@@ -1576,7 +1635,7 @@ void
 st_term_rip3_poll(struct st_term_rip3 *rip)
 {
 	if (rip==NULL || rip->pick_list!=NULL) return;
-	if (rip->mouse_feedback_applied && rip->position==rip->length && rip->tty_length==0
+	if (rip->feedback_count != 0 && rip->position==rip->length && rip->tty_length==0
 	    && !st_rip3_session_pending(rip->session)) return;
 	feedback_begin(rip);process(rip,true);flush_text(rip);feedback_end(rip);
 }
@@ -1624,13 +1683,14 @@ st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length
 	/* Keep feedback off until the transport's batch flush. Incoming bytes are
 	 * dispatched individually; repainting a held region for every byte would
 	 * turn a transient mouse effect into the rendering bottleneck. */
-	--rip->mouse_feedback_depth;
+	--rip->feedback_depth;
 }
 
 void
 st_term_rip3_cancel(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
+	feedback_begin(rip);
 	close_pick_list(rip);
 	st_rip3_session_mouse_cancel(rip->session);
 	flush_text(rip);
@@ -1641,6 +1701,7 @@ st_term_rip3_cancel(struct st_term_rip3 *rip)
 	}
 	present(rip);st_rip3_session_cancel(rip->session);
 	rip->position=rip->length=0;
+	feedback_end(rip);
 }
 
 void
@@ -1660,7 +1721,6 @@ st_term_rip3_destroy(struct st_term_rip3 *rip)
 	st_rip3_variables_destroy(rip->session_values);
 	st_rip3_variables_destroy(rip->persistent_values);
 	st_pixel_buffer_destroy(rip->previous);
-	st_pixel_buffer_destroy(rip->mouse_saved);
 	free(rip->named_host_path);
 	free(rip->variable_path);free(rip->queue);free(rip->damage);free(rip);
 }
@@ -1743,7 +1803,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .before_command=before_command,.text_window=text_window,.text_select=text_select,.text_reset=text_reset,.text_snapshot=text_snapshot,.text_copy=text_copy,.text_backup_capture=text_backup_capture,
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
-	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
+	        .mouse_invert=mouse_invert,.mouse_tab_focus=mouse_tab_focus,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
 	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
