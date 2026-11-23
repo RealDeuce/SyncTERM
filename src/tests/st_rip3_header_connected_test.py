@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 
 from st_migrated_control_test import connection
+from st_rip3_button_styles_connected_test import number as palette_number
 from st_rip3_connected_test import pixel, query
 from st_rip3_extended_window_connected_test import window, xy
 from st_rip3_mouse_connected_test import field
@@ -435,8 +436,8 @@ def run(args, width, height):
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         frame = t.exchange(b'\x01|2A700|d0#80Fy0|2A500|D020#8&m004ZHM|c1Q|X0A0A|c1R|X0B0B\r\n'
                            + query(b'$CUR(PAL)$:$PALENTRY(CUR,62,63)$', at_cursor=True),
-                           b'5:8;255:0:0,18:52:86')
-        assert pixel(frame, 10, 10) == 0xff0000 and pixel(frame, 11, 11) == 0x123456
+                           b'5:6;63:0:0,4:13:21')
+        assert pixel(frame, 10, 10) == 0xff0000 and pixel(frame, 11, 11) == 0x103454
         frame = t.exchange(b'\x01|2A705|d0#8&m00\r\n'
                            + query(b'$CUR(PAL)$:$ISPROT(PAL,5)$:$ISPROT(PAL,7)$', at_cursor=True),
                            b'7:1:1')
@@ -444,9 +445,25 @@ def run(args, width, height):
         frame = t.exchange(b'\x01|2A50F|D020&8&m00?000|d0#84ZHM\r\n'
                            + query(b'$ISPROT(PAL,5)$:$ISPROT(PAL,7)$:$PALENTRY(CUR,62,63)$',
                                    at_cursor=True),
-                           b'0:0:8;18:52:86,18:52:86')
-        assert pixel(frame, 10, 10) == pixel(frame, 11, 11) == 0x123456
+                           b'0:0:6;4:13:21,4:13:21')
+        assert pixel(frame, 10, 10) == pixel(frame, 11, 11) == 0x103454
         assert frame.application['connected'] == 1
+
+        t.case('rip3-drawing-palette-portable-near-black-white-and-final-entry')
+        near_black = palette_number(0x070B0F, 4, 64)
+        white = palette_number(0xFCFFFD, 4, 64)
+        frame = wire(b'd0#8' + near_black)
+        assert pixel(frame, 10, 10) == 0x04080C
+        frame = wire(b'D010#8' + near_black + b'|D013&8' + white + b'|c73|X0C0C')
+        assert pixel(frame, 10, 10) == 0x04080C and pixel(frame, 12, 12) == 0xFFFFFF
+        rejected = wire(b'D023&8' + near_black + b'0000|D003&8')
+        assert rejected.palette == frame.palette
+        values(b'$SCP$$COPY(PAL,5,9)$')
+        wire(b'd0#80000|2A900')
+        frame = values(b'$PALENTRY(9,62)$:$PALENTRY(9,255)$', b'6;1:2:3:6;63:63:63')
+        assert pixel(frame, 10, 10) == 0x04080C and pixel(frame, 12, 12) == 0xFFFFFF
+        frame = values(b'$RCP$$CUR(PAL)$:$PALENTRY(CUR,62)$', b'5:6;1:2:3')
+        assert pixel(frame, 10, 10) == 0x04080C and pixel(frame, 12, 12) == 0xFFFFFF
 
 
 if __name__ == '__main__':

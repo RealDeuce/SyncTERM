@@ -1221,3 +1221,26 @@ The FILEEXISTS derivation records its stable consolidation. The other 82
 prior derivations, original publications and license retain their hashes.
 The new #172 derivation resolves B172 and documents the two-digit wire
 field, shared live rate, ENV backup scope and byte-group timing.
+
+## PRs #180–#183 prewrapped text, palettes, variable definitions and scene framing
+
+Fork stable is pinned at
+[`75cd7bc21eacd7034f59151cf7ca24643e8901cc`](https://github.com/RealDeuce/remote-imaging-protocol/tree/75cd7bc21eacd7034f59151cf7ca24643e8901cc).
+The adoption record preserves the four reviewed PR heads and their matching
+trees on stable. The Git tar archive has SHA-256
+`e5d3e51ce657e9bcdb4132eb8719a2c1186a476b1fb2ffef4f26d7bd52fe7d7f`.
+
+Ten normative documents change. The index keeps 8,932 blocks, moves 2,241
+source line ranges, adds 76 blocks and retires 67, for 9,008 total across 68
+documents. The prior #172 derivation records its stable consolidation. The
+other 83 prior derivations, original publications and license retain their
+hashes. Four new derivations resolve B173, B174, B175 and B179.
+
+Connected SyncTERM implements the portable palette publication and readback
+rules and uses common scene framing for `.TXT` playback into articles.
+The literal prewrapped text and classic font changes from PR #180 and the
+confirmation and cancellation changes from PR #182 remain pending.
+[PR #180](https://github.com/bbs-land/remote-imaging-protocol/pull/180),
+[PR #181](https://github.com/bbs-land/remote-imaging-protocol/pull/181),
+[PR #182](https://github.com/bbs-land/remote-imaging-protocol/pull/182),
+[PR #183](https://github.com/bbs-land/remote-imaging-protocol/pull/183)

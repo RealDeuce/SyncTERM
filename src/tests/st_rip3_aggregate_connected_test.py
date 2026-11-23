@@ -70,7 +70,7 @@ def run(args,width,height):
         values(b'$CUR(TW)$:$CUR(PORT)$:$CUR(PAL)$:$CUR(BUT)$:$CUR(STYLE)$:$WORLD$:$BAUDEMUL$',
                f'1:2:5:5:7:{width}:{height}:1200'.encode())
         assert (after.application['cterm.x'],after.application['cterm.y'],after.application['cterm.attr'])==(3,2,0x12)
-        values(b'$PALENTRY(17,4)$',b'8;0:0:170')
+        values(b'$PALENTRY(17,4)$',b'6;0:0:42')
         values(b'$CUR(PORT,0)$')
         frame=wire(b'2C20000080805K5K60600')  # Saved brown offscreen pixels copied to screen.
         assert pixel(frame,200,200)==0xaa5500
@@ -89,7 +89,7 @@ def run(args,width,height):
         wire(b'a0402')
         values(b'$WORLD(CUR,320,240)$$BAUDEMUL(2400)$$RESTOREALL$')
         values(b'$CUR(PAL)$:$PALENTRY(17,4)$:$CUR(BUT)$:$WORLD$:$BAUDEMUL$',
-               f'17:8;170:0:0:5:{width}:{height}:1200'.encode())
+               f'17:6;42:0:0:5:{width}:{height}:1200'.encode())
         t.case('rip3-aggregate-independent-save-failure-and-invalid-recovery')
         # An occupied protected slot blocks only that family's save. Its older
         # BASE/slot/stack state and every other family remain independently usable.

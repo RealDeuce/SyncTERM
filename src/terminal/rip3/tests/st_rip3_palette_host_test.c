@@ -44,14 +44,14 @@ main(void)
 
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	host.tables[ST_RIP3_TABLE_PAL].live = palettes;
-	/* Literal eight-bit example and standard desktop colors, independently
+	/* Literal six-bit example and standard desktop colors, independently
 	 * specified rather than read back to manufacture expected replies. */
 	CHECK(execute(&host, "$PALENTRY(CUR,15)$", output, sizeof(output)) == 0);
-	CHECK(strcmp(output, "8;255:255:255") == 0);
+	CHECK(strcmp(output, "6;63:63:63") == 0);
 	CHECK(execute(&host,"$PALENTRY(,CUR,,15,)$",output,sizeof(output))==0);
-	CHECK(strcmp(output,"8;255:255:255")==0);
+	CHECK(strcmp(output,"6;63:63:63")==0);
 	CHECK(execute(&host, "$PALENTRY(0,5,7)$", output, sizeof(output)) == 0);
-	CHECK(strcmp(output, "8;170:0:170,170:85:0,170:170:170") == 0);
+	CHECK(strcmp(output, "6;42:0:42,42:21:0,42:42:42") == 0);
 	CHECK(execute(&host, "$PALENTRY(12,0)$", output, sizeof(output)) == 0);
 	CHECK(strcmp(output, "-1") == 0);
 	CHECK(st_rip3_palettes_info(palettes, 12, &info) == 0 && !info.defined);
@@ -60,13 +60,13 @@ main(void)
 	for (size_t i = 0; i < 256; i++) colors[i] = 0xffffff;
 	CHECK(st_rip3_palettes_rgb(palettes, 0, 8, colors, 256) == 0);
 	CHECK(st_rip3_palettes_protect(palettes, 35, true) == 0);
-	memcpy(expected, "8;", 2);
+	memcpy(expected, "6;", 2);
 	for (unsigned i = 0; i < 256; i++) {
 		if (i != 0) expected[length++] = ',';
-		memcpy(expected + length, "255:255:255", 11); length += 11;
+		memcpy(expected + length, "63:63:63", 8); length += 8;
 	}
 	expected[length] = 0;
-	CHECK(length == 3073);
+	CHECK(length == 2305);
 	memset(output, 'Q', sizeof(output)); memcpy(before, output, sizeof(output));
 	CHECK(execute(&host, "$PALENTRY(CUR,ALL)$", output, length) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(memcmp(output, before, sizeof(output)) == 0);
@@ -75,7 +75,7 @@ main(void)
 	CHECK(execute(&host, "$pAlEnTrY(035,000,255)$", output, sizeof(output)) == 0);
 	CHECK(strcmp(output, expected) == 0);
 	CHECK(execute(&host, "$PALENTRY(CUR,255)$", output, sizeof(output)) == 0);
-	CHECK(strcmp(output, "8;255:255:255") == 0);
+	CHECK(strcmp(output, "6;63:63:63") == 0);
 	CHECK(st_rip3_palettes_current(palettes, &current) == 0 && current == 35);
 	CHECK(st_rip3_palettes_info(palettes, 35, &info) == 0 && info.protected);
 	memset(output, 'Q', sizeof(output)); memcpy(before, output, sizeof(output));

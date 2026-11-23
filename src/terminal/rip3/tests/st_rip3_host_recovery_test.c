@@ -177,8 +177,8 @@ main(void)
 		size_t previous = observed.replies, diagnostics = observed.diagnostics;
 		process(&host, &sink, (const uint8_t *)"$PALENTRY(CUR,ALL)$", 19);
 		CHECK(!observed.overflow && observed.replies == previous + 1);
-		CHECK(observed.diagnostics == diagnostics && observed.length == 3073);
-		CHECK(strncmp(observed.reply, "8;255:255:255,", 14) == 0);
+		CHECK(observed.diagnostics == diagnostics && observed.length == 2305);
+		CHECK(strncmp(observed.reply, "6;63:63:63,", 11) == 0);
 	}
 	process(&host, NULL, (const uint8_t *)"bad", 3);
 	process(&host, NULL, (const uint8_t *)"$CUR(PAL,6)$", 12);

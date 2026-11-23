@@ -206,7 +206,7 @@ main(void)
 	CHECK(run(&host, "$RCP(0)$", 0, "") == 0);
 	CHECK(run(&host, "$CUR(PAL)$", 0, "5") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,CUR)$", 0, "1") == 0);
-	CHECK(run(&host, "$PALENTRY(CUR,15)$", 0, "8;255:255:255") == 0);
+	CHECK(run(&host, "$PALENTRY(CUR,15)$", 0, "6;63:63:63") == 0);
 	CHECK(run(&host, "$UNRECOGNIZED$", IO_ERROR_NOT_FOUND, NULL) == 0);
 	CHECK(run(&host, "$SHIFT$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$P$", IO_ERROR_NOT_FOUND, NULL) == 0);

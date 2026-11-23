@@ -119,6 +119,13 @@ desktop_palette(const struct st_rip3_command_host *host,
 	return st_rip3_palettes_desktop(host->palettes, start, colors, entries);
 }
 
+static uint32_t
+drawing_palette_channel(uint64_t component)
+{
+	uint32_t stored = ((uint32_t)component & 255) >> 2;
+	return stored == 63 ? 255 : stored * 4;
+}
+
 static int
 drawing_palette(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
@@ -157,7 +164,11 @@ drawing_palette(const struct st_rip3_command_host *host,
 		status = st_rip3_command_field(&color, command + offset, width, 64);
 		if (status != 0)
 			return status;
-		colors[i] = (uint32_t)color;
+		/* This published representation preserves the stored six bits
+		 * under readback, copies, saves and palette reselection. */
+		colors[i] = drawing_palette_channel(color >> 16) << 16
+		    | drawing_palette_channel(color >> 8) << 8
+		    | drawing_palette_channel(color);
 		offset += width;
 	}
 	if (host->palettes == NULL)

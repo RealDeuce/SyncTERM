@@ -135,7 +135,7 @@ def run(args, width, height):
             before = capture()
             frame = capture(b'\x01|' + command + b'\r\n')
             assert frame.primary == before.primary and frame.alternate == before.alternate
-            values(b'$CUR(PAL)$:$PALENTRY(5,4)$:$PALENTRY(6,4)$', b'5:8;0:0:255:8;0:170:0')
+            values(b'$CUR(PAL)$:$PALENTRY(5,4)$:$PALENTRY(6,4)$', b'5:6;0:0:63:6;0:42:0')
         values(b'$PROT(PAL,5)$')
         before = capture()
         frame = capture(b'\x01|h010000014306\r\n')
@@ -190,7 +190,7 @@ def run(args, width, height):
             assert frame.metadata['pointer_shape'] == 0
             values(current, b'0:0:0:0:0:0')
             values(live_entries + saves, b'0' * 30)
-            values(b'$PALENTRY(0,4)$:$OFFSCREEN(CLIP)$:continued', b'8;170:0:0:-1:continued')
+            values(b'$PALENTRY(0,4)$:$OFFSCREEN(CLIP)$:continued', b'6;42:0:0:-1:continued')
             values(b'$REFRESH$' + variables, preserved)
             values(b'$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$TEXTXY$:$IMGSTYLE(0)$',
                    b'640:350:36:2:0:0:0:-1:-1:-1:-1:0')

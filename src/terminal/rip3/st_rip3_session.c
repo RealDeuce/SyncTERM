@@ -63,7 +63,7 @@ struct local_scene {
 	int field_program_id;
 	uint8_t next_byte;
 	bool byte_ready;
-	bool article_text, normalized;
+	bool normalized;
 };
 
 struct session_window {
@@ -895,15 +895,12 @@ open_scene(struct st_rip3_session *session, const char *filename, bool suspend_q
 		bool matched;
 		status = st_rip3_resource_open_first(&scene.file, &matched, session->commands.resources, name);
 	}
-	const char *suffix = strrchr(name, '.');
-	scene.article_text = scene.normalized || (st_rip3_columns_raw_active(&session->columns)
-	    && suffix != NULL && ascii_case_compare(suffix, ".txt") == 0);
 	free(with_extension);
 	if (status == IO_ERROR_NOT_FOUND)
 		return 0;
 	if (status != 0)
 		return status;
-	if (!scene.article_text)
+	if (!scene.normalized)
 		status = create_stream(session, &scene.stream, true);
 	if (status == 0 && suspend_query)
 		status = create_query(session, &scene.query, &session->variables);
@@ -1078,8 +1075,6 @@ consume(void *context, uint8_t byte)
 	}
 	if (scene->normalized)
 		text(session, data, size);
-	else if (scene->article_text)
-		scene_text(session, data, size);
 	else
 		st_rip3_stream_process(scene->stream, data, size);
 }

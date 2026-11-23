@@ -1017,8 +1017,9 @@ exercise literal defaults, the interactive editor and ordered queries in
 CP437 and UTF-8. [RIPv3 RIP_DEFINE coverage](RIP3_CONFORMANCE.md#connected-rip_define)
 
 RIPv3 `D`, `d` and `2A` update and select the current drawing palette.
-Live CP437 and UTF-8 fixtures verify PALENTRY replies, protection and
-recoloring of existing indexed pixels. [RIPv3 palette coverage](RIP3_CONFORMANCE.md#connected-drawing-palette-commands)
+Live CP437 and UTF-8 fixtures verify six-bit PALENTRY replies, protection,
+copy and restore, and recoloring of existing indexed pixels at portable
+display precision. [RIPv3 palette coverage](RIP3_CONFORMANCE.md#connected-drawing-palette-commands)
 
 RIPv3 tone variables use the mixer and resume the invoking query after
 playback. Native request and PCM fixtures cover the tone sequences and
@@ -1028,7 +1029,9 @@ argument recovery with audio disabled. [RIPv3 tone coverage](RIP3_CONFORMANCE.md
 RIPv3 `1R` and `$>NAME$` play cached scenes through the live console. Connected
 CP437 and UTF-8 fixtures check nested return, persistent drawing state, local
 ANSI text and partial sequence isolation, child reply ordering, `3e` pacing,
-mouse actions and recovery after missing or recursive files. [RIPv3 scene playback coverage](RIP3_CONFORMANCE.md#connected-rip_read_scene)
+mouse actions and recovery after missing or recursive files. A `.TXT` scene
+with an active article still executes its RIP commands and routes ordinary
+text into that article. [RIPv3 scene playback coverage](RIP3_CONFORMANCE.md#connected-rip_read_scene)
 
 RIPv3 `1T`, `1t` and `1E` lay out prewrapped text in global column slots.
 Connected CP437 and UTF-8 tests verify original MicroANSI glyphs in both pixel

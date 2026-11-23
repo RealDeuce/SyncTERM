@@ -8943,17 +8943,17 @@ Flag actions run in that order, including after an attempt to protect slot
 zero. The published `2A04` example selects slot zero with source-protection
 flag 4 in the original parser. [Wire grammar discrepancy #2](https://github.com/bbs-land/remote-imaging-protocol/issues/2)
 
-Native probes of the RIPtel 3.1 DLL exercised the wire parser and the
-original `D` (RVA `0x1f46a`), `d` (`0x1cf95`) and `2A` (`0x46c64`)
-handlers with controlled GDI calls. The original records store six-bit
-components, and immediate single-entry publication can use the original
-eight-bit input. SyncTERM keeps the submitted eight-bit values in its
-indexed renderer and reports them through PALENTRY. The portable
-publication and storage rule remains open. [Documentation issue #174](https://github.com/bbs-land/remote-imaging-protocol/issues/174)
+Both writes store the high six bits of each component. The indexed renderer
+publishes each stored component multiplied by four, with 63 displayed as
+255. Thus RGB `(1,2,3)` displays as black and `(255,255,255)` displays as
+white. Copying, selecting and restoring a palette retain these values.
+`PALENTRY` returns the inclusive range as six-bit RGB triples prefixed by
+`6;`. [PR #181](https://github.com/bbs-land/remote-imaging-protocol/pull/181)
 
 Native tests compare palette values, source and destination protection,
-full-block bounds, decode failures and recovery. Live CP437 and UTF-8
-fixtures check PALENTRY replies and recoloring of existing indexed graphics.
+full-block bounds, decode failures and recovery. Connected CP437 and UTF-8
+fixtures check exact replies and publication on existing indexed graphics,
+including palette copy and restore, out-of-range rejection and the empty block.
 
 ## Connected tone variables
 
@@ -9192,12 +9192,11 @@ and send no automatic reply. An interactive command pauses further input
 until the editor completes. An explicit editor cancellation saves an empty
 value. A failed editor or shutdown abandons the pending write.
 
-Native execution of RIPtel 3.1's definition parser and request logic
-confirmed these decoded inputs and writer calls with controlled services.
-An original record flag can force the editor despite flag 4 and the
-original editor may update the flag. SyncTERM has no matching stored flag or
-checkbox yet. The difference between the draft and the shipped parser, and
-the contract for that editor flag, are tracked upstream. [Issue #175](https://github.com/bbs-land/remote-imaging-protocol/issues/175)
+Native execution of RIPtel 3.1's definition parser and request logic confirmed
+the decoded inputs and writer calls with controlled services. The adopted
+contract also requires a per-record confirmation flag that can force the
+editor despite flag 4, and cancellation that preserves the prior record.
+Both changes remain pending in SyncTERM. [PR #182](https://github.com/bbs-land/remote-imaging-protocol/pull/182)
 
 The native fixture covers both stores, recovery, literal payloads, retries
 and cancellation. Connected CP437 and UTF-8 fixtures exercise the wire
@@ -9242,10 +9241,10 @@ and closes scene files on return or cancellation.
 The file reader converts CRLF to LF, skips NUL and treats Ctrl+Z as EOF.
 Bare CR, LF and form feed delimit RIP commands and support normal backslash
 continuation. EOF drops an unfinished RIP command. Ordinary text uses the
-entry's encoding and receives a CR before each LF. Cached `.TXT` files
-opened while an article is active continue to feed literal prose. The
-original behavior for command-like sequences in those files needs
-clarification. [Issue #179](https://github.com/bbs-land/remote-imaging-protocol/issues/179)
+entry's encoding and receives a CR before each LF. Scene files use the same
+RIP framing across extensions. When an article is active, RIP commands in
+a `.TXT` scene run normally and its ordinary text flows into the article.
+[PR #183](https://github.com/bbs-land/remote-imaging-protocol/pull/183)
 Commands in a scene can send RIP, file-query and ANSI replies over the
 connection. Each scene starts with fresh ANSI input syntax. At EOF, the
 terminal discards the child's incomplete syntax and resumes the caller's
@@ -9335,8 +9334,9 @@ Connected CP437 and UTF-8 cases compare both pixel planes with original
 MicroANSI glyph masks. They exercise signed padding, mixed raw and prewrapped
 input, column transitions, protected ports, viewport clipping and a font size
 change between lines. They also draw with Dixon and check the graphics cursor.
-The reference's conflicting count of justify modes remains tracked in
-[issue #173](https://github.com/bbs-land/remote-imaging-protocol/issues/173).
+The adopted `1t` contract specifies literal input, a no-op under an inactive
+viewport and further classic font metric rules. Those changes remain pending.
+[PR #180](https://github.com/bbs-land/remote-imaging-protocol/pull/180)
 
 ## Connected raw article flow and search highlighting
 
@@ -9354,10 +9354,11 @@ prose. Redefining the active article drops
 its pending prose and rewinds to the first column. `1E` and `#` flush pending
 text and return subsequent ordinary bytes to ANSI.
 
-With an article active, `1R` and `$>` treat a cached `.TXT` file as literal
-prose, including bytes that resemble RIP commands. Connected CP437 and UTF-8
-tests exercise wrapping, original glyph masks and colors in both planes,
-paragraph breaks, redefinition, malformed search input and cache lookup.
+With an article active, `.TXT` files opened by `1R` and `$>` retain normal
+scene framing. Connected CP437 and UTF-8 tests check that embedded color
+commands execute and only ordinary text renders as article glyphs. They also
+exercise wrapping, original glyph masks and colors in both planes, paragraph
+breaks, redefinition, malformed search input and cache lookup.
 
 ## Connected article selection
 

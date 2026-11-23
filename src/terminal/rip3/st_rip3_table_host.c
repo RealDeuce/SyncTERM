@@ -213,14 +213,14 @@ palette_entries(const struct st_rip3_table_host *host,
 		return reply_number(result, capacity, -1);
 	if (status != 0)
 		return status;
-	/* The independent engine stores eight bits per component. The reference
-	 * explicitly permits returning that precision instead of RIPtel's six. */
-	memcpy(output, "8;", 2);
+	/* Every published component retains its six-bit value in its high bits,
+	 * including 255 for full-scale white. */
+	memcpy(output, "6;", 2);
 	for (unsigned i = first; i <= last; i++) {
 		uint32_t rgb = palette.rgb[i];
 		int added = snprintf(output + length, sizeof(output) - length,
 		    "%s%u:%u:%u", i == first ? "" : ",",
-		    (unsigned)((rgb >> 16) & 255), (unsigned)((rgb >> 8) & 255), (unsigned)(rgb & 255));
+		    (unsigned)((rgb >> 18) & 63), (unsigned)((rgb >> 10) & 63), (unsigned)((rgb >> 2) & 63));
 
 		if (added < 0 || (size_t)added >= sizeof(output) - length)
 			return IO_ERROR_OUT_OF_RANGE;

@@ -115,8 +115,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&host, "a0509", -1) == 0);
 	CHECK(process(&host, "a0F1", -1) == 0);
 	CHECK(query(palettes, "$CUR(PAL)$", "7") == 0);
-	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "8;255:0:0") == 0);
-	CHECK(query(palettes, "$PALENTRY(CUR,5)$", "8;0:0:255") == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "6;63:0:0") == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,5)$", "6;0:0:63") == 0);
 	CHECK(st_rip3_palettes_get(palettes, 7, &palette) == 0);
 	CHECK(st_rip3_surface_snapshot(surface, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) {
@@ -201,7 +201,7 @@ validation(enum st_rip3_canvas canvas)
 	CHECK(st_rip3_palettes_protect(palettes, 1, false) == 0);
 	st_rip3_commands_process(&host, NULL, (const uint8_t *)"a0F10", 5);
 	CHECK(process(&host, "a0001", -1) == 0);
-	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "8;0:0:170") == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "6;0:0:42") == 0);
 	st_rip3_palettes_destroy(palettes);
 	st_rip3_environments_destroy(env);
 	return 0;
@@ -219,11 +219,11 @@ wire_drawing_palette(void)
 	const struct st_rip3_command_host host = {.environments = env, .palettes = palettes};
 	CHECK(process(&host, "2A500", -1) == 0 && query(palettes, "$CUR(PAL)$", "5") == 0);
 	CHECK(process(&host, "D020#8&m004ZHM", -1) == 0);
-	CHECK(query(palettes, "$PALENTRY(CUR,62,63)$", "8;255:0:0,18:52:86") == 0);
-	CHECK(process(&host, "d3&8&", -1) == 0 && query(palettes, "$PALENTRY(CUR,255)$", "8;0:0:63") == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,62,63)$", "6;63:0:0,4:13:21") == 0);
+	CHECK(process(&host, "d3&8&", -1) == 0 && query(palettes, "$PALENTRY(CUR,255)$", "6;0:0:15") == 0);
 	CHECK(process(&host, "d0z84ZHMnote", -1) == 0);
-	CHECK(query(palettes, "$PALENTRY(CUR,61)$", "8;18:52:86") == 0);
-	CHECK(process(&host, "D010A84ZH", -1) == 0 && query(palettes, "$PALENTRY(CUR,10)$", "8;0:72:209") == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,61)$", "6;4:13:21") == 0);
+	CHECK(process(&host, "D010A84ZH", -1) == 0 && query(palettes, "$PALENTRY(CUR,10)$", "6;0:18:52") == 0);
 	CHECK(st_rip3_palettes_get(palettes, 5, &before) == 0);
 	const char *malformed[] = {
 		"D", "D00008A", "D020#8&m00", "D010#8&m000000", "D020#8&m00?000",
@@ -233,6 +233,8 @@ wire_drawing_palette(void)
 		CHECK(process(&host, malformed[i], ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "D00008", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 5, &rgb) == 0 && memcmp(&rgb, &before, sizeof(rgb)) == 0);
+	CHECK(rgb.rgb[61] == 0x103454 && rgb.rgb[62] == 0xff0000 && rgb.rgb[63] == 0x103454);
+	CHECK(rgb.rgb[255] == 0x00003c);
 
 	CHECK(process(&host, "2A705", -1) == 0 && query(palettes, "$CUR(PAL)$", "7") == 0);
 	CHECK(st_rip3_palettes_info(palettes, 5, &info) == 0 && info.defined && info.protected);
@@ -261,7 +263,7 @@ wire_drawing_palette(void)
 	CHECK(process(&host, "d0#84ZHM", -1) == 0 && process(&host, "2A504", -1) == 0);
 	CHECK(st_rip3_palettes_info(palettes, 7, &info) == 0 && !info.defined && info.protected);
 	CHECK(process(&host, "2A702", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(query(palettes, "$CUR(PAL)$", "7") == 0 && query(palettes, "$PALENTRY(CUR,62)$", "8;18:52:86") == 0);
+	CHECK(query(palettes, "$CUR(PAL)$", "7") == 0 && query(palettes, "$PALENTRY(CUR,62)$", "6;4:13:21") == 0);
 	CHECK(st_rip3_palettes_info(palettes, 7, &info) == 0 && info.defined && !info.protected);
 
 	char full[sizeof("D40008") + 256 * 4];
@@ -271,7 +273,7 @@ wire_drawing_palette(void)
 	full[sizeof(full) - 1] = 0;
 	CHECK(process(&host, full, -1) == 0 && st_rip3_palettes_get(palettes, 7, &rgb) == 0);
 	for (size_t i = 0; i < 256; i++)
-		CHECK(rgb.rgb[i] == 0x000ff0);
+		CHECK(rgb.rgb[i] == 0x000cf0);
 	st_rip3_palettes_destroy(palettes);
 	st_rip3_environments_destroy(env);
 	return 0;

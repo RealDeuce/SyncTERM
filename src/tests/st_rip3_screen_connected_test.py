@@ -46,7 +46,7 @@ def run(args,width,height):
         assert (colors(frame,frame.primary),colors(frame,frame.alternate))==expected
         assert pixel(frame,50,50)==0xaa0000 and pixel(frame,0,0)==0xa80000
         values(b'$CUR(PAL)$:$ISPROT(PAL,17)$:$CUR(PORT)$:$ISPROT(PORT,6)$',b'17:1:6:1')
-        values(b'$PALENTRY(17,15)$',b'8;170:0:0')
+        values(b'$PALENTRY(17,15)$',b'6;42:0:0')
         # Indexed bitmap consumers must match restored native RGB under the
         # explicit RIP palette, rather than truncating an RGB word to an index.
         values(b'$CUR(PORT,0)$')

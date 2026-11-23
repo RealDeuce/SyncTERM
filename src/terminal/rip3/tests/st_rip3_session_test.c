@@ -1794,10 +1794,10 @@ scene_header_palette_upload(void)
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
 	CHECK(query(&f,"$CUR(PAL,5)$","")==0);
 	CHECK(append(&f,"!|a0409|h010000014106|h010000014206\r")==0 && pump(&f)==0);
-	CHECK(f.errors==0 && query(&f,"$CUR(PAL)$:$INUSE(PAL,6)$:$PALENTRY(5,4)$","5:0:8;0:0:255")==0);
+	CHECK(f.errors==0 && query(&f,"$CUR(PAL)$:$INUSE(PAL,6)$:$PALENTRY(5,4)$","5:0:6;0:0:63")==0);
 	CHECK(query(&f,"$PROT(PAL,5)$","")==0);
 	CHECK(append(&f,"!|h010000014306\r")==0 && pump(&f)==0 && f.errors==0);
-	CHECK(query(&f,"$CUR(PAL)$:$ISPROT(PAL,5)$:$PALENTRY(5,4)$alive","5:1:8;0:0:255alive")==0);
+	CHECK(query(&f,"$CUR(PAL)$:$ISPROT(PAL,5)$:$PALENTRY(5,4)$alive","5:1:6;0:0:63alive")==0);
 	st_rip3_session_destroy(f.session);
 	CHECK(st_rip3_session_test_live==0);
 	return 0;

@@ -303,20 +303,21 @@ def run(args):
                                   + commands(region((161, 130, 184, 140), 2, 11)) + accent + b"\r\n!|1E\r\n")
         check_pixels(frame, (126, 128, 187, 142), [(130, 130, CAPITAL_A, GREEN), (161, 130, ACCENT, GREEN)])
 
-        terminal.case("An open article flows cached TXT content as literal prose")
+        terminal.case("A cached TXT scene executes RIP before routing ordinary bytes into its article")
         shared = root / "RIP"
         shared.mkdir(exist_ok=True)
         (shared / "Story.txt").write_bytes(b"!|c04\r\nA")
         frame = wire(extended((195, 100, 250, 121), 0, 8, 0), b"1R00000000STORY.TXT", b"1E",
                      b"X" + number(193, 2) + number(97, 2))
-        assert plane_pixel(frame, 193, 97, "primary") == GREEN
-        assert any(plane_pixel(frame, x, y, "primary") == GREEN
-                   for x in range(195, 251) for y in range(100, 111))
+        assert plane_pixel(frame, 193, 97, "primary") == RED
+        check_pixels(frame, (194, 99, 251, 122), [(195, 100, CAPITAL_A, RED)])
 
-        terminal.case("The scene macro also feeds cached prose into an open article")
-        (shared / "Accent.txt").write_bytes(accent)
+        terminal.case("The scene macro uses the same framing and leaves the article open")
+        (shared / "Accent.txt").write_bytes(b"!|c02\n" + accent)
         frame = terminal.exchange(commands(extended((195, 150, 250, 171), 0, 8, 0))
-                                  + query(b"$>Accent.TXT$ready", at_cursor=True) + commands(b"1E"), b"ready")
+                                  + query(b"$>Accent.TXT$ready", at_cursor=True)
+                                  + commands(b"1E", b"X" + number(189, 2) + number(147, 2)), b"ready")
+        assert plane_pixel(frame, 189, 147, "primary") == GREEN
         check_pixels(frame, (191, 146, 254, 174), [(195, 150, ACCENT, GREEN)])
 
         terminal.case("Extended columns expand search words and highlight complete tokens")
