@@ -25,9 +25,14 @@ void st_rip3_palettes_destroy(struct st_rip3_palettes *palettes);
 int st_rip3_palettes_current(const struct st_rip3_palettes *palettes, unsigned *result);
 int st_rip3_palettes_info(const struct st_rip3_palettes *palettes,
 	unsigned number, struct st_rip3_palette_info *result);
+/* First use selects and defines the slot even when protection prevents
+ * restoring its defaults. In that case its RGB survives and the status
+ * reports the rejected reset. */
 int st_rip3_palettes_switch(struct st_rip3_palettes *palettes, unsigned number);
 int st_rip3_palettes_protect(struct st_rip3_palettes *palettes,
 	unsigned number, bool protect);
+/* Wire switch flags can protect a currently selected undefined slot. */
+int st_rip3_palettes_protect_current(struct st_rip3_palettes *palettes, bool protect);
 /* Copies a defined entry to caller-owned storage; undefined reads fail without
  * changing result. No mutable palette/table memory is exposed to callers. */
 int st_rip3_palettes_get(const struct st_rip3_palettes *palettes,

@@ -430,6 +430,24 @@ def run(args, width, height):
         clipboard_actions(t, values, wire, width, height)
         port_zero_actions(t, values, wire, width, height)
 
+        t.case('rip3-drawing-palette-writes-and-switches-recolour-existing-art')
+        wire(b'*')
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        frame = t.exchange(b'\x01|2A700|d0#80Fy0|2A500|D020#8&m004ZHM|c1Q|X0A0A|c1R|X0B0B\r\n'
+                           + query(b'$CUR(PAL)$:$PALENTRY(CUR,62,63)$', at_cursor=True),
+                           b'5:8;255:0:0,18:52:86')
+        assert pixel(frame, 10, 10) == 0xff0000 and pixel(frame, 11, 11) == 0x123456
+        frame = t.exchange(b'\x01|2A705|d0#8&m00\r\n'
+                           + query(b'$CUR(PAL)$:$ISPROT(PAL,5)$:$ISPROT(PAL,7)$', at_cursor=True),
+                           b'7:1:1')
+        assert pixel(frame, 10, 10) == 0x00ff00
+        frame = t.exchange(b'\x01|2A50F|D020&8&m00?000|d0#84ZHM\r\n'
+                           + query(b'$ISPROT(PAL,5)$:$ISPROT(PAL,7)$:$PALENTRY(CUR,62,63)$',
+                                   at_cursor=True),
+                           b'0:0:8;18:52:86,18:52:86')
+        assert pixel(frame, 10, 10) == pixel(frame, 11, 11) == 0x123456
+        assert frame.application['connected'] == 1
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

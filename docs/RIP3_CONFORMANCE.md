@@ -1316,12 +1316,10 @@ Native CMake build and all 60 selected RIP3/preservation/shared-audio tests pass
 Valgrind reports no errors, leaked allocations or file descriptors in the new
 fixture. The frozen RIP154 preservation check remains unchanged.
 
-D/d decoding remains blocked: canonical metadata follows current Base Math,
-while driver/corpus evidence forces UltraNum for the entire command. Component
-precision below eight also needs an explicit shipping-driver rule, distinguished
-from direct drawing mode. These questions are recorded in
+The original D/d radix and precision conflicts were recorded in
 [issue #2's palette clarification](https://github.com/bbs-land/remote-imaging-protocol/issues/2#issuecomment-6920509860).
-Raw framing, reset orchestration and active v3 session routing remain pending.
+The [connected palette commands](#connected-drawing-palette-commands) now
+follow the verified original wire behavior.
 
 `rip3_stream` adds incremental byte framing independent of the legacy parser.
 It recognizes line-start ! and anywhere SOH/STX, uses an optional text-window
@@ -1651,10 +1649,10 @@ remain pending, so the mixed overlap requirement is not marked complete.
 The native CMake build and all 70 selected RIP3/preservation/shared-audio tests
 pass. Native Valgrind reports no errors or leaked allocations/descriptors in the
 expanded drawing fixture. All 93 frozen files and 41 legacy helper definitions
-remain unchanged. The palette-switch wire section has also been reviewed:
-its two-digit selector conflicts with the shipping Switch-family report under
-#2, so `2A` remains unsupported and its conflicting syntax is now blocked in the
-ledger. No reference revision or legacy routing changed.
+remain unchanged. The documented two-digit palette selector conflicts with
+the shipping Switch-family layout under #2. The
+[connected palette commands](#connected-drawing-palette-commands) use the
+verified one-digit slot and trailing flags.
 
 The complete-command fixture now covers `3e` decoding into the current ENV baud
 rate. Its one-to-four-digit field follows the current radix, independently of
@@ -8924,6 +8922,35 @@ for the [connected pick-list implementation](#connected-pick-lists). [PR #162](h
 
 The queue contains 2511 implemented, 1684 pending, 2930 unreviewed,
 1551 context, 67 excluded and 32 blocked units.
+
+## Connected drawing palette commands
+
+`D` writes a block of packed RGB colors to the current drawing palette, and
+`d` writes one entry. Every field uses base 64, including count, start,
+entry and precision. Both accept only precision 8. The block carries its
+declared number of colors, allows a shortened final value, and may be empty.
+SyncTERM validates the entire block and its range within the palette before
+changing any entries. A protected current slot rejects both writes.
+
+`2A` reads a one-digit slot and one or two flag digits at the current
+Base Math. Base 36 requires uppercase letters. Flags 4 and 8 protect and
+unprotect the original palette, then
+selection runs, then flags 1 and 2 protect and unprotect the selected palette.
+Flag actions run in that order, including after an attempt to protect slot
+zero. The published `2A04` example selects slot zero with source-protection
+flag 4 in the original parser. [Wire grammar discrepancy #2](https://github.com/bbs-land/remote-imaging-protocol/issues/2)
+
+Native probes of the RIPtel 3.1 DLL exercised the wire parser and the
+original `D` (RVA `0x1f46a`), `d` (`0x1cf95`) and `2A` (`0x46c64`)
+handlers with controlled GDI calls. The original records store six-bit
+components, and immediate single-entry publication can use the original
+eight-bit input. SyncTERM keeps the submitted eight-bit values in its
+indexed renderer and reports them through PALENTRY. The portable
+publication and storage rule remains open. [Documentation issue #174](https://github.com/bbs-land/remote-imaging-protocol/issues/174)
+
+Native tests compare palette values, source and destination protection,
+full-block bounds, decode failures and recovery. Live CP437 and UTF-8
+fixtures check PALENTRY replies and recoloring of existing indexed graphics.
 
 ## Connected tone variables
 

@@ -1004,6 +1004,10 @@ sizes. Native fixtures exercise open and metadata failures. [RIPv3 file-query co
 graphical fields. Connected CP437 and UTF-8 fixtures verify the cache lookup,
 alias rewriting and malformed-reference recovery. [RIPv3 FILEEXISTS coverage](RIP3_CONFORMANCE.md#connected-fileexists)
 
+RIPv3 `D`, `d` and `2A` update and select the current drawing palette.
+Live CP437 and UTF-8 fixtures verify PALENTRY replies, protection and
+recoloring of existing indexed pixels. [RIPv3 palette coverage](RIP3_CONFORMANCE.md#connected-drawing-palette-commands)
+
 RIPv3 tone variables use the mixer and resume the invoking query after
 playback. Native request and PCM fixtures cover the tone sequences and
 cancellation. Live CP437 and UTF-8 fixtures verify expansion and invalid

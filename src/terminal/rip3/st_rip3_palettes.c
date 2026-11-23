@@ -62,16 +62,17 @@ st_rip3_palettes_info(const struct st_rip3_palettes *palettes,
 int
 st_rip3_palettes_switch(struct st_rip3_palettes *palettes, unsigned number)
 {
+	int status = 0;
 	if (palettes == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (number >= 36)
 		return IO_ERROR_OUT_OF_RANGE;
 	if (!palettes->entries[number].info.defined) {
-		(void)st_rip3_palette_defaults(&palettes->entries[number].palette);
+		status = st_rip3_palettes_reset_entry(palettes, number);
 		palettes->entries[number].info.defined = true;
 	}
 	palettes->current = number;
-	return 0;
+	return status;
 }
 
 int
@@ -84,6 +85,17 @@ st_rip3_palettes_protect(struct st_rip3_palettes *palettes,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (palettes->entries[number].info.defined)
 		palettes->entries[number].info.protected = protect;
+	return 0;
+}
+
+int
+st_rip3_palettes_protect_current(struct st_rip3_palettes *palettes, bool protect)
+{
+	if (palettes == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (palettes->current == 0 && protect)
+		return IO_ERROR_OUT_OF_RANGE;
+	palettes->entries[palettes->current].info.protected = protect;
 	return 0;
 }
 

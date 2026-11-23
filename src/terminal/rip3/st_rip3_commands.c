@@ -120,6 +120,97 @@ desktop_palette(const struct st_rip3_command_host *host,
 }
 
 static int
+drawing_palette(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	bool block = command[0] == 'D';
+	uint64_t entries = 1, start, bits;
+	size_t offset = block ? 3 : 1;
+	uint32_t colors[256];
+	int status = 0;
+
+	if (length < (block ? 6u : 5u))
+		return IO_ERROR_INVALID_FORMAT;
+	/* Unlike desktop palette commands, both descriptors force UltraNums
+	 * for header fields as well as the packed colors. */
+	if (block)
+		status = st_rip3_command_field(&entries, command + 1, 2, 64);
+	if (status == 0)
+		status = st_rip3_command_field(&start, command + offset, 2, 64);
+	if (status == 0)
+		status = st_rip3_command_field(&bits, command + offset + 2, 1, 64);
+	if (status != 0)
+		return status;
+	if (start > 255 || entries > 256 - start || bits != 8)
+		return IO_ERROR_OUT_OF_RANGE;
+	offset += 3;
+	size_t payload = length - offset;
+	if (block && payload / 4 + (payload % 4 != 0) != entries)
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 0; i < entries; i++) {
+		uint64_t color;
+		size_t width = length - offset;
+		/* The last color can be short. The fixed d record stops after
+		 * four digits, while the variable D record counts its whole tail. */
+		if (width > 4)
+			width = 4;
+		status = st_rip3_command_field(&color, command + offset, width, 64);
+		if (status != 0)
+			return status;
+		colors[i] = (uint32_t)color;
+		offset += width;
+	}
+	if (host->palettes == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	*operation = true;
+	return st_rip3_palettes_rgb(host->palettes, (size_t)start, 8, colors, (size_t)entries);
+}
+
+static int
+switch_palette(const struct st_rip3_command_host *host, const uint8_t *command,
+    size_t length, bool *operation, const struct st_rip3_command_sink *sink)
+{
+	struct st_rip3_environment environment;
+	unsigned current;
+	uint64_t target, flags;
+
+	if (length < 4)
+		return IO_ERROR_INVALID_FORMAT;
+	int status = st_rip3_command_environment(host, &current, &environment);
+	if (status != 0)
+		return status;
+	size_t flag_width = length >= 5 ? 2 : 1;
+	if (environment.base_math == 36) {
+		for (size_t i = 2; i < 3 + flag_width; i++) {
+			if (command[i] >= 'a' && command[i] <= 'z')
+				return IO_ERROR_INVALID_FORMAT;
+		}
+	}
+	status = st_rip3_command_field(&target, command + 2, 1, environment.base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&flags, command + 3, flag_width, environment.base_math);
+	if (status != 0)
+		return status;
+	if (target >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (host->palettes == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	*operation = true;
+	/* Protect then unprotect on each side of selection. In the driver a
+	 * failed protection request is diagnostic and leaves the sequence live. */
+	if (flags & 4)
+		st_rip3_command_result(sink, st_rip3_palettes_protect_current(host->palettes, true), true);
+	if (flags & 8)
+		st_rip3_command_result(sink, st_rip3_palettes_protect_current(host->palettes, false), true);
+	st_rip3_command_result(sink, st_rip3_palettes_switch(host->palettes, (unsigned)target), true);
+	if (flags & 1)
+		st_rip3_command_result(sink, st_rip3_palettes_protect_current(host->palettes, true), true);
+	if (flags & 2)
+		st_rip3_command_result(sink, st_rip3_palettes_protect_current(host->palettes, false), true);
+	return 0;
+}
+
+static int
 host_query(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
@@ -410,6 +501,8 @@ execute(const struct st_rip3_command_host *host,
 	}
 	if (length >= 2 && command[0] == '2' && command[1] == 'Y')
 		return switch_style(host,command,length,operation,sink);
+	if (length >= 2 && command[0] == '2' && command[1] == 'A')
+		return switch_palette(host, command, length, operation, sink);
 	if (length >= 2 && command[0] == '2' && command[1] == 'E')
 		return switch_environment(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'T')
@@ -480,6 +573,8 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_drawing_commands_execute(host, command, length, operation);
 	if (command[0] == 'Q' || command[0] == 'a')
 		return desktop_palette(host, command, length, operation);
+	if (command[0] == 'D' || command[0] == 'd')
+		return drawing_palette(host, command, length, operation);
 	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f' && !baud && !delay)
 		return IO_ERROR_NOT_SUPPORTED;
 	arguments = command + (baud || delay ? 2 : 1); count = length - (baud || delay ? 2 : 1);
