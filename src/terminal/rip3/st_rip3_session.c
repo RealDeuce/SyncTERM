@@ -161,9 +161,7 @@ overflow_reference(void *context, const struct st_rip3_builtin_reference *refere
 	if (strcmp(words.name, "RESET") == 0) {
 		if (words.count != 1 || ascii_case_compare(words.parameters[0].text, "OVERFLOW") != 0)
 			return IO_ERROR_NOT_SUPPORTED;
-		status = st_rip3_overflow_close(overflow);
-		st_rip3_columns_reset(columns, true);
-		return status;
+		return st_rip3_columns_reset(columns, true);
 	}
 	if (words.count > 3)
 		return IO_ERROR_INVALID_FORMAT;
@@ -229,8 +227,7 @@ overflow_reference(void *context, const struct st_rip3_builtin_reference *refere
 		if (destination > INT16_MAX)
 			destination -= INT32_C(65536);
 	}
-	if (article == columns->article)
-		status = st_rip3_overflow_close(overflow);
+	status = st_rip3_overflow_close(overflow, article);
 	if (status == 0)
 		state->page = destination;
 	return status;
@@ -570,8 +567,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	 * graphical consumer. Table/viewport operations never use this path. */
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	session->metric=(struct st_rip3_metric_state){0};
-	int overflow_status=st_rip3_overflow_close(&session->columns.overflow);
-	st_rip3_columns_reset(&session->columns,hard);
+	int overflow_status=st_rip3_columns_reset(&session->columns,hard);
 	if (overflow_status!=0) table_operation_failed(session,overflow_status);
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
@@ -1393,6 +1389,26 @@ define_column(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 }
 
 static int
+select_article(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	if (length != 8)
+		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_environment env;
+	unsigned current;
+	uint64_t article, reserved;
+	int status = st_rip3_command_environment(&session->commands, &current, &env);
+	if (status == 0)
+		status = st_rip3_command_field(&article, bytes + 2, 2, env.base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&reserved, bytes + 4, 4, env.base_math);
+	if (status != 0)
+		return status;
+	if (article >= ST_RIP3_ARTICLE_COUNT)
+		return IO_ERROR_OUT_OF_RANGE;
+	return st_rip3_columns_select(&session->columns, &session->commands, (unsigned)article);
+}
+
+static int
 region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
 	if (length < 3 || (bytes[2] != '0' && bytes[2] != '1'))
@@ -1428,6 +1444,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		read_scene(session,bytes,length);
 	else if (length >= 2 && bytes[0] == '1' && (bytes[1] == 'T' || bytes[1] == 'e'))
 		st_rip3_command_result(&sink, define_column(session,bytes,length), false);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'A')
+		st_rip3_command_result(&sink, select_article(session,bytes,length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 't')
 		st_rip3_command_result(&sink, region_text(session,bytes,length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'E') {

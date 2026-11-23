@@ -1005,6 +1005,11 @@ RIPv3 `1e` and nonzero-article `1T` accept inline or cached text. The same
 connected fixtures check wrapping, search highlighting, definition changes
 and return to ANSI at `1E` or `#`. [RIPv3 article coverage](RIP3_CONFORMANCE.md#connected-raw-article-flow-and-search-highlighting)
 
+RIPv3 `1A` switches between independent article cursors and keeps their overflow
+streams open. Connected CP437 and UTF-8 fixtures verify interleaved articles,
+saved source replay, article zero, and malformed selectors.
+[RIPv3 selection coverage](RIP3_CONFORMANCE.md#connected-article-selection)
+
 RIPv3 `$OVERFLOW$` drives continuation scenes through the live connection.
 Connected CP437 and UTF-8 fixtures click a pager field and verify saved-page
 rendering, boundary recovery, reset scope and cache cleanup. Native tests

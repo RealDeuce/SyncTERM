@@ -19,17 +19,16 @@ struct st_rip3_saved_page {
 };
 
 bool
-st_rip3_overflow_writing_remainder(const struct st_rip3_overflow *overflow)
+st_rip3_overflow_writing_remainder(const struct st_rip3_overflow *overflow, unsigned article)
 {
-	return overflow->remainder != NULL;
+	return overflow->articles[article].remainder != NULL;
 }
 
 int32_t
 st_rip3_overflow_frontier(const struct st_rip3_overflow *overflow, unsigned article)
 {
-	if (overflow->remainder != NULL && overflow->remainder->article == article)
-		return overflow->remainder->page;
-	return overflow->articles[article].frontier;
+	const struct st_rip3_overflow_article *state = &overflow->articles[article];
+	return state->remainder != NULL ? state->remainder->page : state->frontier;
 }
 
 int
@@ -79,22 +78,22 @@ int
 st_rip3_overflow_source(struct st_rip3_overflow *overflow, const struct st_rip3_resource_paths *paths,
     unsigned article, uint8_t byte)
 {
-	const struct st_rip3_overflow_article *state = &overflow->articles[article];
+	struct st_rip3_overflow_article *state = &overflow->articles[article];
 	if (!state->enabled || state->captured || state->page != 0 || state->frontier != 0)
 		return 0;
-	return output(&overflow->source, paths, article, 0, &byte, 1);
+	return output(&state->source, paths, article, 0, &byte, 1);
 }
 
 int
 st_rip3_overflow_remainder(struct st_rip3_overflow *overflow, const struct st_rip3_resource_paths *paths,
     unsigned article, const uint8_t *bytes, size_t length)
 {
-	const struct st_rip3_overflow_article *state = &overflow->articles[article];
+	struct st_rip3_overflow_article *state = &overflow->articles[article];
 	if (!state->enabled || length == 0)
 		return 0;
 	if (state->page == INT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
-	return output(&overflow->remainder, paths, article, state->page + 1, bytes, length);
+	return output(&state->remainder, paths, article, state->page + 1, bytes, length);
 }
 
 static int
@@ -123,22 +122,20 @@ publish(struct st_rip3_overflow *overflow, struct st_rip3_saved_page *page, bool
 }
 
 int
-st_rip3_overflow_close(struct st_rip3_overflow *overflow)
+st_rip3_overflow_close(struct st_rip3_overflow *overflow, unsigned article)
 {
-	int status = publish(overflow, overflow->source, true);
-	int next_status = publish(overflow, overflow->remainder, false);
-	overflow->source = NULL;
-	overflow->remainder = NULL;
+	struct st_rip3_overflow_article *state = &overflow->articles[article];
+	int status = publish(overflow, state->source, true);
+	int next_status = publish(overflow, state->remainder, false);
+	state->source = NULL;
+	state->remainder = NULL;
 	return status == 0 ? next_status : status;
 }
 
 int
 st_rip3_overflow_reset_article(struct st_rip3_overflow *overflow, unsigned article)
 {
-	int status = 0;
-	if ((overflow->source != NULL && overflow->source->article == article)
-	    || (overflow->remainder != NULL && overflow->remainder->article == article))
-		status = st_rip3_overflow_close(overflow);
+	int status = st_rip3_overflow_close(overflow, article);
 	overflow->articles[article] = (struct st_rip3_overflow_article){0};
 	for (struct st_rip3_saved_page *page = overflow->pages; page != NULL; page = page->next)
 		if (page->article == article)
@@ -146,14 +143,14 @@ st_rip3_overflow_reset_article(struct st_rip3_overflow *overflow, unsigned artic
 	return status;
 }
 
-void
+int
 st_rip3_overflow_reset(struct st_rip3_overflow *overflow, bool hard)
 {
-	discard(overflow->source);
-	discard(overflow->remainder);
-	overflow->source = NULL;
-	overflow->remainder = NULL;
+	int status = 0;
 	for (unsigned n = 0; n < ST_RIP3_ARTICLE_COUNT; ++n) {
+		int closed = st_rip3_overflow_close(overflow, n);
+		if (status == 0)
+			status = closed;
 		if (hard)
 			overflow->articles[n] = (struct st_rip3_overflow_article){0};
 		else
@@ -162,12 +159,16 @@ st_rip3_overflow_reset(struct st_rip3_overflow *overflow, bool hard)
 	if (hard)
 		for (struct st_rip3_saved_page *page = overflow->pages; page != NULL; page = page->next)
 			page->visible = false;
+	return status;
 }
 
 void
 st_rip3_overflow_dispose(struct st_rip3_overflow *overflow)
 {
-	st_rip3_overflow_reset(overflow, true);
+	for (unsigned n = 0; n < ST_RIP3_ARTICLE_COUNT; ++n) {
+		discard(overflow->articles[n].source);
+		discard(overflow->articles[n].remainder);
+	}
 	while (overflow->pages != NULL) {
 		struct st_rip3_saved_page *page = overflow->pages;
 		overflow->pages = page->next;
@@ -209,8 +210,11 @@ st_rip3_overflow_open(struct st_rip3_overflow *overflow, const char *name,
 	if (strspn(index, "0123456789") != (size_t)(name + length - 4 - index))
 		return IO_ERROR_NOT_FOUND;
 	*recognized = true;
-	if (page_named(overflow, overflow->source, name) || page_named(overflow, overflow->remainder, name)) {
-		int status = st_rip3_overflow_close(overflow);
+	unsigned number = article <= '9' ? (unsigned)(article - '0')
+	    : (unsigned)(article >= 'a' ? article - 'a' : article - 'A') + 10;
+	const struct st_rip3_overflow_article *state = &overflow->articles[number];
+	if (page_named(overflow, state->source, name) || page_named(overflow, state->remainder, name)) {
+		int status = st_rip3_overflow_close(overflow, number);
 		if (status != 0)
 			return status;
 	}

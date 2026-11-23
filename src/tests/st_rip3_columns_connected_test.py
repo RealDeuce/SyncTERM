@@ -29,6 +29,10 @@ def extended(area, column, article, flags, color=0, words=b""):
     return b"1e" + region(area, column, article)[2:] + number(flags, 4) + number(color, 2) + b"0" * 8 + words
 
 
+def select(article, reserved=b"0000"):
+    return b"1A" + number(article, 2) + reserved
+
+
 def commands(*parts):
     return b"\x01|" + b"|".join(parts) + b"\r\n"
 
@@ -109,6 +113,56 @@ def check_overflow(terminal, root, accent):
     values(b"$OVERFLOW(14,NEXT)$$RESET(HARD)$$OVERFLOW(14,PAGE)$:$OVERFLOW()$", b"1:<NONE>")
     assert list(cache.glob(".rip3-overflow-*.part"))
     return cache
+
+
+def check_selection(terminal, accent):
+    terminal.case("Selecting another article flushes prose and preserves both cursors")
+    frame = terminal.exchange(
+        commands(b"c02", region((195, 310, 202, 332), 15, 15),
+                 region((220, 310, 227, 332), 16, 16), select(15, b"ZZZZ"))
+        + b"A\r\n" + commands(select(16))
+        + accent + b"\r\n" + commands(select(15))
+        + b"A\r\n" + commands(select(15))
+        + accent + b"\r\n" + commands(select(16))
+        + b"A\r\n" + commands(b"1E"))
+    check_pixels(frame, (192, 309, 229, 335),
+                 [(195, 310, CAPITAL_A, GREEN), (195, 321, ACCENT, GREEN),
+                  (220, 310, ACCENT, GREEN), (220, 321, CAPITAL_A, GREEN)])
+
+    terminal.case("Article zero accepts prewrapped text and ordinary bytes after end")
+    frame = terminal.exchange(
+        commands(region((245, 310, 252, 342), 0, 0), b"1t0A", b"1E",
+                 b"1t0" + accent, b"#", select(35), b"1t0" + accent)
+        + b"\x1b[4;2HNO COL\x1b[6n\r\n" + commands(select(0), b"1t0A")
+        + b"\x1b[3;2HOK", b"\x1b[4;8R")
+    check_pixels(frame, (242, 309, 254, 344),
+                 [(245, 310, CAPITAL_A, GREEN), (245, 321, ACCENT, GREEN), (245, 332, CAPITAL_A, GREEN)])
+    assert frame.lines[2][1:3] == "OK"
+
+    terminal.case("Invalid selectors retain the current selection and allow the next command")
+    terminal.exchange(commands(extended((270, 310, 277, 320), 17, 17, 1), b"1E")
+                      + query(b"$BASEMATH(CUR,64)$", at_cursor=True))
+    reply = re.compile(rb"\d{3,5}H0000\.OVR:alive")
+    terminal.exchange(
+        commands(select(17, b"00#&"), b"1A0a0000", b"1A00", b"1A00!!!!", b"1E")
+        + query(b"$OVERFLOW()$:alive$BASEMATH(CUR,36)$", at_cursor=True), reply)
+
+    terminal.case("Switching articles keeps each original overflow source open for more text")
+    left = extended((310, 350, 317, 360), 18, 18, 1)
+    right = extended((340, 350, 347, 360), 19, 19, 1)
+    terminal.exchange(
+        commands(left, right, select(18)) + b"A\r\n"
+        + commands(select(19)) + accent + b"\r\n"
+        + commands(select(18)) + accent + b"\r\n"
+        + commands(select(19)) + b"A\r\n" + commands(b"1E", select(18), b"1E"))
+    terminal.exchange(query(b"$OVERFLOW(18,NEXT,QUERY)$:$OVERFLOW(19,NEXT,QUERY)$", at_cursor=True),
+                      re.compile(rb"(\d{3,5})I0001\.OVR:\1J0001\.OVR"))
+    frame = terminal.exchange(commands(
+        extended((310, 370, 333, 380), 18, 18, 1), b"1R00000000$OVERFLOW(18)$", b"1E",
+        extended((340, 370, 363, 380), 19, 19, 1), b"1R00000000$OVERFLOW(19)$", b"1E"))
+    check_pixels(frame, (309, 369, 364, 381),
+                 [(310, 370, CAPITAL_A, GREEN), (326, 370, ACCENT, GREEN),
+                  (340, 370, ACCENT, GREEN), (356, 370, CAPITAL_A, GREEN)])
 
 
 def run(args):
@@ -200,6 +254,7 @@ def run(args):
 
         cache = check_overflow(terminal, root, accent)
         terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
+        check_selection(terminal, accent)
 
         terminal.case("RIPv3 regions use the selected outline font and preserve the drawing cursor")
         wire(full_view, b"m8C8C", b"c04",

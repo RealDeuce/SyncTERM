@@ -309,13 +309,14 @@ draw_line(void *context, struct st_rip3_point origin)
 static const struct st_rip3_column *
 available_column(struct st_rip3_columns *columns, int64_t line_height)
 {
-	while (columns->current < ST_RIP3_COLUMN_COUNT) {
-		const struct st_rip3_column *slot = &columns->slots[columns->current];
+	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
+	while (cursor->slot < ST_RIP3_COLUMN_COUNT) {
+		const struct st_rip3_column *slot = &columns->slots[cursor->slot];
 		int64_t height = (int64_t)slot->area.y1 - slot->area.y0 + 1;
-		if (slot->defined && slot->article == columns->article && line_height <= height - columns->offset)
+		if (slot->defined && slot->article == columns->article && line_height <= height - cursor->offset)
 			return slot;
-		++columns->current;
-		columns->offset = 0;
+		++cursor->slot;
+		cursor->offset = 0;
 	}
 	return NULL;
 }
@@ -323,15 +324,16 @@ available_column(struct st_rip3_columns *columns, int64_t line_height)
 static int
 paint_line(struct st_rip3_columns *columns, struct column_line *line, const struct st_rip3_column *slot)
 {
+	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
 	line->x = slot->area.x0;
-	line->y = (int32_t)(slot->area.y0 + columns->offset);
+	line->y = (int32_t)(slot->area.y0 + cursor->offset);
 	line->width = (double)slot->area.x1 - slot->area.x0 + 1;
 	line->search = &slot->search;
 	int status = 0;
 	if (line->length != 0)
 		status = st_rip3_ports_draw_clipped(line->host->ports, &slot->area, draw_line, line);
 	if (status == 0)
-		columns->offset += line->height;
+		cursor->offset += line->height;
 	return status;
 }
 
@@ -492,7 +494,8 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
     const uint8_t *bytes, size_t length, bool *changed)
 {
 	bool retain = columns->overflow.articles[columns->article].enabled;
-	if (!retain && columns->current == ST_RIP3_COLUMN_COUNT)
+	const struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
+	if (!retain && cursor->slot == ST_RIP3_COLUMN_COUNT)
 		return 0;
 	if (columns->flow == NULL) {
 		columns->flow = calloc(1, sizeof(*columns->flow));
@@ -505,7 +508,7 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
 		uint8_t byte = bytes[i];
 		if (retain && !flow->retention_failed) {
 			storage_status = st_rip3_overflow_source(&columns->overflow, host->resources, columns->article, byte);
-			if (storage_status == 0 && st_rip3_overflow_writing_remainder(&columns->overflow)) {
+			if (storage_status == 0 && st_rip3_overflow_writing_remainder(&columns->overflow, columns->article)) {
 				storage_status = st_rip3_overflow_remainder(&columns->overflow, host->resources,
 				    columns->article, &byte, 1);
 				if (storage_status == 0)
@@ -515,7 +518,7 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
 				storage_status = append_bytes(&flow->pending, &byte, 1);
 			flow->retention_failed = storage_status != 0;
 		}
-		if (columns->current == ST_RIP3_COLUMN_COUNT && (!retain || flow->retention_failed))
+		if (cursor->slot == ST_RIP3_COLUMN_COUNT && (!retain || flow->retention_failed))
 			continue;
 		bool lf_after_cr = flow->previous_cr && byte == '\n';
 		flow->previous_cr = byte == '\r';
@@ -569,8 +572,10 @@ clear_flow(struct st_rip3_columns *columns)
 int
 st_rip3_columns_end(struct st_rip3_columns *columns, const struct st_rip3_command_host *host)
 {
+	if (columns->article == 0)
+		return 0;
 	int status = flush_pending(columns, host);
-	int output_status = st_rip3_overflow_close(&columns->overflow);
+	int output_status = st_rip3_overflow_close(&columns->overflow, columns->article);
 	clear_flow(columns);
 	columns->active = false;
 	return status == 0 ? output_status : status;
@@ -583,16 +588,15 @@ st_rip3_columns_invalidate(struct st_rip3_columns *columns)
 		columns->flow->prepared = false;
 }
 
-void
+int
 st_rip3_columns_reset(struct st_rip3_columns *columns, bool hard)
 {
 	clear_flow(columns);
 	memset(columns->slots, 0, sizeof(columns->slots));
+	memset(columns->cursors, 0, sizeof(columns->cursors));
 	columns->active = false;
 	columns->article = 0;
-	columns->current = 0;
-	columns->offset = 0;
-	st_rip3_overflow_reset(&columns->overflow, hard);
+	return st_rip3_overflow_reset(&columns->overflow, hard);
 }
 
 void
@@ -601,6 +605,23 @@ st_rip3_columns_dispose(struct st_rip3_columns *columns)
 	clear_flow(columns);
 	st_rip3_overflow_dispose(&columns->overflow);
 	*columns = (struct st_rip3_columns){0};
+}
+
+int
+st_rip3_columns_select(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
+    unsigned article)
+{
+	int status = columns->article != article ? flush_pending(columns, host) : 0;
+	clear_flow(columns);
+	columns->article = article;
+	columns->active = false;
+	for (size_t i = 0; i < ST_RIP3_COLUMN_COUNT; ++i) {
+		if (columns->slots[i].defined && columns->slots[i].article == article) {
+			columns->active = true;
+			break;
+		}
+	}
+	return status;
 }
 
 int
@@ -639,13 +660,9 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 		if (search.count == 0)
 			return IO_ERROR_INVALID_FORMAT;
 	}
-	int status = 0;
-	if (columns->article != definition->article)
-		status = flush_pending(columns, host);
-	int output_status = st_rip3_overflow_close(&columns->overflow);
-	if (status == 0)
-		status = output_status;
-	clear_flow(columns);
+	unsigned article = definition->article;
+	int status = st_rip3_overflow_close(&columns->overflow, article);
+	columns->cursors[article] = (struct st_rip3_column_cursor){0};
 	struct st_rip3_column *slot = &columns->slots[definition->slot];
 	slot->area = definition->area;
 	slot->article = definition->article;
@@ -654,10 +671,9 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 		slot->search = search;
 		columns->overflow.articles[definition->article].enabled = (definition->flags & 1) != 0;
 	}
-	columns->article = definition->article;
-	columns->current = 0;
-	columns->offset = 0;
-	columns->active = true;
+	int selection_status = st_rip3_columns_select(columns, host, article);
+	if (status == 0)
+		status = selection_status;
 	/* Original reports excess words after installing the first eight. */
 	return status == 0 && truncated ? IO_ERROR_OUT_OF_RANGE : status;
 }
@@ -666,7 +682,7 @@ int
 st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
     const uint8_t *text, size_t length, bool justify)
 {
-	if (!columns->active || columns->current == ST_RIP3_COLUMN_COUNT)
+	if (!columns->active || columns->cursors[columns->article].slot == ST_RIP3_COLUMN_COUNT)
 		return 0;
 	int status = flush_pending(columns, host);
 	if (status != 0)

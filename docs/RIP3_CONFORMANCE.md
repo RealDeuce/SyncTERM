@@ -9169,7 +9169,9 @@ and draws it horizontally with the live classic or outline font, drawing
 color and write mode. SyncTERM visits the selected article's columns in slot
 order, uses the current font metrics for each line step, and clips ink to the
 column and viewport. Full justification distributes spare width between words.
-`1E` and `#` end the block. Drawing resets remove its column definitions.
+`1E` and `#` end the block for a nonzero article. The legacy article zero
+still accepts prewrapped lines after either command. Drawing resets remove
+the column definitions.
 
 Connected CP437 and UTF-8 cases compare both pixel planes with original
 MicroANSI glyph masks. They exercise corner normalization, justification,
@@ -9189,8 +9191,8 @@ order. An overwide word stays on one line and clips to its column.
 `1e` defines a column at current Base Math and coordinate width. Its optional
 search list uses graphical variable expansion and matches complete words
 caselessly. Each match changes the word's foreground to the requested palette
-index. `1T` retains the slot's search list. Before a successful redefinition,
-changing articles flushes pending prose. Redefining the active article drops
+index. `1T` retains the slot's search list. Changing articles flushes pending
+prose. Redefining the active article drops
 its pending prose and rewinds to the first column. `1E` and `#` flush pending
 text and return subsequent ordinary bytes to ANSI.
 
@@ -9198,6 +9200,30 @@ With an article active, `1R` and `$>` treat a cached `.TXT` file as literal
 prose, including bytes that resemble RIP commands. Connected CP437 and UTF-8
 tests exercise wrapping, original glyph masks and colors in both planes,
 paragraph breaks, redefinition, malformed search input and cache lookup.
+
+## Connected article selection
+
+`1A` takes a two-digit article number and four reserved digits in the current
+Base Math. It accepts article numbers 0 through 35 and activates the selected
+article if at least one column belongs to it. Switching articles flushes the previous
+article's pending prose and preserves both drawing positions and open overflow
+streams. Selecting the same article discards pending prose and preserves the
+drawing position. Defining a column rewinds its destination article and closes
+that article's overflow streams.
+
+The RIPtel 3.1 driver verified by the pinned column probe has the `2,4`
+dispatch widths in slot 86. The original selector at RVA `0x00dc58` reads the
+first decoded field and ignores the second. The state helper at `0x03c399`
+scans column ownership and clears the pending buffers. A focused probe of
+those routines and the radix predicate verified both radices, the article
+range, cursor preservation, open-file ownership, and article-zero scene end.
+The upstream wire-description gap is tracked in [issue #2](https://github.com/bbs-land/remote-imaging-protocol/issues/2).
+
+Connected CP437 and UTF-8 tests switch between two articles while rendering,
+check the original glyph masks at both resumed positions, and re-read the
+complete source of each article after switching away and back. They also cover
+a truncated command, malformed reserved digits, and selection of an article
+without columns.
 
 ## Connected article pagination
 

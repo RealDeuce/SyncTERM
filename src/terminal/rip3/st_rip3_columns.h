@@ -36,12 +36,17 @@ struct st_rip3_column_definition {
 
 struct st_rip3_article_flow;
 
+struct st_rip3_column_cursor {
+	unsigned slot;
+	int64_t offset;
+};
+
 struct st_rip3_columns {
 	struct st_rip3_column slots[ST_RIP3_COLUMN_COUNT];
+	struct st_rip3_column_cursor cursors[ST_RIP3_ARTICLE_COUNT];
 	struct st_rip3_overflow overflow;
 	struct st_rip3_article_flow *flow;
-	unsigned article, current;
-	int64_t offset;
+	unsigned article;
 	bool active;
 };
 
@@ -49,6 +54,7 @@ int st_rip3_columns_decode(struct st_rip3_column_definition *, const struct st_r
 	const uint8_t *command, size_t length, size_t *tail);
 int st_rip3_columns_define(struct st_rip3_columns *, const struct st_rip3_command_host *,
 	const struct st_rip3_column_definition *, const uint8_t *words, size_t length, bool converted_codepage);
+int st_rip3_columns_select(struct st_rip3_columns *, const struct st_rip3_command_host *, unsigned article);
 int st_rip3_columns_line(struct st_rip3_columns *, const struct st_rip3_command_host *,
 	const uint8_t *text, size_t length, bool justify);
 bool st_rip3_columns_raw_active(const struct st_rip3_columns *);
@@ -56,7 +62,7 @@ int st_rip3_columns_feed(struct st_rip3_columns *, const struct st_rip3_command_
 	const uint8_t *bytes, size_t length, bool *changed);
 int st_rip3_columns_end(struct st_rip3_columns *, const struct st_rip3_command_host *);
 void st_rip3_columns_invalidate(struct st_rip3_columns *);
-void st_rip3_columns_reset(struct st_rip3_columns *, bool hard);
+int st_rip3_columns_reset(struct st_rip3_columns *, bool hard);
 void st_rip3_columns_dispose(struct st_rip3_columns *);
 
 #endif
