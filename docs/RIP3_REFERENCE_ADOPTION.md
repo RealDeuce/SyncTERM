@@ -1244,3 +1244,19 @@ persists the confirmation policy and preserves the record on cancellation.
 [PR #181](https://github.com/bbs-land/remote-imaging-protocol/pull/181),
 [PR #182](https://github.com/bbs-land/remote-imaging-protocol/pull/182),
 [PR #183](https://github.com/bbs-land/remote-imaging-protocol/pull/183)
+
+## PR #185 COPY_BLIT
+
+Fork stable is pinned at
+[`c486b826e9a0c3d3e6cfa13902fcaf6abf51400a`](https://github.com/RealDeuce/remote-imaging-protocol/tree/c486b826e9a0c3d3e6cfa13902fcaf6abf51400a).
+The stable integration includes the tree from
+[PR #185](https://github.com/bbs-land/remote-imaging-protocol/pull/185)
+head `45c51c9f2c971d2cf1bf9118b3c5e6cd3617d7c4`. The Git tar archive has
+SHA-256 `b6581c5478290a7c2ed35d939e9f87d84cc227ec32f7c2d2cfe4f4f029d06aba`.
+
+Two normative documents change. The index keeps 8,990 source blocks,
+moves 46 line ranges, adds 23 blocks and retires 18, for 9,013 total.
+The #179 derivation records its delivery checkpoint. The other 87 prior
+derivations, original publications and license retain their hashes. The new
+#184 derivation resolves B184 and matches the rules exercised by the existing
+connected COPY_BLIT tests.

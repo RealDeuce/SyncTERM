@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/183",
-  "revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
-  "previous_revision": "831fdb9d8eb20f80f55a6ca9708fcb883614d1ea",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/185",
+  "revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
+  "previous_revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The reviewed open PR heads are consolidated in fork stable, with matching trees at their respective integration commits.",
-  "archive_sha256": "e5d3e51ce657e9bcdb4132eb8719a2c1186a476b1fb2ffef4f26d7bd52fe7d7f",
+  "upstream_state_at_adoption": "The reviewed open PR head is consolidated into the selected fork stable with an identical tree.",
+  "archive_sha256": "b6581c5478290a7c2ed35d939e9f87d84cc227ec32f7c2d2cfe4f4f029d06aba",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,54 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "previous_sha256": "c158002ba7b974fd3428ca4f11c8ac7128f84a531819645153eafaeca4f519bd",
-      "sha256": "99ddee230e7eb4e77cbd7bc83295263194d200dfdf69f35099779b7b58a8cbad"
-    },
-    {
-      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "previous_sha256": "99f0df26095685b92f315ccf37a70c52bf3b19a0a5f749263fad81668f1bac79",
-      "sha256": "4feee28b24003471fd979a8a6691a08c713c041d194d91ee22525e91ad13898f"
-    },
-    {
-      "path": "version/3.0/ripscrip/3.1-column-text-system.md",
-      "previous_sha256": "340c991353450f8494bd788a97f19c30547d07c185628a280c1a9d63c1517861",
-      "sha256": "4af9087c14285658bef8e96a81d52ff1d5a1e728d6964e9f5deb623ae4a946c3"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "previous_sha256": "e11281b5a27edf93b755fb83eaccfdda0f2a58f9f07585e10a454d0b0dd1d57b",
-      "sha256": "aa14c22c1e77e3c99b7d58c57f7aaae04ecb1c4339e32773299b87636c5e44a3"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "48b9b28e05e9b024fb691a49a1d175d1153bf3a24dc8de8d336cdff8746b8e52",
-      "sha256": "6864031d676e5e2de46eb1f308a57fba2f88ece9ef47420244ad9acc480182af"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "previous_sha256": "f735b7001d7d541a109039bc2c501875e854b98e1c8a7d95d649166168e4f344",
-      "sha256": "365c812c12b3aaeff175aceb402cb330ee06740fdad8c311f7f421a53bd0ea3b"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "previous_sha256": "7c330fe16bcd5496d2aa6a970817e5ef719d211d6aedd169b4ffbe4f71a51d80",
-      "sha256": "4fe693d935e9bda03a2a5c667a71917762f0a1a90ca2b8e716aab55b27bab8be"
-    },
-    {
-      "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "previous_sha256": "1f186d0a794793312ab6c290b8ff3d481ce7c76a4f6956bbd21c3a7f961bc958",
-      "sha256": "d6eb849406efe4500a60b4f0022b0af62d0452db93fe53234d0d52627cf77047"
+      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+      "previous_sha256": "f742493e2821582434fbc17c4d379a141d3c27c9ec9d77e42651750ea54690c0",
+      "sha256": "ff1f97068b856f8619183b5b51c2792fe1b141faf7f034fa3144e08a7a58dfb3"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "13028bdac883742c8219e6a39acbfeb3dec354054ff933dd4e411c3a5e656a26",
-      "sha256": "fcb1bcbabf3990cfdb55ec5adf1f91ca40019aa2d4fbefa5941a0fc5d377e83e"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "previous_sha256": "c9b9e187e14d62fefbef1fc48ba18279da101ad058806ee039aeafde04bed0ca",
-      "sha256": "fa669ed6248da73bdff1842e9e3df738ddb76ab6aa77b40b1f711a4017a18354"
+      "previous_sha256": "fcb1bcbabf3990cfdb55ec5adf1f91ca40019aa2d4fbefa5941a0fc5d377e83e",
+      "sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294"
     }
   ],
   "new_documents": [],
@@ -1003,7 +963,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 74,
+  "upstream_issue_resolutions": 75,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1534,9 +1494,15 @@
     },
     {
       "path": "version/3.0/research/issue-179-txt-playback.md",
-      "sha256": "318a107a3a98c0942a13f6b17818d5f369c5c18db79a2f6d223ee7a027d59c86",
+      "sha256": "43ce6e0a3c39af82581f50958eff0c33cd53b69db327858d332148a8d25f97bc",
       "title": "Issue #179 - TXT playback in an active article",
       "role": "Common scene framing, text dispatch to an active article and filename independence."
+    },
+    {
+      "path": "version/3.0/research/issue-184-copy-blit.md",
+      "sha256": "6944160da30c2906c7392611b1a1f2bb256b6b1318c38fe6ca72f6f90c33c6e1",
+      "title": "Issue #184 - RIP_COPY_BLIT geometry and exposed-source fill",
+      "role": "RIP_COPY_BLIT descriptor, reserved field, source and destination clipping, fill and rendered blink planes."
     }
   ],
   "documents": [
@@ -1670,7 +1636,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "f742493e2821582434fbc17c4d379a141d3c27c9ec9d77e42651750ea54690c0"
+      "sha256": "ff1f97068b856f8619183b5b51c2792fe1b141faf7f034fa3144e08a7a58dfb3"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1742,7 +1708,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "fcb1bcbabf3990cfdb55ec5adf1f91ca40019aa2d4fbefa5941a0fc5d377e83e"
+      "sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -16497,6 +16463,741 @@
         },
         "scope": "Verify the tree of each PR integration, exact normative blocks, derivations and original publications."
       }
+    },
+    {
+      "previous_revision": "75cd7bc21eacd7034f59151cf7ca24643e8901cc",
+      "revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
+      "archive_sha256": "b6581c5478290a7c2ed35d939e9f87d84cc227ec32f7c2d2cfe4f4f029d06aba",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 185,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/185",
+          "head": "45c51c9f2c971d2cf1bf9118b3c5e6cd3617d7c4",
+          "stable_commit": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a"
+        }
+      ],
+      "upstream_state": "The reviewed open PR head is consolidated into the selected fork stable with an identical tree.",
+      "authorization": "Standing user-selected stable reference and reviewed PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "f742493e2821582434fbc17c4d379a141d3c27c9ec9d77e42651750ea54690c0",
+          "sha256": "ff1f97068b856f8619183b5b51c2792fe1b141faf7f034fa3144e08a7a58dfb3"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "fcb1bcbabf3990cfdb55ec5adf1f91ca40019aa2d4fbefa5941a0fc5d377e83e",
+          "sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8990,
+      "moved_source_blocks": 46,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 23,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:285",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:287",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:288",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:290",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:291",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:295",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:299",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:301",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:309",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:311",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:312",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:313",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:314",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:315",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:316",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:318",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:322",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:326",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:328",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:334",
+        "version/3.0/ripscrip/9.0-command-reference.md:164"
+      ],
+      "retired_source_blocks": 18,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:285",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            285,
+            285
+          ],
+          "text": "_Copy a screen area to a new location (bit blit)_\n",
+          "sha256": "5705d08bb03a2e4737c4817bb1a9e7aa4b7e42d5b36680f15088084f031eeabc",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:287",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            287,
+            287
+          ],
+          "text": "|               |                                                |\n",
+          "sha256": "4da8e02edff11da1f331b6182feaa4492f4388b9be8de42617b542ec8daac16f",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Historical provenance, corpus observation or table formatting. The adjacent units track the wire behavior."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:288",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            288,
+            288
+          ],
+          "text": "| ------------- | ---------------------------------------------- |\n",
+          "sha256": "00a2645a5ff03c4565777d4223ed23bec3b17bee5484e7ef1d2b002bfa7e54ec",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Historical provenance, corpus observation or table formatting. The adjacent units track the wire behavior."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            289,
+            289
+          ],
+          "text": "| **Level**     | 1                                              |\n",
+          "sha256": "b1acf8f8c3820b7e94af65dce75a9d3575ef5d9895827f734d2aa1c5c6fe5c86",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:290",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            290,
+            290
+          ],
+          "text": "| **Command**   | `g`                                            |\n",
+          "sha256": "1b18af8e162f6a7a2cb002be7c675b6565cf3f6fd8b854dd5e264f5eef2c6c9c",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:291",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            291,
+            291
+          ],
+          "text": "| **Arguments** | `x0:2 y0:2 x1:2 y1:2 dx0:2 dy0:2 mode:1 res:1` |\n",
+          "sha256": "10013f76011b98918480e56f2ee2e5435d30b12e65d80d004e663b070b8196e3",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/184"
+          ],
+          "reason": "Slot 96 uses six current-width coordinates, contrary to the fixed draft widths. The handler copies inclusive extents and uses half-open GDI helpers for source fill. SyncTERM implements dynamic widths and paired port clipping with fill over the available old source outside the copied destination. B184 asks for the authoritative reserved, clipping, edge and blink-plane rules."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:295",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            295,
+            295
+          ],
+          "text": "**Attributes used:** Draw Color, Back Color, Fill Style, Port, Base Math (current setting) **Evidence:** 2.00a4 ([2.0 entry](../../2.0/ripscrip/4.0-icons-and-bitmaps.md#rip_copy_blit)) · HLP (`RIP_CopyBlit`) · corpus (88 uses in 6 files) - not in SyncTERM\n",
+          "sha256": "b3e2184649682fa0b5362a84cfaf56e586e4c9f3ea1eceec464c3bc4f9cdfd17",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Historical provenance, corpus observation or table formatting. The adjacent units track the wire behavior."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:297",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            297,
+            297
+          ],
+          "text": "This command is similar to the [RIP_SCROLL](#rip_scroll) command but is more generic in nature - it can move a rectangle of graphical information on the screen from one position to another - not just up or down. It does this with high-speed bit-blit operations. The rectangle contained in (x0,y0) to (x1,y1) is copied so that its upper-left corner is now at the location (dx0,dy0).\n",
+          "sha256": "c9925b443b02828c6b2cf12fe487091e11f290cd33a97ca889e6477f14a67809",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:299",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            299,
+            299
+          ],
+          "text": "Some, part, or none of the original source image might be covered up by the moved screen data. The parts of the original image which are still on the screen (unobscured) can be cleared to some color or state if you wish by using the `<mode>` parameter (like RIP_SCROLL does). The possible settings for `<mode>` are:\n",
+          "sha256": "f13c4f55f92033572c0f62d6364a65eb8ec65effc9694135345d23a1a3cb6f5c",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/184"
+          ],
+          "reason": "Slot 96 uses six current-width coordinates, contrary to the fixed draft widths. The handler copies inclusive extents and uses half-open GDI helpers for source fill. SyncTERM implements dynamic widths and paired port clipping with fill over the available old source outside the copied destination. B184 asks for the authoritative reserved, clipping, edge and blink-plane rules."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:301",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            301,
+            301
+          ],
+          "text": "| Mode | Description |\n",
+          "sha256": "0278d6c9b3bd1b44a52768305d731bcc021e25faa5c127a5fa64678d30241d7a",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Historical provenance, corpus observation or table formatting. The adjacent units track the wire behavior."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:303",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            303,
+            303
+          ],
+          "text": "| 0 | Do nothing - leave the old graphics on the screen |\n",
+          "sha256": "ed7299d2301eb1325f31eb6fbfc08549570d9e67597e34713ba1e21bbc6909bb",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:304",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            304,
+            304
+          ],
+          "text": "| 1 | Fill the old graphical area with the current drawing color (solid fill in COPY mode). |\n",
+          "sha256": "3455b207ffb9743b89f571465a052bd02c725c11e17546dd326becfd0235741a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            305,
+            305
+          ],
+          "text": "| 2 | Fill the old graphical area with the current background drawing color (solid fill in COPY mode). |\n",
+          "sha256": "40d9f2cd71bd8a28a0a0a066e165b8320e2f55126ecbee882b7ca93007344d6e",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:306",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            306,
+            306
+          ],
+          "text": "| 3 | Fill the area with the current fill color (solid fill in COPY mode). Fill pattern/styles are not used for this. |\n",
+          "sha256": "1b2d07b7fad2fda0ac4fdf3c130c6cf978d5139c4935b499251e6d3f3e420f8d",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:307",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            307,
+            307
+          ],
+          "text": "| 4 | Fill the old graphical area with the current fill style/pattern in the current fill color. |\n",
+          "sha256": "a8f0fd202d7c873562a64183739b9e9c29344b28c44877dabb8d16e21294b8f2",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:308",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            308,
+            308
+          ],
+          "text": "| 5 | Erase the affected area entirely to black. |\n",
+          "sha256": "1d754092e8f100918e06bc9d584f9b5879a5c26210168c1ce3637decd7d77b6f",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:310",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            310,
+            310
+          ],
+          "text": "The corpus uses it as a _within-screen_ slide primitive in the wipe/transition library (WIPE00-02.FN, DL.FN, DR.FN): the preserved example selects a 1200×960 world-coordinate slab and moves it 80 world units right in one step of a push transition. _Evidence: corpus (WIPE00.FN, WIPE01.FN, WIPE02.FN, DL.FN, DR.FN)._\n",
+          "sha256": "c2533a69720a3b64ee74f1cfaca56abf3dab9e4c2ae7fe2b4ddf9827a3d086fd",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Historical provenance, corpus observation or table formatting. The adjacent units track the wire behavior."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.0-command-reference.md:164",
+          "heading": "Icons, bitmaps & block moves",
+          "source": "version/3.0/ripscrip/9.0-command-reference.md",
+          "lines": [
+            164,
+            164
+          ],
+          "text": "| [RIP_COPY_BLIT](4.0-icons-and-bitmaps.md#rip_copy_blit) | 1 | `g` | `x0:2 y0:2 x1:2 y1:2 dx0:2 dy0:2 mode:1 res:1` | v2.A1 | Copy a screen area to a new location (bit blit); the corpus's within-screen slide primitive |\n",
+          "sha256": "91c5222d7526581bd95ee908c8687c431491679fa9b8b3f907e0b74b60646484",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/184"
+          ],
+          "reason": "Slot 96 uses six current-width coordinates, contrary to the fixed draft widths. The handler copies inclusive extents and uses half-open GDI helpers for source fill. SyncTERM implements dynamic widths and paired port clipping with fill over the available old source outside the copied destination. B184 asks for the authoritative reserved, clipping, edge and blink-plane rules."
+        }
+      ],
+      "retired_implemented_claims": [
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:285",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            285,
+            285
+          ],
+          "text": "_Copy a screen area to a new location (bit blit)_\n",
+          "sha256": "5705d08bb03a2e4737c4817bb1a9e7aa4b7e42d5b36680f15088084f031eeabc",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            289,
+            289
+          ],
+          "text": "| **Level**     | 1                                              |\n",
+          "sha256": "b1acf8f8c3820b7e94af65dce75a9d3575ef5d9895827f734d2aa1c5c6fe5c86",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:290",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            290,
+            290
+          ],
+          "text": "| **Command**   | `g`                                            |\n",
+          "sha256": "1b18af8e162f6a7a2cb002be7c675b6565cf3f6fd8b854dd5e264f5eef2c6c9c",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:297",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            297,
+            297
+          ],
+          "text": "This command is similar to the [RIP_SCROLL](#rip_scroll) command but is more generic in nature - it can move a rectangle of graphical information on the screen from one position to another - not just up or down. It does this with high-speed bit-blit operations. The rectangle contained in (x0,y0) to (x1,y1) is copied so that its upper-left corner is now at the location (dx0,dy0).\n",
+          "sha256": "c9925b443b02828c6b2cf12fe487091e11f290cd33a97ca889e6477f14a67809",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:303",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            303,
+            303
+          ],
+          "text": "| 0 | Do nothing - leave the old graphics on the screen |\n",
+          "sha256": "ed7299d2301eb1325f31eb6fbfc08549570d9e67597e34713ba1e21bbc6909bb",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:304",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            304,
+            304
+          ],
+          "text": "| 1 | Fill the old graphical area with the current drawing color (solid fill in COPY mode). |\n",
+          "sha256": "3455b207ffb9743b89f571465a052bd02c725c11e17546dd326becfd0235741a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            305,
+            305
+          ],
+          "text": "| 2 | Fill the old graphical area with the current background drawing color (solid fill in COPY mode). |\n",
+          "sha256": "40d9f2cd71bd8a28a0a0a066e165b8320e2f55126ecbee882b7ca93007344d6e",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:306",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            306,
+            306
+          ],
+          "text": "| 3 | Fill the area with the current fill color (solid fill in COPY mode). Fill pattern/styles are not used for this. |\n",
+          "sha256": "1b2d07b7fad2fda0ac4fdf3c130c6cf978d5139c4935b499251e6d3f3e420f8d",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:307",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            307,
+            307
+          ],
+          "text": "| 4 | Fill the old graphical area with the current fill style/pattern in the current fill color. |\n",
+          "sha256": "a8f0fd202d7c873562a64183739b9e9c29344b28c44877dabb8d16e21294b8f2",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:308",
+          "heading": "RIP_COPY_BLIT",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            308,
+            308
+          ],
+          "text": "| 5 | Erase the affected area entirely to black. |\n",
+          "sha256": "1d754092e8f100918e06bc9d584f9b5879a5c26210168c1ce3637decd7d77b6f",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_scroll_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_ports",
+            "syncterm_rip3_scroll_CP437",
+            "syncterm_rip3_scroll_UTF-8"
+          ],
+          "reason": "Connected 1g copies an inclusive rectangle in either axis and applies the selected old-source fill color or mask. Connected tests cover diagonal overlap, both radix widths and all six modes. Clipping and wire-description disagreements have separate units."
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-184-copy-blit.md",
+          "sha256": "6944160da30c2906c7392611b1a1f2bb256b6b1318c38fe6ca72f6f90c33c6e1",
+          "title": "Issue #184 - RIP_COPY_BLIT geometry and exposed-source fill",
+          "role": "RIP_COPY_BLIT descriptor, reserved field, source and destination clipping, fill and rendered blink planes."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-179-txt-playback.md",
+          "previous_sha256": "318a107a3a98c0942a13f6b17818d5f369c5c18db79a2f6d223ee7a027d59c86",
+          "sha256": "43ce6e0a3c39af82581f50958eff0c33cd53b69db327858d332148a8d25f97bc"
+        }
+      ],
+      "states_at_adoption": {
+        "unreviewed": 2466,
+        "context": 1733,
+        "pending": 1666,
+        "implemented": 3053,
+        "excluded": 70,
+        "blocked": 25
+      },
+      "source_blocks_at_adoption": 9013,
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 87,
+        "declared_prior_derivation_changes": 1,
+        "originals": {
+          "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "version/2.0/text/RIPScrip-2.0-alpha-4.txt": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
+        },
+        "scope": "Verified GitHub head, stable tree equality, complete normative and derivation digests and original publication hashes."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -19949,6 +20650,39 @@
         "blocked": 28
       },
       "verification": "Native port preparation-failure and remembered-pair checks. Connected CP437 and UTF-8 scroll and copy-blit vectors at 640x480 and 800x600. Original slot and handler inspected statically. B184 tracks the open documentation questions."
+    },
+    {
+      "after_commit": "2ba5fa08",
+      "revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
+      "scope": "Reconcile connected COPY_BLIT with PR #185, including the wire descriptor, physical port clipping and exposed-source policy.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:285",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:290",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:291",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:299",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:301",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:311",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:312",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:313",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:314",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:315",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:316",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:318",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:322",
+        "version/3.0/ripscrip/9.0-command-reference.md:164"
+      ],
+      "partially_covered_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2466,
+        "context": 1733,
+        "pending": 1666,
+        "implemented": 3053,
+        "excluded": 70,
+        "blocked": 25
+      },
+      "verification": "Existing native rip3_ports and connected CP437/UTF-8 COPY_BLIT captures cover the adopted behavior. No renderer changes were necessary."
     }
   ]
 }

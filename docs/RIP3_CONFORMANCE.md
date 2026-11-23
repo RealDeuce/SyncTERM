@@ -9095,8 +9095,8 @@ Native port tests cover source-read failure before writes.
 
 Level-1 `g` decodes its six coordinates at the current XY width and radix.
 It normalizes the source corners, projects all coordinates to device space,
-and copies the inclusive rectangle in either axis. The last reserved digit
-is consumed when present. An identity translation leaves the pixels in
+and copies the inclusive rectangle in either axis. The final reserved digit
+is optional and its value is ignored. An identity translation leaves the pixels in
 place. The descriptor at slot 96 and handler at RVA `0xb7a4` establish the
 dynamic widths, inclusive copy spans and same-surface COPY operation.
 
@@ -9109,10 +9109,8 @@ viewport rectangle leaves the full port available for copying. Screen
 copies read both blink phases from the rendered screen and leave the logical
 terminal cells in place. Offscreen copies operate on their local bitmap.
 
-The draft lists fixed widths, and the original fill passes inclusive far
-coordinates to half-open GDI region calls. The implementation uses the
-draft's exposed-pixel intent and coupled port clipping. The authoritative
-edge, viewport and reserved-field rules are tracked upstream. [Issue #184](https://github.com/bbs-land/remote-imaging-protocol/issues/184)
+The adopted specification resolves the earlier width and edge-fill discrepancies.
+[PR #185](https://github.com/bbs-land/remote-imaging-protocol/pull/185)
 
 The connected CP437 and UTF-8 fixtures check diagonal overlap, inclusive
 single-pixel copies, all six fills, device pattern phase, malformed bodies,
