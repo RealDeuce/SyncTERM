@@ -159,6 +159,8 @@ struct cterminal {
 	void *api_apc_context;
 	st_cterm_size_callback_t api_size_changed;
 	void *api_size_context;
+	bool (*igs_loop_service_pending)(void *context);
+	void *igs_loop_service_context;
 	uint32_t (*api_speed_query)(void *context);
 	void (*api_speed_changed)(void *context, uint32_t bps);
 	void *api_speed_context;

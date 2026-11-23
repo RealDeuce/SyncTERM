@@ -2855,9 +2855,9 @@ is a numeric call with invalid indices normalized to0 and old bytes after
 NUL preserved. Unknown fixed/gang targets keep their distinct reader and exit
 semantics; fixed & never recursively initializes. Async completion returns
 to the loop owner. Local monotonic deadlines implement200 delay units/second;
-cooperative budgets keep long loops responsive without a total iteration
-limit, foreign clocks, throughput waits or new workers. Ctrl-C/Ctrl-X cancel
-at an actual numeric poll. Reject accidental arithmetic overflow and saturate
+zero-delay loops run inline and return to the session between commands when
+a console event or disconnect is pending. Ctrl-C/Ctrl-X finish the current
+command and leave subsequent wire input for the caller. Reject accidental arithmetic overflow and saturate
 observation counters. Mode flags without a configured array supply no stored
 values; canonical & always creates a nonempty array.
 
@@ -2870,7 +2870,7 @@ ownership. X9's file-source integration and final acceptance remain pending.
 marker/glyph scenes, split/bytewise input over18 profiles/54 scaling variants,
 fixed/gang/XOR/relative/mixed-wire arity, retained gang text, RNG, W/@/raw X3,
 2048 operands, delays, cooperative cancellation and partial/error/EOF/reset
-paths. `syncterm_igs_loop` supplies846 coherent all-profile captures with
+paths. `syncterm_igs_loop` supplies 847 coherent all-profile captures with
 independent glyph/palette/index/RGB/state expectations and real socket
 flow/replies, repeated < replacement, key wake/abort and reconnect. Headless
 fixtures disable physical audio/MIDI; vectors and source identities are in
@@ -2950,9 +2950,8 @@ artifact pins five source identities and uses no external runtime assets.
 Headless tests disable physical audio/MIDI and claim no auditory coverage.
 The ledger is62/63 complete; parent X and final goal acceptance remain pending.
 
-Final source-switch review also verifies cooperative yields across130 short
-calls inside a serial loop and across independent callers, with no total
-iteration cutoff. A pending accepted call retains its local key and wire
+The source-switch tests cover 130 short calls completed inline inside a
+serial loop and cooperative yields across independent callers. A pending accepted call retains its local key and wire
 suffix. Budget/key regressions failed before their fixes. After the final
 warning-free full build, all68 acceptance checks passed in135.80s, including
 all native IGS tests and all666 application captures in42.17s. Native X9

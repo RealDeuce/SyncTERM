@@ -1522,17 +1522,16 @@ sink(struct cterm_igs *igs)
 	    .command = command, .unknown = unknown, .field = field_entry, .raw = raw, .number = cterm_igs_loop_number};
 }
 
-/* Serialized owner pump. A budget yields locally; it never limits the total
- * number of valid protocol iterations or creates another clock/parser. */
 static int
 drive_parser(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used)
 {
 	struct cterm_igs_loop *l=&igs->loop;
 	struct st_graphics_parser_sink callbacks=sink(igs);
-	*used=0;l->work=0;l->cooperative=false;
-	unsigned iterations=0;
+	*used=0;l->cooperative=false;
 	for (;;) {
 		if (l->run && l->next) {
+			if (l->stop_after_command)
+				igs->loop_mode = 0;
 			if (!l->initial && (igs->loop_mode!=1 || !l->bad)) {
 				bool chained=l->chained;
 				int status=cterm_igs_loop_end(igs);
@@ -1540,10 +1539,16 @@ drive_parser(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used
 				if (status==0) status=end_entry(igs,chained);
 				if (status==0) status=st_graphics_parser_resume(igs->parser);
 				if (status!=0) return status;
-			} else {l->initial=false;l->next=false;l->selecting=true;l->bad=false;}
+			} else {
+				if (!l->initial && igs->terminal->igs_loop_service_pending != NULL
+				    && igs->terminal->igs_loop_service_pending(igs->terminal->igs_loop_service_context)) {
+					l->cooperative = true;
+					return IO_ERROR_IN_PROGRESS;
+				}
+				l->initial=false;l->next=false;l->selecting=true;l->bad=false;
+			}
 		}
 		if (l->run && l->selecting) {
-			if (iterations++>=64) {l->cooperative=true;return IO_ERROR_IN_PROGRESS;}
 			int code=l->target;
 			if (l->ganged) {
 				int selector;int status=cterm_igs_loop_value(igs,&selector);
@@ -1697,11 +1702,14 @@ drive_input(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used)
 	struct cterm_igs_script *s=&igs->script;
 	*used=0;
 	s->cooperative=false;
-	for (unsigned work=0;;++work) {
-		/* Short sources can return into an enclosing loop or another X9
-		 * in this same wire batch. Their combined owner work also yields. */
-		if (work>=64) {s->cooperative=true;return IO_ERROR_IN_PROGRESS;}
+	unsigned wire_calls = 0;
+	for (;;) {
 		if (s->starting) {
+			/* Repeated X9 bodies use the enclosing loop's command boundary. */
+			if (!igs->loop.run && wire_calls++ >= 64) {
+				s->cooperative = true;
+				return IO_ERROR_IN_PROGRESS;
+			}
 			struct st_graphics_continuation continuation;
 			int status=st_graphics_parser_take_continuation(igs->parser,&continuation);
 			if (status!=0) return status;
@@ -1847,6 +1855,10 @@ cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_key *key)
 	if (igs != NULL && (igs->loop.run || igs->script.active)) {
 		if (igs->timed_pause && !igs->pause_key) {igs->pause_key=true;return true;}
 		if (igs->palette_rotation.active && !igs->palette_rotation.key) {igs->palette_rotation.key=true;return true;}
+	}
+	if (igs != NULL && igs->loop.cooperative && (key->local == 3 || key->local == 24)) {
+		igs->loop.stop_after_command = true;
+		return true;
 	}
 	if (igs != NULL && cterm_igs_buffer_key(igs, key)) {
 		if (igs->collect.active && !igs->feeding)

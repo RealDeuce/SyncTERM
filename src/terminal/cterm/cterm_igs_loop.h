@@ -13,11 +13,10 @@ struct cterm_igs_loop {
 	uint8_t gang[128], target, command;
 	int current, to, step, delay, original, saved, varying, first, pass;
 	size_t count, loaded, index;
-	unsigned work;
 	uint64_t deadline;
 	bool initializing, loading, ganged, no_parameters;
 	bool run, next, initial, selecting, bad, did_flow, chained;
-	bool waiting, delay_started, cooperative;
+	bool waiting, delay_started, cooperative, stop_after_command;
 };
 int cterm_igs_loop_next(void *,const struct st_graphics_command_view *,struct st_graphics_parameter *);
 int cterm_igs_loop_field(struct cterm_igs *,const struct st_graphics_command_view *,const struct st_graphics_parameter *);

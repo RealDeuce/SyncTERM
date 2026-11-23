@@ -18,11 +18,13 @@ def run(executable,reports,resolution,encoding,status):
     width,height,ch=((320,200,8),(640,200,8),(640,400,16))[resolution]
     drawable=(24 if status else 25)*ch;mask=(15,3,1)[resolution]
     screen=('AtariST40x25','AtariST80x25','AtariST80x25Mono')[resolution]
+    paced=(resolution,encoding,status)==(0,'CP437',False)
     with socket.socket() as listener:
         listener.bind(('127.0.0.1',0));listener.listen(2);listener.settimeout(15)
         entries=('[IGS loops]\nConnectionType=Raw\nAddress=127.0.0.1\n'
                  f'Port={listener.getsockname()[1]}\nGraphics=IGS (2.21)\nScreenMode={screen}\n'
-                 f'Font=Atari ST\nEncoding={encoding}\nNoStatus={str(not status).lower()}\n')
+                 f'Font=Atari ST\nEncoding={encoding}\nNoStatus={str(not status).lower()}\n'
+                 f'BPSRate={19200 if paced else 0}\n')
         with fixture(executable,entries=entries,script=SCRIPT,settings='AudioModes=0\nMidiModes=0\nBlockyScaling=true\n',reports=reports,quiet=False) as (client,root):
             client.wait_text('IGS loops');client.key('enter');marker=1000
 
@@ -109,6 +111,14 @@ def run(executable,reports,resolution,encoding,status):
                 inspect(frame,active=True);probe(peer,b'\x13')
                 client.key(3);client.wait_for(lambda f:f.application.get('cterm.igs_loop_run')==0)
                 scene(peer,reply=b'\x11')
+                if paced:
+                    # XOFF confirms entry. Ctrl-X crosses the real console event
+                    # queue while the zero-delay blits are still running.
+                    send(peer,b'G#& 0,9999,1,0,G,8,0,3,0,60,318,198,1,60:G#? 0:')
+                    read(peer,b'\x13');client.key(24);read(peer,b'\x112.21')
+                    frame=client.capture()
+                    inspect(frame)
+                    assert 0<frame.application['cterm.igs_loop_current']<9999
                 # Disconnect owns cancellation even while no serial bytes can
                 # advance the active source; a fresh session has no old loop.
                 send(peer,b'G#& 0,9999,1,100,M,1,0:')
@@ -126,5 +136,5 @@ if __name__=='__main__':
     for resolution in range(3):
         for encoding in ('ATARI-ST','CP437','UTF-8'):
             for status in (False,True):run(args.executable,args.reports,resolution,encoding,status)
-    assert CAPTURES==846,CAPTURES
+    assert CAPTURES==847,CAPTURES
     print(f'{CAPTURES} coherent loop captures',flush=True)

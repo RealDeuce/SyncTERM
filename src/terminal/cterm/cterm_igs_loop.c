@@ -62,6 +62,7 @@ int cterm_igs_loop_field(struct cterm_igs *igs,const struct st_graphics_command_
 	}
 	if(v->count==0) {
 		igs->loop_mode=0;l->initializing=true;l->loading=false;l->loaded=0;
+		l->stop_after_command=false;
 		l->run=l->next=l->selecting=l->waiting=l->cooperative=false;l->delay_started=false;
 		return 0;
 	}
@@ -125,10 +126,12 @@ int cterm_igs_loop_value(struct cterm_igs *igs,int *result)
 	struct cterm_igs_loop *l=&igs->loop;
 	if(igs->loop_mode!=1 || l->count==0 || l->index>=l->count) return IO_ERROR_PROTOCOL;
 	l->waiting=false;
-	if(l->index==0) {
+	if (l->index == 0 && !l->delay_started)
+		l->varying = 0;
+	if (l->index == 0 && l->delay != 0 && !l->stop_after_command) {
 		uint64_t now;int status=igs->now_ms(&now);if(status!=0) return status;
 		if(!l->delay_started) {
-			l->varying=0;l->delay_started=true;
+			l->delay_started=true;
 			uint64_t duration=(uint64_t)(uint16_t)l->delay*5;
 			l->deadline=now>UINT64_MAX-duration?UINT64_MAX:now+duration;
 		}
@@ -155,7 +158,11 @@ int cterm_igs_loop_value(struct cterm_igs *igs,int *result)
 		if(status==0 && value>-30000 && value<-19999) {int n=value+20000;if(n<0) n=-n;status=word(n-l->current,&value);}
 		if(status!=0) return status;
 	}
-	if(igs->input.key_count!=0) {int key=cterm_igs_take_key(igs);if(key==3 || key==24) igs->loop_mode=0;}
+	if (!l->stop_after_command && igs->input.key_count != 0) {
+		int key = cterm_igs_take_key(igs);
+		if (key == 3 || key == 24)
+			l->stop_after_command = true;
+	}
 	if(l->no_parameters && l->index==0) {status=word(l->current+l->step,&l->current);if(status!=0) return status;}
 	if(l->index==l->count-1 && ((l->step>=1 && l->current>=l->to) || (l->step<0 && l->current<=l->to))) igs->loop_mode=0;
 	if(igs->loop_kind!='@' && igs->loop_mode==0 && l->command=='W') igs->loop_kind='Z';
@@ -172,16 +179,15 @@ int cterm_igs_loop_number(void *context,const struct st_graphics_command_view *v
 	 * numeric values and leaves the field with its ordinary wire owner. */
 	if(igs->loop_mode!=1 || l->initializing || l->count==0) return 0;
 	if(!l->run) {l->run=true;l->chained=v->chained;l->command=l->target=v->code;l->ganged=false;l->did_flow=false;l->bad=false;}
-	if(l->work>=256) {l->cooperative=l->waiting=true;return IO_ERROR_IN_PROGRESS;}
 	int status=cterm_igs_loop_value(igs,value);
-	if(status==0) {++l->work;*supplied=true;}
+	if(status==0) *supplied=true;
 	return status;
 }
 int cterm_igs_loop_end(struct cterm_igs *igs)
 {
 	struct cterm_igs_loop *l=&igs->loop;bool flow=l->did_flow;
 	l->run=l->next=l->selecting=l->waiting=l->cooperative=l->did_flow=false;
-	l->delay_started=false;l->ganged=false;igs->loop_kind=' ';
+	l->stop_after_command=false;l->delay_started=false;l->ganged=false;igs->loop_kind=' ';
 	return flow?cterm_igs_flow(igs,true):0;
 }
 int cterm_igs_loop_cancel(struct cterm_igs *igs)

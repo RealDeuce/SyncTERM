@@ -3985,6 +3985,22 @@ event_take(st_console_t *console, struct st_console_event *event,
 	return result;
 }
 
+bool
+st_console_events_pending(st_console_t *console)
+{
+	if (console == NULL)
+		return false;
+	if (st_mutex_lock(&console->event_mutex) != ST_THREAD_SUCCESS)
+		return true;
+	bool pending = console->event_count != 0;
+	(void)st_mutex_unlock(&console->event_mutex);
+#if ST_CONSOLE_TEST
+	if (!pending && console->display->backend == ST_CONSOLE_BACKEND_TEST)
+		pending = st_console_test_control_pending(console->display);
+#endif
+	return pending;
+}
+
 int
 st_console_event_try(st_console_t *console, struct st_console_event *event)
 {

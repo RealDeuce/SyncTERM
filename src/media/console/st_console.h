@@ -798,6 +798,8 @@ int st_console_post_event(st_console_t *console,
  */
 int st_console_display_post_event(st_console_display_t *display,
 	const struct st_console_event *event);
+/* Whether polling the event queue has pending work for its owner. */
+bool st_console_events_pending(st_console_t *console);
 int st_console_event_try(st_console_t *console,
 	struct st_console_event *event);
 int st_console_event_wait(st_console_t *console,

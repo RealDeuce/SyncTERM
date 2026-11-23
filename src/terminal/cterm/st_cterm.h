@@ -234,6 +234,10 @@ struct st_cterm_config {
 	int log_level;
 	st_cterm_log_callback_t diagnostic;
 	void *diagnostic_context;
+	/* Checked between completed IGS loop commands. True returns control
+	 * to the owner to dispatch pending input or handle disconnection. */
+	bool (*igs_loop_service_pending)(void *context);
+	void *igs_loop_service_context;
 };
 
 /*

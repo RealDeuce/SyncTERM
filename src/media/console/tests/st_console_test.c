@@ -574,14 +574,18 @@ test_event_order(void)
 	CHECK(st_console_post_event(console, &invalid)
 	    == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_console_event_try(console, &result) == IO_ERROR_WOULD_BLOCK);
+	CHECK(!st_console_events_pending(console));
 	CHECK(st_console_post_event(console, &first) == 0);
 	CHECK(st_console_post_event(console, &second) == 0);
+	CHECK(st_console_events_pending(console));
 	CHECK(st_console_event_wait(console, &result) == 0);
 	CHECK(result.type == ST_CONSOLE_EVENT_KEY_CODE);
 	CHECK(result.data.key.code == 0x1234);
+	CHECK(st_console_events_pending(console));
 	CHECK(st_console_event_try(console, &result) == 0);
 	CHECK(result.type == ST_CONSOLE_EVENT_TEXT);
 	CHECK(result.data.text.codepoint == 0x20ac);
+	CHECK(!st_console_events_pending(console));
 	CHECK(st_console_event_try(console, &result) == IO_ERROR_WOULD_BLOCK);
 	CHECK(st_console_post_event(console, &doorway) == 0);
 	CHECK(st_console_event_try(console, &result) == 0);

@@ -36,6 +36,7 @@ struct st_term_session {
 	bool modal_tail_queued;
 	int output_error;
 	bool end_requested;
+	bool igs_dispatch_pending;
 	bool exit_requested;
 	bool remote_closed;
 	bool history_finalized;
@@ -220,6 +221,16 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	    || (session->output_error == IO_ERROR_NOT_CONNECTED
 	    && st_connection_auxiliary_alive(session->config.connection)))
 		session->output_error = 0;
+}
+
+static bool
+igs_loop_service_pending(void *context)
+{
+	st_term_session_t *session = context;
+	session->igs_dispatch_pending = session->end_requested
+	    || !st_connection_is_connected(session->config.connection)
+	    || st_console_events_pending(session->config.console);
+	return session->igs_dispatch_pending;
 }
 
 static uint32_t
@@ -410,6 +421,8 @@ st_term_session_create(st_term_session_t **result,
 		.output_context = session,
 		.size_changed = cterm_size,
 		.size_context = session,
+		.igs_loop_service_pending = igs_loop_service_pending,
+		.igs_loop_service_context = session,
 		.speed_query = cterm_speed_query,
 		.speed_changed = cterm_speed_changed,
 		.speed_context = session,
@@ -1173,10 +1186,12 @@ st_term_session_pump(st_term_session_t *session,
 		*finished = true;
 		return 0;
 	}
+	/* Local event dispatch leaves the wire suffix buffered and the
+	 * emulated serial clock running. */
+	bool parser_was_waiting = !session->igs_dispatch_pending && input_paused(session);
+	session->igs_dispatch_pending = false;
 	/* A stopped transport has no recipient for asynchronous reports.
 	 * Still drain its received bytes and take the normal disconnect path. */
-	bool parser_was_paused = st_cterm_input_paused(st_term_session_cterm(session));
-	parser_was_paused |= st_term_rip3_paused(session->rip3);
 	if (st_connection_is_connected(session->config.connection)) {
 		st_term_rip3_poll(session->rip3);
 		status = st_cterm_poll(st_term_session_cterm(session));
@@ -1185,7 +1200,8 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	if (!session->suspended && session->transfer == NULL && session->throttle_bps != 0) {
 		uint64_t now;
-		bool parser_wait = parser_was_paused || input_paused(session);
+		bool parser_wait = parser_was_waiting
+		    || (!session->igs_dispatch_pending && input_paused(session));
 		/* Credits are BPS*milliseconds: ten bits per character makes
 		 * 10,000 credits one received byte.  Retain at most 100 ms of
 		 * catch-up after an occupied UI tick. */
@@ -1243,6 +1259,7 @@ st_term_session_pump(st_term_session_t *session,
 	}
 	else if ((!session->suspended || session->transfer != NULL || session->transfer_reserved)
 	    && read_size == 0
+	    && !session->igs_dispatch_pending
 	    && (st_connection_is_connected(session->config.connection)
 	    || session->wire_position < session->wire_size)) {
 		const struct timespec pause = {.tv_nsec = 10000000L};

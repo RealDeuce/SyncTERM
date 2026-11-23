@@ -505,8 +505,6 @@ static void cooperative_sources(void)
 	struct fixture f;create(&f,0,false);struct cterm_igs *igs=f.terminal->igs_engine;
 	f.terminal->response_cb=response;f.terminal->keystroke_cb=user;responses=0;user_count=0;
 	feed(&f,"\033v");upload(&f,"A");feed(&f,"G#& 0,130,1,0,X,2,9,1:");
-	CHECK(cterm_igs_paused(igs) && igs->script.cooperative && igs->loop.current<130);
-	for(unsigned i=0;i<8 && cterm_igs_paused(igs);++i) CHECK(st_cterm_poll(f.terminal)==0);
 	CHECK(!cterm_igs_paused(igs) && !igs->loop.run && igs->loop.current==130);
 	CHECK(!igs->script.active && !igs->script.starting && !igs->script.cooperative);
 	if(f.terminal->xpos!=11 || f.terminal->ypos!=4) fprintf(stderr,"short sources cursor %d,%d\n",f.terminal->xpos,f.terminal->ypos);

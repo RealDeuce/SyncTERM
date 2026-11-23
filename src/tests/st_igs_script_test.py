@@ -112,7 +112,7 @@ def run(executable,reports,resolution,encoding,status):
                 scene(peer,b'G#S 1,0,0,7:'+script(b'G#X 8,0,0,0,0:'),palette=red)
                 scene(peer,b'G#X 8,0,0,0,0:')
                 # A held final G emits nothing on each call. Many short
-                # sources yield across their enclosing serial loop and
+                # sources run inside their enclosing serial loop and
                 # retain the caller's single XOFF/XON lifetime and suffix.
                 baseline(peer)
                 scene(peer,b'G#X>9,0:G!||}& 0,130,1,0,X,2,9,1:',reply=b'\x13\x11')

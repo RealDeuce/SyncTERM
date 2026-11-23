@@ -67,7 +67,7 @@ static void evaluator(void)
 	local_ms+=49;CHECK(cterm_igs_loop_value(igs,&value)==IO_ERROR_IN_PROGRESS && igs->loop.first==0);
 	++local_ms;CHECK(cterm_igs_loop_value(igs,&value)==0 && value==0 && igs->loop_mode==1);
 	igs->input.keys[0]=(struct cterm_key){.local=3};igs->input.key_first=0;igs->input.key_count=1;
-	CHECK(cterm_igs_loop_value(igs,&value)==0 && value==1 && igs->loop_mode==0 && igs->loop_kind=='Z' && igs->input.key_count==0);
+	CHECK(cterm_igs_loop_value(igs,&value)==0 && value==1 && igs->loop.stop_after_command && igs->loop_mode==1 && igs->input.key_count==0);
 	igs->loop=(struct cterm_igs_loop){.current=0,.to=1,.step=1,.count=1,.delay=-1,.operands={-32767}};
 	igs->loop_mode=1;igs->loop_kind=',';local_ms=1000;
 	CHECK(cterm_igs_loop_value(igs,&value)==IO_ERROR_IN_PROGRESS && igs->loop.deadline==328675);
@@ -139,13 +139,62 @@ static void text_raw_and_setup(void)
 	igs->math[1]=9;feed(&f,"0,2,0,P,2,y,7:");flow();points(&f,(int[]){0,2,4},3,7,false);
 	clear(&f);igs->random_seed=1;feed(&f,"G#& 0,1,1,0,P,2,r,");CHECK(igs->random_seed==1 && igs->loop.operands[0]==-32765);
 	feed(&f,"R:");flow();CHECK(igs->loop.operands[1]==-32764 && igs->random_seed!=1);
-	/* Full clamped operand capacity remains bounded and cooperatively
-	 * executable, without an arbitrary total-iteration cutoff. */
+	/* A full stored array executes in the write that completes it. */
 	char wire[5000];size_t size=(size_t)snprintf(wire,sizeof(wire),"G#& 0,0,1,0,M,9999:");
 	for(size_t i=0;i<2048;++i) {wire[size++]='0';wire[size++]=',';}
-	CHECK(st_cterm_write(f.terminal,wire,size,&used)==0 && used==size && igs->loop.count==2048 && igs->loop.cooperative);
-	for(unsigned i=0;i<40 && igs->loop.run;++i) CHECK(st_cterm_poll(f.terminal)==0);
+	CHECK(st_cterm_write(f.terminal,wire,size,&used)==0 && used==size && igs->loop.count==2048);
 	CHECK(!igs->loop.run && igs->loop_mode==0 && igs->loop.index==0);flow();
+	destroy(&f);
+}
+static bool row_seven_finished(void *context)
+{
+	const struct cterm_igs *igs = context;
+	return igs->draw_y == 7;
+}
+
+static void line_execution(void)
+{
+	static const char lines[] = "G#& 0,199,1,0,L,4,0,x,319,x:";
+	static const char copies[] = "G#& 0,199,1,0,G,8,0,3,0,0,319,0,0,x:";
+	static const struct {
+		const char *wire;
+		uint16_t key;
+		unsigned rows;
+	} cases[] = {
+		{lines, 3, 8}, {lines, 24, 8}, {lines, 'a', 200},
+		{lines, 0, 200}, {copies, 0, 200}
+	};
+	struct fixture f;
+	setup(&f, 0, false);
+	struct cterm_igs *igs = f.terminal->igs_engine;
+	const struct st_console_rect area = {0, 0, 320, 200};
+	for (size_t n = 0; n < sizeof(cases) / sizeof(*cases); ++n) {
+		clear(&f);
+		if (cases[n].wire == copies)
+			feed(&f, "G#L 0,0,319,0:");
+		if (cases[n].key) {
+			f.terminal->igs_loop_service_pending = row_seven_finished;
+			f.terminal->igs_loop_service_context = igs;
+		}
+		feed(&f, cases[n].wire);
+		if (cases[n].key) {
+			CHECK(igs->loop.cooperative && igs->loop.index == 0 && igs->draw_x == 319);
+			CHECK(st_cterm_poll(f.terminal) == 0 && igs->draw_y == 7);
+			CHECK(st_cterm_handle_key(f.terminal, cases[n].key, 0));
+			f.terminal->igs_loop_service_pending = NULL;
+			CHECK(st_cterm_poll(f.terminal) == 0);
+		}
+		CHECK(!igs->loop.run && !cterm_igs_paused(igs) && key_count == 0);
+		flow();
+		struct st_pixel_buffer *pixels = NULL;
+		CHECK(st_console_get_pixels(&pixels, f.console, &area, false) == 0);
+		for (unsigned i = 0; i < 320 * 200; ++i) {
+			bool drawn = i / 320 < cases[n].rows;
+			CHECK(pixels->primary[i] == (drawn ? 783u : 769u));
+			CHECK(pixels->alternate[i] == (drawn ? 783u : 768u));
+		}
+		st_pixel_buffer_destroy(pixels);
+	}
 	destroy(&f);
 }
 static void waits_keys_and_cleanup(void)
@@ -159,11 +208,13 @@ static void waits_keys_and_cleanup(void)
 	feed(&f,"G#& 0,2,1,0,q,1,x:");CHECK(igs->wait_deadline!=0 && igs->loop.run);
 	for(unsigned i=0;i<10 && igs->loop.run;++i) {local_ms+=100;CHECK(st_cterm_poll(f.terminal)==0);}
 	CHECK(!igs->loop.run);flow();
-	/* Long loops yield without a total iteration limit; Ctrl-C is consumed
-	 * at the next numeric read, leaving the final command result intact. */
-	feed(&f,"G#& 0,9999,1,0,?,1,0:");CHECK(igs->loop.run && igs->loop.cooperative && output_count==257);
-	CHECK(st_cterm_handle_key(f.terminal,3,0) && key_count==0);CHECK(st_cterm_poll(f.terminal)==0);
-	CHECK(!igs->loop.run && igs->loop_mode==0 && output_count==262 && output[0]==19 && output[261]==17 && key_count==0);output_count=0;
+	/* A key waking the first coordinate completes the line from stored
+	 * operands. The next wire bytes still belong to the next command. */
+	feed(&f,"G#& 0,199,1,10,L,4,0,x,319,x:");
+	CHECK(igs->loop.waiting && st_cterm_handle_key(f.terminal,24,0));
+	CHECK(st_cterm_handle_key(f.terminal,'q',0));
+	CHECK(st_cterm_poll(f.terminal)==0 && !igs->loop.run && igs->draw_x==319 && igs->draw_y==0);
+	feed(&f,"G#X 10,19,23:");flow();CHECK(igs->draw_x==19 && igs->draw_y==23 && key_count==1 && keys[0]=='q');
 	/* Flow callbacks can reset before a first body; no stale operands resume. */
 	live=igs;reset_on_flow=true;feed(&f,"G#& 0,2,1,0,P,2,x,7:");reset_on_flow=false;live=NULL;
 	CHECK(!igs->loop.run && !igs->loop.initializing && igs->loop_mode==0);output_count=0;
@@ -254,4 +305,4 @@ static void partitions(void)
 		destroy(&f);
 	}
 }
-int main(void) {evaluator();wire_bodies();text_raw_and_setup();waits_keys_and_cleanup();invalid_body_recovery();inner_key_owners();mouse_bodies();partitions();return 0;}
+int main(void) {evaluator();wire_bodies();line_execution();text_raw_and_setup();waits_keys_and_cleanup();invalid_body_recovery();inner_key_owners();mouse_bodies();partitions();return 0;}
