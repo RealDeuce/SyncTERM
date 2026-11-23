@@ -192,7 +192,11 @@ cterm_render_cell_byte(struct cterminal *cterm,
 	if (st_console_font_glyph_text(cterm->screen.console, cell->glyph_font,
 	    cell->glyph, text, sizeof(text), &required) == 0 && required != 0)
 		(void)st_utf8_decode_one(&scalar, &consumed, text, required);
-	(void)st_codepage_from_unicode(&byte, cterm->screen.codepage, scalar);
+	if (st_codepage_from_unicode(&byte, cterm->screen.codepage, scalar)
+	    && cterm->emulation == CTERM_EMULATION_ATASCII
+	    && cterm->screen.codepage == ST_CODEPAGE_ATASCII
+	    && (cell->flags & ST_CONSOLE_CELL_REVERSE))
+		byte ^= 0x80;
 	return byte;
 }
 

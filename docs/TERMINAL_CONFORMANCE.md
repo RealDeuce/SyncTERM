@@ -21,6 +21,14 @@ bug, not the expected behavior. Both clients return DA
 `ESC[23;80H` followed by a space before its LF; remote artwork is not used as
 an expected image.
 
+`syncterm_atascii_glyphs` exercises all 255 drawable ATASCII bytes and quoted
+end-of-line in Atari and Atari XEP80 sessions with the Atari font. Each capture
+checks the glyphs, cursor and both bitmap phases, including the quarter-block
+orientations and normal/inverse pairs. Native tests check every input split,
+the local inverse keyboard toggle, reset during ESC quoting, binary screen
+saves, a scroll at the bottom-right corner, CP437 input with the Atari font,
+and encoding of all 128 base glyphs.
+
 `syncterm_vt52_c0` checks every printable C0 slot in received Atari ST text
 against its glyph index, including the Fuji halves and Bob Dobbs quadrants.
 Connected bitmap captures cover all three ST resolutions with IGS on and off

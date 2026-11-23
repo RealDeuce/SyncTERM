@@ -119,7 +119,7 @@ main(void)
 		{UINT64_C(0x085c16f892c4bd56), UINT64_C(0x2ebff7ef889f7b70), UINT64_C(0x2715bd5691424125)},
 		{UINT64_C(0xee50f1ded43430a0), UINT64_C(0x7d08945f439fcec6), UINT64_C(0x32c8e7a659cc0e68)},
 		{UINT64_C(0x4e277a4bd25277a0), UINT64_C(0x6127bf8e9c36f0c6), UINT64_C(0xcc7715e54376314d)},
-		{UINT64_C(0x2368c1bcef1bf8a8), UINT64_C(0x567670aa09042e82), UINT64_C(0x7960701fe8452325)},
+		{UINT64_C(0x13997d5ff3404c6f), UINT64_C(0x7504e3b547f07b40), UINT64_C(0x4db06fe5bdffcfa5)},
 		{UINT64_C(0x1be326a992a18a2e), UINT64_C(0x1be326a992a18a2e), UINT64_C(0xc582e4cf69193225)},
 		{UINT64_C(0xb7d7ae455c7b6c05), UINT64_C(0xb7d7ae455c7b6c05), UINT64_C(0xc582e4cf69193225)},
 		{UINT64_C(0xc0ee67560132b72b), UINT64_C(0x0e859d93412a2dab), UINT64_C(0xad00611e73237925)},
@@ -162,7 +162,7 @@ main(void)
 	CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_CP1251,
 	    UINT32_C(0x0410)) && byte == 0xc0);
 	CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_ATASCII,
-	    UINT32_C(0x2665)) && byte == 0x3f);
+	    UINT32_C(0x2665)) && byte == 0x00);
 	CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_CP866M,
 	    UINT32_C(0x2248)) && byte == 0xf7);
 	CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_CP866M2,
@@ -171,6 +171,10 @@ main(void)
 	    UINT32_C(0x21b0)) && byte == 0x7d);
 	CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_ATASCII,
 	    UINT32_C(0x1f8b0)) && byte == 0x7d);
+	for (unsigned int value = 0; value < 128; ++value) {
+		uint32_t scalar = st_codepage_to_unicode(ST_CODEPAGE_ATASCII, (uint8_t)value, true);
+		CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_ATASCII, scalar) && byte == value);
+	}
 	CHECK(!st_codepage_from_unicode(&byte, ST_CODEPAGE_ATARI_ST, UINT32_C(0xfffd)));
 	static const uint8_t atari_pieces[] = {0x0e, 0x0f, 0x1c, 0x1d, 0x1e, 0x1f};
 	for (size_t i = 0; i < sizeof(atari_pieces); ++i) {

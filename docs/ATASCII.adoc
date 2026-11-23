@@ -43,11 +43,12 @@ current terminal area. There is no ANSI CSI or VT52 escape-command language.
 == Literal quoting and screen-code conversion
 
 `1B byte` consumes its second byte even when it is normally a control.
-It draws one translated screen-code cell and returns to normal parsing.
+It draws one ATASCII character and returns to normal parsing.
 This state survives receive-buffer boundaries. A quoted `9B` still performs
 end-of-line and cannot be used to paint that control's glyph.
 
-The quoted byte is converted as follows:
+The Atari OS translates every displayed ATASCII character into an internal
+screen code before writing display memory. The conversion preserves bit 7.
 
 [cols="2,3",options="header"]
 |===
@@ -60,11 +61,13 @@ The quoted byte is converted as follows:
 |`E0`–`FF` |Unchanged
 |===
 
-For example, `1B 1C` paints the up-arrow glyph instead of moving the cursor.
-Quoting also installs the implementation's literal-cell attribute and restores
-the normal attribute after the one byte; it is not a persistent inverse-video
-toggle. The local inverse-input key described in the user manual affects
-outgoing keyboard bytes, independently of received quoting.
+For example, ATASCII `41` (A) has screen code `21`. ATASCII `C1` has
+screen code `A1` and displays an inverse A. SyncTERM's bundled Atari font
+already stores glyphs in ATASCII order. SyncTERM selects the glyph with the
+low seven bits and applies bit 7 as reverse video on that cell.
+
+`1B 1C` paints the up-arrow glyph. `1B 9C` paints the same arrow in
+inverse video. An unquoted `9C` deletes a line.
 
 == Outgoing keyboard bytes
 
@@ -72,7 +75,8 @@ Up/down/left/right send `1C/1D/1E/1F`, Insert sends `FF`, and Delete sends
 `7E`. Ordinary Return and Tab pass through the selected ATASCII codepage
 mapping as `9B` and `7F`; explicit Control combinations retain their control
 identity. The grave-accent key toggles local inverse-input mode and sends
-no byte itself. This is independent of received `1B` quoting. Character
+no byte itself. While enabled, it sets bit 7 on outgoing ATASCII data
+characters. Editing keys retain their control bytes. Character
 conversion and local UI shortcuts occur before the emulation key table.
 
 == Tabs, reset and replies
@@ -87,6 +91,9 @@ the initial session state.
 == Implementation and verification references
 
 link:../src/terminal/cterm/cterm_atascii.c[cterm_atascii.c] defines every
-control and the quoted-cell conversion. link:TERMINAL_CONFORMANCE.md[Terminal
+control and the one-byte quote. link:TERMINAL_CONFORMANCE.md[Terminal
 conformance] and native CTerm text tests record byte-mode, tab and split-input
 coverage. See link:Manual.txt[the user manual] for local keyboard behavior.
+Section 5 of Atari's OS reference describes the keyboard, screen editor and
+internal character codes.
+link:https://bitsavers.trailing-edge.com/pdf/atari/400_800/CO16555_Atari_Home_Computer_Technical_Reference_Notes_1982.pdf[Atari Technical Reference Notes].

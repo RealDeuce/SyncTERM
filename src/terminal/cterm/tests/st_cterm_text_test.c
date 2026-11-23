@@ -73,7 +73,8 @@ run_mode(struct result *result, enum st_cterm_encoding encoding,
 		.console = console, .fonts = fonts,
 		.emulation = emulation, .encoding = encoding,
 		.codepage = codepage, .force_lcf = true,
-		.font_selector = emulation == ST_CTERM_ATARI_ST_VT52 ? 44 : 0,
+		.font_selector = emulation == ST_CTERM_ATARI_ST_VT52 ? 44
+		    : emulation == ST_CTERM_ATASCII ? 36 : 0,
 		.status_line = status_line, .scrollback_lines = 4,
 		.output = capture, .output_context = result, .quiet = true,
 	};
@@ -372,7 +373,7 @@ test_emulations(void)
 		enum st_codepage codepage;
 		const char *stream;
 	} fixtures[] = {
-		{ST_CTERM_ATASCII, ST_CODEPAGE_ATASCII, "A\033\034B\233C\176D"},
+		{ST_CTERM_ATASCII, ST_CODEPAGE_ATASCII, "A\301\001\201\033\034\033\234\033\033\033\233B"},
 		{ST_CTERM_PETSCII, ST_CODEPAGE_PETSCII_UPPER, "A\022B\222C\034D"},
 		{ST_CTERM_PRESTEL, ST_CODEPAGE_PRESTEL, "A\033QB\033^_\033XC"},
 		{ST_CTERM_BBC, ST_CODEPAGE_PRESTEL, "A\033QB\177C\034\001\002"},
@@ -405,12 +406,41 @@ test_emulations(void)
 			CHECK(expected.cells[1].glyph == ' ' && expected.cells[43].glyph == ' ');
 			CHECK(expected.response_size == 0);
 		}
+		if (fixtures[i].emulation == ST_CTERM_ATASCII) {
+			static const uint8_t glyphs[] = {'A', 'A', 1, 1, 28, 28, 27};
+			for (size_t x = 0; x < sizeof(glyphs); ++x) {
+				const struct st_console_cell *cell = &expected.cells[x];
+				CHECK(cell->glyph == glyphs[x] && cell->glyph_font == cell->font);
+				CHECK(((cell->flags & ST_CONSOLE_CELL_REVERSE) != 0) == (x % 2 != 0));
+			}
+			CHECK(expected.cells[20].glyph == 'B');
+			CHECK(expected.state.x == 2 && expected.state.y == 2);
+			CHECK(expected.response_size == 0);
+		}
 		if (fixtures[i].emulation == ST_CTERM_PETSCII) {
 			CHECK(expected.cells[1].foreground == expected.cells[0].background);
 			CHECK(expected.cells[1].background != expected.cells[0].background);
 		}
 		if (fixtures[i].emulation == ST_CTERM_PRESTEL)
 			CHECK((expected.cells[1].flags & ST_CONSOLE_CELL_SAA5050_CONTROL_MASK) != 0);
+	}
+
+	struct result margin;
+	run_mode(&margin, ST_CTERM_ENCODING_CODEPAGE, "\x9b\x9b\x9b"
+	    "1234567890123456789\xc1\x1b\xc2", SIZE_MAX, false, ST_CTERM_ATASCII,
+	    ST_CODEPAGE_ATASCII);
+	CHECK(margin.state.x == 2 && margin.state.y == 4);
+	CHECK(margin.cells[59].glyph == 'A' && (margin.cells[59].flags & ST_CONSOLE_CELL_REVERSE));
+	CHECK(margin.cells[60].glyph == 'B' && (margin.cells[60].flags & ST_CONSOLE_CELL_REVERSE));
+	CHECK(margin.cells[61].glyph == ' ' && !(margin.cells[61].flags & ST_CONSOLE_CELL_REVERSE));
+
+	/* A selected CP437 wire encoding uses all eight bits for its glyph. */
+	struct result cp437;
+	run_mode(&cp437, ST_CTERM_ENCODING_CODEPAGE, "\xdb\x1b\xdb", SIZE_MAX,
+	    false, ST_CTERM_ATASCII, ST_CODEPAGE_CP437);
+	for (size_t x = 0; x < 2; ++x) {
+		CHECK(cp437.cells[x].glyph == 0xa0); /* Solid block in the Atari font */
+		CHECK(!(cp437.cells[x].flags & ST_CONSOLE_CELL_REVERSE));
 	}
 }
 

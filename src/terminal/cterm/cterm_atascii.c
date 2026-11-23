@@ -13,12 +13,10 @@
  * Plugs into cterm_dispatch_byte() in cterm.c: the 256-bit
  * cterm_atascii_ctrl_bitmap marks which byte values are control codes;
  * cterm_atascii_handlers[byte] is the handler function for those bytes.
- * Printable characters (bitmap bit clear) use the generic print path.
+ * Printable characters use the same ATASCII glyph path as quoted bytes.
  *
- * The ESC byte (27) enters one-shot "inverse" mode: the very next byte
- * is treated as a literal cell regardless of its control-character
- * value, then the mode resets.  This is handled by the ESC handler
- * installing a single-byte accumulator.
+ * ESC installs a one-byte accumulator. The following byte is displayed
+ * literally, except that EOL always advances to the next line.
  *
  * Tab stops use the shared cterm->tabs[] / cterm_insert_tabstop /
  * cterm_delete_tabstop / cterm_do_tab API — ATASCII's SET TAB (159) /
@@ -26,62 +24,23 @@
  */
 
 #include <limits.h>
-#include <string.h>
 
 #include "cterm_render.h"
 #include "cterm.h"
 #include "cterm_internal.h"
 #include "cterm_atascii.h"
 
-/* ------------------------------------------------------------------------
- * Literal-byte accumulator for ATASCII's one-shot ESC-quote mode.
- * When the ESC handler fires it installs this accumulator; the next
- * byte is written as a screen-code-translated literal cell and the
- * accumulator clears itself.
- * ------------------------------------------------------------------------ */
+static void atascii_return(struct cterminal *cterm);
+
 static bool
 atascii_literal_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 {
-	int x, y, k, sx, sy;
-	unsigned char ch[2] = {0, 0};
 	(void)speed;
-
-	if (byte == 155) {	/* Return — always a CR even when quoted */
-		cterm_adjust_currpos(cterm, INT_MIN, +1, 1);
-	}
-	else {
-		k = byte;
-		if (k < 32)
-			k += 64;
-		else if (k < 96)
-			k -= 32;
-		else if (k < 128)
-			;	/* no translation */
-		else if (k < 160)
-			k += 64;
-		else if (k < 224)
-			k -= 32;
-		/* k < 256: no translation */
-		ch[0] = (unsigned char)k; /* ATASCII translation stays in 0..255. */
-		ch[1] = cterm->attr;
-		SCR_XY(&sx, &sy);
-		{
-			struct st_console_cell cell;
-			uint32_t foreground;
-			uint32_t background;
-
-			cterm_render_attribute_colours(cterm, ch[1], &foreground,
-			    &background);
-			if (cterm_render_make_cell(cterm, &cell, ch[0], ch[1],
-			    foreground, background,
-			    cterm_render_attribute_font(cterm, ch[1]), 0, 0) == 0)
-				cterm_render_write_cells(cterm, sx, sy, sx, sy, &cell);
-		}
-		CURR_XY(&x, &y);
-		cterm_advance_char(cterm, &x, &y, 1);
-	}
-	cterm->attr = 7;
 	cterm->accumulator = NULL;
+	if (byte == 0x9b)
+		atascii_return(cterm);
+	else
+		cterm_text_atascii_byte(cterm, byte);
 	return true;
 }
 
@@ -95,7 +54,6 @@ atascii_literal_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 static void
 atascii_escape(struct cterminal *cterm)	/* 27 */
 {
-	cterm->attr = 1;
 	cterm->accumulator = atascii_literal_byte;
 }
 

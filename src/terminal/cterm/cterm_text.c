@@ -56,7 +56,7 @@ remember(struct cterminal *cterm, const uint8_t *bytes, size_t size)
 
 static int
 place(struct cterminal *cterm, const struct st_unicode_presentation_event *event,
-	bool provisional)
+	bool provisional, uint32_t glyph_flags)
 {
 	struct st_console_style style;
 	struct st_console_cell cells[2];
@@ -85,7 +85,7 @@ place(struct cterminal *cterm, const struct st_unicode_presentation_event *event
 		return status;
 	cells[0] = (struct st_console_cell){
 		.foreground = style.foreground, .background = style.background,
-		.flags = style.flags, .font = style.font,
+		.flags = style.flags | glyph_flags, .font = style.font,
 		.hyperlink = style.hyperlink,
 	};
 	if (event->kind == ST_UNICODE_PRESENTATION_DECODE_ERROR) {
@@ -235,7 +235,7 @@ present(void *context, const struct st_unicode_presentation_event *event)
 		cterm_coord_get_xy(cterm, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
 		cterm->screen.provisional_drawn = false;
 	}
-	status = place(cterm, event, event->kind != ST_UNICODE_PRESENTATION_DECODE_ERROR);
+	status = place(cterm, event, event->kind != ST_UNICODE_PRESENTATION_DECODE_ERROR, 0);
 	if (status == 0 && cterm->skypix_engine != NULL)
 		status = cterm_skypix_present_cell(cterm->skypix_engine);
 	return status;
@@ -296,8 +296,8 @@ cterm_text_literal(struct cterminal *cterm, uint8_t byte)
 	cterm_text_literal_scalar(cterm, st_codepage_to_unicode(cterm->screen.codepage, byte, true));
 }
 
-void
-cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar)
+static void
+place_literal(struct cterminal *cterm, uint32_t scalar, uint32_t glyph_flags, bool received)
 {
 	char text[4];
 	ptrdiff_t size = st_utf8_encode_one(text, sizeof(text), scalar);
@@ -309,8 +309,32 @@ cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar)
 	int status = cterm_text_boundary(cterm);
 	cterm_coord_get_xy(cterm, CTERM_COORD_ABSTERM, &cterm->xpos, &cterm->ypos);
 	if (status == 0)
-		status = place(cterm, &event, false);
+		status = place(cterm, &event, false, glyph_flags);
+	if (status == 0 && received && cterm->log == CTERM_LOG_ASCII && cterm->logfile != NULL)
+		fwrite(text, event.size, 1, cterm->logfile);
 	cterm_render_record_error(cterm, status);
+}
+
+void
+cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar)
+{
+	place_literal(cterm, scalar, 0, false);
+}
+
+void
+cterm_text_atascii_byte(struct cterminal *cterm, uint8_t byte)
+{
+	uint32_t flags = 0;
+	if (cterm->screen.codepage == ST_CODEPAGE_ATASCII) {
+		/* The bundled font is already in ATASCII order. The high bit
+		 * reverses only this cell, including when ESC quoted the byte. */
+		if (byte & 0x80)
+			flags = ST_CONSOLE_CELL_REVERSE;
+		byte &= 0x7f;
+	}
+	/* The byte parser has selected the session palette, including after reset. */
+	cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
+	place_literal(cterm, st_codepage_to_unicode(cterm->screen.codepage, byte, true), flags, true);
 }
 
 void

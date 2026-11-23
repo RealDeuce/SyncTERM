@@ -4132,31 +4132,19 @@ single-byte control codes.
 
 === Character Encoding
 
-In **normal mode**, printable bytes are stored directly as raw ATASCII
-values in the screen buffer.  The font rendering maps these to the
-appropriate Atari glyphs.
+The Atari screen editor receives ATASCII. For display, the Atari OS maps
+ATASCII `00`–`1F` to internal screen codes `40`–`5F`, maps `20`–`5F` to
+`00`–`3F`, and leaves `60`–`7F` in place. It preserves bit 7 throughout
+the conversion. SyncTERM's Atari font is arranged in ATASCII order.
 
-In **inverse (ESC) mode**, bytes are translated to Atari screen codes
-before storage:
+Bit 7 selects reverse video for each printable character. For example,
+`41 C1 41` displays three As with just the middle one in reverse video.
 
-- Bytes 0–31 are mapped to screen codes 64–95
-- Bytes 32–95 are mapped to screen codes 0–63
-- Bytes 96–127 are not translated
-- Bytes 128–159 are mapped to screen codes 192–223
-- Bytes 160–223 are mapped to screen codes 128–191
-- Bytes 224–255 are not translated
+=== ESC Quoting
 
-=== ESC Mode
-
-Byte 27 (ESC) enables _inverse video mode_.  The next byte received is
-translated to a screen code (see above) and displayed using the inverse
-attribute (attr=1 instead of the normal attr=7).  After displaying the
-inverse character, normal mode is automatically restored.  The ESC byte
-itself is not displayed.
-
-In ESC mode, byte 155 (Return) still functions as a control code.
-All other bytes are translated to screen codes and displayed in
-inverse.
+ESC (`1B`) quotes the next ATASCII byte, allowing a control's glyph to be
+displayed. Bit 7 still determines its polarity. End-of-line (`9B`) always
+advances to the next line, including after ESC.
 
 === Control Codes
 
@@ -4164,7 +4152,7 @@ inverse.
 |===
 | Byte | Name | Action
 
-| 27 | ESC | Enable inverse video for the next character
+| 27 | ESC | Quote the next byte, with the end-of-line exception above
 | 28 | Cursor Up | Move cursor up one row; wraps to bottom of same column
 | 29 | Cursor Down | Move cursor down one row; wraps to top of same column
 | 30 | Cursor Left | Move cursor left one column; wraps to right side of same row
@@ -4182,9 +4170,7 @@ inverse.
 | 255 | Insert Char | Insert a blank space at the cursor; characters to the right shift right. The character at the right margin is lost.
 |===
 
-All other byte values (including 0–26 except ESC, 32–124, 128–154,
-160–252) are treated as printable characters and displayed using the
-ATASCII-to-screen-code translation described above.
+All other byte values are printable ATASCII characters.
 
 === Cursor Wrapping Behavior
 

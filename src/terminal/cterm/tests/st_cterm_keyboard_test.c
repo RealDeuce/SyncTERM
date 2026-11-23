@@ -147,6 +147,48 @@ check_mappings(void)
 			CHECK(st_cterm_handle_key(terminal, '\b', 0));
 			CHECK(st_cterm_handle_key(terminal, '\t', 0));
 			CHECK(output.size == 3 && memcmp(output.bytes, "\x9b\x7e\x7f", 3) == 0);
+			const struct st_console_rect first = {0, 0, 1, 1};
+			struct st_console_cell initial;
+			feed(terminal, "\x7d" "A");
+			CHECK(st_console_read_cells(console, &first, &initial, 1) == 0);
+			CHECK(st_cterm_reset_terminal(terminal) == 0);
+			output = (struct output){0};
+			CHECK(st_cterm_handle_text_key(terminal, 'A'));
+			CHECK(st_cterm_handle_key(terminal, '`', 0));
+			CHECK(st_cterm_atascii_inverse(terminal));
+			feed(terminal, "\x7d" "A\xc1" "A\x1b\x1c");
+			const struct st_console_rect area = {0, 0, 3, 1};
+			struct st_console_cell cells[3];
+			CHECK(st_console_read_cells(console, &area, cells, 3) == 0);
+			for (size_t x = 0; x < 3; ++x) {
+				CHECK(cells[x].glyph == 'A');
+				CHECK(cells[x].foreground == initial.foreground && cells[x].background == initial.background);
+				CHECK(((cells[x].flags & ST_CONSOLE_CELL_REVERSE) != 0) == (x == 1));
+			}
+			FILE *snapshot = tmpfile();
+			int native_error = 0;
+			CHECK(snapshot != NULL);
+			CHECK(st_cterm_save_binary(terminal, snapshot, false, NULL, NULL, &native_error) == 0);
+			rewind(snapshot);
+			const uint8_t bytes[] = {'A', 0xc1, 'A', 0x1c};
+			for (size_t x = 0; x < sizeof(bytes); ++x) {
+				CHECK(fgetc(snapshot) == bytes[x]);
+				CHECK(fgetc(snapshot) != EOF); /* Attribute */
+			}
+			fclose(snapshot);
+			CHECK(st_cterm_atascii_inverse(terminal));
+			CHECK(st_cterm_handle_text_key(terminal, 'A'));
+			CHECK(st_cterm_handle_text_key(terminal, 0x2665)); /* ATASCII 00 */
+			CHECK(st_cterm_handle_key(terminal, ST_CONSOLE_KEY_UP, 0));
+			CHECK(st_cterm_handle_key(terminal, '\r', 0));
+			CHECK(st_cterm_handle_key(terminal, '`', 0));
+			CHECK(st_cterm_handle_text_key(terminal, 'A'));
+			CHECK(output.size == 6 && memcmp(output.bytes, "A\xc1\x80\x1c\x9b" "A", 6) == 0);
+			feed(terminal, "\x1b");
+			CHECK(st_cterm_reset_terminal(terminal) == 0);
+			feed(terminal, "\x7d" "A");
+			struct st_cterm_state state;
+			CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 2 && state.y == 1);
 		}
 		st_cterm_destroy(&terminal);
 	}

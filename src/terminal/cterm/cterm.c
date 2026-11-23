@@ -452,6 +452,10 @@ cterm_encode_key_ex(struct cterminal *cterm, int key, bool emit)
 				cterm->atascii_inverse = !cterm->atascii_inverse;
 				return -1; /* Consumed locally, without encoded bytes. */
 			}
+			/* The keyboard sets bit 7 on data characters only. */
+			if (cterm->atascii_inverse && cterm->screen.codepage == ST_CODEPAGE_ATASCII
+			    && key >= 0 && key < 128 && cterm_atascii_handlers[key] == NULL)
+				key |= 0x80;
 			table = atascii_keys;
 			table_count = KEY_MAP_SIZE(atascii_keys);
 			break;
@@ -2458,10 +2462,8 @@ cterm_ctputs(struct cterminal *cterm, char *buf)
  * PETSCII and ATASCII don't use ECMA-48 sequence state; every received
  * byte is either a control code or a printable cell.  Each emulation
  * installs a 256-bit bitmap marking which byte values are controls and
- * a handler table indexed by byte value.  Printable bytes go through
- * the shared C64 attribute path (cterm_c64_get_attr returns cterm->attr
- * when the reverse flag is clear, so the same path works for both
- * emulations).  Bytes whose bitmap bit is set but whose handler slot is
+ * a handler table indexed by byte value.  Each emulation applies its own printable-byte
+ * attributes.  Bytes whose bitmap bit is set but whose handler slot is
  * NULL are silently dropped (PETSCII uses this for its reserved/
  * non-printable byte ranges).
  * ------------------------------------------------------------------------ */
@@ -2477,6 +2479,8 @@ cterm_dispatch_byte(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->byte_handlers[byte](cterm);
 		/* else: control byte with no handler — drop silently */
 	}
+	else if (cterm->emulation == CTERM_EMULATION_ATASCII)
+		cterm_text_atascii_byte(cterm, byte);
 	else {
 		uint8_t attribute = cterm_c64_get_attr(cterm);
 		uint8_t saved = cterm->attr;

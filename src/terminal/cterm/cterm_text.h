@@ -14,6 +14,7 @@ int cterm_text_boundary(struct cterminal *cterm);
 int cterm_text_commit(struct cterminal *cterm);
 int cterm_text_feed(struct cterminal *cterm, const void *text, size_t size,
 	size_t *consumed);
+void cterm_text_atascii_byte(struct cterminal *cterm, uint8_t byte);
 void cterm_text_byte(struct cterminal *cterm, uint8_t byte);
 void cterm_text_literal(struct cterminal *cterm, uint8_t byte);
 void cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar);
