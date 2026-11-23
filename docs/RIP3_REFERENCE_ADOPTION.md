@@ -1138,3 +1138,20 @@ The adopted profile resolves B161. It specifies the decoded 20-byte name
 bound, ASCII uppercase, captured field and input substitutions, media
 extensions and missing-file behavior. The HCL WAV spelling of `$OFF$`
 uses ordinary lookup. The wire stop command retains its own behavior.
+
+## PR #165 RIP_SCROLL
+
+Fork stable is pinned at
+[`328f8191f526234bbc554b381aa86972eb9d4ef7`](https://github.com/RealDeuce/remote-imaging-protocol/tree/328f8191f526234bbc554b381aa86972eb9d4ef7).
+It contains the reviewed [PR #165](https://github.com/bbs-land/remote-imaging-protocol/pull/165)
+head `b4ec4a1bd28eab4d448f625670cdb10b8fee87fa`. The in-memory Git tar archive
+has SHA-256 `57132db332bc6fe64cc62a1c8db8166da21db660f1627466698c8e8e9dc09ac3`.
+
+Two normative documents change. The index retains 8884 source blocks, adds
+41 and retires 20, for 8925 total. All 78 prior derivations, original protocol
+texts and the license retain their hashes. The new #164 derivation records
+the original handler evidence and portable geometry.
+
+The published contract resolves B164. The destination uses the current XY
+width. Copy and fill use drawing-port bounds, and screen transfers preserve
+the two rendered blink phases.
