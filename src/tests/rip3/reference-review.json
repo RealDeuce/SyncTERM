@@ -13449,6 +13449,29 @@
       },
       "verification": "Native Release CMake build, session and palette lifecycle tests, live TCP reset and palette uploads on four rasters in CP437 and UTF-8, and the contract and RIP154 preservation guards.",
       "followup": "B158 requests the remaining HARD reset field and ownership rules."
+    },
+    {
+      "after_commit": "372cbc25",
+      "revision": "266a26951d211a8f9069cefa16a95da7d33b4e41",
+      "scope": "Check RIPtel's compiled pick-list scanner against the pinned chapter and record the conflicting or underspecified behavior.",
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.4-popup-lists.md:19",
+        "version/3.0/ripscrip/5.4-popup-lists.md:31",
+        "version/3.0/ripscrip/5.4-popup-lists.md:32",
+        "version/3.0/ripscrip/5.4-popup-lists.md:60",
+        "version/3.0/ripscrip/5.4-popup-lists.md:80",
+        "version/3.0/ripscrip/5.4-popup-lists.md:94"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/159",
+      "states_after_update": {
+        "unreviewed": 2930,
+        "context": 1551,
+        "pending": 1684,
+        "implemented": 2511,
+        "excluded": 67,
+        "blocked": 32
+      },
+      "verification": "Read-only inspection of the fingerprinted original driver, including modal parser, ordinary splice and final host send. No original executable was run."
     }
   ]
 }

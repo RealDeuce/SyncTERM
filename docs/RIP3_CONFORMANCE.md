@@ -8749,7 +8749,7 @@ cancellation, failed allocation, template and graphical exclusions, and
 recursive invocation. TCP tests cover both wire encodings, control bytes,
 late expansion and the connection's key-event handler on 640x480 and 720x400
 rasters.
-Pick-list evaluation remains pending.
+Pick-list evaluation remains pending. See the [pick-list contract review](#pick-list-contract-review).
 
 The queue contains 2396 implemented, 1686 pending, 2976 unreviewed, 1520
 context, 67 excluded and 30 blocked units.
@@ -8920,3 +8920,14 @@ with the full TW 0, ENV 0 and raster postconditions, still need clarification.
 
 The queue contains 2511 implemented, 1684 pending, 2936 unreviewed,
 1551 context, 67 excluded and 26 blocked units.
+
+## Pick-list contract review
+
+The pinned pick-list chapter's recursive model is based on legacy SyncTERM.
+RIPtel's list parser returns a selected span to the ordinary scanner. The
+host-response executor sends its result after both passes. The remaining
+parsing, placement and expansion rules are tracked upstream.
+[Issue #159](https://github.com/bbs-land/remote-imaging-protocol/issues/159)
+
+The queue contains 2511 implemented, 1684 pending, 2930 unreviewed,
+1551 context, 67 excluded and 32 blocked units.
