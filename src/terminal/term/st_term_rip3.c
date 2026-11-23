@@ -870,6 +870,42 @@ before_command(void *context)
 	else rip->text_since_boundary=false;
 }
 
+struct scene_input {
+	struct st_cterm_suspended_input *cterm;
+	uint8_t escape[3];
+	size_t escape_length;
+};
+
+static int
+scene_begin(void *context, void **result)
+{
+	struct st_term_rip3 *rip = context;
+	struct scene_input *saved = malloc(sizeof(*saved));
+	if (saved == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	int status = st_cterm_suspend_rip3_input(st_term_rip3_text(rip), &saved->cterm);
+	if (status != 0) {
+		free(saved);
+		return status;
+	}
+	saved->escape_length = rip->escape_length;
+	memcpy(saved->escape, rip->escape, saved->escape_length);
+	rip->escape_length = 0;
+	*result = saved;
+	return 0;
+}
+
+static void
+scene_end(void *context, void *state)
+{
+	struct st_term_rip3 *rip = context;
+	struct scene_input *saved = state;
+	st_cterm_resume_rip3_input(st_term_rip3_text(rip), saved->cterm);
+	rip->escape_length = saved->escape_length;
+	memcpy(rip->escape, saved->escape, saved->escape_length);
+	free(saved);
+}
+
 /* Explicit screen saves merge native ANSI ink into the existing raw graphics
  * capture. Reuse the last presented RGB image to retain underlying palette
  * indexes/literal reset black wherever native output has not changed the pixel.
@@ -1671,6 +1707,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
+	        .scene_begin=scene_begin,.scene_end=scene_end,
 	        .scene_decode=config->encoding==ST_CTERM_ENCODING_CODEPAGE ? decode_scene_byte : NULL,
 	        .notice=config->rip3_alert!=NULL ? notice : NULL},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,

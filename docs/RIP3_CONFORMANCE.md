@@ -9244,13 +9244,19 @@ opened while an article is active continue to feed literal prose. The
 original behavior for command-like sequences in those files needs
 clarification. [Issue #179](https://github.com/bbs-land/remote-imaging-protocol/issues/179)
 Commands in a scene can send RIP, file-query and ANSI replies over the
-connection. Partial ANSI syntax still shares the running text interpreter
-across file boundaries. Isolation of that syntax remains pending under the
-adopted contract. [PR #176](https://github.com/bbs-land/remote-imaging-protocol/pull/176)
+connection. Each scene starts with fresh ANSI input syntax. At EOF, the
+terminal discards the child's incomplete syntax and resumes the caller's
+pending sequence. Completed rendition, cursor, drawing and text effects
+carry across the return. [PR #176](https://github.com/bbs-land/remote-imaging-protocol/pull/176)
 
 Connected CP437 and UTF-8 fixtures check exact child replies, nested resumption
 on CR and pipe, pixel and cell results, filename expansion, and recovery from
 missing files or a scene refused at the eight-file depth limit.
+They also exercise nested incomplete CSI and OSC sequences and a RIP
+identification query interrupted by playback. The native CTerm test
+checks that input survives replacing the original window and discards an
+unfinished child sixel. Scene callback fault tests cover failure to save
+input and cleanup on cancellation.
 
 `$>NAME$` uses the same reader from immediate queries, REFRESH and mouse
 actions. It pauses the invoking evaluator while the child scene runs. The

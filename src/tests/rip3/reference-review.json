@@ -16603,6 +16603,24 @@
       },
       "verification": "Native scene session, split-input stream and resource query tests. Connected media and article tests in CP437 and UTF-8.",
       "followup": "Isolate incomplete ANSI syntax across scene sources and resolve the TXT article framing question in issue #179."
+    },
+    {
+      "after_commit": "3da80261",
+      "revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
+      "scope": "Isolate incomplete ANSI input across local scene sources and restore its caller at EOF or cancellation.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:177",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:179"
+      ],
+      "states_after_update": {
+        "unreviewed": 2492,
+        "context": 1719,
+        "pending": 1690,
+        "implemented": 2987,
+        "excluded": 70,
+        "blocked": 43
+      },
+      "verification": "Connected CP437 and UTF-8 nested scene CSI, OSC and identification reply checks. Native CTerm state migration, native scene callback failure and cancellation, and RIP 1.54 source preservation."
     }
   ]
 }

@@ -314,6 +314,20 @@ def check_read_scene(t, root, assets, encoding):
     assert frame.lines[17][:2] == "B "
     assert frame.lines[18][:3] == "D! "
 
+    t.case("Each nested scene discards its incomplete ANSI syntax and resumes its caller")
+    (assets / "AnsiInner.RIP").write_bytes(b"\x1b[21;5H\x1b[32mI\x1b]0;unfinished")
+    (assets / "AnsiOuter.RIP").write_bytes(
+        b"\x1b[4\x01|" + read_scene(b"AnsiInner") + b"\n4mP\x1b[3")
+    frame = t.exchange(b"\x1b[0m\x1b[3\x01|" + read_scene(b"AnsiOuter")
+                       + b"\r1mL\x1b[6n", b"\x1b[21;8R")
+    assert frame.lines[20][4:7] == "IPL"
+    assert frame.application["cterm.attr"] == 0x14
+
+    t.case("A scene cannot consume the caller's pending RIP identification prefix")
+    (assets / "AnsiPrefix.RIP").write_bytes(b"!\x1b[")
+    t.exchange(b"\x1b[\x01|" + read_scene(b"AnsiPrefix") + b"\r!", b"RIPSCRIP030001")
+    t.exchange(b"\x1b[\x01|" + read_scene(b"Missing") + b"\r5n", b"\x1b[0n")
+
     t.case("Baud emulation paces local scene bytes")
     (assets / "Pace.TXT").write_bytes(b"abcdef")
     t.exchange(b"\x01|3e00RS\r\n")  # 1000 baud, 10 ms between bytes.

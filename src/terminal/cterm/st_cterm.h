@@ -305,6 +305,13 @@ int st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled);
 int st_cterm_start_text(st_cterm_t *terminal);
 /* Commit pending Unicode text at an external graphics/window boundary. */
 int st_cterm_text_boundary(st_cterm_t *terminal);
+/* Local RIP3 playback suspends partial input while sharing live terminal
+ * state. Call outside st_cterm_write after flushing text. Suspend leaves the
+ * terminal and result unchanged on failure. Resume discards incomplete child
+ * input and consumes the saved state, which may be NULL. */
+struct st_cterm_suspended_input;
+int st_cterm_suspend_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result);
+void st_cterm_resume_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved);
 /* RIP3-only preparation of a started, idle fresh window: inherit unfinished
  * ordinary ANSI syntax and, when preserve_tabs is true, the old tab stops.
  * Extended b keeps fresh default tabs. Do not copy rendition/geometry or

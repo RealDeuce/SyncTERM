@@ -60,6 +60,8 @@ struct fixture {
 	uint32_t clear_rgb;
 	struct st_rip3_text_window_layout window;
 	unsigned paging_notice;
+	unsigned scene_starts, scene_ends;
+	bool scene_hook_open, scene_hook_fail;
 };
 
 static uint64_t
@@ -2122,6 +2124,30 @@ scene_pacing(void)
 }
 
 static int
+begin_scene_input(void *context, void **saved)
+{
+	struct fixture *f = context;
+	++f->scene_starts;
+	if (f->scene_hook_fail)
+		return IO_ERROR_OUT_OF_MEMORY;
+	if (f->scene_hook_open)
+		return IO_ERROR_CONFLICT;
+	f->scene_hook_open = true;
+	*saved = &f->scene_hook_open;
+	return 0;
+}
+
+static void
+end_scene_input(void *context, void *saved)
+{
+	struct fixture *f = context;
+	if (saved != &f->scene_hook_open || !f->scene_hook_open)
+		f->overflow = true;
+	f->scene_hook_open = false;
+	++f->scene_ends;
+}
+
+static int
 scene_query_scope(void)
 {
 	struct fixture f={0};
@@ -2129,6 +2155,8 @@ scene_query_scope(void)
 	const struct st_rip3_resource_paths resources={.host=ST_RIP3_SESSION_SCENE_DIR};
 	static const char call[]="!|1\0330000before$>Pace.TXT$after\r";
 	options.resources=&resources;
+	options.sink.scene_begin = begin_scene_input;
+	options.sink.scene_end = end_scene_input;
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
 	size_t live=st_rip3_session_test_live;
 	/* Fail the child framer, ordinary query and refresh query in turn. */
@@ -2141,12 +2169,28 @@ scene_query_scope(void)
 		CHECK(!st_rip3_session_pending(f.session) && st_rip3_session_test_live==live);
 	}
 	st_rip3_session_test_fail_at=SIZE_MAX;
+	CHECK(f.scene_starts == 0 && f.scene_ends == 0);
+	f.scene_hook_fail = true;
+	f.reply_length = 0;
+	CHECK(append(&f, call) == 0 && pump(&f) == 0);
+	CHECK(f.scene_starts == 1 && f.scene_ends == 0 && !f.scene_hook_open && f.text_length == 0);
+	CHECK(f.reply_length == 11 && memcmp(f.reply, "beforeafter", 11) == 0);
+	CHECK(f.errors == 4 && f.kind == ST_RIP3_COMMAND_RESOURCE_FAILURE && st_rip3_session_test_live == live);
+	f.scene_hook_fail = false;
 	CHECK(query(&f,"$BAUDEMUL(CUR,1000)$","")==0);
 	CHECK(append(&f,call)==0 && pump(&f)==0);
 	CHECK(st_rip3_session_local_scene(f.session) && f.reply_length==0 && f.text_length==1);
+	CHECK(f.scene_starts == 2 && f.scene_ends == 0 && f.scene_hook_open);
 	st_rip3_session_cancel(f.session);
 	CHECK(!st_rip3_session_pending(f.session) && st_rip3_session_test_live==live);
+	CHECK(f.scene_starts == 2 && f.scene_ends == 1 && !f.scene_hook_open && !f.overflow);
 	CHECK(query(&f,"live","live")==0);
+	CHECK(query(&f, "$BAUDEMUL(CUR,0)$", "") == 0);
+	CHECK(append(&f, call) == 0 && pump(&f) == 0);
+	CHECK(f.scene_starts == 3 && f.scene_ends == 2 && !f.scene_hook_open && !f.overflow);
+	CHECK(f.reply_length == 0 && st_rip3_session_pending(f.session));
+	CHECK(pump(&f) == 0 && !st_rip3_session_pending(f.session));
+	CHECK(f.reply_length == 11 && memcmp(f.reply, "beforeafter", 11) == 0);
 	st_rip3_session_destroy(f.session);
 	CHECK(st_rip3_session_test_live==0);
 	return 0;

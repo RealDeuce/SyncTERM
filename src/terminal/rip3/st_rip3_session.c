@@ -50,6 +50,7 @@ enum graphical_job {
 enum { SCENE_LIMIT = 8 };
 
 struct local_scene {
+	void *caller_input;
 	struct st_rip3_resource file;
 	struct st_rip3_stream *stream;
 	/* Prepared child evaluators until start, then the suspended caller. */
@@ -877,9 +878,11 @@ open_scene(struct st_rip3_session *session, const char *filename, bool suspend_q
 		status = create_query(session, &scene.query, &session->variables);
 	if (status == 0 && suspend_query)
 		status = create_query(session, &scene.refresh, &session->refresh_variables);
+	if (status == 0 && session->sink.before_command != NULL)
+		session->sink.before_command(session->sink.context);
+	if (status == 0 && session->sink.scene_begin != NULL)
+		status = session->sink.scene_begin(session->sink.context, &scene.caller_input);
 	if (status == 0) {
-		if (session->sink.before_command != NULL)
-			session->sink.before_command(session->sink.context);
 		session->scenes[session->scene_count++] = scene;
 		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
 	}
@@ -914,7 +917,10 @@ activate_scene_queries(struct st_rip3_session *session)
 static void
 close_scene(struct st_rip3_session *session)
 {
-	struct local_scene *scene = &session->scenes[--session->scene_count];
+	struct local_scene *scene = &session->scenes[session->scene_count - 1];
+	if (session->sink.scene_end != NULL)
+		session->sink.scene_end(session->sink.context, scene->caller_input);
+	--session->scene_count;
 	if (scene->queries_active) {
 		st_rip3_query_destroy(session->commands.query);
 		st_rip3_query_destroy(session->refresh.query);
@@ -1801,6 +1807,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || config->default_text_font>=5
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if ((config->sink.screen_capture==NULL)!=(config->sink.screen_restore==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	if ((config->sink.scene_begin == NULL) != (config->sink.scene_end == NULL))
+		return IO_ERROR_INVALID_ARGUMENT;
 	bool text_ansi=config->sink.text_ansi_capture!=NULL;
 	if ((config->sink.text_ansi_restore!=NULL)!=text_ansi || (config->sink.text_ansi_destroy!=NULL)!=text_ansi)
 		return IO_ERROR_INVALID_ARGUMENT;

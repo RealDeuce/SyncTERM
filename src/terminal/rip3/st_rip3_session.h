@@ -122,6 +122,11 @@ struct st_rip3_session_sink {
 	int (*text_ansi_capture)(void *context,bool font_known,void **result);
 	int (*text_ansi_restore)(void *context,const void *saved);
 	void (*text_ansi_destroy)(void *saved);
+	/* Paired hooks suspend and resume only the terminal input syntax. Begin
+	 * runs after flushing caller text and must leave it unchanged on failure.
+	 * End consumes the saved object on EOF or cancellation. */
+	int (*scene_begin)(void *context, void **saved);
+	void (*scene_end)(void *context, void *saved);
 	/* Optional conversion from the local scene's byte encoding to the
 	 * engine encoding. ASCII framing bytes are passed through unchanged. */
 	size_t (*scene_decode)(void *context, uint8_t byte, uint8_t output[4]);

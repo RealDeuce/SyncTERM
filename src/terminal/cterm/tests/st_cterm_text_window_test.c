@@ -64,6 +64,32 @@ continuations(void)
 }
 
 static int
+scene_input_continuation(void)
+{
+	struct fixture caller = {0}, replacement = {0};
+	CHECK(create(&caller, 17) == 0 && create(&replacement, 23) == 0);
+	static const char prefix[] = "\x1b]0;caller";
+	CHECK(feed(&caller, prefix, sizeof(prefix) - 1) == 0);
+	struct st_cterm_suspended_input *saved = NULL;
+	CHECK(st_cterm_suspend_rip3_input(caller.text, &saved) == 0 && saved != NULL);
+	CHECK(caller.text->accumulator == NULL && caller.text->strbuf == NULL);
+	destroy(&caller);
+
+	static const char child[] = "\x1b[31m\x1bPq~";
+	CHECK(feed(&replacement, child, sizeof(child) - 1) == 0);
+	CHECK(replacement.text->sixel == SIXEL_STARTED);
+	st_cterm_resume_rip3_input(replacement.text, saved);
+	CHECK(replacement.text->sixel == SIXEL_INACTIVE && replacement.text->sx_pixels == NULL);
+	CHECK(replacement.text->string == CTERM_STRING_OSC && replacement.text->strbuflen == 8);
+	CHECK(memcmp(replacement.text->strbuf, "0;caller", 8) == 0);
+	CHECK(feed(&replacement, "\x1b\\Z", 3) == 0 && position(&replacement, 2, 1) == 0);
+	struct st_cterm_state state;
+	CHECK(st_cterm_state(replacement.text, &state) == 0 && state.attr == 4);
+	destroy(&replacement);
+	return 0;
+}
+
+static int
 tabs_and_saved_cursor(void)
 {
 	struct fixture source={0},small={0},large={0};
@@ -406,6 +432,7 @@ ansi_window_save(void)
 int
 main(void)
 {
+	CHECK(scene_input_continuation() == 0);
 	CHECK(ansi_window_save()==0 && character_sets()==0 && definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
 	    && window_copy()==0 && selection_continuations()==0 && default_window()==0 && soft_ansi_reset()==0);return 0;
 }

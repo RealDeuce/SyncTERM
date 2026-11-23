@@ -2514,6 +2514,155 @@ input_display(st_cterm_t *owner)
 	    ? owner->status_sub : owner;
 }
 
+/* Own only incomplete syntax. Completed settings, text, macros and graphics
+ * stay on the terminal. A scene can replace the current text window, so a
+ * suspended input object cannot borrow buffers from the previous window. */
+struct partial_input {
+	cterm_accumulator_fn accumulator, saved_accumulator;
+	int sequence, string;
+	char *strbuf;
+	size_t strbuflen, strbufsize, escbufsz;
+	char escbuf[sizeof(((st_cterm_t *)0)->escbuf)];
+	uint32_t seq_key;
+	enum seq_phase seq_phase;
+	char seq_params[sizeof(((st_cterm_t *)0)->seq_params)];
+	uint64_t seq_param_int[MAX_SEQ_PARAMS];
+	int seq_param_len, seq_param_count;
+	uint64_t seq_cur_value;
+	bool seq_cur_has_digits, seq_cur_has_sub, seq_overflow;
+	void (*seq_trailing_handler)(st_cterm_t *, int *);
+	uint8_t seq_trailing_remain;
+	int doorway_char, music, font_read, font_slot, font_size;
+	char musicbuf[sizeof(((st_cterm_t *)0)->musicbuf)];
+	char fontbuf[sizeof(((st_cterm_t *)0)->fontbuf)];
+	int macro, macro_num, macro_del, macro_encoding;
+	int sixel, sx_iv, sx_ih, sx_trans, sx_repeat, sx_left, sx_x, sx_y;
+	uint32_t sx_fg, sx_bg;
+	int sx_pixels_sent, sx_first_pass, sx_start_x, sx_start_y, sx_row_max_x;
+	struct st_pixel_buffer *sx_pixels;
+	int sx_width, sx_height;
+	struct st_pixel_mask *sx_mask;
+};
+
+struct st_cterm_suspended_input {
+	struct partial_input main, status;
+};
+
+static void
+swap_partial_input(st_cterm_t *terminal, struct partial_input *saved)
+{
+	/* The same exchange moves owned pointers and inline arrays in both
+	 * directions. Handler scratch pointers are rebuilt on sequence completion. */
+#define SWAP_FIELD(field) do { \
+		unsigned char previous[sizeof(terminal->field)]; \
+		_Static_assert(sizeof(terminal->field) == sizeof(saved->field), "input field size"); \
+		memcpy(previous, &terminal->field, sizeof(previous)); \
+		memcpy(&terminal->field, &saved->field, sizeof(previous)); \
+		memcpy(&saved->field, previous, sizeof(previous)); \
+	} while (0)
+	SWAP_FIELD(accumulator); SWAP_FIELD(saved_accumulator);
+	SWAP_FIELD(sequence); SWAP_FIELD(string);
+	SWAP_FIELD(strbuf); SWAP_FIELD(strbuflen); SWAP_FIELD(strbufsize);
+	SWAP_FIELD(escbuf); SWAP_FIELD(escbufsz);
+	SWAP_FIELD(seq_key); SWAP_FIELD(seq_phase);
+	SWAP_FIELD(seq_params); SWAP_FIELD(seq_param_int);
+	SWAP_FIELD(seq_param_len); SWAP_FIELD(seq_param_count);
+	SWAP_FIELD(seq_cur_value); SWAP_FIELD(seq_cur_has_digits);
+	SWAP_FIELD(seq_cur_has_sub); SWAP_FIELD(seq_overflow);
+	SWAP_FIELD(seq_trailing_handler); SWAP_FIELD(seq_trailing_remain);
+	SWAP_FIELD(doorway_char);
+	SWAP_FIELD(music); SWAP_FIELD(musicbuf);
+	SWAP_FIELD(font_read); SWAP_FIELD(font_slot); SWAP_FIELD(font_size); SWAP_FIELD(fontbuf);
+	SWAP_FIELD(macro); SWAP_FIELD(macro_num); SWAP_FIELD(macro_del); SWAP_FIELD(macro_encoding);
+	SWAP_FIELD(sixel); SWAP_FIELD(sx_iv); SWAP_FIELD(sx_ih); SWAP_FIELD(sx_trans);
+	SWAP_FIELD(sx_repeat); SWAP_FIELD(sx_left); SWAP_FIELD(sx_x); SWAP_FIELD(sx_y);
+	SWAP_FIELD(sx_fg); SWAP_FIELD(sx_bg); SWAP_FIELD(sx_pixels_sent);
+	SWAP_FIELD(sx_first_pass); SWAP_FIELD(sx_start_x); SWAP_FIELD(sx_start_y);
+	SWAP_FIELD(sx_row_max_x); SWAP_FIELD(sx_pixels); SWAP_FIELD(sx_width);
+	SWAP_FIELD(sx_height); SWAP_FIELD(sx_mask);
+#undef SWAP_FIELD
+	memset(terminal->seq_param_strs, 0, sizeof(terminal->seq_param_strs));
+}
+
+static bool
+partial_input_pending(const st_cterm_t *terminal)
+{
+	return terminal != NULL && (terminal->accumulator != NULL || terminal->strbuf != NULL
+	    || terminal->sixel != SIXEL_INACTIVE);
+}
+
+static void
+suspend_partial_input(st_cterm_t *terminal, struct partial_input *saved)
+{
+	if (!partial_input_pending(terminal))
+		return;
+	if (terminal->sixel == SIXEL_STARTED) {
+		(void)cterm_render_set_hold_update(terminal, terminal->sx_hold_update);
+		terminal->cursor = terminal->sx_orig_cursor;
+		cterm_render_set_cursor(terminal, terminal->cursor);
+	}
+	swap_partial_input(terminal, saved);
+}
+
+int
+st_cterm_suspend_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result)
+{
+	if (terminal == NULL || result == NULL || !terminal->rip3_session_owner || terminal->input_depth != 0
+	    || (terminal->status_sub != NULL && terminal->status_sub->input_depth != 0))
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_cterm_suspended_input *saved = NULL;
+	if (partial_input_pending(terminal) || partial_input_pending(terminal->status_sub)) {
+		saved = calloc(1, sizeof(*saved));
+		if (saved == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		suspend_partial_input(terminal, &saved->main);
+		suspend_partial_input(terminal->status_sub, &saved->status);
+	}
+	*result = saved;
+	return 0;
+}
+
+static void
+resume_partial_input(st_cterm_t *terminal, struct partial_input *saved)
+{
+	if (terminal != NULL) {
+		cterm_dec_sixel_cancel(terminal);
+		CTERM_FREE_AND_CLEAR(terminal->strbuf);
+		terminal->strbuflen = terminal->strbufsize = 0;
+		terminal->accumulator = terminal->saved_accumulator = NULL;
+		terminal->sequence = terminal->string = 0;
+		terminal->seq_phase = SEQ_PHASE_IDLE;
+		terminal->escbufsz = 0;
+		terminal->seq_param_len = terminal->seq_param_count = 0;
+		terminal->seq_trailing_remain = 0;
+		terminal->font_read = terminal->font_size = terminal->music = terminal->doorway_char = 0;
+		terminal->macro = MACRO_INACTIVE;
+		if (saved != NULL)
+			swap_partial_input(terminal, saved);
+		if (terminal->sixel == SIXEL_STARTED) {
+			terminal->sx_hold_update = cterm_render_hold_update(terminal);
+			terminal->sx_orig_cursor = terminal->cursor;
+			terminal->cursor = CTERM_CURSOR_HIDDEN;
+			cterm_render_set_cursor(terminal, terminal->cursor);
+			(void)cterm_render_set_hold_update(terminal, 1);
+		}
+	}
+	if (saved != NULL) {
+		free(saved->strbuf);
+		st_pixel_buffer_destroy(saved->sx_pixels);
+		st_pixel_mask_destroy(saved->sx_mask);
+	}
+}
+
+void
+st_cterm_resume_rip3_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved)
+{
+	resume_partial_input(terminal, saved == NULL ? NULL : &saved->main);
+	resume_partial_input(terminal == NULL ? NULL : terminal->status_sub,
+	    saved == NULL ? NULL : &saved->status);
+	free(saved);
+}
+
 static void
 input_cleanup(st_cterm_t *owner)
 {
