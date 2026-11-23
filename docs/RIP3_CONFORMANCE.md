@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-04d1637b6e6af424a7e8e7b5ac43de9669112c5b](https://github.com/RealDeuce/remote-imaging-protocol/tree/04d1637b6e6af424a7e8e7b5ac43de9669112c5b/version/3.0)
+9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6](https://github.com/RealDeuce/remote-imaging-protocol/tree/9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8713,12 +8713,8 @@ The [completed type-3 profile](#connected-header-text-window-geometry-and-erase)
 also covers retained-font geometry, target-local cursor home and the current
 palette's index 0 erase.
 
-Header viewport bounds reset now uses the existing operation that skips
-inactive and protected viewports. The TCP fixture verifies that a reactivated
-viewport retains its narrow clip until an active bounds reset. The original
-clipping-application branch also paints black, so issue #153 requests the
-pixel and clipping boundary for screen and bitmap ports.
-[Upstream issue #153](https://github.com/bbs-land/remote-imaging-protocol/issues/153)
+The [completed type-2 bounds and fill profile](#connected-header-port-black-fill)
+uses separate gates for bounds reset and literal black fill.
 
 Physical port deletion, palette upload parity and the full HARD state
 inventory also remain pending.
@@ -8788,8 +8784,33 @@ and CSI cursor recovery. The native session fixture checks failure continuation
 and fixed/floating query retention. Native CTerm definition and connected TW
 COPY tests cover the reused definition transfer. Independent vectors for the
 full set of retained ANSI settings, resource bindings and snapshots are pending.
-The type-2 graphics viewport clipping contract remains separately tracked in
-issue #153.
 
 The queue contains 2431 implemented, 1688 pending, 2976 unreviewed,
 1531 context, 67 excluded and 26 blocked units.
+
+
+## Connected HEADER port black fill
+
+Type-2 flags 8192 and 16384 clear the full physical extent of each addressed
+active port to opaque RGB black. The all form visits defined ports, including
+protected entries. The current form uses the logical port after any earlier
+selection in the segment. Screen ports clear their region on the shared canvas.
+Bitmap ports clear their own storage for later explicit copies. The existing
+RGB pixel representation and damage tracking carry both operations. Subsequent
+palette changes affect indexed pixels while the clear pixels stay black.
+
+The fill retains the stored viewport, cursor positions, image style, queries,
+remembered copy rectangles, selections and backups. Flags 2048 and 4096 set
+full viewport bounds without painting when the target is already active and
+unprotected. An earlier activation in the segment can make the bounds reset
+eligible. Type-2 bit 4 still awaits physical render-target deletion support.
+
+The CP437 and UTF-8 live fixtures exercise protected current screen and bitmap
+targets, inactive targets, all-port clearing with overlapping screen rectangles,
+physical edge clipping, retained drawing clip and palette changes. They copy
+the cleared bitmap through its original remembered pair. Native checks cover
+partial and repeated clears, retained screen and floating queries, and bitmap
+and query restore from an independent PORT backup.
+
+The queue contains 2455 implemented, 1689 pending, 2975 unreviewed,
+1537 context, 67 excluded and 25 blocked units.

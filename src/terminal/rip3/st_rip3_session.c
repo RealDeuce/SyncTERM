@@ -761,7 +761,8 @@ header_viewports(struct st_rip3_session *session, unsigned flags)
 	 * also changes activation and is a different operation. */
 	if (flags & 2048) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_MAXIMIZE, 0));
 	if (flags & 4096) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_MAXIMIZE, 0));
-	if (flags & (8192 | 16384)) header_result(session, IO_ERROR_NOT_SUPPORTED);
+	if (flags & 8192) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_PORT_CLEAR_BLACK, 0));
+	if (flags & 16384) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_PORT_CLEAR_BLACK, 0));
 	if (flags & 32768) st_rip3_ports_header_clear_queries(ports);
 }
 

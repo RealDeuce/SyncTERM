@@ -124,6 +124,84 @@ def geometry_actions(t, values, width, height):
     t.exchange(b'\x01|*\r\n')
 
 
+def port_actions(t, values, wire, width, height):
+    def coords(*values):
+        return b''.join(number(value, 2) for value in values)
+
+    def region(frame, rectangle, expected):
+        x0, y0, x1, y1 = rectangle
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                assert pixel(frame, x, y) == expected, (x, y, hex(pixel(frame, x, y)), hex(expected))
+
+    def same(before, frame):
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+        assert xy(frame) == xy(before)
+
+    t.case('rip3-header-protected-screen-port-fill-ignores-viewport-and-brush')
+    wire(b'h01000100')
+    values(f'$WORLD(CUR,{width},{height})$'.encode())
+    t.exchange(b'\x1b[2;3H\x1b[33;44m')
+    wire(b'a0009|W0|c00|X' + coords(21, 18) + b'|S0102|B' + coords(8, 18, 19, 25))
+    wire(b'2P5' + coords(10, 20, 18, 24) + b'2')
+    wire(b'v' + coords(12, 21, 15, 23) + b'|m1010|c04|S0004|W1')
+    values(b'$IMGSTYLE(5,12,21,14,22,ASPECT)$$PROT(PORT,5)$')
+    before = t.exchange()
+    same(before, wire(b'h01000001201000'))
+    frame = wire(b'h01000001204000')
+    assert xy(frame) == (3, 2) and frame.application['cterm.attr'] == 0x16
+    region(frame, (10, 20, 18, 24), 0)
+    for rectangle in ((8, 18, 20, 20), (8, 24, 20, 26), (8, 20, 10, 24), (18, 20, 20, 24)):
+        region(frame, rectangle, 0x00aa00)
+    assert pixel(frame, 21, 18) == 0x0000ff
+    values(b'$CUR(PORT)$:$ISPROT(PORT,5)$:$TEXTXY$:$IMGSTYLE(5)$', b'5:1:48:57:12:21:15:23:1')
+    frame = wire(b'a0002|W0|X' + coords(11, 22) + b'|X' + coords(13, 22))
+    assert pixel(frame, 11, 22) == 0 and pixel(frame, 13, 22) == 0xaa0000
+    assert pixel(frame, 21, 18) == 0x00aa00
+
+    t.case('rip3-header-bitmap-clear-retains-pair-and-indexed-palette-state')
+    values(b'$CUR(PORT,0)$')
+    wire(b'W0|S0104|B' + coords(100, 100, 107, 103))
+    for slot in (9, 10):
+        wire(b'2P' + number(slot, 1) + coords(0, 0, 8, 4) + b'1')
+        wire(b'2C0' + coords(100, 100, 108, 104) + number(slot, 1) + coords(0, 0, 8, 4) + b'0')
+    values(b'$CUR(PORT,9)$')
+    wire(b'v' + coords(2, 1, 5, 3))
+    values(b'$DVP(9)$$PROT(PORT,9)$')
+    before = t.exchange()
+    same(before, wire(b'h01000001204000'))
+    values(b'$UNPROT(PORT,9)$$AVP(9)$$PROT(PORT,9)$')
+    same(before, wire(b'h01000001204000'))
+    values(b'$CUR(PORT)$:$ISPROT(PORT,9)$', b'9:1')
+    values(b'$UNPROT(PORT,9)$$RESET(VIEW,9)$$CUR(PORT,0)$')
+    # The remembered copy rectangle predated the narrow viewport. PCB must
+    # still paste all eight columns, including the cleared cells outside it.
+    frame = values(b'$PCB(9)$')
+    region(frame, (100, 100, 108, 104), 0)
+    assert pixel(frame, 108, 103) == 0
+
+    t.case('rip3-header-all-port-clear-skips-inactive-screen-and-bitmap')
+    wire(b'S0102|B' + coords(100, 100, 107, 103))
+    wire(b'S0104|B' + coords(width - 4, height - 4, width - 1, height - 1))
+    wire(b'2P6' + coords(width - 3, height - 3, width + 2, height + 2) + b'0')
+    wire(b'2P7' + coords(16, 21, 20, 24) + b'8')
+    values(b'$DVP(0,10)$')
+    frame = wire(b'h01000001202000')
+    region(frame, (width - 3, height - 3, width, height), 0)
+    assert pixel(frame, width - 4, height - 4) == 0xaa0000
+    region(frame, (100, 100, 108, 104), 0x00aa00)
+    assert pixel(frame, 13, 22) == 0 and pixel(frame, 19, 22) == 0
+    assert pixel(frame, 19, 24) == 0x00aa00
+    values(b'$CUR(PORT)$:$TEXTXY(0)$:$TEXTXY(10)$:$INUSE(PORT,35)$', b'0:-1:-1:0')
+    frame = values(b'$AVP(0,10)$$PCB(10)$')
+    region(frame, (100, 100, 108, 104), 0xaa0000)
+    # The literal same all-form also clears an active port 0.
+    frame = wire(b'h01000001202000')
+    region(frame, (100, 100, 108, 104), 0)
+    assert pixel(frame, width - 4, height - 4) == 0
+    assert xy(frame) == (3, 2) and frame.application['connected'] == 1
+
+
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -173,7 +251,8 @@ def run(args, width, height):
         values(b'$TEXTXY(2)$', b'-1')
         frame = wire(b'h01000001200G02|c02|X0K0K|X1E1E')
         assert pixel(frame, 20, 20) == 0 and pixel(frame, 50, 50) == 0x00aa00
-        frame = wire(b'h01000001201002|X0K0K')  # Reset the now-active current viewport.
+        wire(b'h01000001200402')
+        frame = wire(b'h01000001201G02|X0K0K')  # Activate then reset in the same segment.
         assert pixel(frame, 20, 20) == 0x00aa00
         values(b'$TEXTXY(2)$', b'0:0')
         values(b'$CUR(TW,0)$$CUR(PORT,0)$')
@@ -238,6 +317,7 @@ def run(args, width, height):
         assert frame.metadata['pointer_shape'] == 4 and frame.application['connected'] == 1
         text_window_actions(t, values, width, height)
         geometry_actions(t, values, width, height)
+        port_actions(t, values, wire, width, height)
 
 
 if __name__ == '__main__':

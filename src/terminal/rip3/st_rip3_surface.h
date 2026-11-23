@@ -81,10 +81,11 @@ int st_rip3_surface_get(const struct st_rip3_surface *surface,
 	int32_t x, int32_t y, uint8_t *result);
 /* Preserve the full indexed/tagged-RGB value for physical image capture. */
 int st_rip3_surface_read_color(const struct st_rip3_surface *,int32_t x,int32_t y,uint32_t *);
-/* Full physical-surface COPY of literal black, independent of PAL. Raw index
- * reads use zero for these pixels; indexed logical writes replace the literal
- * value using the existing eight-bit backend arithmetic. No allocation. */
-int st_rip3_surface_clear_black(struct st_rip3_surface *surface);
+/* COPY literal black within the inclusive area intersected with physical
+ * bounds. NULL clears the full surface. Mark every written pixel as damaged,
+ * including repeated clears. No palette changes or allocation. */
+int st_rip3_surface_clear_black(struct st_rip3_surface *surface,
+	const struct st_rip3_rect *area);
 /* Optional borrowed presentation damage plane, one byte per physical pixel.
  * Writes set bytes even when the resulting index is unchanged. The owner
  * clears it after presentation and must unbind it before freeing storage. */

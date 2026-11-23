@@ -152,20 +152,18 @@ enum st_rip3_view_operation {
 	ST_RIP3_VIEW_MAXIMIZE,
 	ST_RIP3_VIEW_ERASE,
 	ST_RIP3_VIEW_RESET,
+	ST_RIP3_PORT_CLEAR_BLACK,
 };
-/* Apply to numbered ports without changing the current selection. Validate
- * every index before changes; repeated indexes are idempotent. Undefined
- * ports are ignored. Activation/deactivation skip protected ports; maximize
- * also skips inactive viewports and fills the underlying port's full bounds.
- * Erase skips inactive viewports, permits protected content and uses COPY
- * with the explicitly resolved current background index. Reset restores full
- * port bounds and activates even an inactive viewport, skipping protected
- * definitions and preserving queries, cursor/image state and copy pairs.
- * No definitions,
- * protection, current selection or pixels outside erased viewports change. */
 /* HEADER table pruning and resident query clearing. */
 int st_rip3_ports_header_prune(struct st_rip3_ports *, bool keep_current);
 void st_rip3_ports_header_clear_queries(struct st_rip3_ports *);
+/* Apply to numbered, defined ports without changing the current selection.
+ * Validate every index before changes. Activation, deactivation and geometry
+ * changes skip protected ports. Maximize skips inactive viewports and reset
+ * activates them; both restore full bounds without painting. Erase uses COPY
+ * of the supplied background index across the viewport. Clear-black fills the
+ * port's physical bounds with literal black. Both paint operations require an
+ * active viewport and allow protected ports, preserving all port metadata. */
 int st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,
 	uint8_t background);

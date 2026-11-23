@@ -1628,6 +1628,42 @@ scene_header_window_lifetime(void)
 }
 
 static int
+scene_header_port_state(void)
+{
+	struct fixture f={0};
+	const uint64_t bitmap_budget=64;
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.offscreen_pixel_budget=&bitmap_budget;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$CUR(ENV,2)$$WORLD(CUR,640,480)$$CUR(PAL,7)$$CUR(STYLE,6)$","")==0);
+	CHECK(append(&f,"!|a0009|2P5000008043|S0104|B00000703\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(store_query(&f,1,'0',"saved-floating",false)==0 && store_query(&f,3,'0',"saved-fixed",false)==0);
+	CHECK(query(&f,"$COPY(PORT,TBL,BASE)$","")==0);
+	CHECK(store_query(&f,1,'0',"live-floating",false)==0 && store_query(&f,3,'0',"live-fixed",false)==0);
+	CHECK(query(&f,"$PROT(PORT,5)$","")==0);
+	CHECK(append(&f,"!|h01000001204000\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(resident_value(&f,1,0,"live-floating")==0 && resident_value(&f,3,0,"live-fixed")==0);
+	CHECK(query(&f,"$CUR(PORT)$:$CUR(ENV)$:$CUR(PAL)$:$CUR(STYLE)$:$INUSE(PORT,BASE)$","5:2:7:6:1")==0);
+	CHECK(query(&f,"$CUR(PORT,0)$","")==0);
+	CHECK(append(&f,"!|h01000001204000\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(resident_value(&f,1,0,"live-floating")==0 && resident_value(&f,3,0,"live-fixed")==0);
+	CHECK(append(&f,"!|2C5" "00000804" "0" "00000804" "0\r")==0 && pump(&f)==0 && f.errors==0);
+	struct st_rip3_session_capture capture={0};
+	CHECK(st_rip3_session_capture(f.session,&capture)==0);
+	CHECK(capture.pixels->primary[3*640+7]==ST_PIXEL_COLOR_RGB_TAG);
+	st_rip3_session_capture_dispose(&capture);
+	CHECK(query(&f,"$COPY(PORT,BASE,TBL)$","")==0);
+	CHECK(resident_value(&f,1,0,"saved-floating")==0 && resident_value(&f,3,0,"saved-fixed")==0);
+	CHECK(append(&f,"!|2C5" "00000804" "0" "00000804" "0\r")==0 && pump(&f)==0 && f.errors==0);
+	CHECK(st_rip3_session_capture(f.session,&capture)==0);
+	CHECK(capture.pixels->primary[3*640+7]==(ST_PIXEL_COLOR_RGB_TAG|0xaa0000));
+	st_rip3_session_capture_dispose(&capture);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
+static int
 scene_header(void)
 {
 	struct fixture f={0};
@@ -1799,7 +1835,7 @@ main(void)
 {
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
-	CHECK(scene_header_geometry_failure()==0);
+	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

@@ -1032,3 +1032,25 @@ and independent of graphics port and viewport state. Caret operations have an
 independent active-state gate. The [connected implementation](RIP3_CONFORMANCE.md#connected-header-text-window-geometry-and-erase)
 records runtime evidence and the deferred startup font policy. Issue #153
 remains separate. Existing upstream issue threads were left as filed.
+
+## PR #155 port bounds reset and black fill
+
+The selected fork stable revision is now
+[`9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6`](https://github.com/RealDeuce/remote-imaging-protocol/tree/9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6).
+Its tree is identical to the reviewed [PR #155](https://github.com/bbs-land/remote-imaging-protocol/pull/155)
+head `a863f45b80fd1fd01fcfe9f38f7ab70c8d0bb555`. The SHA-256 of the local Git tar
+archive for the pinned revision is `187db415b8f21fd7c43351365eff5a3330ecd720449a82a7c48c4877c06c8527`.
+The archive was processed in memory.
+
+Four of the same 68 normative documents change. Ordered exact-text matching
+carries 8716 source blocks, moving 1070 line references. The review records three
+retired blocks and adds 32 for 8748 total. Of the 73 previous derivations, the
+earlier scene-header record only gains the two reviewed cross-references to the
+completed port and text-window profiles. The new #153 derivation is separately
+hashed. The original ALPHA4 text and license bytes retain their hashes.
+
+B153 is resolved. The completed profile distinguishes full-bounds viewport
+geometry reset for active unprotected ports from opaque RGB-black fill over
+active ports' physical bounds, including protected ports. The fill retains
+the viewport for later drawing. The [connected implementation](RIP3_CONFORMANCE.md#connected-header-port-black-fill)
+records runtime evidence. Existing upstream issue threads were left as filed.

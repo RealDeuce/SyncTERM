@@ -120,7 +120,7 @@ button_inverse(void)
 	palette.rgb[255]=0x1000000;
 	CHECK(st_rip3_surface_invert_rgb(surface,NULL,&all,&palette)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_surface_get(surface,1,1,&value)==0 && value==1);
-	palette.rgb[255]=0;CHECK(st_rip3_surface_clear_black(surface)==0);
+	palette.rgb[255]=0;CHECK(st_rip3_surface_clear_black(surface,NULL)==0);
 	CHECK(st_rip3_surface_invert_rgb(surface,&clip,&area,&palette)==0);
 	CHECK(st_rip3_surface_get(surface,1,1,&value)==0 && value==3);
 	st_rip3_surface_destroy(surface);return 0;
@@ -300,8 +300,23 @@ black_clear(void)
 	CHECK(st_rip3_surface_create(&surface,4,2)==0 && st_rip3_surface_create(&copy,4,2)==0);
 	uint8_t damage[8]={0};const struct st_rip3_rect all={0,0,3,1};
 	CHECK(st_rip3_surface_damage(surface,damage,sizeof(damage))==0);
-	CHECK(st_rip3_surface_clear_black(NULL)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_surface_clear_black(surface)==0 && st_rip3_surface_clone(&saved,surface)==0);
+	CHECK(st_rip3_surface_clear_black(NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
+	const struct st_rip3_rect partial={-2,1,1,3},outside={-6,-5,-3,-1},reversed={2,0,1,1};
+	CHECK(st_rip3_surface_clear_black(surface,&reversed)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_surface_clear_black(surface,&outside)==0);
+	for (size_t i=0;i<8;i++) CHECK(damage[i]==0);
+	for (unsigned pass=0;pass<2;pass++) {
+		CHECK(st_rip3_surface_clear_black(surface,&partial)==0);
+		for (size_t i=0;i<8;i++) {
+			uint32_t color;
+			bool cleared=i==4 || i==5;
+			CHECK(damage[i]==(uint8_t)cleared);
+			CHECK(st_rip3_surface_read_color(surface,(int32_t)(i%4),(int32_t)(i/4),&color)==0
+			    && color==(cleared ? ST_PIXEL_COLOR_RGB_TAG : 0));
+		}
+		memset(damage,0,sizeof(damage));
+	}
+	CHECK(st_rip3_surface_clear_black(surface,NULL)==0 && st_rip3_surface_clone(&saved,surface)==0);
 	for (size_t i=0;i<8;i++) CHECK(damage[i]==1);
 	CHECK(st_rip3_surface_plot(surface,NULL,0,0,0,ST_RIP3_COPY)==0);
 	CHECK(st_rip3_surface_copy(copy,NULL,&all,surface,NULL,&all,ST_RIP3_TRANSFER_COPY)==0);

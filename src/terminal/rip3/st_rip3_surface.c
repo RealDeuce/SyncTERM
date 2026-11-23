@@ -234,16 +234,6 @@ write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode)
 }
 
 int
-st_rip3_surface_clear_black(struct st_rip3_surface *surface)
-{
-	if (surface==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	size_t count=(size_t)surface->width*surface->height;
-	for (size_t i=0;i<count;i++) surface->pixels[i]=ST_PIXEL_COLOR_RGB_TAG;
-	if (surface->damage!=NULL) memset(surface->damage,1,count);
-	return 0;
-}
-
-int
 st_rip3_surface_damage(struct st_rip3_surface *surface, uint8_t *damage, size_t length)
 {
 	if (surface==NULL || (damage!=NULL && length<(size_t)surface->width*surface->height))
@@ -270,6 +260,23 @@ intersect(struct st_rip3_rect *area, const struct st_rip3_rect *clip)
 	if (area->y1 > clip->y1)
 		area->y1 = clip->y1;
 	return rect_valid(area);
+}
+
+int
+st_rip3_surface_clear_black(struct st_rip3_surface *surface, const struct st_rip3_rect *area)
+{
+	if (surface==NULL || !rect_valid(area)) return IO_ERROR_INVALID_ARGUMENT;
+	const struct st_rip3_rect bounds={0,0,(int32_t)surface->width-1,(int32_t)surface->height-1};
+	struct st_rip3_rect visible=area==NULL ? bounds : *area;
+	if (!intersect(&visible,&bounds)) return 0;
+	size_t width=(size_t)(visible.x1-visible.x0)+1;
+	for (int32_t y=visible.y0;y<=visible.y1;y++) {
+		size_t offset=(size_t)y*surface->width+(uint32_t)visible.x0;
+		uint32_t *row=surface->pixels+offset;
+		for (size_t x=0;x<width;x++) row[x]=ST_PIXEL_COLOR_RGB_TAG;
+		if (surface->damage!=NULL) memset(surface->damage+offset,1,width);
+	}
+	return 0;
 }
 
 int

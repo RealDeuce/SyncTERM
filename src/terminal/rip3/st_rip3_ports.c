@@ -558,7 +558,7 @@ st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	bool selected[36] = {0};
 
 	if (ports == NULL || (count != 0 && numbers == NULL)
-	    || operation < ST_RIP3_VIEW_ACTIVATE || operation > ST_RIP3_VIEW_RESET)
+	    || operation < ST_RIP3_VIEW_ACTIVATE || operation > ST_RIP3_PORT_CLEAR_BLACK)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < count; i++) {
 		if (numbers[i] >= 36)
@@ -570,15 +570,17 @@ st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 
 		if (!selected[i] || !port->info.defined)
 			continue;
-		if (operation == ST_RIP3_VIEW_ERASE) {
-			struct st_rip3_rect view;
-			int status;
-
+		if (operation == ST_RIP3_VIEW_ERASE || operation == ST_RIP3_PORT_CLEAR_BLACK) {
 			if (!port->info.viewport_active)
 				continue;
-			view = viewport_absolute(port);
-			status = st_rip3_surface_fill(port_surface(ports, i), NULL,
-			    &view, background, ST_RIP3_COPY);
+			struct st_rip3_surface *surface = port_surface(ports, i);
+			int status;
+			if (operation == ST_RIP3_PORT_CLEAR_BLACK)
+				status = st_rip3_surface_clear_black(surface, &port->info.bounds);
+			else {
+				struct st_rip3_rect view = viewport_absolute(port);
+				status = st_rip3_surface_fill(surface, NULL, &view, background, ST_RIP3_COPY);
+			}
 			if (status != 0)
 				return status;
 		}
@@ -928,7 +930,7 @@ st_rip3_ports_screen_restore(struct st_rip3_ports *ports,const struct st_pixel_b
 int
 st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports)
 {
-	return ports==NULL ? IO_ERROR_INVALID_ARGUMENT : st_rip3_surface_clear_black(ports->screen);
+	return ports==NULL ? IO_ERROR_INVALID_ARGUMENT : st_rip3_surface_clear_black(ports->screen, NULL);
 }
 
 int
