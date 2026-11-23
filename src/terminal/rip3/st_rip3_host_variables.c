@@ -146,6 +146,22 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	if (strcmp(reference->name,"HOSTDIR") == 0)
 		return host_directory(host->directory,reference,result,capacity);
+	if (strcmp(reference->name, "FILEEXISTS") == 0) {
+		if (reference->count != 1)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity < 2)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (host->directory == NULL || host->directory->file_exists == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		bool present;
+		int status = host->directory->file_exists(host->directory->context,
+		    reference->parameters[0].text, &present);
+		if (status != 0)
+			return status;
+		result[0] = present ? '1' : '0';
+		result[1] = '\0';
+		return 0;
+	}
 	if (strcmp(reference->name, "FILEDEL") == 0) {
 		if (reference->count == 0)
 			return IO_ERROR_INVALID_FORMAT;

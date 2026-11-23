@@ -8,7 +8,7 @@ from pathlib import Path
 import struct
 
 from st_migrated_control_test import connection
-from st_rip3_connected_test import query
+from st_rip3_connected_test import pixel, query
 from st_terminal_conformance_test import Terminal
 
 
@@ -22,7 +22,8 @@ def fixture(parent, name, contents):
 
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
-                    options="RIP=RIPv3\n", settings="AudioModes=0\n") as (
+                    options="ScreenMode=Custom\nRIP=RIPv3\n",
+                    settings="CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\nAudioModes=0\n") as (
                         client, root, peer, send):
         term = Terminal(client, root, peer, send)
         term.exchange(b"\x1b[!", b"RIPSCRIP030001")
@@ -84,6 +85,42 @@ def run(args):
         check(b"02", b"Mixed.rip", b"1.10\r")
         term.exchange(query(b"$HOSTDIR(OFF)$", at_cursor=True))
         check(b"02", b"Mixed.rip", b"1.20345\r")
+
+        def values(source, expected=b""):
+            return term.exchange(query(source, at_cursor=True), expected)
+
+        term.case("FILEEXISTS reports presence through the active cache and global fallback")
+        fixture(shared, "Global.dat", b"shared")
+        fixture(local / "HOST-NAMED", "Named.dat", b"selected")
+        fixture(root / "cache" / "other-bbs" / "RIP", "Foreign.dat", b"outside")
+        (local / "Folder.dat").mkdir()
+        values(b"$FILEEXISTS(mixed.rip)$:$FILEEXISTS(Mixed)$:$FILEEXISTS(Global.dat)$:"
+               b"$FILEEXISTS(Foreign.dat)$:$FILEEXISTS(Folder.dat)$", b"1:0:1:0:0")
+        values(b"$FILEEXISTS(Pixel.icn)$:$FILEEXISTS(Hover.hic)$:$FILEEXISTS(Mask.msk)$:"
+               b"$FILEEXISTS(a.icn.extra)$", b"1:1:1:1")
+        values(b"$HOSTDIR(Named)$$FILEEXISTS(Named.dat)$:$FILEEXISTS(Mask.msk)$:"
+               b"$FILEEXISTS(Global.dat)$$HOSTDIR(Off)$", b"1:0:1")
+        try:
+            (local / "Alias.dat").symlink_to(root / "cache" / "other-bbs" / "RIP" / "Foreign.dat")
+        except (NotImplementedError, OSError):
+            pass
+        else:
+            values(b"$FILEEXISTS(Alias.dat)$", b"0")
+
+        term.case("FILEEXISTS recovers from malformed references and expands in graphical fields")
+        for invalid in (b"$FILEEXISTS$", b"$FILEEXISTS()$", b"$FILEEXISTS(Pixel.icn,Mask.msk)$"):
+            values(b"a" + invalid + b"b", b"ab")
+        term.exchange(query(b"$FILEEXISTS(Invalid/Name)$", at_cursor=True)
+                      + query(b"$FILEEXISTS(Pixel.icn)$", at_cursor=True), b"1")
+        fixture(local, "1.RIP", b"!|c04|X0A0A\r\n")
+        fixture(local, "0.RIP", b"!|c02|X0B0B\r\n")
+        frame = term.exchange(b"\x01|*\r\n" + query(b"$WORLD(CUR,640,480)$", at_cursor=True)
+                              + b"\x01|1R00000000$FILEEXISTS(Mask.msk)$.RIP\r\n"
+                              b"\x01|1R00000000$FILEEXISTS(Absent)$.RIP\r\n"
+                              + query(b"alive", at_cursor=True), b"alive")
+        assert pixel(frame, 10, 10) == 0xaa0000
+        assert pixel(frame, 11, 11) == 0x00aa00
+        assert frame.application["connected"] == 1
 
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="RIP=Off\n", settings="AudioModes=0\n") as (

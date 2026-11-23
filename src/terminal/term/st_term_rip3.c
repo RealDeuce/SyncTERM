@@ -10,6 +10,7 @@
 #include "st_rip3_surface.h"
 #include "st_rip3_audio.h"
 #include "st_rip3_features.h"
+#include "st_rip3_file_query.h"
 #include "st_rip3_host_variables.h"
 #include "st_rip3_local_variables.h"
 #include "st_rip3_resources.h"
@@ -115,6 +116,13 @@ select_host_directory(void *context, const char *name, bool create)
 	 * created. Resource lookup can continue through the shared tier. */
 	if (create) (void)st_rip3_resource_prepare_cache(rip->config.rip_directory,path);
 	return 0;
+}
+
+static int
+host_resource_exists(void *context, const char *name, bool *present)
+{
+	struct st_term_rip3 *rip = context;
+	return st_rip3_file_exists(&rip->resources, name, present);
 }
 
 static void
@@ -1611,7 +1619,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	rip->pixel_budget=UINT64_C(36)*width*height;
 	rip->resources=(struct st_rip3_resource_paths){.host=config->rip_directory,.shared=config->rip3_data_directory};
 	rip->host_directory=(struct st_rip3_host_directory){.context=rip,.current=current_host_directory,
-	    .select=select_host_directory,.remove_file=remove_host_resource};
+	    .select=select_host_directory,.file_exists=host_resource_exists,.remove_file=remove_host_resource};
 	rip->identity=(struct st_rip3_terminal_identity){"SyncTERM","Stephen Hurd",
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;

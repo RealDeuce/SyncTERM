@@ -29,6 +29,7 @@ struct st_rip3_host_directory {
 	void *context;
 	const char *(*current)(void *context);
 	int (*select)(void *context, const char *name, bool create);
+	int (*file_exists)(void *context, const char *name, bool *present);
 	/* FILEDEL attempts each parsed filename without reporting a result. */
 	void (*remove_file)(void *context, const char *name);
 };

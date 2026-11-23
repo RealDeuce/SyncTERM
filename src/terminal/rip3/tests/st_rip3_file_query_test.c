@@ -51,6 +51,14 @@ main(int argc, char **argv)
 	CHECK(fs_replace_file(fallback, "fallback", 8) == 0);
 	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared};
 
+	bool present;
+	file_query_open_calls = file_query_metadata_calls = 0;
+	CHECK(st_rip3_file_exists(&paths, "c:\\outside\\pixel.icn", &present) == 0 && present);
+	CHECK(st_rip3_file_exists(&paths, "junk;pixel.icn.old", &present) == 0 && present);
+	CHECK(st_rip3_file_exists(&paths, "Pixel", &present) == 0 && !present);
+	CHECK(st_rip3_file_exists(&paths, "Pixel*", &present) == IO_ERROR_INVALID_FORMAT);
+	CHECK(file_query_open_calls == 0 && file_query_metadata_calls == 0);
+
 	for (unsigned mode = 0; mode <= 4; mode++) {
 		file_query_open_calls = file_query_metadata_calls = 0;
 		file_query_open_error = IO_ERROR_NOT_FOUND;

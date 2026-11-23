@@ -162,7 +162,8 @@ st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name
 		return 0;
 	status = path_join_alloc(&path, match->directory, name);
 	if (status == 0)
-		status = match->writing ? fs_get_link_info(&info,path) : fs_get_info(&info,path);
+		status = match->writing || match->existence_only
+		    ? fs_get_link_info(&info,path) : fs_get_info(&info,path);
 	if (status == 0 && info.kind != FS_ENTRY_FILE)
 		status = match->writing ? IO_ERROR_CONFLICT : IO_ERROR_NOT_FOUND;
 	if (status == 0 && match->path != NULL)
@@ -176,11 +177,12 @@ st_rip3_resource_consider(struct st_rip3_resource_match *match, const char *name
 }
 
 static int
-open_directory(struct st_rip3_resource *result, const char *directory,
+lookup_directory(struct st_rip3_resource *result, const char *directory,
     const char *key, size_t key_size, bool *matched)
 {
-	struct st_rip3_resource_match match = {.directory=directory,.key=key,.key_size=key_size};
-	struct st_rip3_resource resource = {0};
+	struct st_rip3_resource_match match = {
+		.directory = directory, .key = key, .key_size = key_size, .existence_only = result == NULL,
+	};
 	int status;
 
 	if (directory == NULL || directory[0] == 0)
@@ -188,15 +190,16 @@ open_directory(struct st_rip3_resource *result, const char *directory,
 	status = st_rip3_resource_directory_scan(&match);
 	if (status == 0 && match.path == NULL)
 		status = IO_ERROR_NOT_FOUND;
-	if (status == 0) {
+	if (status == 0 && result != NULL) {
+		struct st_rip3_resource resource = {.path = match.path};
 		if (matched != NULL) *matched = true;
-		resource.path = match.path;
 		status = fs_open(&resource.stream, match.path, "rb");
+		if (status == 0) {
+			*result = resource;
+			return 0;
+		}
 	}
-	if (status == 0)
-		*result = resource;
-	else
-		free(match.path);
+	free(match.path);
 	return status;
 }
 
@@ -218,7 +221,7 @@ st_rip3_resource_name_valid(const char *name)
 }
 
 static int
-open_resource(struct st_rip3_resource *result,
+lookup_resource(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths,
     enum st_rip3_resource_kind kind, const char *name, bool *matched)
 {
@@ -228,7 +231,7 @@ open_resource(struct st_rip3_resource *result,
 	const char *fixed[2];
 	size_t fixed_count;
 
-	if (result == NULL || paths == NULL || !st_rip3_resource_name_valid(name)
+	if (paths == NULL || !st_rip3_resource_name_valid(name)
 	    || (kind != ST_RIP3_RESOURCE_MEDIA && kind != ST_RIP3_RESOURCE_FONT))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_unicode_caseless_key(&key, &key_size, name, strlen(name));
@@ -244,9 +247,18 @@ open_resource(struct st_rip3_resource *result,
 		fixed_count = 2;
 	}
 	for (size_t i = 0; i < fixed_count; i++) {
-		status = kind == ST_RIP3_RESOURCE_MEDIA && i == 0 ? host_directory_status(paths) : 0;
+		status = 0;
+		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0) {
+			status = host_directory_status(paths);
+			if (status == 0 && result == NULL) {
+				const char *root = paths->named_host_root != NULL ? paths->named_host_root : paths->host;
+				status = cache_bucket_status(root);
+			}
+		}
+		else if (result == NULL)
+			status = directory_status(fixed[i]);
 		if (status == 0)
-			status = open_directory(result, fixed[i], key, key_size, matched);
+			status = lookup_directory(result, fixed[i], key, key_size, matched);
 		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY || (matched != NULL && *matched))
 			goto done;
 		if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
@@ -264,7 +276,8 @@ st_rip3_resource_open(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths, enum st_rip3_resource_kind kind,
     const char *name)
 {
-	return open_resource(result,paths,kind,name,NULL);
+	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	return lookup_resource(result,paths,kind,name,NULL);
 }
 
 int
@@ -273,7 +286,14 @@ st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
 {
 	if (matched == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	*matched = false;
-	return open_resource(result,paths,ST_RIP3_RESOURCE_MEDIA,name,matched);
+	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	return lookup_resource(result,paths,ST_RIP3_RESOURCE_MEDIA,name,matched);
+}
+
+int
+st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const char *name)
+{
+	return lookup_resource(NULL, paths, ST_RIP3_RESOURCE_MEDIA, name, NULL);
 }
 
 int

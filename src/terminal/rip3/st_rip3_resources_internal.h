@@ -11,6 +11,7 @@ struct st_rip3_resource_match {
 	size_t key_size;
 	char *path;
 	bool writing; /* Detect non-file collisions without following final links. */
+	bool existence_only;
 };
 
 /* Platform code enumerates names only. Matching and regular-file policy

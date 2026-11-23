@@ -19,6 +19,33 @@ name_byte(uint8_t byte)
 	return byte >= 0x20 && byte <= 0x7f && strchr("\"*+,/;<=>?[]|", byte) == NULL;
 }
 
+static size_t
+filename_start(const uint8_t *filename, size_t length)
+{
+	while (length != 0 && name_byte(filename[length - 1]))
+		length--;
+	return length;
+}
+
+static void
+uppercase_name(char *name, const uint8_t *filename, size_t length)
+{
+	for (size_t i = 0; i < length; i++) {
+		uint8_t byte = filename[i];
+		name[i] = byte >= 'a' && byte <= 'z' ? (char)(byte - 'a' + 'A') : (char)byte;
+	}
+	name[length] = '\0';
+}
+
+static char *
+base_name(char *name, size_t length)
+{
+	char *base = strrchr(name, '\\');
+	if (base != NULL)
+		return base + 1;
+	return length >= 2 && name[1] == ':' ? name + 2 : name;
+}
+
 static bool
 rewrite_alias(char *name)
 {
@@ -33,6 +60,31 @@ rewrite_alias(char *name)
 		}
 	}
 	return false;
+}
+
+int
+st_rip3_file_exists(const struct st_rip3_resource_paths *paths, const char *filename, bool *present)
+{
+	const uint8_t *bytes = (const uint8_t *)filename;
+	size_t length = strlen(filename);
+	size_t start = filename_start(bytes, length);
+	if (start == length)
+		return IO_ERROR_INVALID_FORMAT;
+
+	length -= start;
+	char *name = malloc(length + 1);
+	if (name == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	uppercase_name(name, bytes + start, length);
+	char *base = base_name(name, length);
+	(void)rewrite_alias(base);
+	int status = st_rip3_resource_name_valid(base)
+	    ? st_rip3_resource_exists(paths, base) : IO_ERROR_NOT_FOUND;
+	free(name);
+	if (status == IO_ERROR_OUT_OF_MEMORY)
+		return status;
+	*present = status == 0;
+	return 0;
 }
 
 static uint32_t
@@ -100,27 +152,19 @@ st_rip3_file_query(const struct st_rip3_resource_paths *paths, unsigned mode,
     const uint8_t *filename, size_t length, char **reply, size_t *reply_length)
 {
 	struct st_rip3_resource resource = {0};
-	size_t start = length;
 	bool matched = false;
 	*reply = NULL;
 	*reply_length = 0;
 	if (mode > 4 || length == 0) return IO_ERROR_INVALID_FORMAT;
-	while (start != 0 && name_byte(filename[start-1])) start--;
+	size_t start = filename_start(filename, length);
 	if (start == length) return 0;
 	length -= start;
 	if (length > SIZE_MAX/2-1 || length > SIZE_MAX-64) return IO_ERROR_OUT_OF_RANGE;
 	char *name = malloc(2*(length+1));
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	for (size_t i = 0; i < length; i++) {
-		uint8_t byte = filename[start+i];
-		name[i] = byte >= 'a' && byte <= 'z' ? (char)(byte-'a'+'A') : (char)byte;
-	}
-	name[length] = '\0';
-	const char *base = strrchr(name, '\\');
-	if (base != NULL) base++;
-	else base = length >= 2 && name[1] == ':' ? name+2 : name;
+	uppercase_name(name, filename + start, length);
 	char *lookup = name+length+1;
-	strcpy(lookup, base);
+	strcpy(lookup, base_name(name, length));
 	bool alias = rewrite_alias(lookup);
 	int status = st_rip3_resource_name_valid(lookup)
 	    ? st_rip3_resource_open_first(&resource, &matched, paths, lookup) : IO_ERROR_NOT_FOUND;

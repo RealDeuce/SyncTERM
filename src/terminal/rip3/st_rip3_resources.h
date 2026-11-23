@@ -61,6 +61,9 @@ int st_rip3_resource_open(struct st_rip3_resource *result,
  * matched distinguishes that failure from a miss, including on a name race. */
 int st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
 	const struct st_rip3_resource_paths *paths, const char *name);
+/* Return success for a unique regular media file without opening it or
+ * following a final symlink/reparse point. Uses the media lookup order. */
+int st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const char *name);
 /* Write complete resource bytes to the explicitly bound trusted host directory.
  * The BBS's cache bucket must exist. The RIP directory and its selected child
  * can be created on demand. Shared and font directories are never
