@@ -143,6 +143,14 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		memcpy(result, value, length + 1);
 		return 0;
 	}
+	if (strcmp(reference->name, "RIPVER") == 0) {
+		if (reference->count != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity < sizeof(ST_RIP3_IDENTIFICATION))
+			return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result, ST_RIP3_IDENTIFICATION, sizeof(ST_RIP3_IDENTIFICATION));
+		return 0;
+	}
 	if (strcmp(reference->name, "NULL") == 0) {
 		if (reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;
@@ -217,12 +225,6 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
 		st_rip3_mouse_kill(host->mouse);result[0]=0;return 0;
-	}
-	if (strcmp(reference->name,"HKEYON")==0 || strcmp(reference->name,"HKEYOFF")==0) {
-		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
-		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
-		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
-		st_rip3_mouse_hotkeys(host->mouse,strcmp(reference->name,"HKEYON")==0);result[0]=0;return 0;
 	}
 	if (strcmp(reference->name,"FIELDID")==0) {
 		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
@@ -387,7 +389,8 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 	}
 	/* These rejected calls keep their original spelling in the response. */
 	if (decoded && status == IO_ERROR_INVALID_FORMAT
-	    && (strcmp(reference.name, "FILEEXISTS") == 0 || strcmp(reference.name, "BAUDEMUL") == 0)
+	    && (strcmp(reference.name, "FILEEXISTS") == 0 || strcmp(reference.name, "BAUDEMUL") == 0
+	        || strcmp(reference.name, "OPTION") == 0)
 	    && sink != NULL && sink->reply != NULL)
 		sink->reply(sink->context, text, length);
 	/* Report rejection to the evaluator that owns recovery. */

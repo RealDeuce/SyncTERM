@@ -3,6 +3,7 @@
 #include "st_rip3_host_internal.h"
 #include "st_rip3_local_variables.h"
 #include "st_rip3_environments.h"
+#include "st_rip3_mouse.h"
 #include "io_error.h"
 
 #include <inttypes.h>
@@ -50,11 +51,79 @@ cell(int32_t position, int32_t origin, unsigned size, unsigned count)
 	return value<0 ? 0 : (uint64_t)value>=count ? (int64_t)count-1 : value;
 }
 
+static int
+keyboard_option(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	const struct st_rip3_local_queries *local = host->local;
+	bool has_doorway = local != NULL && local->doorway_mode != NULL && local->set_doorway_mode != NULL;
+	bool has_hotkey = host->mouse != NULL;
+	struct st_rip3_builtin_reference words;
+	bool doorway;
+	const char *mode;
+	if (strcmp(reference->name, "OPTION") == 0) {
+		int status = st_rip3_builtin_reference_words(&words, reference);
+		if (status != 0)
+			return status;
+		if (words.count == 0 || words.count > 2)
+			return IO_ERROR_INVALID_FORMAT;
+		const char *option = words.parameters[0].text;
+		if (word_equal(option, "LIST")) {
+			if (words.count != 1)
+				return IO_ERROR_INVALID_FORMAT;
+			char list[sizeof("DOORWAY,HOTKEY,LIST")];
+			int length = snprintf(list, sizeof(list), "%s%sLIST",
+			    has_doorway ? "DOORWAY," : "", has_hotkey ? "HOTKEY," : "");
+			if (length < 0 || (size_t)length >= sizeof(list))
+				return IO_ERROR_IO;
+			if ((size_t)length >= capacity)
+				return IO_ERROR_OUT_OF_RANGE;
+			memcpy(result, list, (size_t)length + 1);
+			return 0;
+		}
+		doorway = word_equal(option, "DOORWAY");
+		if (!doorway && !word_equal(option, "HOTKEY"))
+			return IO_ERROR_NOT_SUPPORTED;
+		mode = words.count == 1 ? "QUERY" : words.parameters[1].text;
+	}
+	else {
+		if (reference->count != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		doorway = reference->name[0] == 'D';
+		mode = strcmp(reference->name, "DWAYON") == 0 || strcmp(reference->name, "HKEYON") == 0 ? "ON" : "OFF";
+	}
+	bool query = word_equal(mode, "QUERY");
+	bool on = word_equal(mode, "ON");
+	if (!query && !on && !word_equal(mode, "OFF"))
+		return IO_ERROR_INVALID_FORMAT;
+	if (!(doorway ? has_doorway : has_hotkey))
+		return IO_ERROR_NOT_SUPPORTED;
+	if (capacity <= (query ? 1u : 0u))
+		return IO_ERROR_OUT_OF_RANGE;
+	if (query) {
+		bool enabled = doorway ? local->doorway_mode(local->context) : st_rip3_mouse_hotkeys_enabled(host->mouse);
+		result[0] = enabled ? '1' : '0';
+		result[1] = '\0';
+	}
+	else {
+		if (doorway)
+			local->set_doorway_mode(local->context, on);
+		else
+			st_rip3_mouse_hotkeys(host->mouse, on);
+		result[0] = '\0';
+	}
+	return 0;
+}
+
 int
 st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
 	if (host==NULL || reference==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	const char *name = reference->name;
+	if (strcmp(name, "OPTION") == 0 || strcmp(name, "DWAYON") == 0 || strcmp(name, "DWAYOFF") == 0
+	    || strcmp(name, "HKEYON") == 0 || strcmp(name, "HKEYOFF") == 0)
+		return keyboard_option(host, reference, result, capacity);
 	bool shift=strcmp(reference->name,"SHIFT")==0,ctrl=strcmp(reference->name,"CTRL")==0;
 	bool mouse=strcmp(reference->name,"MSTAT")==0,colors=strcmp(reference->name,"COLORS")==0;
 	bool position=strcmp(reference->name,"XY")==0;

@@ -27,6 +27,9 @@ struct st_rip3_local_queries {
 	/* Nonblocking current modifier snapshot; status is absorbed below the void
 	 * parser boundary. Do not reenter or mutate the parser from this callback. */
 	int (*modifiers)(void *context, unsigned *down);
+	/* Both operations address the active connection's ANSI keyboard mode. */
+	bool (*doorway_mode)(void *context);
+	void (*set_doorway_mode)(void *context, bool enabled);
 	/* Captured coordinates of this host/query event, not a fresh live-pointer
 	 * request. A missing capture is unsupported, independently of MSTAT. */
 	const struct st_rip3_point *mouse_position;

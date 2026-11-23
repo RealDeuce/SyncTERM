@@ -183,7 +183,9 @@ main(void)
 	CHECK(run(&host,"$TERMINFO(ABCDEFGHIJKLMNOPQRST)$",0,"NONE")==0);
 	CHECK(run(&host, "$APP(program)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$GOTOURL(url)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
-	CHECK(run(&host, "$RIPVER$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
+	CHECK(run(&host, "$RIPVER$", 0, "RIPSCRIP030001") == 0);
+	CHECK(run(&host, "$ripver()$", 0, "RIPSCRIP030001") == 0);
+	CHECK(run(&host, "$RIPVER(1)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
 	host.frame = &frame;
 	for (size_t i = 0; i < 3; i++) {
 		CHECK(st_rip3_frame_init(&frame, canvases[i].canvas) == 0);

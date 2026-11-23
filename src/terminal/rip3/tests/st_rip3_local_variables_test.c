@@ -49,6 +49,44 @@ query(const struct st_rip3_host_variables *host, const char *source, const char 
 	return 0;
 }
 
+static bool
+doorway_mode(void *context)
+{
+	return *(const bool *)context;
+}
+
+static void
+set_doorway_mode(void *context, bool enabled)
+{
+	*(bool *)context = enabled;
+}
+
+static int
+options(void)
+{
+	bool enabled = false;
+	struct st_rip3_local_queries local = {
+		.context = &enabled, .doorway_mode = doorway_mode, .set_doorway_mode = set_doorway_mode,
+	};
+	struct st_rip3_host_variables host = {.local = &local};
+	CHECK(query(&host, "$OPTION(LIST)$", "DOORWAY,LIST", -1) == 0);
+	CHECK(query(&host, "$OPTION(DOORWAY)$", "0", -1) == 0);
+	struct st_rip3_builtin_reference option;
+	const char on[] = "$OPTION(DOORWAY,ON)$";
+	CHECK(st_rip3_builtin_reference_parse(&option, (const uint8_t *)on, sizeof(on) - 1) == 0);
+	char result[2] = "Q";
+	CHECK(st_rip3_host_variables_execute(&host, &option, result, 0) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(!enabled && strcmp(result, "Q") == 0);
+	CHECK(st_rip3_host_variables_execute(&host, &option, result, sizeof(result)) == 0);
+	CHECK(enabled && result[0] == '\0');
+	CHECK(query(&host, "$OPTION(doorway, QUERY)$", "1", -1) == 0);
+	CHECK(query(&host, "$DWAYOFF(1)$", NULL, ST_RIP3_HOST_INVALID_REFERENCE) == 0 && enabled);
+	host.local = NULL;
+	CHECK(query(&host, "$OPTION(LIST)$", "LIST", -1) == 0);
+	CHECK(query(&host, "$OPTION(DOORWAY)$", NULL, ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
+	return 0;
+}
+
 static int
 devices(void)
 {
@@ -165,7 +203,7 @@ positions(enum st_rip3_canvas canvas)
 int
 main(void)
 {
-	CHECK(devices()==0 && conditions()==0);
+	CHECK(devices()==0 && conditions()==0 && options()==0);
 	for (unsigned canvas=0; canvas<3; canvas++) CHECK(positions((enum st_rip3_canvas)canvas)==0);
 	return 0;
 }

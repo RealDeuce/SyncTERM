@@ -9349,6 +9349,25 @@ Connected CP437 and UTF-8 tests check a full reply with two timestamps
 separated by `D(120)` in the same query, the local timezone, and the next
 reply after an invalid `DATETIME` argument.
 
+## Connected engine identity and keyboard options
+
+`RIPVER` expands to the same 14 ASCII bytes as the default connected
+autosense reply. Both the bare and empty-parentheses forms work, and a
+call with arguments produces a nonfatal syntax diagnostic.
+[PR #34](https://github.com/bbs-land/remote-imaging-protocol/pull/34)
+
+`DWAYON`, `DWAYOFF` and `OPTION(DOORWAY)` share the active ANSI
+interpreter's Doorway state with `ESC[=255h/l`. Connected tests switch
+text windows with Doorway enabled and verify the arrow key's two-byte
+scancode reply and its normal ANSI sequence. `OPTION(HOTKEY)` uses the
+same button gate as `HKEYON` and `HKEYOFF`.
+
+`OPTION(LIST)` returns `DOORWAY,HOTKEY,LIST` for the connected client.
+`OPTION(LIST, QUERY)` preserves the literal reference and reports a
+syntax diagnostic. `IFS` reports Doorway under emulations and English
+under languages. Tab navigation, status-bar control and the remaining
+autosense selectors retain separate ledger entries.
+
 ## Connected classic graphics font alignment
 
 `Y` accepts one bit per alignment group, the optional `0x80` shadow bit and

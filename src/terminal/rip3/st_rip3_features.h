@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define ST_RIP3_IDENTIFICATION "RIPSCRIP030001"
+
 enum st_rip3_feature {
 	ST_RIP3_FEATURE_ANSI,
 	ST_RIP3_FEATURE_BMP,

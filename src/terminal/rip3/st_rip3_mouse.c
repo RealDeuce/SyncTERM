@@ -484,6 +484,12 @@ st_rip3_mouse_hotkeys(struct st_rip3_mouse *mouse, bool enabled)
 	if (mouse!=NULL) mouse->hotkeys=enabled;
 }
 
+bool
+st_rip3_mouse_hotkeys_enabled(const struct st_rip3_mouse *mouse)
+{
+	return mouse != NULL && mouse->hotkeys;
+}
+
 static uint8_t
 fold(uint8_t byte)
 {

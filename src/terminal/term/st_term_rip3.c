@@ -1188,7 +1188,7 @@ text(void *context, const uint8_t *bytes, size_t length)
 	for (size_t i=0;i<length;i++) {
 		uint8_t byte=bytes[i];
 		if ((rip->escape_length==2 || rip->escape_length==3) && byte=='!') {
-			static const uint8_t identity[]="RIPSCRIP030001";
+			static const uint8_t identity[]=ST_RIP3_IDENTIFICATION;
 			rip->escape_length=0;
 			rip->output(rip->output_context,ST_CTERM_OUTPUT_RESPONSE,identity,sizeof(identity)-1);
 			continue;
@@ -1233,6 +1233,22 @@ modifiers(void *context, unsigned *down)
 	if (status==0) *down=((pressed[0] || pressed[1]) ? ST_RIP3_MODIFIER_SHIFT : 0)
 	    | ((pressed[2] || pressed[3]) ? ST_RIP3_MODIFIER_CTRL : 0);
 	return status;
+}
+
+static bool
+doorway_mode(void *context)
+{
+	struct st_term_rip3 *rip = context;
+	flush_text(rip);
+	return st_cterm_doorway_mode(st_term_rip3_text(rip));
+}
+
+static void
+set_doorway_mode(void *context, bool enabled)
+{
+	struct st_term_rip3 *rip = context;
+	flush_text(rip);
+	st_cterm_set_doorway_mode(st_term_rip3_text(rip), enabled);
 }
 
 static bool
@@ -1688,8 +1704,11 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	rip->identity=(struct st_rip3_terminal_identity){"SyncTERM","Stephen Hurd",
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;
-	rip->local=(struct st_rip3_local_queries){.context=rip,.modifiers=modifiers,.colors=&rip->colors};
+	rip->local=(struct st_rip3_local_queries){.context=rip,.modifiers=modifiers,.colors=&rip->colors,
+	    .doorway_mode=doorway_mode,.set_doorway_mode=set_doorway_mode};
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_ANSI,true);
+	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_DOORWAY,true);
+	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_ENG,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_RIPSCRIP,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_BMP,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_JPEG,st_pixel_image_jpeg_supported());

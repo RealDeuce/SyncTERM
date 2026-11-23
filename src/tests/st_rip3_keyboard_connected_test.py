@@ -27,6 +27,29 @@ def run(args):
             return t.input(expected) if expected else t.exchange()
         t.exchange(b"\x1b[!",b"RIPSCRIP030001")
         t.exchange(b"\x01|*\r\n\x1b[?25l")
+        t.case("rip3-keyboard-capability-and-engine-identity")
+        values(b"A$RIPVER$B$RIPVER()$C$RIPVER(1)$D", b"ARIPSCRIP030001BRIPSCRIP030001CD")
+        values(b"$IFS(DOORWAY)$:$IFS(ENG)$:$IFS(VT102)$:$IFS(EXTAPPS)$", b"1:1:0:0")
+        values(b"$IFS(LIST, _EMULATIONS)$:$IFS(LIST, _LANGUAGES)$", b"ANSI,DOORWAY,RIPSCRIP:ENG")
+
+        t.case("rip3-doorway-option-and-ansi-use-the-same-keyboard-mode")
+        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,LIST:0")
+        key("up", b"\x1b[A")
+        values(b"$OPTION(doorway, on)$$OPTION(DOORWAY, QUERY)$", b"1")
+        key("up", b"\x00\x48")
+        values(b"$DWAYOFF$$OPTION(DOORWAY)$", b"0")
+        key("up", b"\x1b[A")
+        values(b"$DWAYON$$OPTION(LIST, QUERY)$:$OPTION(DOORWAY)$", b"$OPTION(LIST, QUERY)$:1")
+        t.exchange(b"\x01|2T10\r\n" + query(b"$CUR(TW)$", at_cursor=True), b"1")
+        key("up", b"\x00\x48")
+        t.exchange(b"\x1b[=255l")
+        values(b"$DWAYON(1)$$OPTION(DOORWAY)$", b"0")
+        key("up", b"\x1b[A")
+        t.exchange(b"\x01|2T00\r\n\x1b[=255h")
+        values(b"$OPTION(DOORWAY)$", b"1")
+        values(b"$OPTION(DOORWAY,OFF)$$OPTION(DOORWAY)$", b"0")
+        key("up", b"\x1b[A")
+
         frame=values(b"$WORLD(CUR,640,480)$")
         m=frame.metadata
         def mouse(x,y,left=False,move=False):
@@ -78,12 +101,16 @@ def run(args):
         values(b"$XY(DEVICE)$",b"0300:0250")
         text("a",b"a2")
         values(b"$XY(DEVICE)$",b"0300:0250")
-        values(b"$HKEYOFF$")
+        values(b"$OPTION(HOTKEY)$$HKEYOFF$$OPTION(HOTKEY,QUERY)$", b"10")
         mouse(20,20,True)
         text("a",b"a")  # Disabled lookup leaves original byte/case intact.
         mouse(20,20)
         t.input(b"A1")  # Disabled lookup did not cancel the pointer capture.
-        values(b"$HKEYON$")
+        values(b"$OPTION(HOTKEY,ON)$$OPTION(HOTKEY)$", b"1")
+        text("a",b"a2")
+        values(b"$OPTION(HOTKEY,OFF)$$OPTION(HOTKEY)$", b"0")
+        text("a",b"a")
+        values(b"$HKEYON$$OPTION(HOTKEY)$", b"1")
         text("a",b"a2")
         t.exchange(remove_fields((10,190,50,210),1))
         text("\0",b"\0")  # Hotkey zero remains unbound without the wildcard.

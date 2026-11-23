@@ -125,5 +125,6 @@ bool st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool
  * Cancel pointer capture without altering the sampled physical button state. */
 bool st_rip3_mouse_key(struct st_rip3_mouse *mouse, uint8_t byte);
 void st_rip3_mouse_hotkeys(struct st_rip3_mouse *mouse, bool enabled);
+bool st_rip3_mouse_hotkeys_enabled(const struct st_rip3_mouse *mouse);
 
 #endif
