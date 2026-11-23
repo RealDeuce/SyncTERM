@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_graphical.h"
 #include "st_rip3_graphical_bytes.h"
+#include "st_rip3_playback.h"
 #include "st_rip3_angle.h"
 #include "st_rip3_host_internal.h"
 #include "st_rip3_templates.h"
@@ -267,9 +268,14 @@ st_rip3_graphical_process(struct st_rip3_graphical *w, size_t budget)
 			w->consumed=1+count;replace(w,quoted,count);continue;
 		}
 		if (bytes[0]=='$') {
+			if (left>1 && st_rip3_playback_prefix(bytes[1])) {
+				size_t span=st_rip3_playback_token(bytes,left);
+				w->cursor+=span!=0 ? span : 1;
+				continue;
+			}
 			w->consumed=reference_length(bytes,left);
 			if (w->consumed!=0) {
-				if (bytes[1]=='?' || bytes[1]=='>' || bytes[1]==')' || bytes[1]=='<' || bytes[1]=='(')
+				if (bytes[1]=='?')
 					w->cursor+=w->consumed;
 				else reference(w,bytes,w->consumed,false);
 				continue;

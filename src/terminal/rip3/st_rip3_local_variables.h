@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-enum st_rip3_modifier { ST_RIP3_MODIFIER_SHIFT, ST_RIP3_MODIFIER_CTRL };
+enum st_rip3_modifier { ST_RIP3_MODIFIER_SHIFT = 1, ST_RIP3_MODIFIER_CTRL = 2 };
 
 /* The text-window owner supplies its resolved DEVICE cell grid. Coordinates
  * here are not another WORLD frame. Nonzero cell sizes and row/column counts
@@ -24,9 +24,9 @@ struct st_rip3_query_cells {
  * discovery is performed by the protocol code. */
 struct st_rip3_local_queries {
 	void *context;
-	/* Nonblocking current modifier query; status is absorbed below the void
+	/* Nonblocking current modifier snapshot; status is absorbed below the void
 	 * parser boundary. Do not reenter or mutate the parser from this callback. */
-	int (*modifier)(void *context, enum st_rip3_modifier modifier, bool *down);
+	int (*modifiers)(void *context, unsigned *down);
 	/* Captured coordinates of this host/query event, not a fresh live-pointer
 	 * request. A missing capture is unsupported, independently of MSTAT. */
 	const struct st_rip3_point *mouse_position;

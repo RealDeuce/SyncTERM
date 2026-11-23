@@ -1166,24 +1166,14 @@ static int
 playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
 {
 	struct st_rip3_session *session=context;
-	/* Native filename substitutions are shared with the other media prefixes.
-	 * An unexpanded placeholder must never become a literal file lookup. */
-	if (strpbrk(filename,"*?[]")!=NULL) return IO_ERROR_NOT_SUPPORTED;
-	char name[ST_RIP3_PLAYBACK_FILENAME_MAX+sizeof(".wav")];
-	size_t length=strlen(filename);
-	memcpy(name,filename,length+1);
-	bool wave=kind==ST_RIP3_PLAYBACK_WAVE;
-	if (strrchr(name,'.')==NULL) {
-		memcpy(name+length,wave ? ".wav" : ".jpg",sizeof(".wav"));
-		length+=sizeof(".wav")-1;
-	}
-	if (wave) {
+	if (kind==ST_RIP3_PLAYBACK_WAVE) {
 		if (session->commands.audio==NULL || session->commands.resources==NULL)
 			return IO_ERROR_NOT_SUPPORTED;
-		return st_rip3_audio_play(session->commands.audio,session->commands.resources,name);
+		return st_rip3_audio_play(session->commands.audio,session->commands.resources,filename);
 	}
+	if (kind!=ST_RIP3_PLAYBACK_JPEG) return IO_ERROR_NOT_SUPPORTED;
 	bool operation=false;
-	return st_rip3_command_jpeg(&session->commands,(const uint8_t *)name,length,&operation);
+	return st_rip3_command_jpeg(&session->commands,(const uint8_t *)filename,strlen(filename),&operation);
 }
 
 int

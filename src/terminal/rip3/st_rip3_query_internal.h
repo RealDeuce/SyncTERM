@@ -3,10 +3,8 @@
 #define ST_RIP3_QUERY_INTERNAL_H_
 
 #include "st_rip3_query.h"
+#include "st_rip3_playback.h"
 #include <stdint.h>
-
-enum st_rip3_playback_kind { ST_RIP3_PLAYBACK_JPEG, ST_RIP3_PLAYBACK_WAVE };
-enum { ST_RIP3_PLAYBACK_FILENAME_MAX = 20 };
 
 /* The session owns the media services. The filename is borrowed only during
  * the call, and its operation status is consumed within the interpreter. */

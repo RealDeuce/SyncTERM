@@ -3909,6 +3909,21 @@ st_console_physical_key_state(st_console_t *console, uint16_t evdev,
 }
 
 int
+st_console_physical_key_states(st_console_t *console, const uint16_t *evdev,
+	bool *pressed, size_t count)
+{
+	if (console == NULL || evdev == NULL || pressed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	st_console_display_t *display = console->display;
+	if (st_mutex_lock(&display->input_mutex) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	for (size_t i = 0; i < count; ++i)
+		pressed[i] = physical_key_down(display, evdev[i]);
+	(void)st_mutex_unlock(&display->input_mutex);
+	return 0;
+}
+
+int
 st_console_synthesize_physical_key(st_console_t *console, uint16_t evdev,
 	bool pressed)
 {

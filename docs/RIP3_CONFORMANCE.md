@@ -8947,10 +8947,10 @@ quoted name from REFRESH, image placement, and recovery after malformed media.
 The native waveform fixture verifies the reply and PCM output with the
 decoder available and the reply with it unavailable.
 
-The adopted shared filename profile specifies the captured input substitutions,
-decoded bounds and recovery. Runtime support for those rules is pending,
-along with local RIP scene and BMP playback and the shared/search directory
-configuration. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
+The shared filename parser now supplies captured input substitutions, decoded
+bounds and recovery for the connected JPEG and WAVE paths. Local RIP scene
+and BMP presentation and the shared/search directory configuration remain
+pending. [PR #163](https://github.com/bbs-land/remote-imaging-protocol/pull/163)
 
 The queue contains 2523 implemented, 1682 pending, 2919 unreviewed,
 1551 context, 67 excluded and 33 blocked units.
@@ -9027,3 +9027,24 @@ independent 3.0 expectations. [Issue #164](https://github.com/bbs-land/remote-im
 
 The queue at the PR #163 pin contains 2613 implemented, 1753 pending,
 2861 unreviewed, 1577 context, 67 excluded and 33 blocked units.
+
+## Playback filename substitutions
+
+The ordinary HCL scanner recognizes all four playback prefixes and prepares
+the name before media dispatch. It budgets 20 decoded wire bytes, folds
+ASCII lowercase, applies each captured field, mouse and modifier substitution,
+and supplies media-specific extensions and BMP aliases. A complete token owns
+its brackets and quoted dollars. Overlong references retain their original
+spelling, and an unclosed reference leaves later scans active. Graphical
+consumers preserve playback references as literal text.
+
+Connected JPEG cases in CP437 and UTF-8 check lookup through the real port
+presenter, including a press dragged outside a field, identity after field deletion on release,
+foreground Shift state, and decoded wire-byte bounds. Native filename vectors
+check all four request kinds. The WAVE session PCM fixture checks that a missing
+`$OFF$.wav` preserves the running sound and that a file by that name plays
+through normal lookup. Wire `1w` still recognizes its stop sentinel. The scene
+and bitmap request kinds await their media handlers.
+
+The queue contains 2647 implemented, 1707 pending, 2861 unreviewed,
+1589 context, 67 excluded and 33 blocked units.

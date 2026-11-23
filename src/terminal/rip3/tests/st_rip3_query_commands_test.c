@@ -8,6 +8,7 @@
 #include "st_rip3_user_variables.h"
 #include "st_rip3_templates.h"
 #include "st_rip3_local_variables.h"
+#include "st_rip3_mouse.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -252,7 +253,7 @@ query_forms(void)
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	const char *const unsupported[] = {"1\0331000$D(1)$","1\0330001$D(1)$",
-	    "1\0330000literal[3]","1\0330000$>FILE.RIP$","1\0330000$UNKNOWN_NAME$"};
+	    "1\0330000literal[3]","1\0330000$UNKNOWN_NAME$"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		CHECK(process(&f,unsupported[i],ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(st_rip3_input_wait_ns(f.host.input) == 0 && f.replies == 0 && f.host_errors == 0);
@@ -892,10 +893,11 @@ extern unsigned st_rip3_query_test_allocation_countdown;
 
 struct local_modifiers {bool shift,ctrl;unsigned calls;};
 static int
-local_modifier(void *context, enum st_rip3_modifier which, bool *down)
+local_modifiers(void *context, unsigned *down)
 {
 	struct local_modifiers *value=context;value->calls++;
-	*down=which==ST_RIP3_MODIFIER_SHIFT ? value->shift : value->ctrl;return 0;
+	*down=(value->shift ? ST_RIP3_MODIFIER_SHIFT : 0) | (value->ctrl ? ST_RIP3_MODIFIER_CTRL : 0);
+	return 0;
 }
 
 static int
@@ -904,7 +906,7 @@ local_queries(void)
 	struct fixture f={0};CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
 	struct local_modifiers keys={.shift=true};bool mouse=true;unsigned colors=256;
 	struct st_rip3_point position={0,0};
-	const struct st_rip3_local_queries local={.context=&keys,.modifier=local_modifier,.mouse_position=&position,
+	const struct st_rip3_local_queries local={.context=&keys,.modifiers=local_modifiers,.mouse_position=&position,
 	    .mouse_installed=&mouse,.colors=&colors};f.variables.local=&local;
 	CHECK(st_rip3_frame_world(&f.frame,1280,960)==0);
 	CHECK(process(&f,"1\0330000$SHIFT$/$D(1)$$SHIFT$/$CTRL$/$MSTAT$/$COLORS$/$XY$",-1)==0
@@ -920,6 +922,121 @@ local_queries(void)
 	    && memcmp(f.reply,"ok",2)==0 && keys.calls==3);
 	CHECK(process(&f,"1\0330000$CTRL$",-1)==0 && keys.calls==4 && f.reply_length==3 && f.reply[2]=='1');
 	destroy(&f);return 0;
+}
+
+struct playback_name_seen {
+	unsigned count;
+	enum st_rip3_playback_kind kind;
+	char name[ST_RIP3_PLAYBACK_NAME_SIZE];
+};
+
+static int
+record_playback_name(void *context, enum st_rip3_playback_kind kind, const char *name)
+{
+	struct playback_name_seen *seen=context;
+	seen->count++;
+	seen->kind=kind;
+	memcpy(seen->name,name,strlen(name)+1);
+	return 0;
+}
+
+static int
+playback_names(void)
+{
+	struct fixture f={0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
+	struct local_modifiers keys={.shift=true};
+	const struct st_rip3_local_queries local={.context=&keys,.modifiers=local_modifiers};
+	struct st_rip3_field_context field={.active=true,.identity=7};
+	f.variables.local=&local;f.variables.field_context=&field;
+	struct playback_name_seen seen={0};
+	st_rip3_query_bind_playback(f.host.query,&seen,record_playback_name);
+	static const struct {
+		const char *source, *name;
+		enum st_rip3_playback_kind kind;
+	} examples[]={
+	    {"$>f*?[]$OK","F7010.RIP",ST_RIP3_PLAYBACK_SCENE},
+	    {"$)f*?[]$OK","F7010.wav",ST_RIP3_PLAYBACK_WAVE},
+	    {"$<f*?[]$OK","F7010.BMP",ST_RIP3_PLAYBACK_BITMAP},
+	    {"$(f*?[]$OK","F7010.JPG",ST_RIP3_PLAYBACK_JPEG},
+	    {"$>**??[[]]$OK","77001100.RIP",ST_RIP3_PLAYBACK_SCENE},
+	    {"$>a\\$b.fn$OK","A$B.FN",ST_RIP3_PLAYBACK_SCENE},
+	    {"$>a\\\\$b.fn$OK","A\\$B.FN",ST_RIP3_PLAYBACK_SCENE},
+	    {"$)\\$OFF\\$$OK","$OFF$.wav",ST_RIP3_PLAYBACK_WAVE},
+	    {"$<stamp.icn$OK","STAMP.BMP",ST_RIP3_PLAYBACK_BITMAP},
+	    {"$<stamp.hic$OK","STAMP.BMH",ST_RIP3_PLAYBACK_BITMAP},
+	    {"$<stamp.msk$OK","STAMP.BMM",ST_RIP3_PLAYBACK_BITMAP},
+	    {"$>a\\*^m(,)$OK","A\\7^M(,).RIP",ST_RIP3_PLAYBACK_SCENE},
+	    {"$(abcdefghijklmnopqrs\\$$OK","ABCDEFGHIJKLMNOPQRS$.JPG",ST_RIP3_PLAYBACK_JPEG},
+	};
+	for (size_t i=0; i<sizeof(examples)/sizeof(examples[0]); ++i) {
+		f.reply_length=0;seen.count=0;
+		CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)examples[i].source,strlen(examples[i].source))==0);
+		CHECK(seen.count==1 && seen.kind==examples[i].kind && strcmp(seen.name,examples[i].name)==0);
+		CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==2 && memcmp(f.reply,"OK",2)==0);
+	}
+	CHECK(keys.calls==5);
+	field.identity=-1;
+	f.reply_length=0;seen.count=0;
+	static const char unidentified[]="$>f*?[]$";
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)unidentified,sizeof(unidentified)-1)==0);
+	CHECK(seen.count==1 && strcmp(seen.name,"F65535010.RIP")==0);
+	seen.count=0;
+	static const char max[]="$>********************$";
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)max,sizeof(max)-1)==0 && seen.count==1);
+	CHECK(strlen(seen.name)==104 && strcmp(seen.name+100,".RIP")==0);
+	for (size_t i=0;i<100;i+=5) CHECK(memcmp(seen.name+i,"65535",5)==0);
+
+	field.active=false;
+	const struct st_rip3_mouse_sink mouse_sink={0};
+	CHECK(st_rip3_mouse_create(&f.variables.mouse,&mouse_sink)==0);
+	struct st_rip3_rect area={10,10,20,20};
+	CHECK(st_rip3_mouse_define(f.variables.mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,
+	    false,false,-1,NULL,0,NULL)==0);
+	static const char captured[]="$(f*?[]$";
+	CHECK(!st_rip3_mouse_event(f.variables.mouse,0,0,true));
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)captured,sizeof(captured)-1)==0);
+	CHECK(strcmp(seen.name,"F010.JPG")==0);
+	CHECK(!st_rip3_mouse_event(f.variables.mouse,0,0,false));
+	CHECK(st_rip3_mouse_event(f.variables.mouse,13,13,true));
+	CHECK(st_rip3_mouse_event(f.variables.mouse,0,0,true));
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)captured,sizeof(captured)-1)==0);
+	CHECK(strcmp(seen.name,"F110.JPG")==0);
+	field.active=true;field.identity=12;keys.shift=false;keys.ctrl=true;
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)unidentified,sizeof(unidentified)-1)==0);
+	CHECK(strcmp(seen.name,"F12101.RIP")==0);
+	field.active=false;
+	CHECK(st_rip3_mouse_event(f.variables.mouse,0,0,false));
+	st_rip3_mouse_destroy(f.variables.mouse);f.variables.mouse=NULL;
+
+	const char *const literals[]={"$>abcdefghijklmnopqrstu$","$>ABC\\$","$<unclosed^m"};
+	const char *const expected[]={"$>abcdefghijklmnopqrstu$","$>ABC$","$<unclosed\r"};
+	for (size_t i=0;i<sizeof(literals)/sizeof(literals[0]);++i) {
+		f.reply_length=0;seen.count=0;
+		CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)literals[i],strlen(literals[i]))==0);
+		CHECK(seen.count==0 && f.reply_length==strlen(expected[i])
+		    && memcmp(f.reply,expected[i],f.reply_length)==0);
+	}
+	f.reply_length=0;seen.count=0;
+	static const char empty[]="$>*$$<$OK";
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)empty,sizeof(empty)-1)==0);
+	CHECK(seen.count==0 && f.reply_length==2 && memcmp(f.reply,"OK",2)==0);
+	/* Expanded UTF-8 codepage bytes still consume one original filename
+	 * unit. A real UTF-8 connection retains the raw byte bound. */
+	uint8_t encoded[43]={'$','('};
+	for (size_t i=2;i<42;i+=2) { encoded[i]=0xc3;encoded[i+1]=0xa9; }
+	encoded[42]='$';
+	f.reply_length=0;
+	CHECK(st_rip3_query_start(f.host.query,encoded,sizeof(encoded))==0);
+	CHECK(seen.count==0 && f.reply_length==sizeof(encoded) && memcmp(f.reply,encoded,sizeof(encoded))==0);
+	st_rip3_query_set_codepage_converted(f.host.query,true);
+	f.reply_length=0;
+	CHECK(st_rip3_query_start(f.host.query,encoded,sizeof(encoded))==0);
+	CHECK(seen.count==1 && f.reply_length==0 && strlen(seen.name)==44
+	    && memcmp(seen.name,encoded+2,40)==0 && strcmp(seen.name+40,".JPG")==0);
+	CHECK(f.errors==0 && f.host_errors==0);
+	destroy(&f);
+	return 0;
 }
 
 static int
@@ -1191,6 +1308,7 @@ main(void)
 	CHECK(user_recovery()==0);
 	CHECK(two_passes()==0);
 	CHECK(ordinary_pick_lists()==0);
+	CHECK(playback_names()==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_640_480)==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_800_600)==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_1024_768)==0);

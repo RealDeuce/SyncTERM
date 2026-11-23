@@ -820,6 +820,9 @@ int st_console_event_timedwait(st_console_t *console,
 int st_console_events_clear(st_console_t *console);
 int st_console_physical_key_state(st_console_t *console, uint16_t evdev,
 	bool *pressed);
+/* Take one display-input snapshot for all requested physical keys. */
+int st_console_physical_key_states(st_console_t *console, const uint16_t *evdev,
+	bool *pressed, size_t count);
 /* Queue a synthetic edge only when it changes the display's held-key state. */
 int st_console_synthesize_physical_key(st_console_t *console, uint16_t evdev,
 	bool pressed);

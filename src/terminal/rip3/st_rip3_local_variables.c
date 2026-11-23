@@ -73,11 +73,12 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 	char text[32];int length;
 	if (shift || ctrl) {
 		if (capacity<2) return IO_ERROR_OUT_OF_RANGE;
-		if (local->modifier==NULL) return IO_ERROR_NOT_SUPPORTED;
-		bool down=false;
-		int status=local->modifier(local->context,shift ? ST_RIP3_MODIFIER_SHIFT : ST_RIP3_MODIFIER_CTRL,&down);
+		if (local->modifiers==NULL) return IO_ERROR_NOT_SUPPORTED;
+		unsigned down=0;
+		int status=local->modifiers(local->context,&down);
 		if (status!=0) return status;
-		text[0]=down ? '1' : '0';text[1]=0;length=1;
+		text[0]=(down & (shift ? ST_RIP3_MODIFIER_SHIFT : ST_RIP3_MODIFIER_CTRL))!=0 ? '1' : '0';
+		text[1]=0;length=1;
 	}
 	else if (mouse) {
 		if (local->mouse_installed==NULL) return IO_ERROR_NOT_SUPPORTED;

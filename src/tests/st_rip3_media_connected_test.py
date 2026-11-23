@@ -6,7 +6,9 @@ from pathlib import Path
 
 from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
+from st_rip3_mouse_connected_test import field
 from st_terminal_conformance_test import Terminal
+from syncterm_control import SHIFT
 
 
 def run(args):
@@ -59,6 +61,46 @@ def run(args):
         assert pixel(frame, 50, 60) == (0x454545 if supported == b"1" else 0)
         assert pixel(frame, 68, 78) == (0xbababa if supported == b"1" else 0)
         assert frame.application["connected"] == 1
+
+        t.case("Playback substitutes the current field, capture and modifiers")
+        for name in ("F010.jpg", "F110.jpg", "F7010.jpg"):
+            (assets / name).write_bytes(contents)
+        client.physical_key(42, True, SHIFT)
+        frame = values(b"$IMGSTYLE(CUR,80,90,99,109)$$(f*?[]$outside", b"outside")
+        assert pixel(frame, 80, 90) == (0x454545 if supported == b"1" else 0)
+
+        t.exchange(field((12, 20, 40, 40), b"ID=7:$MKILL$$(f*?[]$release"))
+        m = frame.metadata
+
+        def mouse(x, y, buttons, action=1):
+            dx = m["destination_x"] + (2*x+1)*m["destination_width"]//(2*m["plane_width"])
+            dy = m["destination_y"] + (2*y+1)*m["destination_height"]//(2*m["plane_height"])
+            before = client.capture().metadata["events_dequeued"]
+            client.mouse(dx, dy, action=action, buttons=buttons)
+            client.wait_for(lambda s: s.metadata["events_dequeued"] > before)
+
+        mouse(20, 24, 1)
+        mouse(55, 52, 1, action=0)
+        frame = values(b"$IMGSTYLE(CUR,110,120,129,139)$$(f*?[]$held", b"held")
+        assert pixel(frame, 110, 120) == (0x454545 if supported == b"1" else 0)
+        mouse(20, 24, 1, action=0)
+        values(b"$IMGSTYLE(CUR,140,150,159,169)$")
+        mouse(20, 24, 0)
+        frame = t.input(b"release")
+        assert pixel(frame, 140, 150) == (0x454545 if supported == b"1" else 0)
+        client.physical_key(42, False)
+
+        t.case("Playback bounds count decoded wire bytes rather than normalized storage")
+        label = "é" * (19 if args.encoding == "CP437" else 9)
+        label += "" if args.encoding == "CP437" else "A"
+        (assets / (label + "$.jpg")).write_bytes(contents)
+        encoded = label.encode("cp437" if args.encoding == "CP437" else "utf-8")
+        assert len(encoded) == 19
+        frame = values(b"$IMGSTYLE(CUR,170,180,189,199)$$( " + encoded + b"\\$$raw",
+                       b"$( " + encoded + b"\\$$raw")
+        assert pixel(frame, 170, 180) == 0
+        frame = values(b"$(" + encoded + b"\\$$good", b"good")
+        assert pixel(frame, 170, 180) == (0x454545 if supported == b"1" else 0)
 
 
 if __name__ == "__main__":

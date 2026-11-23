@@ -101,19 +101,15 @@ unquoted(const uint8_t *bytes, size_t length, uint8_t first, uint8_t second)
 
 static bool
 token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned pass,
-    bool converted, struct token *result)
+    bool converted, bool outer_quoted, struct token *result)
 {
 	struct token value={.kind=LITERAL,.length=1};
 	if (bytes[0]==0) return false;
-	if (bytes[0]=='$' && length>1 && (bytes[1]=='(' || bytes[1]==')')) {
-		/* A quoted dollar in a playback filename is part of the filename.
-		 * Other bytes here do not use the parenthesized argument grammar. */
-		value.length=2;
-		for (size_t i=2; i<length; i++) {
-			if (bytes[i]!='$' || bytes[i-1]=='\\') continue;
-			value.length=i+1;
+	if (bytes[0]=='$' && length>1 && st_rip3_playback_prefix(bytes[1])) {
+		size_t span=st_rip3_playback_token(bytes,length);
+		if (span!=0) {
+			value.length=span;
 			value.kind=PLAYBACK;
-			break;
 		}
 	}
 	else if (bytes[0]=='$') {
@@ -122,7 +118,9 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 		if (value.length==0) {
 			/* The documented host quote-both-dollars form has no unquoted
 			 * terminator in pass one. Preserve it until outer unquoting. */
-			if (literal==0) return false;
+			/* An isolated quoted dollar also survives pass one so pass
+			 * two can unquote it after an unclosed playback opener. */
+			if (literal==0 && !(pass==1 && outer_quoted)) return false;
 			value.length=pass==1 && literal!=0 ? literal : 1;
 		}
 		else if (value.length==4 && bytes[1]=='?' && slot(bytes[2])) {
@@ -198,6 +196,20 @@ delimiter(const uint8_t *bytes, size_t length, struct delimiter *result)
 
 struct block { struct delimiter directive; size_t begin, end; };
 
+/* Complete playback tokens own their bracket bytes. Track an ordinary
+ * reference's closing dollar so it cannot be mistaken for a media opener.
+ * Brackets in the rest of the program still participate in segmentation. */
+static size_t
+block_playback_span(const uint8_t *bytes, size_t length, size_t at, size_t *ordinary_end)
+{
+	if (bytes[at]!='$' || length-at<2 || at<*ordinary_end) return 0;
+	if (st_rip3_playback_prefix(bytes[at+1]))
+		return st_rip3_playback_token(bytes+at,length-at);
+	size_t quoted;
+	*ordinary_end=at+reference_length(bytes+at,length-at,&quoted);
+	return 0;
+}
+
 static struct block
 block(const uint8_t *bytes, size_t length, size_t start)
 {
@@ -206,7 +218,10 @@ block(const uint8_t *bytes, size_t length, size_t start)
 	if (delimiter(bytes+start,length-start,&value)==VALID_DELIMITER) {
 		result.directive=value;result.begin+=value.length;
 	}
+	size_t ordinary_end=result.begin;
 	for (size_t at=result.begin; at<length; at++) {
+		size_t reference=block_playback_span(bytes,length,at,&ordinary_end);
+		if (reference!=0) { at+=reference-1;continue; }
 		if (delimiter(bytes+at,length-at,&value)==VALID_DELIMITER) { result.end=at;break; }
 	}
 	return result;
@@ -624,24 +639,13 @@ settle(struct st_rip3_query *query)
 static void
 playback(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 {
-	/* The shipped prefix parser budgets 20 bytes for the filename. It
-	 * replaces a preceding backslash with a quoted dollar in this field. */
-	char filename[ST_RIP3_PLAYBACK_FILENAME_MAX+1];
-	size_t used=0;
-	for (size_t i=2; i<length-1; i++) {
-		if (bytes[i]=='$' && bytes[i-1]=='\\') {
-			filename[used-1]='$';
-			continue;
-		}
-		if (used==sizeof(filename)-1) {
-			append(query,bytes,length);
-			return;
-		}
-		filename[used++]=(char)bytes[i];
+	char filename[ST_RIP3_PLAYBACK_NAME_SIZE];
+	if (!st_rip3_playback_name(filename,bytes,length,query->codepage_converted,query->variables)) {
+		append(query,bytes,length);
+		return;
 	}
-	if (used==0) return;
-	filename[used]='\0';
-	enum st_rip3_playback_kind kind=bytes[1]=='(' ? ST_RIP3_PLAYBACK_JPEG : ST_RIP3_PLAYBACK_WAVE;
+	if (filename[0]==0) return;
+	enum st_rip3_playback_kind kind=(enum st_rip3_playback_kind)bytes[1];
 	int status=query->play==NULL ? IO_ERROR_NOT_SUPPORTED
 	    : query->play(query->playback_context,kind,filename);
 	if (status!=0) diagnose(query,status==IO_ERROR_NOT_SUPPORTED ? ST_RIP3_HOST_UNSUPPORTED_REFERENCE
@@ -666,7 +670,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		struct token value;
 		if (!token(bytes,query->length-query->cursor,query->variables->user_variables!=NULL,
 		    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,query->pass,
-		    query->codepage_converted,&value)) {
+		    query->codepage_converted,query->cursor!=0 && bytes[-1]=='\\',&value)) {
 			st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_UNSUPPORTED_REFERENCE);return;
 		}
 		query->cursor+=value.length;
@@ -713,14 +717,17 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 	if (query==NULL || query->sink->reply==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (st_rip3_query_pending(query)) return IO_ERROR_BUSY;
 	if ((bytes==NULL && length!=0) || length==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
-	size_t incomplete_templates=0;
+	size_t incomplete_templates=0,ordinary_end=0;
 	for (size_t i=0; i<length; i++) {
 		if (bytes[i]==0) return IO_ERROR_NOT_SUPPORTED;
+		size_t reference=block_playback_span(bytes,length,i,&ordinary_end);
+		if (reference!=0) { i+=reference-1;continue; }
 		if (bytes[i]=='[') {
 			struct delimiter value;
 			enum delimiter_kind kind=delimiter(bytes+i,length-i,&value);
 			if (kind==LONG_DELIMITER) return IO_ERROR_OUT_OF_RANGE;
 			if (kind==VALID_DELIMITER) {
+				ordinary_end=i+value.length;
 				if (value.kind!=DIRECT && (query->variables->templates==NULL || query->variables->templates->slots==NULL))
 					return IO_ERROR_NOT_SUPPORTED;
 			}
@@ -735,7 +742,7 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 			struct token parsed;
 			if (!token(bytes+at,working_end-at,query->variables->user_variables!=NULL,
 			    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,1,
-			    query->codepage_converted,&parsed)) return IO_ERROR_NOT_SUPPORTED;
+			    query->codepage_converted,at>value.begin && bytes[at-1]=='\\',&parsed)) return IO_ERROR_NOT_SUPPORTED;
 			if (parsed.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
 				return IO_ERROR_BUSY;
 			/* A replacement can discard the remaining ordinary source. Its

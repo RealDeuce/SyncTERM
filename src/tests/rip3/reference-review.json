@@ -14787,6 +14787,57 @@
         "blocked": 34
       },
       "verification": "Connected CP437 and UTF-8 font and status captures on five rasters. The legacy wire fixtures check the original RIP 1.54 cases. RIP_SCROLL needs independent 3.0 vectors."
+    },
+    {
+      "after_commit": "f69a1bf5",
+      "revision": "d7b49fcb929b98ec8efa792496f985d6d55971fd",
+      "scope": "Connect the shared playback filename contract and live JPEG/WAVE handoff.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/5.3-local-playback.md:34",
+        "version/3.0/ripscrip/5.3-local-playback.md:35",
+        "version/3.0/ripscrip/5.3-local-playback.md:36",
+        "version/3.0/ripscrip/5.3-local-playback.md:37",
+        "version/3.0/ripscrip/5.3-local-playback.md:38",
+        "version/3.0/ripscrip/5.3-local-playback.md:40",
+        "version/3.0/ripscrip/5.3-local-playback.md:44",
+        "version/3.0/ripscrip/5.3-local-playback.md:48",
+        "version/3.0/ripscrip/5.3-local-playback.md:50",
+        "version/3.0/ripscrip/5.3-local-playback.md:52",
+        "version/3.0/ripscrip/5.3-local-playback.md:57",
+        "version/3.0/ripscrip/5.3-local-playback.md:58",
+        "version/3.0/ripscrip/5.3-local-playback.md:59",
+        "version/3.0/ripscrip/5.3-local-playback.md:60",
+        "version/3.0/ripscrip/5.3-local-playback.md:62",
+        "version/3.0/ripscrip/5.3-local-playback.md:70",
+        "version/3.0/ripscrip/5.3-local-playback.md:71",
+        "version/3.0/ripscrip/5.3-local-playback.md:72",
+        "version/3.0/ripscrip/5.3-local-playback.md:73",
+        "version/3.0/ripscrip/5.3-local-playback.md:77",
+        "version/3.0/ripscrip/5.3-local-playback.md:87",
+        "version/3.0/ripscrip/5.3-local-playback.md:88",
+        "version/3.0/ripscrip/5.3-local-playback.md:89",
+        "version/3.0/ripscrip/5.3-local-playback.md:90",
+        "version/3.0/ripscrip/5.3-local-playback.md:91",
+        "version/3.0/ripscrip/5.3-local-playback.md:92",
+        "version/3.0/ripscrip/5.3-local-playback.md:93",
+        "version/3.0/ripscrip/5.3-local-playback.md:94",
+        "version/3.0/ripscrip/5.3-local-playback.md:95",
+        "version/3.0/ripscrip/5.3-local-playback.md:96",
+        "version/3.0/ripscrip/5.3-local-playback.md:97",
+        "version/3.0/ripscrip/5.3-local-playback.md:99",
+        "version/3.0/ripscrip/5.3-local-playback.md:101"
+      ],
+      "states_after_update": {
+        "unreviewed": 2861,
+        "context": 1589,
+        "pending": 1707,
+        "implemented": 2647,
+        "excluded": 67,
+        "blocked": 33
+      },
+      "verification": "Native query/capture vectors, connected CP437/UTF-8 JPEG, REFRESH and pick-list tests, and native WAVE session PCM. RIP154 source freeze passed.",
+      "followup": "Connect actual local scene and bitmap presentation. The shared/search directory configuration is pending."
     }
   ]
 }

@@ -428,9 +428,9 @@ playback_reply(void *context, const uint8_t *bytes, size_t length)
 
 static int
 host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *resources,
-    audio_engine_t *engine)
+    audio_engine_t *engine, const uint8_t *wave, size_t wave_size)
 {
-	struct playback_input input={"!|1\0330000before$)TONE NAME$after^m\r",{.expected="beforeafter\r"},0};
+	struct playback_input input={"!|1\0330000before$)tone n*ame$after^m\r",{.expected="beforeafter\r"},0};
 	struct st_rip3_session *session=NULL;
 	const struct st_rip3_session_config config={.canvas=ST_RIP3_CANVAS_640_480,
 	    .encoding=ST_RIP3_TEXT_CP437,.source={&input,playback_now,playback_next},
@@ -445,6 +445,21 @@ host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *reso
 	st_rip3_session_process(session,4096);
 	CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1);
 	CHECK(pcm(engine,0)==0);
+	if (st_audio_file_available()) {
+		input=(struct playback_input){"!|1\0330000$)tone name$$)\\$OFF\\$$live\r",{.expected="live"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
+		CHECK(pcm(engine,4)==0); /* The missing HCL resource does not stop the tone. */
+		char *off_file=NULL;
+		CHECK(path_join_alloc(&off_file,resources->host,"$OFF$.wav")==0);
+		CHECK(fs_replace_file(off_file,wave,wave_size)==0);
+		input=(struct playback_input){"!|1\0330000$)\\$OFF\\$$live\r",{.expected="live"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
+		CHECK(pcm(engine,4)==0);
+		CHECK(fs_remove_file(off_file)==0);
+		free(off_file);
+	}
 	st_rip3_session_destroy(session);
 	return 0;
 }
@@ -508,7 +523,7 @@ main(int argc, char **argv)
 	}
 	else
 		CHECK(process(&host, "1w0000tone name.wav", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(host_wave(audio,&resources,engine)==0);
+	CHECK(host_wave(audio,&resources,engine,wave,sizeof(wave))==0);
 	st_rip3_audio_destroy(audio); audio_engine_destroy(engine);
 	CHECK(fs_remove_file(file) == 0 && fs_remove_file(bad) == 0);
 	CHECK(fs_remove_directory(argv[1]) == 0);

@@ -12,12 +12,13 @@
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1; } } while (0)
 
-struct modifiers {bool shift,ctrl;unsigned calls;int status;enum st_rip3_modifier last;};
+struct modifiers {bool shift,ctrl;unsigned calls;int status;};
 static int
-modifier(void *context, enum st_rip3_modifier which, bool *down)
+modifiers(void *context, unsigned *down)
 {
-	struct modifiers *state=context;state->calls++;state->last=which;
-	*down=which==ST_RIP3_MODIFIER_SHIFT ? state->shift : state->ctrl;return state->status;
+	struct modifiers *state=context;state->calls++;
+	*down=(state->shift ? ST_RIP3_MODIFIER_SHIFT : 0) | (state->ctrl ? ST_RIP3_MODIFIER_CTRL : 0);
+	return state->status;
 }
 
 struct observation {unsigned replies,errors;enum st_rip3_host_diagnostic kind;char text[64];};
@@ -52,12 +53,12 @@ static int
 devices(void)
 {
 	struct modifiers state={0};bool mouse=true;unsigned colors=256;
-	struct st_rip3_local_queries local={.context=&state,.modifier=modifier,.mouse_installed=&mouse,.colors=&colors};
+	struct st_rip3_local_queries local={.context=&state,.modifiers=modifiers,.mouse_installed=&mouse,.colors=&colors};
 	struct st_rip3_host_variables host={.local=&local};
 	for (unsigned bits=0; bits<4; bits++) {
 		state.shift=(bits&1)!=0;state.ctrl=(bits&2)!=0;
-		CHECK(query(&host,"$sHiFt$",state.shift ? "1" : "0",-1)==0 && state.last==ST_RIP3_MODIFIER_SHIFT);
-		CHECK(query(&host,"$CTRL()$",state.ctrl ? "1" : "0",-1)==0 && state.last==ST_RIP3_MODIFIER_CTRL);
+		CHECK(query(&host,"$sHiFt$",state.shift ? "1" : "0",-1)==0);
+		CHECK(query(&host,"$CTRL()$",state.ctrl ? "1" : "0",-1)==0);
 	}
 	CHECK(state.calls==8 && query(&host,"$MSTAT$","YES",-1)==0);mouse=false;
 	CHECK(query(&host,"$MSTAT()$","NO",-1)==0);
@@ -74,7 +75,7 @@ devices(void)
 	CHECK(st_rip3_host_variables_execute(&host,&parsed,output,sizeof(output))==IO_ERROR_IO && memcmp(output,before,sizeof(output))==0);
 	CHECK(query(&host,"$SHIFT$",NULL,ST_RIP3_HOST_OPERATION_FAILED)==0);
 	state.status=0;CHECK(query(&host,"$SHIFT$","1",-1)==0);
-	local.modifier=NULL;CHECK(query(&host,"$CTRL$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
+	local.modifiers=NULL;CHECK(query(&host,"$CTRL$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	local.mouse_installed=NULL;CHECK(query(&host,"$MSTAT$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	local.colors=NULL;CHECK(query(&host,"$COLORS$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	host.local=NULL;CHECK(query(&host,"$SHIFT$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
@@ -100,7 +101,7 @@ static int
 conditions(void)
 {
 	struct modifiers keys={.shift=true};unsigned colors=256;
-	const struct st_rip3_local_queries local={.context=&keys,.modifier=modifier,.colors=&colors};
+	const struct st_rip3_local_queries local={.context=&keys,.modifiers=modifiers,.colors=&colors};
 	const struct st_rip3_host_variables host={.local=&local};
 	struct condition_probe probe={.host=&host};
 	const struct st_rip3_condition_provider provider={.context=&probe,.reference=condition_reference};

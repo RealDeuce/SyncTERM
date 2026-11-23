@@ -1090,15 +1090,14 @@ line_start(void *context)
 }
 
 static int
-modifier(void *context, enum st_rip3_modifier kind, bool *down)
+modifiers(void *context, unsigned *down)
 {
 	struct st_term_rip3 *rip=context;
-	bool left=false,right=false;
-	int status=st_console_physical_key_state(rip->config.console,
-	    kind==ST_RIP3_MODIFIER_SHIFT ? 42 : 29,&left);
-	if (status==0) status=st_console_physical_key_state(rip->config.console,
-	    kind==ST_RIP3_MODIFIER_SHIFT ? 54 : 97,&right);
-	if (status==0) *down=left || right;
+	const uint16_t keys[]={42,54,29,97}; /* Left/right Shift, left/right Ctrl. */
+	bool pressed[4];
+	int status=st_console_physical_key_states(rip->config.console,keys,pressed,4);
+	if (status==0) *down=((pressed[0] || pressed[1]) ? ST_RIP3_MODIFIER_SHIFT : 0)
+	    | ((pressed[2] || pressed[3]) ? ST_RIP3_MODIFIER_CTRL : 0);
 	return status;
 }
 
@@ -1516,7 +1515,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	rip->identity=(struct st_rip3_terminal_identity){"SyncTERM","Stephen Hurd",
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;
-	rip->local=(struct st_rip3_local_queries){.context=rip,.modifier=modifier,.colors=&rip->colors};
+	rip->local=(struct st_rip3_local_queries){.context=rip,.modifiers=modifiers,.colors=&rip->colors};
 	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_ANSI,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_RIPSCRIP,true);

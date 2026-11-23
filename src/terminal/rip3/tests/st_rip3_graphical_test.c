@@ -82,6 +82,9 @@ int main(void)
 	for (unsigned consumer=0;consumer<4;consumer++) {
 		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,"\\$V$ ^M `` \\\\ x\\","$V$ ^M `` \\ x")==0);
 		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,"$?3$ $>SCENE.RIP$ $WORLD(CUR,1,2)$ $MKILL$", "$?3$ $>SCENE.RIP$ $WORLD(CUR,1,2)$ $MKILL$")==0);
+		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,
+		    "$(F*?[]\\$NAME$ $<A(,).BMP$ $)\\$OFF\\$$",
+		    "$(F*?[]\\$NAME$ $<A(,).BMP$ $)\\$OFF\\$$")==0);
 		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,"<<?3>>/<<?4>>/<<V>>","800/$?3$/800")==0);
 		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,"$COORDSIZE(CUR,5)$$RESX$","800")==0);
 		struct st_rip3_environment env;CHECK(st_rip3_environments_get(f.env,0,&env)==0 && env.coordinate_size==5 && env.world_width==640);
