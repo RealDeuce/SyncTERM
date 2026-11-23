@@ -20,6 +20,20 @@ st_rip3_viewport_host_execute(const struct st_rip3_host_variables *host,
 	unsigned numbers[36], current;
 	size_t count = 0;
 	int status;
+	if (strcmp(reference->name, "CLS") == 0) {
+		if (reference->count != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_PORT].live == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		/* The original callback uses the physical screen DC and BLACK_BRUSH. */
+		ports = host->tables->tables[ST_RIP3_TABLE_PORT].live;
+		status = st_rip3_ports_screen_clear_black(ports);
+		if (status == 0)
+			result[0] = '\0';
+		return status;
+	}
 	if (strcmp(reference->name,"PCB")==0) {
 		struct st_rip3_builtin_reference words;
 		status=st_rip3_builtin_reference_words(&words,reference);

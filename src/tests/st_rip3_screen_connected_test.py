@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Physical screen/palette saves through real RIP3 TCP sessions."""
+"""Physical screen clear and screen/palette saves through real RIP3 TCP sessions."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import struct
@@ -13,6 +13,47 @@ from st_rip3_button_styles_connected_test import number
 
 def colors(frame,plane):
     return [v&0xffffff if v&0x80000000 else frame.palette[v] for v in plane]
+
+
+def check_clear(t, width, height):
+    def values(text, expected=b""):
+        return t.exchange(query(text, at_cursor=True), expected)
+
+    t.case(f"rip3-cls-physical-black-without-reset-{width}x{height}")
+    t.exchange(b"\x01|*\r\n\x1b[?25l")
+    values(f"$WORLD(CUR,{width},{height})$$CUR(PAL,0)$".encode())
+    far = number(width-1, 2) + number(height-1, 2)
+    t.exchange(b"\x01|a0004|k03|c00|X1010|c0F|X" + far + b"\r\n"
+               + style(flags=256|1024, bevel=0)
+               + button((60, 70, 100, 90), b"ID=8:<><>still-live:$FIELDID$", hotkey=ord("k"))
+               + b"\x1b[1;1H\x1b[32;45;5mX")
+    t.exchange(b"\x01|v0A0A0K0K|2P6000002021|2s600|c02|X0000|v00000000\r\n")
+    before = values(b"$PROT(PORT,6)$$SAVE(4)$$PALENTRY(0,0)$", b"6;42:0:0")
+    assert pixel(before, 36, 36) == 0xaa0000
+    assert pixel(before, width-1, height-1) == 0xffffff
+    assert before.primary != before.alternate
+
+    rejected = values(b"$CLS(1)$alive", b"alive")
+    assert before.primary == rejected.primary and before.alternate == rejected.alternate
+    frame = values(b"$CLS$$CUR(PORT)$:$CUR(PAL)$:$ISPROT(PORT,6)$:$INUSE(SCREEN,S4)$:$TWIN$:"
+                   b"$PALENTRY(0,0)$", b"6:0:1:1:YES:6;42:0:0")
+    assert all(value == 0 for value in colors(frame, frame.primary))
+    assert frame.primary == frame.alternate
+    for key in ("cterm.x", "cterm.y", "cterm.attr", "cterm.top_margin", "cterm.bottom_margin"):
+        assert frame.application[key] == before.application[key]
+    t.client.text("k")
+    t.input(b"still-live:8")
+
+    values(b"$UNPROT(PORT,6)$$AVP(6)$")
+    t.exchange(b"\x01|2W6000001010000Offscreen.bmp\r\n")
+    data = next(t.root.rglob("Offscreen.bmp")).read_bytes()
+    offset, = struct.unpack_from("<I", data, 10)
+    assert struct.unpack_from("<iiHH", data, 18) == (2, 2, 1, 8)
+    assert data[offset + 4] == 2  # Top-left pixel after one padded bottom row.
+
+    frame = values(b"$RESTORE(4)$")
+    assert (colors(frame, frame.primary), colors(frame, frame.alternate)) == (
+        colors(before, before.primary), colors(before, before.alternate))
 
 
 def run(args,width,height):
@@ -115,7 +156,8 @@ def run(args,width,height):
         values(b'$INUSE(SCREEN,BASE)$',b'0')
         frame=t.exchange()
         assert all(v==frame.palette[0] for v in colors(frame,frame.primary))
-        assert client.capture().application['connected']==1
+        assert frame.application['connected']==1
+        check_clear(t, width, height)
 
 
 if __name__=='__main__':

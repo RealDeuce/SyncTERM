@@ -21366,6 +21366,35 @@
         "unreviewed": 2331
       },
       "verification": "Native field, backup, local-variable and session checks. CP437 and UTF-8 live keyboard, simple-field and mouse-backup tests. Contract and RIP 1.54 preservation checks."
+    },
+    {
+      "after_commit": "6e947925",
+      "revision": "78af40f04da66012587b2f10f66899d95471350e",
+      "scope": "Connected physical CLS fill and upstream background-color discrepancy.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3136",
+        "version/3.0/ripscrip/5.1-text-variables.md:3138",
+        "version/3.0/ripscrip/5.1-text-variables.md:3142"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3132",
+        "version/3.0/ripscrip/5.1-text-variables.md:3140",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:173",
+        "version/3.0/ripscrip/5.1-text-variables.md:3846",
+        "version/3.0/ripscrip/5.1-text-variables.md:3850",
+        "version/3.0/ripscrip/5.1-text-variables.md:3867",
+        "version/3.0/ripscrip/5.1-text-variables.md:3871",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:220"
+      ],
+      "states_after_update": {
+        "blocked": 43,
+        "context": 1830,
+        "excluded": 71,
+        "implemented": 3294,
+        "pending": 1530,
+        "unreviewed": 2315
+      },
+      "verification": "Physical screen and host parser native checks, connected CP437 and UTF-8 screen cases at 640×480 and 720×400, and RIP 1.54 preservation."
     }
   ]
 }

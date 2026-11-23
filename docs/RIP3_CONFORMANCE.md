@@ -9399,6 +9399,11 @@ preserves it. Connected CP437 and UTF-8 cases check simple fields,
 button activation, held-press cancellation, focus lifetime and drawing
 through an active outline. [PR #198](https://github.com/bbs-land/remote-imaging-protocol/pull/198)
 
+The selective `MKILL` macro remains pending. The RIPtel callback requires
+five arguments for a region and dispatches reversed IN/OUT selector
+flags. The wire `1k` selection and argumentless `MKILL` are connected.
+[Issue #201](https://github.com/bbs-land/remote-imaging-protocol/issues/201)
+
 ## Connected classic graphics font alignment
 
 `Y` accepts one bit per alignment group, the optional `0x80` shadow bit and
@@ -9597,3 +9602,18 @@ Connected CP437 and UTF-8 fixtures click a pager field, check the rendered
 pages in both pixel planes, and exercise reflow, boundaries, reset scopes and
 cache cleanup. The native session test checks both notification messages and
 signed-word page numbers.
+
+## Connected physical screen clear
+
+`$CLS$` fills the physical canvas with literal RGB black and expands to
+empty text. It uses the RIPtel callback at RVA `0x24737`, which delegates
+to the same physical screen fill as HARD reset. The macro leaves palette
+entries, port and viewport state, offscreen pixels, text cursor and
+rendition, mouse fields and screen saves in place. The pinned macro
+description still names palette entry zero. [Issue #200](https://github.com/bbs-land/remote-imaging-protocol/issues/200)
+
+Connected CP437 and UTF-8 fixtures distinguish black from a red
+palette entry zero. They clear both blink planes with a protected
+inactive offscreen port selected, verify the offscreen pixel and
+resident button, and restore the saved screen. They also exercise
+nonfatal recovery after an extra argument.
