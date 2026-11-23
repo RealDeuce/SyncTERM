@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/194",
-  "revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
-  "previous_revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/196",
+  "revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+  "previous_revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The reviewed open PR head is consolidated into the selected fork stable with an identical tree.",
-  "archive_sha256": "47f9603bc5e08643d36350abd8687d7120fd8453af536a63a737a409866a2660",
+  "upstream_state_at_adoption": "The two reviewed open PR heads match their respective integration trees on fork stable.",
+  "archive_sha256": "1e10c6b490312d3fa1f3bb1af2bb688408cd6871147b899bc50570f825344edb",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,9 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "previous_sha256": "d8125d84769011d5bee15c72b67bc12cda046bc8f486d4ae42ad468ee3906d93",
-      "sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce"
+      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+      "previous_sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c",
+      "sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86"
+    },
+    {
+      "path": "version/3.0/ripscrip/3.1-column-text-system.md",
+      "previous_sha256": "4af9087c14285658bef8e96a81d52ff1d5a1e728d6964e9f5deb623ae4a946c3",
+      "sha256": "ca0bff05c290327883c237deffae635d278f408fb6225ee4193e002a7b750dfd"
     }
   ],
   "new_documents": [],
@@ -962,8 +967,7 @@
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
-    "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "B191 article font zero and B193 the malformed size-five layout vector."
+    "Advanced frontend user editor/format modes and remaining table/playback families."
   ],
   "derivations": [
     {
@@ -1514,9 +1518,21 @@
     },
     {
       "path": "version/3.0/research/issue-190-button-font-zero.md",
-      "sha256": "ec881eff9bcb57e6c81ae7c73a423c0d91ff1f8287aba119227bd7b51d7b42e3",
+      "sha256": "ce299aeb73996e0a046312222605291922389aa851f09a0852fc8fcdeeb2e519",
       "title": "Issue #190 - Classic font zero in button labels",
       "role": "Classic button font zero realization, creation WORLD and placement, measured-run hotkey decoration."
+    },
+    {
+      "path": "version/3.0/research/issue-191-column-font-zero.md",
+      "sha256": "0d37e2f5cfd891fc13ae23bcff88cabc8e6b6212864a77f38a58012d62b309f5",
+      "title": "Issue #191 - Classic font zero in article columns",
+      "role": "Classic font-zero article realization, per-byte width and vertical layout, wrap boundaries and blank continuation."
+    },
+    {
+      "path": "version/3.0/research/issue-193-font-zero-example.md",
+      "sha256": "94294c31242af17e58e271d699aaef276d9140a520fb28bb940b8720b4885295",
+      "title": "Issue #193 - Correct the DEFAULT EX placement example",
+      "role": "Correct classic font-zero flags in the size-five layout example."
     }
   ],
   "documents": [
@@ -1642,11 +1658,11 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c"
+      "sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
-      "sha256": "4af9087c14285658bef8e96a81d52ff1d5a1e728d6964e9f5deb623ae4a946c3"
+      "sha256": "ca0bff05c290327883c237deffae635d278f408fb6225ee4193e002a7b750dfd"
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
@@ -17292,6 +17308,67 @@
           "role": "Classic button font zero realization, creation WORLD and placement, measured-run hotkey decoration."
         }
       ]
+    },
+    {
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/195",
+      "revision": "9183f25104edd3d3289f37d5a293d9131bfd2ea6",
+      "previous_revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
+      "reviewed_head": "080c1edbf04c4bc5aee82065494ad35c920ef001",
+      "archive_sha256": "87d100755f5002515c580dbffbcc19f03c240771bd4b1918bfa5ff9a882caeb7",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c",
+          "sha256": "abccff82394792dea410945824a22952c72561858819d212c9bcfe951a1bb22d"
+        },
+        {
+          "path": "version/3.0/ripscrip/3.1-column-text-system.md",
+          "previous_sha256": "4af9087c14285658bef8e96a81d52ff1d5a1e728d6964e9f5deb623ae4a946c3",
+          "sha256": "ca0bff05c290327883c237deffae635d278f408fb6225ee4193e002a7b750dfd"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-191-column-font-zero.md",
+          "sha256": "0adab17de131562366ab3f59008d9d99114f4ec7220aee47d19ee567b43bf277",
+          "title": "Issue #191 - Classic font zero in article columns",
+          "role": "Classic font-zero article realization, per-byte width and vertical layout, wrap boundaries and blank continuation."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9058,
+        "moved": 48,
+        "added": 12,
+        "retired": 2
+      }
+    },
+    {
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/196",
+      "revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+      "previous_revision": "9183f25104edd3d3289f37d5a293d9131bfd2ea6",
+      "reviewed_head": "d4629fa8ed68e377a4549383e6eed5c8e743897c",
+      "archive_sha256": "1e10c6b490312d3fa1f3bb1af2bb688408cd6871147b899bc50570f825344edb",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "abccff82394792dea410945824a22952c72561858819d212c9bcfe951a1bb22d",
+          "sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-193-font-zero-example.md",
+          "sha256": "94294c31242af17e58e271d699aaef276d9140a520fb28bb940b8720b4885295",
+          "title": "Issue #193 - Correct the DEFAULT EX placement example",
+          "role": "Correct classic font-zero flags in the size-five layout example."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9069,
+        "moved": 0,
+        "added": 1,
+        "retired": 1
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -20899,6 +20976,38 @@
         "blocked": 30
       },
       "verification": "Native button construction and connected CP437 and UTF-8 geometry and hotkey vectors, including activation redraw after changes to the active style and WORLD."
+    },
+    {
+      "after_commit": "a2df4f38",
+      "revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+      "scope": "Use DEFAULT EX for classic font-zero prewrapped and raw article layout. Adopt the corrected ordinary size-five layout example.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:469",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:786",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:788",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:800",
+        "version/3.0/ripscrip/3.1-column-text-system.md:106",
+        "version/3.0/ripscrip/3.1-column-text-system.md:122",
+        "version/3.0/ripscrip/3.1-column-text-system.md:126",
+        "version/3.0/ripscrip/3.1-column-text-system.md:130",
+        "version/3.0/ripscrip/3.1-column-text-system.md:132",
+        "version/3.0/ripscrip/3.1-column-text-system.md:134",
+        "version/3.0/ripscrip/3.1-column-text-system.md:136",
+        "version/3.0/ripscrip/3.1-column-text-system.md:138",
+        "version/3.0/ripscrip/3.1-column-text-system.md:142",
+        "version/3.0/ripscrip/3.1-column-text-system.md:148",
+        "version/3.0/ripscrip/3.1-column-text-system.md:150"
+      ],
+      "partially_covered_source_units": [],
+      "states_after_update": {
+        "blocked": 25,
+        "context": 1771,
+        "excluded": 70,
+        "implemented": 3123,
+        "pending": 1635,
+        "unreviewed": 2446
+      },
+      "verification": "Native classic layout and RIP3 session checks, plus live CP437 and UTF-8 column placement, split input, wrapping, continuation and page replay."
     }
   ]
 }

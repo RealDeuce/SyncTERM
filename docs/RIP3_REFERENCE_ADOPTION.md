@@ -1287,7 +1287,25 @@ The Git tar archive has SHA-256
 `47f9603bc5e08643d36350abd8687d7120fd8453af536a63a737a409866a2660`.
 [PR #194](https://github.com/bbs-land/remote-imaging-protocol/pull/194)
 
-The button chapter keeps 9,043 source blocks in the inventory, moves 382
-line ranges, adds 17 blocks and retires one, for 9,060 total. The classic
+One normative document changes. The inventory keeps 9,043 source blocks,
+moves 382 line ranges, adds 17 blocks and retires one, for 9,060 total. The classic
 graphics text derivation records stable consolidation. The new #190
 derivation covers captured font metrics, placement and decoration.
+
+## PRs #195 and #196 classic font-zero columns and layout example
+
+Fork stable is pinned at
+[`ceb61a4f09eab6e07692a3e6c962f8438435acf6`](https://github.com/RealDeuce/remote-imaging-protocol/tree/ceb61a4f09eab6e07692a3e6c962f8438435acf6).
+Its tree matches PR #196 head `d4629fa8ed68e377a4549383e6eed5c8e743897c`.
+Stable integration `9183f25104edd3d3289f37d5a293d9131bfd2ea6` matches
+PR #195 head `080c1edbf04c4bc5aee82065494ad35c920ef001`. The Git tar archive
+of the pin has SHA-256
+`1e10c6b490312d3fa1f3bb1af2bb688408cd6871147b899bc50570f825344edb`.
+[PR #195](https://github.com/bbs-land/remote-imaging-protocol/pull/195),
+[PR #196](https://github.com/bbs-land/remote-imaging-protocol/pull/196)
+
+Two normative documents change. The inventory keeps 9,057 source blocks,
+moves 48 line ranges, adds 13 blocks and retires three, for 9,070 total.
+The two derivations address B191 and B193. The connected column fixtures
+exercise the new font metrics, and the native classic layout vectors cover
+the corrected left/middle flags.

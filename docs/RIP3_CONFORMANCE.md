@@ -9371,8 +9371,7 @@ separate calculations, including `@`'s read of the prior cached outline
 width. The portable TEXT_METRIC query and ANSI text windows use their cell
 metrics. Native layout vectors check the signature's 126-pixel advance,
 vertical placement at unequal DPI and the larger-size example with `1T`
-for left/middle. The published `21` sets both top and middle and rejects.
-[Issue #193](https://github.com/bbs-land/remote-imaging-protocol/issues/193)
+for left/middle. [PR #196](https://github.com/bbs-land/remote-imaging-protocol/pull/196)
 
 Connected CP437 and UTF-8 tests check the signature's placement and shadow,
 default-style drawing across reset and restore, ordinary text cursor
@@ -9390,8 +9389,7 @@ The first case-insensitive hotkey match uses its measured run position for
 highlight and underline. The underline uses the glyph's unspaced width at
 baseline plus three device pixels. Native and connected tests exercise the
 centered `ACC.RIP` label, first-match decoration, WORLD side offsets,
-descender fit and activation redraw after a STYLE and WORLD change. Article
-column font-zero measurement remains tracked separately. [Issue #191](https://github.com/bbs-land/remote-imaging-protocol/issues/191)
+descender fit and activation redraw after a STYLE and WORLD change.
 
 ## Connected prewrapped column text
 
@@ -9417,7 +9415,14 @@ distributes signed padding across the existing space-separated runs, so a
 line wider than the column can compress its gaps. Search highlighting
 compares the complete painted run, including any spaces.
 
-The bitmap font uses the magnified cell height. For prewrapped CHR text,
+Classic font zero uses upright DEFAULT EX, including with the implicit
+drawing style. Both column paths measure each byte and space using the
+live WORLD, point size and resolution-dependent spacing. At 1024×768 and
+equal WORLD, size one uses a seven-pixel step, baseline offset eight and
+descent two. The second line at Y=110 fits a column ending at Y=120.
+[PR #195](https://github.com/bbs-land/remote-imaging-protocol/pull/195)
+
+For prewrapped CHR text,
 `H` is the cap-to-descender span scaled by the size ratio and truncated in
 WORLD units. The baseline, first-line adjustment, bottom fit and line step
 project `H`, `H − scaled cap`, `H − scaled descender` and `H + 1` separately.
@@ -9438,7 +9443,7 @@ at `0x03ae10` supplies upright orientations even when the style is rotated.
 With Dixon at 22 points and 72 DPI, the original alignment calculation gives
 a 16-pixel baseline offset, a minimum fit of 22 pixels, and a 55-pixel line
 advance. The connected fixture checks the baseline against an explicitly
-positioned drawing command, then switches to MicroANSI and checks the next
+positioned drawing command, then switches to DEFAULT EX and checks the next
 line at the expected advance. These checks cover column placement. The
 portable outline renderer supplies the glyph rasterization.
 
@@ -9463,6 +9468,12 @@ using the live font metrics. A single line ending acts as a word separator.
 Blank lines end a paragraph and leave space before the next one. CRLF counts
 as one line ending. The renderer visits the article's global slots in numeric
 order. An overwide word stays on one line and clips to its column.
+
+For classic font zero a pending glyph or separator wraps when the measured
+width reaches the inclusive column width. A separator contributes two
+spaces after `.`, `!`, `?` or `:` and one otherwise. Live tests distinguish
+the exact-width wrap from a one-pixel-wider fit and check the first line is
+painted before the next word ends. [PR #195](https://github.com/bbs-land/remote-imaging-protocol/pull/195)
 
 `1e` defines a column at current Base Math and coordinate width. Its optional
 search list uses graphical variable expansion and matches complete words

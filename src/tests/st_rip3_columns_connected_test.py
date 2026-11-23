@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent MicroANSI cell masks in connected RIPv3 text regions."""
+"""Independent glyph and placement vectors in connected RIPv3 text regions."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
@@ -14,14 +14,17 @@ from st_rip3_scroll_connected_test import plane_pixel
 from st_terminal_conformance_test import Terminal
 
 
-# RIPtel MicroANSI 640x480 80x43 bank, with the accent at glyph code 0x82.
-CAPITAL_A = bytes.fromhex("38 6c c6 c6 fe fe c6 c6 c6 00 00")
-ACCENT = bytes.fromhex("04 08 10 00 78 cc fc c0 78 00 00")
-DOLLAR = bytes.fromhex("00 30 30 7c c0 78 0c f8 30 30 00")
-AMPERSAND = bytes.fromhex("38 38 6c 38 70 de cc 76 76 00 00")
-CAPITAL_V = bytes.fromhex("c6 c6 c6 c6 c6 c6 6c 38 38 00 00")
-BACKSLASH = bytes.fromhex("80 c0 60 30 18 0c 06 03 01 00 00")
-PIPE = bytes.fromhex("00 30 30 30 30 00 30 30 30 30 00")
+# Independent pixel-center samples of the bundled DEFAULT.RFF contours at
+# 11 points, 72 DPI, 140% X scale, baseline eight pixels below the line top.
+# The input à selects the outline in raw byte slot 0x85.
+CAPITAL_A = bytes.fromhex("00 30 6c c6 fe c6 c6 c6 00 00 00")
+ACCENT = bytes.fromhex("36 36 36 36 36 00 00 00 00 00 00")
+DOLLAR = bytes.fromhex("18 fc c2 c0 7e 06 86 fc 18 00 00")
+AMPERSAND = bytes.fromhex("00 78 6c 78 fe cc cc fe 00 00 00")
+CAPITAL_V = bytes.fromhex("00 c6 c6 c6 c6 c6 6c 38 00 00 00")
+BACKSLASH = bytes.fromhex("00 80 c0 e0 78 3c 0e 06 00 00 00")
+PIPE = bytes.fromhex("00 18 18 18 00 18 18 18 00 00 00")
+PERIOD = bytes.fromhex("00 00 00 00 00 00 00 18 00 00 00")
 RED = 0xAA0000
 GREEN = 0x00AA00
 
@@ -55,6 +58,54 @@ def check_pixels(frame, bounds, placements):
             for x in range(x0, x1 + 1):
                 actual = plane_pixel(frame, x, y, phase)
                 assert actual == expected.get((x, y), 0), (phase, x, y, actual, expected.get((x, y), 0))
+
+
+def check_default_outline_columns(args):
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options="ScreenMode=Custom\nRIP=RIPv3\n",
+                    settings="CustomColumns=128\nCustomRows=96\nCustomFontHeight=8\nAudioModes=0\n") as (
+                        client, root, peer, send):
+        terminal = Terminal(client, root, peer, send)
+        terminal.exchange(b"\x1b[!", b"RIPSCRIP030001")
+        terminal.case("DEFAULT EX prewrapped justification and inclusive bottom fit")
+        # At identity scale, Q=11, P=109: seven pixels per byte, A=8,
+        # D=2 and L=10. Width 22 leaves one extra pixel before the second A.
+        setup = commands(b"*", b"fSGLC", b"c02")
+        column = region((100, 100, 121, 120))
+        frame = terminal.exchange(setup + commands(column, b"1t1A A", b"1t0", b"1t0A", b"1E"))
+        check_pixels(frame, (98, 98, 125, 123), [(100, 100, CAPITAL_A, GREEN), (115, 100, CAPITAL_A, GREEN)])
+
+        terminal.case("DEFAULT EX raw width 22 fits and width 21 wraps as the next glyph arrives")
+        frame = terminal.exchange(setup + commands(column) + b"A A\r\n" + commands(b"1E"))
+        check_pixels(frame, (98, 98, 125, 123), [(100, 100, CAPITAL_A, GREEN), (114, 100, CAPITAL_A, GREEN)])
+        terminal.exchange(setup)
+        terminal.send(commands(region((100, 100, 120, 120))) + b"A ")
+        accent = b"\x85" if args.encoding == "CP437" else "à".encode("utf-8")
+        for byte in accent:
+            terminal.send(bytes([byte]))
+        frame = client.wait_for(lambda f: plane_pixel(f, 102, 101, "primary") == GREEN)
+        check_pixels(frame, (98, 98, 125, 123), [(100, 100, CAPITAL_A, GREEN)])
+        frame = terminal.exchange(commands(b"1E"))
+        check_pixels(frame, (98, 98, 125, 123), [(100, 100, CAPITAL_A, GREEN), (100, 110, ACCENT, GREEN)])
+
+        terminal.case("DEFAULT EX raw punctuation contributes two measured spaces")
+        frame = terminal.exchange(setup + commands(region((100, 100, 135, 120)))
+                                  + b"A. A\r\n" + commands(b"1E"))
+        check_pixels(frame, (98, 98, 138, 123), [(100, 100, CAPITAL_A, GREEN),
+                     (107, 100, PERIOD, GREEN), (128, 100, CAPITAL_A, GREEN)])
+        terminal.exchange(setup)
+        terminal.send(commands(region((100, 100, 127, 120))) + b"A. ")
+        frame = client.wait_for(lambda f: plane_pixel(f, 102, 101, "primary") == GREEN)
+        check_pixels(frame, (98, 98, 132, 123), [(100, 100, CAPITAL_A, GREEN), (107, 100, PERIOD, GREEN)])
+        frame = terminal.exchange(b"A\r\n" + commands(b"1E"))
+        check_pixels(frame, (98, 98, 132, 123), [(100, 100, CAPITAL_A, GREEN),
+                     (107, 100, PERIOD, GREEN), (100, 110, CAPITAL_A, GREEN)])
+
+        terminal.case("DEFAULT EX raw paragraph skips a blank at a disjoint continuation")
+        frame = terminal.exchange(setup + commands(region((100, 100, 121, 110)),
+                                                    region((140, 100, 161, 120), column=1))
+                                  + b"A\r\n\r\nA\r\n" + commands(b"1E"))
+        check_pixels(frame, (98, 98, 164, 123), [(100, 100, CAPITAL_A, GREEN), (140, 100, CAPITAL_A, GREEN)])
 
 
 def check_overflow(terminal, root, accent):
@@ -123,16 +174,16 @@ def check_overflow(terminal, root, accent):
 def check_selection(terminal, accent):
     terminal.case("Selecting another article flushes prose and preserves both cursors")
     frame = terminal.exchange(
-        commands(b"c02", region((195, 310, 202, 332), 15, 15),
-                 region((220, 310, 227, 332), 16, 16), select(15, b"ZZZZ"))
+        commands(b"c02", region((195, 310, 211, 332), 15, 15),
+                 region((220, 310, 236, 332), 16, 16), select(15, b"ZZZZ"))
         + b"A\r\n" + commands(select(16))
         + accent + b"\r\n" + commands(select(15))
         + b"A\r\n" + commands(select(15))
         + accent + b"\r\n" + commands(select(16))
         + b"A\r\n" + commands(b"1E"))
     check_pixels(frame, (192, 309, 229, 335),
-                 [(195, 310, CAPITAL_A, GREEN), (195, 321, ACCENT, GREEN),
-                  (220, 310, ACCENT, GREEN), (220, 321, CAPITAL_A, GREEN)])
+                 [(195, 310, CAPITAL_A, GREEN), (195, 320, ACCENT, GREEN),
+                  (220, 310, ACCENT, GREEN), (220, 320, CAPITAL_A, GREEN)])
 
     terminal.case("Article zero accepts prewrapped text and ordinary bytes after end")
     frame = terminal.exchange(
@@ -141,7 +192,7 @@ def check_selection(terminal, accent):
         + b"\x1b[4;2HNO COL\x1b[6n\r\n" + commands(select(0), b"1t0A")
         + b"\x1b[3;2HOK", b"\x1b[4;8R")
     check_pixels(frame, (242, 309, 254, 344),
-                 [(245, 310, CAPITAL_A, GREEN), (245, 321, ACCENT, GREEN), (245, 332, CAPITAL_A, GREEN)])
+                 [(245, 310, CAPITAL_A, GREEN), (245, 320, ACCENT, GREEN), (245, 330, CAPITAL_A, GREEN)])
     assert frame.lines[2][1:3] == "OK"
 
     terminal.case("Invalid selectors retain the current selection and allow the next command")
@@ -163,8 +214,8 @@ def check_selection(terminal, accent):
     terminal.exchange(query(b"$OVERFLOW(18,NEXT,QUERY)$:$OVERFLOW(19,NEXT,QUERY)$", at_cursor=True),
                       re.compile(rb"(\d{3,5})I0001\.OVR:\1J0001\.OVR"))
     frame = terminal.exchange(commands(
-        extended((310, 370, 333, 380), 18, 18, 1), b"1R00000000$OVERFLOW(18)$", b"1E",
-        extended((340, 370, 363, 380), 19, 19, 1), b"1R00000000$OVERFLOW(19)$", b"1E"))
+        extended((310, 370, 334, 380), 18, 18, 1), b"1R00000000$OVERFLOW(18)$", b"1E",
+        extended((340, 370, 364, 380), 19, 19, 1), b"1R00000000$OVERFLOW(19)$", b"1E"))
     check_pixels(frame, (309, 369, 364, 381),
                  [(310, 370, CAPITAL_A, GREEN), (326, 370, ACCENT, GREEN),
                   (340, 370, ACCENT, GREEN), (356, 370, CAPITAL_A, GREEN)])
@@ -178,14 +229,14 @@ def check_prewrapped(terminal, accent):
         region((428, 30, 441, 40), 21, 21), b"1t1A A", b"1E"))
     check_pixels(frame, (367, 29, 444, 64),
                  [(370, 30, CAPITAL_A, GREEN), (386, 30, CAPITAL_A, GREEN),
-                  (403, 30, CAPITAL_A, GREEN), (378, 41, CAPITAL_A, GREEN),
-                  (394, 41, ACCENT, GREEN), (370, 52, ACCENT, GREEN),
+                  (403, 30, CAPITAL_A, GREEN), (378, 40, CAPITAL_A, GREEN),
+                  (394, 40, ACCENT, GREEN), (370, 50, ACCENT, GREEN),
                   (428, 30, CAPITAL_A, GREEN), (434, 30, CAPITAL_A, GREEN)])
 
     terminal.case("Prewrapped lines leave pending raw prose for the article end")
     frame = terminal.exchange(commands(region((370, 72, 393, 93), 22, 22)) + b"A\r\n"
                               + commands(b"1t0" + accent, b"1E"))
-    check_pixels(frame, (368, 71, 395, 94), [(370, 72, ACCENT, GREEN), (370, 83, CAPITAL_A, GREEN)])
+    check_pixels(frame, (368, 71, 395, 94), [(370, 72, ACCENT, GREEN), (370, 82, CAPITAL_A, GREEN)])
 
     terminal.case("Empty prewrapped lines advance except at the top of a disjoint continuation column")
     frame = terminal.exchange(commands(
@@ -195,8 +246,8 @@ def check_prewrapped(terminal, accent):
         b"1t0A", b"1t0", b"1t0" + accent, b"1E"))
     check_pixels(frame, (367, 103, 434, 132),
                  [(370, 105, CAPITAL_A, GREEN), (390, 105, ACCENT, GREEN),
-                  (390, 116, CAPITAL_A, GREEN), (420, 105, CAPITAL_A, GREEN),
-                  (425, 121, ACCENT, GREEN)])
+                  (390, 115, CAPITAL_A, GREEN), (420, 105, CAPITAL_A, GREEN),
+                  (425, 120, ACCENT, GREEN)])
 
     terminal.case("A prewrapped line advances to the next slot once when it will not fit")
     frame = terminal.exchange(commands(
@@ -210,7 +261,7 @@ def check_prewrapped(terminal, accent):
     frame = terminal.exchange(commands(
         region((370, 205, 401, 260), 30, 26), b"1t0A",
         b"Y00000200", b"1t0A", b"Y00000100", b"1t0" + accent, b"1E"))
-    check_pixels(frame, (368, 237, 403, 251), [(370, 238, ACCENT, GREEN)])
+    check_pixels(frame, (368, 236, 403, 251), [(370, 236, ACCENT, GREEN)])
 
     terminal.case("A protected graphics port suppresses a prewrapped line and leaves the cursor in place")
     frame = terminal.exchange(
@@ -227,8 +278,8 @@ def check_prewrapped(terminal, accent):
         b"1t0A A", b"1t1A A", b"1t0A", b"1E"))
     check_pixels(frame, (458, 79, 502, 114),
                  [(460, 80, CAPITAL_A, GREEN), (476, 80, CAPITAL_A, GREEN),
-                  (460, 91, CAPITAL_A, RED), (492, 91, CAPITAL_A, GREEN),
-                  (460, 102, CAPITAL_A, RED)])
+                  (460, 90, CAPITAL_A, RED), (492, 90, CAPITAL_A, GREEN),
+                  (460, 100, CAPITAL_A, RED)])
 
     terminal.case("Outline columns use separate baseline, bottom fit and line advance")
     dixon = b"y0000000M000000001a1a000000Dixon"
@@ -259,10 +310,10 @@ def check_prewrapped_contract(terminal, accent, encoding):
                  [(500, 28, CAPITAL_A, GREEN), (508, 28, DOLLAR, GREEN),
                   (516, 28, AMPERSAND, GREEN), (524, 28, CAPITAL_V, GREEN),
                   (532, 28, DOLLAR, GREEN), (540, 28, ACCENT, GREEN),
-                  (500, 39, CAPITAL_A, GREEN), (508, 39, CAPITAL_A, GREEN),
-                  (524, 39, CAPITAL_A, GREEN), (532, 39, BACKSLASH, GREEN),
-                  (540, 39, CAPITAL_A, GREEN), (556, 39, CAPITAL_A, GREEN),
-                  (564, 39, PIPE, GREEN), (572, 39, CAPITAL_A, GREEN)])
+                  (500, 38, CAPITAL_A, GREEN), (508, 38, CAPITAL_A, GREEN),
+                  (524, 38, CAPITAL_A, GREEN), (532, 38, BACKSLASH, GREEN),
+                  (540, 38, CAPITAL_A, GREEN), (556, 38, CAPITAL_A, GREEN),
+                  (564, 38, PIPE, GREEN), (572, 38, CAPITAL_A, GREEN)])
 
     terminal.case("Inactive viewport and invalid or unsupported justification leave placement intact")
     invalid_encoding = (b"1t0\xc3",) if encoding == "UTF-8" else ()
@@ -273,7 +324,7 @@ def check_prewrapped_contract(terminal, accent, encoding):
                                        b"1t0" + accent, b"1t0\\ \t", b"1t0A", b"1E")
                               + query(b"alive$BASEMATH(CUR,36)$", at_cursor=True), b"alive")
     check_pixels(frame, (499, 84, 540, 118),
-                 [(500, 85, ACCENT, GREEN), (500, 107, CAPITAL_A, GREEN)])
+                 [(500, 85, ACCENT, GREEN), (500, 105, CAPITAL_A, GREEN)])
 
     terminal.case("Classic stroke top adjustment, inclusive fit, and line step are independent")
     # Original LITT.CHR has cap=7, descent=-2 and a pipe from (0,6) to (0,0).
@@ -326,7 +377,7 @@ def run(args):
         def wire(*parts):
             return terminal.exchange(commands(*parts))
 
-        accent = b"\x82" if args.encoding == "CP437" else "é".encode("utf-8")
+        accent = b"\x85" if args.encoding == "CP437" else "à".encode("utf-8")
         terminal.exchange(b"\x1b[!", b"RIPSCRIP030001")
         terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
 
@@ -334,7 +385,7 @@ def run(args):
         frame = wire(b"c04", region((59, 61, 20, 40)), b"1t1A " + accent,
                      b"c02", b"1t0" + accent, b"1t0A", b"1E", b"1t0A")
         check_pixels(frame, (17, 36, 63, 75),
-                     [(20, 40, CAPITAL_A, RED), (52, 40, ACCENT, RED), (20, 51, ACCENT, GREEN)])
+                     [(20, 40, CAPITAL_A, RED), (52, 40, ACCENT, RED), (20, 50, ACCENT, GREEN)])
 
         terminal.case("RIPv3 columns visit numeric slots and skip holes")
         frame = wire(region((70, 110, 77, 120), 17, 2), region((20, 110, 27, 120), 3, 2),
@@ -357,8 +408,8 @@ def run(args):
 
         full_view = b"v0000" + number(639, 2) + number(479, 2)
         terminal.case("Raw article text wraps across slots and returns to the terminal at end")
-        frame = terminal.exchange(commands(full_view, region((170, 40, 193, 50), 31, 6),
-                                           region((130, 40, 153, 50), 27, 6), b"c02")
+        frame = terminal.exchange(commands(full_view, region((170, 40, 194, 50), 31, 6),
+                                           region((130, 40, 154, 50), 27, 6), b"c02")
                                   + b"A\r\nA " + accent + b"\r\n!|1E\r\n\x1b[3;2HOK")
         check_pixels(frame, (126, 39, 196, 54),
                      [(130, 40, CAPITAL_A, GREEN), (146, 40, CAPITAL_A, GREEN), (170, 40, ACCENT, GREEN)])
@@ -368,7 +419,7 @@ def run(args):
         paragraph = region((130, 75, 177, 107), 0, 7)
         frame = terminal.exchange(commands(paragraph) + b"A\r\n" + commands(paragraph)
                                   + accent + b"\r\n\r\nA\r\n!|#\r\n")
-        check_pixels(frame, (126, 72, 181, 110), [(130, 75, ACCENT, GREEN), (130, 97, CAPITAL_A, GREEN)])
+        check_pixels(frame, (126, 72, 181, 110), [(130, 75, ACCENT, GREEN), (130, 95, CAPITAL_A, GREEN)])
 
         terminal.case("Changing articles flushes the old article's pending text")
         frame = terminal.exchange(commands(region((130, 130, 153, 140), 1, 10)) + b"A\r\n"
@@ -434,4 +485,6 @@ if __name__ == "__main__":
     parser.add_argument("executable", type=Path)
     parser.add_argument("encoding", choices=("CP437", "UTF-8"))
     parser.add_argument("--reports", type=Path, required=True)
-    run(parser.parse_args())
+    args = parser.parse_args()
+    check_default_outline_columns(args)
+    run(args)

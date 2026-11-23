@@ -103,10 +103,11 @@ struct column_line {
 	unsigned rgb_bits;
 	uint8_t foreground, background;
 	const struct st_rip3_column_search *search;
+	int64_t default_steps[256];
 	int64_t baseline, fit, advance, first_offset;
 	int64_t x, y;
 	double width;
-	bool prewrapped, justify;
+	bool prewrapped, justify, default_outline;
 };
 
 struct article_buffer {
@@ -117,8 +118,8 @@ struct article_buffer {
 struct st_rip3_article_flow {
 	struct column_line pen;
 	struct article_buffer word, line, pending;
-	size_t word_start;
-	double width;
+	size_t word_start, word_measured;
+	double width, word_width;
 	bool prepared, newline, previous_cr, dropping_word, retention_failed;
 };
 
@@ -147,6 +148,37 @@ prepare_stroke_column(struct column_line *line)
 	line->first_offset = -device_y(frame, reference - cap);
 	line->fit = device_y(frame, reference - descender) + 1;
 	line->advance = device_y(frame, reference + 1);
+	return 0;
+}
+
+static int
+prepare_default_column(struct column_line *line)
+{
+	const struct st_rip3_classic_text_style *style = &line->style.font;
+	line->style.outline.string_rotation = 0;
+	line->style.outline.shadow = (style->flags & ST_RIP3_CLASSIC_SHADOW) != 0;
+	int status = st_rip3_classic_default_outline(&line->outline, &line->layout, style, &line->frame);
+	if (status != 0)
+		return status;
+	const struct st_rip3_outline_font *font = &line->outline;
+	uint8_t codes[256];
+	int32_t advances[256];
+	for (size_t i = 0; i < sizeof(codes); ++i)
+		codes[i] = (uint8_t)i;
+	status = st_rip3_outline_font_advances(advances, font, 0, codes, sizeof(codes));
+	if (status != 0)
+		return status;
+	for (size_t i = 0; i < sizeof(codes); ++i) {
+		int64_t advance = advances[i];
+		line->default_steps[i] = advance + ((int64_t)line->layout.spacing - 100) * advance / 100;
+	}
+	/* A and D are the portable design references. The face's separate
+	 * leading input is in 1/1440-inch units, independent of point size. */
+	int64_t scale = (int64_t)font->points * font->dpi_y;
+	line->baseline = 750 * scale / (72 * 1000);
+	int64_t descent = 250 * scale / (72 * 1000);
+	line->fit = line->baseline + descent + 1;
+	line->advance = line->baseline + descent + (int64_t)font->style.leading * font->dpi_y / 1440;
 	return 0;
 }
 
@@ -185,6 +217,10 @@ prepare_line(struct column_line *line)
 	}
 	line->style.font.direction = 0;
 	line->style.font.flags &= ST_RIP3_CLASSIC_SHADOW;
+	if (line->style.font.font == 0 && (host->text->font == NULL || host->text->font->number != 0)) {
+		line->default_outline = true;
+		return prepare_default_column(line);
+	}
 	if (host->text->font != NULL && host->text->font->number == line->style.font.font)
 		line->classic = *host->text->font;
 	else
@@ -210,6 +246,12 @@ prepare_line(struct column_line *line)
 static int
 measure_span(const struct column_line *line, const uint8_t *bytes, size_t length, double *width)
 {
+	if (line->default_outline) {
+		*width = 0;
+		for (size_t i = 0; i < length; ++i)
+			*width += (double)line->default_steps[bytes[i]];
+		return 0;
+	}
 	if (line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
 		struct st_rip3_outline_width measure;
 		int status = st_rip3_outline_cache_measure(&measure, line->host->text->outline_cache,
@@ -242,7 +284,7 @@ draw_run(const struct column_line *line, size_t start, size_t end, struct st_rip
 {
 	if (start == end)
 		return 0;
-	if (line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
+	if (line->default_outline || line->style.font_mode == ST_RIP3_FONT_OUTLINE) {
 		at.y += (double)line->baseline - line->layout.baseline.y;
 		at.x -= line->layout.baseline.x;
 		return st_rip3_command_draw_outline(line->host, &line->style, &line->layout, &line->outline,
@@ -438,6 +480,22 @@ available_column(struct st_rip3_columns *columns, int64_t line_height)
 	return slot;
 }
 
+static bool
+keep_leading_blank(const struct st_rip3_columns *columns, const struct st_rip3_column_cursor *cursor,
+    const struct st_rip3_column *slot)
+{
+	/* In a continuation column, keep the first blank only when the
+	 * previous column crosses its top edge and begins above it. */
+	for (unsigned i = cursor->slot; i > 0; --i) {
+		const struct st_rip3_column *previous = &columns->slots[i - 1];
+		if (previous->defined && previous->article == columns->article) {
+			return slot->area.y0 > previous->area.y0 && slot->area.y0 <= previous->area.y1
+			    && slot->area.x0 <= previous->area.x1 && slot->area.x1 >= previous->area.x0;
+		}
+	}
+	return true;
+}
+
 static int
 paint_line(struct st_rip3_columns *columns, struct column_line *line, const struct st_rip3_column *slot)
 {
@@ -499,6 +557,8 @@ prepare_flow(struct st_rip3_article_flow *flow, const struct st_rip3_command_hos
 	if (flow->prepared)
 		return 0;
 	flow->pen = (struct column_line){.host = host};
+	flow->word_measured = 0;
+	flow->word_width = 0;
 	int status = prepare_line(&flow->pen);
 	if (status == 0)
 		status = measure_span(&flow->pen, flow->line.bytes, flow->line.length, &flow->width);
@@ -529,17 +589,79 @@ finish_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 	int status = prepare_flow(flow, host);
 	if (status == 0) {
 		const struct st_rip3_column *slot = available_column(columns, flow->pen.fit);
+		const struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
 		if (slot != NULL) {
-			flow->pen.glyphs = flow->line.bytes;
-			flow->pen.length = flow->line.length;
-			*changed |= flow->line.length != 0;
-			status = paint_line(columns, &flow->pen, slot);
+			if (!blank || !flow->pen.default_outline || cursor->has_line || keep_leading_blank(columns, cursor, slot)) {
+				flow->pen.glyphs = flow->line.bytes;
+				flow->pen.length = flow->line.length;
+				*changed |= flow->line.length != 0;
+				status = paint_line(columns, &flow->pen, slot);
+			}
 		}
 		else if (flow->line.length != 0)
 			status = retain_from(columns, host, 0);
 	}
 	flow->line.length = 0;
 	flow->width = 0;
+	return status;
+}
+
+static size_t
+separator_count(const struct st_rip3_article_flow *flow)
+{
+	if (flow->line.length == 0)
+		return 0;
+	uint8_t last = flow->line.bytes[flow->line.length - 1];
+	return flow->pen.default_outline && memchr(".!?:", last, 4) != NULL ? 2 : 1;
+}
+
+static int
+check_pending_width(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
+    bool separator, bool *changed)
+{
+	struct st_rip3_article_flow *flow = columns->flow;
+	if (flow->line.length == 0 || (flow->prepared && !flow->pen.default_outline))
+		return 0;
+	int status = prepare_flow(flow, host);
+	if (status != 0 || !flow->pen.default_outline)
+		return status;
+	if (!separator) {
+		while (flow->word_measured < flow->word.length) {
+			const uint8_t *next = flow->word.bytes + flow->word_measured;
+			uint8_t code = *next;
+			size_t used = 1;
+			if (host->text->encoding == ST_RIP3_TEXT_UTF8 && code >= 128) {
+				uint32_t scalar;
+				/* Raw input can end mid-scalar. The word decoder
+				 * handles invalid encoding at the word boundary. */
+				if (st_utf8_decode_one(&scalar, &used, next, flow->word.length - flow->word_measured) != 0)
+					return 0;
+				code = '?';
+				(void)st_codepage_from_unicode(&code, ST_CODEPAGE_CP437, scalar);
+			}
+			flow->word_measured += used;
+			flow->word_width += (double)flow->pen.default_steps[code];
+		}
+	}
+	const struct st_rip3_column *slot = available_column(columns, flow->pen.fit);
+	double required = flow->width + (double)separator_count(flow) * (double)flow->pen.default_steps[' '];
+	if (!separator)
+		required += flow->word_width;
+	if (slot != NULL && required < (double)slot->area.x1 - slot->area.x0 + 1)
+		return 0;
+	status = finish_line(columns, host, false, changed);
+	if (status != 0)
+		return status;
+	if (separator) {
+		/* The delimiter of a painted line is never a leading word byte. */
+		flow->pending.length = 0;
+		flow->word_start = 0;
+	}
+	else if (available_column(columns, flow->pen.fit) == NULL) {
+		status = retain_from(columns, host, flow->word_start);
+		flow->word.length = 0;
+		flow->dropping_word = true;
+	}
 	return status;
 }
 
@@ -556,6 +678,8 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 	int status = st_rip3_command_expanded_glyphs(host->text, flow->word.bytes, flow->word.length,
 	    &glyphs, &length, &owned);
 	flow->word.length = 0;
+	flow->word_measured = 0;
+	flow->word_width = 0;
 	if (status == 0)
 		status = prepare_flow(flow, host);
 	const struct st_rip3_column *slot = status == 0 ? available_column(columns, flow->pen.fit) : NULL;
@@ -566,23 +690,26 @@ finish_word(struct st_rip3_columns *columns, const struct st_rip3_command_host *
 		flow->width = 0;
 	}
 	if (slot != NULL) {
-		const uint8_t separator = ' ';
-		double word_width, separator_width = 0;
+		static const uint8_t separators[] = {' ', ' '};
+		size_t count = separator_count(flow);
+		double word_width = 0, separator_width = 0;
 		status = measure_span(&flow->pen, glyphs, length, &word_width);
-		if (status == 0 && flow->line.length != 0)
-			status = measure_span(&flow->pen, &separator, 1, &separator_width);
+		if (status == 0 && count != 0)
+			status = measure_span(&flow->pen, separators, count, &separator_width);
 		double width = (double)slot->area.x1 - slot->area.x0 + 1;
-		if (status == 0 && flow->line.length != 0 && flow->width + separator_width + word_width > width) {
+		double required = flow->width + separator_width + word_width;
+		if (status == 0 && count != 0 && (required > width || (flow->pen.default_outline && required == width))) {
 			status = finish_line(columns, host, false, changed);
 			slot = available_column(columns, flow->pen.fit);
 			if (status == 0 && slot == NULL)
 				status = retain_from(columns, host, flow->word_start);
 			separator_width = 0;
+			count = 0;
 		}
 		if (status == 0 && slot != NULL) {
 			size_t previous = flow->line.length;
-			if (previous != 0)
-				status = append_bytes(&flow->line, &separator, 1);
+			if (count != 0)
+				status = append_bytes(&flow->line, separators, count);
 			if (status == 0)
 				status = append_bytes(&flow->line, glyphs, length);
 			if (status == 0) {
@@ -666,10 +793,15 @@ st_rip3_columns_feed(struct st_rip3_columns *columns, const struct st_rip3_comma
 					flow->dropping_word = true;
 					return status;
 				}
+				status = check_pending_width(columns, host, false, changed);
+				if (status != 0)
+					return status;
 			}
 			continue;
 		}
 		int status = finish_word(columns, host, changed);
+		if (status == 0)
+			status = check_pending_width(columns, host, true, changed);
 		if (status != 0)
 			return status;
 		if (byte == '\r' || byte == '\n') {
@@ -807,22 +939,6 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 		status = selection_status;
 	/* Original reports excess words after installing the first eight. */
 	return status == 0 && truncated ? IO_ERROR_OUT_OF_RANGE : status;
-}
-
-static bool
-keep_leading_blank(const struct st_rip3_columns *columns, const struct st_rip3_column_cursor *cursor,
-    const struct st_rip3_column *slot)
-{
-	/* In a continuation column, keep the first blank only when the
-	 * previous column crosses its top edge and begins above it. */
-	for (unsigned i = cursor->slot; i > 0; --i) {
-		const struct st_rip3_column *previous = &columns->slots[i - 1];
-		if (previous->defined && previous->article == columns->article) {
-			return slot->area.y0 > previous->area.y0 && slot->area.y0 <= previous->area.y1
-			    && slot->area.x0 <= previous->area.x1 && slot->area.x1 >= previous->area.x0;
-		}
-	}
-	return true;
 }
 
 static int
