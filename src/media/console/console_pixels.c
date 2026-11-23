@@ -971,8 +971,8 @@ st_console_pixel_size(st_console_t *console, uint32_t *width,
 }
 
 static void
-mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
-	int64_t right, int64_t bottom)
+damage_pixel_cells(st_console_t *console, int64_t left, int64_t top,
+	int64_t right, int64_t bottom, bool graphics)
 {
 	uint32_t first_x;
 	uint32_t first_y;
@@ -1009,16 +1009,26 @@ mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
 	for (uint32_t y = first_y; y <= last_y; ++y) {
 		for (uint32_t x = first_x; x <= last_x; ++x) {
 			size_t index = (size_t)y * console->columns + x;
+			struct st_console_cell *cell = st_console_cell_at(console, index);
 
-			st_console_cell_at(console, index)->flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS
-			    | ST_CONSOLE_CELL_DIRTY;
+			cell->flags |= ST_CONSOLE_CELL_DIRTY;
+			if (!graphics)
+				continue;
+			cell->flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 			/* This raster write supersedes pending text invalidation,
 			 * including a clear whose blank cells compared unchanged. */
-			*st_console_drawn_at(console, index) = *st_console_cell_at(console, index);
+			*st_console_drawn_at(console, index) = *cell;
 			st_console_drawn_at(console, index)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 		}
 	}
 	console->changed = true;
+}
+
+static void
+mark_pixel_cells(st_console_t *console, int64_t left, int64_t top,
+	int64_t right, int64_t bottom)
+{
+	damage_pixel_cells(console,left,top,right,bottom,true);
 }
 
 int
@@ -1051,8 +1061,8 @@ st_console_publish_raster_view_locked(st_console_t *console)
 		if (end_y>height) end_y=height;
 		if (x<end_x && y<end_y) {
 			st_console_t *parent=console->raster_parent;
-			mark_pixel_cells(parent,(int64_t)console->raster_x+x,(int64_t)console->raster_y+y,
-			    (int64_t)console->raster_x+end_x,(int64_t)console->raster_y+end_y);
+			damage_pixel_cells(parent,(int64_t)console->raster_x+x,(int64_t)console->raster_y+y,
+			    (int64_t)console->raster_x+end_x,(int64_t)console->raster_y+end_y,!console->raster_transient);
 			status=st_console_finish_change_locked(parent);
 		}
 	}
@@ -1129,9 +1139,9 @@ st_console_invert_pixels(st_console_t *console, const struct st_console_rect *ar
 	(void)st_rwlock_unlock(st_console_state_lock(console));return status;
 }
 
-int
-st_console_restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
-    uint32_t x, uint32_t y)
+static int
+restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
+    uint32_t x, uint32_t y, bool graphics)
 {
 	if (console==NULL || source==NULL || source->primary==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (console->raster_parent!=NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -1159,11 +1169,29 @@ st_console_restore_pixel_region(st_console_t *console, const struct st_pixel_buf
 					left=end;
 				}
 			}
-			mark_pixel_cells(console,x,y,(int64_t)right,(int64_t)bottom);
+			damage_pixel_cells(console,x,y,(int64_t)right,(int64_t)bottom,graphics);
 			status=st_console_finish_change_locked(console);
 		}
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));return status;
+}
+
+int
+st_console_restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
+    uint32_t x, uint32_t y)
+{
+	return restore_pixel_region(console,source,x,y,true);
+}
+
+int
+st_console_raster_view_restore_transient(st_console_t *console, const struct st_pixel_buffer *source)
+{
+	if (console==NULL || console->raster_parent==NULL || !console->raster_transient || source==NULL
+	    || console->raster_x>UINT32_MAX || console->raster_y>UINT32_MAX
+	    || source->width!=console->pixels->width || source->height!=console->pixels->height)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return restore_pixel_region(console->raster_parent,source,
+	    (uint32_t)console->raster_x,(uint32_t)console->raster_y,false);
 }
 
 int

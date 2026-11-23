@@ -52,8 +52,8 @@ st_console_create_raster_view(st_console_t **result, st_console_t *parent,
 	*result=console;return 0;
 }
 
-int
-st_console_raster_view_adopt(st_console_t *console)
+static int
+adopt(st_console_t *console, bool transient)
 {
 	if (console==NULL || console->raster_parent==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (st_rwlock_write_lock(st_console_state_lock(console))!=ST_THREAD_SUCCESS) return IO_ERROR_IO;
@@ -68,7 +68,19 @@ st_console_raster_view_adopt(st_console_t *console)
 		cell->flags=(cell->flags|ST_CONSOLE_CELL_PIXEL_GRAPHICS)&~ST_CONSOLE_CELL_DIRTY;
 		*st_console_drawn_at(console,i)=*cell;
 	}
-	console->raster_current=true;console->raster_enabled=true;
+	console->raster_current=true;console->raster_enabled=true;console->raster_transient=transient;
 	console->changed=false;console->dirty_row_end=0;console->pixel_surface_dirty=false;
 	(void)st_rwlock_unlock(st_console_state_lock(console));return 0;
+}
+
+int
+st_console_raster_view_adopt(st_console_t *console)
+{
+	return adopt(console,false);
+}
+
+int
+st_console_raster_view_adopt_transient(st_console_t *console)
+{
+	return adopt(console,true);
 }

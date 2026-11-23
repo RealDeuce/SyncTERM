@@ -399,7 +399,7 @@ if(BUILD_TESTING)
 	add_test(NAME rip3_delay_commands COMMAND st_rip3_delay_commands_test)
 	add_executable(st_rip3_query_commands_test tests/st_rip3_query_commands_test.c
 		tests/st_rip3_query_fault_impl.c tests/st_rip3_templates_fault_impl.c)
-	target_link_libraries(st_rip3_query_commands_test PRIVATE st_rip3_commands)
+	target_link_libraries(st_rip3_query_commands_test PRIVATE st_rip3_commands st_utf8)
 	set_target_properties(st_rip3_query_commands_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

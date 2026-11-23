@@ -1311,6 +1311,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (status == 0)
 		status = st_rip3_query_create(&session->refresh.query, &session->refresh_variables, &session->host_sink);
 	if (status==0) {
+		st_rip3_query_set_codepage_converted(session->commands.query,config->graphical_codepage_converted);
+		st_rip3_query_set_codepage_converted(session->refresh.query,config->graphical_codepage_converted);
 		st_rip3_query_bind_playback(session->commands.query,session,playback);
 		st_rip3_query_bind_playback(session->refresh.query,session,playback);
 	}
@@ -1389,6 +1391,43 @@ st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, s
 	st_rip3_user_variables_respond(session->variables.user_variables,bytes,length,cancelled);
 	(void)prepare(session);
 	++session->revision;
+}
+
+static struct st_rip3_query *
+pick_list_query(const struct st_rip3_session *session)
+{
+	if (session==NULL) return NULL;
+	if (st_rip3_query_pick_list(session->refresh.query)!=NULL) return session->refresh.query;
+	return session->commands.query;
+}
+
+const struct st_rip3_pick_list *
+st_rip3_session_pick_list(const struct st_rip3_session *session, struct st_rip3_frame *frame)
+{
+	const struct st_rip3_pick_list *list=st_rip3_query_pick_list(pick_list_query(session));
+	if (list!=NULL && frame!=NULL) {
+		*frame=session->frame;
+		unsigned current;
+		struct st_rip3_environment environment;
+		if (st_rip3_environments_current(session->commands.environments,&current)==0
+		    && st_rip3_environments_get(session->commands.environments,current,&environment)==0) {
+			frame->world_width=environment.world_width;
+			frame->world_height=environment.world_height;
+		}
+	}
+	return list;
+}
+
+bool
+st_rip3_session_choose(struct st_rip3_session *session, size_t index)
+{
+	return st_rip3_query_choose(pick_list_query(session),index);
+}
+
+void
+st_rip3_session_pick_list_failed(struct st_rip3_session *session, int status)
+{
+	st_rip3_query_pick_list_failed(pick_list_query(session),status);
 }
 
 int

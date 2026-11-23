@@ -2,7 +2,9 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_term_rip3.h"
 #include "st_codepage.h"
+#include "st_term_rip3_pick_list.h"
 #include "st_term_rip3_view.h"
+#include "st_rip3_query.h"
 #include "st_rip3_session.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_surface.h"
@@ -49,6 +51,7 @@ struct st_term_rip3 {
 	st_cterm_output_callback_t output;
 	void *output_context;
 	struct st_rip3_session *session;
+	struct st_term_rip3_pick_list *pick_list;
 	struct st_rip3_audio *audio;
 	struct st_rip3_resource_paths resources;
 	struct st_rip3_features features;
@@ -189,6 +192,7 @@ st_term_rip3_pointer_shape(const struct st_term_rip3 *rip,enum st_console_pointe
 static int
 present_frame(struct st_term_rip3 *rip,bool force)
 {
+	if (rip->pick_list!=NULL) return 0;
 	refresh_pointer(rip);
 	uint64_t revision=st_rip3_session_revision(rip->session);
 	if (!force && revision==rip->presented) return 0;
@@ -1176,7 +1180,7 @@ prompt(struct st_term_rip3 *rip)
 static void
 process(struct st_term_rip3 *rip, bool publish)
 {
-	if (rip==NULL) return;
+	if (rip==NULL || rip->pick_list!=NULL) return;
 	(void)cterm_rip_localtime(time(NULL),&rip->local_time);
 	st_rip3_session_process(rip->session,4096);
 	if (publish) present(rip);
@@ -1184,6 +1188,49 @@ process(struct st_term_rip3 *rip, bool publish)
 	if (publish) present(rip);
 	if (text_visibility(rip)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	if (rip->position==rip->length) rip->position=rip->length=0;
+	struct st_rip3_frame frame;
+	const struct st_rip3_pick_list *list=st_rip3_session_pick_list(rip->session,&frame);
+	if (list!=NULL) {
+		flush_text(rip);
+		st_rip3_session_pointer_boundary(rip->session);
+		int status=present_frame(rip,false);
+		if (status==0)
+			status=st_term_rip3_pick_list_open(&rip->pick_list,rip->config.console,list,&frame);
+		if (status!=0) st_rip3_session_pick_list_failed(rip->session,status);
+		else {
+			rip->pointer_shape=ST_CONSOLE_POINTER_DEFAULT;
+			rip->pointer_known=false;
+			(void)st_console_set_pointer_shape(rip->config.console,rip->pointer_shape);
+		}
+	}
+}
+
+static void
+close_pick_list(struct st_term_rip3 *rip)
+{
+	if (rip->pick_list==NULL) return;
+	if (st_term_rip3_pick_list_close(rip->pick_list)!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	rip->pick_list=NULL;
+}
+
+static void
+pick_list_input(struct st_term_rip3 *rip, const struct st_console_event *event)
+{
+	size_t choice=SIZE_MAX;
+	uint32_t scalar=0;
+	if (event->type==ST_CONSOLE_EVENT_CODEPAGE_BYTE)
+		scalar=rip->config.encoding==ST_CTERM_ENCODING_CODEPAGE
+		    ? st_codepage_to_unicode(rip->config.codepage,event->data.codepage_byte,false)
+		    : event->data.codepage_byte;
+	int status=event->type==ST_CONSOLE_EVENT_MOUSE
+	    ? st_term_rip3_pick_list_mouse(rip->pick_list,event,&choice)
+	    : st_term_rip3_pick_list_key(rip->pick_list,event,scalar,&choice);
+	if (status!=0 || choice!=SIZE_MAX) {
+		close_pick_list(rip);
+		if (status!=0) st_rip3_session_pick_list_failed(rip->session,status);
+		else (void)st_rip3_session_choose(rip->session,choice);
+		st_term_rip3_poll(rip);
+	}
 }
 
 static void
@@ -1205,7 +1252,7 @@ feedback_begin(struct st_term_rip3 *rip)
 static void
 feedback_end(struct st_term_rip3 *rip)
 {
-	if (--rip->mouse_feedback_depth==0 && rip->mouse_feedback) {
+	if (--rip->mouse_feedback_depth==0 && rip->mouse_feedback && rip->pick_list==NULL) {
 		int status=st_console_get_pixels(&rip->mouse_saved,rip->config.console,&rip->mouse_area,false);
 		if (status==0) {
 			/* Keep original index values as well as both blink planes. An RGB
@@ -1234,7 +1281,7 @@ mouse_invert(void *context, const struct st_rip3_rect *area)
 bool
 st_term_rip3_mouse_active(const struct st_term_rip3 *rip)
 {
-	return rip!=NULL && st_rip3_session_mouse_active(rip->session);
+	return rip!=NULL && (rip->pick_list!=NULL || st_rip3_session_mouse_active(rip->session));
 }
 
 static void
@@ -1268,6 +1315,7 @@ bool
 st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return false;
+	if (rip->pick_list!=NULL) { pick_list_input(rip,event);return true; }
 	if (st_rip3_session_input_locked(rip->session)) return true;
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	if (event->data.mouse.action==ST_CONSOLE_MOUSE_WHEEL) return false;
@@ -1283,6 +1331,7 @@ bool
 st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL) return false;
+	if (rip->pick_list!=NULL) { pick_list_input(rip,event);return true; }
 	if (st_rip3_session_input_locked(rip->session)) return true;
 	/* Bitmap backends may also deliver the physical F5 event. Keep the
 	 * shortcut off the BBS wire in Doorway mode and act on the translated key. */
@@ -1337,13 +1386,17 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 void
 st_term_rip3_mouse_cancel(struct st_term_rip3 *rip)
 {
-	if (rip!=NULL) st_rip3_session_pointer_boundary(rip->session);
+	if (rip!=NULL) {
+		st_term_rip3_pick_list_disarm(rip->pick_list);
+		st_rip3_session_pointer_boundary(rip->session);
+	}
 }
 
 void
 st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return;
+	if (rip->pick_list!=NULL) { st_term_rip3_pick_list_disarm(rip->pick_list);return; }
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	(void)st_rip3_session_mouse(rip->session,-1,-1,(event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
 	st_rip3_session_pointer_boundary(rip->session);
@@ -1352,7 +1405,7 @@ st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_even
 void
 st_term_rip3_poll(struct st_term_rip3 *rip)
 {
-	if (rip==NULL) return;
+	if (rip==NULL || rip->pick_list!=NULL) return;
 	if (rip->mouse_feedback_applied && rip->position==rip->length && rip->tty_length==0
 	    && !st_rip3_session_pending(rip->session)) return;
 	feedback_begin(rip);process(rip,true);flush_text(rip);feedback_end(rip);
@@ -1361,7 +1414,9 @@ st_term_rip3_poll(struct st_term_rip3 *rip)
 bool
 st_term_rip3_graphical_pending(const struct st_term_rip3 *rip)
 {
-	return rip!=NULL && st_rip3_session_graphical_pending(rip->session);
+	/* A field's graphical continuation can itself own the modal query.
+	 * Deliver the event that answers it before deferring new scene input. */
+	return rip!=NULL && rip->pick_list==NULL && st_rip3_session_graphical_pending(rip->session);
 }
 
 void
@@ -1406,6 +1461,7 @@ void
 st_term_rip3_cancel(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
+	close_pick_list(rip);
 	st_rip3_session_mouse_cancel(rip->session);
 	flush_text(rip);
 	if (rip->view!=NULL) {

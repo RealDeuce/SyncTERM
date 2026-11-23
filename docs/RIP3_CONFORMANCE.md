@@ -30,7 +30,7 @@ definition records its position, size, font and activation/protection settings.
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
 fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying and live reset, bitmap/clipboard operations and remembered-pair PCB paste,
-trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts,
+trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts and pick lists,
 session/persistent variables, local modifier/capacity queries and WAV playback
 through the existing mixer when audio is available. Persistent variables use
 `rip3-variables.bin` in the existing RIP cache, separately from 1.54 storage.
@@ -187,7 +187,7 @@ and cell domains reject nonfatally under #108; the unredefined startup TTY does
 not invent a MicroANSI font under #105. These are connected read-only services.
 
 Full reset/header orchestration, complete text-window/button/mouse/SCREEN state,
-graphical-text/name expansion, masked/positioned/formatted editors, pick lists,
+graphical-text/name expansion, masked/positioned/formatted editors,
 playback and deferred queries remain incomplete. The historical milestones below
 record their state at each commit; older statements that application routing was
 pending are superseded by this connected-session integration.
@@ -8749,7 +8749,7 @@ cancellation, failed allocation, template and graphical exclusions, and
 recursive invocation. TCP tests cover both wire encodings, control bytes,
 late expansion and the connection's key-event handler on 640x480 and 720x400
 rasters.
-Pick-list evaluation remains pending. See the [pick-list contract review](#pick-list-contract-review).
+The same refresh path supports [modal pick lists](#connected-pick-lists).
 
 The queue contains 2396 implemented, 1686 pending, 2976 unreviewed, 1520
 context, 67 excluded and 30 blocked units.
@@ -8922,11 +8922,10 @@ The queue contains 2511 implemented, 1684 pending, 2936 unreviewed,
 
 ## Pick-list contract review
 
-The pinned pick-list chapter's recursive model is based on legacy SyncTERM.
-RIPtel's list parser returns a selected span to the ordinary scanner. The
-host-response executor sends its result after both passes. The adopted
-specification now defines parsing, placement and expansion. Connected pick-list
-support remains pending. [PR #162](https://github.com/bbs-land/remote-imaging-protocol/pull/162)
+The reference review established that RIPtel's list parser returns a selected
+span to the ordinary scanner. The host-response executor sends its result after
+both passes. The updated specification defines parsing, placement and expansion
+for the [connected pick-list implementation](#connected-pick-lists). [PR #162](https://github.com/bbs-land/remote-imaging-protocol/pull/162)
 
 The queue contains 2511 implemented, 1684 pending, 2930 unreviewed,
 1551 context, 67 excluded and 32 blocked units.
@@ -8980,3 +8979,31 @@ font and wrap choice.
 
 The queue contains 2556 implemented, 1690 pending, 2918 unreviewed,
 1558 context, 67 excluded and 32 blocked units.
+
+## Connected pick lists
+
+An eligible RIPv3 host response can pause for a list in either ordinary pass.
+The evaluator retains the raw selected response and resumes after the
+replacement. Pass one can supply a directive to pass two. Pass two inserts
+the response verbatim. The client sends the completed response after both
+passes. Empty or malformed closed lists insert empty, and an unmatched opener
+leaves ordinary scanning active. [Pinned pick-list profile](https://github.com/RealDeuce/remote-imaging-protocol/blob/1d46feda7d82001ee6f8b7c614defaa439facb43/version/3.0/ripscrip/5.4-popup-lists.md)
+
+The modal supports keyboard navigation, highlighted hotkeys, mouse selection
+and scrolling through 64 choices. An optional list accepts Escape. A required
+list keeps focus until the user makes a choice. Modal keys and clicks can
+answer a pick list during a scene input lock. Each axis uses the current
+WORLD extent and selected device raster, with the final rectangle fitted to
+the client surface. The portable layout uses an 8×16 font with up to 18 visible
+choices. It uses the console's positioned raster view and existing damage
+flags, restoring both planes and the cursor when the list closes.
+
+The native query tests exercise delimiter quoting, raw and display bounds,
+pass timing, playback timing, cancellation and malformed recovery. Connected
+CP437 and UTF-8 fixtures exercise immediate queries, REFRESH, mouse fields and
+button hotkeys. They check withholding of response prefixes, button identity
+across suspension, codepage wire-byte limits and raster restoration on
+640×480, 800×600, 1024×768 and 720×400.
+
+The queue contains 2616 implemented, 1689 pending, 2884 unreviewed,
+1570 context, 67 excluded and 26 blocked units.

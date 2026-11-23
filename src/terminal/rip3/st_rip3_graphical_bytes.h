@@ -21,7 +21,8 @@ st_rip3_graphical_character(const uint8_t *bytes, size_t length)
 static inline size_t
 st_rip3_graphical_prefix(const uint8_t *bytes, size_t length, size_t budget, bool converted)
 {
-	if (!converted) return length<budget ? length : budget;
+	if (length<=budget) return length;
+	if (!converted) return budget;
 	size_t at=0;
 	while (at<length && budget!=0) {at+=st_rip3_graphical_character(bytes+at,length-at);budget--;}
 	return at;

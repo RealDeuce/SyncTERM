@@ -283,6 +283,12 @@ if(BUILD_TESTING)
 						--reports ${CMAKE_BINARY_DIR}/reports/test-control)
 				set_tests_properties(syncterm_rip3_header_${_encoding}
 					PROPERTIES TIMEOUT 120 LABELS "terminal;conformance;rip3")
+				add_test(NAME syncterm_rip3_pick_list_${_encoding}
+					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip3_pick_list_connected_test.py
+						$<TARGET_FILE:syncterm_app> ${_encoding}
+						--reports ${CMAKE_BINARY_DIR}/reports/rip3-pick-list)
+				set_tests_properties(syncterm_rip3_pick_list_${_encoding}
+					PROPERTIES TIMEOUT 120 LABELS "terminal;conformance;rip3")
 				add_test(NAME syncterm_rip3_ansi_save_${_encoding}
 					COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_rip3_ansi_save_connected_test.py
 					$<TARGET_FILE:syncterm_app> ${_encoding}

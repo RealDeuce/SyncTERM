@@ -134,6 +134,7 @@ struct st_console {
 	uint64_t raster_x,raster_y;
 	size_t raster_children;
 	bool raster_enabled;
+	bool raster_transient;
 	st_mutex_t event_mutex;
 	st_condition_t event_ready;
 	st_event_t *activity_waiter; /* Borrowed under event_mutex during the owner wait. */

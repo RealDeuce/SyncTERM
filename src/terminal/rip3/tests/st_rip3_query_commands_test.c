@@ -252,7 +252,7 @@ query_forms(void)
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	const char *const unsupported[] = {"1\0331000$D(1)$","1\0330001$D(1)$",
-	    "1\0330000literal[3]","1\0330000((question::one,two))","1\0330000$>FILE.RIP$","1\0330000$UNKNOWN_NAME$"};
+	    "1\0330000literal[3]","1\0330000$>FILE.RIP$","1\0330000$UNKNOWN_NAME$"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		CHECK(process(&f,unsupported[i],ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(st_rip3_input_wait_ns(f.host.input) == 0 && f.replies == 0 && f.host_errors == 0);
@@ -363,13 +363,8 @@ owned_and_recovery(void)
 	unsigned errors=f.host_errors;
 	CHECK(process(&f,"1\0330000no$D(1)$<<macro>>",-1)==0 && f.host_errors==errors+1
 	    && f.host_kind==ST_RIP3_HOST_OPERATION_FAILED && st_rip3_input_wait_ns(f.host.input)==0 && f.reply_length==5);
-	const char *const tails[] = {"((x::a,b))","[0]"};
-	for (size_t i = 0; i < sizeof(tails)/sizeof(tails[0]); i++) {
-		char body[160];
-		(void)snprintf(body,sizeof(body),"1\0330000no$D(1)$%s",tails[i]);
-		CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-		CHECK(f.reply_length == 5 && st_rip3_input_wait_ns(f.host.input) == 0 && !st_rip3_query_pending(f.host.query));
-	}
+	CHECK(process(&f,"1\0330000no$D(1)$[0]",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(f.reply_length==5 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
 	CHECK(process(&f,"1\0330000",-1) == 0); /* Empty immediate query. */
 	CHECK(process(&f,"1\0330000$D(1)$destroyed",-1) == 0);
 	destroy(&f); /* Pending owned text is released without a callback. */
@@ -480,9 +475,13 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	CHECK(f.reply_length==5 && memcmp(f.reply,"<Ada>",5)==0 && user_value(f.session,"NAME","Ada")==0
 	    && !st_rip3_query_pending(f.host.query) && st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE);
 	f.reply_length=0;
-	/* An unsupported tail prevents the earlier silent write and all output. */
-	CHECK(process(&f,"1\0330000pre$-=NAME=changed$((picklist))",ST_RIP3_COMMAND_UNSUPPORTED)==0);
-	CHECK(user_value(f.session,"NAME","Ada")==0 && f.reply_length==0);
+	/* Earlier providers run normally, but the response waits for selection. */
+	CHECK(process(&f,"1\0330000pre$-=OTHER=changed$((picklist))",-1)==0);
+	CHECK(user_value(f.session,"OTHER","changed")==0 && f.reply_length==0);
+	CHECK(st_rip3_query_choose(f.host.query,0));
+	st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==11 && memcmp(f.reply,"prepicklist",11)==0);
+	f.reply_length=0;
 	/* Known invalid/unsupported built-ins never prompt, including excluded
 	 * external-launch names. P has no built-in registration and does prompt. */
 	CHECK(st_rip3_variables_set(f.session,"D",1,(const uint8_t *)"fake",4)==0);
@@ -1054,6 +1053,130 @@ angle_queries(enum st_rip3_canvas canvas, const char *width)
 	CHECK(!f.overflow && f.user_errors==0 && f.errors==0);destroy(&f);return 0;
 }
 
+static int
+pick_list_playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
+{
+	if (kind!=ST_RIP3_PLAYBACK_JPEG || strcmp(filename,"PICTURE.JPG")!=0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	++*(unsigned *)context;
+	return 0;
+}
+
+static int
+ordinary_pick_lists(void)
+{
+	struct fixture f={0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
+	static const struct {
+		const char *source, *question, *first, *reply;
+		size_t count, choice;
+	} vectors[]={
+	    {"pre((A,B))post","Please enter requested value","A","preBpost",2,1},
+	    {"pre((A,B))post","Please enter requested value","A","prepost",2,2},
+	    {"((::A,B))","","A","A",2,0},
+	    {"((Q::*A,B))","Q","*A","*A",2,0},
+	    {"((,A,,B,))","Please enter requested value","","",4,2},
+	    {"((A\\,B@One\\@Label,C))","Please enter requested value","One@Label","A,B",2,0},
+	    {"((A\\)\\),B))","Please enter requested value","A))","A))",2,0},
+	    {"((\\(\\(A\\,B\\)\\)))","Please enter requested value","((A,B))","((A,B))",1,0},
+	    {"((Q::((A,B))tail","Q","((A","((Atail",2,0},
+	    {"((\"A,B\"))","Please enter requested value","\"A","\"A",2,0},
+	    {"((Q::A@B))((Q::C@D))","Q","B","AC",1,0},
+	    {"((Q::A@D@E,B))TAIL",NULL,NULL,"TAIL",0,0},
+	    {"pre((A^m",NULL,NULL,"pre((A\r",0,0},
+	    {"((::))((*::))TAIL",NULL,NULL,"TAIL",0,0},
+	    {"((Q::$RESX$))","Q","$RESX$","640",1,0},
+	    {"((Q::^m))","Q","^m","\r",1,0},
+	    {"$&LATER$","Q","$RESX$","$RESX$",1,0},
+	    {"$&LATERCTRL$","Q","^m","^m",1,0},
+	    {"((Q::$&INDIRECT$))","Q","$&INDIRECT$","$RESX$",1,0},
+	    {"(($&CLOSE$","Please enter requested value","A","A",1,0},
+	};
+	CHECK(st_rip3_variables_set(f.session,"LATER",5,(const uint8_t *)"((Q::$RESX$))",13)==0);
+	CHECK(st_rip3_variables_set(f.session,"LATERCTRL",9,(const uint8_t *)"((Q::^m))",9)==0);
+	CHECK(st_rip3_variables_set(f.session,"INDIRECT",8,(const uint8_t *)"$RESX$",6)==0);
+	CHECK(st_rip3_variables_set(f.session,"CLOSE",5,(const uint8_t *)"A))",3)==0);
+	for (size_t i=0; i<sizeof(vectors)/sizeof(vectors[0]); ++i) {
+		f.reply_length=0;
+		CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)vectors[i].source,strlen(vectors[i].source))==0);
+		const struct st_rip3_pick_list *view=st_rip3_query_pick_list(f.host.query);
+		if (vectors[i].count==0) CHECK(view==NULL);
+		else {
+			CHECK(view!=NULL && view->count==vectors[i].count && f.reply_length==0);
+			CHECK(strcmp(view->question.bytes,vectors[i].question)==0 && strcmp(view->labels[0].bytes,vectors[i].first)==0);
+			st_rip3_query_process(f.host.query,64);
+			CHECK(f.reply_length==0 && st_rip3_query_pick_list(f.host.query)==view);
+			CHECK(st_rip3_query_choose(f.host.query,vectors[i].choice));
+		}
+		st_rip3_query_process(f.host.query,64);
+		if (strcmp(vectors[i].reply,"AC")==0) {
+			view=st_rip3_query_pick_list(f.host.query);
+			CHECK(f.reply_length==0 && view!=NULL && view->count==1 && strcmp(view->labels[0].bytes,"D")==0);
+			CHECK(st_rip3_query_choose(f.host.query,0));
+			st_rip3_query_process(f.host.query,64);
+		}
+		CHECK(!st_rip3_query_pending(f.host.query));
+		CHECK(f.reply_length==strlen(vectors[i].reply) && memcmp(f.reply,vectors[i].reply,f.reply_length)==0);
+	}
+	const char required[]="((*10,:Q::@\\_H_~I~))";
+	f.reply_length=0;
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)required,sizeof(required)-1)==0);
+	const struct st_rip3_pick_list *view=st_rip3_query_pick_list(f.host.query);
+	CHECK(view!=NULL && view->required && view->has_x && view->x==10 && !view->has_y);
+	CHECK(view->count==1 && strcmp(view->labels[0].bytes,"HI")==0 && view->labels[0].highlighted==3);
+	CHECK(!st_rip3_query_choose(f.host.query,view->count) && st_rip3_query_pending(f.host.query));
+	CHECK(st_rip3_query_choose(f.host.query,0));
+	st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==0 && !st_rip3_query_pending(f.host.query));
+	const char overflowing[]="((65536,1:Q::A))";
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)overflowing,sizeof(overflowing)-1)==0);
+	view=st_rip3_query_pick_list(f.host.query);
+	CHECK(view!=NULL && !view->has_x && !view->has_y && strcmp(view->question.bytes,"65536,1:Q")==0);
+	st_rip3_query_pick_list_failed(f.host.query,IO_ERROR_OUT_OF_MEMORY);
+	CHECK(!st_rip3_query_pending(f.host.query) && f.host_errors==1 && f.host_kind==ST_RIP3_HOST_RESOURCE_FAILURE);
+	uint8_t large[4100];
+	memcpy(large,"((",2);
+	memset(large+2,'q',61);
+	memcpy(large+63,"::",2);
+	memset(large+65,'X',1024);
+	large[1089]='@';
+	memset(large+1090,'d',59);
+	memcpy(large+1149,"\\E,",3);
+	size_t used=1152;
+	for (unsigned i=1; i<64; ++i) {
+		memcpy(large+used,"R,",2);used+=2;
+	}
+	memcpy(large+used,"ignore@malformed@too))",22);used+=22;
+	CHECK(st_rip3_query_start(f.host.query,large,used)==0);
+	view=st_rip3_query_pick_list(f.host.query);
+	CHECK(view!=NULL && view->count==64 && strlen(view->question.bytes)==60
+	    && strlen(view->labels[0].bytes)==59 && strcmp(view->labels[63].bytes,"R")==0);
+	CHECK(st_rip3_query_choose(f.host.query,0));
+	st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==1023 && memcmp(f.reply,large+65,1023)==0);
+	f.reply_length=0;
+	memset(large+2,'X',4094);memcpy(large+4096,"))",2);
+	CHECK(st_rip3_query_start(f.host.query,large,4098)==0 && st_rip3_query_pick_list(f.host.query)==NULL);
+	CHECK(f.reply_length==4096 && memcmp(f.reply,large,4096)==0);
+	/* Only a later pass can execute a playback directive from a choice. */
+	unsigned played=0;
+	st_rip3_query_bind_playback(f.host.query,&played,pick_list_playback);
+	const char media[]="((Q::$(PICTURE.JPG$@Picture))";
+	CHECK(st_rip3_variables_set(f.session,"MEDIA",5,(const uint8_t *)media,sizeof(media)-1)==0);
+	f.reply_length=0;
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)media,sizeof(media)-1)==0 && played==0);
+	CHECK(st_rip3_query_choose(f.host.query,0));
+	st_rip3_query_process(f.host.query,64);
+	CHECK(played==1 && f.reply_length==0);
+	CHECK(st_rip3_query_start(f.host.query,(const uint8_t *)"$&MEDIA$",8)==0);
+	CHECK(st_rip3_query_choose(f.host.query,0));
+	st_rip3_query_process(f.host.query,64);
+	CHECK(played==1 && f.reply_length==14 && memcmp(f.reply,"$(PICTURE.JPG$",14)==0);
+	CHECK(f.errors==0 && f.host_errors==1 && !f.overflow);
+	destroy(&f);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -1067,6 +1190,7 @@ main(void)
 	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
 	CHECK(user_recovery()==0);
 	CHECK(two_passes()==0);
+	CHECK(ordinary_pick_lists()==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_640_480)==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_800_600)==0);
 	CHECK(template_queries(ST_RIP3_CANVAS_1024_768)==0);

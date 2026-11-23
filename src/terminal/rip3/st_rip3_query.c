@@ -6,10 +6,16 @@
 #include "st_rip3_user_variables.h"
 #include "st_rip3_templates.h"
 #include "st_rip3_angle.h"
+#include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
 
 #include <stdlib.h>
 #include <string.h>
+
+struct pick_list {
+	struct st_rip3_pick_list view;
+	struct { const uint8_t *bytes; size_t length; } replies[ST_RIP3_PICK_LIST_MAX_CHOICES];
+};
 
 struct st_rip3_query {
 	const struct st_rip3_host_variables *variables;
@@ -18,13 +24,14 @@ struct st_rip3_query {
 	int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename);
 	uint8_t *bytes, *output, *program;
 	size_t program_length, program_cursor;
-	size_t length, cursor, used, capacity;
+	size_t length, cursor, used, used_units, capacity;
 	uint64_t template_owner;
 	unsigned pass; /* 0 idle; 1/2 ordinary expansion; 3 next block; 4 angles. */
 	struct st_rip3_angle *angle;
-	bool allocation_failed;
+	bool allocation_failed, codepage_converted;
 	/* Non-NULL only for an operation begun by this query. */
 	struct st_rip3_user_variables *active_user;
+	struct pick_list *pick_list;
 };
 
 static int start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length);
@@ -42,7 +49,7 @@ slot_number(uint8_t byte)
 	return (uint8_t)(byte<='9' ? byte-'0' : byte-'A'+10);
 }
 
-enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK };
+enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK, PICK_LIST };
 struct token {
 	enum token_kind kind;
 	size_t length;
@@ -82,9 +89,19 @@ reference(const uint8_t *bytes, size_t length, bool users, struct token *result)
 	result->kind=USER_REFERENCE;return true;
 }
 
+static size_t
+unquoted(const uint8_t *bytes, size_t length, uint8_t first, uint8_t second)
+{
+	for (size_t i=0; i<length; i++) {
+		if (bytes[i]=='\\' && i+1<length) { i++;continue; }
+		if (bytes[i]==first && (second==0 || (i+1<length && bytes[i+1]==second))) return i;
+	}
+	return length;
+}
+
 static bool
 token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned pass,
-    struct token *result)
+    bool converted, struct token *result)
 {
 	struct token value={.kind=LITERAL,.length=1};
 	if (bytes[0]==0) return false;
@@ -115,10 +132,11 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 		else if (!reference(bytes,value.length,users,&value)) return false;
 	}
 	else if (bytes[0]=='\\' && pass==2) {
-		value.kind=ESCAPED;value.length=length>1 ? 2 : 1;
+		value.kind=ESCAPED;
+		if (length>1) value.length=1+(converted ? st_rip3_graphical_character(bytes+1,length-1) : 1);
 	}
 	else if (bytes[0]=='^' || bytes[0]=='`') {
-		value.length=length>1 && !(pass==1 && bytes[1]=='$') ? 2 : 1;
+		value.length=length>1 && !(pass==1 && bytes[1]=='$') && !(converted && bytes[1]>=0x80) ? 2 : 1;
 		if (value.length==2) {
 			uint8_t code=bytes[1];
 			if (code>='a' && code<='z') code-='a'-'A';
@@ -129,9 +147,17 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 		}
 	}
 	else {
+		if (length>=2 && bytes[0]=='(' && bytes[1]=='(') {
+			size_t close=unquoted(bytes+2,length-2,')',')');
+			if (close<length-2) {
+				*result=(struct token){.kind=PICK_LIST,.length=close+4};
+				return true;
+			}
+		}
 		while (value.length<length) {
 			uint8_t next=bytes[value.length];
 			if (next==0 || next=='$' || next=='^' || next=='`' || (pass==2 && next=='\\')) break;
+			if (next=='(' && value.length+1<length && bytes[value.length+1]=='(') break;
 			value.length++;
 		}
 	}
@@ -197,7 +223,7 @@ append(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_query *query=context;
 	if (query->allocation_failed) return;
-	if (length>4096-query->used) length=4096-query->used;
+	length=st_rip3_graphical_prefix(bytes,length,4096-query->used_units,query->codepage_converted);
 	if (length==0) return;
 	size_t needed=query->used+length;
 	if (needed>query->capacity) {
@@ -211,6 +237,7 @@ append(void *context, const uint8_t *bytes, size_t length)
 		query->output=replacement;query->capacity=capacity;
 	}
 	memcpy(query->output+query->used,bytes,length);query->used=needed;
+	query->used_units+=st_rip3_graphical_units(bytes,length,query->codepage_converted);
 }
 
 /* Logical working text is the processed prefix plus this unread source suffix.
@@ -222,8 +249,9 @@ replace(void *context, const uint8_t *bytes, size_t length)
 	struct st_rip3_query *query=context;
 	append(query,bytes,length);
 	if (query->allocation_failed) return;
-	size_t retained=4096-query->used;
-	if (query->length-query->cursor>retained) query->length=query->cursor+retained;
+	size_t retained=st_rip3_graphical_prefix(query->bytes+query->cursor,query->length-query->cursor,
+	    4096-query->used_units,query->codepage_converted);
+	query->length=query->cursor+retained;
 }
 
 static void
@@ -243,6 +271,120 @@ st_rip3_query_create(struct st_rip3_query **result,
 	*result=query;return 0;
 }
 
+static bool
+position_axis(const uint8_t *bytes, size_t length, size_t *at, uint8_t delimiter,
+    bool *present, uint16_t *value)
+{
+	size_t start=*at;
+	uint32_t number=0;
+	while (*at<length && bytes[*at]>='0' && bytes[*at]<='9') {
+		number=number*10+bytes[(*at)++]-'0';
+		if (number>UINT16_MAX) return false;
+	}
+	if (*at==length || bytes[*at]!=delimiter) return false;
+	*present=*at!=start;
+	*value=(uint16_t)number;
+	++*at;
+	return true;
+}
+
+static void
+pick_list_text(struct st_rip3_pick_list_text *result, const uint8_t *bytes,
+    size_t length, bool markup, bool converted)
+{
+	length=st_rip3_graphical_prefix(bytes,length,ST_RIP3_PICK_LIST_DISPLAY_LIMIT,converted);
+	size_t used=0, character=0;
+	bool highlight=false;
+	for (size_t at=0; at<length;) {
+		if (bytes[at]=='\\' && ++at==length) break;
+		if (markup && (bytes[at]=='_' || bytes[at]=='~')) {
+			highlight=!highlight;
+			++at;
+			continue;
+		}
+		size_t size=st_rip3_graphical_character(bytes+at,length-at);
+		if (highlight) result->highlighted|=UINT64_C(1)<<character;
+		memcpy(result->bytes+used,bytes+at,size);
+		used+=size;
+		at+=size;
+		++character;
+	}
+	result->bytes[used]='\0';
+}
+
+static int
+pick_list_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
+{
+	struct pick_list *list=calloc(1,sizeof(*list));
+	if (list==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	struct st_rip3_pick_list *view=&list->view;
+	if (length!=0 && bytes[0]=='*') { view->required=true; ++bytes; --length; }
+	size_t at=0;
+	bool has_x,has_y;
+	uint16_t x,y;
+	if (position_axis(bytes,length,&at,',',&has_x,&x)
+	    && position_axis(bytes,length,&at,':',&has_y,&y)) {
+		view->has_x=has_x;view->has_y=has_y;view->x=x;view->y=y;
+		bytes+=at;length-=at;
+	}
+	size_t question=unquoted(bytes,length,':',':');
+	if (question<length) {
+		pick_list_text(&view->question,bytes,question,false,query->codepage_converted);
+		bytes+=question+2;length-=question+2;
+	}
+	else strcpy(view->question.bytes,"Please enter requested value");
+
+	while (length!=0 && view->count<ST_RIP3_PICK_LIST_MAX_CHOICES) {
+		size_t entry=unquoted(bytes,length,',',0);
+		size_t reply=unquoted(bytes,entry,'@',0);
+		const uint8_t *label=bytes;
+		size_t label_length=entry;
+		if (reply<entry) {
+			label=bytes+reply+1;
+			label_length=entry-reply-1;
+			if (unquoted(label,label_length,'@',0)!=label_length) break;
+		}
+		size_t index=view->count++;
+		list->replies[index].bytes=bytes;
+		list->replies[index].length=st_rip3_graphical_prefix(bytes,reply,1023,query->codepage_converted);
+		pick_list_text(&view->labels[index],label,label_length,true,query->codepage_converted);
+		size_t consumed=entry+(entry<length);
+		bytes+=consumed;
+		length-=consumed;
+	}
+	if (view->count==0 || (length!=0 && view->count<ST_RIP3_PICK_LIST_MAX_CHOICES)) {
+		free(list);
+		replace(query,NULL,0);
+	}
+	else query->pick_list=list;
+	return 0;
+}
+
+const struct st_rip3_pick_list *
+st_rip3_query_pick_list(const struct st_rip3_query *query)
+{
+	return query==NULL || query->pick_list==NULL ? NULL : &query->pick_list->view;
+}
+
+bool
+st_rip3_query_choose(struct st_rip3_query *query, size_t index)
+{
+	if (query==NULL || query->pick_list==NULL) return false;
+	struct pick_list *list=query->pick_list;
+	if (index>list->view.count || (index==list->view.count && list->view.required)) return false;
+	if (index==list->view.count) replace(query,NULL,0);
+	else replace(query,list->replies[index].bytes,list->replies[index].length);
+	free(list);
+	query->pick_list=NULL;
+	return true;
+}
+
+void
+st_rip3_query_set_codepage_converted(struct st_rip3_query *query, bool converted)
+{
+	query->codepage_converted=converted;
+}
+
 void
 st_rip3_query_bind_playback(struct st_rip3_query *query, void *context,
     int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename))
@@ -259,9 +401,10 @@ st_rip3_query_cancel(struct st_rip3_query *query)
 		st_rip3_user_variables_abort(query->active_user);query->active_user=NULL;
 	}
 	st_rip3_angle_destroy(query->angle);query->angle=NULL;
+	free(query->pick_list);query->pick_list=NULL;
 	free(query->bytes);free(query->output);free(query->program);
 	query->bytes=query->output=query->program=NULL;
-	query->length=query->cursor=query->used=query->capacity=0;
+	query->length=query->cursor=query->used=query->used_units=query->capacity=0;
 	query->program_length=query->program_cursor=0;
 	query->pass=0;query->allocation_failed=false;query->template_owner=0;
 }
@@ -273,6 +416,14 @@ operation_failed(struct st_rip3_query *query, int status, unsigned missing)
 	st_rip3_query_cancel(query);
 	if (status==IO_ERROR_NOT_FOUND && host!=NULL && host->selection_required!=NULL)
 		host->selection_required(host->context,missing);
+	diagnose(query,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_OPERATION_FAILED);
+}
+
+void
+st_rip3_query_pick_list_failed(struct st_rip3_query *query, int status)
+{
+	if (st_rip3_query_pick_list(query)==NULL) return;
+	st_rip3_query_cancel(query);
 	diagnose(query,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_OPERATION_FAILED);
 }
 
@@ -300,7 +451,7 @@ prepare_block(struct st_rip3_query *query)
 		if (status!=0) { operation_failed(query,status,missing);return; }
 		feed=composed;
 	}
-	if (length>4096) length=4096;
+	length=st_rip3_graphical_prefix(feed,length,4096,query->codepage_converted);
 	uint8_t *copy=length==0 ? NULL : malloc(length);
 	if (length!=0 && copy==NULL) { operation_failed(query,IO_ERROR_OUT_OF_MEMORY,0);return; }
 	if (length!=0) memcpy(copy,feed,length);
@@ -454,18 +605,19 @@ settle(struct st_rip3_query *query)
 	if (query->allocation_failed) {
 		st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_RESOURCE_FAILURE);return;
 	}
-	if (query->active_user!=NULL || st_rip3_input_wait_ns(query->variables->input)!=0 || refresh_waiting(query)) return;
+	if (query->active_user!=NULL || query->pick_list!=NULL
+	    || st_rip3_input_wait_ns(query->variables->input)!=0 || refresh_waiting(query)) return;
 	if (query->pass==3 && query->program_cursor==query->program_length) { st_rip3_query_cancel(query);return; }
 	while (query->cursor==query->length && (query->pass==1 || query->pass==2)) {
 		if (query->pass==2) {
 			if (query->used!=0) query->sink->reply(query->sink->context,query->output,query->used);
 			free(query->bytes);free(query->output);query->bytes=query->output=NULL;
-			query->length=query->cursor=query->used=query->capacity=0;query->pass=3;
+			query->length=query->cursor=query->used=query->used_units=query->capacity=0;query->pass=3;
 			if (query->program_cursor==query->program_length) st_rip3_query_cancel(query);
 			return;
 		}
 		free(query->bytes);query->bytes=query->output;query->length=query->used;query->cursor=0;
-		query->output=NULL;query->used=query->capacity=0;query->pass=2;
+		query->output=NULL;query->used=query->used_units=query->capacity=0;query->pass=2;
 	}
 }
 
@@ -503,7 +655,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 	for (size_t i=0; i<budget && st_rip3_query_pending(query); i++) {
 		if (st_rip3_input_wait_ns(query->variables->input)!=0 || refresh_waiting(query)) return;
 		settle(query);
-		if (!st_rip3_query_pending(query)) return;
+		if (!st_rip3_query_pending(query) || query->pick_list!=NULL) return;
 		if (query->pass==4) {if (!angle_step(query)) return;continue;}
 		if (query->pass==3) { prepare_block(query);settle(query);continue; }
 		if (query->active_user!=NULL) {
@@ -513,7 +665,8 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		const uint8_t *bytes=query->bytes+query->cursor;
 		struct token value;
 		if (!token(bytes,query->length-query->cursor,query->variables->user_variables!=NULL,
-		    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,query->pass,&value)) {
+		    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,query->pass,
+		    query->codepage_converted,&value)) {
 			st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_UNSUPPORTED_REFERENCE);return;
 		}
 		query->cursor+=value.length;
@@ -540,8 +693,13 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			replace(query,template.bytes,template.length);
 		}
 		else if (value.kind==PLAYBACK) playback(query,bytes,value.length);
+		else if (value.kind==PICK_LIST) {
+			int status=pick_list_start(query,bytes+2,value.length-4);
+			if (status!=0) { operation_failed(query,status,0);return; }
+		}
 		else if (value.kind==ESCAPED) {
-			append(query,bytes+(value.length>1 ? 1 : 0),1);
+			size_t skip=value.length>1;
+			append(query,bytes+skip,value.length-skip);
 		}
 		else if (value.kind==CONTROL && query->pass==2) append(query,&value.control,1);
 		else append(query,bytes,value.length);
@@ -557,7 +715,7 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 	if ((bytes==NULL && length!=0) || length==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
 	size_t incomplete_templates=0;
 	for (size_t i=0; i<length; i++) {
-		if (bytes[i]==0 || (i+1<length && bytes[i]=='(' && bytes[i+1]=='(')) return IO_ERROR_NOT_SUPPORTED;
+		if (bytes[i]==0) return IO_ERROR_NOT_SUPPORTED;
 		if (bytes[i]=='[') {
 			struct delimiter value;
 			enum delimiter_kind kind=delimiter(bytes+i,length-i,&value);
@@ -571,16 +729,19 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 	}
 	for (size_t offset=0; offset<length;) {
 		struct block value=block(bytes,length,offset);
-		size_t working_end=value.begin+(value.end-value.begin>4096 ? 4096 : value.end-value.begin);
+		size_t working_end=value.begin+st_rip3_graphical_prefix(bytes+value.begin,value.end-value.begin,
+		    4096,query->codepage_converted);
 		if (value.directive.kind==DIRECT) for (size_t at=value.begin; at<working_end;) {
 			struct token parsed;
 			if (!token(bytes+at,working_end-at,query->variables->user_variables!=NULL,
-			    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,1,&parsed)) return IO_ERROR_NOT_SUPPORTED;
+			    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,1,
+			    query->codepage_converted,&parsed)) return IO_ERROR_NOT_SUPPORTED;
 			if (parsed.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
 				return IO_ERROR_BUSY;
 			/* A replacement can discard the remaining ordinary source. Its
 			 * syntax must only be examined if the bounded scanner reaches it. */
-			if (parsed.kind==REFERENCE || parsed.kind==USER_REFERENCE || parsed.kind==TEMPLATE_REFERENCE) break;
+			if (parsed.kind==REFERENCE || parsed.kind==USER_REFERENCE || parsed.kind==TEMPLATE_REFERENCE
+			    || parsed.kind==PICK_LIST) break;
 			at+=parsed.length;
 		}
 		offset=value.end;

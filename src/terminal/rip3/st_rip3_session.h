@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 struct st_rip3_session;
+struct st_rip3_pick_list;
 struct st_rip3_host_variables;
 struct st_rip3_classic_font;
 struct st_rip3_rff;
@@ -230,6 +231,13 @@ bool st_rip3_session_prompt(const struct st_rip3_session *session,
 	struct st_rip3_session_prompt *result);
 void st_rip3_session_respond(struct st_rip3_session *session,
 	const uint8_t *bytes, size_t length, bool cancelled);
+
+/* Borrow the current ordinary/refresh query's modal list and its placement
+ * frame. A list suspends that query until answered by its UI owner. */
+const struct st_rip3_pick_list *st_rip3_session_pick_list(const struct st_rip3_session *session,
+	struct st_rip3_frame *frame);
+bool st_rip3_session_choose(struct st_rip3_session *session, size_t index);
+void st_rip3_session_pick_list_failed(struct st_rip3_session *session, int status);
 
 struct st_rip3_session_capture {
 	/* Owned full screen RGB view using the currently selected PAL record.

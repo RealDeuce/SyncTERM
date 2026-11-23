@@ -563,6 +563,12 @@ int st_console_create_raster_view(st_console_t **result, st_console_t *parent,
 	uint32_t columns, uint32_t rows, uint32_t cell_width, uint32_t cell_height,
 	uint64_t x, uint64_t y);
 int st_console_raster_view_adopt(st_console_t *console);
+/* For a modal view on a paused parent. Present through the parent's existing
+ * damage flags without making its cells graphics-owned. Restore the two
+ * planes from the capture of the view rectangle before resuming the parent. */
+int st_console_raster_view_adopt_transient(st_console_t *console);
+int st_console_raster_view_restore_transient(st_console_t *console,
+	const struct st_pixel_buffer *source);
 
 /* Writes resolved cells.  Wide glyphs require matching continuation cells. */
 int st_console_write_cells(st_console_t *console,
