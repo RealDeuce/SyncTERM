@@ -9376,9 +9376,22 @@ for left/middle. The published `21` sets both top and middle and rejects.
 
 Connected CP437 and UTF-8 tests check the signature's placement and shadow,
 default-style drawing across reset and restore, ordinary text cursor
-replies and classic TEXT_METRIC. Button labels and article columns still
-need their separate font-zero layout rules. [Issue #190](https://github.com/bbs-land/remote-imaging-protocol/issues/190),
-[Issue #191](https://github.com/bbs-land/remote-imaging-protocol/issues/191)
+replies and classic TEXT_METRIC.
+
+## Connected DEFAULT EX button labels
+
+`1U` measures and paints classic font-zero labels with the same DEFAULT EX
+font and spacing selected from the captured STYLE and creation WORLD. The
+label is upright. The original inner face and the button style supply its
+placement, descender allowance and shadow. A full redraw expands the current
+label under the captured metrics. [PR #194](https://github.com/bbs-land/remote-imaging-protocol/pull/194)
+
+The first case-insensitive hotkey match uses its measured run position for
+highlight and underline. The underline uses the glyph's unspaced width at
+baseline plus three device pixels. Native and connected tests exercise the
+centered `ACC.RIP` label, first-match decoration, WORLD side offsets,
+descender fit and activation redraw after a STYLE and WORLD change. Article
+column font-zero measurement remains tracked separately. [Issue #191](https://github.com/bbs-land/remote-imaging-protocol/issues/191)
 
 ## Connected prewrapped column text
 

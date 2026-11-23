@@ -1277,3 +1277,17 @@ Four normative documents change. The index retains 8,979 source blocks,
 moves 296 line ranges, adds 65 blocks and retires 34, for 9,044 total.
 The COPY_BLIT derivation records stable consolidation. Two new derivations
 record the classic `Y` flags and the DEFAULT EX realization for `T` and `@`.
+
+## PR #194 DEFAULT EX button labels
+
+Fork stable is pinned at
+[`c7ca0607af659ad9592b2e8b744dca4918a54b99`](https://github.com/RealDeuce/remote-imaging-protocol/tree/c7ca0607af659ad9592b2e8b744dca4918a54b99).
+Its tree matches PR head `6ae37a1826893dc214bcb8da63bd5cc26c08266b`.
+The Git tar archive has SHA-256
+`47f9603bc5e08643d36350abd8687d7120fd8453af536a63a737a409866a2660`.
+[PR #194](https://github.com/bbs-land/remote-imaging-protocol/pull/194)
+
+The button chapter keeps 9,043 source blocks in the inventory, moves 382
+line ranges, adds 17 blocks and retires one, for 9,060 total. The classic
+graphics text derivation records stable consolidation. The new #190
+derivation covers captured font metrics, placement and decoration.

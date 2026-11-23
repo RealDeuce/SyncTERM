@@ -772,9 +772,11 @@ int main(void)
 	unsigned yellow=0;
 	for (int y=20;y<40;y++) for (int x=10;x<60;x++) {
 		uint8_t value;CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0);
-		if (value==14) {CHECK(x>=23 && x<31);yellow++;}
+		if (value==14) {CHECK(x>=23 && x<30 && y==37);yellow++;}
 	}
-	CHECK(yellow==8); /* First matching hot character only, native font width 8. */
+	/* DEFAULT EX at size 1 has a 7-pixel advance and one spacing pixel.
+	 * Only the first matching glyph gets the unspaced underline. */
+	CHECK(yellow==7);
 	style.flags=256|1024;style.flags2=2;
 	CHECK(st_rip3_button_styles_set(host.button_styles,0,&style)==0);
 	command(&host,&errors,"1U0A0K1O141T00<>Aaa<>");CHECK(errors==1);

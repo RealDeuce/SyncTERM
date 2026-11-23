@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/189",
-  "revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
-  "previous_revision": "c486b826e9a0c3d3e6cfa13902fcaf6abf51400a",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/194",
+  "revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
+  "previous_revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "The reviewed open PR head is consolidated into the selected fork stable with an identical tree.",
-  "archive_sha256": "15fac138ebc631e5470806d2f360985e220dedb361ad5a9ef8d03c82bdc35f0b",
+  "archive_sha256": "47f9603bc5e08643d36350abd8687d7120fd8453af536a63a737a409866a2660",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,24 +17,9 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "previous_sha256": "4feee28b24003471fd979a8a6691a08c713c041d194d91ee22525e91ad13898f",
-      "sha256": "a4ef6b2ab2251bcad85f6483f33081f8adb55280800de0c0f029a2cc94808b4c"
-    },
-    {
-      "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "previous_sha256": "d6eb849406efe4500a60b4f0022b0af62d0452db93fe53234d0d52627cf77047",
-      "sha256": "4dd987f44c437f1203e55fca1b478cc49d5f919747b5b96b2eb336c2ffe1c7e4"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "607168340775bb6d934ffd1e0cd0d8f69c825b80e540092ca074ffbe3f00d294",
-      "sha256": "ccc6e68b78958a21086e2e8422f58c265a2ff565dfd9f31f90d92aaacb18980e"
-    },
-    {
-      "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
-      "previous_sha256": "d0545adb95479528ce8fde7cfb770df8dc4eb463012f480a6fd5efbca4af80c0",
-      "sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91"
+      "path": "version/3.0/ripscrip/4.3-buttons.md",
+      "previous_sha256": "d8125d84769011d5bee15c72b67bc12cda046bc8f486d4ae42ad468ee3906d93",
+      "sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce"
     }
   ],
   "new_documents": [],
@@ -978,7 +963,7 @@
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "B190 button font zero, B191 article font zero, and B193 the malformed size-five layout vector."
+    "B191 article font zero and B193 the malformed size-five layout vector."
   ],
   "derivations": [
     {
@@ -1523,9 +1508,15 @@
     },
     {
       "path": "version/3.0/research/issue-187-classic-font-zero.md",
-      "sha256": "dd00ee906a2706f642bcf3650d4628ed7865b9385a59eadb45d7435bc4d7139d",
+      "sha256": "3dcd22d1799bad224217a22208cfacb52476aa3aad2b1c1a804cd4335373b059",
       "title": "Issue #187 - Classic graphics font zero",
       "role": "DEFAULT EX face, size and spacing tables, device DPI and outline anchor policy."
+    },
+    {
+      "path": "version/3.0/research/issue-190-button-font-zero.md",
+      "sha256": "ec881eff9bcb57e6c81ae7c73a423c0d91ff1f8287aba119227bd7b51d7b42e3",
+      "title": "Issue #190 - Classic font zero in button labels",
+      "role": "Classic button font zero realization, creation WORLD and placement, measured-run hotkey decoration."
     }
   ],
   "documents": [
@@ -1671,7 +1662,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "d8125d84769011d5bee15c72b67bc12cda046bc8f486d4ae42ad468ee3906d93"
+      "sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -17273,6 +17264,34 @@
         }
       ],
       "summary": "Adopt the classic alignment and ordinary font-zero contracts; button font-zero geometry has a distinct consumer."
+    },
+    {
+      "previous_revision": "306e8209b8e50b7b302dd06981cf49baeafdc83e",
+      "revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/194",
+      "reviewed_head": "6ae37a1826893dc214bcb8da63bd5cc26c08266b",
+      "archive_sha256": "47f9603bc5e08643d36350abd8687d7120fd8453af536a63a737a409866a2660",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "d8125d84769011d5bee15c72b67bc12cda046bc8f486d4ae42ad468ee3906d93",
+          "sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce"
+        }
+      ],
+      "source_blocks": {
+        "matched": 9043,
+        "moved": 382,
+        "added": 17,
+        "retired": 1
+      },
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-190-button-font-zero.md",
+          "sha256": "ec881eff9bcb57e6c81ae7c73a423c0d91ff1f8287aba119227bd7b51d7b42e3",
+          "title": "Issue #190 - Classic font zero in button labels",
+          "role": "Classic button font zero realization, creation WORLD and placement, measured-run hotkey decoration."
+        }
+      ]
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -20850,6 +20869,36 @@
         "blocked": 40
       },
       "verification": "Native placement, cursor, session and text commands. Connected CP437 and UTF-8 graphical, metric and full connected checks. Issues #190, #191 and #193 track unresolved documentation."
+    },
+    {
+      "after_commit": "3fbcd66e",
+      "revision": "c7ca0607af659ad9592b2e8b744dca4918a54b99",
+      "scope": "Resolve classic font-zero button labels from their captured drawing STYLE and WORLD.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:237",
+        "version/3.0/ripscrip/4.3-buttons.md:241",
+        "version/3.0/ripscrip/4.3-buttons.md:247",
+        "version/3.0/ripscrip/4.3-buttons.md:248",
+        "version/3.0/ripscrip/4.3-buttons.md:249",
+        "version/3.0/ripscrip/4.3-buttons.md:250",
+        "version/3.0/ripscrip/4.3-buttons.md:251",
+        "version/3.0/ripscrip/4.3-buttons.md:253",
+        "version/3.0/ripscrip/4.3-buttons.md:257",
+        "version/3.0/ripscrip/4.3-buttons.md:259",
+        "version/3.0/ripscrip/4.3-buttons.md:265",
+        "version/3.0/ripscrip/4.3-buttons.md:271",
+        "version/3.0/ripscrip/4.3-buttons.md:273"
+      ],
+      "partially_covered_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2446,
+        "context": 1770,
+        "pending": 1635,
+        "implemented": 3109,
+        "excluded": 70,
+        "blocked": 30
+      },
+      "verification": "Native button construction and connected CP437 and UTF-8 geometry and hotkey vectors, including activation redraw after changes to the active style and WORLD."
     }
   ]
 }

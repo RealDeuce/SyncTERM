@@ -36,7 +36,7 @@ struct label {
 	struct st_rip3_outline_layout layout;
 	struct st_rip3_text_position positions[255];
 	int32_t advances[255];
-	bool extended;
+	bool outline_label, default_outline;
 	double x,y,width,height,ascent,descent;
 };
 
@@ -105,9 +105,11 @@ prepare_label(struct label *label,const struct st_rip3_command_host *host,
 	bool drop=false;
 	if ((style->flags&8192)!=0 && style->orientation!=1 && style->orientation!=3)
 		for (size_t i=0;i<count;i++) drop|=descender(label->bytes[i]);
-	label->extended=drawing->font_mode==ST_RIP3_FONT_OUTLINE;
+	label->default_outline = drawing->font_mode == ST_RIP3_FONT_CLASSIC && drawing->font.font == 0
+	    && (host->text->font == NULL || host->text->font->number != 0);
+	label->outline_label = label->default_outline || drawing->font_mode == ST_RIP3_FONT_OUTLINE;
 	const struct st_rip3_text_position zero={0,0};
-	if (!label->extended) {
+	if (!label->outline_label) {
 		label->classic_style=drawing->font;
 		/* Button orientation/justification and shadow own these attributes. */
 		label->classic_style.flags = ST_RIP3_CLASSIC_LEFT | ST_RIP3_CLASSIC_TOP;
@@ -127,15 +129,32 @@ prepare_label(struct label *label,const struct st_rip3_command_host *host,
 		return 0;
 	}
 	struct st_rip3_outline_style font_style=drawing->outline;
-	font_style.flags&=~UINT32_C(0x30);
-	status=st_rip3_outline_layout_prepare(&label->layout,&font_style,frame);
-	if (status==0) status=st_rip3_command_outline_font(&label->outline,host->text,&font_style,frame,label->layout.font_orientation);
-	if (status==0) status=st_rip3_outline_font_advances(label->advances,&label->outline,font_style.string_rotation,label->bytes,count);
+	if (label->default_outline) {
+		const struct st_rip3_classic_text_style classic={0,0,drawing->font.magnification,
+		    ST_RIP3_CLASSIC_LEFT | ST_RIP3_CLASSIC_BASELINE};
+		status=st_rip3_classic_default_outline(&label->outline,&label->layout,&classic,frame);
+		font_style.string_rotation=0;
+	}
+	else {
+		font_style.flags&=~UINT32_C(0x30);
+		status=st_rip3_outline_layout_prepare(&label->layout,&font_style,frame);
+		if (status==0)
+			status=st_rip3_command_outline_font(&label->outline,host->text,&font_style,frame,label->layout.font_orientation);
+	}
+	if (status==0)
+		status=st_rip3_outline_font_advances(label->advances,&label->outline,font_style.string_rotation,label->bytes,count);
 	int32_t bbox=0;int64_t total;
 	if (status==0 && label->layout.bounding_box_spacing) status=st_rip3_outline_font_bbox_width(&bbox,&label->outline);
 	if (status==0) status=st_rip3_outline_layout_positions(&label->layout,&zero,label->advances,count,bbox,label->positions,&total);
 	if (status!=0) return status;
 	label->layout.shadow=(style->flags&32)!=0 ? (struct st_rip3_point){1,1} : (struct st_rip3_point){0,0};
+	if (label->default_outline) {
+		uint64_t scale=(uint64_t)label->outline.points*label->outline.dpi_y;
+		label->ascent=(double)(scale*750/(72*1000));
+		label->descent=drop ? (double)(scale*250/(72*1000)) : 0;
+		label->width=(double)total;
+		return 0;
+	}
 	double right=0,bottom=0;
 	for (size_t i=0;i<count;i++) {
 		double x0=label->positions[i].x+label->outline.bounds.xmin,x1=label->positions[i].x+label->outline.bounds.xmax;
@@ -165,7 +184,7 @@ decorate_label(struct label *label,const struct st_rip3_command_host *host,
 	uint8_t color=style->colors[ST_RIP3_BUTTON_UNDERLINE];
 	struct st_rip3_point direction={1,0};double width=0,distance=1;
 	int status=0;
-	if (!label->extended) {
+	if (!label->outline_label) {
 		struct st_rip3_classic_text_plan prefix,one;const struct st_rip3_text_position zero={0,0};
 		struct st_rip3_classic_text_style font_style=label->classic_style;
 		font_style.flags &= ~ST_RIP3_CLASSIC_SHADOW;
@@ -183,17 +202,23 @@ decorate_label(struct label *label,const struct st_rip3_command_host *host,
 		struct st_rip3_outline_layout layout=label->layout;layout.shadow=(struct st_rip3_point){0,0};
 		if ((style->flags2&2)!=0) status=st_rip3_draw_outline_positioned(host->ports,&label->outline,&layout,
 		    label->bytes+index,1,&anchor,color,0,ST_RIP3_COPY);
-		static const struct st_rip3_point directions[]={{1,0},{0,-1},{-1,0},{0,1}};
-		direction=directions[label->layout.character_turns];int32_t advance;
-		if (status==0) status=st_rip3_outline_font_advances(&advance,&label->outline,
-		    label->layout.character_turns*900,label->bytes+index,1);
-		if (status!=0) return status;
-		width=advance;
-		if (descender(label->bytes[index])) {
-			const struct st_rip3_outline_bounds *b=&label->outline.bounds;
-			double drop=direction.x>0 ? (double)b->ymax : direction.x<0 ? -(double)b->ymin
-			    : direction.y>0 ? -(double)b->xmin : (double)b->xmax;
-			if (drop>0) distance+=drop;
+		if (label->default_outline) {
+			width=label->advances[index];
+			distance=3;
+		}
+		else {
+			static const struct st_rip3_point directions[]={{1,0},{0,-1},{-1,0},{0,1}};
+			direction=directions[label->layout.character_turns];int32_t advance;
+			if (status==0) status=st_rip3_outline_font_advances(&advance,&label->outline,
+			    label->layout.character_turns*900,label->bytes+index,1);
+			if (status!=0) return status;
+			width=advance;
+			if (descender(label->bytes[index])) {
+				const struct st_rip3_outline_bounds *b=&label->outline.bounds;
+				double drop=direction.x>0 ? (double)b->ymax : direction.x<0 ? -(double)b->ymin
+				    : direction.y>0 ? -(double)b->xmin : (double)b->xmax;
+				if (drop>0) distance+=drop;
+			}
 		}
 	}
 	if (status!=0 || !(style->flags&2048) || width<1) return status;
@@ -205,12 +230,41 @@ decorate_label(struct label *label,const struct st_rip3_command_host *host,
 	return fill(host,port,(struct box){x0,y0,x1+1,y1+1},color);
 }
 
-static int
-paint_label(struct label *label,const struct st_rip3_command_host *host,
-    const struct st_rip3_port_info *port,const struct st_rip3_button_style *style,
-    const struct st_rip3_frame *frame,struct box face,uint8_t hotkey)
+static struct st_rip3_text_position
+default_label_anchor(const struct label *label,const struct st_rip3_port_info *port,
+    const struct st_rip3_button_style *style,const struct st_rip3_frame *frame,struct box face)
 {
-	if (label->length==0) return 0;
+	double ox=(double)port->bounds.x0+port->viewport.x0;
+	double oy=(double)port->bounds.y0+port->viewport.y0;
+	double left=trunc((face.x0+ox)*frame->world_width/frame->device_width);
+	double right=trunc((face.x1+ox)*frame->world_width/frame->device_width);
+	double top=trunc((face.y0+oy)*frame->world_height/frame->device_height);
+	double bottom=trunc((face.y1+oy)*frame->world_height/frame->device_height);
+	double face_width=trunc((double)(face.x1-face.x0)*frame->world_width/frame->device_width);
+	double face_height=trunc((double)(face.y1-face.y0)*frame->world_height/frame->device_height);
+	double width=trunc(label->width*frame->world_width/frame->device_width);
+	double ascent=trunc(label->ascent*frame->world_height/frame->device_height);
+	double descent=trunc(label->descent*frame->world_height/frame->device_height);
+	double height=ascent+descent;
+	double x=left+trunc((face_width-width)/2);
+	double y=top+trunc((face_height-height)/2);
+	if (style->orientation==1) x=left-width-8;
+	else if (style->orientation==3) x=right+8;
+	else if ((style->flags2&8)!=0) x=left+((style->flags&8)!=0 ? 20 : 10);
+	else if ((style->flags2&16)!=0) x=right-width-((style->flags&8)!=0 ? 19 : 9);
+	if (style->orientation==0) y=top-height-5;
+	else if (style->orientation==4) y=bottom+5;
+	return (struct st_rip3_text_position){trunc(x*frame->device_width/frame->world_width)-ox,
+	    trunc(y*frame->device_height/frame->world_height)-oy
+	    +trunc(ascent*frame->device_height/frame->world_height)};
+}
+
+static struct st_rip3_text_position
+label_anchor(const struct label *label,const struct st_rip3_port_info *port,
+    const struct st_rip3_button_style *style,const struct st_rip3_frame *frame,struct box face)
+{
+	if (label->default_outline)
+		return default_label_anchor(label,port,style,frame,face);
 	double x=((double)face.x0+face.x1-label->width)/2;
 	double y=((double)face.y0+face.y1-label->height)/2;
 	if (style->orientation==0) y=face.y0-label->height-1;
@@ -229,11 +283,20 @@ paint_label(struct label *label,const struct st_rip3_command_host *host,
 			x=floor((world-width-((style->flags&8)!=0 ? 19 : 9))*frame->device_width/frame->world_width)-origin;
 		}
 	}
-	struct st_rip3_text_position anchor={x-label->x,y-label->y};
+	return (struct st_rip3_text_position){x-label->x,y-label->y};
+}
+
+static int
+paint_label(struct label *label,const struct st_rip3_command_host *host,
+    const struct st_rip3_port_info *port,const struct st_rip3_button_style *style,
+    const struct st_rip3_frame *frame,struct box face,uint8_t hotkey)
+{
+	if (label->length==0) return 0;
+	struct st_rip3_text_position anchor=label_anchor(label,port,style,frame,face);
 	uint8_t foreground=style->colors[ST_RIP3_BUTTON_LABEL_FOREGROUND];
 	uint8_t background=style->colors[ST_RIP3_BUTTON_LABEL_BACKGROUND];
 	int status;
-	if (!label->extended) status=st_rip3_draw_classic_text(host->ports,&label->classic,&label->classic_style,
+	if (!label->outline_label) status=st_rip3_draw_classic_text(host->ports,&label->classic,&label->classic_style,
 	    label->bytes,label->length,&anchor,foreground,background,ST_RIP3_COPY);
 	else {
 		for (size_t i=0;i<label->length;i++) {label->positions[i].x+=anchor.x;label->positions[i].y+=anchor.y;}

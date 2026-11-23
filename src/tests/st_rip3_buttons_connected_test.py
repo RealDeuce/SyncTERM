@@ -74,6 +74,51 @@ def run(args,width,height):
         t.exchange(b"\x01|Y00000100|@5K5KF\r\n")
         values(b"$TEXTXY$",b"200:200")
 
+        if (width, height) == (1024, 768):
+            t.case("classic DEFAULT EX button measurement and hotkey")
+            # ACC.RIP's fixed 268x28 face with its first matching N decorated.
+            # Q=22, P=109 at 72 DPI gives 15+1 pixels per byte. The centered
+            # 272-pixel run starts at x=30, baseline y=198. The first match
+            # for N is the lowercase n in Phone, after eight bytes.
+            settings = style(flags=256|1024|2048|16384, width=268, height=28,
+                             flags2=2, underline=14, surface=3, group=1)
+            definition = button((32,176,0,0), b"<>Home Phone Number<>font-zero", hotkey=ord("N"))
+            frame = t.exchange(b"\x01|Y00000209\r\n" + settings + definition)
+            span = {x for x in range(24, 370) if pixel(frame,x,201) == 0xffff55}
+            assert span == set(range(158, 173)), sorted(span)
+            assert any(pixel(frame,x,y) == 0xffff55 for y in range(182,198) for x in range(158,173))
+            white = {x for y in range(175,204) for x in range(24,370)
+                     if pixel(frame,x,y) == 0xffffff}
+            assert white and min(white) >= 30 and max(white) <= 302
+            # The button controls alignment and decoration, even when the
+            # captured Y selects vertical graphics text and ordinary shadow.
+            before = t.exchange(b"\x01|1K|Y0001023T\r\n" + settings + definition)
+            assert {x for x in range(24,370) if pixel(before,x,201) == 0xffff55} == span
+            # A radio activation redraws the label using its original size
+            # and creation WORLD after the current STYLE and WORLD change.
+            values(b"$WORLD(CUR,512,384)$")
+            t.exchange(b"\x01|Y01000309\r\n")
+            after = click(124,189,b"font-zero")
+            assert after.primary == before.primary and after.alternate == before.alternate
+
+            # At scale 2, an eight-WORLD-unit right margin adds 16 pixels.
+            # The 40x16 WORLD face projects to 80x32. Size 1 at 144 DPI
+            # has ascent 16 and unspaced advance 15.
+            frame = t.exchange(b"\x01|Y00000100\r\n"
+                               + style(flags=256|1024|2048, width=40, height=16,
+                                       orientation=3, underline=14)
+                               + button((32,150,0,0), b"<>ABA<>", hotkey=ord("A")))
+            assert {x for x in range(140,230) if pixel(frame,x,327) == 0xffff55} == set(range(160,175))
+            values(b"$WORLD(CUR,1024,768)$")
+
+            # With g in the label and descender fit enabled, 16+5 pixels
+            # center in the 40-pixel face at top 259 and baseline 275.
+            frame = t.exchange(b"\x01|Y00000209\r\n"
+                               + style(flags=256|1024|2048|8192, width=80, height=40, underline=14)
+                               + button((430,250,0,0), b"<>Ag<>", hotkey=ord("A")))
+            assert {x for x in range(430,510) if pixel(frame,x,278) == 0xffff55} == set(range(454,469))
+            t.exchange(b"\x01|1K|Y00000100\r\n")
+
         t.case(f"rip3-button-pointer-and-host-{width}x{height}")
         # Preflight must not execute MKILL while creating a button.
         t.exchange(field((150,20,180,50),b"old")+style(flags=256|512|16|1024|2|2048,flags2=2,underline=14)
