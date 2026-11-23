@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-26128c7043d90cd00aa95c6b44aadbfc185f6a3a](https://github.com/RealDeuce/remote-imaging-protocol/tree/26128c7043d90cd00aa95c6b44aadbfc185f6a3a/version/3.0)
+04d1637b6e6af424a7e8e7b5ac43de9669112c5b](https://github.com/RealDeuce/remote-imaging-protocol/tree/04d1637b6e6af424a7e8e7b5ac43de9669112c5b/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -8709,16 +8709,9 @@ screen in CP437 and UTF-8 at 640x480, 800x600, 1024x768 and 720x400.
 The type-3 window segment has connected coverage for active-state and
 caret gates, current versus all targets, protected entries, fixed and
 floating query cleanup, and base, numbered and stack backup cleanup.
-Whole-window erase still uses the shared RIP erase service. The connected
-cases exercise its bounds, active gate and cursor homing with both candidate
-color sources set to black.
-
-Read-only inspection of the hash-verified original driver showed that
-header geometry reset and live `RESET(TW)` have different effects. The header
-path now skips inactive windows and keeps the known deletion and selection
-actions. Eligible geometry changes await the field and cursor contract.
-Issue #152 tracks that distinction and the header erase color.
-[Upstream issue #152](https://github.com/bbs-land/remote-imaging-protocol/issues/152)
+The [completed type-3 profile](#connected-header-text-window-geometry-and-erase)
+also covers retained-font geometry, target-local cursor home and the current
+palette's index 0 erase.
 
 Header viewport bounds reset now uses the existing operation that skips
 inactive and protected viewports. The TCP fixture verifies that a reactivated
@@ -8763,3 +8756,40 @@ Pick-list evaluation remains pending.
 
 The queue contains 2396 implemented, 1686 pending, 2976 unreviewed, 1520
 context, 67 excluded and 30 blocked units.
+
+
+## Connected HEADER text-window geometry and erase
+
+Type-3 flags 1, 4, 1024 and 2048 now apply the retained-font maximization
+through the live text-window owner. Each eligible window keeps its font,
+ordinary/extended kind, ANSI definition and queries. Its nominal grid uses the
+existing device cell metrics, with both rectangles at device origin and full
+vertical margins. The addressed window's live cursor homes. Its CSI-saved
+position and requested caret state persist. The operation prepares a replacement
+view through the existing definition-copy machinery without copying or
+repainting scene pixels. Native resource failure preserves the target and
+allows later targets in the header to proceed.
+
+A header that explicitly maximizes an unredefined entry window uses the default
+mode's nominal grid with the entry window's existing metrics and font binding.
+The configured entry raster and its unassigned MicroANSI mode remain intact.
+
+Flags 4096 and 8192 use the documented shared whole-window erase with current
+graphics palette index 0. Connected captures distinguish that color from ANSI
+and STYLE backgrounds and verify the centered margins, physical screen
+placement, offscreen port selection, activation and protection behavior. Erase
+homes the target's live cursor and retains its CSI-saved position. The existing
+caret flags retain their independent active-state gate.
+
+The header fixtures exercise CP437 and UTF-8 on 640x480, 800x600, 1024x768 and
+720x400. They verify retained font and kind, stage-local activation, ordinary
+corners, target-local homing, no geometry repaint, ANSI attributes and tabs,
+and CSI cursor recovery. The native session fixture checks failure continuation
+and fixed/floating query retention. Native CTerm definition and connected TW
+COPY tests cover the reused definition transfer. Independent vectors for the
+full set of retained ANSI settings, resource bindings and snapshots are pending.
+The type-2 graphics viewport clipping contract remains separately tracked in
+issue #153.
+
+The queue contains 2431 implemented, 1688 pending, 2976 unreviewed,
+1531 context, 67 excluded and 26 blocked units.

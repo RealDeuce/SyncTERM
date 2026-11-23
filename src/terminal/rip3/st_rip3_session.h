@@ -99,6 +99,9 @@ struct st_rip3_session_sink {
 	 * Preserve raw graphic indexes where native output agrees, and do not
 	 * replace graphics written by the current still-unpresented command. */
 	int (*screen_read)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *);
+	/* Apply geometry to an eligible target and home it without painting,
+	 * changing selection or replacing other window state. */
+	int (*text_maximize)(void *context, unsigned number, const struct st_rip3_text_window_layout *layout);
 	/* Prepare/commit one live TW reset without painting. A non-NULL fresh
 	 * layout replaces zero with forced CUR-first-use defaults, retaining current
 	 * selection. NULL deletes a nonzero native view; if selected, fall back to

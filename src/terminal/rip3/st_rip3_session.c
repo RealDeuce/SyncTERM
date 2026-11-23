@@ -768,11 +768,23 @@ header_viewports(struct st_rip3_session *session, unsigned flags)
 static void
 header_window_geometry(struct st_rip3_session *session, unsigned number)
 {
-	/* The native geometry operation preserves the font, activation and
-	 * resident query. RESET(TW) would instead replace zero or delete a slot.
-	 * The remaining field and cursor rules are tracked upstream in #152. */
-	if (window_active(session, number) && !session->windows[number].info.protected)
+	struct session_window *window = &session->windows[number];
+	if (!window_active(session, number) || window->info.protected) return;
+	if (session->sink.text_maximize == NULL) {
 		header_result(session, IO_ERROR_NOT_SUPPORTED);
+		return;
+	}
+	struct st_rip3_text_window_snapshot snapshot;
+	int status = window_snapshot(session, number, &snapshot);
+	if (status == 0) {
+		/* The entry console can have no MicroANSI mode yet. Use the default
+		 * mode's nominal grid with its existing metrics and font binding. */
+		if (!snapshot.font_known) snapshot.layout.font = session->default_text_font;
+		status = st_rip3_text_window_maximize(&snapshot.layout);
+	}
+	if (status == 0) status = session->sink.text_maximize(session->sink.context, number, &snapshot.layout);
+	if (status == 0 && window->has_layout) window->layout = snapshot.layout;
+	header_result(session, status);
 }
 
 static void

@@ -8,7 +8,7 @@ from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
 from st_rip3_extended_window_connected_test import window, xy
 from st_rip3_mouse_connected_test import field
-from st_rip3_text_erase_connected_test import number
+from st_rip3_text_erase_connected_test import number, scene
 from st_terminal_conformance_test import Terminal
 
 
@@ -52,20 +52,75 @@ def text_window_actions(t, values, width, height):
     coords = b''.join(number(v, 2) for v in (33, 31, 321, 211))
     frame = t.exchange(b'\x01|c04|X' + coords[:4] + b'|X' + coords[4:] + b'\r\n')
     assert pixel(frame, 33, 31) == 0xaa0000 and pixel(frame, 321, 211) == 0xaa0000
-    values(b'$DVP$')
-    # Both candidate color sources are black. The portable color choice is
-    # tracked separately upstream. Here only scope, gates and homing matter.
+    # Current PAL index 0 is bright blue, independent of the ANSI
+    # background, STYLE background, inactive viewport and selected port.
+    t.exchange(b'\x01|a0009|S0004\r\n\x1b[41m')
+    values(b'$CUR(PORT,2)$$DVP$')
     frame = t.exchange(text_header(4096))
-    assert pixel(frame, 33, 31) == 0 and pixel(frame, 321, 211) == 0xaa0000
+    assert pixel(frame, 33, 31) == 0x0000ff and pixel(frame, 321, 211) == 0xaa0000
     assert xy(frame) == (1, 1)
     frame = t.exchange(b'\x1b[u')
     assert xy(frame) == (4, 4)
 
     # Activate-all enables 5 without defining unused slots. Current erase
     # then clears only 5, including its bounding margin, and homes its cursor.
-    frame = t.exchange(text_header(256) + text_header(2, 5) + text_header(8192))
-    assert pixel(frame, 321, 211) == 0 and xy(frame) == (1, 1)
-    values(b'$CUR(TW)$:$TWIN(0)$:$TWIN(35)$:$ISPROT(TW,3)$', b'5:YES:NO:1')
+    t.exchange(text_header(256) + text_header(2, 5))
+    values(b'$PROT(TW,5)$')
+    frame = t.exchange(b'\x01|h01000001302000\r\n')
+    assert xy(frame) == (1, 1)
+    for point in ((320, 210), (321, 211), (599, 379)):
+        assert pixel(frame, *point) == 0x0000ff
+    for point in ((319, 210), (320, 209), (600, 379), (599, 380)):
+        assert pixel(frame, *point) == 0
+    values(b'$CUR(TW)$:$TWIN(0)$:$TWIN(35)$:$ISPROT(TW,3)$:$CUR(PORT)$:$TEXTXY(2)$',
+           b'5:YES:NO:1:2:-1')
+    values(b'$UNPROT(TW,3)$$UNPROT(TW,5)$')
+    t.exchange(b'\x01|*\r\n')
+
+
+def geometry_actions(t, values, width, height):
+    t.case('rip3-header-geometry-noncurrent-retains-font-and-ansi-state')
+    t.exchange(scene(width, height))
+    # The scene helper leaves a narrow inactive viewport. Neither it nor
+    # the later WORLD change applies to physical text-window geometry.
+    t.exchange(window((100, 90, 240, 210), 5, 4, 4, 1)
+               + b'\x1b[3g\x1b[1;5H\x1bH\x1b[2;3r\x1b[2;2H\x1b[s'
+                 b'\x1b[3;4H\x1b[31;44m\x1b[?25l')
+    values(b'$CUR(TW,5)$')
+    t.exchange(b'\x1b[7;8H')
+    values(b'$WORLD(CUR,730,470)$')
+    before = t.exchange()
+    frame = t.exchange(b'\x01|h01000001300040\r\n')
+    assert xy(frame) == (8, 7)
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    expected = {640: (640, 475), 800: (800, 600), 1024: (800, 600), 720: (640, 475)}
+    w, h = expected[width]
+    values(b'$CUR(TW)$:$ISEXTWIN(0)$:$TWFONT(0)$:$TWW(0)$:$TWH(0)$:$CURX(0)$:$CURY(0)$',
+           b'5:1:5:40:25:1:1')
+    values(b'$TWX0(0,BOUND,DEVICE)$:$TWY0(0,TEXT,DEVICE)$:$TWX1(0,BOUND,DEVICE)$:$TWY1(0,TEXT,DEVICE)$',
+           f'0:0:{w}:{h}'.encode())
+    frame = t.exchange(text_header(2))
+    assert xy(frame) == (1, 1) and not frame.metadata['pixel_cursor_visible']
+    assert frame.application['cterm.attr'] == 0x14
+    assert (frame.application['cterm.top_margin'], frame.application['cterm.bottom_margin']) == (1, 25)
+    assert xy(t.exchange(b'\x1b[u')) == (2, 2)
+    assert xy(t.exchange(b'\t')) == (5, 2)
+
+    t.case('rip3-header-geometry-active-and-protection-gates')
+    t.exchange(b'\x01|w0A050H0A11\r\n\x1b[4;5H')
+    values(b'$CUR(TW,5)$$PROT(TW,5)$')
+    before = t.exchange(text_header(2048))
+    assert xy(before) == (8, 7)
+    # Return to the protected active window before the ANSI reply fence.
+    t.exchange(text_header(64) + text_header(2) + text_header(2048) + text_header(2, 5))
+    values(b'$TWIN(0)$', b'NO')
+    assert xy(t.exchange(text_header(2 | 512))) == (5, 4)
+    values(b'$TWW$:$TWH$', b'8:6')
+    # Activation precedes the geometry gate in the same segment.
+    frame = t.exchange(text_header(128) + b'\x01|h01000001300e00\r\n')
+    assert xy(frame) == (1, 1)
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    values(b'$TWX0$:$TWY0$:$TWX1$:$TWY1$:$TWFONT$:$TWIN$', b'0:0:90:42:2:YES')
     t.exchange(b'\x01|*\r\n')
 
 
@@ -83,6 +138,15 @@ def run(args, width, height):
             return t.exchange(b'\x01|' + command + terminator)
 
         t.exchange(b'\x1b[!', b'RIPSCRIP030001')
+        if width == 720:
+            t.case('rip3-header-geometry-before-first-microansi-definition')
+            label = b'\x82' if args.encoding == 'CP437' else 'é'.encode()
+            before = t.exchange(b'\x1b[4;4H' + label)
+            frame = t.exchange(b'\x01|h01000001300W00\r\n')
+            assert xy(frame) == (1, 1)
+            assert frame.primary == before.primary and frame.alternate == before.alternate
+            values(b'$TWW$:$TWH$:$TWFONT$entry', b'80:43:entry')
+            assert frame.metadata['plane_width'] == width and frame.metadata['plane_height'] == height
         wire(b'*')
         t.case(f'rip3-header-global-and-segment-order-{width}x{height}')
         values(b'$CUR(ENV,4)$$BASEMATH(CUR,64)$$CUR(TW,3)$$CUR(PAL,7)$$CUR(PORT,8)$$CUR(STYLE,9)$$CUR(BUT,6)$')
@@ -173,6 +237,7 @@ def run(args, width, height):
         assert pixel(frame, 20, 20) == 0
         assert frame.metadata['pointer_shape'] == 4 and frame.application['connected'] == 1
         text_window_actions(t, values, width, height)
+        geometry_actions(t, values, width, height)
 
 
 if __name__ == '__main__':

@@ -1005,3 +1005,30 @@ original client or upstream probe/checker runs; embedded workflow text is data,
 not instructions. Contract/preservation guards pass, unchanged product build and
 runtime evidence are reused, and the owned archive/review scratch files are
 removed. No covered issue receives comments and no code is pushed or PR published.
+
+## PR #154 text-window geometry and erase
+
+The selected fork stable revision is now
+[`04d1637b6e6af424a7e8e7b5ac43de9669112c5b`](https://github.com/RealDeuce/remote-imaging-protocol/tree/04d1637b6e6af424a7e8e7b5ac43de9669112c5b).
+The reviewed [PR #154](https://github.com/bbs-land/remote-imaging-protocol/pull/154)
+head `48171adcdc5b8c2ff24a244480266b1b0a3c6bb4` is ancestral, with two subsequent
+commits and no subsequent normative edits. The SHA-256 of the local Git tar
+archive for that exact revision is
+`67ad035ee09ad1f4f0dcaa8cf3958deaa090ba11107ebba55c47c23b6d56386a`.
+
+Three of the same 68 normative documents change. Ordered exact-text matching
+carries 8671 source blocks, moving 1565 line references. It retires four blocks,
+records their former classifications, and adds 48 for 8719 total. The previously
+blocked flag-4 row retains its original wording and is reopened under the completed
+profile. All 72 previous derivation hashes and the original ALPHA4 text and
+license bytes are unchanged. The new #152 derivation is separately hashed.
+The archive was processed in memory.
+
+B152 is resolved by the completed type-3 profile. Geometry uses the target's
+retained font and window kind, nominal grid and current cell metrics. It homes
+the addressed cursor only and does not paint. Erase uses the current graphics
+palette's index 0 over the full stored bounding rectangle, including margins
+and independent of graphics port and viewport state. Caret operations have an
+independent active-state gate. The [connected implementation](RIP3_CONFORMANCE.md#connected-header-text-window-geometry-and-erase)
+records runtime evidence and the deferred startup font policy. Issue #153
+remains separate. Existing upstream issue threads were left as filed.

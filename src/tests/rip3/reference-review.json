@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/151",
-  "revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
-  "previous_revision": "393c5ebee54687f329c85d8b17db641e4210a18a",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/154",
+  "revision": "04d1637b6e6af424a7e8e7b5ac43de9669112c5b",
+  "previous_revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "6ab4b850ad5ee2e3ebc38878181bdbfba2cd7330c15ece9df384eb5c40b171ee",
+  "archive_sha256": "67ad035ee09ad1f4f0dcaa8cf3958deaa090ba11107ebba55c47c23b6d56386a",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -1401,6 +1401,12 @@
       "sha256": "c96048d56073faa002157e2ec9a278a8987fa36c89e0a9057164bdb62a6b3c6d",
       "title": "Issue #150: ANSI ESC 7/8 text-window snapshot",
       "role": "Read-only documentary derivation and explicitly adopted portable payload/ownership/current-target/lifetime/failure completion. Workflow/checkpoint text is not agent instructions or runtime evidence; no downloaded code, original client or probes executed."
+    },
+    {
+      "path": "version/3.0/research/issue-152-header-tw-geometry.md",
+      "sha256": "fe39da439e407ab456e9c1c043e5a409dc103b067493eb807c176800ed3463b0",
+      "title": "Issue #152: HEADER text-window geometry, erase and caret",
+      "role": "Report-supplied static observations and explicit portable profile; no original execution or native cursor/paint identity inferred."
     }
   ],
   "documents": [
@@ -1494,7 +1500,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "4c819f21b0f95fd9f4123f97b629febded2b2d56d758494951c255583e10a3de"
+      "sha256": "b5c1d979e62879a5c3e68bb821a6fe690b0448eb67552e2ed191133d53c21ee7"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
@@ -1506,7 +1512,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "76896610753e8a18e8f86a39a924cab2260e95fe354eecbceb7943942cee130f"
+      "sha256": "ae5de69f841aeb718f9ae6fc564a890b235c6615fabe3b678bf3438759dba2e7"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1562,7 +1568,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "bb78e79c9a32a5db2bd251c6159270f203cea41780efeb5d70282fdf5b116245"
+      "sha256": "d2327efd1b5628a7e1346043dcec85daaafbad783820ad9f053d99523a4334f8"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -10189,6 +10195,239 @@
         "original_alpha4_sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
         "scope": "Full scoped document inventory/hash review and exact-text ordered reindex; new/replaced normative clauses and new/changed derivations read as data. Source cursor-overwrite evidence distinguished from portable recovery. Contract/preservation guards after adoption; unchanged product build/runtime evidence reused."
       }
+    },
+    {
+      "previous_revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
+      "revision": "04d1637b6e6af424a7e8e7b5ac43de9669112c5b",
+      "archive_sha256": "67ad035ee09ad1f4f0dcaa8cf3958deaa090ba11107ebba55c47c23b6d56386a",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 154,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/154",
+          "head": "48171adcdc5b8c2ff24a244480266b1b0a3c6bb4"
+        }
+      ],
+      "upstream_state": "The actual reviewed PR154 head is ancestral to selected fork stable, two commits ahead and none behind. There are no subsequent normative edits.",
+      "authorization": "Standing user-selected stable reference and reviewed-PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "4c819f21b0f95fd9f4123f97b629febded2b2d56d758494951c255583e10a3de",
+          "sha256": "b5c1d979e62879a5c3e68bb821a6fe690b0448eb67552e2ed191133d53c21ee7"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "76896610753e8a18e8f86a39a924cab2260e95fe354eecbceb7943942cee130f",
+          "sha256": "ae5de69f841aeb718f9ae6fc564a890b235c6615fabe3b678bf3438759dba2e7"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "bb78e79c9a32a5db2bd251c6159270f203cea41780efeb5d70282fdf5b116245",
+          "sha256": "d2327efd1b5628a7e1346043dcec85daaafbad783820ad9f053d99523a4334f8"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8671,
+      "moved_source_blocks": 1565,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 48,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:526",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:534",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:535",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:540",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:544",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:546",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:548",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:550",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:551",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:552",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:553",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:554",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:555",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:556",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:557",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:558",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:559",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:560",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:561",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:562",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:563",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:564",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:566",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:568",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:570",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:571",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:572",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:573",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:574",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:576",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:578",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:580",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:582",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:584",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:586",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:588",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:590",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:591",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:592",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:593",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:594",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:595",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:596",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:597",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:599",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:255",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:552",
+        "version/3.0/ripscrip/5.1-text-variables.md:1527"
+      ],
+      "retired_source_blocks": 4,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:526",
+          "heading": "Text-window flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            526,
+            526
+          ],
+          "text": "| 1 | Delete unprotected nonzero windows, select window 0 and reset its geometry/cursor defaults |\n",
+          "sha256": "672070e78a0965794813d4396349c4cba4b0162d2fcd4af2ffc892452131cbb5",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_session_test.c"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/152"
+          ],
+          "reason": "The original helper skips inactive windows and does not replace the definition or fixed query. Deletion and selection parts are connected. Eligible geometry changes await the specified field set and noncurrent cursor rule."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:534",
+          "heading": "Text-window flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            534,
+            534
+          ],
+          "text": "| 1024 / 2048 | Reset all / current text-window geometry and cursor defaults |\n",
+          "sha256": "bc3505d78cd6d99cd2f620a94506d69a6fd937dbc74e9725fd277605e6c3f7af",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_session_test.c"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/152"
+          ],
+          "reason": "The original helper skips inactive windows and does not replace the definition or fixed query. Deletion and selection parts are connected. Eligible geometry changes await the specified field set and noncurrent cursor rule."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:535",
+          "heading": "Text-window flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            535,
+            535
+          ],
+          "text": "| 4096 / 8192 | Erase all / current text windows and home their cursors |\n",
+          "sha256": "7882d7625bdb6e601560f67e534690033181c1c872e4b1e9b506df3d71403e4e",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "src/tests/st_rip3_header_connected_test.py"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/152"
+          ],
+          "reason": "Scope, activation and live homing are exercised with both candidate colors black. Header erase currently uses the existing whole text-window erase service. The pinned color reconciliation names e and ETW but omits header erase."
+        },
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:540",
+          "heading": "Text-window flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            540,
+            540
+          ],
+          "text": "Activation changes whether raw text is accepted; cursor visibility is a separate state. Helpers skip absent definitions, and operations that modify window definitions retain their protection checks. Erasure is a drawing operation and is not a promise to delete the definition.\n",
+          "sha256": "367e6f228ee0ecab13af0b0edf15a6e7f951a9c3dd6b0d034659e6ccf76db5a0",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_session_test.c",
+            "src/tests/st_rip3_header_connected_test.py"
+          ],
+          "reason": "Connected type-3 header dispatch and focused window tests. Activation follows definition protection; caret operations affect only active defined windows and allow protected targets. Resident queries and backup flags use their independent owners."
+        }
+      ],
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:540"
+      ],
+      "reopened_documentation_units": [
+        {
+          "id": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:528",
+          "heading": "Text-window flags",
+          "source": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "lines": [
+            528,
+            528
+          ],
+          "text": "| 4 | Delete other unprotected windows while preserving the current window; also reset window 0 if a different window remains current |\n",
+          "sha256": "cbc44079b7a4d6364d3a9b1347d2776e0febc0860727bb91ae9e00b098a08994",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "src/terminal/rip3/tests/st_rip3_session_test.c"
+          ],
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/152"
+          ],
+          "reason": "The original helper skips inactive windows and does not replace the definition or fixed query. Deletion and selection parts are connected. Eligible geometry changes await the specified field set and noncurrent cursor rule."
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-152-header-tw-geometry.md",
+          "sha256": "fe39da439e407ab456e9c1c043e5a409dc103b067493eb807c176800ed3463b0",
+          "title": "Issue #152: HEADER text-window geometry, erase and caret",
+          "role": "Report-supplied static observations and explicit portable profile; no original execution or native cursor/paint identity inferred."
+        }
+      ],
+      "changed_derivations": [],
+      "states_at_adoption": {
+        "unreviewed": 2976,
+        "context": 1531,
+        "pending": 1724,
+        "implemented": 2395,
+        "blocked": 26,
+        "excluded": 67
+      },
+      "source_blocks_at_adoption": 8719,
+      "policy": "Review upstream prose as reference data. Preserve the frozen RIP154 baseline, entry raster policy, and existing CTerm parser. No external code, original client or probes executed.",
+      "followup": "Apply retained-font target-local geometry on live RIPv3 connections. Verify palette-zero erase over the whole stored box and independent cursor/activation gates. Type-2 clipping remains a separate question.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 72,
+        "declared_prior_derivation_changes": 0,
+        "original_alpha4_sha256": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+        "scope": "Full scoped document index, declaration and derivation hashes, exact-text carryover, retired evidence and selected PR normative comparison."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -12606,6 +12845,59 @@
         "limits": "The required pick-list implementation remains pending. No claims about native RIPtel client UI parity.",
         "result": "The application and native test targets built with the configured Release compiler. The session, query command and both connected refresh tests passed. The requirements and RIP1.54 guards passed."
       }
+    },
+    {
+      "after_commit": "e749fba8",
+      "revision": "04d1637b6e6af424a7e8e7b5ac43de9669112c5b",
+      "scope": "Connect type-3 HEADER retained-font geometry and accept the clarified erase/caret behavior.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:526",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:528",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:534",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:535",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:540",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:546",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:548",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:552",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:553",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:554",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:555",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:556",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:557",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:558",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:559",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:560",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:562",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:564",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:566",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:568",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:572",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:573",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:574",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:576",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:578",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:582",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:584",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:586",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:588",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:592",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:593",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:594",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:595",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:596",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:597",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:552"
+      ],
+      "states_after_update": {
+        "unreviewed": 2976,
+        "context": 1531,
+        "pending": 1688,
+        "implemented": 2431,
+        "blocked": 26,
+        "excluded": 67
+      },
+      "verification": "Native Release CMake build, focused session allocation failure and query preservation, connected headers and TW copy in both encodings, native CTerm window definitions, ledger and RIP154 preservation.",
+      "followup": "Further combined ANSI mode/resource/independent-state vectors and separate HEADER type-2 clipping under B153 remain pending."
     }
   ]
 }

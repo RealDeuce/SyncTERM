@@ -448,7 +448,7 @@ text_snapshot(void *context, unsigned number, struct st_rip3_text_window_snapsho
 		if (status==0) status=st_console_cell_pixel_size(rip->config.console,&cw,&ch);
 		if (status!=0) return status;
 		value.layout=(struct st_rip3_text_window_layout){.x1=columns-1,.y1=rows-1,
-		    .columns=columns,.rows=rows,.cell_width=cw,.cell_height=ch,
+		    .columns=columns,.rows=rows,.cell_width=cw,.cell_height=ch,.wrap=state.ext_attr.auto_wrap,
 		    .x=(uint64_t)(x-1)*cw,.y=(uint64_t)(y-1)*ch,
 		    .bound_x=(uint64_t)(x-1)*cw,.bound_y=(uint64_t)(y-1)*ch,
 		    .bound_width=(uint64_t)columns*cw,.bound_height=(uint64_t)rows*ch};
@@ -510,26 +510,22 @@ text_select(void *context, unsigned number, bool first, bool active,
 }
 
 static int
-text_copy(void *context,unsigned source,unsigned destination,bool active)
+replace_window_definition(struct st_term_rip3 *rip, unsigned source, unsigned destination,
+    const struct st_rip3_text_window_layout *layout, bool active, bool maximize)
 {
-	struct st_term_rip3 *rip=context;
-	if (source>=36 || destination>=36 || source==destination) return IO_ERROR_INVALID_ARGUMENT;
-	if (source!=0 && rip->windows[source]==NULL) return IO_ERROR_NOT_FOUND;
-	flush_text(rip);present(rip);
 	st_cterm_t *connection=st_term_rip3_text(rip);
 	st_cterm_t *from=rip->windows[source]==NULL ? rip->text : st_term_rip3_view_text(rip->windows[source]);
-	struct st_rip3_text_window_snapshot snapshot;
 	struct st_cterm_window_definition *definition=NULL;
 	struct st_term_rip3_view *candidate=NULL;
 	uint32_t width,height;
-	int status=text_snapshot(rip,source,&snapshot);
-	if (status==0) status=window_budget(rip,&snapshot.layout,destination,NULL);
+	int status=window_budget(rip,layout,destination,NULL);
 	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
 	if (status==0) status=st_cterm_window_definition_create(&definition,from);
-	if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,&snapshot.layout,width,height);
+	if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,layout,width,height);
 	st_cterm_t *target=st_term_rip3_view_text(candidate);
 	if (status==0 && destination==rip->selected_window) status=st_cterm_select_window_interpreter(target,connection);
-	if (status==0) status=st_cterm_window_definition_restore(target,definition);
+	if (status==0) status=maximize ? st_cterm_window_definition_restore_maximized(target,definition)
+	    : st_cterm_window_definition_restore(target,definition);
 	if (status==0) {
 		st_cterm_set_music_mode(target,st_cterm_music_mode(connection));
 		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(connection));
@@ -543,9 +539,29 @@ text_copy(void *context,unsigned source,unsigned destination,bool active)
 	if (status!=0) {st_term_rip3_view_destroy(candidate);return status;}
 	st_term_rip3_view_destroy(rip->windows[destination]);rip->windows[destination]=candidate;
 	if (destination==rip->selected_window && rip->text_config.size_changed!=NULL)
-		rip->text_config.size_changed(rip->text_config.size_context,snapshot.layout.columns,snapshot.layout.rows,
-		    snapshot.layout.columns*snapshot.layout.cell_width,snapshot.layout.rows*snapshot.layout.cell_height);
+		rip->text_config.size_changed(rip->text_config.size_context,layout->columns,layout->rows,
+		    layout->columns*layout->cell_width,layout->rows*layout->cell_height);
 	return 0;
+}
+
+static int
+text_copy(void *context,unsigned source,unsigned destination,bool active)
+{
+	struct st_term_rip3 *rip=context;
+	if (source>=36 || destination>=36 || source==destination) return IO_ERROR_INVALID_ARGUMENT;
+	if (source!=0 && rip->windows[source]==NULL) return IO_ERROR_NOT_FOUND;
+	flush_text(rip);present(rip);
+	struct st_rip3_text_window_snapshot snapshot;
+	int status=text_snapshot(rip,source,&snapshot);
+	return status!=0 ? status : replace_window_definition(rip,source,destination,&snapshot.layout,active,false);
+}
+
+static int
+text_maximize(void *context, unsigned number, const struct st_rip3_text_window_layout *layout)
+{
+	struct st_term_rip3 *rip=context;
+	flush_text(rip);present(rip);
+	return replace_window_definition(rip,number,number,layout,true,true);
 }
 
 struct ansi_window_save {
@@ -1485,7 +1501,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
-	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.text_reset_entry=text_reset_entry,
+	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,
+	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};

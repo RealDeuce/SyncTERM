@@ -89,6 +89,8 @@ int st_rip3_text_window_backup_create(struct st_rip3_backup **result);
 int st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	const struct st_rip3_frame *device, uint32_t x0, uint32_t y0,
 	uint32_t x1, uint32_t y1, unsigned wrap, unsigned font);
+/* Grow or shrink to the retained font's nominal grid at current cell metrics. */
+int st_rip3_text_window_maximize(struct st_rip3_text_window_layout *layout);
 /* The ordinary w identity excludes wrap. Repeating an identical definition
  * updates wrap without relocating the current ANSI cursor. */
 bool st_rip3_text_window_same(const struct st_rip3_text_window_layout *left,

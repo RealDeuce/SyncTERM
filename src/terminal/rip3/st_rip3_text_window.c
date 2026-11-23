@@ -5,12 +5,14 @@
 #include "io_error.h"
 #include <stddef.h>
 
+static const uint32_t nominal_columns[]={80,91,80,91,40};
+static const uint32_t nominal_rows[]={43,43,25,25,25};
+
 int
 st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
     const struct st_rip3_frame *device, uint32_t x0, uint32_t y0,
     uint32_t x1, uint32_t y1, unsigned wrap, unsigned font)
 {
-	static const unsigned columns[]={80,91,80,91,40},rows[]={43,43,25,25,25};
 	static const unsigned reference_width[]={8,7,8,7,16},reference_height[]={8,8,14,14,14};
 	if (result==NULL || device==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_frame checked;
@@ -21,11 +23,11 @@ st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	 * Out-of-grid coordinates adjust, rather than reject, the definition. */
 	if (x0>x1) {uint32_t saved=x0;x0=x1;x1=saved;}
 	if (y0>y1) {uint32_t saved=y0;y0=y1;y1=saved;}
-	if (x0>=columns[font]) x0=columns[font]-1;
-	if (x1>=columns[font]) x1=columns[font]-1;
-	if (y0>=rows[font]) y0=rows[font]-1;
-	if (y1>=rows[font]) y1=rows[font]-1;
-	uint32_t cw=device->device_width/columns[font],ch=device->device_height/rows[font];
+	if (x0>=nominal_columns[font]) x0=nominal_columns[font]-1;
+	if (x1>=nominal_columns[font]) x1=nominal_columns[font]-1;
+	if (y0>=nominal_rows[font]) y0=nominal_rows[font]-1;
+	if (y1>=nominal_rows[font]) y1=nominal_rows[font]-1;
+	uint32_t cw=device->device_width/nominal_columns[font],ch=device->device_height/nominal_rows[font];
 	if (cw==0 || ch==0) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_text_window_layout value={.x0=x0,.y0=y0,.x1=x1,.y1=y1,
 	    .font=font,.wrap=wrap!=0,.columns=x1-x0+1,.rows=y1-y0+1,
@@ -35,6 +37,21 @@ st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	value.bound_x=value.x;value.bound_y=value.y;
 	value.bound_width=(uint64_t)value.columns*cw;value.bound_height=(uint64_t)value.rows*ch;
 	*result=value;return 0;
+}
+
+int
+st_rip3_text_window_maximize(struct st_rip3_text_window_layout *layout)
+{
+	if (layout==NULL || layout->font>=5 || layout->cell_width==0 || layout->cell_height==0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	layout->columns=nominal_columns[layout->font];layout->rows=nominal_rows[layout->font];
+	layout->x0=layout->y0=0;
+	layout->x1=layout->extended ? 0 : layout->columns-1;
+	layout->y1=layout->extended ? 0 : layout->rows-1;
+	layout->x=layout->y=layout->bound_x=layout->bound_y=0;
+	layout->bound_width=(uint64_t)layout->columns*layout->cell_width;
+	layout->bound_height=(uint64_t)layout->rows*layout->cell_height;
+	return 0;
 }
 
 bool
