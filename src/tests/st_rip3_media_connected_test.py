@@ -297,6 +297,28 @@ def check_read_scene(t, root, assets, encoding):
     assert frame.lines[11][2:8] == "abcdef"
     t.exchange(b"\x01|3e0\r\n")
 
+    t.case("HCL scene macros finish nested scenes before replying")
+    (assets / "Macro.RIP").write_bytes(query(b"$>Nested$local", at_cursor=True))
+    (assets / "Nested.RIP").write_bytes(
+        query(b"$-=LOADED=yes$from child", at_cursor=True) + b"\x1b[14;4Hdrawn")
+    (assets / "Tail.RIP").write_bytes(query(b"$-=LOADED=last$", at_cursor=True))
+    frame = t.exchange(query(b"before$>Missing$$>Macro$$&LOADED$$>Tail$$&LOADED$after", at_cursor=True),
+                       b"beforeyeslastafter")
+    assert frame.lines[13][3:8] == "drawn"
+    t.exchange(b"\x01|2R0000refresh$>Nested$$&LOADED$\r\n")
+    t.exchange(query(b"$REFRESH$done", at_cursor=True), b"refreshyesdone")
+
+    t.case("Mouse field scene playback resumes the same action")
+    (assets / "Click.RIP").write_bytes(b"!|c04|X0F0F\r\n")
+    frame = t.exchange(field((100, 120, 140, 150), b"ID=7:$>Click$$FIELDID$done"))
+    m = frame.metadata
+    x = m["destination_x"] + 121 * m["destination_width"] // m["plane_width"]
+    y = m["destination_y"] + 135 * m["destination_height"] // m["plane_height"]
+    t.client.mouse(x, y, action=1, buttons=1)
+    t.client.mouse(x, y, action=1, buttons=0)
+    frame = t.input(b"7done")
+    assert pixel(frame, 15, 15) == 0xaa0000
+
 
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,

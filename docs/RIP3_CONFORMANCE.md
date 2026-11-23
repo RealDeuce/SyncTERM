@@ -9054,7 +9054,7 @@ foreground Shift state, and decoded wire-byte bounds. Native filename vectors
 check all four request kinds. The WAVE session PCM fixture checks that a missing
 `$OFF$.wav` preserves the running sound and that a file by that name plays
 through normal lookup. Wire `1w` recognizes its stop sentinel. The scene
-request awaits its media handler.
+request uses the [connected local scene reader](#connected-rip_read_scene).
 
 The queue contains 2647 implemented, 1707 pending, 2861 unreviewed,
 1589 context, 67 excluded and 33 blocked units.
@@ -9134,12 +9134,20 @@ SyncTERM currently permits eight open local scenes and suppresses RIP and ANSI
 replies while a file is running. The framer expects a command delimiter or CR
 for ordinary commands. The original client's EOF, nesting, filename preparation
 and reply rules are tracked in [issue #170](https://github.com/bbs-land/remote-imaging-protocol/issues/170).
-The `$>` invocation and article/overflow sources remain to be connected. The
-separate `$FILEEXISTS$` contract is tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
+Article and overflow sources remain to be connected. The separate `$FILEEXISTS$`
+contract is tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
 
 Connected CP437 and UTF-8 fixtures check command ordering before and after a
 nested call, independent pixel and cell results, computed filenames, the global
 fallback, response suppression, and recovery from a missing or recursive scene.
+
+`$>NAME$` uses the same reader from immediate queries, REFRESH and mouse
+actions. It pauses the invoking evaluator while the child scene runs. The
+parent resumes with its buffered reply and original field identity. Connected
+tests verify chained and nested files, continued evaluation after a missing
+file, and the parent reply after local drawing and variable changes. Native
+fault cases cover child allocation failures and cancellation while a caller
+is suspended.
 
 `3e` applies the current ENV baud setting to local scene bytes. Zero runs at
 full speed. The local clock budgets ten bits per source byte and limits catch-up

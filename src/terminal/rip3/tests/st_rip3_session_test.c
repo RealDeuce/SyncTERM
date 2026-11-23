@@ -2002,10 +2002,41 @@ scene_pacing(void)
 	return 0;
 }
 
+static int
+scene_query_scope(void)
+{
+	struct fixture f={0};
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	const struct st_rip3_resource_paths resources={.host=ST_RIP3_SESSION_SCENE_DIR};
+	static const char call[]="!|1\0330000before$>Pace.TXT$after\r";
+	options.resources=&resources;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	size_t live=st_rip3_session_test_live;
+	/* Fail the child framer, ordinary query and refresh query in turn. */
+	for (size_t i=0; i<3; ++i) {
+		st_rip3_session_test_fail_at=st_rip3_session_test_attempts+i;
+		f.reply_length=0;
+		CHECK(append(&f,call)==0 && pump(&f)==0);
+		CHECK(f.errors==i+1 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+		CHECK(f.text_length==0 && f.reply_length==11 && memcmp(f.reply,"beforeafter",11)==0);
+		CHECK(!st_rip3_session_pending(f.session) && st_rip3_session_test_live==live);
+	}
+	st_rip3_session_test_fail_at=SIZE_MAX;
+	CHECK(query(&f,"$BAUDEMUL(CUR,1000)$","")==0);
+	CHECK(append(&f,call)==0 && pump(&f)==0);
+	CHECK(st_rip3_session_local_scene(f.session) && f.reply_length==0 && f.text_length==1);
+	st_rip3_session_cancel(f.session);
+	CHECK(!st_rip3_session_pending(f.session) && st_rip3_session_test_live==live);
+	CHECK(query(&f,"live","live")==0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(scene_pacing()==0);
+	CHECK(scene_pacing()==0 && scene_query_scope()==0);
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);

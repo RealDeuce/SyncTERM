@@ -636,20 +636,23 @@ settle(struct st_rip3_query *query)
 	}
 }
 
-static void
+static bool
 playback(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 {
 	char filename[ST_RIP3_PLAYBACK_NAME_SIZE];
 	if (!st_rip3_playback_name(filename,bytes,length,query->codepage_converted,query->variables)) {
 		append(query,bytes,length);
-		return;
+		return true;
 	}
-	if (filename[0]==0) return;
+	if (filename[0]==0) return true;
 	enum st_rip3_playback_kind kind=(enum st_rip3_playback_kind)bytes[1];
 	int status=query->play==NULL ? IO_ERROR_NOT_SUPPORTED
 	    : query->play(query->playback_context,kind,filename);
+	if (kind == ST_RIP3_PLAYBACK_SCENE && status == IO_ERROR_IN_PROGRESS)
+		return false;
 	if (status!=0) diagnose(query,status==IO_ERROR_NOT_SUPPORTED ? ST_RIP3_HOST_UNSUPPORTED_REFERENCE
 	    : status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_OPERATION_FAILED);
+	return true;
 }
 
 void
@@ -696,7 +699,9 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			if (status!=0) { operation_failed(query,status,value.control);return; }
 			replace(query,template.bytes,template.length);
 		}
-		else if (value.kind==PLAYBACK) playback(query,bytes,value.length);
+		else if (value.kind==PLAYBACK) {
+			if (!playback(query,bytes,value.length)) return;
+		}
 		else if (value.kind==PICK_LIST) {
 			int status=pick_list_start(query,bytes+2,value.length-4);
 			if (status!=0) { operation_failed(query,status,0);return; }

@@ -46,6 +46,11 @@ enum { SCENE_LIMIT = 8 };
 struct local_scene {
 	struct st_rip3_resource file;
 	struct st_rip3_stream *stream;
+	/* Prepared child evaluators until start, then the suspended caller. */
+	struct st_rip3_query *query, *refresh;
+	bool queries_active;
+	bool field_program;
+	int field_program_id;
 	uint8_t next_byte;
 	bool byte_ready;
 };
@@ -688,6 +693,19 @@ now(void *context)
 }
 
 static void command(void *context, const uint8_t *bytes, size_t length);
+static int playback(void *context, enum st_rip3_playback_kind kind, const char *filename);
+
+static int
+create_query(struct st_rip3_session *session, struct st_rip3_query **result,
+    const struct st_rip3_host_variables *variables)
+{
+	int status = st_rip3_query_create(result, variables, &session->host_sink);
+	if (status == 0) {
+		st_rip3_query_set_codepage_converted(*result, session->graphical_codepage_converted);
+		st_rip3_query_bind_playback(*result, session, playback);
+	}
+	return status;
+}
 
 static int
 create_stream(struct st_rip3_session *session, struct st_rip3_stream **result)
@@ -698,7 +716,7 @@ create_stream(struct st_rip3_session *session, struct st_rip3_stream **result)
 }
 
 static int
-open_scene(struct st_rip3_session *session, const char *name)
+open_scene(struct st_rip3_session *session, const char *name, bool suspend_query)
 {
 	if (session->commands.resources == NULL || name[0] == '\0')
 		return 0;
@@ -711,17 +729,58 @@ open_scene(struct st_rip3_session *session, const char *name)
 	if (status != 0)
 		return status;
 	status = create_stream(session, &scene.stream);
-	if (status == 0)
+	if (status == 0 && suspend_query)
+		status = create_query(session, &scene.query, &session->variables);
+	if (status == 0 && suspend_query)
+		status = create_query(session, &scene.refresh, &session->refresh_variables);
+	if (status == 0) {
 		session->scenes[session->scene_count++] = scene;
-	else
-		st_rip3_resource_dispose(&scene.file);
+		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
+	}
+	st_rip3_query_destroy(scene.query);
+	st_rip3_query_destroy(scene.refresh);
+	st_rip3_stream_destroy(scene.stream);
+	st_rip3_resource_dispose(&scene.file);
 	return status;
+}
+
+static bool
+activate_scene_queries(struct st_rip3_session *session)
+{
+	if (session->scene_count == 0)
+		return false;
+	struct local_scene *scene = &session->scenes[session->scene_count - 1];
+	if (scene->query == NULL || scene->queries_active)
+		return false;
+	struct st_rip3_query *parent = session->commands.query;
+	session->commands.query = scene->query;
+	scene->query = parent;
+	parent = session->refresh.query;
+	session->refresh.query = scene->refresh;
+	scene->refresh = parent;
+	scene->field_program = session->field_program;
+	scene->field_program_id = session->field_program_id;
+	session->field_program = false;
+	scene->queries_active = true;
+	return true;
 }
 
 static void
 close_scene(struct st_rip3_session *session)
 {
 	struct local_scene *scene = &session->scenes[--session->scene_count];
+	if (scene->queries_active) {
+		st_rip3_query_destroy(session->commands.query);
+		st_rip3_query_destroy(session->refresh.query);
+		session->commands.query = scene->query;
+		session->refresh.query = scene->refresh;
+		session->field_program = scene->field_program;
+		session->field_program_id = scene->field_program_id;
+	}
+	else {
+		st_rip3_query_destroy(scene->query);
+		st_rip3_query_destroy(scene->refresh);
+	}
 	st_rip3_stream_destroy(scene->stream);
 	st_rip3_resource_dispose(&scene->file);
 	if (session->scene_count == 0)
@@ -777,7 +836,10 @@ next(void *context, uint8_t *byte)
 				 * the caller can consume input from its own source again. */
 				if (session->sink.before_command != NULL)
 					session->sink.before_command(session->sink.context);
+				bool resume_query = scene->queries_active;
 				close_scene(session);
+				if (resume_query)
+					return false;
 				continue;
 			}
 			scene->next_byte = (uint8_t)value;
@@ -823,14 +885,24 @@ static bool
 prepare(void *context)
 {
 	struct st_rip3_session *session=context;
+	(void)activate_scene_queries(session);
 	bool pending=continuation_pending(session);
 	struct st_rip3_field_context previous=session->field_context;
 	if (session->field_program) session->field_context=(struct st_rip3_field_context){true,session->field_program_id};
 	/* An active refresh is a separate reply. Resume it before the
 	 * expression that requested it and before reading the next command. */
 	st_rip3_query_process(session->refresh.query, 64);
+	if (activate_scene_queries(session)) {
+		session->field_context=previous;
+		++session->revision;
+		return true;
+	}
 	st_rip3_query_process(session->commands.query,64);
 	session->field_context=previous;
+	if (activate_scene_queries(session)) {
+		++session->revision;
+		return true;
+	}
 	if (!st_rip3_query_pending(session->commands.query)) session->field_program=false;
 	if (session->graphical_job) {
 		bool retained=session->graphical_job==GRAPHICAL_METRIC ? session->metric_argument.retained
@@ -852,7 +924,7 @@ prepare(void *context)
 					status=st_rip3_directory_select(session->variables.directory,result->bytes,result->length,true);
 				else if (session->graphical_job==GRAPHICAL_SCENE) {
 					operation=true;
-					status=open_scene(session,(const char *)result->bytes);
+					status=open_scene(session,(const char *)result->bytes,false);
 				}
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
@@ -1231,14 +1303,14 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	session->input_locked = false;
 	st_rip3_button_renderer_cancel(session->commands.buttons);
 	st_rip3_mouse_abort(session->commands.mouse);
+	while (session->scene_count != 0)
+		close_scene(session);
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_query_cancel(session->refresh.query);
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);
-	while (session->scene_count != 0)
-		close_scene(session);
 	if (session->ready && session->commands.audio!=NULL) (void)st_rip3_audio_stop(session->commands.audio);
 }
 
@@ -1393,6 +1465,8 @@ static int
 playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
 {
 	struct st_rip3_session *session=context;
+	if (kind == ST_RIP3_PLAYBACK_SCENE)
+		return open_scene(session, filename, true);
 	if (kind==ST_RIP3_PLAYBACK_WAVE) {
 		if (session->commands.audio==NULL || session->commands.resources==NULL)
 			return IO_ERROR_NOT_SUPPORTED;
@@ -1522,19 +1596,13 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	const struct st_rip3_input_source source={session,now,next,consume,prepare};
 	if (status==0) status=st_rip3_input_create(&session->commands.input,&source);
 	session->variables.input=session->commands.input;
-	if (status==0) status=st_rip3_query_create(&session->commands.query,&session->variables,&session->host_sink);
+	if (status==0) status=create_query(session,&session->commands.query,&session->variables);
 	session->refresh_variables = session->variables;
 	/* Refresh uses ordinary host expansion without template slots. Keep the
 	 * same stores, delay gate and client reply sink for both evaluators. */
 	session->refresh_variables.templates = NULL;
 	if (status == 0)
-		status = st_rip3_query_create(&session->refresh.query, &session->refresh_variables, &session->host_sink);
-	if (status==0) {
-		st_rip3_query_set_codepage_converted(session->commands.query,config->graphical_codepage_converted);
-		st_rip3_query_set_codepage_converted(session->refresh.query,config->graphical_codepage_converted);
-		st_rip3_query_bind_playback(session->commands.query,session,playback);
-		st_rip3_query_bind_playback(session->refresh.query,session,playback);
-	}
+		status = create_query(session, &session->refresh.query, &session->refresh_variables);
 	if (status==0) status=st_rip3_graphical_create(&session->graphical,&session->variables,&session->host_sink,config->graphical_codepage_converted);
 	const struct st_rip3_command_sink button_sink={session,diagnose};
 	if (status==0) status=st_rip3_button_renderer_create(&session->commands.buttons,&session->commands,&button_sink,

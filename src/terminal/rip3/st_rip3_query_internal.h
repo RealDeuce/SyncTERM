@@ -7,7 +7,8 @@
 #include <stdint.h>
 
 /* The session owns the media services. The filename is borrowed only during
- * the call, and its operation status is consumed within the interpreter. */
+ * the call. IN_PROGRESS for scene playback yields until the owner finishes
+ * the child scene and resumes this query. Other statuses are consumed here. */
 void st_rip3_query_bind_playback(struct st_rip3_query *query, void *context,
 	int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename));
 
