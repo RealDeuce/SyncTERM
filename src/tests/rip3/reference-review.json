@@ -14551,6 +14551,31 @@
         "blocked": 26
       },
       "verification": "Native Release CMake build, query and session tests, and live CP437 and UTF-8 TCP tests on 640x480, 800x600, 1024x768 and 720x400. Related console and RIP154 source guards passed. The mixed legacy wire fixtures passed their RIP154 cases and flagged a RIPv3 font-switch assertion that assumes DEVICE coordinates under the 640x350 startup WORLD."
+    },
+    {
+      "after_commit": "8422e9ef",
+      "revision": "1d46feda7d82001ee6f8b7c614defaa439facb43",
+      "scope": "Verify positioned ordinary text-window font switches, default WORLD and local status on the selected raster. Retain original RIP 1.54 wire expectations.",
+      "blocked_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:322",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:324",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:328",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:330",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:332",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:340",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:342",
+        "version/3.0/ripscrip/9.0-command-reference.md:165"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/164",
+      "states_after_update": {
+        "unreviewed": 2861,
+        "context": 1577,
+        "pending": 1697,
+        "implemented": 2616,
+        "excluded": 67,
+        "blocked": 34
+      },
+      "verification": "Connected CP437 and UTF-8 font and status captures on five rasters. The legacy wire fixtures check the original RIP 1.54 cases. RIP_SCROLL needs independent 3.0 vectors."
     }
   ]
 }

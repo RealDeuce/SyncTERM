@@ -965,16 +965,17 @@ numeric state, replies and dual-phase pixels, including the corrected 0.005
 Bézier fallback. Remaining reference differences and safe rejection policies
 are recorded in [RIP154_PARSER.adoc](RIP154_PARSER.adoc).
 RIP `1G` now copies absolute screen regions with RIPv1 alignment quirks and
-RIPv3 outward alignment. Native whole-plane, overlap, split-input, state and
-reduced-mapping tests supplement 20 coherent application cases per version
-and encoding, with both pixel phases, clipboard preservation and recovery.
-RIPv3 text-window fonts retain the selected resolution/aspect and derive the
-console grid from the current raster and font cell size. The status row uses
-the new font across that grid; reset restores the default font at the same
-resolution. Native split-input/notification and whole-plane tests plus coherent
-CP437/UTF-8 captures cover all five fonts at 640x480, 800x600, 1024x768 and
-1280x800, status on/off, old-status removal and reset/recovery. RIPv1's existing
-canvas/status-font behavior and historical capture expectations are retained.
+keeps its historical whole-plane, overlap, split-input and clipboard tests.
+The separate RIPscrip 3.0 command, RIP_SCROLL, uses drawing-port bounds and
+defines source fill modes. Its remaining coordinate and clipping questions
+are tracked against the 3.0 specification. [Issue #164](https://github.com/bbs-land/remote-imaging-protocol/issues/164)
+
+RIPv3 `w` changes the positioned text window. The entry console retains its
+selected raster, grid and local status row. Connected CP437 and UTF-8 captures
+cover all five window fonts on 640×480, 800×600, 1024×768, 1280×800 and 720×400,
+including font-specific cells, artwork in the default 640×350 WORLD, ANSI
+resumption, and scene reset. The RIPv1 wire fixtures retain their original
+canvas, status-font and historical pixel expectations.
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

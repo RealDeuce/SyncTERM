@@ -85,7 +85,7 @@ def pixel(frame, x, y, phase="primary"):
     return (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
 
 
-def copy_cases(t, version):
+def copy_cases(t):
     # Independent indexed scene. Expected copies use these specified pixels,
     # never observations of the emulator or its alignment implementation.
     indexes = (16, 20, 18, 22, 17, 21, 19, 23, 24, 28, 26, 30, 25, 29, 27, 31)
@@ -100,36 +100,35 @@ def copy_cases(t, version):
     paint = b"!|" + b"|".join(drawing) + b"\r\n!|1C0A0A0B0B0\r\n"
     # Rectangles are x, source Y, width, inclusive-row count, destination Y.
     cases = (
-        ("up", b"080A0O0C0002", (8, 10, 16, 3, 2), (8, 10, 16, 3, 2)),
-        ("down-overlap", b"080A0O0D000B", (8, 10, 16, 4, 11), (8, 10, 16, 4, 11)),
-        ("up-overlap", b"080A0O0D0009", (8, 10, 16, 4, 9), (8, 10, 16, 4, 9)),
-        ("reversed", b"0O0D080A0002", (8, 10, 16, 4, 2), (8, 10, 16, 4, 2)),
-        ("same-line", b"080A0O0C000A", None, None),
-        ("one-row", b"080A0O0A0002", None, (8, 10, 16, 1, 2)),
-        ("unaligned", b"0E0A120C0002", (8, 10, 24, 3, 2), (8, 10, 32, 3, 2)),
-        ("reserved-positive", b"0E0A120C0702", (0, 10, 32, 3, 2), (8, 10, 32, 3, 2)),
-        ("reserved-negative", b"0E0A120C-702", (16, 10, 16, 3, 2), (8, 10, 32, 3, 2)),
-        ("negative-left", b"-A0A0O0C0002", (0, 10, 24, 3, 2), (0, 10, 24, 3, 2)),
-        ("pre-clamp-height", b"089G0OB4008C", None, (8, 340, 16, 10, 300)),
-        ("source-bottom-clamp", b"089G0OB40000", (8, 340, 16, 10, 0), (8, 340, 16, 10, 0)),
-        ("large-copy", b"0000HR9O0001", (0, 0, 632, 349, 1), (0, 0, 640, 349, 1)),
-        ("full-width", b"0000HR9O0101", (0, 0, 640, 349, 1), (0, 0, 640, 349, 1)),
-        ("loose-bottom", b"080A0O0B009P", (8, 10, 16, 1, 349), None),
-        ("destination-overflow", b"080A0O0D009O", None, None),
-        ("missing-field", b"080A0O0C00", None, None),
-        ("invalid-reserved", b"080A0O0C?002", None, None),
-        ("resort-adjusted-down", b"080A090C-70K", (8, 10, 8, 3, 20), (8, 10, 8, 3, 20)),
-        ("short-final-field", b"080A0O0C002", (8, 10, 16, 3, 2), (8, 10, 16, 3, 2)),
+        ("up", b"080A0O0C0002", (8, 10, 16, 3, 2)),
+        ("down-overlap", b"080A0O0D000B", (8, 10, 16, 4, 11)),
+        ("up-overlap", b"080A0O0D0009", (8, 10, 16, 4, 9)),
+        ("reversed", b"0O0D080A0002", (8, 10, 16, 4, 2)),
+        ("same-line", b"080A0O0C000A", None),
+        ("one-row", b"080A0O0A0002", None),
+        ("unaligned", b"0E0A120C0002", (8, 10, 24, 3, 2)),
+        ("reserved-positive", b"0E0A120C0702", (0, 10, 32, 3, 2)),
+        ("reserved-negative", b"0E0A120C-702", (16, 10, 16, 3, 2)),
+        ("negative-left", b"-A0A0O0C0002", (0, 10, 24, 3, 2)),
+        ("pre-clamp-height", b"089G0OB4008C", None),
+        ("source-bottom-clamp", b"089G0OB40000", (8, 340, 16, 10, 0)),
+        ("large-copy", b"0000HR9O0001", (0, 0, 632, 349, 1)),
+        ("full-width", b"0000HR9O0101", (0, 0, 640, 349, 1)),
+        ("loose-bottom", b"080A0O0B009P", (8, 10, 16, 1, 349)),
+        ("destination-overflow", b"080A0O0D009O", None),
+        ("missing-field", b"080A0O0C00", None),
+        ("invalid-reserved", b"080A0O0C?002", None),
+        ("resort-adjusted-down", b"080A090C-70K", (8, 10, 8, 3, 20)),
+        ("short-final-field", b"080A0O0C002", (8, 10, 16, 3, 2)),
     )
-    for number, (name, arguments, v1, v3) in enumerate(cases):
+    for number, (name, arguments, rectangle) in enumerate(cases):
         scene(t, paint)
         viewport = b"v00000000" if number % 2 else b"v8C8C8M8M"
-        frame = t.check(f"copy-v{version}-" + name,
+        frame = t.check("copy-v1-" + name,
                         b"!|W1|=04000003|c03|S0205|m0V15|" + viewport + b"|1G" + arguments
                         + b"|W0|v0000HR9P|1PGO96000|c0F|XH39E\r\n",
                         (1, 1), ((1, 1, " "),), reset=False)
         expected = seed.copy()
-        rectangle = v1 if version == 1 else v3
         if rectangle:
             x, source_y, width, height, destination_y = rectangle
             for row in range(height):
@@ -145,7 +144,7 @@ def copy_cases(t, version):
             actual = list(getattr(frame, phase)[:640 * 350])
             if actual != expected:
                 first = next(i for i, (a, b) in enumerate(zip(actual, expected)) if a != b)
-                raise AssertionError((name, version, phase, first % 640, first // 640,
+                raise AssertionError((name, 1, phase, first % 640, first // 640,
                                       actual[first], expected[first]))
 
 
@@ -200,7 +199,7 @@ def numeric_cases(t):
 
 
 def wire_cases(t):
-    copy_cases(t, 1)
+    copy_cases(t)
     numeric_cases(t)
     t.check("rip-version", b"\x1b[!", expected=b"RIPSCRIP015410", reset=False)
     t.check("rip-version-zero", b"\x1b[0!", expected=b"RIPSCRIP015410", reset=False)
@@ -534,60 +533,23 @@ def host_command_cases(t):
 
 
 def font_mode_cases(args):
-    for version in (1, 3):
-        resolutions = ((640, 480), (800, 600), (1024, 768), (1280, 800)) if version == 3 else ((1280, 800),)
-        for pixel_width, pixel_height in resolutions:
-            font_mode_resolution(args, version, pixel_width, pixel_height)
-
-
-def font_mode_resolution(args, version, pixel_width, pixel_height):
-    # Literal expected grids for each raster and the five existing cell sizes.
-    grids = {
-        (640, 480): ((80, 60), (91, 60), (80, 34), (91, 34), (40, 34)),
-        (800, 600): ((100, 75), (114, 75), (100, 42), (114, 42), (50, 42)),
-        (1024, 768): ((128, 96), (146, 96), (128, 54), (146, 54), (64, 54)),
-        (1280, 800): ((160, 100), (182, 100), (160, 57), (182, 57), (80, 57)),
-    }
+    pixel_width, pixel_height = 1280, 800
     for status in (False, True):
         with connection(args.executable, args.reports, encoding=args.encoding,
-                        options=f"ScreenMode=Custom\nRIP=RIPv{version}\nNoStatus={str(not status).lower()}\n",
+                        options=f"ScreenMode=Custom\nRIP=RIPv1\nNoStatus={str(not status).lower()}\n",
                         settings=f"CustomColumns={pixel_width // 8}\nCustomRows={pixel_height // 8}\nCustomFontHeight=8\n"
                                  "CustomAspectWidth=4\nCustomAspectHeight=3\nAudioModes=0\n") as (client, root, peer, send):
             t = Terminal(client, root, peer, send)
             initial = t.exchange()
             output = tuple(initial.metadata[k] for k in ("output_width", "output_height"))
-            previous_bar = (pixel_height - 8, pixel_height)
             for style, columns, rows, width, height in (
                     (0, 80, 43, 8, 8), (1, 91, 43, 7, 8), (2, 80, 25, 8, 14),
                     (3, 91, 25, 7, 14), (4, 40, 25, 16, 14), (0, 80, 43, 8, 8)):
-                if version == 3:
-                    columns, rows = grids[pixel_width, pixel_height][style]
-                t.case(f"font-mode-v{version}-{pixel_width}x{pixel_height}-status-{status}-style-{style}")
+                t.case(f"font-mode-v1-{pixel_width}x{pixel_height}-status-{status}-style-{style}")
                 # The first switch is the command at the start of beziers.rip.
                 # Preserve a specified scene through subsequent font switches.
-                # The host's text window can cover a subset of the console;
-                # the local status row must span the complete derived grid.
                 window = point(0, 0) + point(39, 22) + b"1" + mega(style, 1)
                 frame = t.exchange(b"\r!|c0F|X2S2S|w" + window + b"\r\nA")
-                if status and version == 3:
-                    frame = client.wait_for(lambda s: s.lines[-1].lstrip().startswith("Capture")
-                                            and cell_at(s, 0, rows - 1).font == cell_at(s, 0, 0).font)
-                    text_font = cell_at(frame, 0, 0).font
-                    assert all(cell_at(frame, x, rows - 1).font == text_font for x in range(columns))
-                    # The new font must be rasterized, not just recorded in cells.
-                    bar = ((rows - 1) * height, rows * height)
-                    for phase in ("primary", "alternate"):
-                        assert any(pixel(frame, x, bar[0] + y, phase) == 0xffff54
-                                   for x in range(width * 7) for y in range(height))
-                        assert all(pixel(frame, x, bar[0], phase) == 0x0000a8
-                                   for x in range(columns * width - width, columns * width))
-                        assert all(pixel(frame, x, bar[0], phase) == 0
-                                   for x in range(columns * width, pixel_width))
-                        # Moving the bar cannot leave its old pixels in the scene.
-                        assert all(pixel(frame, x, y, phase) == 0
-                                   for y in range(*previous_bar) if not bar[0] <= y < bar[1]
-                                   for x in range(pixel_width))
-                    previous_bar = bar
                 assert tuple(frame.metadata[k] for k in
                              ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == (
                                  columns, rows, width, height, pixel_width, pixel_height), frame.metadata
@@ -595,7 +557,7 @@ def font_mode_resolution(args, version, pixel_width, pixel_height):
                 for phase in ("primary", "alternate"):
                     assert pixel(frame, 100, 100, phase) == 0xffffff
             frame = t.exchange(b"\r!|*\r\n")
-            expected = (pixel_width // 8, pixel_height // 8, 8, 8, pixel_width, pixel_height) if version == 3 else (80, 43, 8, 8, pixel_width, pixel_height)
+            expected = (80, 43, 8, 8, pixel_width, pixel_height)
             assert tuple(frame.metadata[k] for k in
                          ("columns", "rows", "cell_width", "cell_height", "plane_width", "plane_height")) == expected
             # Reset clears the scene and remains ready for further commands.
@@ -615,16 +577,6 @@ def live_cases(args):
         print(f"Passed {len(t.completed)} live {args.group} cases", flush=True)
     if args.group == "wire":
         font_mode_cases(args)
-        with connection(args.executable, args.reports, encoding=args.encoding,
-                        options="ScreenMode=80x43\nRIP=RIPv3\n", settings="AudioModes=0\n") as (client, root, peer, send):
-            t = Terminal(client, root, peer, send)
-            copy_cases(t, 3)
-            scene(t)
-            frame = t.check("v3-escape-priority", b"\x1b[31\x01|c0F|X2S2S\r\nZ", reset=False)
-            assert frame.application["cterm.graphics_mode"] == 2  # ST_CTERM_GRAPHICS_RIP_3
-            assert pixel(frame, 100, 100) == 0
-            frame = t.check("v3-interleaving-recovery", b"\r!|c0F|X2S2S\r\n", reset=False)
-            assert pixel(frame, 100, 100) == 0xffffff
 
 
 def main():

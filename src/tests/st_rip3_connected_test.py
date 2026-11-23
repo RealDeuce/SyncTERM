@@ -13,7 +13,7 @@ import time
 
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
-from syncterm_fixture import receive
+from syncterm_fixture import cell_at, receive
 
 
 def query(source, *, at_cursor=False):
@@ -25,6 +25,11 @@ def pixel(frame, x, y):
     m = frame.metadata
     word = frame.primary[(y + m["pixel_top"]) * m["plane_width"] + x]
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
+
+
+def cursor_visible(frame):
+    key = "pixel_cursor_visible" if frame.metadata["pixel_cursor_enabled"] else "cursor_visible"
+    return frame.metadata[key]
 
 
 def absolute_cursor_with_origin(t, columns, rows, ox, oy, cw, ch):
@@ -123,15 +128,15 @@ Hook.onKey(Key.f9) {|event|
              + b"\x1b[2J\x1b[?25l" + query(b"root-off"))
         receive(peer, b"root-off", root / "replies.bin")
         hidden = client.capture()
-        assert hidden.primary == before.primary and hidden.metadata["cursor_visible"] == 0
+        assert hidden.primary == before.primary and cursor_visible(hidden) == 0
         frame = t.exchange(query(b"$ATW(CUR)$root-on"), b"root-on")
         assert frame.primary == before.primary
-        assert frame.metadata["cursor_visible"] == before.metadata["cursor_visible"] == 1
+        assert cursor_visible(frame) == cursor_visible(before) == 1
         before = t.exchange(b"\x1b[?25l")
         send(query(b"$DTW$cursor-already-off"))
         receive(peer, b"cursor-already-off", root / "replies.bin")
         frame = t.exchange(query(b"$ATW$cursor-still-off"), b"cursor-still-off")
-        assert frame.primary == before.primary and frame.metadata["cursor_visible"] == 0
+        assert frame.primary == before.primary and cursor_visible(frame) == 0
         t.exchange(b"\x1b[?25h")
         t.case("rip3-wire-color-mode-and-corpus-prologue")
         # The actual corpus prologue must restore palette mode after RGB.
@@ -412,7 +417,7 @@ Hook.onKey(Key.f9) {|event|
         t.case("rip3-changed-window-retains-tabs-and-pending-ansi")
         # Retain a custom sixth-column stop, but reset cursor, saved cursor,
         # colors, margins, origin mode and visibility when geometry changes.
-        t.exchange(b"\x1b[3g\x1b[1;6H\x1bH\x1b[2;3H\x1b" b"7"
+        t.exchange(b"\x1b[3g\x1b[1;6H\x1bH\x1b[2;3H\x1b[s"
                    b"\x1b[1;4;5;7;31;44m\x1b[2;8r\x1b[?6h\x1b[?25l")
         frame = t.exchange(b"\x1b[38;2;12;\x01|w00000G0310\r\n34;56mF\x1b[6n", b"\x1b[1;2R")
         assert frame.application["cterm.fg_color"] == 0x0c2238
@@ -423,7 +428,7 @@ Hook.onKey(Key.f9) {|event|
         assert any(pixel(frame, x, y) == 0x0c2238
                    for y in range(height // 43) for x in range(width // 80))
         t.exchange(b"\x01|H\r\n\t\x1b[6n", b"\x1b[1;6R")
-        t.exchange(b"\x1b[2;2H\x1b" b"8\x1b[6n", b"\x1b[1;1R")
+        t.exchange(b"\x1b[2;2H\x1b[u\x1b[6n", b"\x1b[1;1R")
         # A stop outside a temporary smaller window survives later growth.
         t.exchange(b"\x01|w0000020310\r\n\x01|w00000G0310\r\n\t\x1b[6n", b"\x1b[1;6R")
         if args.encoding == "UTF-8":
@@ -476,6 +481,55 @@ def mega(number):
     return bytes((digits[number // 36], digits[number % 36]))
 
 
+def font_switch_with_status(args, width, height):
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options="ScreenMode=Custom\nRIP=RIPv3\nNoStatus=false\n",
+                    settings=f"CustomColumns={width // 8}\nCustomRows={height // 8}\n"
+                             "CustomFontHeight=8\nCustomAspectWidth=4\nCustomAspectHeight=3\n"
+                             "AudioModes=0\n") as (client, root, peer, send):
+        t = Terminal(client, root, peer, send)
+        t.case(f"rip3-font-switch-retains-raster-and-status-{width}x{height}")
+        # A plot command can enter during an unfinished ANSI CSI. The
+        # default WORLD maps (100,100) to a different device Y coordinate.
+        art_x, art_y = width * 100 // 640, height * 100 // 350
+        t.exchange(b"\x1b[3\x01|c0F|X2S2S\r\n1mZ" + query(b"$WORLD$", at_cursor=True), b"640:350")
+        initial = client.wait_for(lambda frame: "Capture" in frame.lines[-1])
+        assert initial.lines[0].startswith("Z")
+        assert initial.application["cterm.attr"] == 4
+        assert pixel(initial, art_x, art_y) == 0xffffff
+        status_row = height // 8 - 1
+        status_fonts = tuple(cell_at(initial, x, status_row).font for x in range(width // 8))
+        metrics = ("columns", "rows", "cell_width", "cell_height", "plane_width",
+                   "plane_height", "output_width", "output_height")
+        entry_geometry = tuple(initial.metadata[k] for k in metrics)
+        for font in (0, 1, 2, 3, 4, 0):
+            # Six columns by four rows in each font. Its origin is derived
+            # from the 640x350 reference font, independent of the status row.
+            cols, rows, ref_w, ref_h = (
+                (80, 43, 8, 8), (91, 43, 7, 8), (80, 25, 8, 14),
+                (91, 25, 7, 14), (40, 25, 16, 14))[font]
+            x = 2 * ref_w * width // 640
+            y = 3 * ref_h * height // 350
+            cw, ch = width // cols, height // rows
+            frame = t.exchange(b"\x01|w020307061" + str(font).encode() + b"\r\n"
+                               b"\x1b[2 q\x1b[44m \x1b[6n"
+                               + query(b"$TWW$:$TWH$:$TWFONT$", at_cursor=True),
+                               b"\x1b[1;2R" + f"6:4:{font + 1}".encode())
+            assert tuple(frame.metadata[k] for k in metrics) == entry_geometry
+            assert (frame.metadata["pixel_cursor_x"], frame.metadata["pixel_cursor_y"],
+                    frame.metadata["pixel_cursor_width"], frame.metadata["pixel_cursor_height"]) == (x + cw, y, cw, ch)
+            assert frame.metadata["pixel_cursor_visible"]
+            assert pixel(frame, x, y) == pixel(frame, x + cw - 1, y + ch - 1) == 0x0000a8
+            assert pixel(frame, art_x, art_y) == 0xffffff
+            assert "Capture" in frame.lines[-1]
+            assert tuple(cell_at(frame, x, status_row).font for x in range(width // 8)) == status_fonts
+        frame = t.exchange(b"\x01|*\r\n" + query(b"$WORLD$", at_cursor=True), b"640:350")
+        assert tuple(frame.metadata[k] for k in metrics) == entry_geometry
+        assert pixel(frame, art_x, art_y) == 0
+        frame = t.exchange(b"\x01|c0F|X2S2S\r\n")
+        assert pixel(frame, art_x, art_y) == 0xffffff
+
+
 def ultra(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#&"
     return bytes(digits[(number >> shift) & 63] for shift in (18, 12, 6, 0))
@@ -489,6 +543,7 @@ def main():
     args = parser.parse_args()
     for canvas in ((640, 480, 13), (800, 600, 16), (1024, 768, 21), (1280, 800, 26), (720, 400, 15)):
         run(args, *canvas)
+        font_switch_with_status(args, *canvas[:2])
 
 
 if __name__ == "__main__":

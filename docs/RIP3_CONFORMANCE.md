@@ -9007,3 +9007,19 @@ across suspension, codepage wire-byte limits and raster restoration on
 
 The queue contains 2616 implemented, 1689 pending, 2884 unreviewed,
 1570 context, 67 excluded and 26 blocked units.
+
+## Font switching on the entry raster
+
+The status-on TCP cases run all five MicroANSI font selections against the
+separate RIP3 engine. An ordinary `w` definition changes window-local
+geometry and cursor placement while the entry grid, raster and local status
+row retain their settings. The graphics sample projects through the default
+640×350 WORLD. The same capture checks the new ANSI cell, cursor, status-row
+font and retained graphics. The test also covers a drawing command during an
+unfinished ANSI CSI and a fresh draw after scene reset.
+
+The RIP 1.54 wire suite retains its original byte-aligned RIP_COPY_REGION
+cases and font-mode assertions. The 3.0 RIP_SCROLL entry defines a source fill
+mode and clips to the drawing port. Its destination field,
+normalization, clipping/fill order and physical text-pixel behavior need
+independent 3.0 expectations. [Issue #164](https://github.com/bbs-land/remote-imaging-protocol/issues/164)
