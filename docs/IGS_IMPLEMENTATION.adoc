@@ -3060,6 +3060,10 @@ after preliminary limits; routes 4/5 retain the destination-style rectangle.
 Screen endpoints/origins use the actual current resolution, independently
 of g's captured scaling resolution. Corner ordering follows VDI109.
 
+Transfers involving the screen borrow the console raster under its write
+lock. A screen destination marks only the clipped destination rectangle
+as changed. Memory-to-memory transfers use the retained image banks directly.
+
 All sixteen logic functions operate directly on physical indices. Logic
 above 15 selects replace (3); negative logic rejects at the native raster
 boundary without pixel changes. Logical drawing mode, pens, patterns,

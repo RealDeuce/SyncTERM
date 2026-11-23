@@ -5,6 +5,7 @@
 #include "st_igs_image.h"
 #include "io_error.h"
 
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -12,7 +13,7 @@
 
 struct copy_rect { int sx, sy, dx, dy, width, height; };
 struct bank {
-	struct st_pixel_buffer *pixels;
+	const struct st_pixel_buffer *pixels;
 	int stride, id;
 	size_t capacity;
 	unsigned base;
@@ -69,11 +70,14 @@ prepare_rect(const struct cterm_igs *igs, int source, int destination,
 }
 
 static int
-open_bank(struct cterm_igs *igs, int id, struct st_pixel_buffer *screen, struct bank *bank)
+open_bank(struct cterm_igs *igs, int id, const struct st_pixel_buffer *screen, struct bank *bank)
 {
 	*bank = (struct bank){.id = id};
 	if (id == 2) {
-		bank->pixels = screen; bank->stride = (int)igs->width;
+		unsigned drawable = (unsigned)igs->terminal->height * (igs->resolution == 2 ? 16u : 8u);
+		if (screen->width < igs->width || screen->width > INT_MAX || screen->height < drawable)
+			return IO_ERROR_OUT_OF_RANGE;
+		bank->pixels = screen; bank->stride = (int)screen->width;
 		bank->base = CTERM_IGS_PALETTE_FIRST;
 		bank->capacity = (size_t)screen->width * screen->height;
 		return 0;
@@ -152,29 +156,28 @@ source_group(struct source_cache *cache, const struct bank *source, unsigned pha
 	return cache->pixels[slot];
 }
 
-int
-cterm_igs_blit(struct cterm_igs *igs, int logic, int source_id, int destination_id, const int points[8])
+struct blit_request {
+	struct cterm_igs *igs;
+	int logic, source, destination;
+	struct copy_rect rect;
+};
+
+static int
+transfer_pixels(void *context, const struct st_pixel_buffer *screen, struct st_console_rect *changed)
 {
-	if (logic < 0 || logic == 5) return 0;
-	if (source_id < 2 && igs->memory_view[source_id].screen) source_id = 2;
-	if (destination_id < 2 && igs->memory_view[destination_id].screen) destination_id = 2;
-	struct copy_rect r;
-	int status = prepare_rect(igs,source_id,destination_id,points,&r);
-	if (status != 0 || r.width <= 0 || r.height <= 0) return status;
-	struct st_pixel_buffer *screen = NULL;
-	const struct st_console_rect area = {0,0,igs->width,
-	    (uint32_t)(igs->terminal->height*(igs->resolution == 2 ? 16 : 8))};
-	if (source_id == 2 || destination_id == 2)
-		status = st_console_get_pixels(&screen,igs->terminal->screen.console,&area,false);
+	const struct blit_request *request = context;
+	struct cterm_igs *igs = request->igs;
+	const struct copy_rect r = request->rect;
+	int logic = request->logic;
 	struct bank source, destination;
-	if (status == 0) status = open_bank(igs,source_id,screen,&source);
-	if (status == 0) status = open_bank(igs,destination_id,screen,&destination);
+	int status = open_bank(igs,request->source,screen,&source);
+	if (status == 0) status = open_bank(igs,request->destination,screen,&destination);
 	bool unary = logic == 0 || logic == 10 || logic == 15;
 	if (status == 0 && !unary) status = check_region(&source,r.sx,r.sy,r.width,r.height,true);
 	if (status == 0) status = check_region(&destination,r.dx,r.dy,r.width,r.height,true);
-	if (status == 0 && source.pixels->alternate != NULL)
-		status = st_pixel_buffer_ensure_alternate(destination.pixels);
-	if (status != 0) { st_pixel_buffer_destroy(screen); return status; }
+	if (status == 0 && destination.id != 2 && source.pixels->alternate != NULL)
+		status = st_pixel_buffer_ensure_alternate(igs->memory[destination.id]->pixels);
+	if (status != 0) return status;
 	size_t source_start = (size_t)r.sy*source.stride + (unsigned)r.sx/16*16;
 	size_t destination_start = (size_t)r.dy*destination.stride + (unsigned)r.dx/16*16;
 	/* Normal accessory memory precedes the logical screen. Only ordering,
@@ -210,14 +213,25 @@ cterm_igs_blit(struct cterm_igs *igs, int logic, int source_id, int destination_
 			}
 		}
 	}
-	if (destination_id == 2) {
-		const struct st_pixel_blit blit = {.source_x = (unsigned)r.dx,.source_y = (unsigned)r.dy,
-		    .width = (unsigned)r.width,.height = (unsigned)r.height,
-		    .destination_x = r.dx,.destination_y = r.dy,.scale_x = 1,.scale_y = 1};
-		status = st_console_blit_pixels(igs->terminal->screen.console,screen,NULL,&blit);
-	}
-	st_pixel_buffer_destroy(screen);
-	return status;
+	if (destination.id == 2)
+		*changed = (struct st_console_rect){(unsigned)r.dx,(unsigned)r.dy,
+		    (unsigned)r.width,(unsigned)r.height};
+	return 0;
+}
+
+int
+cterm_igs_blit(struct cterm_igs *igs, int logic, int source_id, int destination_id, const int points[8])
+{
+	if (logic < 0 || logic == 5) return 0;
+	if (source_id < 2 && igs->memory_view[source_id].screen) source_id = 2;
+	if (destination_id < 2 && igs->memory_view[destination_id].screen) destination_id = 2;
+	struct blit_request request = {.igs = igs, .logic = logic,
+	    .source = source_id, .destination = destination_id};
+	int status = prepare_rect(igs,source_id,destination_id,points,&request.rect);
+	if (status != 0 || request.rect.width <= 0 || request.rect.height <= 0) return status;
+	if (source_id == 2 || destination_id == 2)
+		return st_console_modify_pixels(igs->terminal->screen.console,transfer_pixels,&request);
+	return transfer_pixels(&request,NULL,NULL);
 }
 
 int

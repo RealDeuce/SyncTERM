@@ -79,6 +79,27 @@ truth(unsigned logic, unsigned source, unsigned destination, unsigned mask)
 }
 
 static void
+invalid_alternate_leaves_screen_intact(void)
+{
+	struct fixture f; create(&f,0,false);
+	const struct st_console_rect source = {0,0,16,1}, destination = {32,0,16,1};
+	const struct st_console_rect last = {47,0,1,1};
+	uint32_t foreign = ST_PIXEL_COLOR_RGB_VALUE(1,2,3);
+	seed(&f,&source,769,770);
+	seed(&f,&destination,772,776);
+	seed(&f,&last,772,foreign);
+	const int points[] = {0,0,15,0,32,0,47,0};
+	CHECK(cterm_igs_blit(f.terminal->igs_engine,3,2,2,points) == IO_ERROR_INVALID_FORMAT);
+	struct st_pixel_buffer *pixels = NULL;
+	CHECK(st_console_get_pixels(&pixels,f.console,&destination,false) == 0);
+	for (unsigned x = 0; x < 16; ++x) {
+		CHECK(pixels->primary[x] == 772);
+		CHECK(pixels->alternate[x] == (x == 15 ? foreign : 776));
+	}
+	st_pixel_buffer_destroy(pixels); destroy(&f);
+}
+
+static void
 screen_matrix(void)
 {
 	static const int offsets[][2] = {{0,0},{3,7},{15,0},{0,15},{8,3},{7,15}};
@@ -417,5 +438,5 @@ partitions_and_bounds(void)
 int
 st_cterm_igs_grab_test_main(void)
 {
-	literal(); screen_matrix(); capture_and_routes(); row_aliases(); second_copy(); random_operands(); layout_lifetime(); partitions_and_bounds(); return 0;
+	literal(); invalid_alternate_leaves_screen_intact(); screen_matrix(); capture_and_routes(); row_aliases(); second_copy(); random_operands(); layout_lifetime(); partitions_and_bounds(); return 0;
 }
