@@ -814,7 +814,8 @@ class DosForms {
       var locations = Menu.fileLocations
       for (row in [["Global Directory", "globalList"], ["Personal Directory", "personalList"],
           ["Configuration File", "configuration"], ["Default Download Directory", "download"],
-          ["Cache Directory", "cache"], ["SSH Keys File", "keys"],
+          ["Cache Directory", "cache"], ["Global RIP Directory (Read-Only)", "globalRip"],
+          ["SSH Keys File", "keys"],
           ["Wren Scripts Directory", "scripts"], ["Theme Directory", "themes"]]) {
         var value = locations[row[1]]
         fields.add(infoField_(row[0], value, "# %(row[0])\n\n%(value)"))

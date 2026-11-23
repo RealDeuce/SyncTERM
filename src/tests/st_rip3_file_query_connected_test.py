@@ -29,7 +29,7 @@ def run(args):
         owner, = (path for path in (root / "cache").glob("*/syncterm-cache-name.txt")
                   if path.read_text(encoding="utf-8").strip() == "Capture")
         local = owner.parent / "RIP"
-        shared = root / "cache/RIP3/ICONS"
+        shared = root / "RIP"
         fixture(local, "Mixed.rip", bytes(20345))
         fixture(shared, "MIXED.RIP", b"other tier")
         bmp = (struct.pack("<2sIHHI", b"BM", 70, 0, 0, 62)
@@ -80,8 +80,10 @@ def run(args):
                 + wire(b"00", b"") + wire(b"00", b"Mixed.rip", b"00??")
                 + wire(b"02", b"Pixel.ICN", b"00Aa"))
         term.exchange(data, b"1.22\r")
-        term.exchange(query(b"$HOSTDIR(OFF)$", at_cursor=True))
+        term.exchange(query(b"$HOSTDIR(EMPTY)$", at_cursor=True))
         check(b"02", b"Mixed.rip", b"1.10\r")
+        term.exchange(query(b"$HOSTDIR(OFF)$", at_cursor=True))
+        check(b"02", b"Mixed.rip", b"1.20345\r")
 
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="RIP=Off\n", settings="AudioModes=0\n") as (

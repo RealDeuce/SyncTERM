@@ -2936,6 +2936,7 @@ fn_menu_file_locations(WrenVM *vm)
 	map_string(vm, "configuration", paths->settings_file);
 	map_string(vm, "download", paths->download_directory);
 	map_string(vm, "cache", paths->cache_directory);
+	map_string(vm, "globalRip", paths->rip_data_directory);
 	map_string(vm, "keys", paths->keys_file);
 	map_string(vm, "scripts", paths->scripts_directory);
 	map_string(vm, "themes", paths->themes_directory);

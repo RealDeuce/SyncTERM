@@ -40,6 +40,8 @@ main(void)
 	CHECK(strcmp(paths.keys_file,
 	    ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/syncterm.ssh")
 	    == 0);
+	CHECK(strcmp(paths.rip_data_directory,
+	    ST_APP_PATHS_XDG_TEST_HOME "/.local/share/syncterm/RIP") == 0);
 	CHECK(strcmp(paths.download_directory, "relative-download") == 0);
 	st_app_paths_dispose(&paths);
 

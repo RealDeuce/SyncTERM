@@ -108,7 +108,7 @@ def check_bitmap(t, assets, values):
     assert frame.application["connected"] == 1
 
 
-def check_host_directory(t, root, values):
+def check_host_directory(t, root, rip, values):
     def wire(commands):
         return t.exchange(b"\x01|" + commands + b"\r\n")
 
@@ -121,9 +121,8 @@ def check_host_directory(t, root, values):
     values(b"$WORLD(CUR,640,480)$$IMGSTYLE(CUR,2,2,2,2)$")
     values(b"$HOSTDIR$:$HOSTDIR()$", b"<NONE>:<NONE>")
     values(b"before$HOSTDIR( MiX Ed )$after:$HOSTDIR$", b"beforeafter:MIX ED")
-    rip = root / "cache" / "RIP3"
     named = rip / "HOST-MIX ED"
-    shared = rip / "ICONS"
+    shared = root / "RIP"
     assert named.is_dir()
     store(named, b"\x00\x00\xaa")
     store(shared, b"\xaa\x00\x00")
@@ -131,10 +130,22 @@ def check_host_directory(t, root, values):
     assert pixel(frame, 2, 2) == 0xaa0000
     wire(b"2W0000001010000Capture.bmp")
     assert (named / "Capture.bmp").read_bytes().startswith(b"BM")
+    assert not (root / "cache" / "RIP3").exists()
     frame = values(b"$HOSTDIR(Off)$$<Override$$HOSTDIR$", b"<NONE>")
     assert pixel(frame, 2, 2) == 0x0000aa and not (rip / "HOST-OFF").exists()
     wire(b"2W0000001010000AfterOff.bmp")
+    assert (rip / "AfterOff.bmp").read_bytes().startswith(b"BM")
     assert not (shared / "AfterOff.bmp").exists() and not (named / "AfterOff.bmp").exists()
+    original = (shared / "Override.bmp").read_bytes()
+    wire(b"2W0000001010000Override.bmp")
+    cached = (rip / "Override.bmp").read_bytes()
+    assert cached.startswith(b"BM") and cached != original
+    values(b"$FILEDEL(Override.bmp)$")
+    assert (rip / "Override.bmp").read_bytes() == cached
+    assert (shared / "Override.bmp").read_bytes() == original
+    (rip / "Override.bmp").unlink()
+    values(b"$FILEDEL(Override.bmp)$")
+    assert (shared / "Override.bmp").read_bytes() == original
 
     t.case("HOSTDIR retains selection after creation failure and rejects invalid names")
     (rip / "HOST-BLOCKED").write_bytes(b"ordinary file")
@@ -159,6 +170,26 @@ def check_host_directory(t, root, values):
         assert pixel(frame, 2, 2) == 0x0000aa
         wire(b"2W0000001010000Escape.bmp")
         assert not (outside / "Escape.bmp").exists()
+
+    t.case("A linked RIP cache root cannot receive remote writes or new directories")
+    saved = rip.with_name("RIP.saved")
+    rip.rename(saved)
+    try:
+        try:
+            rip.symlink_to(shared, target_is_directory=True)
+        except (NotImplementedError, PermissionError):
+            pass  # Some Windows fixtures lack directory-link privileges.
+        else:
+            wire(b"2W0000001010000EscapeRoot.bmp")
+            values(b"$HOSTDIR(Link-Root)$$HOSTDIR$", b"LINK-ROOT")
+            wire(b"2W0000001010000EscapeNamed.bmp")
+            values(b"$HOSTDIR(Off)$$HOSTDIR$", b"<NONE>")
+            assert not (shared / "EscapeRoot.bmp").exists()
+            assert not (shared / "HOST-LINK-ROOT").exists()
+    finally:
+        if rip.is_symlink():
+            rip.unlink()
+        saved.rename(rip)
 
     t.case("Graphical HOSTDIR actions retain their documented side effects")
     values(b"$HOSTDIR(Mix Ed)$")
@@ -284,7 +315,7 @@ def run(args):
         frame = values(b"$(" + encoded + b"\\$$good", b"good")
         assert pixel(frame, 170, 180) == (0x454545 if supported == b"1" else 0)
         check_bitmap(t, assets, values)
-        check_host_directory(t, root, values)
+        check_host_directory(t, root, assets, values)
 
 
 if __name__ == "__main__":

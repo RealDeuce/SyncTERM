@@ -506,9 +506,9 @@ requirements and affected expectations still require reconciliation.
 
 Protocol state belongs to the terminal session thread. Narrow adapters provide
 text, replies, input, prompts, choices, transfers, polling/deadlines and audio;
-reuse unchanged low-level services, not legacy protocol policy. Resource lookup
-is connection-first, shared resources second, then ordered user search paths.
-Host writes stay within client-owned roots; fonts remain global.
+reuse unchanged low-level services, not legacy protocol policy. Media lookup
+uses the connected BBS's selected cache directory and then the read-only Global
+RIP Directory. Host writes stay within the connected BBS's cache. Fonts remain global.
 
 **Parser error boundary:** malformed/unsupported RIP input is handled inside
 the RIP parser. It must discard/recover the affected command or reference and
@@ -985,8 +985,8 @@ Native Valgrind reports no errors or definite/indirect leaks. Graphics-style
 background binding, remaining port metadata and terminal/stream integration
 remain pending.
 
-`rip3_resources` verifies the read-only storage adapter's host, shared and
-ordered user-search lookup, with the first usable hit winning. Missing/empty
+`rip3_resources` verifies that the storage adapter searches the host directory
+and then the global fallback, with the first usable hit winning. Missing/empty
 tiers and directories with a resource's name do not prevent fallback. All
 media extensions share the same namespace, while fonts resolve only through
 the separate global font directory; neither namespace leaks into the other.
@@ -1006,13 +1006,8 @@ session/parser errors. Tests exercise collision handling where the fixture
 volume supports distinct case spellings. Native Valgrind reports no errors or
 leaks; Windows code is reserved for CI, not claimed as locally executed.
 
-Per-profile directories, client-root resolution of relative search entries,
-configuration UI, host directory switching, deliveries, queries, playback and
-command-specific extension/default/path handling remain pending. The service
-does not infer a write/delete policy from read fallback. The explicit host-directory
-writer is described below. FILEDEL remains
-unsupported under #20, and the existing terminal route and RIP154 implementation
-remain unchanged.
+The live storage policy and resource writer are described under [Connected
+RIPv3 host directory selection](#connected-ripv3-host-directory-selection).
 
 `rip3_image` adds independent decoded-image rendering and per-port image styles.
 Newly defined ports have automatic full-viewport areas. Explicit all-zero areas
@@ -9085,22 +9080,24 @@ At the PR #167 pin this queue contains 2704 implemented, 1697 pending,
 
 ## Connected RIPv3 host directory selection
 
-The application binds named RIPv3 directories and shared icons below its
-cache root. A connection starts with the existing per-entry RIP cache as
-its resource tier and no explicit protocol name. `$HOSTDIR(name)$` and
-`2` followed by ESC select a named tier under `RIP3/HOST-<NAME>`. Clearing
-the name starts lookup at `RIP3/ICONS`. The wire command normalizes the
-literal before expansion. A literal `$OFF$` clears the tier, while an
-expanded `$OFF$` selects that name. [Directory syntax](https://github.com/RealDeuce/remote-imaging-protocol/blob/9716850d93ba720097af2a3e100e633c6797ac38/version/3.0/ripscrip/6.2-asset-delivery-and-storage.md#rip_switch_directory)
+Each connection starts with its existing per-BBS `RIP` cache and no explicit
+protocol name. `$HOSTDIR(name)$` and `2` followed by ESC select a `HOST-<NAME>`
+child of that cache. Clearing the name selects the per-BBS `RIP` directory
+again. The wire command normalizes the literal before expansion. A literal
+`$OFF$` clears the selection. An expanded `$OFF$` selects that name. [Directory syntax](https://github.com/RealDeuce/remote-imaging-protocol/blob/9716850d93ba720097af2a3e100e633c6797ac38/version/3.0/ripscrip/6.2-asset-delivery-and-storage.md#rip_switch_directory)
 
-The selected name remains available if directory creation fails.
-Named directory lookups and writes check the `RIP3` directory and its named
-entry for links. Shared icons serve as a read fallback. Connected CP437
-and UTF-8 cases cover the normal and graphical variable paths, wire command
-expansion, subsequent reads and writes, and malformed input recovery. The
-12-byte name limit currently uses SyncTERM's normalized UTF-8 bytes. DOS
-high-byte name boundaries and the remaining search and delivery tiers still
-need coverage.
+The second lookup location is the `RIP` directory in SyncTERM's user data
+directory. On XDG systems this defaults to `~/.local/share/syncterm/RIP`.
+File Locations lists it as **Global RIP Directory (Read-Only)**. Host commands
+can create directories and write assets inside the connected BBS's RIP cache.
+Writes reject linked cache roots and linked named directories. The selected name
+remains available if directory creation fails. SyncTERM disallows server-initiated
+resource deletion, including `$FILEDEL(...)$`, in both locations.
+
+Connected CP437 and UTF-8 cases cover the normal and graphical variable paths,
+wire command expansion, file lookup and replacement, deletion and link handling,
+and malformed input recovery. The 12-byte name limit currently uses SyncTERM's
+normalized UTF-8 bytes. DOS high-byte name boundaries still need coverage.
 
 ## Connected RIP_FILE_QUERY
 
@@ -9116,6 +9113,5 @@ its ICN alias. Direct BMP queries use the file length. The ordinary length
 uses `-1` when it cannot fit the signed 32-bit request. [Win32 file-position contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointer)
 
 Connected CP437 and UTF-8 tests compare complete replies for hits, misses,
-aliases and malformed-command recovery. Native fault tests distinguish lookup,
-open, length, metadata and time-conversion outcomes. User-configured resource
-search paths still need to be connected to the application.
+aliases, global fallback and malformed-command recovery. Native fault tests
+distinguish lookup, open, length, metadata and time-conversion outcomes.

@@ -55,17 +55,15 @@ remove_file(const char *directory, const char *name)
 int
 main(int argc, char **argv)
 {
-	char *host = NULL, *shared = NULL, *search = NULL, *fonts = NULL, *outside = NULL;
-	char *collision = NULL, *misconfigured = NULL;
+	char *host = NULL, *shared = NULL, *fonts = NULL, *outside = NULL;
+	char *collision = NULL, *misconfigured = NULL, *missing_bbs = NULL;
 	struct fs_info info;
 	CHECK(argc == 3);
-	CHECK(path_join_alloc(&host,argv[1],"host/new/session") == 0);
+	CHECK(path_join_alloc(&host,argv[1],"RIP") == 0);
 	CHECK(path_join_alloc(&shared,argv[1],"shared") == 0);
-	CHECK(path_join_alloc(&search,argv[1],"search") == 0);
 	CHECK(path_join_alloc(&fonts,argv[1],"fonts") == 0);
 	CHECK(path_join_alloc(&outside,argv[1],"outside") == 0);
-	const char *const entries[] = {search};
-	struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.fonts=fonts,.search=entries,.search_count=1};
+	struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.fonts=fonts};
 	/* Literal 1x1 24-bit BMP, including its padded BGR pixel, is written
 	 * byte-for-byte. The expected bytes do not come from our BMP encoder. */
 	const uint8_t bitmap[] = {
@@ -77,11 +75,10 @@ main(int argc, char **argv)
 	CHECK(st_rip3_resource_write(&paths,"\xff.bmp",bitmap,sizeof(bitmap)) == IO_ERROR_INVALID_ENCODING);
 	CHECK(fs_get_info(&info,host) == IO_ERROR_NOT_FOUND); /* Invalid input cannot create the hierarchy. */
 	CHECK(put(shared,"Tile.BMP","shared",6) == 0);
-	CHECK(put(search,"Tile.BMP","search",6) == 0);
 	CHECK(put(fonts,"Tile.BMP","fonts",5) == 0);
 	CHECK(st_rip3_resource_write(&paths,"Tile.BMP",bitmap,sizeof(bitmap)) == 0);
 	CHECK(expect(host,"Tile.BMP",bitmap,sizeof(bitmap)) == 0);
-	CHECK(expect(shared,"Tile.BMP","shared",6) == 0 && expect(search,"Tile.BMP","search",6) == 0);
+	CHECK(expect(shared,"Tile.BMP","shared",6) == 0);
 	CHECK(expect(fonts,"Tile.BMP","fonts",5) == 0);
 	CHECK(st_rip3_resource_write(&paths,"tILE.bmp","replaced",8) == 0);
 	CHECK(expect(host,"Tile.BMP","replaced",8) == 0);
@@ -112,12 +109,12 @@ main(int argc, char **argv)
 	CHECK(fs_get_info(&info,collision) == 0 && info.kind == FS_ENTRY_DIRECTORY);
 	CHECK(fs_remove_directory(collision) == 0); free(collision);
 	/* A filesystem replacement failure retains the old file and never
-	 * falls back to a writable-looking shared/search/font tier. */
+	 * falls back to another resource directory. */
 	CHECK(st_rip3_resource_write(&paths,"Tile.BMP","old",3) == 0);
 	st_rip3_resource_test_fail_replace = true;
 	CHECK(st_rip3_resource_write(&paths,"tile.bmp",bitmap,sizeof(bitmap)) == IO_ERROR_IO);
 	CHECK(!st_rip3_resource_test_fail_replace && expect(host,"Tile.BMP","old",3) == 0);
-	CHECK(expect(shared,"Tile.BMP","shared",6) == 0 && expect(search,"Tile.BMP","search",6) == 0);
+	CHECK(expect(shared,"Tile.BMP","shared",6) == 0);
 	CHECK(st_rip3_resource_write(&paths,"tile.bmp",bitmap,sizeof(bitmap)) == 0);
 	CHECK(expect(host,"Tile.BMP",bitmap,sizeof(bitmap)) == 0 && remove_file(host,"Tile.BMP") == 0);
 	const char *const invalid[] = {NULL,"",".","..","../outside/Keep.BMP","a/b","a\\b","/absolute",
@@ -132,6 +129,13 @@ main(int argc, char **argv)
 	paths.host = "";
 	CHECK(st_rip3_resource_write(&paths,"Tile.BMP",bitmap,sizeof(bitmap)) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(expect(shared,"Tile.BMP","shared",6) == 0 && expect(fonts,"Tile.BMP","fonts",5) == 0);
+	CHECK(path_join_alloc(&missing_bbs,argv[1],"missing-bbs") == 0);
+	CHECK(path_join_alloc(&misconfigured,missing_bbs,"RIP") == 0);
+	paths.host = misconfigured;
+	CHECK(st_rip3_resource_write(&paths,"Tile.BMP",bitmap,sizeof(bitmap)) == IO_ERROR_NOT_FOUND);
+	CHECK(fs_get_info(&info,missing_bbs) == IO_ERROR_NOT_FOUND);
+	free(misconfigured);
+	free(missing_bbs);
 	CHECK(path_join_alloc(&misconfigured,argv[1],"NotDirectory") == 0);
 	CHECK(fs_replace_file(misconfigured,"file",4) == 0); paths.host = misconfigured;
 	CHECK(st_rip3_resource_write(&paths,"Tile.BMP",bitmap,sizeof(bitmap)) != 0);
@@ -146,6 +150,6 @@ main(int argc, char **argv)
 		CHECK(expect(outside,"Keep.BMP","outside",7) == 0);
 	}
 	CHECK(expect(outside,"Keep.BMP","outside",7) == 0);
-	free(host); free(shared); free(search); free(fonts); free(outside);
+	free(host); free(shared); free(fonts); free(outside);
 	return 0;
 }

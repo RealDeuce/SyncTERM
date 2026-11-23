@@ -226,7 +226,7 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 	const struct st_application_host *frontend)
 {
 	struct st_app_path_overrides overrides = {0};
-	char *files[8] = {0};
+	char *files[9] = {0};
 	int status = 0;
 	const char *directory = frontend == NULL ? NULL : frontend->directory;
 #if ST_CONSOLE_TEST
@@ -234,20 +234,21 @@ application_paths(struct st_app_paths *paths, const struct st_command_line *comm
 #endif
 	if (directory != NULL) {
 		const char *names[] = {"syncterm.ini", "syncterm.lst", "shared.lst",
-		    "cache", "downloads", "keys.ini", "scripts", "themes"};
-		for (size_t i = 0; i < 8 && status == 0; ++i)
+		    "cache", "downloads", "keys.ini", "scripts", "themes", "RIP"};
+		for (size_t i = 0; i < sizeof(names)/sizeof(*names) && status == 0; ++i)
 			status = path_join_alloc(&files[i], directory, names[i]);
 		overrides = (struct st_app_path_overrides){
 			.settings_file = files[0], .personal_list = files[1],
 			.shared_list = files[2], .cache_directory = files[3],
 			.download_directory = files[4], .keys_file = files[5],
 			.scripts_directory = files[6], .themes_directory = files[7],
+			.rip_data_directory = files[8],
 		};
 	}
 	if (command->settings_path != NULL) overrides.settings_file = command->settings_path;
 	if (command->list_path != NULL) overrides.personal_list = command->list_path;
 	if (status == 0) status = st_app_paths_init(paths, &overrides);
-	for (size_t i = 0; i < 8; ++i) free(files[i]);
+	for (size_t i = 0; i < sizeof(files)/sizeof(*files); ++i) free(files[i]);
 	return status;
 }
 
@@ -1030,7 +1031,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 		.encoding = st_term_profile_encoding(profile),
 		.graphics_mode = st_term_profile_graphics_mode(profile),
 		.rip_directory = rip_directory,
-		.rip3_resource_root = paths->cache_directory,
+		.rip3_data_directory = paths->rip_data_directory,
 		.amiga_font_directory = amiga_font_directory,
 		.amiga_font = amiga_font,
 		.skypix_transfer = run_wren_skypix_transfer,

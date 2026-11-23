@@ -74,10 +74,8 @@ failure(const struct st_rip3_resource_paths *paths,
 int
 main(int argc, char **argv)
 {
-	char *directories[7] = {0}, *subdirectory = NULL;
-	const char *names[] = {"host", "shared", "search-one", "search-two",
-	    "fonts", "empty", "missing"};
-	const char *search[5];
+	char *directories[3] = {0}, *subdirectory = NULL;
+	const char *names[] = {"host", "shared", "fonts"};
 	struct st_rip3_resource_paths paths;
 	static const char *media[] = {"STAMP.BMP", "HOT.BMH", "MASK.BMM",
 	    "OLD.ICN", "OLD.MSK", "OLD.HOT", "PHOTO.JPG", "SOUND.WAV",
@@ -85,23 +83,17 @@ main(int argc, char **argv)
 
 	CHECK(argc == 2);
 	CHECK(fs_create_directories(argv[1]) == 0);
-	for (size_t i = 0; i < 7; i++) {
+	for (size_t i = 0; i < 3; i++) {
 		CHECK(path_join_alloc(&directories[i], argv[1], names[i]) == 0);
-		if (i < 6)
-			CHECK(fs_create_directories(directories[i]) == 0);
+		CHECK(fs_create_directories(directories[i]) == 0);
 	}
-	search[0] = directories[6]; /* Missing entries do not stop lookup. */
-	search[1] = NULL;
-	search[2] = "";
-	search[3] = directories[2];
-	search[4] = directories[3];
 	paths = (struct st_rip3_resource_paths){.host=directories[0],.shared=directories[1],
-	    .fonts=directories[4],.search=search,.search_count=5};
-	for (size_t i = 0; i < 4; i++) {
+	    .fonts=directories[2]};
+	for (size_t i = 0; i < 2; i++) {
 		char content[] = {(char)('0' + i), 0};
 		CHECK(put(directories[i], "Menu.BmP", content) == 0);
 	}
-	for (size_t i = 0; i < 4; i++) {
+	for (size_t i = 0; i < 2; i++) {
 		char content[] = {(char)('0' + i), 0};
 		CHECK(expect(&paths, ST_RIP3_RESOURCE_MEDIA, "mENU.bMP",
 		    directories[i], "Menu.BmP", content) == 0);
@@ -115,18 +107,18 @@ main(int argc, char **argv)
 		    directories[1], media[i], "media") == 0);
 		CHECK(remove_file(directories[1], media[i]) == 0);
 	}
-	for (size_t i = 0; i < 4; i++)
+	for (size_t i = 0; i < 2; i++)
 		CHECK(put(directories[i], "FONT.CHR", "media namespace") == 0);
-	CHECK(put(directories[4], "Font.Chr", "global") == 0);
+	CHECK(put(directories[2], "Font.Chr", "global") == 0);
 	CHECK(expect(&paths, ST_RIP3_RESOURCE_FONT, "font.chr",
-	    directories[4], "Font.Chr", "global") == 0);
-	CHECK(remove_file(directories[4], "Font.Chr") == 0);
+	    directories[2], "Font.Chr", "global") == 0);
+	CHECK(remove_file(directories[2], "Font.Chr") == 0);
 	CHECK(failure(&paths, ST_RIP3_RESOURCE_FONT, "FONT.CHR", IO_ERROR_NOT_FOUND) == 0);
-	for (size_t i = 0; i < 4; i++)
+	for (size_t i = 0; i < 2; i++)
 		CHECK(remove_file(directories[i], "FONT.CHR") == 0);
-	CHECK(put(directories[4], "GLOBAL.BMP", "font store") == 0);
+	CHECK(put(directories[2], "GLOBAL.BMP", "font store") == 0);
 	CHECK(failure(&paths, ST_RIP3_RESOURCE_MEDIA, "GLOBAL.BMP", IO_ERROR_NOT_FOUND) == 0);
-	CHECK(remove_file(directories[4], "GLOBAL.BMP") == 0);
+	CHECK(remove_file(directories[2], "GLOBAL.BMP") == 0);
 	/* A directory with the requested name is not a resource file. */
 	CHECK(path_join_alloc(&subdirectory, directories[0], "DIRECTORY.BMP") == 0);
 	CHECK(fs_create_directory(subdirectory) == 0);
@@ -137,10 +129,10 @@ main(int argc, char **argv)
 	CHECK(fs_remove_directory(subdirectory) == 0);
 	free(subdirectory);
 	/* Existing Unicode comparison is client policy beyond DOS ASCII names. */
-	CHECK(put(directories[2], "\xce\xa9mega.BMP", "utf8") == 0);
+	CHECK(put(directories[1], "\xce\xa9mega.BMP", "utf8") == 0);
 	CHECK(expect(&paths, ST_RIP3_RESOURCE_MEDIA, "\xcf\x89MEGA.bmp",
-	    directories[2], "\xce\xa9mega.BMP", "utf8") == 0);
-	CHECK(remove_file(directories[2], "\xce\xa9mega.BMP") == 0);
+	    directories[1], "\xce\xa9mega.BMP", "utf8") == 0);
+	CHECK(remove_file(directories[1], "\xce\xa9mega.BMP") == 0);
 	/* Probe the directory's actual case behavior, rather than assuming it
 	 * from the operating system. Ambiguous directories cannot exist on some
 	 * volumes; where supported, both spelling and enumeration order are ignored. */
@@ -158,10 +150,10 @@ main(int argc, char **argv)
 		CHECK(failure(&paths, ST_RIP3_RESOURCE_MEDIA, "TWIN.BMP", IO_ERROR_CONFLICT) == 0);
 		CHECK(failure(&paths, ST_RIP3_RESOURCE_MEDIA, "Twin.BMP", IO_ERROR_CONFLICT) == 0);
 		/* A rejected tier does not prevent a later usable match. */
-		CHECK(put(directories[3], "TWIN.BMP", "later") == 0);
+		CHECK(put(directories[1], "TWIN.BMP", "later") == 0);
 		CHECK(expect(&paths, ST_RIP3_RESOURCE_MEDIA, "twin.bmp",
-		    directories[3], "TWIN.BMP", "later") == 0);
-		CHECK(remove_file(directories[3], "TWIN.BMP") == 0);
+		    directories[1], "TWIN.BMP", "later") == 0);
+		CHECK(remove_file(directories[1], "TWIN.BMP") == 0);
 		CHECK(remove_file(directories[0], "twin.bmp") == 0);
 	}
 	else
@@ -192,18 +184,14 @@ main(int argc, char **argv)
 	CHECK(failure(NULL, ST_RIP3_RESOURCE_MEDIA, "menu.bmp", IO_ERROR_INVALID_ARGUMENT) == 0);
 	CHECK(st_rip3_resource_open(NULL, &paths, ST_RIP3_RESOURCE_MEDIA, "menu.bmp") == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(failure(&paths, (enum st_rip3_resource_kind)100, "menu.bmp", IO_ERROR_INVALID_ARGUMENT) == 0);
-	paths.search = NULL;
-	CHECK(failure(&paths, ST_RIP3_RESOURCE_MEDIA, "menu.bmp", IO_ERROR_INVALID_ARGUMENT) == 0);
-	paths.search_count = 0;
 	paths.host = NULL;
 	paths.shared = "";
 	paths.fonts = NULL;
 	CHECK(failure(&paths, ST_RIP3_RESOURCE_MEDIA, "menu.bmp", IO_ERROR_NOT_FOUND) == 0);
 	CHECK(failure(&paths, ST_RIP3_RESOURCE_FONT, "font.chr", IO_ERROR_NOT_FOUND) == 0);
 	st_rip3_resource_dispose(NULL);
-	for (size_t i = 0; i < 7; i++) {
-		if (i < 6)
-			CHECK(fs_remove_directory(directories[i]) == 0);
+	for (size_t i = 0; i < 3; i++) {
+		CHECK(fs_remove_directory(directories[i]) == 0);
 		free(directories[i]);
 	}
 	CHECK(fs_remove_directory(argv[1]) == 0);

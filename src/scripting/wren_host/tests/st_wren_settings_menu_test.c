@@ -1191,6 +1191,7 @@ int
 main(void)
 {
 	static const char directory[] = ST_WREN_SETTINGS_TEST_DIRECTORY;
+	char global_rip[] = ST_WREN_SETTINGS_TEST_DIRECTORY "/RIP";
 	char settings[sizeof(directory) + 32];
 	char personal[sizeof(directory) + 32];
 	char cached[sizeof(directory) + 32];
@@ -1233,6 +1234,7 @@ main(void)
 	paths.cache_directory = (char *)directory;
 	paths.system_cache_directory = (char *)directory;
 	paths.download_directory = (char *)directory;
+	paths.rip_data_directory = global_rip;
 	CHECK(st_settings_load(&paths) == 0);
 	CHECK(st_settings.color_emoji);
 	CHECK(st_console_display_create(&console_display, &display) == 0);
@@ -1259,7 +1261,9 @@ main(void)
 	    "if (Menu.loadDiagnostics.count != 0) Fiber.abort(\"clean load has warnings\")\n");
 	interpret(host, "settings_setup",
 	    "import \"syncterm_menu\" for Menu\n"
-	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n");
+	    "if (Menu.load(null) != null) Fiber.abort(\"load fixture\")\n"
+	    "var paths = Menu.fileLocations\n"
+	    "if (paths[\"globalRip\"] != paths[\"cache\"] + \"/RIP\") Fiber.abort(\"global RIP location\")\n");
 	test_transfer_timeout_settings(host);
 	test_entry_provenance(host, &paths, personal);
 	test_cloud_theme_views(host);

@@ -39,6 +39,7 @@ st_app_paths_dispose(struct st_app_paths *paths)
 	free(paths->personal_list);
 	free(paths->shared_list);
 	free(paths->cache_directory);
+	free(paths->rip_data_directory);
 	free(paths->system_cache_directory);
 	free(paths->cached_system_list);
 	free(paths->download_directory);
@@ -88,6 +89,9 @@ st_app_paths_init(struct st_app_paths *paths,
 			status = replace_path(&value.cache_directory,
 			    overrides->cache_directory);
 		if (status == 0)
+			status = replace_path(&value.rip_data_directory,
+			    overrides->rip_data_directory);
+		if (status == 0)
 			status = replace_path(&value.download_directory,
 			    overrides->download_directory);
 		if (status == 0)
@@ -109,7 +113,7 @@ st_app_paths_init(struct st_app_paths *paths,
 	value.cached_system_list = st_app_path_join(value.system_cache_directory,
 	    "System List.lst");
 	if (value.settings_file == NULL || value.personal_list == NULL
-	    || value.cache_directory == NULL
+	    || value.cache_directory == NULL || value.rip_data_directory == NULL
 	    || value.system_cache_directory == NULL
 	    || value.cached_system_list == NULL
 	    || value.download_directory == NULL || value.keys_file == NULL

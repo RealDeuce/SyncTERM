@@ -1150,6 +1150,7 @@ class SettingsMenu {
         "**Configuration File**\n  %(p["configuration"])\n" +
         "**Default download Directory**\n  %(p["download"])\n" +
         "**Cache Directory**\n  %(p["cache"])\n" +
+        "**Global RIP Directory (Read-Only)**\n  %(p["globalRip"])\n" +
         "**SSH Keys File**\n  %(p["keys"])\n" +
         "**Wren Scripts Directory**\n  %(p["scripts"])\n" +
         "**Theme Directory**\n  %(p["themes"])"

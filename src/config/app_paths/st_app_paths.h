@@ -15,6 +15,7 @@ struct st_app_path_overrides {
 	const char *personal_list;
 	const char *shared_list;
 	const char *cache_directory;
+	const char *rip_data_directory;
 	const char *download_directory;
 	const char *keys_file;
 	const char *scripts_directory;
@@ -26,6 +27,7 @@ struct st_app_paths {
 	char *personal_list;
 	char *shared_list;
 	char *cache_directory;
+	char *rip_data_directory;
 	char *system_cache_directory;
 	char *cached_system_list;
 	char *download_directory;

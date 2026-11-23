@@ -36,10 +36,11 @@ st_app_paths_platform_init(struct st_app_paths *paths)
 	paths->keys_file = st_app_path_join(support, "syncterm.ssh");
 	paths->scripts_directory = st_app_path_join(support, "scripts");
 	paths->themes_directory = st_app_path_join(support, "themes");
+	paths->rip_data_directory = st_app_path_join(support, "RIP");
 	free(support);
 	if (paths->settings_file == NULL || paths->personal_list == NULL
 	    || paths->keys_file == NULL || paths->scripts_directory == NULL
-	    || paths->themes_directory == NULL)
+	    || paths->themes_directory == NULL || paths->rip_data_directory == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	return 0;
 }

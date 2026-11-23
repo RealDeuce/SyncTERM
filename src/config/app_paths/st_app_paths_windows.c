@@ -57,6 +57,7 @@ st_app_paths_platform_init(struct st_app_paths *paths)
 		paths->keys_file = st_app_path_join(personal, "syncterm.ssh");
 		paths->scripts_directory = st_app_path_join(personal, "scripts");
 		paths->themes_directory = st_app_path_join(personal, "themes");
+		paths->rip_data_directory = st_app_path_join(personal, "RIP");
 	}
 	if (shared != NULL)
 		paths->shared_list = st_app_path_join(shared, "syncterm.lst");
@@ -68,7 +69,8 @@ st_app_paths_platform_init(struct st_app_paths *paths)
 	if (paths->settings_file == NULL || paths->personal_list == NULL
 	    || paths->shared_list == NULL || paths->cache_directory == NULL
 	    || paths->download_directory == NULL || paths->keys_file == NULL
-	    || paths->scripts_directory == NULL || paths->themes_directory == NULL)
+	    || paths->scripts_directory == NULL || paths->themes_directory == NULL
+	    || paths->rip_data_directory == NULL)
 		return IO_ERROR_NOT_FOUND;
 	return 0;
 }

@@ -5493,7 +5493,7 @@ duplicate platform-dependent enum tables:
 
 | `fileLocations`
 | Map containing `globalList`, `personalList`, `configuration`,
-  `download`, `cache`, `keys`, `scripts`, and `themes` paths for display.  These
+  `download`, `cache`, `globalRip`, `keys`, `scripts`, and `themes` paths for display.  These
   Strings do not confer file-open authority.
 |===
 

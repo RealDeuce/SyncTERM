@@ -467,15 +467,13 @@ int
 main(int argc, char **argv)
 {
 	CHECK(argc == 3);
-	char *host = NULL, *shared = NULL, *search = NULL;
+	char *host = NULL, *shared = NULL;
 	CHECK(path_join_alloc(&host,argv[1],"host") == 0 && fs_create_directories(host) == 0);
 	CHECK(path_join_alloc(&shared,argv[1],"shared") == 0 && fs_create_directories(shared) == 0);
-	CHECK(path_join_alloc(&search,argv[1],"search") == 0 && fs_create_directories(search) == 0);
-	const char *const entries[] = {search};
-	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.search=entries,.search_count=1};
+	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared};
 	CHECK(asset(argv[2],host,"Gray.JPG","gray.jpg",0) == 0 && asset(argv[2],host,"Scene.JPG","444.jpg",0) == 0);
 	CHECK(asset(argv[2],shared,"scene.jpg","gray.jpg",0) == 0 && asset(argv[2],shared,"Shared.JPG","gray.jpg",0) == 0);
-	CHECK(asset(argv[2],search,"\xce\xa9mega.JPG","gray.jpg",0) == 0 && asset(argv[2],host,"Odd.ext","gray.jpg",0) == 0);
+	CHECK(asset(argv[2],shared,"\xce\xa9mega.JPG","gray.jpg",0) == 0 && asset(argv[2],host,"Odd.ext","gray.jpg",0) == 0);
 	CHECK(asset(argv[2],host,"Truncated.JPG","gray.jpg",2) == 0 && asset(argv[2],host,"Cmyk.JPG","cmyk.jpg",0) == 0);
 	CHECK(put(host,"Empty.JPG",NULL,0) == 0 && put(host,"Broken.JPG","bad",3) == 0);
 	CHECK(asset(argv[2],host,"422.JPG","422.jpg",0) == 0 && asset(argv[2],host,"420.JPG","420.jpg",0) == 0);
@@ -496,5 +494,5 @@ main(int argc, char **argv)
 				CHECK(scene(canvases[i],widths[i],heights[i],&paths,flags,(enum st_rip3_write_mode)mode) == 0);
 	}
 	CHECK(fs_get_info(&after,path) == 0 && before.size == after.size && before.modified_time == after.modified_time);
-	free(path); free(host); free(shared); free(search); return 0;
+	free(path); free(host); free(shared); return 0;
 }

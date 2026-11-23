@@ -15,6 +15,8 @@ static int
 directory_status(const char *path)
 {
 	struct fs_info info;
+	if (path == NULL || path[0] == '\0')
+		return IO_ERROR_NOT_FOUND;
 	int status = fs_get_link_info(&info,path);
 	if (status == 0 && info.kind != FS_ENTRY_DIRECTORY) return IO_ERROR_NOT_DIRECTORY;
 	return status;
@@ -28,7 +30,7 @@ ensure_directory(const char *path)
 }
 
 int
-st_rip3_resource_prepare_named_host(const char *root, const char *child)
+st_rip3_resource_prepare_cache(const char *root, const char *child)
 {
 	int status = ensure_directory(root);
 	if (status == 0 && child != NULL) status = ensure_directory(child);
@@ -133,8 +135,7 @@ open_resource(struct st_rip3_resource *result,
 	size_t fixed_count;
 
 	if (result == NULL || paths == NULL || !st_rip3_resource_name_valid(name)
-	    || (kind != ST_RIP3_RESOURCE_MEDIA && kind != ST_RIP3_RESOURCE_FONT)
-	    || (paths->search_count != 0 && paths->search == NULL))
+	    || (kind != ST_RIP3_RESOURCE_MEDIA && kind != ST_RIP3_RESOURCE_FONT))
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_unicode_caseless_key(&key, &key_size, name, strlen(name));
 	if (status != 0)
@@ -148,27 +149,21 @@ open_resource(struct st_rip3_resource *result,
 		fixed[1] = paths->shared;
 		fixed_count = 2;
 	}
-	/* Separate loops avoid overflowing a combined count supplied by a client. */
 	for (size_t i = 0; i < fixed_count; i++) {
-		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0 && paths->named_host_root != NULL
-		    && (directory_status(paths->named_host_root) != 0 || directory_status(fixed[i]) != 0))
-			continue;
-		status = open_directory(result, fixed[i], key, key_size, matched);
+		status = 0;
+		if (kind == ST_RIP3_RESOURCE_MEDIA && i == 0) {
+			if (paths->named_host_root != NULL)
+				status = directory_status(paths->named_host_root);
+			if (status == 0)
+				status = directory_status(fixed[i]);
+		}
+		if (status == 0)
+			status = open_directory(result, fixed[i], key, key_size, matched);
 		if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY || (matched != NULL && *matched))
 			goto done;
 		if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
 		    && status != IO_ERROR_NOT_DIRECTORY)
 			first_error = status;
-	}
-	if (kind == ST_RIP3_RESOURCE_MEDIA) {
-		for (size_t i = 0; i < paths->search_count; i++) {
-			status = open_directory(result, paths->search[i], key, key_size, matched);
-			if (status == 0 || status == IO_ERROR_OUT_OF_MEMORY || (matched != NULL && *matched))
-				goto done;
-			if (first_error == IO_ERROR_NOT_FOUND && status != IO_ERROR_NOT_FOUND
-			    && status != IO_ERROR_NOT_DIRECTORY)
-				first_error = status;
-		}
 	}
 	status = first_error;
 done:
@@ -211,8 +206,8 @@ st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	status = st_unicode_caseless_key(&key,&key_size,name,strlen(name));
 	if (status != 0) return status;
 	match.directory = paths->host; match.key = key; match.key_size = key_size;
-	status = paths->named_host_root == NULL ? fs_create_directories(paths->host)
-	    : st_rip3_resource_prepare_named_host(paths->named_host_root,paths->host);
+	status = paths->named_host_root == NULL ? ensure_directory(paths->host)
+	    : st_rip3_resource_prepare_cache(paths->named_host_root,paths->host);
 	if (status == 0) status = st_rip3_resource_directory_scan(&match);
 	if (status == 0 && match.path == NULL)
 		status = path_join_alloc(&match.path,paths->host,name);

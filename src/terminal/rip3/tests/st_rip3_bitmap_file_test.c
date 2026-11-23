@@ -78,12 +78,10 @@ int
 main(int argc, char **argv)
 {
 	CHECK(argc == 2);
-	char *host = NULL, *shared = NULL, *search = NULL;
+	char *host = NULL, *shared = NULL;
 	CHECK(path_join_alloc(&host,argv[1],"host") == 0 && fs_create_directories(host) == 0);
 	CHECK(path_join_alloc(&shared,argv[1],"shared") == 0 && fs_create_directories(shared) == 0);
-	CHECK(path_join_alloc(&search,argv[1],"search") == 0 && fs_create_directories(search) == 0);
-	const char *const entries[] = {search};
-	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared,.search=entries,.search_count=1};
+	const struct st_rip3_resource_paths paths = {.host=host,.shared=shared};
 	const uint8_t literal[] = {
 		'B','M',58,0,0,0,0,0,0,0,54,0,0,0,40,0,0,0,1,0,0,0,1,0,0,0,
 		1,0,24,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x33,0x22,0x11,0,
@@ -92,7 +90,7 @@ main(int argc, char **argv)
 	CHECK(put(shared,"Scene.BmP",literal,sizeof(literal)) == 0 && expect(&paths,"scene",0x112233) == 0);
 	bytes[54] = 0x66; bytes[55] = 0x55; bytes[56] = 0x44;
 	CHECK(put(host,"sCENE.bmp",bytes,sizeof(literal)) == 0 && expect(&paths,"SCENE.BMP",0x445566) == 0);
-	CHECK(put(search,"\xce\xa9mega.BMP",literal,sizeof(literal)) == 0 && expect(&paths,"\xcf\x89MEGA",0x112233) == 0);
+	CHECK(put(shared,"\xce\xa9mega.BMP",literal,sizeof(literal)) == 0 && expect(&paths,"\xcf\x89MEGA",0x112233) == 0);
 	/* Explicit extensions are verbatim, including a BMP with a legacy name.
 	 * Loading never converts/deletes or rewrites the source file. */
 	CHECK(put(host,"Picture.ICN",literal,sizeof(literal)) == 0 && expect(&paths,"picture.icn",0x112233) == 0);
@@ -136,6 +134,6 @@ main(int argc, char **argv)
 	CHECK(st_rip3_bitmap_load(NULL,&paths,"Scene") == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(failure(NULL,"Scene",IO_ERROR_INVALID_ARGUMENT) == 0);
 	CHECK(load_and_stamp(&paths) == 0);
-	free(host); free(shared); free(search);
+	free(host); free(shared);
 	return 0;
 }
