@@ -9370,7 +9370,9 @@ same button gate as `HKEYON` and `HKEYOFF`.
 
 `OPTION(LIST)` returns `DOORWAY,HOTKEY,TAB` for the connected client.
 The portable profile lists supported options in RIPtel's order, including
-options currently disabled. Status-bar control remains pending.
+options currently disabled. The status-bar binding is pending clarification
+of native indicator visibility and canvas geometry. [Issue #199](https://github.com/bbs-land/remote-imaging-protocol/issues/199)
+
 `OPTION(LIST, QUERY)` preserves the literal reference and reports a
 syntax diagnostic. `IFS` reports Doorway under emulations and English
 under languages. [PR #198](https://github.com/bbs-land/remote-imaging-protocol/pull/198)
