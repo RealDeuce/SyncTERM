@@ -165,6 +165,67 @@ def check_selection(terminal, accent):
                   (340, 370, ACCENT, GREEN), (356, 370, CAPITAL_A, GREEN)])
 
 
+def check_prewrapped(terminal, accent):
+    terminal.case("Prewrapped justification preserves leading spaces and distributes signed padding")
+    frame = terminal.exchange(commands(
+        b"c02", region((370, 30, 410, 62), 20, 20),
+        b"1t1A A A", b"1t1 A " + accent + b"  ", b"1t1" + accent,
+        region((428, 30, 441, 40), 21, 21), b"1t1A A", b"1E"))
+    check_pixels(frame, (367, 29, 444, 64),
+                 [(370, 30, CAPITAL_A, GREEN), (386, 30, CAPITAL_A, GREEN),
+                  (403, 30, CAPITAL_A, GREEN), (378, 41, CAPITAL_A, GREEN),
+                  (394, 41, ACCENT, GREEN), (370, 52, ACCENT, GREEN),
+                  (428, 30, CAPITAL_A, GREEN), (434, 30, CAPITAL_A, GREEN)])
+
+    terminal.case("Prewrapped lines leave pending raw prose for the article end")
+    frame = terminal.exchange(commands(region((370, 72, 393, 93), 22, 22)) + b"A\r\n"
+                              + commands(b"1t0" + accent, b"1E"))
+    check_pixels(frame, (368, 71, 395, 94), [(370, 72, ACCENT, GREEN), (370, 83, CAPITAL_A, GREEN)])
+
+    terminal.case("Empty prewrapped lines advance except at the top of a disjoint continuation column")
+    frame = terminal.exchange(commands(
+        region((370, 105, 377, 115), 23, 23), region((390, 105, 397, 126), 24, 23),
+        b"1t0A", b"1t0 ", b"1t0" + accent, b"1t0A", b"1E",
+        region((420, 105, 427, 115), 25, 24), region((425, 110, 432, 131), 26, 24),
+        b"1t0A", b"1t0", b"1t0" + accent, b"1E"))
+    check_pixels(frame, (367, 103, 434, 132),
+                 [(370, 105, CAPITAL_A, GREEN), (390, 105, ACCENT, GREEN),
+                  (390, 116, CAPITAL_A, GREEN), (420, 105, CAPITAL_A, GREEN),
+                  (425, 121, ACCENT, GREEN)])
+
+    terminal.case("A prewrapped line advances to the next slot once when it will not fit")
+    frame = terminal.exchange(commands(
+        region((370, 145, 377, 151), 27, 25), region((390, 151, 397, 157), 28, 25),
+        region((410, 170, 417, 191), 29, 25),
+        b"1t0A", b"1t0" + accent, b"1E"))
+    check_pixels(frame, (368, 144, 420, 192),
+                 [(390, 151, CAPITAL_A, GREEN), (410, 170, ACCENT, GREEN)])
+
+    terminal.case("A changed font supplies the next prewrapped line advance")
+    frame = terminal.exchange(commands(
+        region((370, 205, 401, 260), 30, 26), b"1t0A",
+        b"Y00000200", b"1t0A", b"Y00000100", b"1t0" + accent, b"1E"))
+    check_pixels(frame, (368, 237, 403, 251), [(370, 238, ACCENT, GREEN)])
+
+    terminal.case("A protected graphics port suppresses a prewrapped line and leaves the cursor in place")
+    frame = terminal.exchange(
+        commands(b"2P10000" + number(639, 2) + number(479, 2) + b"0", b"2s100",
+                 region((450, 30, 457, 51), 31, 27))
+        + query(b"$PROT(PORT,1)$", at_cursor=True) + commands(b"1t0A")
+        + query(b"$UNPROT(PORT,1)$", at_cursor=True)
+        + commands(b"1t0" + accent, b"1E", b"2s000"))
+    check_pixels(frame, (448, 29, 460, 53), [(450, 30, ACCENT, GREEN)])
+
+    terminal.case("Prewrapped search compares the rendered string or justified runs")
+    frame = terminal.exchange(commands(
+        extended((460, 80, 499, 112), 32, 28, 2, 4, b"A"),
+        b"1t0A A", b"1t1A A", b"1t0A", b"1E"))
+    check_pixels(frame, (458, 79, 502, 114),
+                 [(460, 80, CAPITAL_A, GREEN), (476, 80, CAPITAL_A, GREEN),
+                  (460, 91, CAPITAL_A, RED), (492, 91, CAPITAL_A, GREEN),
+                  (460, 102, CAPITAL_A, RED)])
+
+
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -195,11 +256,13 @@ def run(args):
         check_pixels(frame, (16, 141, 32, 168), [(20, 145, CAPITAL_A, GREEN)])
         terminal.exchange(query(b"alive", at_cursor=True), b"alive")
 
-        terminal.case("RIPv3 region ink is clipped by the column and viewport")
+        terminal.case("Prewrapped ink uses absolute column anchors and the active viewport clip")
         viewport = b"v" + b"".join(number(value, 2) for value in (23, 160, 94, 194))
         marker = b"X" + number(23, 2) + number(160, 2)
         frame = wire(viewport, region((20, 170, 25, 180), 5, 4), b"1t0AAAA", b"1E", b"c04", marker)
-        check_pixels(frame, (17, 167, 33, 184), [(20, 170, bytes(row & 0x1C for row in CAPITAL_A), GREEN)])
+        check_pixels(frame, (17, 167, 54, 184),
+                     [(20, 170, bytes(row & 0x1F for row in CAPITAL_A), GREEN),
+                      (28, 170, CAPITAL_A, GREEN), (36, 170, CAPITAL_A, GREEN), (44, 170, CAPITAL_A, GREEN)])
         assert plane_pixel(frame, 23, 160, "primary") == RED
 
         full_view = b"v0000" + number(639, 2) + number(479, 2)
@@ -255,6 +318,7 @@ def run(args):
         cache = check_overflow(terminal, root, accent)
         terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
         check_selection(terminal, accent)
+        check_prewrapped(terminal, accent)
 
         terminal.case("RIPv3 regions use the selected outline font and preserve the drawing cursor")
         wire(full_view, b"m8C8C", b"c04",

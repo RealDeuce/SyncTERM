@@ -9166,18 +9166,33 @@ records is tracked in [issue #172](https://github.com/bbs-land/remote-imaging-pr
 `1T` projects its normalized corners to device coordinates and assigns the
 selected global column slot to an article. `1t` expands one prewrapped line
 and draws it horizontally with the live classic or outline font, drawing
-color and write mode. SyncTERM visits the selected article's columns in slot
-order, uses the current font metrics for each line step, and clips ink to the
-column and viewport. Full justification distributes spare width between words.
+color and write mode. A protected port skips the line and preserves the
+article cursor. The column supplies the absolute device anchor and the
+current viewport clips the ink. A line too tall for its current slot moves
+once to the next slot of the selected article. Each painted line advances
+using the font selected for that line and can leave the cursor in the next
+slot. A blank at the start of a continuation column advances only when the
+previous column overlaps it and begins above it. A prewrapped line leaves
+pending raw prose for the article's normal flush.
+
+The original routine at RVA `0x03c00a` accepts justification 0 and 1 and trims
+trailing whitespace. Mode 1 keeps a single word or a space-indented line
+left-aligned. Otherwise it distributes signed padding across the existing
+space-separated runs, so a line wider than the column can compress its
+gaps. Search highlighting compares the complete painted run, including any
+spaces. The original wire handler sets the viewport clip through
+`0x0342ad` and `0x013d27`.
+
 `1E` and `#` end the block for a nonzero article. The legacy article zero
 still accepts prewrapped lines after either command. Drawing resets remove
 the column definitions.
 
 Connected CP437 and UTF-8 cases compare both pixel planes with original
-MicroANSI glyph masks. They exercise corner normalization, justification,
-color changes, slot ordering, a clipped viewport and malformed input recovery.
-They also draw with Dixon and verify that the drawing cursor is preserved.
-RIPtel's prewrapped metric, end and justify edge cases are tracked in
+MicroANSI glyph masks. They exercise signed padding, mixed raw and prewrapped
+input, column transitions, protected ports, viewport clipping and a font size
+change between lines. They also draw with Dixon and check the graphics cursor.
+Full native font-metric equivalence and the reference's conflicting count of
+justify modes remain tracked in
 [issue #173](https://github.com/bbs-land/remote-imaging-protocol/issues/173).
 
 ## Connected raw article flow and search highlighting

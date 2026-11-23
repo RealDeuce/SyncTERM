@@ -103,7 +103,7 @@ struct column_line {
 	int64_t height;
 	int32_t x, y;
 	double width;
-	bool justify;
+	bool prewrapped, justify;
 };
 
 struct article_buffer {
@@ -214,13 +214,19 @@ space(uint8_t byte)
 }
 
 static bool
+word_separator(const struct column_line *line, uint8_t byte)
+{
+	return line->prewrapped ? byte == ' ' : space(byte);
+}
+
+static bool
 next_word(const struct column_line *line, size_t *start, size_t *end)
 {
 	*start = *end;
-	while (*start < line->length && space(line->glyphs[*start]))
+	while (*start < line->length && word_separator(line, line->glyphs[*start]))
 		++*start;
 	*end = *start;
-	while (*end < line->length && !space(line->glyphs[*end]))
+	while (*end < line->length && !word_separator(line, line->glyphs[*end]))
 		++*end;
 	return *end != *start;
 }
@@ -263,35 +269,63 @@ search_color(const struct st_rip3_column_search *search, const uint8_t *word, si
 }
 
 static int
+draw_justified(const struct column_line *line, struct st_rip3_text_position at, size_t words)
+{
+	double total;
+	int status = measure_span(line, line->glyphs, line->length, &total);
+	if (status != 0)
+		return status;
+	/* Existing spaces stay in each run. RIPtel distributes signed extra
+	 * width by flooring the cumulative eight-bit fractional padding. */
+	double padding = trunc((line->width - total) * 256 / (double)(words - 1)) / 256;
+	size_t start, end = 0, previous = 0, word = 0;
+	double advance = 0;
+	while (next_word(line, &start, &end)) {
+		const uint8_t *ink;
+		status = search_color(line->search, line->glyphs + previous, end - previous, &ink);
+		struct st_rip3_text_position run = {at.x + advance + floor((double)word * padding), at.y};
+		if (status == 0)
+			status = draw_run(line, previous, end, run, ink);
+		if (status != 0 || end == line->length)
+			return status;
+		double width;
+		status = measure_span(line, line->glyphs + previous, end - previous, &width);
+		if (status != 0)
+			return status;
+		advance += width;
+		previous = end;
+		++word;
+	}
+	return 0;
+}
+
+static int
 draw_line(void *context, struct st_rip3_point origin)
 {
 	const struct column_line *line = context;
 	struct st_rip3_text_position at = {(double)line->x - origin.x, (double)line->y - origin.y};
-	if (!line->justify && line->search->count == 0)
-		return draw_run(line, 0, line->length, at, NULL);
-	size_t start, end = 0, words = 0;
-	double total = 0, gap = 0;
-	if (line->justify) {
-		while (next_word(line, &start, &end)) {
-			double width;
-			int status = measure_span(line, line->glyphs + start, end - start, &width);
-			if (status != 0)
-				return status;
-			total += width;
+	size_t start, end = 0;
+	if (line->justify && line->glyphs[0] != ' ') {
+		size_t words = 0;
+		while (next_word(line, &start, &end))
 			++words;
-		}
-		if (words > 1 && total < line->width)
-			gap = (line->width - total) / (double)(words - 1);
+		if (words > 1)
+			return draw_justified(line, at, words);
 	}
-	if (gap == 0 && line->search->count == 0)
+	if (line->search->count == 0)
 		return draw_run(line, 0, line->length, at, NULL);
+	if (line->prewrapped) {
+		const uint8_t *ink;
+		int status = search_color(line->search, line->glyphs, line->length, &ink);
+		return status == 0 ? draw_run(line, 0, line->length, at, ink) : status;
+	}
 	size_t previous = 0;
 	end = 0;
 	while (next_word(line, &start, &end)) {
 		double width, space_width = 0;
 		const uint8_t *ink;
 		int status = search_color(line->search, line->glyphs + start, end - start, &ink);
-		if (status == 0 && gap == 0 && previous < start)
+		if (status == 0 && previous < start)
 			status = measure_span(line, line->glyphs + previous, start - previous, &space_width);
 		if (status == 0)
 			status = measure_span(line, line->glyphs + start, end - start, &width);
@@ -300,25 +334,47 @@ draw_line(void *context, struct st_rip3_point origin)
 			status = draw_run(line, start, end, at, ink);
 		if (status != 0)
 			return status;
-		at.x += width + gap;
+		at.x += width;
 		previous = end;
 	}
 	return 0;
 }
 
 static const struct st_rip3_column *
-available_column(struct st_rip3_columns *columns, int64_t line_height)
+current_column(const struct st_rip3_columns *columns, struct st_rip3_column_cursor *cursor)
 {
-	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
 	while (cursor->slot < ST_RIP3_COLUMN_COUNT) {
 		const struct st_rip3_column *slot = &columns->slots[cursor->slot];
-		int64_t height = (int64_t)slot->area.y1 - slot->area.y0 + 1;
-		if (slot->defined && slot->article == columns->article && line_height <= height - cursor->offset)
+		if (slot->defined && slot->article == columns->article)
 			return slot;
 		++cursor->slot;
 		cursor->offset = 0;
 	}
 	return NULL;
+}
+
+static const struct st_rip3_column *
+next_column(const struct st_rip3_columns *columns, struct st_rip3_column_cursor *cursor)
+{
+	++cursor->slot;
+	cursor->offset = 0;
+	return current_column(columns, cursor);
+}
+
+static bool
+line_fits(const struct st_rip3_column_cursor *cursor, const struct st_rip3_column *slot, int64_t line_height)
+{
+	return line_height <= (int64_t)slot->area.y1 - slot->area.y0 + 1 - cursor->offset;
+}
+
+static const struct st_rip3_column *
+available_column(struct st_rip3_columns *columns, int64_t line_height)
+{
+	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
+	const struct st_rip3_column *slot = current_column(columns, cursor);
+	while (slot != NULL && !line_fits(cursor, slot, line_height))
+		slot = next_column(columns, cursor);
+	return slot;
 }
 
 static int
@@ -330,7 +386,20 @@ paint_line(struct st_rip3_columns *columns, struct column_line *line, const stru
 	line->width = (double)slot->area.x1 - slot->area.x0 + 1;
 	line->search = &slot->search;
 	int status = 0;
-	if (line->length != 0)
+	if (line->prewrapped) {
+		unsigned current;
+		struct st_rip3_port_info port;
+		status = st_rip3_ports_current(line->host->ports, &current);
+		if (status == 0)
+			status = st_rip3_ports_info(line->host->ports, current, &port);
+		/* RIPtel uses the column to position the run and the current
+		 * viewport to clip its ink. */
+		if (status == 0 && port.viewport_active)
+			status = draw_line(line, (struct st_rip3_point){
+				port.bounds.x0 + port.viewport.x0, port.bounds.y0 + port.viewport.y0,
+			});
+	}
+	else if (line->length != 0)
 		status = st_rip3_ports_draw_clipped(line->host->ports, &slot->area, draw_line, line);
 	if (status == 0)
 		cursor->offset += line->height;
@@ -678,24 +747,53 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 	return status == 0 && truncated ? IO_ERROR_OUT_OF_RANGE : status;
 }
 
+static bool
+keep_leading_blank(const struct st_rip3_columns *columns, const struct st_rip3_column_cursor *cursor,
+    const struct st_rip3_column *slot)
+{
+	/* In a continuation column, keep the first blank only when the
+	 * previous column crosses its top edge and begins above it. */
+	for (unsigned i = cursor->slot; i > 0; --i) {
+		const struct st_rip3_column *previous = &columns->slots[i - 1];
+		if (previous->defined && previous->article == columns->article) {
+			return slot->area.y0 > previous->area.y0 && slot->area.y0 <= previous->area.y1
+			    && slot->area.x0 <= previous->area.x1 && slot->area.x1 >= previous->area.x0;
+		}
+	}
+	return true;
+}
+
 int
 st_rip3_columns_line(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
     const uint8_t *text, size_t length, bool justify)
 {
-	if (!columns->active || columns->cursors[columns->article].slot == ST_RIP3_COLUMN_COUNT)
+	struct st_rip3_column_cursor *cursor = &columns->cursors[columns->article];
+	if (!columns->active || cursor->slot == ST_RIP3_COLUMN_COUNT)
 		return 0;
-	int status = flush_pending(columns, host);
-	if (status != 0)
-		return status;
-	struct column_line line = {.host = host, .justify = justify};
+	struct column_line line = {.host = host, .prewrapped = true, .justify = justify};
 	uint8_t *owned = NULL;
-	status = st_rip3_command_expanded_glyphs(host->text, text, length, &line.glyphs, &line.length, &owned);
-	if (status == 0)
-		status = prepare_line(&line);
+	int status = st_rip3_command_expanded_glyphs(host->text, text, length, &line.glyphs, &line.length, &owned);
+	bool blank = false;
 	if (status == 0) {
-		const struct st_rip3_column *slot = available_column(columns, line.height);
-		if (slot != NULL)
+		while (line.length != 0 && space(line.glyphs[line.length - 1]))
+			--line.length;
+		blank = line.length == 0;
+		if (blank) {
+			static const uint8_t spacer = ' ';
+			line.glyphs = &spacer;
+			line.length = 1;
+		}
+		status = prepare_line(&line);
+	}
+	if (status == 0) {
+		const struct st_rip3_column *slot = current_column(columns, cursor);
+		if (slot != NULL && !line_fits(cursor, slot, line.height))
+			slot = next_column(columns, cursor);
+		if (slot != NULL && (!blank || cursor->offset != 0 || keep_leading_blank(columns, cursor, slot))) {
 			status = paint_line(columns, &line, slot);
+			if (status == 0 && !line_fits(cursor, slot, line.height))
+				(void)next_column(columns, cursor);
+		}
 	}
 	free(owned);
 	return status;

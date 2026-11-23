@@ -1413,11 +1413,18 @@ region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length
 {
 	if (length < 3 || (bytes[2] != '0' && bytes[2] != '1'))
 		return IO_ERROR_INVALID_FORMAT;
-	if (session->columns.active) {
-		session->justify_region_text = bytes[2] == '1';
-		st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_TEXT, bytes + 3, length - 3);
-		session->graphical_job = GRAPHICAL_REGION_TEXT;
-	}
+	if (!session->columns.active)
+		return 0;
+	struct st_rip3_port_info port;
+	unsigned current;
+	int status = st_rip3_ports_current(session->commands.ports, &current);
+	if (status == 0)
+		status = st_rip3_ports_info(session->commands.ports, current, &port);
+	if (status != 0 || port.protected)
+		return status;
+	session->justify_region_text = bytes[2] == '1';
+	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_TEXT, bytes + 3, length - 3);
+	session->graphical_job = GRAPHICAL_REGION_TEXT;
 	return 0;
 }
 
