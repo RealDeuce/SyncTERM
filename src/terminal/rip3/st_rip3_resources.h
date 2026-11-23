@@ -4,11 +4,15 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 /* Literal bare-name policy shared by file lookup and button filename slots.
  * Expansion is a separate ordinary-text consumer; this never opens a file. */
 bool st_rip3_resource_name_valid(const char *name);
+/* Offset of the longest eligible RIPtel filename suffix. Length means no
+ * usable tail. A caller still has to validate the result for local storage. */
+size_t st_rip3_filename_tail(const uint8_t *name, size_t length);
 
 enum st_rip3_resource_kind {
 	ST_RIP3_RESOURCE_MEDIA,
@@ -57,7 +61,7 @@ void st_rip3_resource_remove_scratch(struct st_rip3_resource *);
 int st_rip3_resource_open(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths,
     enum st_rip3_resource_kind kind, const char *name);
-/* File queries stop at the first matching media file, even if its open fails.
+/* File queries and scene playback stop at the first matching media file, even if its open fails.
  * matched distinguishes that failure from a miss, including on a name race. */
 int st_rip3_resource_open_first(struct st_rip3_resource *result, bool *matched,
 	const struct st_rip3_resource_paths *paths, const char *name);

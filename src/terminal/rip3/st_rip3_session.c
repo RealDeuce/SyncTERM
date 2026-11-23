@@ -263,10 +263,20 @@ text(void *context, const uint8_t *bytes, size_t length)
 }
 
 static void
+scene_text(void *context, const uint8_t *bytes, size_t length)
+{
+	static const uint8_t crlf[] = {'\r', '\n'};
+	if (length == 1 && bytes[0] == '\n')
+		text(context, crlf, sizeof(crlf));
+	else
+		text(context, bytes, length);
+}
+
+static void
 reply(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
-	if (!st_rip3_session_local_scene(session) && session->sink.reply!=NULL)
+	if (session->sink.reply!=NULL)
 		session->sink.reply(session->sink.context,bytes,length);
 }
 
@@ -820,38 +830,56 @@ create_query(struct st_rip3_session *session, struct st_rip3_query **result,
 }
 
 static int
-create_stream(struct st_rip3_session *session, struct st_rip3_stream **result)
+create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, bool playback_file)
 {
-	const struct st_rip3_stream_sink sink={.context=session,.text=text,.command=command,
-	    .at_line_start=line_start,.diagnostic=stream_diagnostic};
+	const struct st_rip3_stream_sink sink={.context=session,.text=playback_file ? scene_text : text,.command=command,
+	    .at_line_start=line_start,.diagnostic=stream_diagnostic,.local_playback=playback_file};
 	return st_rip3_stream_create(result, &sink);
 }
 
 static int
-open_scene(struct st_rip3_session *session, const char *name, bool suspend_query)
+open_scene(struct st_rip3_session *session, const char *filename, bool suspend_query)
 {
-	if (session->commands.resources == NULL || name[0] == '\0')
+	if (session->commands.resources == NULL || session->scene_count == SCENE_LIMIT)
 		return 0;
-	if (session->scene_count == SCENE_LIMIT)
-		return IO_ERROR_OUT_OF_RANGE;
+	size_t length = strlen(filename);
+	size_t start = st_rip3_filename_tail((const uint8_t *)filename, length);
+	if (start == length)
+		return 0;
+	const char *name = filename + start;
+	char *with_extension = NULL;
+	if (strchr(name, '.') == NULL) {
+		length -= start;
+		with_extension = malloc(length + sizeof(".RIP"));
+		if (with_extension == NULL)
+			return IO_ERROR_OUT_OF_MEMORY;
+		memcpy(with_extension, name, length);
+		memcpy(with_extension + length, ".RIP", sizeof(".RIP"));
+		name = with_extension;
+	}
 	struct local_scene scene = {0};
 	int status = st_rip3_overflow_open(&session->columns.overflow, name, &scene.file, &scene.normalized);
-	if (!scene.normalized)
-		status = st_rip3_resource_open(&scene.file, session->commands.resources, ST_RIP3_RESOURCE_MEDIA, name);
+	if (!scene.normalized && st_rip3_resource_name_valid(name)) {
+		bool matched;
+		status = st_rip3_resource_open_first(&scene.file, &matched, session->commands.resources, name);
+	}
+	const char *suffix = strrchr(name, '.');
+	scene.article_text = scene.normalized || (st_rip3_columns_raw_active(&session->columns)
+	    && suffix != NULL && ascii_case_compare(suffix, ".txt") == 0);
+	free(with_extension);
 	if (status == IO_ERROR_NOT_FOUND)
 		return 0;
 	if (status != 0)
 		return status;
-	const char *suffix = strrchr(name, '.');
-	scene.article_text = scene.normalized || (st_rip3_columns_raw_active(&session->columns)
-	    && suffix != NULL && ascii_case_compare(suffix, ".txt") == 0);
 	if (!scene.article_text)
-		status = create_stream(session, &scene.stream);
+		status = create_stream(session, &scene.stream, true);
 	if (status == 0 && suspend_query)
 		status = create_query(session, &scene.query, &session->variables);
 	if (status == 0 && suspend_query)
 		status = create_query(session, &scene.refresh, &session->refresh_variables);
 	if (status == 0) {
+		if (session->sink.before_command != NULL)
+			session->sink.before_command(session->sink.context);
 		session->scenes[session->scene_count++] = scene;
 		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
 	}
@@ -939,6 +967,26 @@ scene_byte_due(struct st_rip3_session *session)
 	return true;
 }
 
+static int
+next_scene_byte(struct local_scene *scene)
+{
+	int value = fgetc(scene->file.stream);
+	if (scene->normalized)
+		return value;
+	if (value == 0x1a)
+		return EOF;
+	if (!scene->normalized && value == '\r') {
+		/* A binary resource stream needs the same text conversion on every
+		 * platform. Use one character of pushback for a bare CR. */
+		int following = fgetc(scene->file.stream);
+		if (following == '\n')
+			value = '\n';
+		else if (following != EOF)
+			(void)ungetc(following, scene->file.stream);
+	}
+	return value;
+}
+
 static bool
 next(void *context, uint8_t *byte)
 {
@@ -946,12 +994,11 @@ next(void *context, uint8_t *byte)
 	while (session->scene_count != 0) {
 		struct local_scene *scene = &session->scenes[session->scene_count - 1];
 		if (!scene->byte_ready) {
-			int value = fgetc(scene->file.stream);
+			int value = next_scene_byte(scene);
 			if (value == EOF) {
 				if (ferror(scene->file.stream))
 					diagnose(session, ST_RIP3_COMMAND_OPERATION_FAILED);
-				/* Complete buffered display and its local reply handling before
-				 * the caller can consume input from its own source again. */
+				/* Flush buffered text and its replies before resuming the caller. */
 				if (session->sink.before_command != NULL)
 					session->sink.before_command(session->sink.context);
 				bool resume_query = scene->queries_active;
@@ -981,6 +1028,8 @@ consume(void *context, uint8_t byte)
 		return;
 	}
 	struct local_scene *scene = &session->scenes[session->scene_count - 1];
+	if (!scene->normalized && byte == 0)
+		return;
 	const uint8_t *data = &byte;
 	size_t size = 1;
 	uint8_t output[4];
@@ -990,8 +1039,10 @@ consume(void *context, uint8_t byte)
 			return;
 		data = output;
 	}
-	if (scene->article_text)
+	if (scene->normalized)
 		text(session, data, size);
+	else if (scene->article_text)
+		scene_text(session, data, size);
 	else
 		st_rip3_stream_process(scene->stream, data, size);
 }
@@ -1408,7 +1459,7 @@ read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink, status, false);
 		return;
 	}
-	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_FILENAME, bytes + 10, length - 10);
+	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_SCENE, bytes + 10, length - 10);
 	session->graphical_job = GRAPHICAL_SCENE;
 }
 
@@ -1875,7 +1926,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	const struct st_rip3_command_sink button_sink={session,diagnose};
 	if (status==0) status=st_rip3_button_renderer_create(&session->commands.buttons,&session->commands,&button_sink,
 	    session->graphical,config->graphical_codepage_converted);
-	if (status==0) status=create_stream(session,&session->stream);
+	if (status==0) status=create_stream(session,&session->stream,false);
 	if (status!=0) {st_rip3_session_destroy(session);return status;}
 	session->ready=true;*result=session;return 0;
 }

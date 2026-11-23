@@ -206,8 +206,7 @@ cterm_output(void *context, enum st_cterm_output_origin origin,
 	st_term_session_t *session = context;
 	if (session->wire_owner != NULL) return;
 	if (origin == ST_CTERM_OUTPUT_RESPONSE && (session->config.suppress_responses
-	    || session->transfer != NULL || session->transfer_reserved
-	    || st_term_rip3_local_scene(session->rip3)))
+	    || session->transfer != NULL || session->transfer_reserved))
 		return;
 
 	if (session->output_error != 0

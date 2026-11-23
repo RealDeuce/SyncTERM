@@ -18,7 +18,7 @@ struct st_rip3_graphical {
 	struct st_rip3_user_variables *user;
 	enum st_rip3_graphical_state state;
 	enum st_rip3_graphical_consumer consumer;
-	uint8_t bytes[4*1022+1];
+	uint8_t bytes[4*4095+1];
 	bool converted;
 	size_t length,cursor,consumed,limit;
 	struct st_rip3_condition_bytes result;
@@ -84,10 +84,11 @@ st_rip3_graphical_start(struct st_rip3_graphical *w, enum st_rip3_graphical_cons
 		return;
 	}
 	st_rip3_graphical_cancel(w);
-	if ((bytes==NULL && length!=0) || consumer<ST_RIP3_GRAPHICAL_FILENAME || consumer>ST_RIP3_GRAPHICAL_METRIC) {
+	if ((bytes==NULL && length!=0) || consumer<ST_RIP3_GRAPHICAL_FILENAME || consumer>ST_RIP3_GRAPHICAL_SCENE) {
 		failed(w,ST_RIP3_HOST_INVALID_REFERENCE);return;
 	}
-	w->consumer=consumer;w->limit=consumer<=ST_RIP3_GRAPHICAL_LABEL ? 255 : 1022;
+	w->consumer=consumer;
+	w->limit=consumer==ST_RIP3_GRAPHICAL_SCENE ? 4095 : consumer<=ST_RIP3_GRAPHICAL_LABEL ? 255 : 1022;
 	length=st_rip3_graphical_prefix(bytes,length,w->limit,w->converted);
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);

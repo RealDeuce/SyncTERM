@@ -1027,7 +1027,7 @@ argument recovery with audio disabled. [RIPv3 tone coverage](RIP3_CONFORMANCE.md
 
 RIPv3 `1R` and `$>NAME$` play cached scenes through the live console. Connected
 CP437 and UTF-8 fixtures check nested return, persistent drawing state, local
-ANSI text, reply suppression, `3e` pacing, mouse actions and recovery after
+ANSI text, child reply ordering, `3e` pacing, mouse actions and recovery after
 missing or recursive files. [RIPv3 scene playback coverage](RIP3_CONFORMANCE.md#connected-rip_read_scene)
 
 RIPv3 `1T`, `1t` and `1E` lay out prewrapped text in global column slots.

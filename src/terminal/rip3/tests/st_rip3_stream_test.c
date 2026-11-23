@@ -73,13 +73,13 @@ diagnostic(void *context, enum st_rip3_stream_diagnostic kind)
 
 static int
 example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_length,
-    const uint8_t *commands, size_t commands_length, size_t calls)
+    const uint8_t *commands, size_t commands_length, size_t calls, bool local_playback)
 {
 	/* Every single split, plus one-byte input, must produce the same literal
 	 * expected transcript. No output from the parser supplies expectations. */
 	for (size_t split = 0; split <= length + 1; split++) {
 		struct observation seen = {0};
-		const struct st_rip3_stream_sink sink = {&seen,text,command,column_one,diagnostic};
+		const struct st_rip3_stream_sink sink = {&seen,text,command,column_one,diagnostic,local_playback};
 		struct st_rip3_stream *stream = NULL;
 
 		CHECK(st_rip3_stream_create(&stream, &sink) == 0);
@@ -101,7 +101,7 @@ example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_leng
 #define EXAMPLE(input, tty, commands, calls) \
 	CHECK(example((const uint8_t *)(input), sizeof(input)-1, \
 	    (const uint8_t *)(tty), sizeof(tty)-1, \
-	    (const uint8_t *)(commands), sizeof(commands)-1, calls) == 0)
+	    (const uint8_t *)(commands), sizeof(commands)-1, calls, false) == 0)
 
 static int
 boundaries(void)
@@ -131,6 +131,11 @@ boundaries(void)
 	EXAMPLE("!|15Largs|1\x1b" "0000\\$Name\\$|123456789X0\r", "", "15Largs\0" "1\x1b" "0000\\$Name\\$\0" "123456789X0\0", 3);
 	EXAMPLE("\x1b[31m\xc4\xb3\r!|@0000\xc4\xb3\r", "\x1b[31m\xc4\xb3\r", "@0000\xc4\xb3\0", 1);
 	EXAMPLE("\xc3\xa9\xe2\x94\x82\r!|@0000\xc3\xa9\xe2\x94\x82\r", "\xc3\xa9\xe2\x94\x82\r", "@0000\xc3\xa9\xe2\x94\x82\0", 1);
+	static const uint8_t local[] = "!|G\\\n00\f\n!|Z00\n!|unfinished";
+	static const uint8_t local_text[] = "\n";
+	static const uint8_t local_commands[] = "G00\0Z00\0";
+	CHECK(example(local, sizeof(local)-1, local_text, sizeof(local_text)-1,
+	    local_commands, sizeof(local_commands)-1, 2, true) == 0);
 	return 0;
 }
 
@@ -138,7 +143,7 @@ static int
 lifetime(void)
 {
 	struct observation seen = {0};
-	const struct st_rip3_stream_sink sink = {&seen,text,command,column_one,diagnostic};
+	const struct st_rip3_stream_sink sink = {&seen,text,command,column_one,diagnostic,false};
 	struct st_rip3_stream *stream = NULL, *sentinel = NULL;
 
 	CHECK(st_rip3_stream_create(NULL, &sink) == IO_ERROR_INVALID_ARGUMENT);
@@ -297,7 +302,7 @@ main(void)
 	static const uint8_t wire[] = "!|h010000015004\\\r\n0220|#\fZ\r\n!|h01000000\nA";
 	static const uint8_t commands[] = "h0100000150040220\0#\0h01000000\0";
 	static const uint8_t ansi[] = "Z\r\nA";
-	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3)==0);
+	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3, false)==0);
 	CHECK(boundaries() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);

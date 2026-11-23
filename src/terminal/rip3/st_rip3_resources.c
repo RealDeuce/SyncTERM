@@ -220,6 +220,18 @@ st_rip3_resource_name_valid(const char *name)
 	return true;
 }
 
+size_t
+st_rip3_filename_tail(const uint8_t *name, size_t length)
+{
+	while (length != 0) {
+		uint8_t byte = name[length - 1];
+		if (byte < 0x20 || byte > 0x7f || strchr("\"*+,/;<=>?[]|", byte) != NULL)
+			break;
+		--length;
+	}
+	return length;
+}
+
 static int
 lookup_resource(struct st_rip3_resource *result,
     const struct st_rip3_resource_paths *paths,

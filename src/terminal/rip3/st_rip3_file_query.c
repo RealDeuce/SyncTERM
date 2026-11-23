@@ -13,20 +13,6 @@
 #include <string.h>
 #include <time.h>
 
-static bool
-name_byte(uint8_t byte)
-{
-	return byte >= 0x20 && byte <= 0x7f && strchr("\"*+,/;<=>?[]|", byte) == NULL;
-}
-
-static size_t
-filename_start(const uint8_t *filename, size_t length)
-{
-	while (length != 0 && name_byte(filename[length - 1]))
-		length--;
-	return length;
-}
-
 static void
 uppercase_name(char *name, const uint8_t *filename, size_t length)
 {
@@ -70,7 +56,7 @@ st_rip3_file_exists(const struct st_rip3_resource_paths *paths, const char *file
 {
 	const uint8_t *bytes = (const uint8_t *)filename;
 	size_t length = strlen(filename);
-	size_t start = filename_start(bytes, length);
+	size_t start = st_rip3_filename_tail(bytes, length);
 	if (start == length)
 		return IO_ERROR_INVALID_FORMAT;
 
@@ -159,7 +145,7 @@ st_rip3_file_query(const struct st_rip3_resource_paths *paths, unsigned mode,
 	*reply = NULL;
 	*reply_length = 0;
 	if (mode > 4 || length == 0) return IO_ERROR_INVALID_FORMAT;
-	size_t start = filename_start(filename, length);
+	size_t start = st_rip3_filename_tail(filename, length);
 	if (start == length) return 0;
 	length -= start;
 	if (length > SIZE_MAX/2-1 || length > SIZE_MAX-64) return IO_ERROR_OUT_OF_RANGE;

@@ -1539,12 +1539,6 @@ st_term_rip3_paused(const struct st_term_rip3 *rip)
 	    || st_rip3_session_wait_ns(rip->session)!=0);
 }
 
-bool
-st_term_rip3_local_scene(const struct st_term_rip3 *rip)
-{
-	return rip != NULL && st_rip3_session_local_scene(rip->session);
-}
-
 void
 st_term_rip3_write(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 {

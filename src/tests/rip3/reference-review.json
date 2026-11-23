@@ -16568,6 +16568,41 @@
         "blocked": 42
       },
       "verification": "Connected CP437 and UTF-8 file queries and native presence/metadata fault tests. Scene boundary changes remain pending."
+    },
+    {
+      "after_commit": "af13ca01",
+      "revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
+      "scope": "Apply the reviewed scene filename preparation, local file line endings and reply rules to connected playback.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.3-local-playback.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:169",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:171",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:181",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:183",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:187",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:189",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:195",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:200",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:202"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:177",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:179"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:206"
+      ],
+      "states_after_update": {
+        "unreviewed": 2492,
+        "context": 1719,
+        "pending": 1692,
+        "implemented": 2985,
+        "excluded": 70,
+        "blocked": 43
+      },
+      "verification": "Native scene session, split-input stream and resource query tests. Connected media and article tests in CP437 and UTF-8.",
+      "followup": "Isolate incomplete ANSI syntax across scene sources and resolve the TXT article framing question in issue #179."
     }
   ]
 }

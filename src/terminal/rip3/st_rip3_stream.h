@@ -33,6 +33,8 @@ struct st_rip3_stream_sink {
 	 * Physical line starts and SOH/STX need no client cursor information. */
 	bool (*at_line_start)(void *context);
 	void (*diagnostic)(void *context, enum st_rip3_stream_diagnostic kind);
+	/* With normalized file input, LF and FF also delimit ordinary commands. */
+	bool local_playback;
 };
 
 /* Creation is a lifetime/resource service, not incoming-data processing. */

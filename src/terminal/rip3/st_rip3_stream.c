@@ -132,7 +132,8 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 		}
 
 		if (stream->active) {
-			const bool scene_end = (byte == '\n' || byte == '\f') && stream->scene;
+			const bool scene_end = (byte == '\n' || byte == '\f')
+			    && (stream->scene || stream->sink.local_playback);
 			if (byte == '\n' && !scene_end)
 				continue;
 			if (byte == '\r' || scene_end) {
@@ -142,14 +143,14 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 					if (!stream->dropping)
 						stream->length--;
 					stream->quoted = false;
-					stream->skip_lf = byte == '\r';
+					stream->skip_lf = byte == '\r' && !stream->sink.local_playback;
 				}
 				else {
 					dispatch(stream);
 					stream->active = false;
 					stream->line_start = true;
 					stream->previous_text = '\r';
-					stream->skip_lf = true;
+					stream->skip_lf = !stream->sink.local_playback;
 				}
 				continue;
 			}

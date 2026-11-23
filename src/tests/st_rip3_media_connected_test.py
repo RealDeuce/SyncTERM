@@ -276,7 +276,8 @@ def check_read_scene(t, root, assets, encoding):
         b"!|c02|X0C0C\r\n\x1b[9;4H" + accent + b"\x1b[6n"
         + query(b"local reply", at_cursor=True))
     t.exchange(query(b"$WORLD(CUR,640,480)$$-=SCENE=Parent.RIP$", at_cursor=True))
-    frame = t.exchange(b"\x1b[3;5H\x01|" + read_scene(b"$&SCENE$") + b"|X0D0D\r\n")
+    frame = t.exchange(b"\x1b[3;5H\x01|" + read_scene(b"$&SCENE$") + b"|X0D0D\r\n",
+                       b"\x1b[9;5Rlocal reply")
     assert pixel(frame, 10, 10) == 0xaa0000
     assert [pixel(frame, point, point) for point in (11, 12, 13)] == [0x00aa00] * 3
     assert frame.cell_text(cell_at(frame, 3, 8)) == "é"
@@ -287,6 +288,31 @@ def check_read_scene(t, root, assets, encoding):
     frame = t.exchange(b"\x01|" + read_scene(b"Missing.RIP") + b"|" + read_scene(b"Self.FN")
                        + b"|X0E0E\r\n" + query(b"alive", at_cursor=True), b"alive")
     assert pixel(frame, 14, 14) == 0x00aa00 and frame.application["connected"] == 1
+
+    t.case("Local scene line endings, continuation, NUL and EOF are local to each file")
+    for ending, digit in zip((b"\r", b"\n", b"\r\n", b"\f"), b"GHIJ"):
+        (assets / "Boundary.RIP").write_bytes(
+            b"!|c\\" + ending + b"0\x003" + ending
+            + b"!|1\x1b0000child" + ending + b"!|X0U0U")
+        coordinate = b"0" + bytes([digit])
+        frame = t.exchange(b"\x01|" + read_scene(b"prefix" * 60 + b"*Boundary")
+                           + b"|X" + coordinate * 2 + b"\r", b"child")
+        point = int(chr(digit), 36)
+        assert pixel(frame, point, point) == 0x00aaaa
+        assert pixel(frame, 30, 30) == 0
+
+    (assets / "DosEnd.RIP").write_bytes(b"!|X0U0U\x1a\r!|1\x1b0000unexpected\r")
+    frame = t.exchange(b"\x01|" + read_scene(b"DosEnd") + b"|"
+                       + read_scene(b"Boundary*") + b"|X0K0K\r"
+                       + query(b"alive", at_cursor=True), b"alive")
+    assert pixel(frame, 30, 30) == 0 and pixel(frame, 20, 20) == 0x00aaaa
+
+    t.case("Local ordinary LF returns to column one and bare CR stays on its row")
+    (assets / "Lines.TXT").write_bytes(b"A\r\nB\nC!\rD\x1aZ")
+    frame = t.exchange(b"\x1b[17;4H\x01|" + read_scene(b"Lines.TXT") + b"\r")
+    assert frame.lines[16][3:4] == "A"
+    assert frame.lines[17][:2] == "B "
+    assert frame.lines[18][:3] == "D! "
 
     t.case("Baud emulation paces local scene bytes")
     (assets / "Pace.TXT").write_bytes(b"abcdef")
@@ -303,10 +329,19 @@ def check_read_scene(t, root, assets, encoding):
         query(b"$-=LOADED=yes$from child", at_cursor=True) + b"\x1b[14;4Hdrawn")
     (assets / "Tail.RIP").write_bytes(query(b"$-=LOADED=last$", at_cursor=True))
     frame = t.exchange(query(b"before$>Missing$$>Macro$$&LOADED$$>Tail$$&LOADED$after", at_cursor=True),
-                       b"beforeyeslastafter")
+                       b"from childlocalbeforeyeslastafter")
     assert frame.lines[13][3:8] == "drawn"
     t.exchange(b"\x01|2R0000refresh$>Nested$$&LOADED$\r\n")
-    t.exchange(query(b"$REFRESH$done", at_cursor=True), b"refreshyesdone")
+    t.exchange(query(b"$REFRESH$done", at_cursor=True), b"from childrefreshyesdone")
+
+    t.case("File-query and ANSI replies precede the response that opened the scene")
+    (assets / "Reply.RIP").write_bytes(b"!|1F000000Lines.TXT\n\x1b[5n")
+    frame = t.exchange(query(b"$>Reply$OK", at_cursor=True), b"1\x1b[0nOK")
+    assert frame.application["connected"] == 1
+
+    t.case("Refusing excessive scene depth still completes the callers' responses")
+    (assets / "Loop.RIP").write_bytes(query(b"$>Loop$Q", at_cursor=True))
+    t.exchange(query(b"X$>Loop$Y", at_cursor=True), b"Q" * 8 + b"XY")
 
     t.case("Mouse field scene playback resumes the same action")
     (assets / "Click.RIP").write_bytes(b"!|c04|X0F0F\r\n")

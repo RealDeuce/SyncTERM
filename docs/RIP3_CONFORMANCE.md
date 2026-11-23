@@ -9228,32 +9228,37 @@ the presence check opens no stream and reads no stream metadata.
 ## Connected RIP_READ_SCENE
 
 Wire `1R` consumes eight reserved digits at the current base and expands the
-filename through the graphical argument evaluator. It resolves the name in the
-active BBS cache with the global RIP directory as fallback. Each open file uses
-its own line framer and the live drawing and text state. Nested calls return to
-the parent source, and changes to drawing and text state carry through the
-return. Local text uses the entry's encoding and renders through the connected
-console. The input pump bounds processing per poll and closes scene files on
-return or cancellation.
+filename through the graphical argument evaluator. Playback takes the longest
+eligible trailing run and adds `.RIP` to an extensionless name. Lookup starts
+in the active BBS RIP cache and falls back to the read-only Global RIP
+Directory. A failed first match returns to the caller. Each file starts at a
+fresh RIP line boundary and uses the live drawing and text state. Nested
+returns preserve completed effects. The input pump bounds processing per poll
+and closes scene files on return or cancellation.
 
-SyncTERM currently permits eight open local scenes and suppresses RIP and ANSI
-replies while a file is running. The framer expects a command delimiter or CR
-for ordinary commands. The adopted [PR #176](https://github.com/bbs-land/remote-imaging-protocol/pull/176)
-specifies the remaining filename, local byte normalization, ANSI source
-isolation and child reply behavior. Those changes remain pending.
-Cached `.TXT` sources feed an active article as prose.
+The file reader converts CRLF to LF, skips NUL and treats Ctrl+Z as EOF.
+Bare CR, LF and form feed delimit RIP commands and support normal backslash
+continuation. EOF drops an unfinished RIP command. Ordinary text uses the
+entry's encoding and receives a CR before each LF. Cached `.TXT` files
+opened while an article is active continue to feed literal prose. The
+original behavior for command-like sequences in those files needs
+clarification. [Issue #179](https://github.com/bbs-land/remote-imaging-protocol/issues/179)
+Commands in a scene can send RIP, file-query and ANSI replies over the
+connection. Partial ANSI syntax still shares the running text interpreter
+across file boundaries. Isolation of that syntax remains pending under the
+adopted contract. [PR #176](https://github.com/bbs-land/remote-imaging-protocol/pull/176)
 
-Connected CP437 and UTF-8 fixtures check command ordering before and after a
-nested call, independent pixel and cell results, computed filenames, the global
-fallback, response suppression, and recovery from a missing or recursive scene.
+Connected CP437 and UTF-8 fixtures check exact child replies, nested resumption
+on CR and pipe, pixel and cell results, filename expansion, and recovery from
+missing files or a scene refused at the eight-file depth limit.
 
 `$>NAME$` uses the same reader from immediate queries, REFRESH and mouse
 actions. It pauses the invoking evaluator while the child scene runs. The
-parent resumes with its buffered reply and original field identity. Connected
-tests verify chained and nested files, continued evaluation after a missing
-file, and the parent reply after local drawing and variable changes. Native
-fault cases cover child allocation failures and cancellation while a caller
-is suspended.
+parent resumes with its buffered reply and original field identity. Child
+replies go to the connection before the parent sends its surviving response.
+Connected tests also verify continued evaluation after a missing or refused
+file. Native fault cases cover child allocation failures and cancellation
+while a caller is suspended.
 
 `3e` applies the current ENV baud setting to local scene bytes. Zero runs at
 full speed. The local clock budgets ten bits per source byte and limits catch-up
