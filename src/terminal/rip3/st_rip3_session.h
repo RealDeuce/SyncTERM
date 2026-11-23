@@ -234,13 +234,16 @@ void st_rip3_session_cancel(struct st_rip3_session *session);
 struct st_rip3_session_prompt {
 	const struct st_rip3_variable_reference *reference;
 	const struct st_rip3_variable_value *initial;
+	bool definition, reject_blank;
 };
 /* Borrowed prompt views, invalidated by response/process/cancel/destruction.
- * Report only a query-owned prompt; do not answer another consumer's prompt. */
+ * Report only prompts owned by this session. */
 bool st_rip3_session_prompt(const struct st_rip3_session *session,
 	struct st_rip3_session_prompt *result);
 void st_rip3_session_respond(struct st_rip3_session *session,
 	const uint8_t *bytes, size_t length, bool cancelled);
+/* Abandon a 1D definition when its editor is unavailable or failed. */
+void st_rip3_session_abort_definition(struct st_rip3_session *session);
 
 /* Borrow the current ordinary/refresh query's modal list and its placement
  * frame. A list suspends that query until answered by its UI owner. */

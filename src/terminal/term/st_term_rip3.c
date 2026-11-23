@@ -1263,9 +1263,16 @@ prompt(struct st_term_rip3 *rip)
 		status=rip->config.rip_prompt(rip->config.rip_prompt_context,
 		    reference->has_question ? (const char *)reference->question.bytes : reference->name,
 		    view.initial==NULL ? "" : (const char *)view.initial->bytes,
-		    reference->has_width ? reference->width : 255,false,&value);
+		    reference->has_width ? reference->width : 255,view.reject_blank,&value);
 	rip->observing_prompt=false;
-	if (status!=0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+	if (status!=0) {
+		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+		if (view.definition) {
+			st_rip3_session_abort_definition(rip->session);
+			free(value);
+			return;
+		}
+	}
 	st_rip3_session_respond(rip->session,(const uint8_t *)value,value==NULL ? 0 : strlen(value),
 	    status!=0 || value==NULL);
 	free(value);

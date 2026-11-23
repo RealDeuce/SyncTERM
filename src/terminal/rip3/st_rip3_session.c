@@ -103,6 +103,7 @@ struct st_rip3_session {
 	uint64_t scene_baud, scene_clock, scene_credit;
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
+	bool defining_variable, definition_reject_blank;
 	bool ready;
 	bool text_active, input_locked;
 	unsigned scene_revision, scene_charset;
@@ -998,7 +999,7 @@ consume(void *context, uint8_t byte)
 static bool
 continuation_pending(const struct st_rip3_session *session)
 {
-	return st_rip3_query_pending(session->commands.query) || st_rip3_refresh_pending(&session->refresh)
+	return session->defining_variable || st_rip3_query_pending(session->commands.query) || st_rip3_refresh_pending(&session->refresh)
 	    || session->graphical_job || st_rip3_button_renderer_pending(session->commands.buttons)
 	    || st_rip3_mouse_pending(session->commands.mouse);
 }
@@ -1007,6 +1008,8 @@ static bool
 prepare(void *context)
 {
 	struct st_rip3_session *session=context;
+	if (session->defining_variable)
+		return false;
 	(void)activate_scene_queries(session);
 	bool pending=continuation_pending(session);
 	if (pending)
@@ -1351,6 +1354,42 @@ switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t l
 	return status;
 }
 
+static int
+define_variable(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	struct st_rip3_environment environment;
+	unsigned current;
+	uint64_t flags, reserved;
+	struct st_rip3_variable_reference definition;
+	struct st_rip3_user_variables *user = session->variables.user_variables;
+	bool utf8 = session->text.encoding == ST_RIP3_TEXT_UTF8;
+
+	if (length <= 7 || memchr(bytes + 7, 0, length - 7) != NULL)
+		return IO_ERROR_INVALID_FORMAT;
+	int status = st_rip3_command_environment(&session->commands, &current, &environment);
+	if (status == 0)
+		status = st_rip3_command_field(&flags, bytes + 2, 3, environment.base_math);
+	if (status == 0)
+		status = st_rip3_command_field(&reserved, bytes + 5, 2, environment.base_math);
+	if (status == 0)
+		status = st_rip3_variable_definition_parse(&definition, bytes + 7, length - 7,
+		    utf8, session->graphical_codepage_converted);
+	if (status != 0)
+		return status;
+	if (user == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (st_rip3_user_variables_state(user) == ST_RIP3_USER_VARIABLE_PROMPT)
+		return IO_ERROR_BUSY;
+	definition.directives = ST_RIP3_VARIABLE_SET
+	    | ((flags & 1) ? ST_RIP3_VARIABLE_PERSISTENT : ST_RIP3_VARIABLE_SESSION);
+	st_rip3_user_variables_define(user, &definition, (flags & 4) == 0, utf8, session->graphical_codepage_converted);
+	session->defining_variable = st_rip3_user_variables_state(user) == ST_RIP3_USER_VARIABLE_PROMPT;
+	session->definition_reject_blank = (flags & 2) != 0;
+	if (!session->defining_variable)
+		st_rip3_user_variables_abort(user);
+	return 0;
+}
+
 static void
 read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
@@ -1447,6 +1486,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'F')
 		file_query(session,bytes,length);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'D')
+		st_rip3_command_result(&sink, define_variable(session, bytes, length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
 		read_scene(session,bytes,length);
 	else if (length >= 2 && bytes[0] == '1' && (bytes[1] == 'T' || bytes[1] == 'e'))
@@ -1510,6 +1551,7 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 		close_scene(session);
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_query_cancel(session->refresh.query);
+	st_rip3_session_abort_definition(session);
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	st_rip3_columns_dispose(&session->columns);
 	session->field_program=false;
@@ -1891,12 +1933,26 @@ st_rip3_session_local_scene(const struct st_rip3_session *session)
 bool
 st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_session_prompt *result)
 {
-	if (session==NULL || result==NULL || (!st_rip3_query_prompt_pending(session->commands.query)
+	if (session==NULL || result==NULL || (!session->defining_variable && !st_rip3_query_prompt_pending(session->commands.query)
 	    && !st_rip3_query_prompt_pending(session->refresh.query) && st_rip3_graphical_state(session->graphical)!=ST_RIP3_GRAPHICAL_PROMPT)) return false;
 	const struct st_rip3_variable_reference *reference=st_rip3_user_variables_prompt(session->variables.user_variables);
 	if (reference==NULL) return false;
-	*result=(struct st_rip3_session_prompt){reference,st_rip3_user_variables_initial(session->variables.user_variables)};
+	*result = (struct st_rip3_session_prompt){
+		.reference = reference,
+		.initial = st_rip3_user_variables_initial(session->variables.user_variables),
+		.definition = session->defining_variable,
+		.reject_blank = session->defining_variable && session->definition_reject_blank,
+	};
 	return true;
+}
+
+void
+st_rip3_session_abort_definition(struct st_rip3_session *session)
+{
+	if (session != NULL && session->defining_variable) {
+		st_rip3_user_variables_abort(session->variables.user_variables);
+		session->defining_variable = false;
+	}
 }
 
 void
@@ -1905,7 +1961,17 @@ st_rip3_session_respond(struct st_rip3_session *session, const uint8_t *bytes, s
 	if (session==NULL) return;
 	struct st_rip3_session_prompt prompt;
 	if (!st_rip3_session_prompt(session,&prompt)) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
-	st_rip3_user_variables_respond(session->variables.user_variables,bytes,length,cancelled);
+	if (prompt.definition) {
+		if (!cancelled && prompt.reject_blank && length == 0)
+			return;
+		/* The 1D editor's cancellation stores an empty value. Transport
+		 * failure and loss of the editor go through abort_definition. */
+		st_rip3_user_variables_respond(session->variables.user_variables,
+		    cancelled ? NULL : bytes, cancelled ? 0 : length, false);
+		st_rip3_session_abort_definition(session);
+	}
+	else
+		st_rip3_user_variables_respond(session->variables.user_variables,bytes,length,cancelled);
 	(void)prepare(session);
 	++session->revision;
 }

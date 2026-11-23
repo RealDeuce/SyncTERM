@@ -249,6 +249,70 @@ prompts_and_delays(void)
 }
 
 static int
+wire_variable_definition(void)
+{
+	struct st_rip3_variables *values = NULL, *persistent = NULL;
+	struct st_rip3_user_variables *user = NULL;
+	CHECK(st_rip3_variables_create(&values) == 0 && st_rip3_variables_create(&persistent) == 0);
+	const struct st_rip3_user_variable_host user_host = {.session = values, .persistent = persistent};
+	CHECK(st_rip3_user_variables_create(&user, &user_host) == 0);
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	const struct st_rip3_host_variables services = {.user_variables = user};
+	options.services = &services;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+
+	CHECK(append(&f, "!|1D0077ZSaved,5:?Question?Default|1D00400Empty:?Question\r") == 0 && pump(&f) == 0);
+	struct st_rip3_variable_value value;
+	CHECK(st_rip3_variables_get(persistent, "Saved", 5, &value) == 0 && strcmp((char *)value.bytes, "Defa") == 0);
+	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == IO_ERROR_NOT_FOUND);
+	CHECK(st_rip3_variables_get(values, "Empty", 5, &value) == 0 && value.length == 0);
+	CHECK(f.reply_length == 0 && f.errors == 0);
+	CHECK(append(&f, "!|1D00400Literal:x\\|y$NULL$|1D00400Saved:?Only a question\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_variables_get(values, "Literal", 7, &value) == 0 && strcmp((char *)value.bytes, "x|y$NULL$") == 0);
+	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == 0 && strcmp((char *)value.bytes, "Defa") == 0);
+	const char existing[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890123456789";
+	CHECK(st_rip3_variables_set(values, "Existing", 8, (const uint8_t *)existing, sizeof(existing) - 1) == 0);
+	CHECK(append(&f, "!|1D00400Existing,5:?Use previous\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_variables_get(values, "Existing", 8, &value) == 0 && value.length == 60
+	    && memcmp(value.bytes, existing, 60) == 0);
+	CHECK(append(&f, "!|1D00400ABCDEFGHIJKLMNOPQRST:bad|1D00400Saved:|1D00400Saved,x:bad|1D00400Saved,65541:GoodValue\r")
+	    == 0 && pump(&f) == 0 && f.errors == 3);
+	CHECK(query(&f, "$&SAVED$", "Good") == 0);
+
+	CHECK(append(&f, "!|1D00200Saved,5:?New name?Default|1\0330000$&SAVED$\r") == 0 && pump(&f) == 0);
+	struct st_rip3_session_prompt prompt;
+	CHECK(st_rip3_session_prompt(f.session, &prompt) && prompt.definition && prompt.reject_blank);
+	CHECK(prompt.reference->width == 5 && strcmp((const char *)prompt.reference->question.bytes, "New name?") == 0);
+	CHECK(strcmp((const char *)prompt.initial->bytes, "Defa") == 0);
+	size_t stopped = f.read;
+	f.reply_length = 0;
+	st_rip3_session_respond(f.session, NULL, 0, false);
+	CHECK(pump(&f) == 0 && f.read == stopped && st_rip3_session_prompt(f.session, &prompt));
+	st_rip3_session_respond(f.session, (const uint8_t *)"Ada", 3, false);
+	CHECK(!st_rip3_session_prompt(f.session, &prompt) && f.read == stopped && f.reply_length == 0);
+	CHECK(pump(&f) == 0 && f.reply_length == 3 && memcmp(f.reply, "Ada", 3) == 0);
+
+	CHECK(append(&f, "!|1D00000Saved:?Another question\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_prompt(f.session, &prompt) && strcmp((const char *)prompt.initial->bytes, "Ada") == 0);
+	st_rip3_session_respond(f.session, NULL, 0, true);
+	CHECK(query(&f, "$&SAVED$", "NULL") == 0);
+
+	CHECK(append(&f, "!|1D00100Saved:?Missing editor\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_prompt(f.session, &prompt));
+	st_rip3_session_abort_definition(f.session);
+	CHECK(st_rip3_variables_get(persistent, "Saved", 5, &value) == 0 && strcmp((char *)value.bytes, "Defa") == 0);
+	CHECK(append(&f, "!|1D00000Saved:new\r") == 0 && pump(&f) == 0 && st_rip3_session_prompt(f.session, &prompt));
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_user_variables_state(user) == ST_RIP3_USER_VARIABLE_IDLE);
+	CHECK(st_rip3_variables_get(values, "Saved", 5, &value) == 0 && value.length == 0);
+	st_rip3_user_variables_destroy(user);
+	st_rip3_variables_destroy(values);
+	st_rip3_variables_destroy(persistent);
+	return 0;
+}
+
+static int
 cancellation_and_isolation(void)
 {
 	struct fixture a={0},b={0};struct st_rip3_session_config options=config(&a,ST_RIP3_CANVAS_640_480);
@@ -2147,7 +2211,7 @@ main(void)
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0
 	    && literal_dixon(ST_RIP3_CANVAS_1024_768,1024,768,21)==0);
-	CHECK(prompts_and_delays()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
+	CHECK(prompts_and_delays()==0 && wire_variable_definition()==0 && cancellation_and_isolation()==0 && borrowed_user()==0
 	    && normal_window()==0 && normalized_text_window()==0 && text_cursor()==0 && cursor_variables()==0 && text_erases()==0 && window_table()==0 && window_queries()==0 && extended_window()==0
 	    && text_deactivation()==0 && text_activation_variables()==0
 	    && construction(false)==0 && construction(true)==0);

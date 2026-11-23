@@ -31,7 +31,9 @@ enum st_rip3_variable_conversion {
 
 struct st_rip3_variable_prompt_text {
 	size_t length;
-	uint8_t bytes[101]; /* First 100 original bytes plus a convenience NUL. */
+	/* Inline references retain 100 bytes. RIP_DEFINE questions may hold
+	 * sixty codepage characters normalized to UTF-8, plus '?' and NUL. */
+	uint8_t bytes[60 * 4 + 2];
 };
 
 struct st_rip3_variable_reference {

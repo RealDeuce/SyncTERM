@@ -1,9 +1,11 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_host_internal.h"
 #include "st_rip3_variable_reference.h"
+#include "st_rip3_graphical_bytes.h"
 
 #include "io_error.h"
 
+#include <stdio.h>
 #include <string.h>
 
 struct parser {
@@ -147,6 +149,78 @@ prompt_text(struct st_rip3_variable_prompt_text *result,
 {
 	result->length = length > 100 ? 100 : length;
 	memcpy(result->bytes, text, result->length);
+}
+
+static void
+definition_text(struct st_rip3_variable_prompt_text *result, const uint8_t *text,
+    size_t length, size_t budget, bool utf8, bool converted)
+{
+	for (size_t offset = 0; offset < length;) {
+		if (text[offset] == '\\' && offset + 1 < length && text[offset + 1] == '|')
+			offset++;
+		size_t size = utf8 ? st_rip3_graphical_character(text + offset, length - offset) : 1;
+		size_t units = converted ? 1 : size;
+		if (units > budget)
+			break;
+		memcpy(result->bytes + result->length, text + offset, size);
+		result->length += size;
+		offset += size;
+		budget -= units;
+	}
+}
+
+int
+st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result,
+    const uint8_t *text, size_t length, bool utf8, bool converted)
+{
+	struct st_rip3_variable_reference definition = {.has_width = true, .width = 60, .has_question = true};
+	const uint8_t *colon = memchr(text, ':', length);
+	if (colon == NULL || colon == text + length - 1)
+		return IO_ERROR_INVALID_FORMAT;
+	const uint8_t *name_end = memchr(text, ',', (size_t)(colon - text));
+	if (name_end == NULL)
+		name_end = colon;
+	size_t name_length = (size_t)(name_end - text);
+	if (name_length == 0 || name_length >= 20 || !letter(text[0]))
+		return IO_ERROR_INVALID_FORMAT;
+	for (size_t i = 1; i < name_length; i++) {
+		if (!letter(text[i]) && !digit(text[i]) && text[i] != '_')
+			return IO_ERROR_INVALID_FORMAT;
+	}
+	memcpy(definition.name, text, name_length);
+	if (name_end != colon) {
+		const uint8_t *digits = name_end + 1;
+		if (digits == colon || !digit(*digits))
+			return IO_ERROR_INVALID_FORMAT;
+		uint16_t width = 0;
+		/* The definition parser consumes the decimal prefix as a WORD. */
+		for (; digits != colon && digit(*digits); digits++)
+			width = (uint16_t)(width * 10u + (*digits - '0'));
+		if (width >= 1 && width <= 60)
+			definition.width = width;
+	}
+	const uint8_t *end = text + length;
+	const uint8_t *value = colon + 1;
+	if (*value == '?') {
+		const uint8_t *question = ++value;
+		const uint8_t *close = memchr(question, '?', (size_t)(end - question));
+		definition_text(&definition.question, question, (size_t)((close == NULL ? end : close) - question),
+		    60, utf8, converted);
+		value = close == NULL ? end : close + 1;
+	}
+	if (definition.question.length == 0) {
+		int size = snprintf((char *)definition.question.bytes, sizeof(definition.question.bytes),
+		    "Please Enter Information for \"%s\"", definition.name);
+		if (size < 0 || (size_t)size >= sizeof(definition.question.bytes))
+			return IO_ERROR_OUT_OF_RANGE;
+		definition.question.length = (size_t)size;
+	}
+	else
+		definition.question.bytes[definition.question.length++] = '?';
+	definition_text(&definition.default_value, value, (size_t)(end - value), definition.width - 1, utf8, converted);
+	definition.has_default = definition.default_value.length != 0;
+	*result = definition;
+	return 0;
 }
 
 int

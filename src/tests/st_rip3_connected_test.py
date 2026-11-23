@@ -202,6 +202,21 @@ Hook.onKey(Key.f9) {|event|
             client.key("enter")
             receive(peer, b"Ada\x1b[0n", root / "replies.bin")
             assert client.capture().application["connected"] == 1
+            t.case("rip3-wire-variable-definition")
+            accented = b"\x82AB" if args.encoding == "CP437" else "éAB".encode()
+            frame = t.exchange(b"\x01|1D0047ZLength,4:" + accented + b"|1D00400Empty:?Title\r\n"
+                               + query(b"$&LENGTH$:$&EMPTY$", at_cursor=True),
+                               accented[:3] + b":NULL")
+            assert frame.application["connected"] == 1
+            send(b"\x01|1D00200Answer,8:?Enter reply|1\x1b0000$&ANSWER$\r\n\x1b[5n")
+            client.wait_text("Enter reply?")
+            client.text("live")
+            client.key("enter")
+            receive(peer, b"live\x1b[0n", root / "replies.bin")
+            send(b"\x01|1D00000Answer:?Cancel editor|1\x1b0000$&ANSWER$\r\n\x1b[5n")
+            client.wait_text("Cancel editor?")
+            client.key("escape")
+            receive(peer, b"NULL\x1b[0n", root / "replies.bin")
 
         t.case("rip3-connected-offscreen-port-and-bitmap-export")
         # Explicit device-sized WORLD, then a 2x2 offscreen port filled red.

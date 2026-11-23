@@ -62,6 +62,10 @@ void st_rip3_user_variables_destroy(struct st_rip3_user_variables *variables);
  * Nonbusy starts discard any previous result; invalid starts become idle. */
 void st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 	const struct st_rip3_variable_reference *reference);
+/* Start a decoded 1D definition with the same stores and editor. The
+ * caller supplies SET and the destination flag, and owns prompt recovery. */
+void st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
+	const struct st_rip3_variable_reference *reference, bool interactive, bool utf8, bool converted);
 /* Respond only in PROMPT state. Values truncate to 255 protocol bytes before
  * the format adapter. Cancellation ignores value/length. '*' rejects user
  * cancellation and retains the prompt; accepted empty input remains legal.

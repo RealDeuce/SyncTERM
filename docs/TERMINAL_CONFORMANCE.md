@@ -1012,6 +1012,10 @@ sizes. Native fixtures exercise open and metadata failures. [RIPv3 file-query co
 graphical fields. Connected CP437 and UTF-8 fixtures verify the cache lookup,
 alias rewriting and malformed-reference recovery. [RIPv3 FILEEXISTS coverage](RIP3_CONFORMANCE.md#connected-fileexists)
 
+Wire `1D` defines variables in live RIPv3 sessions. The connected tests
+exercise literal defaults, the interactive editor and ordered queries in
+CP437 and UTF-8. [RIPv3 RIP_DEFINE coverage](RIP3_CONFORMANCE.md#connected-rip_define)
+
 RIPv3 `D`, `d` and `2A` update and select the current drawing palette.
 Live CP437 and UTF-8 fixtures verify PALENTRY replies, protection and
 recoloring of existing indexed pixels. [RIPv3 palette coverage](RIP3_CONFORMANCE.md#connected-drawing-palette-commands)

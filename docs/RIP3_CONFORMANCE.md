@@ -9169,6 +9169,37 @@ Connected CP437 and UTF-8 tests compare complete replies for hits, misses,
 aliases, global fallback and malformed-command recovery. Native fault tests
 distinguish lookup, open, length, metadata and time-conversion outcomes.
 
+## Connected RIP_DEFINE
+
+Wire `1D` uses the current radix for its three flag digits and two reserved
+digits. It accepts a 1–19 character ASCII identifier, an optional decimal
+width, and a colon followed by a nonempty definition. A leading `?` starts
+the question and the next `?` starts the default. Without a closing question
+mark, the remainder is the question. The width uses the decimal prefix as a
+WORD, with 60 as the fallback outside 1–60. The literal default is limited to
+one byte fewer than the width, measured in original codepage bytes for CP437
+input. A clipped UTF-8 value ends at a complete character.
+
+Flag 1 selects persistent storage. Flag 2 rejects an accepted blank editor
+response. Flag 4 allows a silent definition, including for an undefined
+name. A nonempty literal default takes precedence over an existing value,
+which is copied up to the first 60 original bytes when used as the fallback.
+Definitions use the same session and persistent stores as inline variables
+and send no automatic reply. An interactive command pauses further input
+until the editor completes. An explicit editor cancellation saves an empty
+value. A failed editor or shutdown abandons the pending write.
+
+Native execution of RIPtel 3.1's definition parser and request logic
+confirmed these decoded inputs and writer calls with controlled services.
+An original record flag can force the editor despite flag 4 and the
+original editor may update the flag. SyncTERM has no matching stored flag or
+checkbox yet. The difference between the draft and the shipped parser, and
+the contract for that editor flag, are tracked upstream. [Issue #175](https://github.com/bbs-land/remote-imaging-protocol/issues/175)
+
+The native fixture covers both stores, recovery, literal payloads, retries
+and cancellation. Connected CP437 and UTF-8 fixtures exercise the wire
+command, byte limits, prompt ordering and later queries.
+
 ## Connected FILEEXISTS
 
 `$FILEEXISTS(filename)$` takes one parameter and expands to `1` for a present
