@@ -1078,3 +1078,25 @@ remembered copy pair. Activation, queries and pixels persist. Bit 1 selects
 port 0 and invokes it. Bit 8 preserves the logical current port and invokes it
 only while that current port is nonzero. The [connected implementation](RIP3_CONFORMANCE.md#connected-header-port-zero-initializer)
 records runtime evidence.
+
+## PR #160 HARD reset field and lifetime profile
+
+The fork stable pin is now
+[`430f052d0e1d93af6a56aff343d379a5709cdcd5`](https://github.com/RealDeuce/remote-imaging-protocol/tree/430f052d0e1d93af6a56aff343d379a5709cdcd5).
+It contains the reviewed [PR #160](https://github.com/bbs-land/remote-imaging-protocol/pull/160)
+head `4e87d32598f4eb39ce153ad72e2ef8437871a063`. The SHA-256 of the pinned Git
+tar archive is `f642e26e6395756fc871dcc3d7dd074e8113a8913e6823deb0620e2f16553a50`.
+The archive was processed in memory.
+
+Six of the 68 normative documents change. Exact-text matching retains 8771
+source blocks, with 275 line references moving. There are 50 new blocks and
+four retired blocks, for a total of 8821. Of the 75 previous derivations, 74
+retain their hashes. The SOFT derivation adds a cross-reference to the new
+HARD derivation. Both original protocol texts and the license retain their
+hashes.
+
+B158 is resolved by the published specification. The shared HARD operation
+clears template slots, preserves session and persistent variables, and keeps
+the current host program and partial ANSI syntax. HEADER and immediate HARD
+have distinct revision and input lock outcomes. The updated acceptance rows
+remain pending until the connected behavior covers the new profile.

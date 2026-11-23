@@ -8914,9 +8914,10 @@ numbered saves, base and stack saves, and an assigned clipboard. Both reset
 paths clear those entries and saves, select slot zero in all six live tables,
 restore the default palette and keep the connection usable.
 
-Exact HARD lifetimes for templates, variables and pending ANSI syntax, along
-with the full TW 0, ENV 0 and raster postconditions, still need clarification.
-[Upstream issue #158](https://github.com/bbs-land/remote-imaging-protocol/issues/158)
+The full HARD field and lifetime profile is now specified. The remaining
+connected acceptance work covers template cleanup, retained variables, pending
+ANSI syntax and the complete TW 0, ENV 0 and raster postconditions.
+[Upstream PR #160](https://github.com/bbs-land/remote-imaging-protocol/pull/160)
 
 The queue contains 2511 implemented, 1684 pending, 2936 unreviewed,
 1551 context, 67 excluded and 26 blocked units.
