@@ -26,8 +26,7 @@ same(const struct st_rip3_environment *a, const struct st_rip3_environment *b)
 	    && a->port == b->port && a->text_window == b->text_window && a->palette == b->palette
 	    && a->world_width == b->world_width && a->world_height == b->world_height
 	    && a->base_math == b->base_math && a->coordinate_size == b->coordinate_size
-	    && a->rgb_bits == b->rgb_bits && a->mouse_pointer == b->mouse_pointer
-	    && a->baud_rate == b->baud_rate;
+	    && a->rgb_bits == b->rgb_bits && a->mouse_pointer == b->mouse_pointer;
 }
 
 static struct st_rip3_environment
@@ -36,7 +35,7 @@ custom(void)
 	return (struct st_rip3_environment){.graphics_style = 1, .button_style = 2,
 	    .port = 3, .text_window = 4, .palette = 5, .world_width = 1000,
 	    .world_height = 1000, .base_math = 64, .coordinate_size = 5,
-	    .rgb_bits = 8, .mouse_pointer = 6, .baud_rate = UINT64_C(123456789012)};
+	    .rgb_bits = 8, .mouse_pointer = 6};
 }
 
 static int
@@ -54,7 +53,7 @@ records(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environment_defaults(&defaults) == 0);
 	CHECK(defaults.world_width == 640 && defaults.world_height == 350
 	    && defaults.base_math == 36 && defaults.coordinate_size == 2
-	    && defaults.rgb_bits == 0 && defaults.mouse_pointer == 0 && defaults.baud_rate == 0);
+	    && defaults.rgb_bits == 0 && defaults.mouse_pointer == 0);
 	CHECK(st_rip3_environments_create(&environments, canvas) == 0);
 	CHECK(st_rip3_environments_current(environments, &current) == 0 && current == 0);
 	for (unsigned i = 0; i < 36; i++) {
@@ -125,7 +124,7 @@ records(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		CHECK(st_rip3_environments_set(environments, 35, &value) == IO_ERROR_OUT_OF_RANGE);
 		CHECK(st_rip3_environments_get(environments, 35, &value) == 0 && same(&value, &initial));
 	}
-	value = initial; value.world_width = 1; value.world_height = 32767; value.baud_rate = UINT64_MAX;
+	value = initial; value.world_width = 1; value.world_height = 32767;
 	CHECK(st_rip3_environments_set(environments, 35, &value) == 0);
 	CHECK(st_rip3_environments_get(environments, 35, &initial) == 0 && same(&value, &initial));
 	CHECK(st_rip3_environments_get(environments, 36, &value) == IO_ERROR_OUT_OF_RANGE);
@@ -282,24 +281,24 @@ host_variables(void)
 	CHECK(run(&host, "$WORLDH$", "350", -1) == 0);
 	CHECK(run(&host, "$COLORMODE$", "0", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL$", "0", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(CUR,9600)$", "", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL(9600)$", "", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL$", "9600", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(CUR)$", "9600", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(CUR,2400)$", "", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL()$", "9600", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL(2400)$", "", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL$", "2400", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(CUR,0)$", "", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL(0)$", "", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL$", "0", -1) == 0);
 	CHECK(run(&host, "$BASEMATH(35)$", "64", -1) == 0);
 	CHECK(run(&host, "$COORDSIZE(35)$", "5", -1) == 0);
 	CHECK(run(&host, "$WORLD(35)$", "1000:1000", -1) == 0);
 	CHECK(run(&host, "$COLORMODE(35)$", "8", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(35)$", "123456789012", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL(35)$", "", -1) == 0);
 	CHECK(run(&host, "$BASEMATH(3)$", "NONE", -1) == 0);
 	CHECK(run(&host, "$COORDSIZE(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$WORLD(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$WORLDW(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$WORLDH(3)$", "-1", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(3)$", "NONE", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL$", "35", -1) == 0);
 	CHECK(run(&host, "$COLORMODE(3)$", "-1", -1) == 0);
 	CHECK(run(&host, "$basemath(cur,64)$", "", -1) == 0);
 	CHECK(run(&host, "$WORLD(CUR,DEFAULT)$", "", -1) == 0);
@@ -319,8 +318,8 @@ host_variables(void)
 	CHECK(run(&host, "$COLORMODE(CUR,RGB,6)$", "", -1) == 0);
 	CHECK(run(&host, "$COLORMODE$", "6", -1) == 0);
 	CHECK(run(&host, "$COLORMODE(CUR,PAL)$", "", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL(CUR,999999999999)$", "", -1) == 0);
-	CHECK(run(&host, "$BAUDEMUL$", "999999999999", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL(2147483647)$", "", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL$", "2147483647", -1) == 0);
 	{
 		struct st_rip3_builtin_reference reference;
 		struct st_rip3_environment before, after;
@@ -345,7 +344,7 @@ host_variables(void)
 	    "$WORLD(CUR,20,BAD)$", "$WORLDH(CUR,32768)$", "$WORLDW(CUR,-1)$",
 	    "$BASEMATH(CUR,63)$", "$COORDSIZE(CUR,1)$", "$COORDSIZE(CUR,6)$",
 	    "$COLORMODE(CUR,RGB)$", "$COLORMODE(CUR,PAL,8)$", "$COLORMODE(CUR,RGB,9)$",
-	    "$BAUDEMUL(CUR,18446744073709551616)$", "$BAUDEMUL(CUR,-1)$", "$WORLD(3,100,100)$",
+	    "$WORLD(3,100,100)$",
 	    "$COMPAT(3)$", "$WORLD(36)$", "$WORLD(CUR,1,2,3)$", "$BASEMATH(,36)$"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); i++) {
 		struct st_rip3_environment before, after;
@@ -355,10 +354,13 @@ host_variables(void)
 		CHECK(run(&host, "$WORLD$", "1234:777", -1) == 0);
 	}
 	CHECK(run(&host, "$WORLDX$", "", ST_RIP3_HOST_UNKNOWN_REFERENCE) == 0);
-	/* BAUDEMUL permits arbitrary nonnegative rates; thirteen digits are not
-	 * a syntax error. Its concrete storage still checks uint64_t overflow. */
-	CHECK(run(&host,"$BAUDEMUL(CUR,1000000000000)$","",-1)==0);
-	CHECK(run(&host,"$BAUDEMUL$","1000000000000",-1)==0);
+	const char *rejected_rates[] = {"$BAUDEMUL(CUR)$", "$BAUDEMUL(5,2400)$",
+	    "$BAUDEMUL(2147483648)$", "$BAUDEMUL(18446744073709551616)$", "$BAUDEMUL(-1)$",
+	    "$BAUDEMUL(12x)$"};
+	for (size_t i = 0; i < sizeof(rejected_rates) / sizeof(*rejected_rates); ++i) {
+		CHECK(run(&host, rejected_rates[i], rejected_rates[i], ST_RIP3_HOST_INVALID_REFERENCE) == 0);
+		CHECK(run(&host, "$BAUDEMUL$", "2147483647", -1) == 0);
+	}
 	CHECK(run(&host, "$CUR(ENV)$", "0", -1) == 0);
 	CHECK(run(&host, "$CUR(ENV,35)$", "", -1) == 0);
 	CHECK(run(&host, "$INUSE(ENV,35)$", "1", -1) == 0);
@@ -372,9 +374,10 @@ host_variables(void)
 	CHECK(run(&host, "$BASEMATH(35)$", "64", -1) == 0);
 	CHECK(run(&host, "$UNPROT(ENV,35)$", "", -1) == 0);
 	CHECK(run(&host, "$COMPAT(35)$", "", -1) == 0);
+	CHECK(run(&host, "$BAUDEMUL$", "2147483647", -1) == 0);
 	CHECK(st_rip3_environments_get(environments, 35, &data) == 0);
 	CHECK(data.world_width == 640 && data.world_height == 350 && data.base_math == 36
-	    && data.coordinate_size == 2 && data.rgb_bits == 0 && data.baud_rate == 0
+	    && data.coordinate_size == 2 && data.rgb_bits == 0
 	    && data.port == 3 && data.palette == 5 && data.mouse_pointer == 6);
 	CHECK(st_rip3_environments_select(environments, 35) == 0);
 	CHECK(run(&host, "$SENV$", "", -1) == 0);
@@ -440,14 +443,14 @@ static int activation_and_entry_copy(void)
 	struct st_rip3_frame frame;
 	CHECK(st_rip3_environments_create_device(&env,720,400)==0);
 	CHECK(st_rip3_environment_defaults(&zero)==0);
-	zero.world_width=640;zero.world_height=480;zero.mouse_pointer=2;zero.baud_rate=300;
+	zero.world_width=640;zero.world_height=480;zero.mouse_pointer=2;
 	five=zero;five.base_math=64;five.coordinate_size=4;five.rgb_bits=8;
-	five.world_width=1280;five.world_height=960;five.mouse_pointer=6;five.baud_rate=1200;
+	five.world_width=1280;five.world_height=960;five.mouse_pointer=6;
 	CHECK(st_rip3_environments_set(env,0,&zero)==0 && st_rip3_environments_define(env,5,&five)==0);
 	CHECK(st_rip3_environments_activate(env,5)==0);
 	CHECK(st_rip3_environments_get(env,0,&value)==0);
 	CHECK(value.base_math==64 && value.coordinate_size==4 && value.rgb_bits==8
-	    && value.world_width==640 && value.world_height==480 && value.mouse_pointer==2 && value.baud_rate==300);
+	    && value.world_width==640 && value.world_height==480 && value.mouse_pointer==2);
 	CHECK(st_rip3_environments_activate(env,0)==0 && st_rip3_environments_get(env,0,&value)==0);
 	CHECK(value.base_math==64 && value.coordinate_size==4 && value.rgb_bits==8 && value.mouse_pointer==2);
 	CHECK(st_rip3_environments_get(env,5,&value)==0 && same(&value,&five));
@@ -455,9 +458,9 @@ static int activation_and_entry_copy(void)
 	CHECK(st_rip3_environments_protect(env,5,true)==0 && st_rip3_environments_activate(env,5)==0);
 	CHECK(st_rip3_environments_activate(env,35)==0 && st_rip3_environments_get(env,35,&value)==0);
 	CHECK(value.world_width==640 && value.world_height==350 && value.base_math==36
-	    && value.coordinate_size==2 && value.rgb_bits==0 && value.mouse_pointer==0 && value.baud_rate==0);
+	    && value.coordinate_size==2 && value.rgb_bits==0 && value.mouse_pointer==0);
 	CHECK(st_rip3_environments_get(env,5,&value)==0 && value.base_math==36 && value.coordinate_size==2
-	    && value.rgb_bits==0 && value.world_width==1280 && value.world_height==960 && value.mouse_pointer==6 && value.baud_rate==1200);
+	    && value.rgb_bits==0 && value.world_width==1280 && value.world_height==960 && value.mouse_pointer==6);
 	CHECK(st_rip3_environments_info(env,5,&info)==0 && info.protected);
 	CHECK(st_rip3_environments_activate(env,36)==IO_ERROR_OUT_OF_RANGE && st_rip3_environments_activate(NULL,0)==IO_ERROR_INVALID_ARGUMENT);
 	unsigned current;CHECK(st_rip3_environments_current(env,&current)==0 && current==35);

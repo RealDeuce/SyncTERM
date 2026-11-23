@@ -153,8 +153,9 @@ struct st_rip3_host_sink {
  * omission reads the current cursor even with a deactivated viewport.
  * CUR(STYLE,n) uses fixed defaults for unused styles, permits selecting
  * protected records, and changes no PORT/ENV/cursor/encoding state.
- * Environment records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT
- * and defined COLORMODE queries/sets; IMGSTYLE queries stored boundaries in
+ * Environment records support BASEMATH, COORDSIZE, WORLD/WORLDW/WORLDH, COMPAT
+ * and defined COLORMODE queries/sets. BAUDEMUL uses the live local playback
+ * rate shared by all ENV slots. IMGSTYLE queries stored boundaries in
  * the current WORLD without undoing the far increment. Its decimal setter
  * replaces flags from ASPECT/DELETE/NOCLEAR/USEPAL keywords (none means zero),
  * restores prior port selection, and skips protected targets without text/error.

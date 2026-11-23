@@ -27,19 +27,20 @@ def run(args,width,height):
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()
         t.exchange(b'\x1b[?25l\x1b[33;44m\x1b[2;3H'+accented)
         wire(b'c04|m0A0B|X0A0A')
-        values(b'$MCURSOR(6)$$BAUDEMUL(CUR,300)$$COPY(ENV,0,5)$$MCURSOR(2)$')
+        values(b'$MCURSOR(6)$$BAUDEMUL(300)$$COPY(ENV,0,5)$$MCURSOR(2)$')
         values(f'$WORLD(5,{2*width},{2*height})$'.encode()+
                b'$BASEMATH(5,64)$$COORDSIZE(5,4)$$COLORMODE(5,RGB,8)$'
-               b'$BAUDEMUL(5,1200)$$PROT(ENV,5)$')
+               b'$PROT(ENV,5)$')
         t.case(f'rip3-env-activation-writeback-and-independent-tables-{width}x{height}')
         before=client.capture();after=wire(b'2E05')
         assert before.primary==after.primary and before.alternate==after.alternate
         assert after.metadata['pointer_shape']==6
         assert (after.metadata['plane_width'],after.metadata['plane_height'])==(width,height)
         values(b'$CUR(ENV)$:$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',
-               f'5:{2*width}:{2*height}:64:4:8:1200'.encode())
-        values(b'$BASEMATH(0)$:$COORDSIZE(0)$:$COLORMODE(0)$:$WORLD(0)$:$BAUDEMUL(0)$',
+               f'5:{2*width}:{2*height}:64:4:8:300'.encode())
+        values(b'$BASEMATH(0)$:$COORDSIZE(0)$:$COLORMODE(0)$:$WORLD(0)$:$BAUDEMUL()$',
                f'64:4:8:{width}:{height}:300'.encode())
+        values(b'$BAUDEMUL(1200)$')
         other_selections()
         after=values(b'$CUR(ENV,0)$')
         assert after.metadata['pointer_shape']==4
@@ -52,7 +53,7 @@ def run(args,width,height):
         # The wire width is two digits even while coordinate size is four.
         wire(b'2E05')
         values(b'$CUR(ENV,2)$')
-        values(b'$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',b'640:350:36:2:0:0')
+        values(b'$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',b'640:350:36:2:0:1200')
         values(b'$PROT(STYLE,7)$')
         frame=wire(b'M18|1c03')
         assert frame.metadata['pointer_shape']==1
@@ -79,7 +80,7 @@ def run(args,width,height):
         values(b'$WORLD$:$BAUDEMUL$',f'{2*width}:{2*height}:1200'.encode())
         frame=values(b'$COPY(ENV,2,CUR)$')
         assert frame.metadata['pointer_shape']==0
-        values(b'$CUR(ENV)$:$WORLD$:$BAUDEMUL$',b'0:640:350:0')
+        values(b'$CUR(ENV)$:$WORLD$:$BAUDEMUL$',b'0:640:350:1200')
         other_selections()
         values(b'$COPY(ENV,2,9)$$WORLD(9,0,0)$$CUR(ENV,9)$')
         values(b'$CUR(ENV)$:$WORLD$',b'9:0:0')
@@ -92,6 +93,7 @@ def run(args,width,height):
         other_selections()
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$CUR(ENV)$:$WORLD$:$INUSE(ENV,5)$$INUSE(ENV,6)$$INUSE(ENV,8)$',b'0:640:350:111')
+        values(b'$BAUDEMUL$',b'1200')
         values(b'$CUR(ENV,36)$');wire(b'2E|2E0|2E10|2E?0|2E00')
         values(b'$CUR(ENV)$:alive',b'0:alive')
         assert client.capture().application['connected']==1

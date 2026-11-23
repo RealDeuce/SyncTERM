@@ -38,9 +38,9 @@ def run(args,width,height):
         values(b'$CUR(STYLE,5)$$SGS$$CUR(STYLE,7)$');wire(b'c0A')
         values(b'$RGS$$CUR(STYLE)$',b'7')
         assert pixel(wire(b'X0505'),5,5)==0xaa0000
-        values(b'$MCURSOR(2)$$BAUDEMUL(CUR,1200)$$SENV$$SENV(1)$$SENV(PUSH)$')
+        values(b'$MCURSOR(2)$$BAUDEMUL(1200)$$SENV$$SENV(1)$$SENV(PUSH)$')
         values(b'$WORLD(CUR,320,240)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,4)$'
-               b'$COLORMODE(CUR,RGB,8)$$MCURSOR(6)$$BAUDEMUL(CUR,2400)$'
+               b'$COLORMODE(CUR,RGB,8)$$MCURSOR(6)$$BAUDEMUL(2400)$'
                b'$CUR(STYLE,9)$$CUR(BUT,8)$$CUR(PORT,6)$$CUR(TW,3)$$CUR(PAL,17)$')
         values(b'$RENV$$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',
                f'{width}:{height}:36:2:0:1200'.encode())
@@ -58,13 +58,13 @@ def run(args,width,height):
         values(b'$CUR(TW,1)$')
         t.exchange(window((200,80,500,220),12,5,0,1)+b'\x1b[?25l\x1b[32;44m\x1b[2;3H')
         wire(b'2P2000008081|2s200|S0106|B00000707')
-        values(b'$MCURSOR(2)$$BAUDEMUL(CUR,1200)$')
+        values(b'$MCURSOR(2)$$BAUDEMUL(1200)$')
         before=values(b'$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$')
         expected=(colors(before,before.primary),colors(before,before.alternate))
         used('BASE',b'11111111')
         values(b'$CUR(PORT,0)$$CUR(TW,0)$$CUR(PAL,17)$$CUR(BUT,9)$$CUR(STYLE,7)$')
         wire(b'c0A|S0105|B0000'+number(width-1,2)+number(height-1,2)+b'|a0402|2P2000002021|2s200|S0101|B00000101')
-        values(b'$WORLD(CUR,320,240)$$MCURSOR(6)$$BAUDEMUL(CUR,2400)$$MKILL$')
+        values(b'$WORLD(CUR,320,240)$$MCURSOR(6)$$BAUDEMUL(2400)$$MKILL$')
         after=values(b'$RESTOREALL$')
         assert (colors(after,after.primary),colors(after,after.alternate))==expected
         values(b'$CUR(TW)$:$CUR(PORT)$:$CUR(PAL)$:$CUR(BUT)$:$CUR(STYLE)$:$WORLD$:$BAUDEMUL$',
@@ -87,7 +87,7 @@ def run(args,width,height):
         t.case('rip3-aggregate-missing-palette-continues-through-later-env')
         values(b'$RESET(PAL,BASE)$$CUR(PAL,17)$')
         wire(b'a0402')
-        values(b'$WORLD(CUR,320,240)$$BAUDEMUL(CUR,2400)$$RESTOREALL$')
+        values(b'$WORLD(CUR,320,240)$$BAUDEMUL(2400)$$RESTOREALL$')
         values(b'$CUR(PAL)$:$PALENTRY(17,4)$:$CUR(BUT)$:$WORLD$:$BAUDEMUL$',
                f'17:8;170:0:0:5:{width}:{height}:1200'.encode())
         t.case('rip3-aggregate-independent-save-failure-and-invalid-recovery')

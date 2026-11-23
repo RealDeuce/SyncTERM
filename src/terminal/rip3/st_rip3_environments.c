@@ -13,6 +13,7 @@ struct environment_entry {
 struct st_rip3_environments {
 	struct st_rip3_frame device;
 	unsigned current;
+	uint32_t playback_rate;
 	struct environment_entry entries[36];
 };
 
@@ -209,6 +210,23 @@ st_rip3_environments_mouse(struct st_rip3_environments *environments,unsigned po
 	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (pointer>7) return IO_ERROR_OUT_OF_RANGE;
 	environments->entries[environments->current].data.mouse_pointer=pointer;return 0;
+}
+
+uint32_t
+st_rip3_environments_playback_rate(const struct st_rip3_environments *environments)
+{
+	return environments->playback_rate;
+}
+
+int
+st_rip3_environments_set_playback_rate(struct st_rip3_environments *environments, uint32_t rate)
+{
+	if (environments == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (rate > INT32_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	environments->playback_rate = rate;
+	return 0;
 }
 
 static void

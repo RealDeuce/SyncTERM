@@ -107,7 +107,7 @@ state(struct fixture *f, unsigned radix)
 	CHECK(env.base_math == radix && env.port == 9 && env.palette == 7 && env.graphics_style == 6);
 	CHECK(env.world_width == f->environment.world_width && env.world_height == f->environment.world_height
 	    && env.coordinate_size == f->environment.coordinate_size && env.rgb_bits == f->environment.rgb_bits
-	    && env.mouse_pointer == f->environment.mouse_pointer && env.baud_rate == f->environment.baud_rate
+	    && env.mouse_pointer == f->environment.mouse_pointer
 	    && env.button_style == f->environment.button_style && env.text_window == f->environment.text_window);
 	CHECK(st_rip3_palettes_current(f->host.palettes,&current) == 0 && current == 3);
 	struct st_rip3_palette_info palette;

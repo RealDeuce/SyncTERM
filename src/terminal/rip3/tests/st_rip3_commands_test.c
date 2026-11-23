@@ -109,7 +109,7 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_get(env, 0, &value) == 0);
 	value.graphics_style = 7; value.button_style = 6; value.port = 5;
 	value.text_window = 4; value.palette = 3; value.rgb_bits = 8;
-	value.mouse_pointer = 2; value.baud_rate = 9600;
+	value.mouse_pointer = 2;
 	CHECK(st_rip3_environments_set(env, 0, &value) == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(expect(env, 0, 64,2,640,350) == 0);
@@ -209,7 +209,7 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_get(env, 1, &value) == 0);
 	CHECK(value.graphics_style == 7 && value.button_style == 6 && value.port == 5
 	    && value.text_window == 4 && value.palette == 3 && value.rgb_bits == 8
-	    && value.mouse_pointer == 2 && value.baud_rate == 9600);
+	    && value.mouse_pointer == 2);
 	st_rip3_environments_destroy(env);
 	return 0;
 }
@@ -282,56 +282,52 @@ baud(enum st_rip3_canvas canvas)
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_environment before, value, other;
 	unsigned current;
-	const char *invalid[] = {"3e","3e?","3e00000","3e00?0"};
+	const char *invalid[] = {"3e","3e0","3e?0","3e0?00"};
 	CHECK(st_rip3_environments_create(&host.environments, canvas) == 0);
 	CHECK(process(&missing, "3e0000", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
 	CHECK(st_rip3_environments_get(host.environments, 0, &before) == 0);
 	before.graphics_style = 7; before.button_style = 6; before.port = 5;
 	before.text_window = 4; before.palette = 3; before.rgb_bits = 8;
-	before.mouse_pointer = 2; before.baud_rate = 111; before.coordinate_size = 5;
+	before.mouse_pointer = 2; before.coordinate_size = 5;
 	CHECK(st_rip3_environments_set(host.environments, 0, &before) == 0);
 	CHECK(st_rip3_environments_define(host.environments, 1, &before) == 0);
 	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
-	CHECK(process(&host, "3e01UN", -1) == 0); /* Preserved example means 2399, not a preset. */
-	CHECK(query(host.environments, "$BAUDEMUL$", "2399") == 0);
-	CHECK(process(&host, "3e01UO", -1) == 0);
-	CHECK(query(host.environments, "$BAUDEMUL(CUR)$", "2400") == 0);
+	CHECK(process(&host, "3e01UN", -1) == 0); /* The first two digits encode 1. */
+	CHECK(query(host.environments, "$BAUDEMUL$", "1") == 0);
+	CHECK(process(&host, "3e8C", -1) == 0);
+	CHECK(query(host.environments, "$BAUDEMUL()$", "300") == 0);
 	CHECK(process(&host, "3eZZZZ", -1) == 0);
-	CHECK(query(host.environments, "$BAUDEMUL$", "1679615") == 0);
-	CHECK(process(&host, "3eA", -1) == 0);
+	CHECK(query(host.environments, "$BAUDEMUL$", "1295") == 0);
+	CHECK(process(&host, "3e0A", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
 	}
-	CHECK(process(&host, "3e0000 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host, "3e0A00 comment", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
 	CHECK(process(&host, "3e----", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "3e&&&&", -1) == 0);
-	CHECK(query(host.environments, "$BAUDEMUL$", "16777215") == 0);
-	CHECK(process(&host, "3e000a", -1) == 0);
+	CHECK(query(host.environments, "$BAUDEMUL$", "4095") == 0);
+	CHECK(process(&host, "3e0a00", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "36") == 0);
-	CHECK(process(&host, "3e#", -1) == 0);
+	CHECK(process(&host, "3e0#", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "62") == 0);
 	CHECK(process(&host, "3e-", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "62") == 0);
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
-	CHECK(process(&host, "3e0", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(query(host.environments, "$BAUDEMUL$", "62") == 0);
-	CHECK(st_rip3_environments_protect(host.environments, 1, false) == 0);
-	CHECK(process(&host, "3e0", -1) == 0);
+	CHECK(process(&host, "3e00", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
-	CHECK(query(host.environments, "$BAUDEMUL(0)$", "111") == 0);
 	CHECK(st_rip3_environments_current(host.environments, &current) == 0 && current == 1);
 	CHECK(st_rip3_environments_get(host.environments, 1, &value) == 0);
 	CHECK(value.graphics_style == 7 && value.button_style == 6 && value.port == 5
 	    && value.text_window == 4 && value.palette == 3 && value.rgb_bits == 8
 	    && value.mouse_pointer == 2 && value.coordinate_size == 5 && value.base_math == 64
 	    && value.world_width == before.world_width && value.world_height == before.world_height);
-	CHECK(st_rip3_environments_get(host.environments, 0, &other) == 0 && other.baud_rate == 111
+	CHECK(st_rip3_environments_get(host.environments, 0, &other) == 0
 	    && other.base_math == 36 && other.coordinate_size == 5);
 	st_rip3_environments_destroy(host.environments);
 	return 0;
@@ -350,18 +346,17 @@ baud_command(void *context, const uint8_t *command, size_t length)
 {
 	struct baud_stream *seen = context;
 	const struct st_rip3_command_sink sink = {&seen->diagnostics,diagnostic};
-	struct st_rip3_environment value;
 	st_rip3_commands_process(seen->host, &sink, command,length);
-	if (seen->count >= 6 || st_rip3_environments_get(seen->host->environments, 0, &value) != 0)
+	if (seen->count >= 6)
 		seen->invalid = true;
-	else seen->rates[seen->count++] = value.baud_rate;
+	else seen->rates[seen->count++] = st_rip3_environments_playback_rate(seen->host->environments);
 }
 
 static int
 baud_stream(void)
 {
-	static const uint64_t expected[] = {2400,2400,1679615,1679615,16777215,0};
-	static const char bytes[] = "!|3e01UO|3e0?00|3eZZZZ\r\n!|J1S|3e&&&&|3e0\r";
+	static const uint64_t expected[] = {300,300,1295,1295,4095,0};
+	static const char bytes[] = "!|3e8C|3e0?00|3eZZZZ\r\n!|J1S|3e&&&&|3e00\r";
 	struct st_rip3_command_host host = {0};
 	struct baud_stream seen = {.host=&host};
 	const struct st_rip3_stream_sink sink = {.context=&seen,.command=baud_command};

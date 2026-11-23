@@ -51,6 +51,9 @@ enum { SCENE_LIMIT = 8 };
 
 struct local_scene {
 	void *caller_input;
+	uint32_t playback_rate, group_size, group_count;
+	uint64_t group_delay_ns, group_started;
+	bool waiting_for_group;
 	struct st_rip3_resource file;
 	struct st_rip3_stream *stream;
 	/* Prepared child evaluators until start, then the suspended caller. */
@@ -101,7 +104,6 @@ struct st_rip3_session {
 	struct st_rip3_stream *stream;
 	struct local_scene scenes[SCENE_LIMIT];
 	size_t scene_count;
-	uint64_t scene_baud, scene_clock, scene_credit;
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool defining_variable, definition_reject_blank;
@@ -838,6 +840,35 @@ create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, b
 	return st_rip3_stream_create(result, &sink);
 }
 
+static uint32_t
+scene_playback_group_bytes(uint32_t rate)
+{
+	static const struct {uint32_t limit, bytes;} groups[] = {
+		{500,3}, {1000,5}, {2500,7}, {5000,10}, {7500,13}, {10000,15},
+		{15000,20}, {20000,25}, {25000,30}, {30000,33}, {40000,40},
+		{50000,50}, {60000,60}, {75000,75}, {90000,90}, {105000,105},
+		{130000,130}, {155000,155}, {180000,180}, {250000,250}, {300000,300},
+		{350000,350}, {400000,400}, {500000,500}, {1000000,1000},
+		{2000000,2000}, {4000000,4000}, {10000000,10000},
+	};
+	for (size_t i = 0; i < sizeof(groups) / sizeof(*groups); ++i)
+		if (rate < groups[i].limit)
+			return groups[i].bytes;
+	return 15000;
+}
+
+static void
+scene_playback_rate(struct local_scene *scene, uint32_t rate)
+{
+	scene->playback_rate = rate;
+	scene->group_size = scene_playback_group_bytes(rate);
+	scene->group_count = 0;
+	/* RIPtel converts ten bit times per byte to 1/16384-second ticks,
+	 * truncates, and then truncates again when converting to milliseconds. */
+	uint64_t ticks = UINT64_C(163840) * scene->group_size / rate;
+	scene->group_delay_ns = (ticks * 1000 / 16384) * UINT64_C(1000000);
+}
+
 static int
 open_scene(struct st_rip3_session *session, const char *filename, bool suspend_query)
 {
@@ -883,6 +914,9 @@ open_scene(struct st_rip3_session *session, const char *filename, bool suspend_q
 	if (status == 0 && session->sink.scene_begin != NULL)
 		status = session->sink.scene_begin(session->sink.context, &scene.caller_input);
 	if (status == 0) {
+		uint32_t rate = st_rip3_environments_playback_rate(session->commands.environments);
+		if (rate != 0)
+			scene_playback_rate(&scene, rate);
 		session->scenes[session->scene_count++] = scene;
 		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
 	}
@@ -935,41 +969,38 @@ close_scene(struct st_rip3_session *session)
 	}
 	st_rip3_stream_destroy(scene->stream);
 	st_rip3_resource_dispose(&scene->file);
-	if (session->scene_count == 0)
-		session->scene_baud = 0;
+}
+
+static uint64_t
+scene_wait_ns(const struct st_rip3_session *session, const struct local_scene *scene)
+{
+	if (!scene->waiting_for_group)
+		return 0;
+	uint64_t elapsed = session->source.now_ns(session->source.context) - scene->group_started;
+	return elapsed >= scene->group_delay_ns ? 0 : scene->group_delay_ns - elapsed;
 }
 
 static bool
-scene_byte_due(struct st_rip3_session *session)
+scene_byte_due(struct st_rip3_session *session, struct local_scene *scene)
 {
-	struct st_rip3_environment env;
-	unsigned current;
-	if (st_rip3_command_environment(&session->commands, &current, &env) != 0 || env.baud_rate == 0) {
-		session->scene_baud = 0;
-		return true;
+	uint32_t rate = st_rip3_environments_playback_rate(session->commands.environments);
+	if (scene->waiting_for_group) {
+		if (scene_wait_ns(session, scene) != 0)
+			return false;
+		scene->waiting_for_group = false;
 	}
-	/* Match the ten-bit character timing used by receive pacing. Credit is
-	 * baud times nanoseconds. Cap catch-up after a delayed poll at 100 ms. */
-	const uint64_t cost = UINT64_C(10000000000);
-	const uint64_t catchup = UINT64_C(100000000);
-	uint64_t rate = env.baud_rate;
-	uint64_t time = now(session);
-	if (session->scene_baud != rate) {
-		session->scene_baud = rate;
-		session->scene_credit = cost;
+	else if (rate != 0 && ++scene->group_count >= scene->group_size) {
+		scene->group_count = 0;
+		if (scene->group_delay_ns != 0) {
+			scene->group_started = now(session);
+			scene->waiting_for_group = true;
+			return false;
+		}
 	}
-	else {
-		uint64_t cap = rate <= UINT64_MAX / catchup ? rate * catchup : UINT64_MAX;
-		if (cap < cost)
-			cap = cost;
-		uint64_t elapsed = time - session->scene_clock;
-		uint64_t available = cap - session->scene_credit;
-		session->scene_credit += elapsed <= available / rate ? elapsed * rate : available;
-	}
-	session->scene_clock = time;
-	if (session->scene_credit < cost)
-		return false;
-	session->scene_credit -= cost;
+	/* A changed rate starts the next group after accounting for this
+	 * reader byte at the previously cached rate. */
+	if (rate != 0 && rate != scene->playback_rate)
+		scene_playback_rate(scene, rate);
 	return true;
 }
 
@@ -1016,7 +1047,7 @@ next(void *context, uint8_t *byte)
 			scene->next_byte = (uint8_t)value;
 			scene->byte_ready = true;
 		}
-		if (!scene_byte_due(session))
+		if (!scene_byte_due(session, scene))
 			return false;
 		*byte = scene->next_byte;
 		scene->byte_ready = false;
@@ -1958,7 +1989,12 @@ st_rip3_session_request_refresh(struct st_rip3_session *session)
 uint64_t
 st_rip3_session_wait_ns(const struct st_rip3_session *session)
 {
-	return session==NULL ? 0 : st_rip3_input_wait_ns(session->commands.input);
+	if (session == NULL)
+		return 0;
+	uint64_t wait = st_rip3_input_wait_ns(session->commands.input);
+	if (wait == 0 && session->scene_count != 0)
+		wait = scene_wait_ns(session, &session->scenes[session->scene_count - 1]);
+	return wait;
 }
 
 bool

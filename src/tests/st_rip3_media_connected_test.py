@@ -330,12 +330,12 @@ def check_read_scene(t, root, assets, encoding):
 
     t.case("Baud emulation paces local scene bytes")
     (assets / "Pace.TXT").write_bytes(b"abcdef")
-    t.exchange(b"\x01|3e00RS\r\n")  # 1000 baud, 10 ms between bytes.
+    t.exchange(b"\x01|3e8C\r\n")  # 300 baud, 99 ms for each three-byte group.
     begin = time.monotonic()
     frame = t.exchange(b"\x1b[12;3H\x01|" + read_scene(b"Pace.TXT") + b"\r\n")
-    assert time.monotonic() - begin >= 0.05
+    assert time.monotonic() - begin >= 0.19
     assert frame.lines[11][2:8] == "abcdef"
-    t.exchange(b"\x01|3e0\r\n")
+    t.exchange(b"\x01|3e00\r\n")
 
     t.case("HCL scene macros finish nested scenes before replying")
     (assets / "Macro.RIP").write_bytes(query(b"$>Nested$local", at_cursor=True))
@@ -367,6 +367,15 @@ def check_read_scene(t, root, assets, encoding):
     t.client.mouse(x, y, action=1, buttons=0)
     frame = t.input(b"7done")
     assert pixel(frame, 15, 15) == 0xaa0000
+
+    t.case("A live scene reset retains its local playback rate")
+    (assets / "PaceReset.RIP").write_bytes(
+        b"!|1\x1b0000BEFORE=$BAUDEMUL$\r!|*\r!|1\x1b0000AFTER=$BAUDEMUL$\r")
+    t.exchange(query(b"$CUR(ENV,5)$$BAUDEMUL(2400)$", at_cursor=True))
+    t.exchange(b"\x01|" + read_scene(b"PaceReset") + b"\r", b"BEFORE=2400AFTER=2400")
+    t.exchange(query(b"$CUR(ENV)$:$BAUDEMUL(CUR)$:$BAUDEMUL(5,2400)$:$BAUDEMUL$",
+                     at_cursor=True), b"0:$BAUDEMUL(CUR)$:$BAUDEMUL(5,2400)$:2400")
+    t.exchange(query(b"$BAUDEMUL(0)$", at_cursor=True))
 
 
 def run(args):

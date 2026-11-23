@@ -135,9 +135,9 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	const char explicit_command[] = "1b01010U0D0000000000X.BMP";
 	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)explicit_command,sizeof(explicit_command)-1);
 	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_OPERATION_FAILED && capture(&f,width,height,0) == 0);
-	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)"3e1",3);
+	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)"3e01",4);
 	struct st_rip3_environment environment;
-	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.baud_rate == 1
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && st_rip3_environments_playback_rate(f.host.environments) == 1
 	    && environment.port == 9 && environment.palette == 7 && f.errors == 1);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	const char default_command[] = "1b000000000000000000X.BMP";
@@ -157,8 +157,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)explicit_command,sizeof(explicit_command)-1);
 	CHECK(!st_rip3_bitmap_error_ui_test_fail_allocate && f.errors == 3 && f.kind == ST_RIP3_COMMAND_OPERATION_FAILED
 	    && capture(&f,width,height,-1) == 0);
-	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)"3e2",3);
-	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.baud_rate == 2 && f.errors == 3);
+	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)"3e02",4);
+	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && st_rip3_environments_playback_rate(f.host.environments) == 2 && f.errors == 3);
 	st_rip3_bitmap_error_show(&f.ui,"\xff",1,NULL);
 	f.font.glyph_size = 4; st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,NULL); f.font.glyph_size = 3;
 	st_rip3_bitmap_error_show(&f.ui,"X.BMP",2,NULL);

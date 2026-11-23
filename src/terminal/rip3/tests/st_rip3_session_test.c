@@ -2091,31 +2091,69 @@ scene_pacing(void)
 	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 	const struct st_rip3_resource_paths resources={.host=ST_RIP3_SESSION_SCENE_DIR};
 	options.resources=&resources;
+	options.sink.text_reset = reset_text;
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
-	/* 00RS is 1000 in base 36. Byte two becomes due at exactly 10 ms. */
-	CHECK(append(&f,"!|3e00RS\rTEST\r!|1R00000000Pace.TXT\rZ")==0 && pump(&f)==0);
-	CHECK(f.text_length==6 && memcmp(f.text,"TEST\rA",6)==0 && f.read+1==f.length);
+	/* At 300 baud the third reader byte waits 99 ms, even across rollover. */
+	CHECK(append(&f,"!|3e8C\rTEST\r!|1R00000000Pace.TXT\rZ")==0 && pump(&f)==0);
+	CHECK(f.text_length==7 && memcmp(f.text,"TEST\rAB",7)==0 && f.read+1==f.length);
 	CHECK(st_rip3_session_local_scene(f.session) && st_rip3_session_pending(f.session));
-	f.now+=UINT64_C(9999999);
-	CHECK(pump(&f)==0 && f.text_length==6 && f.read+1==f.length);
+	CHECK(st_rip3_session_wait_ns(f.session) == UINT64_C(99000000));
+	f.now+=UINT64_C(98999999);
+	CHECK(pump(&f)==0 && f.text_length==7 && f.read+1==f.length);
+	CHECK(st_rip3_session_wait_ns(f.session) == 1);
 	++f.now;
-	CHECK(pump(&f)==0 && f.text_length==7 && f.text[6]=='B' && f.read+1==f.length);
-	f.now+=UINT64_C(10000000);
 	CHECK(pump(&f)==0 && f.read==f.length && !st_rip3_session_pending(f.session));
 	CHECK(f.text_length==9 && memcmp(f.text,"TEST\rABCZ",9)==0);
 
-	/* Another call starts with fresh credit. Cancellation drops its backlog. */
+	/* Another file starts its own group. Cancellation drops its pending wait. */
 	CHECK(append(&f,"\r!|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
-	CHECK(f.text_length==11 && f.text[10]=='A' && st_rip3_session_local_scene(f.session));
+	CHECK(f.text_length==12 && memcmp(f.text+10,"AB",2)==0 && st_rip3_session_local_scene(f.session));
 	st_rip3_session_cancel(f.session);
 	CHECK(!st_rip3_session_local_scene(f.session) && !st_rip3_session_pending(f.session));
-	CHECK(append(&f,"!|3e0|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
-	CHECK(f.text_length==14 && memcmp(f.text+11,"ABC",3)==0 && !st_rip3_session_pending(f.session));
-	CHECK(query(&f,"$BAUDEMUL(CUR,999999999999)$","")==0);
-	CHECK(append(&f,"!|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
-	CHECK(f.text_length==15 && f.text[14]=='A' && st_rip3_session_local_scene(f.session));
-	f.now+=UINT64_C(1000000000);
-	CHECK(pump(&f)==0 && f.text_length==17 && memcmp(f.text+14,"ABC",3)==0);
+	CHECK(st_rip3_session_wait_ns(f.session) == 0);
+	CHECK(append(&f,"!|3e00|1R00000000Pace.TXT\r")==0 && pump(&f)==0);
+	CHECK(f.text_length==15 && memcmp(f.text+12,"ABC",3)==0 && !st_rip3_session_pending(f.session));
+
+	/* At 2400 baud, the first group includes the four bytes of the SOFT
+	 * reset and waits before its third visible byte. */
+	const uint64_t group_wait = UINT64_C(29000000);
+	CHECK(query(&f, "$BAUDEMUL(2400)$", "") == 0);
+	f.text_length = 0;
+	CHECK(append(&f, "!|1R00000000PaceReset.RIP\r") == 0 && pump(&f) == 0);
+	CHECK(f.text_length == 2 && memcmp(f.text, "AB", 2) == 0);
+	CHECK(st_rip3_session_wait_ns(f.session) == group_wait);
+	f.now += group_wait;
+	CHECK(pump(&f) == 0 && f.text_length == 6 && memcmp(f.text, "ABCDEF", 6) == 0);
+	CHECK(query(&f, "$BAUDEMUL$", "2400") == 0);
+
+	/* The child has its own counter. The parent's three groups each include
+	 * seven bytes of the invocation, leaving six unpaced bytes on return. */
+	f.text_length = 0;
+	CHECK(append(&f, "!|1R00000000PaceParent.RIP\r") == 0 && pump(&f) == 0);
+	for (unsigned i = 0; i < 3; ++i) {
+		CHECK(f.text_length == 0 && st_rip3_session_wait_ns(f.session) == group_wait);
+		f.now += group_wait;
+		CHECK(pump(&f) == 0);
+	}
+	CHECK(f.text_length == 9 && memcmp(f.text, "ABCABCDEF", 9) == 0);
+	CHECK(!st_rip3_session_pending(f.session));
+
+	f.text_length = 0;
+	CHECK(append(&f, "!|1R00000000PaceRate.RIP\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_wait_ns(f.session) == group_wait);
+	f.now += group_wait;
+	CHECK(pump(&f) == 0 && f.text_length == 3 && memcmp(f.text, "ABC", 3) == 0);
+	CHECK(st_rip3_session_wait_ns(f.session) == UINT64_C(99000000));
+	f.now += UINT64_C(99000000);
+	CHECK(pump(&f) == 0 && f.text_length == 6 && memcmp(f.text, "ABCDEF", 6) == 0);
+	CHECK(query(&f, "$BAUDEMUL$", "300") == 0);
+
+	CHECK(query(&f, "$BAUDEMUL(9600)$", "") == 0);
+	f.text_length = 0;
+	CHECK(append(&f, "!|1R00000000PaceParent.RIP\r") == 0 && pump(&f) == 0);
+	CHECK(f.text_length == 0 && st_rip3_session_wait_ns(f.session) == UINT64_C(15000000));
+	f.now += UINT64_C(15000000);
+	CHECK(pump(&f) == 0 && f.text_length == 9 && memcmp(f.text, "ABCABCDEF", 9) == 0);
 	CHECK(!st_rip3_session_pending(f.session));
 	CHECK(f.errors==0);
 	st_rip3_session_destroy(f.session);
@@ -2177,15 +2215,15 @@ scene_query_scope(void)
 	CHECK(f.reply_length == 11 && memcmp(f.reply, "beforeafter", 11) == 0);
 	CHECK(f.errors == 4 && f.kind == ST_RIP3_COMMAND_RESOURCE_FAILURE && st_rip3_session_test_live == live);
 	f.scene_hook_fail = false;
-	CHECK(query(&f,"$BAUDEMUL(CUR,1000)$","")==0);
+	CHECK(query(&f,"$BAUDEMUL(300)$","")==0);
 	CHECK(append(&f,call)==0 && pump(&f)==0);
-	CHECK(st_rip3_session_local_scene(f.session) && f.reply_length==0 && f.text_length==1);
+	CHECK(st_rip3_session_local_scene(f.session) && f.reply_length==0 && f.text_length==2);
 	CHECK(f.scene_starts == 2 && f.scene_ends == 0 && f.scene_hook_open);
 	st_rip3_session_cancel(f.session);
 	CHECK(!st_rip3_session_pending(f.session) && st_rip3_session_test_live==live);
 	CHECK(f.scene_starts == 2 && f.scene_ends == 1 && !f.scene_hook_open && !f.overflow);
 	CHECK(query(&f,"live","live")==0);
-	CHECK(query(&f, "$BAUDEMUL(CUR,0)$", "") == 0);
+	CHECK(query(&f, "$BAUDEMUL(0)$", "") == 0);
 	CHECK(append(&f, call) == 0 && pump(&f) == 0);
 	CHECK(f.scene_starts == 3 && f.scene_ends == 2 && !f.scene_hook_open && !f.overflow);
 	CHECK(f.reply_length == 0 && st_rip3_session_pending(f.session));

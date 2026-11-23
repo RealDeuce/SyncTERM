@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/177",
-  "revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
-  "previous_revision": "2900e843f911b05183620c110e43f381d90abc38",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/178",
+  "revision": "831fdb9d8eb20f80f55a6ca9708fcb883614d1ea",
+  "previous_revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "52d22a94e7ca3a87dc9a23fa8c8e294a1913340b61c5b01790acb6c306a858b8",
+  "archive_sha256": "e050e916decab6e5cc81f997adb04627e25cdf50eae3bc634fb6ca2c80f67f45",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,24 +17,39 @@
   ],
   "changed_documents": [
     {
+      "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+      "previous_sha256": "4e03d94c99bf274bf9177f7e7e55a300f448b03f2f773407edcb409b2f2346cc",
+      "sha256": "a3a07835b0c5cf5360b4bf3d4bdd6a1a7bcb00fb2d480e723c8126cbec301f7b"
+    },
+    {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8",
-      "sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "previous_sha256": "ad03342407244a14bc9959456f5253fadb9e7efe27dc3ead57ebcadf31b30168",
-      "sha256": "fabbe51fe9f225ba05b562c829fad576c7ca154c0119065d3bbc4d7e73b9d8ca"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "previous_sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4",
-      "sha256": "f735b7001d7d541a109039bc2c501875e854b98e1c8a7d95d649166168e4f344"
+      "previous_sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e",
+      "sha256": "48b9b28e05e9b024fb691a49a1d175d1153bf3a24dc8de8d336cdff8746b8e52"
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "previous_sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c",
-      "sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2"
+      "previous_sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2",
+      "sha256": "7c330fe16bcd5496d2aa6a970817e5ef719d211d6aedd169b4ffbe4f71a51d80"
+    },
+    {
+      "path": "version/3.0/ripscrip/7.1-data-tables.md",
+      "previous_sha256": "40e91d9a1f8b400d3d0098c7cf0b1bb645b7698b0dfe86957aa68bcb6e7ea27f",
+      "sha256": "1f186d0a794793312ab6c290b8ff3d481ce7c76a4f6956bbd21c3a7f961bc958"
+    },
+    {
+      "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+      "previous_sha256": "c5114dc8871f1e017af45219c2bf49373410e6d3cb418a02268caaf93eeca5ee",
+      "sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.0-command-reference.md",
+      "previous_sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb",
+      "sha256": "13028bdac883742c8219e6a39acbfeb3dec354054ff933dd4e411c3a5e656a26"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+      "previous_sha256": "2b729b89fd416041e1c8a09d5adbc781f0a1330f29f00cdab184e31f180c868a",
+      "sha256": "c9b9e187e14d62fefbef1fc48ba18279da101ad058806ee039aeafde04bed0ca"
     }
   ],
   "new_documents": [],
@@ -973,7 +988,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 69,
+  "upstream_issue_resolutions": 70,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1474,9 +1489,15 @@
     },
     {
       "path": "version/3.0/research/issue-171-fileexists.md",
-      "sha256": "95e2a35ab4abae0fee3fa70fa70a6d076163a9be5ca888a230bdac8ddb65ffc1",
+      "sha256": "9d0d9af0b87a7168586be4f33524a75e477cebd6464fb43bada4c0b00ae5c8ee",
       "title": "Issue #171: FILEEXISTS text variable",
       "role": "Primary FILEEXISTS registration, name lookup, alias and rejection evidence."
+    },
+    {
+      "path": "version/3.0/research/issue-172-local-playback-baud.md",
+      "sha256": "dbe4b21ef14369c58e3ec5a1ddfa51de4b947853fb3683af0fc36e730663638d",
+      "title": "Issue #172: Local playback baud rate and scene resets",
+      "role": "Primary live rate ownership, ENV capture, reset and original file byte-group evidence."
     }
   ],
   "documents": [
@@ -1578,7 +1599,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "4e03d94c99bf274bf9177f7e7e55a300f448b03f2f773407edcb409b2f2346cc"
+      "sha256": "a3a07835b0c5cf5360b4bf3d4bdd6a1a7bcb00fb2d480e723c8126cbec301f7b"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1638,7 +1659,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e"
+      "sha256": "48b9b28e05e9b024fb691a49a1d175d1153bf3a24dc8de8d336cdff8746b8e52"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1654,7 +1675,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2"
+      "sha256": "7c330fe16bcd5496d2aa6a970817e5ef719d211d6aedd169b4ffbe4f71a51d80"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1674,19 +1695,19 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "40e91d9a1f8b400d3d0098c7cf0b1bb645b7698b0dfe86957aa68bcb6e7ea27f"
+      "sha256": "1f186d0a794793312ab6c290b8ff3d481ce7c76a4f6956bbd21c3a7f961bc958"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "c5114dc8871f1e017af45219c2bf49373410e6d3cb418a02268caaf93eeca5ee"
+      "sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb"
+      "sha256": "13028bdac883742c8219e6a39acbfeb3dec354054ff933dd4e411c3a5e656a26"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "2b729b89fd416041e1c8a09d5adbc781f0a1330f29f00cdab184e31f180c868a"
+      "sha256": "c9b9e187e14d62fefbef1fc48ba18279da101ad058806ee039aeafde04bed0ca"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -13389,6 +13410,847 @@
         },
         "scope": "Document, derivation and original publication hashes plus ordered exact matching at the verified stable commit."
       }
+    },
+    {
+      "previous_revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
+      "revision": "831fdb9d8eb20f80f55a6ca9708fcb883614d1ea",
+      "archive_sha256": "e050e916decab6e5cc81f997adb04627e25cdf50eae3bc634fb6ca2c80f67f45",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 178,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/178",
+          "head": "b1012d4259a1cb1caad5464107361ed72a2d3130"
+        }
+      ],
+      "upstream_state": "The open PR head is consolidated into the selected fork stable with a matching tree.",
+      "authorization": "Standing user-selected stable reference and reviewed PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "4e03d94c99bf274bf9177f7e7e55a300f448b03f2f773407edcb409b2f2346cc",
+          "sha256": "a3a07835b0c5cf5360b4bf3d4bdd6a1a7bcb00fb2d480e723c8126cbec301f7b"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e",
+          "sha256": "48b9b28e05e9b024fb691a49a1d175d1153bf3a24dc8de8d336cdff8746b8e52"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2",
+          "sha256": "7c330fe16bcd5496d2aa6a970817e5ef719d211d6aedd169b4ffbe4f71a51d80"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.1-data-tables.md",
+          "previous_sha256": "40e91d9a1f8b400d3d0098c7cf0b1bb645b7698b0dfe86957aa68bcb6e7ea27f",
+          "sha256": "1f186d0a794793312ab6c290b8ff3d481ce7c76a4f6956bbd21c3a7f961bc958"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "c5114dc8871f1e017af45219c2bf49373410e6d3cb418a02268caaf93eeca5ee",
+          "sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb",
+          "sha256": "13028bdac883742c8219e6a39acbfeb3dec354054ff933dd4e411c3a5e656a26"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "2b729b89fd416041e1c8a09d5adbc781f0a1330f29f00cdab184e31f180c868a",
+          "sha256": "c9b9e187e14d62fefbef1fc48ba18279da101ad058806ee039aeafde04bed0ca"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8968,
+      "moved_source_blocks": 1133,
+      "heading_only_moves_with_identical_text": 0,
+      "new_source_blocks": 31,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:256",
+        "version/3.0/ripscrip/5.1-text-variables.md:2328",
+        "version/3.0/ripscrip/5.1-text-variables.md:2330",
+        "version/3.0/ripscrip/5.1-text-variables.md:2332",
+        "version/3.0/ripscrip/5.1-text-variables.md:2334",
+        "version/3.0/ripscrip/5.1-text-variables.md:2336",
+        "version/3.0/ripscrip/5.1-text-variables.md:3256",
+        "version/3.0/ripscrip/5.1-text-variables.md:3261",
+        "version/3.0/ripscrip/5.1-text-variables.md:3378",
+        "version/3.0/ripscrip/5.1-text-variables.md:3632",
+        "version/3.0/ripscrip/5.1-text-variables.md:3638",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:319",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:321",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:322",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:323",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:324",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:325",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:327",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:331",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:335",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:337",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:339",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:343",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:345",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:351",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:353",
+        "version/3.0/ripscrip/7.1-data-tables.md:157",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:397",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:401",
+        "version/3.0/ripscrip/9.0-command-reference.md:213",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:132"
+      ],
+      "retired_source_blocks": 33,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:256",
+          "heading": "State That Survives",
+          "source": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "lines": [
+            256,
+            259
+          ],
+          "text": "- User/named variables and all template definitions survive; SOFT does not mean `$RESET(TV,...)$`, variable deletion or template deletion.\n- All separately owned backup **base areas, numbered slots and stacks** survive for BUT, STYLE, PORT, TW, PAL, ENV, mouse fields and screen, with their stored state/pixels/protection. Live-table resets do not erase the independent backup objects. HARD reset and explicit backup-reset operations have different ownership.\n- Offscreen/clipboard ports follow the live PORT protection rule: an unprotected clipboard is deleted and its assigned clipboard pointer cleared; a protected clipboard and assigned pointer survive. “Clipboard always cleared” and “all clipboard data always survives” are both incorrect. See [GET_IMAGE lifecycle](4.0-icons-and-bitmaps.md#rip_get_image).\n- Global client ANSI/VT-102, communication/encoding preferences and the existing input-lock flag survive. Pending ANSI syntax is not copied into backup windows or canceled by this command.\n",
+          "sha256": "880945f9e6a6006e2a34a243d5148c4584fce612cc8386fd39cfff64be817d08",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/rip3/st_rip3_surface.c",
+            "src/terminal/rip3/st_rip3_styles.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_palettes.c",
+            "src/terminal/cterm/st_cterm_text_window.c"
+          ],
+          "tests": [
+            "rip3_surface",
+            "rip3_styles",
+            "rip3_environments",
+            "syncterm_rip3_reset_CP437",
+            "syncterm_rip3_reset_UTF-8",
+            "cterm_text_window"
+          ],
+          "reason": "Connected SOFT now clears the physical canvas and resets represented TW/STYLE/PAL/PORT/ENV state nonfatally, including protected old-current ANSI effects, retained tabs/parser, templates/variables and represented backups. Full acceptance remains pending for the applicable unfinished button/mouse/header/resident-query/charset/insert-mode families and client default MicroANSI/font-wrap policy. No VT-102 mode is in scope."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2328",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2328,
+            2328
+          ],
+          "text": "_Set/return baud rate emulation_\n",
+          "sha256": "f9e94acd9232d384ac5b0ffe1fbe5152a2e604472137e511006bb92c3bc1247a",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Section label, historical provenance or corpus observation. The adjacent syntax/state/reply requirements are tracked independently; legacy SyncTERM-only coordinate-remap side effects are not adopted into the separate v3 engine."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2330",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2330,
+            2330
+          ],
+          "text": "_Added in RIPscrip v2.A4._\n",
+          "sha256": "6af82b2dfd004ce56bcd9cb097a83282e67a3df57153b0e68bb8c5ad94783818",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Section label, historical provenance or corpus observation. The adjacent syntax/state/reply requirements are tracked independently; legacy SyncTERM-only coordinate-remap side effects are not adopted into the separate v3 engine."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2332",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2332,
+            2332
+          ],
+          "text": "**Format:** `$BAUDEMUL(env_no, baud_rate)$`\n",
+          "sha256": "81d59943a1637215a11b996c363b8a1f254558e3ce17940f94bb4affb45873b3",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2334",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2334,
+            2334
+          ],
+          "text": "**Syntax:**\n",
+          "sha256": "389f0ea8b7c83e82946dc009c8b569b382d06506cac344b9ce9364d0b18cab3f",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Section label, historical provenance or corpus observation. The adjacent syntax/state/reply requirements are tracked independently; legacy SyncTERM-only coordinate-remap side effects are not adopted into the separate v3 engine."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2336",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2336,
+            2343
+          ],
+          "text": "```text\n$BAUDEMUL(opt:ENV_NO, opt:BAUD_RATE)$\n              ──────      ─────────\n              CUR         Number\n              0-35        ─────────\n              ──────  def=0\n          def=CUR\n```\n",
+          "sha256": "086a394351742cb9e0f1e1830ce87497e93a9609f78be46590f2783bdae10892",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2345",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2345,
+            2345
+          ],
+          "text": "This variable allows the host to determine the current baud rate emulation setting for use with local RIP file playback.\n",
+          "sha256": "794585bc1f11b0201044bdd61121d747f1b11ce69db21ce12eb05fd530aa957a",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c",
+            "src/terminal/rip3/st_rip3_commands.c"
+          ],
+          "tests": [
+            "rip3_environments",
+            "rip3_commands"
+          ],
+          "reason": "BAUDEMUL record queries/sets now also observe complete 3e wire edits, verified in both radices and all three canvas-backed ENV tables. Actual local playback pacing and full scene activation remain pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2347",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2347,
+            2347
+          ],
+          "text": "Without any parameters, this variable inquires about the baud rate setting for the current environment. If only one parameter is supplied, then it is inquiring about a specific environment number and that number can be from 0-35 or the value \"CUR\" for the current environment. If the environment being inquired about isn't in use, then this command returnes a value of \"NONE\".\n",
+          "sha256": "91b400b260d92acc23298520ce22399fd31c26fbf9b7ed02610e0be54354ef6b",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2349",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2349,
+            2349
+          ],
+          "text": "A return value of \"0\" means that playback should occur at full speed. Typical return values can be 0, 300, 1200, 2400, 4800, 9600, 14400, 16800, 19200, 28800, 38400, 57600 and 115200. These are not the only values that can be returned. If you want to set a baud rate emulation value of 12345, baud you can.\n",
+          "sha256": "80d3957f86b0a8490501e348e0988e779ed0aae47533346564582ae0cfacec65",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2351",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2351,
+            2351
+          ],
+          "text": "If you specify two parameters, then the first one must be the environment to be modified (0-35 or CUR - see above). The second parameter can be a number from 0 on up, which specifies the baud rate which you wish to set to that environment. If the destination environment isn't in use, then a syntax erorr is generated.\n",
+          "sha256": "f90caa703ce49845a0ffe9fd67e640db8524644c862d88c75e4f16dd2e043ba3",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2353",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2353,
+            2354
+          ],
+          "text": "**Example:** `$BAUDEMUL$`  \n**Returns:** `9600`\n",
+          "sha256": "06274366f6bc99e280066f3d4b4aefc1f9bb9569c903b39cd7278071298f8076",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2356",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2356,
+            2357
+          ],
+          "text": "**Example:** `$BAUDEMUL(CUR)$`  \n**Returns:** `9600`\n",
+          "sha256": "0f73dd87543595f2cac0ce4b76012b3367129561cd7e4fcb5dbc0d4476ef056c",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2359",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2359,
+            2360
+          ],
+          "text": "**Example:** `$BAUDEMUL(35)$`  \n**Returns:** `NONE`\n",
+          "sha256": "45f32c845b1ef2f7c7b6705e48577861e39d6bea716d03b0c82ad64922e6e599",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:2362",
+          "heading": "$BAUDEMUL$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            2362,
+            2363
+          ],
+          "text": "**Example:** `$BAUDEMUL(CUR, 2400)$`  \n**Returns:** nothing - sets current environment to 2400 baud\n",
+          "sha256": "714d744861012301d31eec38d3f828d1e6356dfed263f994a36cf307cdea29ae",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3283",
+          "heading": "$COMPAT$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3283,
+            3287
+          ],
+          "text": "- [World Coordinate Frame](1.2-math-and-coordinates.md) is set to 640x350\n- Color mode is set to color palette mapping mode\n- Coordinate sizes are set to 2 bytes\n- Base math is set to base-36 numbers (MegaNums)\n- Baud rate emualtion is set to full speed (0)\n",
+          "sha256": "592fc81972e06ae79f707d2abef480ae9304da7b840b56049b8ebe1b963d57bb",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_environments"
+          ],
+          "reason": "Reference adoption reopens this claim: the containing document changed in PR #71. Existing implementation/tests are historical evidence, pending reconciliation with the new contract. Previous review: Independent record-backed reference processing checks default/CUR/numbered queries, atomic changes, protection, NONE/-1 absence replies where unambiguous, basic COMPAT fields and numeric boundaries. Explicit shipping v3 limits (world 32767 and RGB eight bits) supersede inherited draft tables. BAUDEMUL input retains the documented 12-byte parameter bound, with wider owned arithmetic and no pacing/hardware capability claim. Runtime context activation and raw stream/playback consumers remain separate pending requirements."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3404",
+          "heading": "$RENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3404,
+            3404
+          ],
+          "text": "WORLD, Base Math, coordinate width, color mode/RGB precision and mouse presentation retain their documented activation behavior. The stored baud-emulation value retains its [BAUDEMUL](#baudemul) scope. This clarification adds no new cross-table activation transaction and does not revise the already documented ENV sequencing behavior. If source is omitted, use the reusable [ENV base save area](7.2-data-backup-areas.md#environment-table-save-area).\n",
+          "sha256": "8afd8e1a02af00bedd3cf11014827fa5ca6b19aaa4a25ee6aef43ad45537f57f",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_environments",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8",
+            "syncterm_rip3_environment_CP437",
+            "syncterm_rip3_environment_UTF-8"
+          ],
+          "reason": "PR143 editorially aligns ENV backup scope with the already connected typed table/current-index capture and normal current-value activation. Existing independent native and connected tests verify saved nonzero ENV selection, all represented records, own WORLD/base/width/RGB/pointer/baud settings, live foreign selectors and separate aggregate-family effects. No new context transaction or runtime change is introduced by adoption."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.1-text-variables.md:3658",
+          "heading": "$SENV$",
+          "source": "version/3.0/ripscrip/5.1-text-variables.md",
+          "lines": [
+            3658,
+            3663
+          ],
+          "text": "- World coordinate dimensions (X and Y)\n- Base Math (36 or 64)\n- Coordinate width (2 through 5)\n- Color mode / RGB precision\n- Mouse pointer number\n- The documented stored [baud-emulation setting](#baudemul)\n",
+          "sha256": "a7fdd0a73e2648d3a99e2a6ba3182423f447a9951ce80b87a316545d6f457622",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_environments",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8",
+            "syncterm_rip3_environment_CP437",
+            "syncterm_rip3_environment_UTF-8"
+          ],
+          "reason": "PR143 editorially aligns ENV backup scope with the already connected typed table/current-index capture and normal current-value activation. Existing independent native and connected tests verify saved nonzero ENV selection, all represented records, own WORLD/base/width/RGB/pointer/baud settings, live foreign selectors and separate aggregate-family effects. No new context transaction or runtime change is introduced by adoption."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:319",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            319,
+            319
+          ],
+          "text": "_Evidence: 2.00a4 ([v2.0 entry](../../2.0/ripscrip/5.5-file-transfer-and-queries.md#rip_baud_emulation)); HLP (`RIP_BaudEmulation`; `$BAUDEMUL$` variable) - not observed in the RIPtel demo corpus, not in SyncTERM._\n",
+          "sha256": "ea90daf09f09019c54fc43e8cab43033c4f2a2f9a18b6151f8194d72cae3b41a",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Version/command summaries, table layout and HLP/corpus provenance; executable baud-setting requirements are tracked separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:321",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            321,
+            321
+          ],
+          "text": "_Set Baud Rate Emulation for Local RIP Playback_\n",
+          "sha256": "c93cec9c2757e32fd1f1b166f873d781e76e9cd3e05107f68c21e7744fa7f3b9",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Version/command summaries, table layout and HLP/corpus provenance; executable baud-setting requirements are tracked separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:323",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            323,
+            323
+          ],
+          "text": "|               |              |\n",
+          "sha256": "fdc1249170c44a3c7ce04dc2cdfac8f53d7597814876538e7c2fc03757d6ce9e",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Version/command summaries, table layout and HLP/corpus provenance; executable baud-setting requirements are tracked separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:324",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            324,
+            324
+          ],
+          "text": "| ------------- | ------------ |\n",
+          "sha256": "d0c1ade759d40cb41b6dc58c7cfaf6ac55ed7ea264a6f7bbc230bef03b63cf8c",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Version/command summaries, table layout and HLP/corpus provenance; executable baud-setting requirements are tracked separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:325",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            325,
+            325
+          ],
+          "text": "| **Level**     | 3            |\n",
+          "sha256": "311f8fab4ec7fdd94a64b74723ce58385317ecd014a6615a555e2afe1dc7d3be",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "3e decodes the current-radix field into the active ENV rate. Zero allows full-speed local playback."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:326",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            326,
+            326
+          ],
+          "text": "| **Command**   | `e`          |\n",
+          "sha256": "b1e8b2cf16a8dcf63a1e6f68dadf6ccad1e1f1e00977f791bd67a53c808a1890",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "3e decodes the current-radix field into the active ENV rate. Zero allows full-speed local playback."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:327",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            327,
+            327
+          ],
+          "text": "| **Arguments** | `rate_val:4` |\n",
+          "sha256": "de2ca4a0f50f752ff30ef981a77f965ffda74768fb01e25ad1026a4129e8e001",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "3e decodes the current-radix field into the active ENV rate. Zero allows full-speed local playback."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:329",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            329,
+            329
+          ],
+          "text": "**Format:** `!|3e <rate_val>` **Example:** `!|3e01UN`\n",
+          "sha256": "9d9af63da5c748e4325404c3d8c6a868db39563715df5517bf4106eaeb31dc67",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "3e decodes the current-radix field into the active ENV rate. Zero allows full-speed local playback."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:333",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            333,
+            333
+          ],
+          "text": "This command sets the rate at which [local RIP file playback](5.3-local-playback.md) is performed. By default, local RIP playback is done at full speed, which is dependent on your CPU, hard disk speed and many other factors. With this command, you can set the speed at which the playback is performed so that it approximates a particular baud rate. The setting remains in effect even after a [RIP_RESET_WINDOWS](1.3-world-view-virtual-canvas.md#rip_reset_windows) command, so that a Reset command inside a local RIP file will not alter the playback speed in mid-stride. The setting remains in effect until changed explicitly by the user (if possible under the terminal software), or by the host via another RIP_BAUD_EMULATION command.\n",
+          "sha256": "9c497710b8333f749209beef6c6fafc3cd1216fdc407347dcb74257f3664b570",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "Local scene byte pacing uses the current ENV baud with an independent clock. Reset persistence awaits reconciliation with the recovered ENV reset contract.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/172"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:335",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            335,
+            335
+          ],
+          "text": "Typical settings for `<rate_val>` might be 300, 2400, 4800, 19200, etc. A value of 0 indicates that local playback should be performed at maximum speed (no baud rate emulation). _(v2.A3)_\n",
+          "sha256": "2d7b7ea72ef879fd8b8403753abb10ddf40708d2ea456c94d80e0e604c57e159",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_commands",
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "3e decodes the current-radix field into the active ENV rate. Zero allows full-speed local playback."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:337",
+          "heading": "RIP_BAUD_EMULATION",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            337,
+            337
+          ],
+          "text": "The 3.0 driver keeps the feature (its `$BAUDEMUL$` variable reads the setting back), but the demos run at full speed and pace their animations with `$D(n)$` delays instead. _Evidence: HLP; corpus._\n",
+          "sha256": "6c57252b44d5b4c91ef2a02cdef7340dca6e5119ce863eec389b6e82701ce095",
+          "status": "context",
+          "implementation": [],
+          "tests": [],
+          "reason": "Version/command summaries, table layout and HLP/corpus provenance; executable baud-setting requirements are tracked separately."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.1-data-tables.md:157",
+          "heading": "Environment Table",
+          "source": "version/3.0/ripscrip/7.1-data-tables.md",
+          "lines": [
+            157,
+            157
+          ],
+          "text": "The environment data table is a central table for the maintenance of critical values that define the characteristics of the RIPscrip environment. This data table holds up to 36 separate environments. For RIPtel 3.1, world dimensions, Base Math, coordinate width, RGB precision and mouse pointer number belong to the environment. The inherited draft also describes baud-rate emulation in this table. **Current STYLE, BUT, PORT, TW and PAL selections are separate state:** the driver's environment selector does not save or restore those selections, their records, or mouse fields. The draft's proposed whole-context-swap example is not the shipped behavior. _Evidence: DLL; [activation derivation](../research/issue-24-drawing-state-ownership.md#ownership-and-switching-observations)._\n",
+          "sha256": "50b4e66d85ded6e98cf6526fadf55fb2128df3df4462e6b5d3d7c58c58ede526",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_table_host.c"
+          ],
+          "tests": [
+            "rip3_environments",
+            "rip3_switch_commands",
+            "rip3_table_host",
+            "rip3_session",
+            "syncterm_rip3_environment_CP437",
+            "syncterm_rip3_environment_UTF-8"
+          ],
+          "reason": "CUR(ENV,n) and fixed-two-current-base-digit wire2E share protocol activation through the actual session-owned table. Unused targets take basic defaults; target mode fields overwrite the departing record before selection, bypassing protection but retaining its WORLD/pointer/baud. Existing native refresh reads the new current pointer. Other table selections/ANSI state/pixels/raster stay live. Numeric/CUR ENV entry COPY validates source and every destination before any mutation, carries source protection except to zero, defines targets, retains selection and permits repeated destinations. Native literal state/copy/split/failure tests and connected CP437/UTF8 expectations cover all presets/custom, protected/default/bypass cases, real plotted coordinates/pointer metadata, nonzero backups and zero-WORLD/error recovery. Header and other unfinished families remain separate; no ordinary text or RIP154 path changes."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.2-data-backup-areas.md:397",
+          "heading": "Environment Table Save Area",
+          "source": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "lines": [
+            397,
+            398
+          ],
+          "text": "- The current environment data table entry number\n- The actual environment data table (all 36 entries)\n",
+          "sha256": "02fb56545fd8aecffcac8535137892bca29e4f0b9d04a7a1515f68722c0fcb3a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_backup.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_styles.c"
+          ],
+          "tests": [
+            "rip3_backup",
+            "rip3_table_host",
+            "rip3_environments",
+            "rip3_screen",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8"
+          ],
+          "reason": "SGS/RGS and SENV/RENV are connected to their existing typed snapshot families. SAVEALL/RESTOREALL dispatch TW, PORT, MOUSE, SCREEN, PAL, BUT, STYLE, ENV in exact order, continue after every failure without rollback and keep valid actions empty/nonfatal. Numbered restores retain all snapshots until a separate ordered delete phase, including failed unprotected snapshots; BASE stays reusable and POP consumes each successful family independently. Native event/ownership/failure tests and both TCP encodings cover executable behavior and independent expected colors, metadata and input. This accepts this syntax/lifetime/composition clause, not every subrequirement of each payload family; full PORT_COPY/PCB and remaining STYLE inventory stay separately pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.2-data-backup-areas.md:400",
+          "heading": "Environment Table Save Area",
+          "source": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "lines": [
+            400,
+            400
+          ],
+          "text": "[`SENV`](5.1-text-variables.md#senv) / [`RENV`](5.1-text-variables.md#renv) save/restore this ENV table/index scope. **Current STYLE, BUT, PORT, TW and PAL selections remain separate live state**, as established by the [ENV ownership rules](7.1-data-tables.md#environment-table); ENV restoration does not restore their records or mouse fields. ENV-owned settings retain their existing stored-value and activation rules, including the documented baud-emulation setting. See the [foreign-selection reconciliation](../research/issue-142-env-backup-selection-scope.md) and full entries for the selected-index example; this adds no cross-table activation transaction.\n",
+          "sha256": "aad04e12422434543fcb3a969a0fda738ca6b0821d3c3393abbc89baae49a934",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_table_host.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_environments",
+            "rip3_session",
+            "syncterm_rip3_aggregate_CP437",
+            "syncterm_rip3_aggregate_UTF-8",
+            "syncterm_rip3_environment_CP437",
+            "syncterm_rip3_environment_UTF-8"
+          ],
+          "reason": "PR143 editorially aligns ENV backup scope with the already connected typed table/current-index capture and normal current-value activation. Existing independent native and connected tests verify saved nonzero ENV selection, all represented records, own WORLD/base/width/RGB/pointer/baud settings, live foreign selectors and separate aggregate-family effects. No new context transaction or runtime change is introduced by adoption."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.0-command-reference.md:213",
+          "heading": "Timing",
+          "source": "version/3.0/ripscrip/9.0-command-reference.md",
+          "lines": [
+            213,
+            213
+          ],
+          "text": "| [RIP_BAUD_EMULATION](5.5-file-transfer-and-queries.md#rip_baud_emulation) | 3 | `e` | `rate_val:4` | v2.A0 | Set baud rate emulation for local RIP playback |\n",
+          "sha256": "2c42e23e9e0e6f1b336d9fe04ab86fd4e6ab6c4f0922d2ac7cddcfceafc595d7",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_commands.c",
+            "src/terminal/rip3/st_rip3_environments.c",
+            "src/terminal/rip3/st_rip3_environment_host.c"
+          ],
+          "tests": [
+            "rip3_commands"
+          ],
+          "reason": "3e field decoding and current ENV rate edits are implemented/tested, with BAUDEMUL readback and split-input/protected/error recovery in both radices. Actual local playback pacing and reset persistence remain pending."
+        },
+        {
+          "id": "version/3.0/ripscrip/9.1-text-variable-reference.md:132",
+          "heading": "Terminal Operation",
+          "source": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "lines": [
+            132,
+            132
+          ],
+          "text": "| `$BAUDEMUL(env,rate)$` _(v2.A4)_ | Value/Active | Query or set baud rate emulation per environment (0 = full speed) | 2.00a4; HLP | [5.1](5.1-text-variables.md#baudemul) |\n",
+          "sha256": "7d01b5c67d2f7154c40d2c2151018d25fdea7ba3b66c49959430223bc56bdb92",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_host_variables.c"
+          ],
+          "tests": [
+            "rip3_builtin_catalog",
+            "rip3_builtin_inventory",
+            "rip3_host_variables"
+          ],
+          "reason": "The pinned built-in name (including fixed-slot families) is recognized case-insensitively by the compiled catalog, with independent source-inventory coverage. Recognition alone does not establish this row's executable semantics: remaining handlers, blocked policy/format details, adapters and stream/session routing remain pending. Recognized unsupported processors do not fall through as unknown user names."
+        }
+      ],
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3404",
+        "version/3.0/ripscrip/5.1-text-variables.md:3658",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:325",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:326",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:327",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:329",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:335",
+        "version/3.0/ripscrip/7.1-data-tables.md:157",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:397",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:400"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-172-local-playback-baud.md",
+          "sha256": "dbe4b21ef14369c58e3ec5a1ddfa51de4b947853fb3683af0fc36e730663638d",
+          "title": "Issue #172: Local playback baud rate and scene resets",
+          "role": "Primary live rate ownership, ENV capture, reset and original file byte-group evidence."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-171-fileexists.md",
+          "previous_sha256": "95e2a35ab4abae0fee3fa70fa70a6d076163a9be5ca888a230bdac8ddb65ffc1",
+          "sha256": "9d0d9af0b87a7168586be4f33524a75e477cebd6464fb43bada4c0b00ae5c8ee"
+        }
+      ],
+      "states_at_adoption": {
+        "unreviewed": 2492,
+        "context": 1715,
+        "pending": 1678,
+        "implemented": 3002,
+        "excluded": 70,
+        "blocked": 42
+      },
+      "source_blocks_at_adoption": 8999,
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 82,
+        "declared_prior_derivation_changes": 1,
+        "originals": {
+          "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "version/2.0/text/RIPScrip-2.0-alpha-4.txt": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
+        },
+        "scope": "Document, derivation and original publication hashes plus ordered exact matching at the verified stable commit."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -16621,6 +17483,51 @@
         "blocked": 43
       },
       "verification": "Connected CP437 and UTF-8 nested scene CSI, OSC and identification reply checks. Native CTerm state migration, native scene callback failure and cancellation, and RIP 1.54 source preservation."
+    },
+    {
+      "after_commit": "ef5c73f6",
+      "revision": "831fdb9d8eb20f80f55a6ca9708fcb883614d1ea",
+      "scope": "Use the RIPtel 3.1 live local playback rate, ENV backup field and per-file group timing.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2330",
+        "version/3.0/ripscrip/5.1-text-variables.md:2332",
+        "version/3.0/ripscrip/5.1-text-variables.md:2334",
+        "version/3.0/ripscrip/5.1-text-variables.md:2336",
+        "version/3.0/ripscrip/5.1-text-variables.md:3261",
+        "version/3.0/ripscrip/5.1-text-variables.md:3378",
+        "version/3.0/ripscrip/5.1-text-variables.md:3632",
+        "version/3.0/ripscrip/5.1-text-variables.md:3638",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:323",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:324",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:325",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:327",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:331",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:335",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:337",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:339",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:343",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:345",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:351",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:353",
+        "version/3.0/ripscrip/7.1-data-tables.md:157",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:397",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:401",
+        "version/3.0/ripscrip/9.0-command-reference.md:213",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:132"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:256",
+        "version/3.0/ripscrip/5.1-text-variables.md:3256"
+      ],
+      "states_after_update": {
+        "unreviewed": 2492,
+        "context": 1715,
+        "pending": 1678,
+        "implemented": 3002,
+        "excluded": 70,
+        "blocked": 42
+      },
+      "verification": "Native rate grammar and exact fake-clock grouping across rollover, rate changes, nested playback, cancellation and SOFT. Connected CP437 and UTF-8 media, ENV and aggregate backup tests."
     }
   ]
 }

@@ -1202,6 +1202,22 @@ FILEEXISTS. The other 80 previous derivations, original publications and
 license retain their hashes. Two new derivations record the executable evidence
 for B170 and B171.
 
-The specification resolves B170 and B171. Connected FILEEXISTS now applies
-the ordered aliases and preserves rejected calls as literal text. Local scene
-filename preparation, source boundaries and child replies remain pending.
+The specification resolves B170 and B171. Connected FILEEXISTS applies the
+ordered aliases and preserves rejected calls as literal text. The [local
+scene coverage](RIP3_CONFORMANCE.md#connected-rip_read_scene) records the
+subsequent filename, input boundary and reply changes.
+
+## PR #178 local playback baud and ENV ownership
+
+Fork stable is pinned at
+[`831fdb9d8eb20f80f55a6ca9708fcb883614d1ea`](https://github.com/RealDeuce/remote-imaging-protocol/tree/831fdb9d8eb20f80f55a6ca9708fcb883614d1ea).
+Its tree matches [PR #178](https://github.com/bbs-land/remote-imaging-protocol/pull/178)
+head `b1012d4259a1cb1caad5464107361ed72a2d3130`. The Git tar archive has
+SHA-256 `e050e916decab6e5cc81f997adb04627e25cdf50eae3bc634fb6ca2c80f67f45`.
+
+Seven normative documents change. The index keeps 8,968 source blocks,
+moves 1,133 line ranges, adds 31 blocks and retires 33, for 8,999 total.
+The FILEEXISTS derivation records its stable consolidation. The other 82
+prior derivations, original publications and license retain their hashes.
+The new #172 derivation resolves B172 and documents the two-digit wire
+field, shared live rate, ENV backup scope and byte-group timing.

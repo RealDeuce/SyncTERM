@@ -463,7 +463,7 @@ execute(const struct st_rip3_command_host *host,
 	uint64_t first, second;
 	const uint8_t *arguments, *comment;
 	size_t count;
-	bool baud, delay, commented;
+	bool delay, commented;
 	int status;
 
 	*operation = false;
@@ -471,7 +471,16 @@ execute(const struct st_rip3_command_host *host,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (memchr(command, 0, length) != NULL)
 		return IO_ERROR_INVALID_FORMAT;
-	baud = length >= 2 && command[0] == '3' && command[1] == 'e';
+	if (length >= 2 && command[0] == '3' && command[1] == 'e') {
+		if (length < 4)
+			return IO_ERROR_INVALID_FORMAT;
+		status = st_rip3_command_environment(host, &number, &value);
+		if (status == 0)
+			status = st_rip3_command_field(&first, command + 2, 2, value.base_math);
+		if (status != 0)
+			return status;
+		return st_rip3_environments_set_playback_rate(host->environments, (uint32_t)first);
+	}
 	delay = length >= 2 && command[0] == '3' && command[1] == 'D';
 	/* Comments bypass every expansion/service, and terminal-only grouping
 	 * commands carry no state, including when nested or unmatched. */
@@ -575,9 +584,9 @@ execute(const struct st_rip3_command_host *host,
 		return desktop_palette(host, command, length, operation);
 	if (command[0] == 'D' || command[0] == 'd')
 		return drawing_palette(host, command, length, operation);
-	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f' && !baud && !delay)
+	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f' && !delay)
 		return IO_ERROR_NOT_SUPPORTED;
-	arguments = command + (baud || delay ? 2 : 1); count = length - (baud || delay ? 2 : 1);
+	arguments = command + (delay ? 2 : 1); count = length - (delay ? 2 : 1);
 	/* The pinned f example explicitly retains the command before a spaced
 	 * inline comment. Unseparated extra-data rules remain under issue #7.
 	 * Text-valued commands never take this numeric-only branch. */
@@ -604,20 +613,17 @@ execute(const struct st_rip3_command_host *host,
 		status = st_rip3_command_environment(host, &number, &value);
 		if (status != 0)
 			return status;
-		if (baud || delay) {
+		if (delay) {
 			if (count > 4)
 				return IO_ERROR_INVALID_FORMAT;
 			status = st_rip3_command_field(&first, arguments, count, value.base_math);
 			if (status != 0)
 				return status;
-			if (delay) {
-				if (host->input == NULL)
-					return IO_ERROR_NOT_SUPPORTED;
-				*operation = true;
-				st_rip3_input_delay(host->input,(uint32_t)first);
-				return 0;
-			}
-			value.baud_rate = first;
+			if (host->input == NULL)
+				return IO_ERROR_NOT_SUPPORTED;
+			*operation = true;
+			st_rip3_input_delay(host->input,(uint32_t)first);
+			return 0;
 		}
 		else if (command[0] == 'n') {
 			if (count > 4)

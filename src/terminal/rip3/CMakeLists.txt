@@ -247,6 +247,9 @@ if(BUILD_TESTING)
 		tests/st_rip3_resident_query_fault_impl.c)
 	target_link_libraries(st_rip3_session_test PRIVATE st_rip3_commands syncterm_string_util st_utf8)
 	file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/session-scenes/Pace.TXT" CONTENT "ABC")
+	file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/session-scenes/PaceReset.RIP" CONTENT "!|*\rABCDEF")
+	file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/session-scenes/PaceRate.RIP" CONTENT "!|3e8C\rABCDEF")
+	file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/session-scenes/PaceParent.RIP" CONTENT "!|1R00000000Pace.TXT\rABCDEF")
 	target_compile_definitions(st_rip3_session_test PRIVATE
 		ST_RIP3_SESSION_SCENE_DIR="${CMAKE_CURRENT_BINARY_DIR}/session-scenes")
 	set_target_properties(st_rip3_session_test PROPERTIES

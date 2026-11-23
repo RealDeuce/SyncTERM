@@ -22,7 +22,7 @@ equal(const char *text, const char *uppercase)
 }
 
 static int
-baud_number(const char *text, uint64_t *result)
+decimal_number(const char *text, uint64_t *result)
 {
 	uint64_t value = 0;
 
@@ -51,6 +51,30 @@ reply_text(char *result, size_t capacity, const char *text)
 	return 0;
 }
 
+static int
+playback_rate(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	if (reference->count > 1)
+		return IO_ERROR_INVALID_FORMAT;
+	if (capacity == 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_environments *environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
+	if (reference->count == 0) {
+		char text[sizeof("2147483647")];
+		(void)snprintf(text, sizeof(text), "%" PRIu32, st_rip3_environments_playback_rate(environments));
+		return reply_text(result, capacity, text);
+	}
+	uint64_t rate;
+	int status = decimal_number(reference->parameters[0].text, &rate);
+	if (status != 0 || rate > INT32_MAX)
+		return IO_ERROR_INVALID_FORMAT;
+	result[0] = 0;
+	return st_rip3_environments_set_playback_rate(environments, (uint32_t)rate);
+}
+
 int
 st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -72,19 +96,20 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 		return status;
 	}
 	const char *name = reference->name;
+	if (strcmp(name, "BAUDEMUL") == 0)
+		return playback_rate(host, reference, result, capacity);
 	bool base = strcmp(name, "BASEMATH") == 0;
 	bool coord = strcmp(name, "COORDSIZE") == 0;
 	bool world = strcmp(name, "WORLD") == 0;
 	bool width = strcmp(name, "WORLDW") == 0;
 	bool height = strcmp(name, "WORLDH") == 0;
 	bool color = strcmp(name, "COLORMODE") == 0;
-	bool baud = strcmp(name, "BAUDEMUL") == 0;
 	bool compat = strcmp(name, "COMPAT") == 0;
 	bool setting = compat || reference->count >= 2;
 	unsigned index;
 	int status;
 
-	if (!base && !coord && !world && !width && !height && !color && !baud && !compat)
+	if (!base && !coord && !world && !width && !height && !color && !compat)
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_builtin_reference words;
 	status=st_rip3_builtin_reference_words(&words,reference);
@@ -117,7 +142,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	if (status == IO_ERROR_NOT_FOUND) {
 		if (setting)
 			return IO_ERROR_INVALID_FORMAT;
-		return reply_text(result, capacity, base || baud ? "NONE" : "-1");
+		return reply_text(result, capacity, base ? "NONE" : "-1");
 	}
 	if (status != 0)
 		return status;
@@ -129,10 +154,9 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 			length = snprintf(text, sizeof(text), "%" PRIu32 ":%" PRIu32,
 			    value.world_width, value.world_height);
 		else {
-			uint64_t number = base ? value.base_math : coord ? value.coordinate_size
-			    : width ? value.world_width : height ? value.world_height
-			    : color ? value.rgb_bits : value.baud_rate;
-			length = snprintf(text, sizeof(text), "%" PRIu64, number);
+			uint32_t number = base ? value.base_math : coord ? value.coordinate_size
+			    : width ? value.world_width : height ? value.world_height : value.rgb_bits;
+			length = snprintf(text, sizeof(text), "%" PRIu32, number);
 		}
 		if (length < 0 || (size_t)length >= sizeof(text))
 			return IO_ERROR_IO;
@@ -141,12 +165,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	if (compat) {
 		value.world_width = 640; value.world_height = 350;
 		value.base_math = 36; value.coordinate_size = 2;
-		value.rgb_bits = 0; value.baud_rate = 0;
-	}
-	else if (baud) {
-		status = baud_number(reference->parameters[1].text, &value.baud_rate);
-		if (status != 0)
-			return status;
+		value.rgb_bits = 0;
 	}
 	else if (color) {
 		const char *mode = reference->parameters[1].text;
@@ -171,9 +190,9 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 			value.world_height = value.base_math == 36 ? 960 : 3072;
 		}
 		else if (reference->count == 3) {
-			status = baud_number(reference->parameters[1].text, &x);
+			status = decimal_number(reference->parameters[1].text, &x);
 			if (status == 0)
-				status = baud_number(reference->parameters[2].text, &y);
+				status = decimal_number(reference->parameters[2].text, &y);
 			if (status != 0)
 				return status;
 			/* Preserve WORLD's documented AND-shaped validation defect;

@@ -23,7 +23,6 @@ struct st_rip3_environment {
 	unsigned coordinate_size;
 	unsigned rgb_bits;
 	unsigned mouse_pointer;
-	uint64_t baud_rate;
 };
 
 struct st_rip3_environment_info {
@@ -33,7 +32,7 @@ struct st_rip3_environment_info {
 
 /* One owner/session thread. Initially only entry zero is defined/current.
  * Basic values are 640x350, base 36, two coordinate bytes, palette mode,
- * mouse pointer zero, full-speed playback and referenced entries zero.
+ * mouse pointer zero and referenced entries zero. Playback starts at full speed.
  * This does not apply the values to other tables or reset an active scene. */
 int st_rip3_environment_defaults(struct st_rip3_environment *result);
 int st_rip3_environments_create(struct st_rip3_environments **result,
@@ -69,10 +68,13 @@ int st_rip3_environments_select(struct st_rip3_environments *environments,
 	unsigned number);
 /* Protocol selection defaults unused targets, then writes target base/RGB/
  * coordinate width into the departing record, bypassing its protection, before
- * changing current. WORLD/pointer/baud stay owned by their respective records.
+ * changing current. WORLD and pointer stay owned by their respective records.
  * No other table selection changes. Consumers read active values from current;
  * the existing connection pointer refresh observes its new mouse number. */
 int st_rip3_environments_activate(struct st_rip3_environments *,unsigned number);
+/* Interpreter-wide local scene rate, saved alongside the ENV table. */
+uint32_t st_rip3_environments_playback_rate(const struct st_rip3_environments *);
+int st_rip3_environments_set_playback_rate(struct st_rip3_environments *, uint32_t rate);
 /* Validate the defined source and all destinations before copying. Protected
  * sources are readable; protected/self/invalid targets reject the whole call.
  * Copy definition/protection, clearing protection at zero. Keep selection and
@@ -97,11 +99,10 @@ int st_rip3_environments_frame(const struct st_rip3_environments *environments,
 int st_rip3_environments_device(const struct st_rip3_environments *environments,
 	struct st_rip3_frame *result);
 
-/* Whole record table/current index, including protection, in owned snapshots.
+/* Whole record table, current index and live playback rate in owned snapshots.
  * Restore bypasses live protection and requires the same device canvas.
  * Current settings are read from the restored ENV by their normal consumers.
- * Other table selections/contents, pixels and external UI/playback state are
- * not captured or activated. SENV/RENV use this same snapshot family. */
+ * SENV/RENV use this snapshot family. The scene reader owns its pacing clock. */
 int st_rip3_environments_backup_create(struct st_rip3_backup **result);
 
 #endif

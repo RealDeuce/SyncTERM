@@ -1085,7 +1085,9 @@ legacy font data or RIP154 expectations changed.
 
 `rip3_environments` adds 36 owned environment records, storing the five table
 references, world size, numeric base, coordinate width, RGB precision, mouse
-pointer and baud emulation setting. Initially only zero is defined/current;
+pointer and the initial per-record baud emulation setting. PR #178 later
+moved the rate into [interpreter-wide playback state](#connected-local-playback-rate).
+Initially only zero is defined/current;
 zero cannot be protected. Explicit definition/selection, protected edits and
 whole-table owned backups are checked on all three canvases. Restoring bypasses
 live protection, survives the original owner's destruction, and rejects a
@@ -1654,13 +1656,14 @@ the shipping Switch-family layout under #2. The
 [connected palette commands](#connected-drawing-palette-commands) use the
 verified one-digit slot and trailing flags.
 
-The complete-command fixture now covers `3e` decoding into the current ENV baud
-rate. Its one-to-four-digit field follows the current radix, independently of
+This milestone initially covered `3e` decoding into the current ENV baud
+rate. Its one-to-four-digit field followed the current radix, independently of
 coordinate width and RGB mode, and permits last-field shortening. Zero encodes
 full speed; arbitrary rates are accepted, including the preserved `01UN` example
 (2399 in base 36), rather than a preset-only list. Validation precedes protected
 record edits; other values, references, selection and noncurrent records are
-retained. `$BAUDEMUL$` reads the same field.
+retained. `$BAUDEMUL$` read the same field. The [connected playback rate](#connected-local-playback-rate)
+now uses the reviewed two-digit command and shared live value.
 
 Independent literal tests cover both radix maxima, lowercase/extended UltraNum
 digits, local MegaNum zero spelling, missing services, malformed/excess fields,
@@ -8171,9 +8174,9 @@ Protocol activation defaults an unused target to the published basic environment
 (640×350 WORLD, base 36, width 2, palette mode and pointer 0), then reproduces the
 specified departing-record base/RGB/coordinate-width overwrite before selecting
 the target. That overwrite bypasses departing protection; target protection
-does not block selection. Each record retains its own WORLD, pointer and baud.
-Current ENV remains the single active source: no second mode cache or renderer
-layer is introduced. The existing native pointer refresh reads the new record.
+does not block selection. Each record retains its own WORLD and pointer.
+The live local playback rate survives ENV selection. The existing native
+pointer refresh reads the new record.
 The lower-level selector remains a prepared-record operation; wire/CUR always
 use protocol activation. Other current tables, graphics cursor/image state,
 ANSI interpreter and current scene pixels do not change.
@@ -9266,16 +9269,23 @@ Connected tests also verify continued evaluation after a missing or refused
 file. Native fault cases cover child allocation failures and cancellation
 while a caller is suspended.
 
-`3e` applies the current ENV baud setting to local scene bytes. Zero runs at
-full speed. The local clock budgets ten bits per source byte and limits catch-up
-to 100 ms or one byte, whichever is greater. The live receive path keeps its own
-rate and clock. A native fake-clock test verifies exact byte eligibility across
-timer rollover, large rates, cancellation and return to ordinary live bytes.
-Connected tests exercise a paced text file in both encodings.
+## Connected local playback rate
 
-The playback rate follows the existing current ENV value. Whether RIPtel
-retains the active rate through a scene reset despite defaulting the ENV
-records is tracked in [issue #172](https://github.com/bbs-land/remote-imaging-protocol/issues/172).
+Wire `3e` reads two digits in the current base. `$BAUDEMUL$` reads the same
+live rate and `$BAUDEMUL(rate)$` sets it from decimal in 0–2,147,483,647.
+Zero runs at full speed. Rejected calls remain literal in the response.
+ENV selection, COMPAT and ordinary scene reset preserve the rate.
+SENV and RENV save and restore it alongside the ENV table and current index.
+The setting applies to local playback. Live receive pacing has its own rate
+and clock. [PR #178](https://github.com/bbs-land/remote-imaging-protocol/pull/178)
+
+Each open file counts bytes independently and pauses before processing the
+last byte of each group. The original table and two-stage millisecond
+truncation give 99 ms per three bytes at 300 baud, 29 ms per seven at 2,400,
+and 15 ms per fifteen at 9,600. Native fake-clock tests check these boundaries,
+changing rate during playback, clock rollover, nested return, cancellation
+and SOFT within a group. Connected CP437 and UTF-8 tests cover playback
+pacing, rate queries across a scene reset, ENV selection and backup restore.
 
 ## Connected prewrapped column text
 

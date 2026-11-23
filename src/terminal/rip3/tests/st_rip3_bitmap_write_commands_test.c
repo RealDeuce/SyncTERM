@@ -284,8 +284,7 @@ same_environment(const struct st_rip3_environment *a, const struct st_rip3_envir
 	    && a->port == b->port && a->text_window == b->text_window && a->palette == b->palette
 	    && a->world_width == b->world_width && a->world_height == b->world_height
 	    && a->base_math == b->base_math && a->coordinate_size == b->coordinate_size
-	    && a->rgb_bits == b->rgb_bits && a->mouse_pointer == b->mouse_pointer
-	    && a->baud_rate == b->baud_rate;
+	    && a->rgb_bits == b->rgb_bits && a->mouse_pointer == b->mouse_pointer;
 }
 
 /* Label the backing pixels independently of the requested export rectangle. */
