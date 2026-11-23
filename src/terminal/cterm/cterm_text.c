@@ -293,9 +293,14 @@ cterm_text_byte(struct cterminal *cterm, uint8_t byte)
 void
 cterm_text_literal(struct cterminal *cterm, uint8_t byte)
 {
+	cterm_text_literal_scalar(cterm, st_codepage_to_unicode(cterm->screen.codepage, byte, true));
+}
+
+void
+cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar)
+{
 	char text[4];
-	ptrdiff_t size = st_utf8_encode_one(text, sizeof(text),
-	    st_codepage_to_unicode(cterm->screen.codepage, byte, true));
+	ptrdiff_t size = st_utf8_encode_one(text, sizeof(text), scalar);
 	struct st_unicode_presentation_event event = {
 		.kind = ST_UNICODE_PRESENTATION_BEGIN,
 		.bytes = (const uint8_t *)text, .size = size > 0 ? (size_t)size : 0,

@@ -16,6 +16,7 @@ int cterm_text_feed(struct cterminal *cterm, const void *text, size_t size,
 	size_t *consumed);
 void cterm_text_byte(struct cterminal *cterm, uint8_t byte);
 void cterm_text_literal(struct cterminal *cterm, uint8_t byte);
+void cterm_text_literal_scalar(struct cterminal *cterm, uint32_t scalar);
 void cterm_text_repeat(struct cterminal *cterm, size_t count);
 void cterm_text_forget(struct cterminal *cterm);
 void cterm_text_destroy(struct cterminal *cterm);

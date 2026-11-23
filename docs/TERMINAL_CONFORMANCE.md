@@ -21,6 +21,14 @@ bug, not the expected behavior. Both clients return DA
 `ESC[23;80H` followed by a space before its LF; remote artwork is not used as
 an expected image.
 
+`syncterm_vt52_c0` checks every printable C0 slot in received Atari ST text
+against its glyph index, including the Fuji halves and Bob Dobbs quadrants.
+Connected bitmap captures cover all three ST resolutions with IGS on and off
+and Atari ST, CP437 and UTF-8 connections. They check the cursor, NUL padding,
+backspace, a raw escape operand, UTF-8 private-use input and the original TOS
+Fuji raster in both pixel phases. Native tests exercise clear/home, every input split,
+a logo wrapped across the right margin and the Atari ST codepage round trip for every byte.
+
 Per-BBS graphics caches retain the legacy `RIP/` and `SkyPix/` subdirectories;
 APC uses the BBS cache root. The RIP interaction suites check icon writes,
 file queries and playback isolation in CP437 and UTF-8. `syncterm_skypix_cache`

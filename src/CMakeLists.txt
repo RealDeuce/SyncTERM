@@ -464,6 +464,11 @@ if(BUILD_TESTING)
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
 			set_tests_properties(syncterm_cga_mode PROPERTIES
 				TIMEOUT 60 LABELS "terminal;conformance")
+			add_test(NAME syncterm_vt52_c0
+				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_vt52_c0_test.py
+					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)
+			set_tests_properties(syncterm_vt52_c0 PROPERTIES
+				TIMEOUT 120 LABELS "terminal;conformance")
 			add_test(NAME syncterm_igs_init
 				COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_igs_init_test.py
 					$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

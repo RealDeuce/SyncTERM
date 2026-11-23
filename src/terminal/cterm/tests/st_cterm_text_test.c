@@ -73,6 +73,7 @@ run_mode(struct result *result, enum st_cterm_encoding encoding,
 		.console = console, .fonts = fonts,
 		.emulation = emulation, .encoding = encoding,
 		.codepage = codepage, .force_lcf = true,
+		.font_selector = emulation == ST_CTERM_ATARI_ST_VT52 ? 44 : 0,
 		.status_line = status_line, .scrollback_lines = 4,
 		.output = capture, .output_context = result, .quiet = true,
 	};
@@ -375,7 +376,9 @@ test_emulations(void)
 		{ST_CTERM_PETSCII, ST_CODEPAGE_PETSCII_UPPER, "A\022B\222C\034D"},
 		{ST_CTERM_PRESTEL, ST_CODEPAGE_PRESTEL, "A\033QB\033^_\033XC"},
 		{ST_CTERM_BBC, ST_CODEPAGE_PRESTEL, "A\033QB\177C\034\001\002"},
-		{ST_CTERM_ATARI_ST_VT52, ST_CODEPAGE_ATARI_ST, "A\033b\001B\033Y\042\043C"},
+		{ST_CTERM_ATARI_ST_VT52, ST_CODEPAGE_ATARI_ST,
+		    "A\033b\001B\033Y\042\043C\033EA\033v\033Y 3"
+		    "\x0e\x0f\x1c\x1d\x1e\x1f"},
 	};
 	for (size_t i = 0; i < sizeof(fixtures) / sizeof(fixtures[0]); ++i) {
 		struct result expected, actual;
@@ -391,6 +394,17 @@ test_emulations(void)
 		run_mode(&actual, ST_CTERM_ENCODING_CODEPAGE, fixtures[i].stream, SIZE_MAX,
 		    false, fixtures[i].emulation, fixtures[i].codepage);
 		compare(&expected, &actual);
+		if (fixtures[i].emulation == ST_CTERM_ATARI_ST_VT52) {
+			/* After clear/home, the two Fuji cells straddle the right edge. */
+			static const uint8_t pieces[] = {14, 15, 28, 29, 30, 31};
+			for (size_t piece = 0; piece < sizeof(pieces); ++piece) {
+				const struct st_console_cell *cell = &expected.cells[19 + piece];
+				CHECK(cell->glyph == pieces[piece] && cell->glyph_font == cell->font);
+			}
+			CHECK(expected.state.x == 6 && expected.state.y == 2);
+			CHECK(expected.cells[1].glyph == ' ' && expected.cells[43].glyph == ' ');
+			CHECK(expected.response_size == 0);
+		}
 		if (fixtures[i].emulation == ST_CTERM_PETSCII) {
 			CHECK(expected.cells[1].foreground == expected.cells[0].background);
 			CHECK(expected.cells[1].background != expected.cells[0].background);

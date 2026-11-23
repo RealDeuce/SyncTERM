@@ -33938,6 +33938,7 @@ static const struct st_console_font_mapping codepage_26_mapping[] = {
 };
 
 static const struct st_console_font_mapping codepage_28_mapping[] = {
+	{UINT32_C(0x000000), UINT32_C(0x00)},
 	{UINT32_C(0x000020), UINT32_C(0x20)},
 	{UINT32_C(0x000021), UINT32_C(0x21)},
 	{UINT32_C(0x000022), UINT32_C(0x22)},
@@ -34172,7 +34173,6 @@ static const struct st_console_font_mapping codepage_28_mapping[] = {
 	{UINT32_C(0x00241b), UINT32_C(0x1b)},
 	{UINT32_C(0x00266a), UINT32_C(0x0b)},
 	{UINT32_C(0x002713), UINT32_C(0x08)},
-	{UINT32_C(0x00fffd), UINT32_C(0x1d)},
 	{UINT32_C(0x01f514), UINT32_C(0x0a)},
 	{UINT32_C(0x01f552), UINT32_C(0x09)},
 	{UINT32_C(0x01fbbd), UINT32_C(0x05)},
@@ -34188,6 +34188,12 @@ static const struct st_console_font_mapping codepage_28_mapping[] = {
 	{UINT32_C(0x01fbf7), UINT32_C(0x17)},
 	{UINT32_C(0x01fbf8), UINT32_C(0x18)},
 	{UINT32_C(0x01fbf9), UINT32_C(0x19)},
+	{UINT32_C(0x0ffcfa), UINT32_C(0x0e)},
+	{UINT32_C(0x0ffcfb), UINT32_C(0x0f)},
+	{UINT32_C(0x0ffcfc), UINT32_C(0x1c)},
+	{UINT32_C(0x0ffcfd), UINT32_C(0x1d)},
+	{UINT32_C(0x0ffcfe), UINT32_C(0x1e)},
+	{UINT32_C(0x0ffcff), UINT32_C(0x1f)},
 };
 
 const struct st_builtin_font_record

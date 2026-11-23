@@ -541,6 +541,13 @@ accumulate_native(struct cterminal *cterm, unsigned char byte, int *speed)
 	return true;
 }
 
+static bool
+vt52_graphic_control(uint8_t byte)
+{
+	return (byte >= 0x01 && byte <= 0x06) || (byte >= 0x0e && byte <= 0x1a)
+	    || (byte >= 0x1c && byte <= 0x1f);
+}
+
 int
 cterm_vt52_output(struct cterminal *cterm, const uint8_t *bytes, size_t size)
 {
@@ -550,6 +557,10 @@ cterm_vt52_output(struct cterminal *cterm, const uint8_t *bytes, size_t size)
 	cterm->screen.codepage = ST_CODEPAGE_ATARI_ST;
 	cterm->lf_expand = false;
 	for (size_t i = 0; status == 0 && i < size; ++i) {
+		/* Generated TOS console output ignores unassigned controls in text
+		 * state. A pending escape still owns every raw operand. */
+		if (cterm->accumulator == NULL && vt52_graphic_control(bytes[i]))
+			continue;
 		/* Native printable bytes always occupy one cell, including DEL;
 		 * they do not enter Unicode control/grapheme interpretation. */
 		if (cterm->accumulator == NULL && bytes[i] >= 32)
@@ -566,17 +577,18 @@ cterm_vt52_output(struct cterminal *cterm, const uint8_t *bytes, size_t size)
 /* ------------------------------------------------------------------------
  * cterm_dispatch_vt52 — VT52 single-byte dispatcher.
  *
- * VT52 has different C0 semantics than ECMA-48: byte 7 (BEL) beeps,
- * bytes 11 (VT) and 12 (FF) act like LF (down + scroll), ESC primes
- * the sequence parser, and the rest of the C0 range (0-6, 14-26,
- * 28-31) is silently dropped.  All other bytes are queued into the
- * print buffer.  Sequence parsing shares cterm_accumulate_ecma_seq()
- * via the cterm_st_vt52_dispatch[] table.
+ * Unassigned nonzero C0 bytes in received text use the ST graphic
+ * repertoire independently of the encoding selected for printable text.
  * ------------------------------------------------------------------------ */
 void
 cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 {
 	(void)speed;
+
+	if (vt52_graphic_control(byte)) {
+		cterm_text_literal_scalar(cterm, st_codepage_to_unicode(ST_CODEPAGE_ATARI_ST, byte, true));
+		return;
+	}
 
 	if (cterm->igs_engine != NULL && byte == 9) {
 		/* TOS moves to the next eight-cell boundary, clipping at the edge;
@@ -620,13 +632,7 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->seq_param_count = 0;
 			cterm->seq_overflow = false;
 			break;
-		case 0:
-		case 1: case 2: case 3: case 4: case 5: case 6:
-		case 14: case 15: case 16: case 17: case 18: case 19:
-		case 20: case 21: case 22: case 23: case 24: case 25:
-		case 26:
-		case 28: case 29: case 30: case 31:
-			/* Silently dropped. */
+		case 0:		/* NUL padding */
 			break;
 		default:
 			*cterm->print_pos++ = byte;

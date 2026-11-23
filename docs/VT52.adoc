@@ -35,8 +35,16 @@ length.
 |`0B` VT, `0C` FF |Advance one line with scrolling. FF is not a clear-screen command.
 |`0D` CR |Return to the left edge.
 |`1B` ESC |Begin escape collection.
-|Other `00`–`1F` |Ignored by the VT52 dispatcher.
+|`00` NUL |Ignored as padding.
+|`01`–`06`, `0E`–`1A`, `1C`–`1F` |Display the corresponding Atari ST glyph in received text. Generated IGS console output follows TOS and ignores these bytes in ordinary text state.
 |===
+
+These received C0 graphics use the Atari ST repertoire with every wire encoding.
+For example, `41 01 42` displays `A⇧B`. The Fuji logo halves (`0E 0F`)
+use `U+FFCFA` and `U+FFCFB`. The four Bob Dobbs quadrants (`1C`–`1F`) use
+`U+FFCFC` through `U+FFCFF` in reading order. The Atari ST font also accepts
+these scalars directly as UTF-8 text. These are
+https://www.kreativekorp.com/miscpages/kspua.shtml[Kreative Software private-use assignments].
 
 The right-edge wrapping flag is controlled by `ESC v` / `ESC w`. Wrapping
 uses SyncTERM's shared text placement; erasing and moving do not insert

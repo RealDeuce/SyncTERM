@@ -93,8 +93,8 @@ main(void)
 		false, true, false, true, false, true, false, false, true, true,
 		false, true, true, false, false, false, false, false, false,
 	};
-	/* Frozen legacy tables, with deterministic ordering fixes and the
-	 * existing CP437 graphic DEL mapping retained. */
+	/* Frozen legacy tables, with deterministic ordering fixes,
+	 * the CP437 graphic DEL and the lossless ST graphic mappings. */
 	static const struct mapping_hashes hashes[ST_CODEPAGE_COUNT] = {
 		{UINT64_C(0xdf85318e5e41b5df), UINT64_C(0xd2a17e39773a07b1), UINT64_C(0x2715bd5691424125)},
 		{UINT64_C(0x851582fd14212a57), UINT64_C(0x775e55d6033c3cdd), UINT64_C(0x9b94819825bd27e3)},
@@ -124,7 +124,7 @@ main(void)
 		{UINT64_C(0xb7d7ae455c7b6c05), UINT64_C(0xb7d7ae455c7b6c05), UINT64_C(0xc582e4cf69193225)},
 		{UINT64_C(0xc0ee67560132b72b), UINT64_C(0x0e859d93412a2dab), UINT64_C(0xad00611e73237925)},
 		{UINT64_C(0xc12865594b83b8b3), UINT64_C(0x73357758c34f9533), UINT64_C(0xad00611e73237925)},
-		{UINT64_C(0x87feb2e1d2f00818), UINT64_C(0x5eef148adda6118c), UINT64_C(0xa0bb9af0fa13578c)},
+		{UINT64_C(0x87feb2e1d2f00818), UINT64_C(0xa7f6fe23a8b44f91), UINT64_C(0x2715bd5691424125)},
 	};
 	uint8_t byte = 0xa5;
 
@@ -171,6 +171,16 @@ main(void)
 	    UINT32_C(0x21b0)) && byte == 0x7d);
 	CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_ATASCII,
 	    UINT32_C(0x1f8b0)) && byte == 0x7d);
+	CHECK(!st_codepage_from_unicode(&byte, ST_CODEPAGE_ATARI_ST, UINT32_C(0xfffd)));
+	static const uint8_t atari_pieces[] = {0x0e, 0x0f, 0x1c, 0x1d, 0x1e, 0x1f};
+	for (size_t i = 0; i < sizeof(atari_pieces); ++i) {
+		CHECK(st_codepage_to_unicode(ST_CODEPAGE_ATARI_ST, atari_pieces[i], false) == atari_pieces[i]);
+		CHECK(st_codepage_to_unicode(ST_CODEPAGE_ATARI_ST, atari_pieces[i], true) == UINT32_C(0xffcfa) + i);
+	}
+	for (unsigned int value = 0; value <= UINT8_MAX; ++value) {
+		uint32_t scalar = st_codepage_to_unicode(ST_CODEPAGE_ATARI_ST, (uint8_t)value, true);
+		CHECK(st_codepage_from_unicode(&byte, ST_CODEPAGE_ATARI_ST, scalar) && byte == value);
+	}
 	for (unsigned int value = 0; value <= UINT8_MAX; ++value) {
 		uint32_t codepoint = st_codepage_to_unicode(ST_CODEPAGE_CP437,
 		    (uint8_t)value, true);

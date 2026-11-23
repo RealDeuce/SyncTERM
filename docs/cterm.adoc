@@ -4244,7 +4244,7 @@ the mode's color count wrap around (only the low bits are meaningful).
 | Byte | Name | Action
 
 | 0x00 | NUL | Ignored
-| 0x01–0x06 | — | Ignored
+| 0x01–0x06 | — | Display the Atari ST glyph in received text
 | 0x07 | BEL | Audible bell
 | 0x08 | BS | Backspace — move cursor left one column (no wrap, clamps at left margin)
 | 0x09 | HT | Horizontal tab — advance to next tab stop
@@ -4252,11 +4252,13 @@ the mode's color count wrap around (only the low bits are meaningful).
 | 0x0B | VT | Vertical tab — same as LF (move down one row, scroll)
 | 0x0C | FF | Form feed — same as LF (move down one row, scroll)
 | 0x0D | CR | Carriage return — move cursor to left margin
-| 0x0E–0x1A | — | Ignored
+| 0x0E–0x1A | — | Display the Atari ST glyph in received text
 | 0x1B | ESC | Start escape sequence
-| 0x1C–0x1F | — | Ignored
+| 0x1C–0x1F | — | Display the Atari ST glyph in received text
 | 0x20–0x7E | — | Printable character, displayed at cursor position
 |===
+
+See link:VT52.adoc[the VT52 manual] for the private-use glyph mappings and generated IGS console behavior.
 
 BS, HT, LF, and CR are processed by the shared `ctputs` output path.
 VT and FF are handled explicitly before output and behave identically
