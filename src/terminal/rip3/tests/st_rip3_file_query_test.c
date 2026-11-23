@@ -55,9 +55,20 @@ main(int argc, char **argv)
 	file_query_open_calls = file_query_metadata_calls = 0;
 	CHECK(st_rip3_file_exists(&paths, "c:\\outside\\pixel.icn", &present) == 0 && present);
 	CHECK(st_rip3_file_exists(&paths, "junk;pixel.icn.old", &present) == 0 && present);
+	CHECK(st_rip3_file_exists(&paths, "Pixel.msk.icn", &present) == 0 && !present);
 	CHECK(st_rip3_file_exists(&paths, "Pixel", &present) == 0 && !present);
 	CHECK(st_rip3_file_exists(&paths, "Pixel*", &present) == IO_ERROR_INVALID_FORMAT);
 	CHECK(file_query_open_calls == 0 && file_query_metadata_calls == 0);
+
+	char *mask = NULL;
+	CHECK(path_join_alloc(&mask, host, "PIXEL.BMM") == 0);
+	CHECK(fs_replace_file(mask, "", 0) == 0);
+	CHECK(st_rip3_file_exists(&paths, "Pixel.msk.icn", &present) == 0 && present);
+	CHECK(st_rip3_file_exists(&paths, "Pixel.icn.msk", &present) == 0 && present);
+	CHECK(file_query_open_calls == 0 && file_query_metadata_calls == 0);
+	CHECK(expect(&paths, 0, "Pixel.msk.icn", "0") == 0);
+	CHECK(fs_remove_file(mask) == 0);
+	free(mask);
 
 	for (unsigned mode = 0; mode <= 4; mode++) {
 		file_query_open_calls = file_query_metadata_calls = 0;

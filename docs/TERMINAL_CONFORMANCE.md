@@ -1010,7 +1010,7 @@ sizes. Native fixtures exercise open and metadata failures. [RIPv3 file-query co
 
 `$FILEEXISTS(filename)$` provides a presence result in RIPv3 query and
 graphical fields. Connected CP437 and UTF-8 fixtures verify the cache lookup,
-alias rewriting and malformed-reference recovery. [RIPv3 FILEEXISTS coverage](RIP3_CONFORMANCE.md#connected-fileexists)
+ordered alias rewriting and literal recovery from rejected calls. [RIPv3 FILEEXISTS coverage](RIP3_CONFORMANCE.md#connected-fileexists)
 
 Wire `1D` defines variables in live RIPv3 sessions. The connected tests
 exercise literal defaults, the interactive editor and ordered queries in

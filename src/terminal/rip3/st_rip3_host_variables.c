@@ -360,6 +360,11 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 			sink->reply(sink->context, (const uint8_t *)reply, size);
 		return;
 	}
+	/* An invalid FILEEXISTS call keeps its original spelling in the
+	 * enclosing response. Report the error for local diagnosis as well. */
+	if (decoded && status == IO_ERROR_INVALID_FORMAT && strcmp(reference.name, "FILEEXISTS") == 0
+	    && sink != NULL && sink->reply != NULL)
+		sink->reply(sink->context, text, length);
 	/* Report rejection to the evaluator that owns recovery. */
 	if (status == IO_ERROR_CANCELLED)
 		diagnostic = ST_RIP3_HOST_ABORTED;

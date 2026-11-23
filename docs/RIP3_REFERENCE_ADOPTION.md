@@ -1183,3 +1183,25 @@ source line ranges, adds 40 blocks and retires 16, for 8974 total. The prior
 80 derivations, original protocol texts and license retain their hashes. The
 new #168 derivation resolves B168 and specifies the exact `1F` replies,
 name handling and bitmap alias size conversion.
+
+## PRs #176 and #177 local scene boundaries and FILEEXISTS
+
+Fork stable is pinned at
+[`83f4046e6937df0fa11a213b43f143ecb424eef0`](https://github.com/RealDeuce/remote-imaging-protocol/tree/83f4046e6937df0fa11a213b43f143ecb424eef0).
+Its tree matches the [PR #177](https://github.com/bbs-land/remote-imaging-protocol/pull/177)
+head `ae12ce589bfd62264bd9e786b2fbf950873f8048`. The preceding stable merge
+`fc9638c192d7711d60b10eeeadb253ad14c5c18b` matches the
+[PR #176](https://github.com/bbs-land/remote-imaging-protocol/pull/176)
+head `126d65552b7db7f1aecff7b7fbc6af32b6aa8446`. The Git tar archive has
+SHA-256 `52d22a94e7ca3a87dc9a23fa8c8e294a1913340b61c5b01790acb6c306a858b8`.
+
+Four normative documents change. Ordered exact-text matching keeps 8,968
+source blocks and moves 1,075 line ranges. The index adds 33 blocks and retires
+six, for 9,001 total. The FILE_QUERY derivation adds a comparison with
+FILEEXISTS. The other 80 previous derivations, original publications and
+license retain their hashes. Two new derivations record the executable evidence
+for B170 and B171.
+
+The specification resolves B170 and B171. Connected FILEEXISTS now applies
+the ordered aliases and preserves rejected calls as literal text. Local scene
+filename preparation, source boundaries and child replies remain pending.

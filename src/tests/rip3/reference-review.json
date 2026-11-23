@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/169",
-  "revision": "2900e843f911b05183620c110e43f381d90abc38",
-  "previous_revision": "9716850d93ba720097af2a3e100e633c6797ac38",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/177",
+  "revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
+  "previous_revision": "2900e843f911b05183620c110e43f381d90abc38",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "upstream_state_at_adoption": "Actual open PR head consolidated into selected fork stable.",
-  "archive_sha256": "f8a28d9d16564ef2d92c151873b4ec410cb197926974743bc8ecdbe6b7520637",
+  "archive_sha256": "52d22a94e7ca3a87dc9a23fa8c8e294a1913340b61c5b01790acb6c306a858b8",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,24 +17,24 @@
   ],
   "changed_documents": [
     {
+      "path": "version/3.0/ripscrip/5.1-text-variables.md",
+      "previous_sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8",
+      "sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+      "previous_sha256": "ad03342407244a14bc9959456f5253fadb9e7efe27dc3ead57ebcadf31b30168",
+      "sha256": "fabbe51fe9f225ba05b562c829fad576c7ca154c0119065d3bbc4d7e73b9d8ca"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.3-local-playback.md",
+      "previous_sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4",
+      "sha256": "f735b7001d7d541a109039bc2c501875e854b98e1c8a7d95d649166168e4f344"
+    },
+    {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "previous_sha256": "8799eef4defc1450b644b1cb4bf54cf1d24e13dde7c25b784effcd9dfb9a59fb",
-      "sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c"
-    },
-    {
-      "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "previous_sha256": "87df1126e0cb63cc913f3b1723976db57a50379c808bfae3c9033b57b08a108f",
-      "sha256": "aa99944ebfd20ca8d7fabe1616287f92ebc5178c2489c4f73a7dfb1fea2c8c07"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "78cec23f8cd5e3b1f4c4deb5e27d1401547404e62288b83584adc304ba20b381",
-      "sha256": "a768ac71fce8940198ee3c745ad4fa39fdb58ce50194e367c5fce3ce52b911bb"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
-      "previous_sha256": "acad974aac2ea19501588954560494694f71828ea8153f28527b4dfe653db766",
-      "sha256": "ba2dc7a1d185b8f1881eb0ff1444a143abc26d764c3a5f754311cc99b820a1e8"
+      "previous_sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c",
+      "sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2"
     }
   ],
   "new_documents": [],
@@ -973,7 +973,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 67,
+  "upstream_issue_resolutions": 69,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1462,9 +1462,21 @@
     },
     {
       "path": "version/3.0/research/issue-168-file-query-replies.md",
-      "sha256": "ef231588a297ec7714b1cb54014f95ec5f9736c08b12eb273ec7d4c20d226b1a",
+      "sha256": "eab00a708624f742d8d170e223a2f6ad7296d647f8ebe98b69db14e73a48efb6",
       "title": "Issue #168: FILE_QUERY reply bytes and alias metadata",
       "role": "Engine reply bytes, filename preparation, lookup outcomes and alias metadata vectors."
+    },
+    {
+      "path": "version/3.0/research/issue-170-local-scene-boundaries.md",
+      "sha256": "17ed82fa6d32870b263d7b8e8652807e5b6cdd1fb81c142fd45760552eb622a8",
+      "title": "Issue #170: Local scene input and reply boundaries",
+      "role": "Primary local file boundary, filename and reply routing evidence."
+    },
+    {
+      "path": "version/3.0/research/issue-171-fileexists.md",
+      "sha256": "95e2a35ab4abae0fee3fa70fa70a6d076163a9be5ca888a230bdac8ddb65ffc1",
+      "title": "Issue #171: FILEEXISTS text variable",
+      "role": "Primary FILEEXISTS registration, name lookup, alias and rejection evidence."
     }
   ],
   "documents": [
@@ -1626,15 +1638,15 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8"
+      "sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "ad03342407244a14bc9959456f5253fadb9e7efe27dc3ead57ebcadf31b30168"
+      "sha256": "fabbe51fe9f225ba05b562c829fad576c7ca154c0119065d3bbc4d7e73b9d8ca"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4"
+      "sha256": "f735b7001d7d541a109039bc2c501875e854b98e1c8a7d95d649166168e4f344"
     },
     {
       "path": "version/3.0/ripscrip/5.4-popup-lists.md",
@@ -1642,7 +1654,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c"
+      "sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -13086,6 +13098,297 @@
         },
         "scope": "Document, derivation and original publication checksums with ordered exact matching from the verified stable Git archive."
       }
+    },
+    {
+      "previous_revision": "2900e843f911b05183620c110e43f381d90abc38",
+      "revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
+      "archive_sha256": "52d22a94e7ca3a87dc9a23fa8c8e294a1913340b61c5b01790acb6c306a858b8",
+      "archive_format": "git archive --format=tar of the verified stable commit",
+      "pull_requests": [
+        {
+          "number": 176,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/176",
+          "head": "126d65552b7db7f1aecff7b7fbc6af32b6aa8446"
+        },
+        {
+          "number": 177,
+          "url": "https://github.com/bbs-land/remote-imaging-protocol/pull/177",
+          "head": "ae12ce589bfd62264bd9e786b2fbf950873f8048"
+        }
+      ],
+      "upstream_state": "Both open PR heads are consolidated into the selected fork stable, with matching trees at their respective merges.",
+      "authorization": "Standing user-selected stable reference and reviewed PR adoption authorization.",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "64f6cbf8be8f8f7cebc3cb08e3e7ab20b6b7ec6a514638580298b37d077d57b8",
+          "sha256": "5d5dc606181446bbef231e7ea7a69eaf508c61307f7c80a3dc1a6a5db090285e"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "ad03342407244a14bc9959456f5253fadb9e7efe27dc3ead57ebcadf31b30168",
+          "sha256": "fabbe51fe9f225ba05b562c829fad576c7ca154c0119065d3bbc4d7e73b9d8ca"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.3-local-playback.md",
+          "previous_sha256": "24c630615b43ad6f486683391e4a2f2bd0e77cf561ea392709f2ed7e4017f5c4",
+          "sha256": "f735b7001d7d541a109039bc2c501875e854b98e1c8a7d95d649166168e4f344"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "b41ffa401e700bc7f3557600db7f867d73892c2ee549c35e0b2ab6dae71eb55c",
+          "sha256": "9eb2a5fa0496149ffd20832a30686d3f84d043fda9742614c9c457f0cf4d38d2"
+        }
+      ],
+      "new_documents": [],
+      "retired_documents": [],
+      "matched_source_blocks": 8968,
+      "moved_source_blocks": 1075,
+      "heading_only_moves_with_identical_text": 2,
+      "new_source_blocks": 33,
+      "new_source_block_ids": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2461",
+        "version/3.0/ripscrip/5.1-text-variables.md:2463",
+        "version/3.0/ripscrip/5.1-text-variables.md:2465",
+        "version/3.0/ripscrip/5.1-text-variables.md:2467",
+        "version/3.0/ripscrip/5.1-text-variables.md:2469",
+        "version/3.0/ripscrip/5.1-text-variables.md:2474",
+        "version/3.0/ripscrip/5.1-text-variables.md:2476",
+        "version/3.0/ripscrip/5.1-text-variables.md:2478",
+        "version/3.0/ripscrip/5.1-text-variables.md:2480",
+        "version/3.0/ripscrip/5.1-text-variables.md:2481",
+        "version/3.0/ripscrip/5.1-text-variables.md:2482",
+        "version/3.0/ripscrip/5.1-text-variables.md:2483",
+        "version/3.0/ripscrip/5.1-text-variables.md:2484",
+        "version/3.0/ripscrip/5.1-text-variables.md:2485",
+        "version/3.0/ripscrip/5.1-text-variables.md:2486",
+        "version/3.0/ripscrip/5.1-text-variables.md:2487",
+        "version/3.0/ripscrip/5.1-text-variables.md:2489",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:67",
+        "version/3.0/ripscrip/5.3-local-playback.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:169",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:171",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:177",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:179",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:181",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:183",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:187",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:189",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:193",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:195",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:200",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:202",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:206"
+      ],
+      "retired_source_blocks": 6,
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/5.2-templates-and-conditionals.md:67",
+          "heading": "Eligible Providers and Rejected Codes",
+          "source": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "lines": [
+            67,
+            67
+          ],
+          "text": "| Data-capable (64 names) | ADOW, AMPM, BACKSTAT, CDCS, COLORS, CTRL, CURSOR, DATE, DATETIME, DAY, DOW, DOY, FIELDID, FILEEXISTS, FYEAR, HOUR, IFS, INUSE, ISPALETTE, ISPROT, LANG, M, MHOUR, MIN, MONTH, MONTHNUM, MSTAT, PALENTRY, RAND, RESX, RESY, RIPVER, SEC, SHIFT, STATBAR, TERMINFO, TEXTXY, TIME, TIMEZONE, TWFONT, TWGOTO, TWH, TWIN, TWW, TWX0, TWX1, TWY0, TWY1, PORTH, PORTW, PORTX0, PORTX1, PORTY0, PORTY1, WDAY, WORLDH, WORLDW, WOY, WOYM, X, XY, XYM, Y, YEAR |\n",
+          "sha256": "47f43e1a1d73303a19f35bf690859fcdbd8af5bbc08b1894ad9fc6fd589ee0df",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_graphical.c",
+            "src/terminal/rip3/st_rip3_graphical_bytes.h",
+            "src/terminal/rip3/st_rip3_angle.c",
+            "src/terminal/rip3/st_rip3_builtin_reference.c",
+            "src/terminal/rip3/st_rip3_text_commands.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term.c",
+            "src/terminal/term/st_term_rip3.c",
+            "src/terminal/rip3/st_rip3_host_variables.c",
+            "src/terminal/rip3/st_rip3_file_query.c",
+            "src/terminal/rip3/st_rip3_resources.c"
+          ],
+          "tests": [
+            "rip3_graphical",
+            "rip3_angle",
+            "rip3_session",
+            "rip3_text_commands",
+            "rip3_query_commands",
+            "rip3_builtin_inventory",
+            "term_key_forward",
+            "syncterm_rip3_graphical_CP437",
+            "syncterm_rip3_graphical_UTF-8",
+            "rip3_file_query",
+            "syncterm_rip3_file_query_CP437",
+            "syncterm_rip3_file_query_UTF-8"
+          ],
+          "reason": "The eligibility table is implemented. The connected FILEEXISTS callback follows the RIPtel 3.1 presence probe; its variable description remains open in #171.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/171"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.3-local-playback.md:115",
+          "heading": "Local Scene Playback - `$>FILE.RIP$`",
+          "source": "version/3.0/ripscrip/5.3-local-playback.md",
+          "lines": [
+            115,
+            115
+          ],
+          "text": "The file replays as if it had arrived from the host - with one critical difference: **the data is echoed locally only, never sent to the host**. If the file is a RIPscrip scene, its graphics draw and any mouse fields it defines are created, which is how pop-up dialogs and entire menu systems run without host traffic. The file need not be RIPscrip at all - any text file, ANSI screen, or (in 3.x) flowed article text is legal; see the [Column Text System](3.1-column-text-system.md) for the non-RIPscrip case.\n",
+          "sha256": "a529315434d5e37c69da788fd05d0d8898507e3a2e45482f74d9e7720052749a",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "rip3_session",
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "Connected 1R and HCL scene playback handle ANSI, RIP and article TXT sources. The original local reply and EOF policies await clarification.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/170"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+          "heading": "RIP_READ_SCENE",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            165,
+            165
+          ],
+          "text": "This command instructs the remote terminal to playback a local `.RIP` file. The current execution of RIPscrip commands will be temporarily suspended and the contents of the designated RIP file will begin executing. Regardless of whether or not the current RIPscrip code coming across the modem is in the middle of a line or not, the RIP playback file will be assumed to start at the beginning of a line. Therefore, if a RIP_READ_SCENE command is located in a `.RIP` file, it must be the very last command on the line, followed by a carriage return instead of a command delimiter (`|`). This ensures that the loaded `.RIP` file will begin executing properly with the correct delimiters found in the correct places.\n",
+          "sha256": "23db9c5f9818fc56f99570c919505029a96864b51a4a0cc049220a0ba378dfbc",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "Connected 1R suspends its source, starts the file at a physical line beginning and resumes with the file's drawing and terminal state. Original nested delimiters and EOF dispatch await clarification.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/170"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:167",
+          "heading": "RIP_READ_SCENE",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            167,
+            167
+          ],
+          "text": "The RIP playback file can alter colors, fonts, or whatever. Once the playback of the file is complete, the remaining RIPscrip code that was temporarily suspended will resume execution. Any changes that appeared in the loaded playback file will remain in effect when the resumed code is processed - if you change a color or a font in the playback file and leave them changed, they remain in effect during the resumed execution.\n",
+          "sha256": "21a5160cf91feaabbfad61fb8877edb751897c1e089cf0c060baa3aabd7897ea",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "Connected 1R suspends its source, starts the file at a physical line beginning and resumes with the file's drawing and terminal state."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:169",
+          "heading": "RIP_READ_SCENE",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            169,
+            169
+          ],
+          "text": "> **NOTE:** The `<res>` parameter is reserved for future development by TeleGrafix. It should be set to \"00000000\" for compatibility with future releases.\n",
+          "sha256": "d581b2f8fb5b452fe67635fb5b3eb5da7723eb5fa0bf77d18602692fbb473984",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "syncterm_rip3_media_CP437",
+            "syncterm_rip3_media_UTF-8"
+          ],
+          "reason": "Connected 1R suspends its source, starts the file at a physical line beginning and resumes with the file's drawing and terminal state."
+        },
+        {
+          "id": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:173",
+          "heading": "RIP_READ_SCENE",
+          "source": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "lines": [
+            173,
+            175
+          ],
+          "text": "- **Plain `.TXT` files**: `!|1R00000000DRAGON.TXT` inside an open `1e` column region flows the file's text into the columns, word-wrapped - it is _not_ parsed as RIPscrip. See [Flowing Whole Files](3.1-column-text-system.md#flowing-whole-files---1r-on-plain-text).\n- **Overflow pages**: `!|1R00000000$OVERFLOW(1,CUR)$` re-reads the current page of a column stream's overflow buffer ([pagination](3.1-column-text-system.md#pagination---overflow-and-resetoverflow)).\n- **Computed filenames**: `!|1R00000000<<IF $COLORS$<\"256\">>BLUEBACK.FN<<ELSE>>BLUEFADE.FN<<ENDIF>>` - the corpus's ubiquitous color-depth dispatch - and `$&MAIN_STORY$` variable dereferences (NEWSPAPR.RIP). See [5.2 Templates & Conditionals](5.2-templates-and-conditionals.md#inline-conditionals---if--elseif--else--endif).\n",
+          "sha256": "9e3a5072d462f2fffa342d2ac414215c12ebbbb90ec60da7b7436b014dcba8b4",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_columns.c",
+            "src/terminal/rip3/st_rip3_overflow.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "syncterm_rip3_columns_CP437",
+            "syncterm_rip3_columns_UTF-8",
+            "rip3_session"
+          ],
+          "reason": "Connected CP437 and UTF-8 exercise source and remainder replay, the live pager field, boundary abort, page-state lifetime and cache cleanup. Native RIP3 session tests verify navigation modes, verbose boundary messages and signed-word page assignment."
+        }
+      ],
+      "retired_implemented_claims": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:67",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:167",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:169",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:173"
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-170-local-scene-boundaries.md",
+          "sha256": "17ed82fa6d32870b263d7b8e8652807e5b6cdd1fb81c142fd45760552eb622a8",
+          "title": "Issue #170: Local scene input and reply boundaries",
+          "role": "Primary local file boundary, filename and reply routing evidence."
+        },
+        {
+          "path": "version/3.0/research/issue-171-fileexists.md",
+          "sha256": "95e2a35ab4abae0fee3fa70fa70a6d076163a9be5ca888a230bdac8ddb65ffc1",
+          "title": "Issue #171: FILEEXISTS text variable",
+          "role": "Primary FILEEXISTS registration, name lookup, alias and rejection evidence."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-168-file-query-replies.md",
+          "previous_sha256": "ef231588a297ec7714b1cb54014f95ec5f9736c08b12eb273ec7d4c20d226b1a",
+          "sha256": "eab00a708624f742d8d170e223a2f6ad7296d647f8ebe98b69db14e73a48efb6"
+        }
+      ],
+      "states_at_adoption": {
+        "unreviewed": 2492,
+        "context": 1719,
+        "pending": 1703,
+        "implemented": 2975,
+        "excluded": 70,
+        "blocked": 42
+      },
+      "source_blocks_at_adoption": 9001,
+      "followup": "Align connected local scenes with PR #176's source and output rules.",
+      "verification": {
+        "normative_documents": 68,
+        "prior_derivations_verified_unchanged": 80,
+        "declared_prior_derivation_changes": 1,
+        "originals": {
+          "LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "version/2.0/text/RIPScrip-2.0-alpha-4.txt": "0da8a34644fa7c0ac7bf457ddfb6fe12288c1bff17c966f3d2b792af57c01982",
+          "version/3.0/text/RIPScrip-3.x-technical-whitepaper.txt": "bf5fd27703bdc4ef311a3dc57a15dd31b0e5ceb37026ac7d015a0fcd3265ab34"
+        },
+        "scope": "Document, derivation and original publication hashes plus ordered exact matching at the verified stable commit."
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -16235,6 +16538,36 @@
       },
       "verification": "Native Release CMake build, opened-stream filesystem metadata, file-query storage faults, live TCP replies in CP437 and UTF-8, and RIP154 source freeze and preservation guards.",
       "followup": "Bind user-configured resource search paths and complete local scene playback."
+    },
+    {
+      "after_commit": "bd7b8d60",
+      "revision": "83f4046e6937df0fa11a213b43f143ecb424eef0",
+      "scope": "Implement connected FILEEXISTS chained alias rewrites and literal callback rejection.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2463",
+        "version/3.0/ripscrip/5.1-text-variables.md:2465",
+        "version/3.0/ripscrip/5.1-text-variables.md:2467",
+        "version/3.0/ripscrip/5.1-text-variables.md:2469",
+        "version/3.0/ripscrip/5.1-text-variables.md:2474",
+        "version/3.0/ripscrip/5.1-text-variables.md:2476",
+        "version/3.0/ripscrip/5.1-text-variables.md:2482",
+        "version/3.0/ripscrip/5.1-text-variables.md:2483",
+        "version/3.0/ripscrip/5.1-text-variables.md:2484",
+        "version/3.0/ripscrip/5.1-text-variables.md:2485",
+        "version/3.0/ripscrip/5.1-text-variables.md:2486",
+        "version/3.0/ripscrip/5.1-text-variables.md:2487",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:67",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:206"
+      ],
+      "states_after_update": {
+        "unreviewed": 2492,
+        "context": 1719,
+        "pending": 1703,
+        "implemented": 2975,
+        "excluded": 70,
+        "blocked": 42
+      },
+      "verification": "Connected CP437 and UTF-8 file queries and native presence/metadata fault tests. Scene boundary changes remain pending."
     }
   ]
 }

@@ -47,19 +47,22 @@ base_name(char *name, size_t length)
 }
 
 static bool
-rewrite_alias(char *name)
+rewrite_alias(char *name, bool all)
 {
 	static const char old[][5] = {".ICN", ".HIC", ".MSK"};
 	static const char replacement[][5] = {".BMP", ".BMH", ".BMM"};
+	bool matched = false;
 
 	for (size_t i = 0; i < sizeof(old)/sizeof(*old); i++) {
 		char *marker = strstr(name, old[i]);
 		if (marker != NULL) {
 			memcpy(marker, replacement[i], sizeof(replacement[i]));
-			return true;
+			matched = true;
+			if (!all)
+				break;
 		}
 	}
-	return false;
+	return matched;
 }
 
 int
@@ -77,7 +80,7 @@ st_rip3_file_exists(const struct st_rip3_resource_paths *paths, const char *file
 		return IO_ERROR_OUT_OF_MEMORY;
 	uppercase_name(name, bytes + start, length);
 	char *base = base_name(name, length);
-	(void)rewrite_alias(base);
+	(void)rewrite_alias(base, true);
 	int status = st_rip3_resource_name_valid(base)
 	    ? st_rip3_resource_exists(paths, base) : IO_ERROR_NOT_FOUND;
 	free(name);
@@ -165,7 +168,7 @@ st_rip3_file_query(const struct st_rip3_resource_paths *paths, unsigned mode,
 	uppercase_name(name, filename + start, length);
 	char *lookup = name+length+1;
 	strcpy(lookup, base_name(name, length));
-	bool alias = rewrite_alias(lookup);
+	bool alias = rewrite_alias(lookup, false);
 	int status = st_rip3_resource_name_valid(lookup)
 	    ? st_rip3_resource_open_first(&resource, &matched, paths, lookup) : IO_ERROR_NOT_FOUND;
 	if (status != 0 && (status != IO_ERROR_NOT_FOUND || matched)) {

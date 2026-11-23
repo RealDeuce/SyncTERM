@@ -98,6 +98,9 @@ def run(args):
                b"$FILEEXISTS(Foreign.dat)$:$FILEEXISTS(Folder.dat)$", b"1:0:1:0:0")
         values(b"$FILEEXISTS(Pixel.icn)$:$FILEEXISTS(Hover.hic)$:$FILEEXISTS(Mask.msk)$:"
                b"$FILEEXISTS(a.icn.extra)$", b"1:1:1:1")
+        values(b"$FILEEXISTS(C:mixed.rip)$:$FILEEXISTS(Mask.msk.icn)$:"
+               b"$FILEEXISTS(Mask.icn.msk)$", b"1:1:0")
+        check(b"00", b"Mask.msk.icn", b"0")
         values(b"$HOSTDIR(Named)$$FILEEXISTS(Named.dat)$:$FILEEXISTS(Mask.msk)$:"
                b"$FILEEXISTS(Global.dat)$$HOSTDIR(Off)$", b"1:0:1")
         try:
@@ -108,18 +111,25 @@ def run(args):
             values(b"$FILEEXISTS(Alias.dat)$", b"0")
 
         term.case("FILEEXISTS recovers from malformed references and expands in graphical fields")
-        for invalid in (b"$FILEEXISTS$", b"$FILEEXISTS()$", b"$FILEEXISTS(Pixel.icn,Mask.msk)$"):
-            values(b"a" + invalid + b"b", b"ab")
+        term.exchange(b"\x01|1D00400FILEEXISTS:spoof\r\n")
+        accent = b"\x82" if args.encoding == "CP437" else "é".encode()
+        values(b"$FILEEXISTS(" + accent + b"Pixel.icn)$", b"1")
+        for invalid in (b"$FILEEXISTS$", b"$FILEEXISTS()$", b"$FILEEXISTS(Pixel.icn,Mask.msk)$",
+                        b"$FILEEXISTS(Pixel.icn" + accent + b")$"):
+            values(b"a" + invalid + b"b", b"a" + invalid + b"b")
         term.exchange(query(b"$FILEEXISTS(Invalid/Name)$", at_cursor=True)
                       + query(b"$FILEEXISTS(Pixel.icn)$", at_cursor=True), b"1")
         fixture(local, "1.RIP", b"!|c04|X0A0A\r\n")
         fixture(local, "0.RIP", b"!|c02|X0B0B\r\n")
+        fixture(local, "A$FILEEXISTS()$B.RIP", b"!|c01|X0C0C\r\n")
         frame = term.exchange(b"\x01|*\r\n" + query(b"$WORLD(CUR,640,480)$", at_cursor=True)
                               + b"\x01|1R00000000$FILEEXISTS(Mask.msk)$.RIP\r\n"
                               b"\x01|1R00000000$FILEEXISTS(Absent)$.RIP\r\n"
+                              b"\x01|1R00000000A$FILEEXISTS()$B.RIP\r\n"
                               + query(b"alive", at_cursor=True), b"alive")
         assert pixel(frame, 10, 10) == 0xaa0000
         assert pixel(frame, 11, 11) == 0x00aa00
+        assert pixel(frame, 12, 12) == 0x0000aa
         assert frame.application["connected"] == 1
 
     with connection(args.executable, args.reports, encoding=args.encoding,

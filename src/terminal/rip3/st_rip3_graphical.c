@@ -135,7 +135,8 @@ rejected(void *context, enum st_rip3_host_diagnostic kind)
 {
 	struct value *value=context;
 	value->status=kind==ST_RIP3_HOST_ABORTED ? IO_ERROR_CANCELLED
-	    : kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY : IO_ERROR_NOT_SUPPORTED;
+	    : kind==ST_RIP3_HOST_RESOURCE_FAILURE ? IO_ERROR_OUT_OF_MEMORY
+	    : kind==ST_RIP3_HOST_INVALID_REFERENCE ? IO_ERROR_INVALID_FORMAT : IO_ERROR_NOT_SUPPORTED;
 }
 
 static bool
@@ -175,7 +176,12 @@ reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool
 			st_rip3_angle_supply(w->angle,&result,value.status);
 		}
 		else if (value.status==0) replace(w,value.bytes,value.length);
-		else w->cursor+=w->consumed; /* Literal rejected/reserved reference. */
+		else {
+			if (value.status == IO_ERROR_INVALID_FORMAT && strcmp(builtin.name, "FILEEXISTS") == 0
+			    && w->sink->diagnostic != NULL)
+				w->sink->diagnostic(w->sink->context, ST_RIP3_HOST_INVALID_REFERENCE);
+			w->cursor += w->consumed; /* Keep the rejected reference literal. */
+		}
 		return;
 	}
 	if (known(bytes,length) || (!angle && w->consumer==ST_RIP3_GRAPHICAL_METRIC)) {

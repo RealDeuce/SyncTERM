@@ -9203,25 +9203,27 @@ command, byte limits, prompt ordering and later queries.
 ## Connected FILEEXISTS
 
 `$FILEEXISTS(filename)$` takes one parameter and expands to `1` for a present
-file and `0` for a miss. The evaluator skips a reference with the wrong
-parameter count and recovers from malformed syntax on the same connection.
+file and `0` for a miss. A parsed call with the wrong parameter count or an
+unusable filename tail stays literal and produces a local diagnostic. The
+evaluator recovers from malformed syntax on the same connection.
 The callback takes the eligible DOS filename tail, drops drive
-and directory components, uppercases the basename, and rewrites the first
-applicable ICN, HIC or MSK alias to BMP, BMH or BMM. An alias replaces the
-extension and any following suffix. Extensionless names stay extensionless.
+and directory components, uppercases the basename, and applies the ICN, HIC
+and MSK rules in order. Each rule replaces its first matching marker and
+any following suffix. For example, `A.MSK.ICN` becomes `A.BMM`. Extensionless
+names stay extensionless.
 
 The RIPtel 3.1 DLL callback at RVA `0x28481` and its lookup at `0x3f80e`
 were exercised with controlled filesystem calls. The original tried the BBS
 directory before its ICONS directory and checked access mode zero. SyncTERM
 uses the active BBS cache and the read-only Global RIP Directory. Its lookup
 accepts regular files in those locations and skips directories, links and
-ambiguous case matches. It does not open the matching file. The upstream
-variable description remains tracked in [issue #171](https://github.com/bbs-land/remote-imaging-protocol/issues/171).
+ambiguous case matches. It does not open the matching file. The adopted
+variable contract is in [PR #177](https://github.com/bbs-land/remote-imaging-protocol/pull/177).
 
 Connected CP437 and UTF-8 fixtures verify exact reply bytes, the named cache
-and global fallback, alias rewriting, nonfatal recovery, and graphical
-expansion in a `1R` filename. A native fixture verifies that the presence
-check opens no stream and reads no stream metadata.
+and global fallback, ordered alias rewriting, and literal recovery in both
+replies and graphical filename expansion. A native fixture verifies that
+the presence check opens no stream and reads no stream metadata.
 
 ## Connected RIP_READ_SCENE
 
@@ -9236,8 +9238,9 @@ return or cancellation.
 
 SyncTERM currently permits eight open local scenes and suppresses RIP and ANSI
 replies while a file is running. The framer expects a command delimiter or CR
-for ordinary commands. The original client's EOF, nesting, filename preparation
-and reply rules are tracked in [issue #170](https://github.com/bbs-land/remote-imaging-protocol/issues/170).
+for ordinary commands. The adopted [PR #176](https://github.com/bbs-land/remote-imaging-protocol/pull/176)
+specifies the remaining filename, local byte normalization, ANSI source
+isolation and child reply behavior. Those changes remain pending.
 Cached `.TXT` sources feed an active article as prose.
 
 Connected CP437 and UTF-8 fixtures check command ordering before and after a
