@@ -92,7 +92,7 @@ else()
 endif()
 
 add_library(st_rip3_commands STATIC st_rip3_commands.c st_rip3_font_commands.c st_rip3_port_commands.c st_rip3_bitmap_commands.c
-	st_rip3_session.c
+	st_rip3_session.c st_rip3_header.c
 	st_rip3_get_image_commands.c st_rip3_bitmap_load_commands.c st_rip3_image_commands.c st_rip3_text_commands.c st_rip3_bitmap_error_ui.c st_rip3_drawing_commands.c st_rip3_curve_commands.c st_rip3_path_commands.c st_rip3_bezier_commands.c st_rip3_skew_commands.c st_rip3_rounded_commands.c)
 target_sources(st_rip3_commands PRIVATE st_rip3_button_commands.c st_rip3_text_metric.c)
 target_sources(st_rip3_commands PRIVATE st_rip3_button_create.c)

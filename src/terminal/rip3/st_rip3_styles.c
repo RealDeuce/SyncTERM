@@ -229,3 +229,19 @@ st_rip3_styles_backup_create(struct st_rip3_backup **result)
 
 	return st_rip3_backup_create(result, &ops);
 }
+
+void
+st_rip3_styles_header_prune(struct st_rip3_styles *styles, unsigned keep)
+{
+	for (unsigned i = 1; i < 36; ++i)
+		if (i != keep && !styles->entries[i].info.protected)
+			styles->entries[i] = (struct style_entry){0};
+}
+
+void
+st_rip3_styles_header_defaults(struct st_rip3_styles *styles, bool all)
+{
+	for (unsigned i = 0; i < 36; ++i)
+		if ((all || i == styles->current) && !styles->entries[i].info.protected)
+			(void)st_rip3_style_defaults(&styles->entries[i].value);
+}

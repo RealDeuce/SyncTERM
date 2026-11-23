@@ -299,3 +299,11 @@ st_rip3_palettes_restore_screen(struct st_rip3_palettes *palettes,const struct s
 	for (unsigned i=0;i<256;i++) if (source->rgb[i]>0xffffff) return IO_ERROR_OUT_OF_RANGE;
 	palettes->entries[palettes->current].palette=*source;return 0;
 }
+
+void
+st_rip3_palettes_header_prune(struct st_rip3_palettes *palettes, unsigned keep)
+{
+	for (unsigned i = 1; i < 36; ++i)
+		if (i != keep && !palettes->entries[i].info.protected)
+			palettes->entries[i] = (struct palette_entry){0};
+}

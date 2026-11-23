@@ -79,6 +79,8 @@ int st_rip3_palettes_restore(struct st_rip3_palettes *palettes,
 
 /* A palette-table backup area using complete owned snapshots. Its save/restore
  * operations accept live st_rip3_palettes objects. Destroy with backup_destroy. */
+/* Header table deletion skips zero, the retained slot and protected entries. */
+void st_rip3_palettes_header_prune(struct st_rip3_palettes *, unsigned keep);
 int st_rip3_palettes_backup_create(struct st_rip3_backup **result);
 
 #endif

@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_session.h"
 #include "st_rip3_host_variables.h"
+#include "st_rip3_header.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_styles.h"
 #include "st_rip3_button_styles.h"
@@ -67,7 +68,8 @@ struct st_rip3_session {
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool ready;
-	bool text_active;
+	bool text_active, input_locked;
+	unsigned scene_revision, scene_charset;
 	unsigned current_window;
 	unsigned default_text_font;
 	bool default_text_wrap;
@@ -399,9 +401,8 @@ select_default_window(void *context, unsigned number)
 }
 
 static int
-soft_reset(void *context)
+reset_scene(struct st_rip3_session *session, bool hard)
 {
-	struct st_rip3_session *session=context;
 	if (session->sink.text_reset==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_text_window_layout layout;
 	int status=st_rip3_text_window_normal(&layout,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
@@ -417,14 +418,14 @@ soft_reset(void *context)
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
 	st_rip3_mouse_clear_queries(session->commands.mouse);
-	status=st_rip3_ports_reset(session->commands.ports,false);
+	status=st_rip3_ports_reset(session->commands.ports,hard);
 	if (status==0 && session->clipboard.set) {
 		struct st_rip3_port_info info;
 		status=st_rip3_ports_info(session->commands.ports,session->clipboard.port,&info);
 		if (status==0 && !info.defined) session->clipboard=(struct st_rip3_clipboard_selection){0};
 	}
 	if (status==0) status=st_rip3_ports_screen_clear_black(session->commands.ports);
-	if (status==0) status=st_rip3_palettes_reset(session->commands.palettes,false);
+	if (status==0) status=st_rip3_palettes_reset(session->commands.palettes,hard);
 	if (status==0) status=st_rip3_styles_soft_reset(session->commands.styles);
 	if (status==0) status=st_rip3_button_styles_reset_table(session->commands.button_styles);
 	if (status==0) status=st_rip3_button_styles_select(session->commands.button_styles,0);
@@ -432,8 +433,8 @@ soft_reset(void *context)
 	if (status!=0) return status;
 	st_rip3_outline_cache_reset(session->text.outline_cache);
 	bool keep[36]={false};
-	for (unsigned i=1;i<36;i++) keep[i]=session->windows[i].info.protected;
-	status=session->sink.text_reset(session->sink.context,&layout,keep,session->text_active);
+	for (unsigned i=1;i<36;i++) keep[i]=!hard && session->windows[i].info.protected;
+	status=session->sink.text_reset(session->sink.context,&layout,keep,session->text_active,hard);
 	if (status!=0) return status;
 	session->windows[session->current_window].info.active=session->text_active;
 	for (unsigned i=1;i<36;i++) if (!keep[i]) {
@@ -449,6 +450,46 @@ soft_reset(void *context)
 	/* Query/template/variable owners and the borrowed audio player are separate
 	 * from live drawing state. Do not cancel the query invoking RESET(SOFT). */
 	return 0;
+}
+
+static int
+soft_reset(void *context)
+{
+	return reset_scene(context, false);
+}
+
+static void
+set_input_lock(struct st_rip3_session *session, bool locked)
+{
+	if (locked && !session->input_locked)
+		st_rip3_mouse_boundary(session->commands.mouse);
+	session->input_locked = locked;
+}
+
+static int
+hard_reset(void *context)
+{
+	struct st_rip3_session *session = context;
+	/* Acceptance clears the interpreter save even if scene setup fails. */
+	if (session->ansi_native != NULL)
+		session->sink.text_ansi_destroy(session->ansi_native);
+	session->ansi_native = NULL;
+	st_rip3_resident_query_clear(&session->ansi_window.query);
+	session->ansi_window = (struct session_window){0};
+	set_input_lock(session, false);
+	session->scene_charset = 0;
+	for (unsigned i = 0; i < ST_RIP3_TABLE_COUNT; ++i)
+		(void)st_rip3_backup_clear_all(session->tables.tables[i].backup, true);
+	for (unsigned i = 1; i < 36; ++i) {
+		(void)st_rip3_button_styles_protect(session->commands.button_styles, i, false);
+		(void)st_rip3_styles_protect(session->commands.styles, i, false);
+		(void)st_rip3_environments_protect(session->commands.environments, i, false);
+	}
+	if (session->commands.audio != NULL) {
+		int status = st_rip3_audio_stop(session->commands.audio);
+		if (status != 0) table_operation_failed(session, status);
+	}
+	return reset_scene(session, true);
 }
 
 static int
@@ -665,12 +706,214 @@ prepare(void *context)
 }
 
 static void
+header_result(struct st_rip3_session *session, int status)
+{
+	if (status != 0) {
+		const struct st_rip3_command_sink sink = {session, diagnose};
+		st_rip3_command_result(&sink, status, true);
+	}
+}
+
+static void
+header_backups(struct st_rip3_session *session, enum st_rip3_table_type family, unsigned flags)
+{
+	struct st_rip3_backup *backup = session->tables.tables[family].backup;
+	if (flags & 1)
+		header_result(session, st_rip3_backup_clear(backup, ST_RIP3_BACKUP_BASE, 0));
+	if (flags & 2) {
+		struct st_rip3_backup_info info;
+		int status = st_rip3_backup_info(backup, &info);
+		if (status == 0) {
+			for (unsigned i = 0; i < 10; ++i) {
+				if (info.slot_used[i] && !info.slot_protected[i]) {
+					status = st_rip3_backup_clear(backup, ST_RIP3_BACKUP_SLOT, i);
+					break;
+				}
+			}
+		}
+		header_result(session, status);
+	}
+	if (flags & 4)
+		header_result(session, st_rip3_backup_clear(backup, ST_RIP3_BACKUP_STACK, 0));
+}
+
+static void
+header_viewports(struct st_rip3_session *session, unsigned flags)
+{
+	unsigned windows[36], current = 0;
+	for (unsigned i = 0; i < 36; ++i) windows[i] = i;
+	struct st_rip3_ports *ports = session->commands.ports;
+	(void)st_rip3_ports_current(ports, &current);
+	if (flags & 128) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_DEACTIVATE, 0));
+	if (flags & 256) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_DEACTIVATE, 0));
+	if (flags & 512) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_ACTIVATE, 0));
+	if (flags & 1024) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_ACTIVATE, 0));
+	if (flags & 2048) st_rip3_ports_header_bounds(ports, true);
+	if (flags & 4096) st_rip3_ports_header_bounds(ports, false);
+	if (flags & (8192 | 16384)) header_result(session, IO_ERROR_NOT_SUPPORTED);
+	if (flags & 32768) st_rip3_ports_header_clear_queries(ports);
+}
+
+static void
+header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned slot)
+{
+	if (flags & 1) {
+		header_result(session, select_text_window(session, 0, false));
+		for (unsigned i = 1; i < 36; ++i)
+			header_result(session, reset_window_entry(session, i));
+		header_result(session, reset_window_entry(session, 0));
+	}
+	if (flags & 2) header_result(session, select_text_window(session, slot, true));
+	if (flags & 4) {
+		for (unsigned i = 1; i < 36; ++i)
+			if (i != session->current_window)
+				header_result(session, reset_window_entry(session, i));
+		if (session->current_window != 0)
+			header_result(session, reset_window_entry(session, 0));
+	}
+	header_backups(session, ST_RIP3_TABLE_TW, flags >> 3);
+	unsigned all[36], current = session->current_window;
+	for (unsigned i = 0; i < 36; ++i) all[i] = i;
+	if (flags & 64) (void)activate_text_windows(session, all, 36, false);
+	if (flags & 128) (void)activate_text_windows(session, &current, 1, false);
+	if (flags & 256) (void)activate_text_windows(session, all, 36, true);
+	if (flags & 512) (void)activate_text_windows(session, &current, 1, true);
+	if (flags & (1024 | 2048)) header_result(session, IO_ERROR_NOT_SUPPORTED);
+	if (flags & 4096)
+		for (unsigned i = 0; i < 36; ++i) header_result(session, erase_window(session, i, true));
+	if (flags & 8192) header_result(session, erase_window(session, current, true));
+	if (flags & 16384) {
+		st_rip3_resident_query_clear(&session->floating_window_query);
+		for (unsigned i = 0; i < 36; ++i)
+			if (!session->windows[i].info.protected)
+				st_rip3_resident_query_clear(&session->windows[i].query);
+	}
+	if (flags & 32768)
+		for (unsigned i = 0; i < 36; ++i) header_result(session, show_window_cursors(session, &i, 1, false));
+	if (flags & 65536) header_result(session, show_window_cursors(session, &current, 1, false));
+	if (flags & 131072)
+		for (unsigned i = 0; i < 36; ++i) header_result(session, show_window_cursors(session, &i, 1, true));
+	if (flags & 262144) header_result(session, show_window_cursors(session, &current, 1, true));
+}
+
+static void
+header_segment(struct st_rip3_session *session, const struct st_rip3_header_segment *segment)
+{
+	struct st_rip3_command_host *host = &session->commands;
+	unsigned flags = segment->flags, slot = segment->slot, current = 0;
+	switch (segment->type) {
+	case 0:
+		if (flags & 1) {
+			(void)st_rip3_button_styles_select(host->button_styles, 0);
+			st_rip3_button_styles_header_prune(host->button_styles, 0);
+		}
+		if (flags & 2) header_result(session, st_rip3_button_styles_select(host->button_styles, slot));
+		(void)st_rip3_button_styles_current(host->button_styles, &current);
+		if (flags & 4) st_rip3_button_styles_header_prune(host->button_styles, current);
+		header_backups(session, ST_RIP3_TABLE_BUT, flags >> 3);
+		if (flags & 192) st_rip3_button_styles_header_defaults(host->button_styles, (flags & 128) != 0);
+		break;
+	case 1:
+		if (flags & 1) {
+			(void)st_rip3_styles_switch(host->styles, 0);
+			st_rip3_styles_header_prune(host->styles, 0);
+		}
+		if (flags & 2) header_result(session, st_rip3_styles_switch(host->styles, slot));
+		(void)st_rip3_styles_current(host->styles, &current);
+		if (flags & 4) st_rip3_styles_header_prune(host->styles, current);
+		header_backups(session, ST_RIP3_TABLE_STYLE, flags >> 3);
+		if (flags & 192) st_rip3_styles_header_defaults(host->styles, (flags & 128) != 0);
+		break;
+	case 2:
+		if (flags & 1) header_result(session, st_rip3_ports_header_prune(host->ports, false));
+		if (flags & 2) header_result(session, st_rip3_ports_switch(host->ports, slot));
+		if (flags & 4) header_result(session, IO_ERROR_NOT_SUPPORTED);
+		if (flags & 8) header_result(session, st_rip3_ports_header_prune(host->ports, true));
+		header_backups(session, ST_RIP3_TABLE_PORT, flags >> 4);
+		header_viewports(session, flags);
+		break;
+	case 3:
+		header_text_windows(session, flags, slot);
+		break;
+	case 4:
+		if (flags & 1) {
+			(void)st_rip3_palettes_switch(host->palettes, 0);
+			st_rip3_palettes_header_prune(host->palettes, 0);
+		}
+		if (flags & 2) header_result(session, st_rip3_palettes_switch(host->palettes, slot));
+		(void)st_rip3_palettes_current(host->palettes, &current);
+		if (flags & 4) st_rip3_palettes_header_prune(host->palettes, current);
+		header_backups(session, ST_RIP3_TABLE_PAL, flags >> 3);
+		/* Active indexed pixels already use the current palette on presentation.
+		 * The undocumented pre-array guard for bit 128 has no safe state. */
+		if (flags & 128) header_result(session, IO_ERROR_NOT_SUPPORTED);
+		break;
+	case 5:
+		st_rip3_environments_header(host->environments, flags & 7, slot, 0, 0);
+		header_backups(session, ST_RIP3_TABLE_ENV, flags >> 3);
+		st_rip3_environments_header(host->environments, flags & ~63u, slot, segment->coordinate_width, segment->rgb_bits);
+		break;
+	case 6:
+		if (flags & 3) {
+			const struct st_rip3_rect all = {0, 0, INT32_MAX, INT32_MAX};
+			const unsigned remove = (flags & 3) == 3 ? 7 : (flags & 1) ? 15 : 23;
+			header_result(session, st_rip3_mouse_remove(host->mouse, &all, remove, NULL));
+		}
+		header_backups(session, ST_RIP3_TABLE_MOUSE, flags >> 2);
+		break;
+	case 7:
+		if ((flags & 1) && host->audio != NULL)
+			header_result(session, st_rip3_audio_stop(host->audio));
+		break;
+	case 8:
+		if (flags & 1) header_result(session, st_rip3_ports_screen_clear_black(host->ports));
+		header_backups(session, ST_RIP3_TABLE_SCREEN, flags >> 1);
+		break;
+	case 9:
+		session->scene_charset = flags;
+		break;
+	}
+}
+
+static void
+scene_header(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	struct st_rip3_header header;
+	int status = st_rip3_header_decode(&header, bytes, length);
+	if (status != 0) {
+		diagnose(session, ST_RIP3_COMMAND_INVALID);
+		return;
+	}
+	if (header.flags & ST_RIP3_HEADER_HARD) header_result(session, hard_reset(session));
+	else if (header.flags & ST_RIP3_HEADER_SOFT) header_result(session, soft_reset(session));
+	session->scene_revision = header.revision;
+	set_input_lock(session, false);
+	if (header.flags & ST_RIP3_HEADER_LOCK_INPUT) set_input_lock(session, true);
+	if (header.flags & ST_RIP3_HEADER_SELECT_ZERO) {
+		header_result(session, select_text_window(session, 0, false));
+		header_result(session, st_rip3_button_styles_select(session->commands.button_styles, 0));
+		header_result(session, st_rip3_styles_switch(session->commands.styles, 0));
+		header_result(session, st_rip3_ports_switch(session->commands.ports, 0));
+		header_result(session, st_rip3_palettes_switch(session->commands.palettes, 0));
+		header_result(session, st_rip3_environments_activate(session->commands.environments, 0));
+	}
+	if (header.flags & ST_RIP3_HEADER_CLEAR_REFRESH) header_result(session, IO_ERROR_NOT_SUPPORTED);
+	for (unsigned i = 0; i < header.count; ++i)
+		header_segment(session, &header.segments[i]);
+}
+
+static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
 	if (session->sink.before_command!=NULL) session->sink.before_command(session->sink.context);
 	const struct st_rip3_command_sink sink={session,diagnose};
-	if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
+	if (length != 0 && bytes[0] == 'h') scene_header(session, bytes, length);
+	else if (length != 0 && bytes[0] == '#') {
+		if (length == 1) set_input_lock(session, false);
+		else diagnose(session, ST_RIP3_COMMAND_INVALID);
+	}
+	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);
 		if (status!=0) st_rip3_command_result(&sink,status,false);
@@ -712,6 +955,7 @@ void
 st_rip3_session_cancel(struct st_rip3_session *session)
 {
 	if (session==NULL) return;
+	session->input_locked = false;
 	st_rip3_button_renderer_cancel(session->commands.buttons);
 	st_rip3_mouse_abort(session->commands.mouse);
 	st_rip3_query_cancel(session->commands.query);
@@ -809,15 +1053,22 @@ mouse_busy(void *context)
 }
 
 bool
+st_rip3_session_input_locked(const struct st_rip3_session *session)
+{
+	return session != NULL && session->input_locked;
+}
+
+bool
 st_rip3_session_mouse_active(const struct st_rip3_session *session)
 {
-	return session!=NULL && st_rip3_mouse_active(session->commands.mouse);
+	return session!=NULL && (session->input_locked || st_rip3_mouse_active(session->commands.mouse));
 }
 
 bool
 st_rip3_session_mouse_pointer(const struct st_rip3_session *session,unsigned *result)
 {
 	if (session==NULL || result==NULL) return false;
+	if (session->input_locked) { *result = 6; return true; }
 	unsigned current;struct st_rip3_environment env;
 	if (st_rip3_environments_current(session->commands.environments,&current)!=0
 	    || st_rip3_environments_get(session->commands.environments,current,&env)!=0) return false;
@@ -827,19 +1078,19 @@ st_rip3_session_mouse_pointer(const struct st_rip3_session *session,unsigned *re
 bool
 st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left)
 {
-	return session!=NULL && st_rip3_mouse_event(session->commands.mouse,x,y,left);
+	return session!=NULL && (session->input_locked || st_rip3_mouse_event(session->commands.mouse,x,y,left));
 }
 
 void
 st_rip3_session_mouse_move(struct st_rip3_session *session,int32_t x,int32_t y)
 {
-	if (session!=NULL) st_rip3_mouse_move(session->commands.mouse,x,y);
+	if (session!=NULL && !session->input_locked) st_rip3_mouse_move(session->commands.mouse,x,y);
 }
 
 bool
 st_rip3_session_key(struct st_rip3_session *session, uint8_t byte)
 {
-	return session!=NULL && st_rip3_mouse_key(session->commands.mouse,byte);
+	return session!=NULL && (session->input_locked || st_rip3_mouse_key(session->commands.mouse,byte));
 }
 
 uint64_t
@@ -888,6 +1139,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->source=config->source;session->sink=config->sink;session->frame=frame;
 	session->commands.reset_context=session;session->commands.soft_reset=soft_reset;
 	session->tables.reset_context=session;session->tables.soft_reset=soft_reset;
+	session->tables.hard_reset=hard_reset;
 	session->default_text_font=config->default_text_font;session->default_text_wrap=config->default_text_wrap;
 	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
@@ -1063,6 +1315,8 @@ st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_se
 	if (status==0) status=st_rip3_ports_snapshot(session->commands.ports,&palette,&value.pixels);
 	if (status!=0) return status;
 	value.cursor_x=port.cursor.x;value.cursor_y=port.cursor.y;value.viewport_active=port.viewport_active;
+	value.scene_revision = session->scene_revision;
+	value.scene_charset = session->scene_charset;
 	value.query_pending=st_rip3_session_pending(session);value.wait_ns=st_rip3_session_wait_ns(session);
 	value.outline_cache_valid=st_rip3_outline_cache_valid(session->text.outline_cache);
 	*result=value;return 0;

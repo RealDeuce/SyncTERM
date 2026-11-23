@@ -211,6 +211,62 @@ st_rip3_environments_mouse(struct st_rip3_environments *environments,unsigned po
 	environments->entries[environments->current].data.mouse_pointer=pointer;return 0;
 }
 
+static void
+header_defaults(struct st_rip3_environment *value)
+{
+	value->base_math = 36;
+	value->coordinate_size = 2;
+	value->rgb_bits = 0;
+	value->world_width = 640;
+	value->world_height = 350;
+}
+
+static void
+header_delete_others(struct st_rip3_environments *environments, unsigned keep)
+{
+	for (unsigned i = 1; i < 36; ++i)
+		if (i != keep && !environments->entries[i].info.protected)
+			environments->entries[i] = (struct environment_entry){0};
+}
+
+void
+st_rip3_environments_header(struct st_rip3_environments *environments, unsigned flags,
+    unsigned slot, unsigned coordinate_width, unsigned rgb_bits)
+{
+	if (flags & 1) {
+		header_delete_others(environments, 0);
+		environments->current = 0;
+	}
+	if (flags & 2)
+		(void)st_rip3_environments_activate(environments, slot);
+	if (flags & 4)
+		header_delete_others(environments, environments->current);
+	if (flags & 64) {
+		for (unsigned i = 0; i < 36; ++i) {
+			struct environment_entry *entry = &environments->entries[i];
+			if (entry->info.defined && !entry->info.protected)
+				header_defaults(&entry->data);
+		}
+	}
+	struct st_rip3_environment *current = &environments->entries[environments->current].data;
+	if (flags & 128) header_defaults(current);
+	if (flags & 256) current->base_math = 64;
+	else if (flags & 512) current->base_math = 36;
+	if ((flags & 1024) && coordinate_width >= 2 && coordinate_width <= 5)
+		current->coordinate_size = coordinate_width;
+	if (flags & 2048) current->rgb_bits = 0;
+	if ((flags & 4096) && rgb_bits <= 8) current->rgb_bits = rgb_bits;
+	if (flags & 8192) {
+		current->world_width = current->base_math == 64 ? 4096 : 1280;
+		current->world_height = current->base_math == 64 ? 3072 : 960;
+	}
+	if (flags & 16384) {
+		current->world_width = 640;
+		current->world_height = 350;
+	}
+	if (flags & 32768) current->mouse_pointer = 0;
+}
+
 int
 st_rip3_environments_soft_reset(struct st_rip3_environments *environments)
 {

@@ -648,11 +648,11 @@ text_reset_entry(void *context,unsigned number,const struct st_rip3_text_window_
 
 static int
 text_reset(void *context, const struct st_rip3_text_window_layout *layout,
-    const bool keep[36], bool old_active)
+    const bool keep[36], bool old_active, bool hard)
 {
 	struct st_term_rip3 *rip=context;
 	st_cterm_t *source=st_term_rip3_text(rip);
-	int status=st_cterm_rip3_ansi_reset(source,old_active);
+	int status=hard ? 0 : st_cterm_rip3_ansi_reset(source,old_active);
 	uint32_t width,height;
 	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
 	if (status==0) status=window_budget(rip,layout,0,keep);
@@ -661,7 +661,8 @@ text_reset(void *context, const struct st_rip3_text_window_layout *layout,
 	st_cterm_t *zero=rip->windows[0]==NULL ? rip->text : st_term_rip3_view_text(rip->windows[0]);
 	/* Ordinary redefinition retains TW0's tabs. Pending ANSI syntax belongs
 	 * to the connection and comes from the old current owner instead. */
-	if (status==0) status=st_cterm_inherit_window_interpreter(st_term_rip3_view_text(candidate),zero,true);
+	if (status==0 && !hard)
+		status=st_cterm_inherit_window_interpreter(st_term_rip3_view_text(candidate),zero,true);
 	if (status==0) status=st_cterm_select_window_interpreter(st_term_rip3_view_text(candidate),source);
 	if (status==0) {
 		st_cterm_t *target=st_term_rip3_view_text(candidate);
@@ -1249,6 +1250,7 @@ bool
 st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return false;
+	if (st_rip3_session_input_locked(rip->session)) return true;
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	if (event->data.mouse.action==ST_CONSOLE_MOUSE_WHEEL) return false;
 	st_term_rip3_flush(rip);feedback_begin(rip);
@@ -1262,7 +1264,9 @@ st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *even
 bool
 st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
-	if (rip==NULL || !st_rip3_session_mouse_active(rip->session)) return false;
+	if (rip==NULL) return false;
+	if (st_rip3_session_input_locked(rip->session)) return true;
+	if (!st_rip3_session_mouse_active(rip->session)) return false;
 	uint8_t byte;uint32_t scalar;
 	switch (event->type) {
 	case ST_CONSOLE_EVENT_TEXT:

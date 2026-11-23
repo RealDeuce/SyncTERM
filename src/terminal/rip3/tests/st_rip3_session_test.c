@@ -51,7 +51,7 @@ struct fixture {
 	unsigned resets;
 	unsigned live_resets,reset_targets[128],reset_failure,reset_failures;
 	bool reset_zero_active;
-	bool reset_keep[36],reset_old_active;
+	bool reset_keep[36],reset_old_active,reset_hard;
 	bool selected_first,selected_fresh,selected_active;
 	uint32_t clear_rgb;
 	struct st_rip3_text_window_layout window;
@@ -396,10 +396,10 @@ select_text(void *context, unsigned number, bool first, bool active,
 
 static int
 reset_text(void *context, const struct st_rip3_text_window_layout *layout,
-    const bool keep[36], bool old_active)
+    const bool keep[36], bool old_active, bool hard)
 {
 	struct fixture *f=context;f->resets++;f->window=*layout;
-	memcpy(f->reset_keep,keep,sizeof(f->reset_keep));f->reset_old_active=old_active;
+	memcpy(f->reset_keep,keep,sizeof(f->reset_keep));f->reset_old_active=old_active;f->reset_hard=hard;
 	return f->window_status;
 }
 
@@ -1539,10 +1539,90 @@ static int ansi_text_window(void)
 	st_rip3_session_destroy(f.session);return 0;
 }
 
+static int
+scene_header(void)
+{
+	struct fixture f={0};
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;
+	options.sink.text_reset=reset_text;
+	options.sink.text_ansi_capture=capture_ansi;
+	options.sink.text_ansi_restore=restore_ansi;
+	options.sink.text_ansi_destroy=destroy_ansi;
+	audio_engine_t *engine = NULL;
+	struct st_rip3_audio *player = NULL;
+	CHECK(audio_engine_create_pull(&engine)==0 && st_rip3_audio_create(&player,engine,0,0)==0);
+	options.audio = player;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	size_t stops = st_rip3_session_test_stops;
+	CHECK(append(&f,"!|h01000001701\r")==0 && pump(&f)==0);
+	CHECK(f.errors==0 && st_rip3_session_test_stops==stops+1);
+	CHECK(query(&f,"$CUR(ENV,5)$","")==0);
+	/* Invalid trailing segment blocks preceding actions, including SOFT. */
+	CHECK(append(&f,"!|h0100020250000200702\r")==0 && pump(&f)==0);
+	CHECK(f.errors==1 && f.resets==0 && query(&f,"$CUR(ENV)$","5")==0);
+	/* Literal example from the pinned header specification. */
+	CHECK(append(&f,"!|h01000201502O2220\r\n")==0 && pump(&f)==0);
+	CHECK(f.errors==1 && f.resets==1);
+	CHECK(query(&f,"$CUR(ENV)$:$BASEMATH$:$COORDSIZE$:$WORLD$","2:36:2:1280:960")==0);
+	/* Release and relock in wire order. A zero count ignores decoded extras. */
+	CHECK(append(&f,"!|h0100040050000700\f")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_input_locked(f.session) && st_rip3_session_key(f.session,'x'));
+	CHECK(append(&f,"!|#0\r")==0 && pump(&f)==0 && f.errors==2 && st_rip3_session_input_locked(f.session));
+	CHECK(append(&f,"!|#\n")==0 && pump(&f)==0 && !st_rip3_session_input_locked(f.session));
+	/* Environment validation uses slot 2; the invalid width is ignored.
+	 * Radix applies immediately to the next chained command. */
+	CHECK(append(&f,"!|h01000001500K02&0|X0a01\r")==0 && pump(&f)==0);
+	CHECK(f.errors==2 && query(&f,"$BASEMATH$:$COORDSIZE$","64:2")==0);
+	struct st_rip3_session_capture state={0};
+	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.scene_revision==1);
+	st_rip3_session_capture_dispose(&state);
+	/* A standalone charset descriptor has the wrong decoded length. The
+	 * documented mixed vector shifts into a mouse segment, not a port switch. */
+	CHECK(append(&f,"!|h00000401901\r")==0 && pump(&f)==0);
+	CHECK(f.errors==3 && !st_rip3_session_input_locked(f.session));
+	CHECK(append(&f,"!|h00000002901200060\r")==0 && pump(&f)==0);
+	CHECK(f.errors==3 && st_rip3_session_capture(f.session,&state)==0);
+	CHECK(state.scene_revision==0 && state.scene_charset==1 && state.port==0);
+	st_rip3_session_capture_dispose(&state);
+	/* Reset setup failure stays within the header, clears the saved value
+	 * at acceptance and still applies the subsequent environment segment. */
+	st_rip3_session_ansi_window(f.session,false);CHECK(ansi_live==1);
+	f.window_status=IO_ERROR_OUT_OF_MEMORY;
+	CHECK(append(&f,"!|h0100030150002420\r")==0 && pump(&f)==0);
+	CHECK(f.errors==4 && f.resets==2 && f.reset_hard && ansi_live==0);
+	unsigned restores=ansi_restores;
+	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==restores);
+	CHECK(query(&f,"$CUR(ENV)$","4")==0);
+	f.window_status=0;
+	CHECK(query(&f,"$RESET(HARD)$$CUR(ENV)$","0")==0 && f.resets==3 && f.reset_hard);
+
+	/* Environment writes directly into the protected current slot. Base 64
+	 * beats base 36, supplied RGB beats palette mode and the later world
+	 * default beats the large world. A protected slot survives the all scan. */
+	CHECK(query(&f,"$CUR(ENV,2)$$MCURSOR(2)$$PROT(ENV,2)$","")==0);
+	CHECK(append(&f,"!|h01000001503y0257\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$BASEMATH$:$COORDSIZE$:$COLORMODE$:$WORLD$","64:5:7:4096:3072")==0);
+	CHECK(append(&f,"!|h0100000150010000\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$BASEMATH$:$COORDSIZE$:$COLORMODE$:$WORLD$","64:5:7:4096:3072")==0);
+	CHECK(append(&f,"!|h0100000150E00000\r")==0 && pump(&f)==0);
+	unsigned pointer = 99;
+	CHECK(st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==0);
+	CHECK(query(&f,"$WORLD$","640:350")==0);
+	CHECK(append(&f,"!|h0100000150020000\r")==0 && pump(&f)==0);
+	CHECK(query(&f,"$BASEMATH$:$COORDSIZE$:$COLORMODE$","36:2:0")==0);
+	CHECK(append(&f,"!|h0100040150100007\r")==0 && pump(&f)==0);
+	CHECK(f.errors==5 && !st_rip3_session_input_locked(f.session));
+	st_rip3_session_destroy(f.session);
+	st_rip3_audio_destroy(player);
+	audio_engine_destroy(engine);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(ansi_text_window()==0);
+	CHECK(ansi_text_window()==0 && scene_header()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

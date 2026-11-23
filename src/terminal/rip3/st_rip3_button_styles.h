@@ -65,6 +65,9 @@ int st_rip3_button_styles_reset_table(struct st_rip3_button_styles *);
 int st_rip3_button_styles_reset_current(struct st_rip3_button_styles *);
 /* Restores all records, metadata and the saved current index, bypassing live
  * protection. This is distinct from STYLE's documented current-index defect. */
+/* Header table deletion skips zero, the retained slot and protected entries. */
+void st_rip3_button_styles_header_prune(struct st_rip3_button_styles *, unsigned keep);
+void st_rip3_button_styles_header_defaults(struct st_rip3_button_styles *, bool all);
 int st_rip3_button_styles_backup_create(struct st_rip3_backup **result);
 
 #endif

@@ -90,7 +90,8 @@ ordinary ANSI parsing follows the connection across selection. ANSI-only
 charset designation/state lifetime is now connected; displayed glyphs remain
 CP437. ESC7/8 now saves/restores the represented text-window metadata through
 the existing ANSI path, independently of CSI coordinates and whole-window
-backups. Remaining modes and HEADER lifetime integration stay pending. Ordinary
+backups. The saved value follows the scene header and HARD reset lifetime rules.
+Remaining terminal modes stay pending. Ordinary
 `w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
@@ -104,8 +105,8 @@ Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
 are implemented. [PR #107](https://github.com/bbs-land/remote-imaging-protocol/pull/107)
 supplies the applicable ANSI charset/byte contract, now implemented for the
 ANSI-only designation/glyph/lifetime scope. Separate CSI-coordinate versus
-ESC7/8 represented state is connected under the PR151 completion; full mode
-and HEADER lifetime acceptance remains incomplete. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
+ESC7/8 represented state and the header lifetime rules are connected under
+the PR151 completion. The full terminal mode inventory remains incomplete. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Extended `b` now defines the selected connected text window using wide,
@@ -8677,3 +8678,35 @@ HEADER/hard-reset lifetime integration and currently unexposed binding vectors
 remain pending. Full RIP3 compliance is incomplete. The original RIP154 freeze
 and user-deferred startup/default-font policy are unchanged; no speed claim is
 made from these functional checks.
+
+
+## Connected scene header and input lock
+
+The RIP3 session decodes level-0 `h` in base 64 and validates every segment
+before applying any effect. It accepts the pinned revision and flag ranges,
+wire continuations, and pipe, CR, LF, and form-feed terminators. A zero segment
+count ignores additional decoded fields. The historical type-9 argument stride
+is evaluated within bounds so the standalone invalid form and documented mixed
+form retain their distinct outcomes. The enclosing session handles runtime
+failures and continues with subsequent segments.
+
+The connected path now applies SOFT and the represented HARD reset operations,
+selects the six table zeros, and runs the typed segments in wire order. Those
+segments can select and prune live tables, update environment settings and
+viewport bounds or activation, clear selected backup areas, stop waveform
+playback, and clear the physical screen to RGB black. Numbered backup deletion
+skips protected saves and clears one existing slot per segment. The scene input
+lock consumes keyboard and mouse events and selects the wait pointer. A valid
+`#` or subsequent header releases it. Incoming commands and replies continue
+during the lock.
+
+An accepted hard header or `RESET(HARD)` clears the ANSI text-window save
+before fallible setup. SOFT and headers without a hard reset retain the save.
+Native tests inject a failed hard setup and verify that a later environment
+segment still applies. Headless TCP tests exercise the real terminal input and
+screen in CP437 and UTF-8 at 640x480, 800x600, 1024x768 and 720x400.
+
+Refresh expressions, separate physical-port deletion, explicit clipping
+application, palette upload parity, and some text-window geometry, erase, and
+cursor operations remain pending. The full HARD state inventory also needs
+review. The original RIP1.54 preservation check is still required.

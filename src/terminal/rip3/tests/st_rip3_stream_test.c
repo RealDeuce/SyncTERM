@@ -294,6 +294,10 @@ integration(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 int
 main(void)
 {
+	static const uint8_t wire[] = "!|h010000015004\\\r\n0220|#\fZ\r\n!|h01000000\nA";
+	static const uint8_t commands[] = "h0100000150040220\0#\0h01000000\0";
+	static const uint8_t ansi[] = "Z\r\nA";
+	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3)==0);
 	CHECK(boundaries() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);

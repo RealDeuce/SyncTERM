@@ -522,6 +522,45 @@ st_rip3_ports_erase(struct st_rip3_ports *ports, uint8_t background)
 }
 
 int
+st_rip3_ports_header_prune(struct st_rip3_ports *ports, bool keep_current)
+{
+	if (!generations_available(ports, 36))
+		return IO_ERROR_OUT_OF_RANGE;
+	unsigned keep = keep_current ? ports->current : 0;
+	for (unsigned i = 1; i < 36; ++i) {
+		if (i != keep && ports->entries[i].info.defined && !ports->entries[i].info.protected) {
+			clear_port(&ports->entries[i]);
+			ports->generations[i] = ++ports->sequence;
+		}
+	}
+	if (!keep_current || keep != 0) {
+		ports->entries[0].info.bounds = ports->screen_bounds;
+		ports->entries[0].info.viewport = ports->screen_bounds;
+	}
+	if (!keep_current) ports->current = 0;
+	return 0;
+}
+
+void
+st_rip3_ports_header_bounds(struct st_rip3_ports *ports, bool all)
+{
+	for (unsigned i = 0; i < 36; ++i) {
+		struct port *port = &ports->entries[i];
+		if ((all || i == ports->current) && port->info.defined && !port->info.protected)
+			port->info.viewport = port_bounds(port);
+	}
+}
+
+void
+st_rip3_ports_header_clear_queries(struct st_rip3_ports *ports)
+{
+	st_rip3_resident_query_clear(&ports->floating_query);
+	for (unsigned i = 0; i < 36; ++i)
+		if (!ports->entries[i].info.protected)
+			st_rip3_resident_query_clear(&ports->entries[i].query);
+}
+
+int
 st_rip3_ports_operate_views(struct st_rip3_ports *ports,
     const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,
     uint8_t background)

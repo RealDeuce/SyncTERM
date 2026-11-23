@@ -122,8 +122,8 @@ captured live position, origin-aware restored CSI coordinates, independent query
 ownership, atomic resource failures, repeated restore and protection, current
 target selection, no repaint across geometry/font changes and following bytes
 in the same batch. Coherent TCP captures cover 640x480, 800x600, 1024x768 and 720x400.
-Per-window mode completion and HEADER/hard-reset snapshot lifetimes remain
-pending; the existing ANSI engine is used throughout.
+The scene header suites cover the HARD snapshot boundary and SOFT retention.
+Per-window mode completion remains pending.
 Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain

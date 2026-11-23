@@ -95,6 +95,9 @@ int st_rip3_styles_soft_reset(struct st_rip3_styles *styles);
  * This does not capture the unresolved parts of a complete RIP STYLE context or
  * perform scene reset/default initialization. SGS/RGS and whole-table COPY
  * use this same snapshot family. */
+/* Header table deletion skips zero, the retained slot and protected entries. */
+void st_rip3_styles_header_prune(struct st_rip3_styles *, unsigned keep);
+void st_rip3_styles_header_defaults(struct st_rip3_styles *, bool all);
 int st_rip3_styles_backup_create(struct st_rip3_backup **result);
 
 #endif

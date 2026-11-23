@@ -84,6 +84,9 @@ int st_rip3_environments_protect(struct st_rip3_environments *environments,
 /* Outer SOFT: default unprotected records, discard their nonzero definitions
  * and select zero. Departing protected current retains WORLD/pointer but gets
  * base 36, width 2 and RGB precision 0. Independent backups are untouched. */
+/* Apply the already validated environment segment in flag order. */
+void st_rip3_environments_header(struct st_rip3_environments *, unsigned flags,
+	unsigned slot, unsigned coordinate_width, unsigned rgb_bits);
 int st_rip3_environments_soft_reset(struct st_rip3_environments *environments);
 /* Resolve a usable projection frame. Zero stored WORLD dimensions reject
  * here before any caller can divide by them; the record itself stays valid. */

@@ -676,11 +676,18 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 	if (strcmp(reference->name,"RESET")==0) {
 		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 		if (reference->count==0) return IO_ERROR_NOT_SUPPORTED;
-		if (equal(reference->parameters[0].text,"SOFT")) {
+		const char *scope = reference->parameters[0].text;
+		if (equal(scope, "SOFT") || equal(scope, "HARD")) {
 			if (reference->count!=1) return IO_ERROR_INVALID_FORMAT;
-			if (host->soft_reset==NULL) return IO_ERROR_NOT_SUPPORTED;
-			status=host->soft_reset(host->reset_context);
+			int (*reset)(void *) = equal(scope, "HARD") ? host->hard_reset : host->soft_reset;
+			if (reset==NULL) return IO_ERROR_NOT_SUPPORTED;
+			status=reset(host->reset_context);
 			if (status==0) result[0]=0;
+			else if (equal(scope, "HARD") && host->operation_failed != NULL) {
+				host->operation_failed(host->operation_context, status);
+				result[0] = 0;
+				return 0;
+			}
 			return status;
 		}
 		enum st_rip3_table_type reset_type;bool viewport=false;

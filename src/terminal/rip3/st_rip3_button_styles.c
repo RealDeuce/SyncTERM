@@ -186,3 +186,19 @@ st_rip3_button_styles_backup_create(struct st_rip3_backup **result)
 	static const struct st_rip3_backup_ops ops={clone,restore,free};
 	return st_rip3_backup_create(result,&ops);
 }
+
+void
+st_rip3_button_styles_header_prune(struct st_rip3_button_styles *styles, unsigned keep)
+{
+	for (unsigned i = 1; i < 36; ++i)
+		if (i != keep && !styles->entries[i].protected)
+			styles->entries[i] = (struct button_entry){0};
+}
+
+void
+st_rip3_button_styles_header_defaults(struct st_rip3_button_styles *styles, bool all)
+{
+	for (unsigned i = 0; i < 36; ++i)
+		if ((all || i == styles->current) && !styles->entries[i].protected)
+			(void)st_rip3_button_style_defaults(&styles->entries[i].value);
+}

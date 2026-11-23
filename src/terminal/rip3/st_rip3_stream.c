@@ -10,7 +10,7 @@ struct st_rip3_stream {
 	size_t length, capacity;
 	uint8_t introducer, previous_text;
 	unsigned identification_prefix;
-	bool active, line_start, quoted, comment, dropping, skip_lf;
+	bool active, line_start, quoted, comment, scene, dropping, skip_lf;
 };
 
 static void
@@ -40,6 +40,7 @@ clear_command(struct st_rip3_stream *stream)
 	stream->length = 0;
 	stream->quoted = false;
 	stream->comment = false;
+	stream->scene = false;
 	stream->dropping = false;
 }
 
@@ -131,15 +132,17 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 		}
 
 		if (stream->active) {
-			if (byte == '\n')
+			const bool scene_end = (byte == '\n' || byte == '\f') && stream->scene;
+			if (byte == '\n' && !scene_end)
 				continue;
-			if (byte == '\r') {
+			if (byte == '\r' || scene_end) {
 				if (stream->quoted) {
 					/* Only the continuation slash is removed. The
 					 * remaining even run stays quoted for later stages. */
 					if (!stream->dropping)
 						stream->length--;
 					stream->quoted = false;
+					stream->skip_lf = byte == '\r';
 				}
 				else {
 					dispatch(stream);
@@ -156,8 +159,10 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				dispatch(stream);
 				continue;
 			}
-			if (stream->length == 0 && !stream->dropping)
+			if (stream->length == 0 && !stream->dropping) {
 				stream->comment = byte == '!';
+				stream->scene = byte == 'h' || byte == '#';
+			}
 			append(stream, byte);
 			/* Preserve parity even after allocation failure, so an
 			 * escaped pipe/continued CR cannot resume in corrupt data. */
