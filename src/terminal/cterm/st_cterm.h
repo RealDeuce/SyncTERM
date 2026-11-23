@@ -257,6 +257,8 @@ void st_cterm_destroy(st_cterm_t **terminal);
  * before the parser applies the control. consumed is always written.
  * Codepage text is converted at the input boundary and shares UTF-8 text
  * presentation. Counts refer to original input bytes, not converted UTF-8.
+ * With a RIP3 session owner, consuming ESC 7 or ESC 8 can end a successful
+ * write early. Take the window action before submitting the unread bytes.
  * RIP/IGS/BIG command rejections warn and continue with the unread stream;
  * they do not return command/parser errors to the session owner.
  */

@@ -382,6 +382,41 @@ check_rip3_absolute_text_position(void)
 }
 
 static void
+check_rip3_window_action_handoff(void)
+{
+	st_console_t *console = NULL;
+	st_font_catalog_t *fonts = NULL;
+	st_cterm_t *terminal = NULL;
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config geometry = {.columns = 8, .rows = 6, .cell_width = 8, .cell_height = 8};
+	CHECK(st_console_create(&console, &display, &geometry) == 0);
+	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	const struct st_cterm_config config = {.console = console, .fonts = fonts, .emulation = ST_CTERM_ANSI_BBS,
+	    .encoding = ST_CTERM_ENCODING_UTF8, .quiet = true,
+	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_3, .rip3_session_owner = true};
+	CHECK(st_cterm_create(&terminal, &config) == 0);
+
+	const char wire[] = "\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b" "7\x1b[31;44m\x1b" "8\x1b[37;40m";
+	size_t used;
+	CHECK(st_cterm_write(terminal, wire, sizeof(wire) - 1, &used) == 0 && used == 19);
+	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_SAVE);
+	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_NONE);
+	struct st_cterm_state state;
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.x == 3 && state.y == 3 && state.attr == 0x07);
+	size_t offset = used;
+	CHECK(st_cterm_write(terminal, wire + offset, sizeof(wire) - 1 - offset, &used) == 0 && used == 10);
+	CHECK(st_cterm_take_rip3_window_action(terminal) == ST_CTERM_RIP3_WINDOW_RESTORE);
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.attr == 0x14);
+	offset += used;
+	feed(terminal, wire + offset, sizeof(wire) - 1 - offset);
+	CHECK(st_cterm_state(terminal, &state) == 0 && state.attr == 0x07);
+
+	st_cterm_destroy(&terminal);
+	st_font_catalog_destroy(fonts);
+	st_console_destroy(console);
+}
+
+static void
 check_rip3_text_erase(void)
 {
 	for (int encoding=ST_CTERM_ENCODING_UTF8;encoding<=ST_CTERM_ENCODING_CODEPAGE;encoding++) {
@@ -954,6 +989,7 @@ st_cterm_test_main(void)
 	check_insert_lines_bounds();
 	check_local_text_position();
 	check_rip3_absolute_text_position();
+	check_rip3_window_action_handoff();
 	check_rip3_text_erase();
 	check_rip3_ansi_eol();
 	test_graphics_history();
