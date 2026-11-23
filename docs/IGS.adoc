@@ -344,11 +344,11 @@ have distinct source rules. Local abort keys, reset, EOF and error cancel
 continuations without executing incomplete commands. Commands may already
 have committed an earlier operand's state change before a later read fails.
 
-IGS retains configurable XON/XOFF flow and repeat counts. Serial polygon,
-polyline, flood, pause, loop and load paths apply their own guards; script
-input has different flow behavior. These bytes are protocol output, not
-automatic terminal character translations. Local waits keep unread remote
-input buffered and the UI responsive.
+IGS parses the X5 flow-control settings and repeat counts. During connected
+sessions the transport owns backpressure. TCP buffers unread input, and serial
+and modem connections use the flow control configured in the connection
+profile. Drawing, pausing and loading send no in-band flow bytes. IGS queries,
+keyboard input and binary replies retain their normal wire representation.
 
 == Time and sound
 

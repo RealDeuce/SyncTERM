@@ -724,7 +724,7 @@ cterm_igs_argument_value(struct cterm_igs *igs, const struct st_graphics_argumen
 int
 cterm_igs_flow(struct cterm_igs *igs, bool on)
 {
-	if (igs->flow_mode == 0)
+	if (igs->transport_owns_flow_control || igs->flow_mode == 0)
 		return 0;
 	/* The existing response transport queues output and owns readiness.
 	 * No foreign BIOS polling or per-byte throughput delay belongs here. */
@@ -1737,7 +1737,7 @@ drive_input(struct cterm_igs *igs,const uint8_t *bytes,size_t size,size_t *used)
 }
 
 int
-cterm_igs_create(struct cterminal *terminal)
+cterm_igs_create(struct cterminal *terminal, bool transport_owns_flow_control)
 {
 	uint32_t width, height, cw, ch;
 	unsigned resolution;
@@ -1759,6 +1759,7 @@ cterm_igs_create(struct cterminal *terminal)
 	if (igs == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	igs->terminal = terminal;
+	igs->transport_owns_flow_control = transport_owns_flow_control;
 	igs->resolution = resolution;
 	igs->width = width;
 	igs->height = height;

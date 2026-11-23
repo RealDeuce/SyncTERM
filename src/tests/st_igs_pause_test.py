@@ -3,6 +3,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import socket
+from st_igs_peer import expect_igs_version
 import time
 
 from st_igs_cursor_test import check, fixture
@@ -56,29 +57,25 @@ def run(executable, reports, resolution, encoding, status):
                 client.wait_for(lambda f: f.application.get("connected") == 1)
                 client.resize(1280, 960)
                 send(peer, setup + b"G#X 10,1000,777:G#t 30:G#X 10,1001,777:")
-                receive(peer, b"\x13")
                 inspect(1000, True)
                 client.key(ord("x"))
-                receive(peer, b"\x11")
                 inspect(1001, False)
                 client.key(ord("z"))
                 receive(peer, b"z")
 
                 send(peer, b"G#t>0:X 10,1002,777:")
-                receive(peer, b"\x13\x11")
                 inspect(1002, False)
+                expect_igs_version(peer)
 
                 if resolution == 0 and encoding == "ATARI-ST" and not status:
                     started = time.monotonic()
                     send(peer, b"G#t>1:X 10,1003,777:")
-                    receive(peer, b"\x13")
                     inspect(1002, True)
-                    receive(peer, b"\x11")
-                    assert time.monotonic() - started >= 0.95
                     inspect(1003, False)
+                    assert time.monotonic() - started >= 0.95
+                    expect_igs_version(peer)
 
                 send(peer, b"G#t 30:G#X 10,1999,777:")
-                receive(peer, b"\x13")
                 client.wait_for(lambda f: f.application.get("cterm.igs_timed_pause") == 1)
                 disconnect(peer)
 

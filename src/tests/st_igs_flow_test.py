@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""X5 state and exact raw flow replies with coherent unchanged scenes."""
+"""X5 state and transport-owned flow control with coherent unchanged scenes."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import socket
+from st_igs_peer import expect_igs_version
 from st_igs_cursor_test import check, fixture
 
 CAPTURES = 0
@@ -34,17 +35,13 @@ def run(executable, reports, resolution, encoding, status):
                 assert not s['cterm.igs_input_paused']
                 CAPTURES += 1
 
-            def scene(peer, wire, values, reply=b''):
+            def scene(peer, wire, values):
                 nonlocal marker
                 marker += 1
                 send(peer, wire+f'G#X 10,{marker},777:'.encode())
                 frame = client.wait_for(lambda f: f.application.get('cterm.igs_draw_x') == marker)
                 inspect(frame, values)
-                if reply:
-                    peer.settimeout(3); actual = b''
-                    while len(actual) < len(reply):
-                        actual += peer.recv(len(reply)-len(actual))
-                    assert actual == reply, actual
+                expect_igs_version(peer)
                 return frame
 
             def setup(peer):
@@ -61,12 +58,12 @@ def run(executable, reports, resolution, encoding, status):
                 setup(peer)
                 scene(peer, b'G#X 5,2,511,2:', (2,255,19,2,1))
                 scene(peer, b'G#X 5,3,256,3:', (3,255,0,2,3))
-                # Reply bytes stay raw under every wire encoding, including NUL/FF.
-                scene(peer, b'G#N 4,0:', (3,255,0,2,3), b'\x00\x00\x00\xff\xff')
+                # Custom NUL/FF flow settings must never write into the TCP stream.
+                scene(peer, b'G#N 4,0:', (3,255,0,2,3))
                 scene(peer, b'G#X>5,0:N 4,0:', (0,255,0,2,3))
-                scene(peer, b'G#X>5,1:N 4,0:', (1,255,0,2,3), b'\x00\x00\x00\xff\xff')
+                scene(peer, b'G#X>5,1:N 4,0:', (1,255,0,2,3))
                 scene(peer, b'G#X 5,9999:', (9999,17,19,1,1))
-                scene(peer, b'G#N 4,0:', (9999,17,19,1,1), b'\x13\x11')
+                scene(peer, b'G#N 4,0:', (9999,17,19,1,1))
                 scene(peer, b'G#X 5,2,17,0:', (2,17,19,0,1))
                 scene(peer, b'G#X>5,3,19,0:N 4,0:', (3,17,19,0,0))
                 peer.settimeout(0.03)
@@ -76,11 +73,10 @@ def run(executable, reports, resolution, encoding, status):
                     pass
                 else:
                     raise AssertionError(f'unexpected flow output: {extra!r}')
-                # Exercise the real response transport beyond a small queue,
-                # using an independently known signed-word product.
+                # Even a large repeat count must leave the connection silent.
                 scene(peer, b'G#X 13,3,181,181,0:', (3,17,19,0,0))
                 scene(peer, b'G#X 5,2,17,0]:', (2,17,19,32761,0))
-                scene(peer, b'G#N 4,0:', (2,17,19,32761,0), b'\x11'*32761)
+                scene(peer, b'G#N 4,0:', (2,17,19,32761,0))
                 # Partial custom-character/count acquisition survives EOF; the
                 # new terminal starts with the normal default configuration.
                 send(peer, b'G#X 5,2,33,')
@@ -90,7 +86,7 @@ def run(executable, reports, resolution, encoding, status):
             client.key('enter')
             with listener.accept()[0] as peer:
                 setup(peer)
-                scene(peer, b'G#N 4,0:', (1,17,19,1,1), b'\x13\x11')
+                scene(peer, b'G#N 4,0:', (1,17,19,1,1))
                 disconnect(peer)
 
 

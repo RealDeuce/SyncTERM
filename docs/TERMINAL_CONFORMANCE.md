@@ -981,6 +981,11 @@ diagnostics. Its native collection/fill/line/bar fixtures check retained
 failure prefixes with successful terminal input/polls; pending commands,
 sources, flow, replies and deferred pointer errors are cancelled on rejection.
 
+Connected IGS tests verify that the transport owns flow control. They fence
+drawing and playback with a version query and check the exact reply bytes,
+including with custom X5 characters and large repeat counts. Serial profile
+and driver tests cover the configured handshaking modes.
+
 IGS 2.21 work is tracked separately in [IGS_CONFORMANCE.md](IGS_CONFORMANCE.md)
 and [IGS_IMPLEMENTATION.adoc](IGS_IMPLEMENTATION.adoc). The shared graphics
 byte-parser foundation has native split-input and raw-ownership coverage;
@@ -1276,10 +1281,10 @@ retained records, unchanged scenes and reconnect. No audible/device coverage
 is claimed.
 X5 now configures flow mode and custom XON/XOFF bytes/counts through staged
 numeric fields. Literal native cases and 288 coherent application captures
-cover signed/loop rules, partial stores, exact raw replies, unchanged scenes
-and reconnect across all modes/encodings/status choices with physical output
-disabled. Existing serial helpers retain their once-per-entry mode gate and
-live byte/count reads.
+cover signed/loop rules, partial stores, unchanged scenes and reconnect across
+all modes/encodings/status choices with physical output disabled. Standalone
+checks retain the Atari serial byte/count expectations. Connected checks
+verify that the version reply follows each command without any flow bytes.
 X3 now loads and sends opaque right-button macros, retaining its individual
 configuration stores and old payload suffix. All-buttons release resumes the
 serial suffix and queued original key events. Literal native coverage and423

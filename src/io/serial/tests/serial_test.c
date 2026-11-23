@@ -13,6 +13,7 @@
 #if ST_SERIAL_TEST_HAVE_PTY
 #include <fcntl.h>
 #include <stdlib.h>
+#include <termios.h>
 #include <unistd.h>
 #endif
 
@@ -82,6 +83,20 @@ test_pseudo_terminal(void)
 	CHECK(serial_port_open(&port, name) == 0);
 	CHECK(port != NULL);
 	CHECK(serial_port_configure(port, &config) == 0);
+	int slave = open(name, O_RDWR | O_NOCTTY);
+	struct termios attributes;
+	CHECK(slave >= 0);
+	CHECK(tcgetattr(slave, &attributes) == 0);
+	CHECK((attributes.c_iflag & (IXON | IXOFF)) == 0);
+	config.flow_control = SERIAL_FLOW_CONTROL_XON_XOFF;
+	CHECK(serial_port_configure(port, &config) == 0);
+	CHECK(tcgetattr(slave, &attributes) == 0);
+	CHECK((attributes.c_iflag & (IXON | IXOFF)) == (IXON | IXOFF));
+	config.flow_control = SERIAL_FLOW_CONTROL_NONE;
+	CHECK(serial_port_configure(port, &config) == 0);
+	CHECK(tcgetattr(slave, &attributes) == 0);
+	CHECK((attributes.c_iflag & (IXON | IXOFF)) == 0);
+	CHECK(close(slave) == 0);
 	CHECK(serial_port_get_baud_rates(port, rates,
 	    sizeof(rates) / sizeof(rates[0]), &rate_count) == 0);
 	CHECK(rate_count >= sizeof(rates) / sizeof(rates[0]));

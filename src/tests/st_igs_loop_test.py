@@ -6,6 +6,7 @@ from array import array
 import json
 from pathlib import Path
 import socket
+from st_igs_peer import expect_igs_version
 from st_igs_cursor_test import fixture, DATA, initial
 from st_igs_macro_test import SCRIPT
 from syncterm_fixture import cell_at, check_pixel_planes
@@ -75,7 +76,7 @@ def run(executable,reports,resolution,encoding,status):
                 nonlocal marker
                 marker+=1;send(peer,wire+f'G#g>0:X 10,{marker},777:'.encode())
                 frame=client.wait_for(lambda f:f.application.get('cterm.igs_draw_x')==marker)
-                inspect(frame,case);read(peer,reply);return frame
+                inspect(frame,case);read(peer,reply);expect_igs_version(peer);return frame
 
             def baseline(peer):
                 scene(peer,b'G#X>3,0:g>0:E>0,9,0:M 1:\x1bEG#p 3,2:A')
@@ -84,8 +85,8 @@ def run(executable,reports,resolution,encoding,status):
                 client.wait_for(lambda f:f.application.get('connected')==1);client.resize(1280,960)
                 send(peer,b'G#c>1,3:c 0,0:\x1bf');baseline(peer)
 
-            def probe(peer,prefix=b''):
-                client.key('f8');read(peer,prefix+b'STATE 0 false false\n')
+            def probe(peer):
+                client.key('f8');read(peer,b'STATE 0 false false\n')
 
             def disconnect(peer):
                 peer.shutdown(socket.SHUT_RDWR);client.wait_text('Disconnected: Enter exits, F1 details')
@@ -99,23 +100,25 @@ def run(executable,reports,resolution,encoding,status):
                 # a per-iteration reply nor queued graphics may escape early.
                 baseline(peer);send(peer,b'G#& 0,2,1,0,<,3,1,0,0:')
                 frame=client.wait_for(lambda f:f.application.get('cterm.igs_collect_active')==1)
-                inspect(frame,active=True,collection=True);probe(peer,b'\x13')
+                inspect(frame,active=True,collection=True);probe(peer)
                 client.text('A');frame=client.wait_for(lambda f:f.application.get('cterm.igs_collect_active')==1 and f.application.get('cterm.igs_loop_current')==2)
                 inspect(frame,active=True,collection=True);probe(peer)
                 client.text('b');client.wait_for(lambda f:f.application.get('cterm.igs_loop_run')==0)
-                scene(peer,reply=b'\x11b\r')
+                scene(peer,reply=b'b\r')
                 # A local key wakes a numeric delay and Ctrl-C aborts at that
                 # actual operand call, without being forwarded to the host.
                 baseline(peer);send(peer,b'G#& 0,9999,1,100,M,1,0:')
                 frame=client.wait_for(lambda f:f.application.get('cterm.igs_loop_waiting')==1)
-                inspect(frame,active=True);probe(peer,b'\x13')
+                inspect(frame,active=True);probe(peer)
                 client.key(3);client.wait_for(lambda f:f.application.get('cterm.igs_loop_run')==0)
-                scene(peer,reply=b'\x11')
+                scene(peer)
                 if paced:
-                    # XOFF confirms entry. Ctrl-X crosses the real console event
+                    # Observe entry on the control backend. Ctrl-X crosses the real console event
                     # queue while the zero-delay blits are still running.
                     send(peer,b'G#& 0,9999,1,0,G,8,0,3,0,60,318,198,1,60:G#? 0:')
-                    read(peer,b'\x13');client.key(24);read(peer,b'\x112.21')
+                    client.wait_for(lambda f: f.application.get('cterm.igs_loop_run') == 1
+                                    and f.application.get('cterm.igs_loop_current', 0) > 0)
+                    client.key(24);read(peer,b'2.21')
                     frame=client.capture()
                     inspect(frame)
                     assert 0<frame.application['cterm.igs_loop_current']<9999

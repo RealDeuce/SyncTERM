@@ -2372,7 +2372,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		if (status != 0) { st_cterm_destroy(&terminal); return status; }
 	}
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221) {
-		status = cterm_igs_create(terminal);
+		status = cterm_igs_create(terminal, config->transport_owns_flow_control);
 		if (status != 0) { st_cterm_destroy(&terminal); return status; }
 	}
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103) {

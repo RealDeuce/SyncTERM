@@ -3,6 +3,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import socket
+from st_igs_peer import expect_igs_version
 
 from st_igs_cursor_test import check, fixture
 
@@ -73,10 +74,7 @@ def run(executable, reports, resolution, encoding, status):
                 inspect(11, (10, 11, 0, 255), 0x8792c229, 194)
                 send(peer, b"G#X 10,0],1]:")
                 inspect(10, (10, 11, 0, 255), 0xd8ea7fd2, 127)
-                peer.settimeout(2)
-                flow = b""
-                while len(flow) < 2: flow += peer.recv(2-len(flow))
-                assert flow == b"\x13\x11", flow
+                expect_igs_version(peer)
                 disconnect(peer)
 
 

@@ -3,6 +3,7 @@
   "target": "IGS221/IG221.ACC serial / intended US TOS 1.04 software graphics",
   "reference_root": "~/IGS/docs/igs/",
   "contract": {
+    "connected_flow_control": "The transport owns backpressure. Serial and modem sessions use the profile handshake. The standalone Atari serial interpreter retains X5 emission for reference tests.",
     "pixel_fidelity": "exact for intended valid operations",
     "audio": "functional synthesis and playback tests; manual listening after implementation; no PCM/reference comparison gate",
     "bugs": "safe documented corrections; no memory corruption or accidental overflow emulation",
@@ -2950,8 +2951,8 @@
       "operations": [
         "One unscaled signed mode; any nonzero containing-loop state after that read forces 1. Modes 2/3 read XON/XOFF low byte and unscaled signed count. Modes >3 restore bytes 17/19 and counts 1/1 while retaining the supplied mode. Other words preserve all four fields; zero disables, other nonzero modes enable. No immediate output or wait.",
         "Generic numeric descriptors and pure arity preview with incremental field entry. Commit mode/selector once, byte before count, and count on completion. Capture the accepted 2/3 branch through later scalar/loop changes; no repeated RNG/array evaluation. EOF/timeout/rejection cancels pending ownership while retaining completed stores. Full reset/reconnect restores defaults.",
-        "Existing common serial emitters test mode once, then current byte/count for each queued response. Nonpositive counts emit nothing; positive counts repeat exactly, raw under every encoding. Live callback byte/count changes affect subsequent sends without regating mode. Existing response transport owns readiness; no foreign clock, BIOS loop, additional worker or hardware throughput delays.",
-        "192 literal configurations, 160 short emitter cases, 32767-byte maximum, live mutation, partitioned/chained input, all ST mode/status/scaling profiles with exact dual-phase pixels/attributes/palette/cursor, loop/read-order/RNG/boundaries and error/EOF/reset recovery. 288 coherent all-mode/encoding/status application captures assert literal flow state plus exact indexed/RGB scene and raw NUL/FF/default replies with physical audio/MIDI off."
+        "Standalone serial emitters test mode once, then current byte/count for each queued response. Nonpositive counts emit nothing; positive counts repeat exactly, raw under every encoding. Live callback byte/count changes affect subsequent sends without regating mode. Existing response transport owns readiness; no foreign clock, BIOS loop, additional worker or hardware throughput delays.",
+        "192 literal configurations, 160 short emitter cases, 32767-byte maximum, live mutation, partitioned/chained input, all ST mode/status/scaling profiles with exact dual-phase pixels/attributes/palette/cursor, loop/read-order/RNG/boundaries and error/EOF/reset recovery. 288 coherent all-mode/encoding/status application captures assert literal flow state plus exact indexed/RGB scene and version replies without custom or default flow bytes with physical audio/MIDI off."
       ],
       "tests": [
         "cterm_igs_flow",

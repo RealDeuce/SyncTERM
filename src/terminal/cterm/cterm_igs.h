@@ -109,6 +109,7 @@ struct cterm_igs {
 	bool last_line;
 	bool destructive_backspace;
 	/* Serial flow helpers read their own gate once and count/byte per send. */
+	bool transport_owns_flow_control;
 	int flow_mode, loop_mode, loop_kind;
 	/* X5 commits its mode/byte before reading the remaining count. */
 	int flow_configuring;
@@ -146,7 +147,7 @@ struct cterm_igs {
 	uint8_t warned[32];
 };
 
-int cterm_igs_create(struct cterminal *);
+int cterm_igs_create(struct cterminal *, bool transport_owns_flow_control);
 void cterm_igs_destroy(struct cterm_igs *);
 void cterm_igs_reset(struct cterm_igs *);
 int cterm_igs_feed(struct cterm_igs *, const void *, size_t, size_t *);

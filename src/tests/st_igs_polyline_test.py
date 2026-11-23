@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""z: independent connected-line scenes, coherent cells/RGB and serial flow."""
+"""z: independent connected-line scenes, coherent cells/RGB and TCP replies."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import json
 import socket
+from st_igs_peer import expect_igs_version
 import sys
 from pathlib import Path
 
@@ -31,13 +32,6 @@ def run(executable, reports, resolution, encoding, status):
                 def send(wire):
                     with (root/'wire.bin').open('ab') as stream: stream.write(wire)
                     peer.sendall(wire)
-                def flow():
-                    reply = b''
-                    while len(reply) < 2:
-                        part = peer.recv(2-len(reply))
-                        assert part, 'disconnected during flow reply'
-                        reply += part
-                    assert reply == b'\x13\x11', reply
                 for number,case in enumerate(c for c in VECTORS['cases'] if c['resolution'] == resolution):
                     token = f'POLY{number:02d}'
                     begin,end = case['caps']; style = case['style']
@@ -48,13 +42,13 @@ def run(executable, reports, resolution, encoding, status):
                          b'\x1bH' + token.encode())
                     expected = dict(case,points=((17,23),(37,47)))
                     check(client.wait_text(token),resolution,status,token,'vector',case=expected)
-                    flow()
+                    expect_igs_version(peer)
                 # D still starts at the retained L endpoint after z.
                 case = dict(points=((57,47),(57,47)),style=1,width=1,caps=(0,0),mode=1,
                             runs=[(47,37,21,9 & (15,3,1)[resolution])])
                 send(b'\x1bf\x1bE\x1bY2,ZG#g>0:C>1,10:T>2,1,1:T>2,1,0:M>4:L>17,23,37,47:z>3,80,80,90,90,100,80:M>1:D 57,47:\x1bHRETAIN')
                 check(client.wait_text('RETAIN'),resolution,status,'RETAIN','vector',case=case)
-                flow()
+                expect_igs_version(peer)
                 ch = 16 if resolution == 2 else 8
                 for mode in range(1,5):
                     token = f'OVER{mode}'
@@ -62,11 +56,11 @@ def run(executable, reports, resolution, encoding, status):
                          f'G#g>0:C>1,1:T>2,1,1:T>2,1,0:M>4:L>94,{18*ch+2},106,{18*ch+2}:T>2,3,1:M>{mode}:z 2,94,{18*ch+2},106,{18*ch+2}:'.encode() +
                          b'\x1bH' + token.encode())
                     check(client.wait_text(token),resolution,status,token,'overlay',mode=mode)
-                    flow()
+                    expect_igs_version(peer)
                 width, height = (320 if resolution == 0 else 640), (400 if resolution == 2 else 200)
                 send(b'\x1bf\x1bE\x1bY2,Z' +
                      f'G#g>0:T>2,1,1:T>2,1,0:M>4:L>0,{height-1},{width-1},{height-1}:g>1:M>1:z 3,0,9999,5000,9999,9999,9999:'.encode() + b'\x1bHEDGE')
-                check(client.wait_text('EDGE'),resolution,status,'EDGE','edge'); flow()
+                check(client.wait_text('EDGE'),resolution,status,'EDGE','edge'); expect_igs_version(peer)
                 peer.settimeout(0.03)
                 try: reply = peer.recv(1)
                 except socket.timeout: pass
@@ -81,10 +75,7 @@ def run(executable, reports, resolution, encoding, status):
                 peer.sendall(b'\x1bf\x1bE\x1bY2,Z\x1bHFRESH')
                 check(client.wait_text('FRESH'),resolution,status,'FRESH','fresh')
                 peer.sendall(b'G#z 2,40,60,80,60:')
-                peer.settimeout(15); reply = b''
-                while len(reply) < 2:
-                    part = peer.recv(2-len(reply)); assert part; reply += part
-                assert reply == b'\x13\x11', reply
+                expect_igs_version(peer)
                 peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details'); client.key('enter')
             client.wait_text('Directory: Name')

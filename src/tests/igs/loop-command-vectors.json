@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "provenance": "Handwritten expected operand traces and literal pixels/replies derived from chapters11/13 and their static service model. Original US TOS 8x8 A rows are literal independent glyph data. No expectations are generated from SyncTERM or Atari execution; existing console glyph/palette assets are reused.",
+  "provenance": "Handwritten expected operand traces and literal pixels/replies derived from chapters11/13 and their static service model. Original US TOS 8x8 A rows are literal independent glyph data. No expectations are generated from SyncTERM or Atari execution; existing console glyph/palette assets are reused. Connected wire expectations omit Atari serial handshaking.",
   "references": [
     {
       "path": "docs/igs/13-dispatch-loops.adoc",
@@ -48,7 +48,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -61,7 +61,7 @@
         ]
       ],
       "mode": 3,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -82,7 +82,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -103,7 +103,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -124,7 +124,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -145,7 +145,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -166,7 +166,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -179,7 +179,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -192,7 +192,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -205,7 +205,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -213,7 +213,7 @@
       "wire": "G#& 0,2,1,0,?,1,0:",
       "points": [],
       "mode": 1,
-      "reply": "\u00132.212.21\u0011",
+      "reply": "2.212.21",
       "glyphs": []
     },
     {
@@ -234,7 +234,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -242,7 +242,7 @@
       "wire": "G#W 40,100,A@\u001bEG#p 3,2:AG#& 40,56,8,0,W,2,x,100:",
       "points": [],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": [
         40,
         48,
@@ -254,7 +254,7 @@
       "wire": "G#& 40,56,8,0,W@2,x,100:A@A@A@",
       "points": [],
       "mode": 1,
-      "reply": "\u0013\u0011\u0011",
+      "reply": "",
       "glyphs": [
         40,
         48,
@@ -266,7 +266,7 @@
       "wire": "G#& 0,2,1,0,X,5,3,2,1,0,2:G#!\u0000X!",
       "points": [],
       "mode": 1,
-      "reply": "\u0013\u0011\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -274,7 +274,7 @@
       "wire": "G#& 0,0,1,0,~,1,x:G#M ",
       "points": [],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -282,7 +282,7 @@
       "wire": "G#& 0,2,1,0,q,1,x:",
       "points": [],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     },
     {
@@ -303,7 +303,7 @@
         ]
       ],
       "mode": 1,
-      "reply": "\u0013\u0011",
+      "reply": "",
       "glyphs": []
     }
   ],

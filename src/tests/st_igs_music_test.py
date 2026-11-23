@@ -3,6 +3,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import socket
+from st_igs_peer import expect_igs_version
 from st_igs_cursor_test import check, fixture
 from st_igs_effect_test import ORIGINAL, fingerprint
 from st_igs_note_test import CUSTOM
@@ -49,25 +50,20 @@ def run(executable, reports, resolution, encoding, status):
                 assert s['cterm.igs_sound_saved'] == fingerprint(ORIGINAL)
                 CAPTURES += 1
 
-            def scene(peer, wire, mask=0, flow=False):
+            def scene(peer, wire, mask=0):
                 nonlocal marker
                 marker += 1
                 send(peer, wire+f'G#X 10,{marker},777:'.encode())
                 frame = client.wait_for(lambda f: f.application.get('cterm.igs_draw_x') == marker
                                         and not f.application.get('cterm.igs_music_playing'))
                 inspect(frame, mask)
-                if flow:
-                    peer.settimeout(3)
-                    reply = b''
-                    while len(reply) < 2:
-                        reply += peer.recv(2-len(reply))
-                    assert reply == b'\x13\x11', reply
+                expect_igs_version(peer)
                 return frame
 
-            def load(peer, op, payload, mask=0, flow=False):
+            def load(peer, op, payload, mask=0):
                 nonlocal count
                 buffer[:len(payload)] = payload; count = len(payload)
-                return scene(peer, f'G#N {op},{count}:'.encode()+payload, mask, flow)
+                return scene(peer, f'G#N {op},{count}:'.encode()+payload, mask)
 
             def setup(peer):
                 client.wait_for(lambda f: f.application.get('connected') == 1)
@@ -89,15 +85,15 @@ def run(executable, reports, resolution, encoding, status):
                 # This payload must neither clear the screen nor change modes.
                 load(peer, 0, b'\x00\x03\x18\x1bEG#R 2,0:\r\n\xff>||}')
                 records = bytes((0,0,15,60,0,0, 0,1,10,64,0,0))
-                load(peer, 4, records, 3, True)
-                scene(peer, b'G#N 5:', 3, True)
-                load(peer, 4, b'\x00', 3, True)  # Five retained operands.
+                load(peer, 4, records, 3)
+                scene(peer, b'G#N 5:', 3)
+                load(peer, 4, b'\x00', 3)  # Five retained operands.
                 scene(peer, b'G#N 5:', 3)  # Count <=5 skips N5.
                 load(peer, 0, bytes((125,0,0,0,0,0)), 3)
-                scene(peer, b'G#N 6,1,2:', 3, True)  # Retained second record.
+                scene(peer, b'G#N 6,1,2:', 3)  # Retained second record.
                 scene(peer, b'G#N 6,0,1666:', 3)
-                load(peer, 1, bytes((0xf8,0,0xfa,0,0x7f)), 3, True)  # Odd tail not sent.
-                scene(peer, b'G#N 2:', 3, True)
+                load(peer, 1, bytes((0xf8,0,0xfa,0,0x7f)), 3)  # Odd tail not sent.
+                scene(peer, b'G#N 2:', 3)
                 # Positive chip wait owns only its inner key. The opaque queued
                 # input resumes after the complete record helper and N loop.
                 payload = bytes((0,2,5,67,255,2, 125,0,0,0,0,0))
@@ -111,10 +107,7 @@ def run(executable, reports, resolution, encoding, status):
                 client.key(ord('+'))
                 frame = client.wait_for(lambda f: f.application.get('cterm.igs_draw_x') == marker)
                 inspect(frame, 3)
-                peer.settimeout(3); reply = b''
-                while len(reply) < 2:
-                    reply += peer.recv(2-len(reply))
-                assert reply == b'\x13\x11', reply
+                expect_igs_version(peer)
                 client.key(ord('a')); assert peer.recv(1) == b'a'
                 # The load abort stores its first byte, clears only the count,
                 # and leaves the immediately following graphics command intact.
@@ -136,7 +129,7 @@ def run(executable, reports, resolution, encoding, status):
             client.key('enter'); buffer = bytearray(10001); count = 0; words = [row[:] for row in ORIGINAL]
             with listener.accept()[0] as peer:
                 setup(peer)
-                load(peer, 4, b'', 0, True)
+                load(peer, 4, b'')
                 disconnect(peer)
 
 

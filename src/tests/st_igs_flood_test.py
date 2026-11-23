@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""F: independent components, coherent text/pixel/state captures and serial flow."""
+"""F: independent components, coherent text/pixel/state captures and TCP replies."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import json
 import socket
+from st_igs_peer import expect_igs_version
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'/'testing'))
@@ -41,10 +42,7 @@ def run(executable,reports,resolution,encoding,status):
                     with (root/'wire.bin').open('ab') as stream:stream.write(wire)
                     peer.sendall(wire)
                     if complete:
-                        peer.settimeout(15);reply=b''
-                        while len(reply)<2:
-                            part=peer.recv(2-len(reply));assert part,'disconnected during flood flow';reply+=part
-                        assert reply==b'\x13\x11',reply
+                        expect_igs_version(peer)
                 base=b'G#g>0:T>2,1,1:T>2,1,0:M>4:L>17,23,37,47:T>2,3,1:T>2,3,50:'
                 prefix=b'\x1bf\x1bE\x1bY2,Z'+base
                 for number,case in enumerate(c for c in vectors['cases'] if c['resolution']==resolution):
@@ -80,10 +78,8 @@ def run(executable,reports,resolution,encoding,status):
             with listener.accept()[0] as peer:
                 client.wait_for(lambda s:s.application.get('connected')==1);client.resize(1920,1440)
                 peer.sendall(b'\x1bf\x1bE\x1bY2,Z\x1bHFRESH');check_fill(client.wait_text('FRESH'),resolution,status,'FRESH',fresh=True)
-                peer.sendall(b'G#F 40,60:');peer.settimeout(15);reply=b''
-                while len(reply)<2:
-                    part=peer.recv(2-len(reply));assert part;reply+=part
-                assert reply==b'\x13\x11',reply
+                peer.sendall(b'G#F 40,60:')
+                expect_igs_version(peer)
                 peer.shutdown(socket.SHUT_RDWR);client.wait_text('Disconnected: Enter exits, F1 details');client.key('enter')
             client.wait_text('Directory: Name');assert b'[wren' not in client.stderr,bytes(client.stderr)
 

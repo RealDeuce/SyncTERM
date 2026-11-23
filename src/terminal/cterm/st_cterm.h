@@ -238,6 +238,9 @@ struct st_cterm_config {
 	 * to the owner to dispatch pending input or handle disconnection. */
 	bool (*igs_loop_service_pending)(void *context);
 	void *igs_loop_service_context;
+	/* A connected transport handles backpressure, including configured serial
+	 * handshaking. Suppresses only emulator-generated IGS flow requests. */
+	bool transport_owns_flow_control;
 };
 
 /*

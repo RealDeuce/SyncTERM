@@ -26,5 +26,6 @@
   "physical_audio": false,
   "physical_midi": false,
   "external_runtime_assets": false,
-  "application_large_reply_bytes": 32761
+  "application_large_repeat_count": 32761,
+  "application_flow_bytes": 0
 }

@@ -1,5 +1,11 @@
 # IGS 2.21 conformance
 
+Connected sessions delegate flow control to the transport. Descriptions below
+of Atari serial XON/XOFF sequences apply to the standalone interpreter's
+reference behavior. Connected tests check that X5 settings are parsed and
+that only the expected application replies reach the peer, including after
+loops, input collection, pauses, music, reset and reconnect.
+
 IGS 2.21 command and integration acceptance is complete for the target below.
 The application-selectable IGS 2.21 mode
 implements `I`'s six initialization selectors and `R` resolution selection.

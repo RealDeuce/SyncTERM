@@ -6,6 +6,7 @@ from array import array
 import json
 from pathlib import Path
 import socket
+from st_igs_peer import expect_igs_version
 from st_igs_cursor_test import fixture, DATA, initial
 from st_igs_macro_test import SCRIPT
 from syncterm_fixture import cell_at, check_pixel_planes
@@ -112,10 +113,10 @@ def run(executable,reports,resolution,encoding,status):
                 scene(peer,b'G#S 1,0,0,7:'+script(b'G#X 8,0,0,0,0:'),palette=red)
                 scene(peer,b'G#X 8,0,0,0,0:')
                 # A held final G emits nothing on each call. Many short
-                # sources run inside their enclosing serial loop and
-                # retain the caller's single XOFF/XON lifetime and suffix.
+                # sources run inside the enclosing loop and retain its suffix.
                 baseline(peer)
-                scene(peer,b'G#X>9,0:G!||}& 0,130,1,0,X,2,9,1:',reply=b'\x13\x11')
+                scene(peer,b'G#X>9,0:G!||}& 0,130,1,0,X,2,9,1:')
+                expect_igs_version(peer)
                 # Local input ends an inner pause; the source and real caller
                 # chain then continue without forwarding that local key.
                 baseline(peer);send(peer,script(b'G#t>30:P 40,80:'))
