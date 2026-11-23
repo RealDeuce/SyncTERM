@@ -195,7 +195,10 @@ lifecycle(void)
 	CHECK(st_rip3_ports_switch(ports, 35) == IO_ERROR_NOT_FOUND);
 	CHECK(st_rip3_ports_define(ports, 35, &bounds, true) == 0);
 	CHECK(st_rip3_ports_protect(ports, 35, true) == 0);
+	struct st_rip3_clipboard_selection clipboard={.set=true,.port=0};
+	st_rip3_ports_bind_clipboard(ports,&clipboard);
 	CHECK(st_rip3_ports_reset(ports, true) == 0);
+	CHECK(!clipboard.set && st_rip3_ports_clipboard_index(ports)==-1);
 	CHECK(st_rip3_ports_info(ports, 35, &info) == 0 && !info.defined && !info.protected);
 	CHECK(st_rip3_ports_info(ports, 0, &info) == 0 && info.viewport_active);
 	CHECK(info.viewport.x1 == 639 && info.viewport.y1 == 479);

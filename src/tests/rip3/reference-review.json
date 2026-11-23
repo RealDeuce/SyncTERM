@@ -13732,6 +13732,58 @@
       },
       "verification": "Native Release CMake build. Live TCP JPEG playback in CP437 and UTF-8. Native JPEG wire and WAV HCL tests with providers available and unavailable. Ordinary query regression and preservation/contract checks.",
       "followup": "B161 requests the native playback filename substitutions and special forms. Local scene/BMP playback and resource-path configuration are independent pending work."
+    },
+    {
+      "after_commit": "dd137514",
+      "revision": "430f052d0e1d93af6a56aff343d379a5709cdcd5",
+      "scope": "Connect the PR160 HARD lifetime and fresh-window rules through both RESET(HARD) and HEADER.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:288",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:289",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:293",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:300",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:290",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:291",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:292",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:294",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:295",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:296",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:316",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:338",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:297",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:312",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:298",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:299",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:304",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:435",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:302",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:303",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:318",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:305",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:306",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:307",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:341",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:308",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:326",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:343",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:345",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:90",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:309",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:322",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:324",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:342",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:310"
+      ],
+      "states_after_update": {
+        "unreviewed": 2918,
+        "context": 1558,
+        "pending": 1690,
+        "implemented": 2556,
+        "excluded": 67,
+        "blocked": 32
+      },
+      "verification": "Native Release CMake build. Session, PORT, template and CTerm window tests. Connected hard header and HCL reset in CP437 and UTF-8 on four device rasters. RIP154 preservation and contract guards.",
+      "followup": "The column/article overflow state owner and application-selectable default MicroANSI preferences remain pending."
     }
   ]
 }

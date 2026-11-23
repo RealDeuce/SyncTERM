@@ -376,6 +376,7 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 		if (hard || !ports->entries[i].info.protected)
 			delete_entry(ports, i);
 	}
+	if (hard && ports->clipboard!=NULL) *ports->clipboard=(struct st_rip3_clipboard_selection){0};
 	ports->generations[0]=++ports->sequence;
 	st_rip3_resident_query_clear(&ports->entries[0].query);
 	st_rip3_resident_query_clear(&ports->floating_query);

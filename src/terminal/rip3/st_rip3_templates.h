@@ -50,7 +50,9 @@ int st_rip3_templates_button_activate(struct st_rip3_templates *,uint64_t token,
 /* Stale associated writes are successful no-ops, never ordinary assignments. */
 int st_rip3_templates_associate(struct st_rip3_templates *,uint64_t token,unsigned number,
 	const uint8_t *bytes,size_t length);
-/* Full drawing reset preserves effective bytes as ordinary baselines before
+/* HARD clears both ordinary slots and group publications. */
+void st_rip3_templates_clear(struct st_rip3_templates *templates);
+/* SOFT preserves effective bytes as ordinary baselines before
  * owners are deleted. Allocation failure preserves every publication/owner. */
 int st_rip3_templates_preserve(struct st_rip3_templates *);
 

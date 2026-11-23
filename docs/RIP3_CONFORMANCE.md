@@ -8914,10 +8914,8 @@ numbered saves, base and stack saves, and an assigned clipboard. Both reset
 paths clear those entries and saves, select slot zero in all six live tables,
 restore the default palette and keep the connection usable.
 
-The full HARD field and lifetime profile is now specified. The remaining
-connected acceptance work covers template cleanup, retained variables, pending
-ANSI syntax and the complete TW 0, ENV 0 and raster postconditions.
-[Upstream PR #160](https://github.com/bbs-land/remote-imaging-protocol/pull/160)
+The later [connected HARD reset milestone](#connected-hard-reset-lifetimes)
+records the implementation of the field and lifetime profile.
 
 The queue contains 2511 implemented, 1684 pending, 2936 unreviewed,
 1551 context, 67 excluded and 26 blocked units.
@@ -8956,3 +8954,29 @@ asset directories, are also pending. [Issue #161](https://github.com/bbs-land/re
 
 The queue contains 2523 implemented, 1682 pending, 2919 unreviewed,
 1551 context, 67 excluded and 33 blocked units.
+
+## Connected HARD reset lifetimes
+
+Both entry points now clear ordinary template slots, group publications and
+live scene state. The running host response keeps its prepared bytes and field
+identity, and both user-variable stores survive. Immediate `RESET(HARD)`
+sets scene revision zero and retains the keyboard and mouse lock. HEADER
+records its revision and then applies its own unlock and optional relock.
+Remote bytes continue through both operations. [Pinned HARD profile](https://github.com/RealDeuce/remote-imaging-protocol/blob/430f052d0e1d93af6a56aff343d379a5709cdcd5/version/3.0/ripscrip/1.3-world-view-virtual-canvas.md#hard-reset-state-and-lifetime)
+
+Fresh TW 0 uses the configured font's nominal grid, the loaded MicroANSI
+metrics for an exact device bank and nominal cell sizing on custom rasters.
+The existing CTerm initializer clears explicit tabs and per-window state while
+keeping partial ANSI syntax. PORT 0 becomes active with a full viewport, and
+the clipboard assignment clears even when it names slot zero.
+
+Native checks exercise font 4 at 1024×768, protected backup and query cleanup,
+the metric and ANSI save lifetimes, a committed grouped action and the two lock
+outcomes. TCP fixtures in CP437 and UTF-8 verify both entry points on four
+rasters, including partly received CSI, fresh tabs, live default selections and
+palette-independent black pixels. The column/article and overflow reset awaits
+the flow engine. The application still uses its established default MicroANSI
+font and wrap choice.
+
+The queue contains 2556 implemented, 1690 pending, 2918 unreviewed,
+1558 context, 67 excluded and 32 blocked units.

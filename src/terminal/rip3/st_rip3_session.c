@@ -26,6 +26,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
+#include "st_rip3_maf.h"
 #include "st_rip3_resident_query.h"
 #include "st_rip3_refresh.h"
 #include "st_pixels.h"
@@ -412,8 +413,25 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	int status=st_rip3_text_window_normal(&layout,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
 	    session->default_text_wrap,session->default_text_font);
 	if (status!=0) return status;
-	status=st_rip3_templates_preserve(session->templates.slots);
-	if (status!=0) return status;
+	if (hard) {
+		struct st_rip3_maf_font font;
+		status=st_rip3_maf_builtin_font_exact(&font,session->frame.device_width,
+		    session->frame.device_height,(enum st_rip3_maf_mode)layout.font);
+		if (status==0) {
+			layout.cell_width=font.width;layout.cell_height=font.height;
+			layout.bound_width=(uint64_t)layout.columns*font.width;
+			layout.bound_height=(uint64_t)layout.rows*font.height;
+		}
+		else if (status!=IO_ERROR_NOT_FOUND) return status;
+		/* Remove transient feedback without evaluating a button label or
+		 * retargeting an already committed field's owned response. */
+		st_rip3_mouse_boundary(session->commands.mouse);
+		st_rip3_button_renderer_cancel(session->commands.buttons);
+	}
+	else {
+		status=st_rip3_templates_preserve(session->templates.slots);
+		if (status!=0) return status;
+	}
 	/* Full-scene reset invalidates retained text and any old suspended
 	 * graphical consumer. Table/viewport operations never use this path. */
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
@@ -422,6 +440,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
 	st_rip3_mouse_clear_queries(session->commands.mouse);
+	if (hard) st_rip3_templates_clear(session->templates.slots);
 	st_rip3_refresh_clear(&session->refresh);
 	status=st_rip3_ports_reset(session->commands.ports,hard);
 	if (status==0) status=st_rip3_ports_screen_clear_black(session->commands.ports);
@@ -447,8 +466,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
 	session->windows[0].layout=layout;session->windows[0].has_layout=true;
 	session->current_window=0;session->text_active=true;
-	/* Query/template/variable owners and the borrowed audio player are separate
-	 * from live drawing state. Do not cancel the query invoking RESET(SOFT). */
+	/* The invoking query keeps its working text and variable stores. */
 	return 0;
 }
 
@@ -477,7 +495,7 @@ hard_reset(void *context)
 	st_rip3_resident_query_clear(&session->ansi_window.query);
 	session->ansi_window = (struct session_window){0};
 	st_rip3_refresh_clear(&session->refresh);
-	set_input_lock(session, false);
+	session->scene_revision = 0;
 	session->scene_charset = 0;
 	for (unsigned i = 0; i < ST_RIP3_TABLE_COUNT; ++i)
 		(void)st_rip3_backup_clear_all(session->tables.tables[i].backup, true);

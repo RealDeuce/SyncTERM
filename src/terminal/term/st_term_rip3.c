@@ -677,11 +677,13 @@ text_reset(void *context, const struct st_rip3_text_window_layout *layout,
 	st_cterm_t *zero=rip->windows[0]==NULL ? rip->text : st_term_rip3_view_text(rip->windows[0]);
 	/* Ordinary redefinition retains TW0's tabs. Pending ANSI syntax belongs
 	 * to the connection and comes from the old current owner instead. */
-	if (status==0 && !hard)
-		status=st_cterm_inherit_window_interpreter(st_term_rip3_view_text(candidate),zero,true);
-	if (status==0) status=st_cterm_select_window_interpreter(st_term_rip3_view_text(candidate),source);
+	st_cterm_t *target=st_term_rip3_view_text(candidate);
+	if (status==0 && hard) status=st_cterm_default_window_interpreter(target,source);
+	else if (status==0) {
+		status=st_cterm_inherit_window_interpreter(target,zero,true);
+		if (status==0) status=st_cterm_select_window_interpreter(target,source);
+	}
 	if (status==0) {
-		st_cterm_t *target=st_term_rip3_view_text(candidate);
 		st_cterm_set_music_mode(target,st_cterm_music_mode(source));
 		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(source));
 		struct st_term_rip3_view *previous=rip->view;

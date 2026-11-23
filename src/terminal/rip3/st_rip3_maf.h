@@ -39,6 +39,10 @@ int st_rip3_maf_find(struct st_rip3_maf_font *result,
  * extended-window fitting and the renderer consume these same dimensions. */
 int st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
 	unsigned width, unsigned height, enum st_rip3_maf_mode mode);
+/* Exact device metrics, or NOT_FOUND to retain nominal cell sizing on a
+ * custom raster. A fallback glyph strike does not supply its dimensions. */
+int st_rip3_maf_builtin_font_exact(struct st_rip3_maf_font *result,
+	unsigned width, unsigned height, enum st_rip3_maf_mode mode);
 /* CP437 character zero is blank and has no stored record (returns NULL).
  * Others have glyph_size bytes: row-major, MSB first, row_bytes per row. */
 const uint8_t *st_rip3_maf_glyph(const struct st_rip3_maf_font *font,

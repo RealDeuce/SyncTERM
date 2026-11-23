@@ -30,11 +30,20 @@ st_rip3_templates_create(struct st_rip3_templates **result)
 }
 
 void
-st_rip3_templates_destroy(struct st_rip3_templates *templates)
+st_rip3_templates_clear(struct st_rip3_templates *templates)
 {
 	if (templates==NULL) return;
 	while (templates->members!=NULL) st_rip3_templates_button_remove(templates,templates->members->token);
-	for (unsigned i=0; i<36; i++) free(templates->slots[i].bytes);
+	for (unsigned i=0; i<36; i++) {
+		free(templates->slots[i].bytes);
+		templates->slots[i]=(struct slot){.publisher=-1};
+	}
+}
+
+void
+st_rip3_templates_destroy(struct st_rip3_templates *templates)
+{
+	st_rip3_templates_clear(templates);
 	free(templates);
 }
 

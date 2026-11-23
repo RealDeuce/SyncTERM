@@ -1735,6 +1735,65 @@ scene_header_palette_upload(void)
 }
 
 static int
+hard_reset_lifetime(void)
+{
+	struct fixture f={0};
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_1024_768);
+	options.default_text_font=4;
+	options.sink.text_reset=reset_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"[3:]OLD[Z:]other","")==0);
+	CHECK(query(&f,"$-+=P=DISK$$-+=N=SHADOW$$-=N=MEM$","")==0);
+	for (unsigned mode=1;mode<=4;mode++) {
+		CHECK(store_query(&f,mode,'0',"$-=N=BAD$",false)==0);
+		CHECK(resident_value(&f,mode,0,"$-=N=BAD$")==0);
+	}
+	char face[100];
+	CHECK(query(&f,"$WORLD(CUR,1024,768)$$BASEMATH(CUR,64)$","")==0);
+	CHECK(font_wire(face,sizeof(face),"Marin",90)==0 && append(&f,face)==0);
+	CHECK(append(&f,"!|r010000FF\r")==0 && pump(&f)==0);
+	CHECK(f.reply_length==4 && memcmp(f.reply,"100\r",4)==0);
+	struct st_rip3_session_capture state={0};
+	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.outline_cache_valid);
+	st_rip3_session_capture_dispose(&state);
+	CHECK(append(&f,"!|h01000400\r")==0 && pump(&f)==0 && st_rip3_session_input_locked(f.session));
+	CHECK(query(&f,"<<?3>>:$RESET(HARD)$AFTER:$?3$:$?Z$:$&N$:$&P$","OLD:AFTER:::MEM:DISK")==0);
+	CHECK(st_rip3_session_input_locked(f.session) && st_rip3_session_key(f.session,'a'));
+	CHECK(f.resets==1 && f.reset_hard && f.window.font==4 && !f.window.wrap && !f.window.extended);
+	CHECK(f.window.columns==40 && f.window.rows==25 && f.window.cell_width==20 && f.window.cell_height==24);
+	CHECK(f.window.bound_width==800 && f.window.bound_height==600);
+	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.scene_revision==0 && !state.outline_cache_valid);
+	st_rip3_session_capture_dispose(&state);
+	for (unsigned mode=1;mode<=4;mode++) CHECK(resident_value(&f,mode,0,"")==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|r010000$TEXTDATA$\r")==0 && pump(&f)==0);
+	CHECK(f.reply_length==2 && memcmp(f.reply,"0\r",2)==0);
+	CHECK(query(&f,"[3:]NEW","")==0 && query(&f,"$?3$","NEW")==0);
+	CHECK(append(&f,"!|h01000100\r")==0 && pump(&f)==0 && !st_rip3_session_input_locked(f.session));
+	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.scene_revision==1);
+	st_rip3_session_capture_dispose(&state);
+	CHECK(query(&f,"$?3$:$&N$:$&P$",":MEM:DISK")==0);
+	/* A committed grouped response keeps its FIELDID after deleting its live
+	 * field. Neither its published response nor its old baseline survives. */
+	CHECK(query(&f,"$WORLD(CUR,1024,768)$","")==0);
+	CHECK(query(&f,"[2:]BASE","")==0);
+	CHECK(append(&f,"!|1B00000200ZK000F000F080702010F07000000"
+	    "|1U0A0A1O0U1T00ID=7:<>A<>[2:]GROUP[]$?2$:$FIELDID$:$RESET(HARD)$$D(1)$$?2$:$FIELDID$[2:]stale\r")==0
+	    && pump(&f)==0);
+	f.reply_length=0;
+	CHECK(st_rip3_session_mouse(f.session,20,20,true) && pump(&f)==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,false) && pump(&f)==0);
+	CHECK(st_rip3_session_pending(f.session) && f.reply_length==0);
+	f.now+=UINT64_C(16666667);
+	CHECK(pump(&f)==0 && f.reply_length==10 && memcmp(f.reply,"GROUP:7::7",10)==0 && f.errors==0);
+	CHECK(!st_rip3_session_mouse_active(f.session));
+	CHECK(query(&f,"$?2$","")==0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
+static int
 scene_header(void)
 {
 	struct fixture f={0};
@@ -1786,11 +1845,13 @@ scene_header(void)
 	f.window_status=IO_ERROR_OUT_OF_MEMORY;
 	CHECK(append(&f,"!|h0100030150002420\r")==0 && pump(&f)==0);
 	CHECK(f.errors==4 && f.resets==2 && f.reset_hard && ansi_live==0);
+	CHECK(st_rip3_session_test_stops==stops+2);
 	unsigned restores=ansi_restores;
 	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==restores);
 	CHECK(query(&f,"$CUR(ENV)$","4")==0);
 	f.window_status=0;
 	CHECK(query(&f,"$RESET(HARD)$$CUR(ENV)$","0")==0 && f.resets==3 && f.reset_hard);
+	CHECK(st_rip3_session_test_stops==stops+3);
 
 	/* Environment writes directly into the protected current slot. Base 64
 	 * beats base 36, supplied RGB beats palette mode and the later world
@@ -1907,7 +1968,7 @@ main(void)
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
-	CHECK(scene_header_port_zero_queries()==0 && scene_header_palette_upload()==0);
+	CHECK(scene_header_port_zero_queries()==0 && scene_header_palette_upload()==0 && hard_reset_lifetime()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

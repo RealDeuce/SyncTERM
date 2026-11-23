@@ -3,6 +3,7 @@
 #include "st_rip3_font_data.h"
 #include "io_error.h"
 
+#include <stdbool.h>
 #include <string.h>
 
 static unsigned
@@ -92,9 +93,9 @@ st_rip3_maf_glyph(const struct st_rip3_maf_font *font, uint8_t character)
 	return font->glyphs + (size_t)(character - 1) * font->glyph_size;
 }
 
-int
-st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
-    unsigned width, unsigned height, enum st_rip3_maf_mode mode)
+static int
+builtin_font(struct st_rip3_maf_font *result, unsigned width, unsigned height,
+    enum st_rip3_maf_mode mode, bool fallback)
 {
 	if (result==NULL || width==0 || height==0) return IO_ERROR_INVALID_ARGUMENT;
 	const struct st_rip3_font_asset *asset=NULL;
@@ -107,6 +108,20 @@ st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
 	int status=st_rip3_maf_open(&file,asset->data,asset->size);
 	if (status!=0) return status;
 	status=st_rip3_maf_find(result,&file,width,height,mode);
-	if (status==IO_ERROR_NOT_FOUND) status=st_rip3_maf_find(result,&file,640,480,mode);
+	if (status==IO_ERROR_NOT_FOUND && fallback) status=st_rip3_maf_find(result,&file,640,480,mode);
 	return status;
+}
+
+int
+st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
+    unsigned width, unsigned height, enum st_rip3_maf_mode mode)
+{
+	return builtin_font(result,width,height,mode,true);
+}
+
+int
+st_rip3_maf_builtin_font_exact(struct st_rip3_maf_font *result,
+    unsigned width, unsigned height, enum st_rip3_maf_mode mode)
+{
+	return builtin_font(result,width,height,mode,false);
 }

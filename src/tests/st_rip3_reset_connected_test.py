@@ -7,6 +7,8 @@ import time
 
 from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
+from st_rip3_extended_window_connected_test import window, xy
+from st_rip3_hover_connected_test import resident
 from st_rip3_text_erase_connected_test import number, scene
 from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
@@ -154,22 +156,53 @@ def run(args, width, height):
         saves = ''.join(f'$INUSE({family},{place})$' for place in ('BASE', 'S2', 'STACK')
                         for family in saved_families).encode()
         protections = ''.join(f'$ISPROT({family},S2)$' for family in saved_families).encode()
-        for name, operation in (('header', b'\x01|h01000100\r\n'),
-                                ('macro', query(b'$RESET(HARD)$alive', at_cursor=True))):
-            t.case('rip3-hard-known-table-and-backup-profile-' + name)
+        variables = b'$?3$:$&N$:$&P$:$&EFFECT$'
+        preserved = b':MEM:DISK:cold'
+        for name, operation, expected in (
+                ('header', b'\x01|h01000100\r\n', b''),
+                ('macro', query(b'$RESET(HARD)$after' + variables, at_cursor=True), b'after' + preserved)):
+            t.case('rip3-hard-shared-profile-' + name)
+            values(b'$CUR(PAL,0)$$WORLD(CUR,640,350)$')
+            capture(scene(width, height) + window((30,40,400,250),8,5,2,1)
+                    + b'\x1b[31;46m\x1b[2;3H\x1b[s\x1bH\x1b(A\x1b)0\x1b[?25lANSI'
+                    + b'\x01|v0000' + far + b'\r\n')
+            values(b'$DTW$$IMGSTYLE(0,1,1,5,5,ASPECT)$')
+            capture(resident(4,b'$-=EFFECT=bad$fixed') + resident(2,b'$-=EFFECT=bad$floating')
+                    + b'\x01|v00000000|2R0000$-=EFFECT=bad$refresh\r\n')
+            values(b'[3:]OLD')
+            values(b'$-+=P=DISK$$-+=N=SHADOW$$-=N=MEM$$-=EFFECT=cold$')
             values(protected.encode() + f'$WORLD(CUR,{width},{height})$'.encode())
+            values(b'$UNPROT(TW,5)$$ATW(5)$$PROT(TW,5)$$TWIN$', b'YES')
             capture(b'\x01|1C0A0A0C0C\r\n')
             values(b'$OFFSCREEN(CLIP)$', b'1')
             values(b'$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$'
                    + ''.join(f'$PROT({family},S2)$' for family in saved_families).encode())
             values(current, b'5:5:5:5:5:5')
-            values(saves + protections + live_entries, b'1' * 38)
-            frame = capture(operation, b'alive' if name == 'macro' else b'')
+            values(saves + protections + live_entries + b'$MCURSOR(7)$', b'1' * 38)
+            capture(b'\x1b[31;44m\x1b[3;5H\x1b[s\x1bH\x1b(A\x1b)0\x1b[?7l\x1b7')
+            frame = capture(b'\x1b[31' + operation, expected)
+            black(frame)
+            assert frame.primary == frame.alternate
+            assert xy(frame) == (1,1) and frame.application['cterm.attr'] == 7
+            assert frame.application['cterm.right_margin'] == 80 and frame.application['cterm.bottom_margin'] == 43
+            assert frame.application['cterm.ext_attr.auto_wrap'] == 1 and frame.metadata['pixel_cursor_visible']
+            assert frame.application['cterm.rip3_g0'] == frame.application['cterm.rip3_g1'] == ord('B')
+            assert frame.metadata['pointer_shape'] == 0
             values(current, b'0:0:0:0:0:0')
             values(live_entries + saves, b'0' * 30)
             values(b'$PALENTRY(0,4)$:$OFFSCREEN(CLIP)$:continued', b'8;170:0:0:-1:continued')
+            values(b'$REFRESH$' + variables, preserved)
+            values(b'$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$TEXTXY$:$IMGSTYLE(0)$',
+                   b'640:350:36:2:0:0:0:-1:-1:-1:-1:0')
+            values(b'$ISEXTWIN$:$TWFONT$:$TWIN$:$PORTW(0,VIEW,DEVICE)$:$PORTH(0,VIEW,DEVICE)$',
+                   f'0:1:YES:{width}:{height}'.encode())
             assert frame.application['connected'] == 1
             assert (frame.metadata['plane_width'], frame.metadata['plane_height']) == (width, height)
+            black(capture(b'\x01|a0010\r\n'))
+            frame = capture(b'mZ\x1b8')
+            assert xy(frame) == (2,1) and frame.application['cterm.attr'] == 4
+            frame = capture(b'\x1b[u\t')
+            assert xy(frame) == (1,2)  # Fresh CSI save and empty explicit tabs.
 
 
 def main():
