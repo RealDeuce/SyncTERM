@@ -8,6 +8,7 @@
 #include "st_rip3_mouse.h"
 #include "st_rip3_table_host.h"
 #include "st_rip3_refresh.h"
+#include "st_rip3_user_variables.h"
 #include "io_error.h"
 #include "st_rip3_tones.h"
 
@@ -152,6 +153,24 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	if (strcmp(reference->name,"HOSTDIR") == 0)
 		return host_directory(host->directory,reference,host->codepage_converted,result,capacity);
+	if (strcmp(reference->name,"RESET") == 0 && reference->count != 0) {
+		int status = st_rip3_builtin_reference_words(&words, reference);
+		if (status != 0)
+			return status;
+		const char *scope = words.parameters[0].text;
+		if ((scope[0] == 'T' || scope[0] == 't') && (scope[1] == 'V' || scope[1] == 'v')
+		    && scope[2] == '\0') {
+			if (reference->count != 2)
+				return IO_ERROR_INVALID_FORMAT;
+			if (capacity == 0)
+				return IO_ERROR_OUT_OF_RANGE;
+			const struct st_rip3_builtin_parameter *name = &reference->parameters[1];
+			status = st_rip3_user_variables_delete(host->user_variables, name->text, name->length);
+			if (status == 0)
+				result[0] = '\0';
+			return status;
+		}
+	}
 	if (strcmp(reference->name, "FILEEXISTS") == 0) {
 		if (reference->count != 1)
 			return IO_ERROR_INVALID_FORMAT;

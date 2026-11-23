@@ -559,7 +559,7 @@ def check_definition_persistence(args):
                  "ScreenMode=80x25\nNoStatus=true\nHidePopups=true\nRIP=RIPv3\n")
         with fixture(args.executable, entries=entry, reports=args.reports) as (client, root):
             client.wait_text("Capture")
-            for visit in range(3):
+            for visit in range(4):
                 client.key("enter")
                 with server.accept()[0] as peer:
                     peer.settimeout(10)
@@ -597,11 +597,24 @@ def check_definition_persistence(args):
                         receive(peer, b"session\x1b[0n", root / "replies.bin")
                         terminal.exchange(b"\x01|1D00400Guarded:local\r\n"
                                           + query(b"$&GUARDED$", at_cursor=True), b"local")
-                    else:
+                    elif visit == 2:
                         terminal.case("rip3-definition-restores-saved-value-after-live-override")
                         prompt(b"1D00400Guarded:?Saved policy?another", "Saved policy")
                         client.key("escape")
                         receive(peer, b"original\x1b[0n", root / "replies.bin")
+                        terminal.case("rip3-reset-tv-deletes-the-live-shadow-first")
+                        terminal.exchange(query(b"$-=GUARDED=overlay$$RESET(TV,Guarded)$$&GUARDED$",
+                                                at_cursor=True), b"original")
+                        terminal.case("rip3-reset-tv-confirms-deletion-of-the-saved-value")
+                        for answer, expected in (("n", b"original"), ("y", b"fallback")):
+                            peer.sendall(query(b"$RESET(TV,GUARDED)$$&GUARDED=fallback$", at_cursor=True)
+                                         + b"\x1b[5n")
+                            client.wait_text("Delete protected RIP variable GUARDED?")
+                            client.text(answer)
+                            receive(peer, expected + b"\x1b[0n", root / "replies.bin")
+                    else:
+                        terminal.case("rip3-reset-tv-persists-the-deletion")
+                        terminal.exchange(query(b"$&GUARDED=missing$", at_cursor=True), b"missing")
                 client.wait_for(lambda frame: frame.application.get("session_active") == 0)
                 client.wait_text("Directory: Name")
 

@@ -1297,6 +1297,18 @@ prompt(struct st_term_rip3 *rip)
 	bool require_confirmation = view.require_confirmation;
 	rip->prompt_token=st_rip3_session_press_token(rip->session);
 	rip->observing_prompt=true;
+	if (view.confirming_delete) {
+		static const struct st_cterm_rip_choice choices[] = {{"No",'n'}, {"Yes",'y'}};
+		char question[sizeof("Delete protected RIP variable ?") + sizeof(reference->name)];
+		(void)snprintf(question, sizeof(question), "Delete protected RIP variable %s?", reference->name);
+		int selected = -1;
+		if (rip->config.rip_choice != NULL)
+			status = rip->config.rip_choice(rip->config.rip_choice_context, question, choices, 2, true, &selected);
+		rip->observing_prompt=false;
+		if (status != 0) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
+		st_rip3_session_respond(rip->session, NULL, 0, status != 0 || selected != 1);
+		return;
+	}
 	if (supported && controlled)
 		status = rip->config.rip_define(rip->config.rip_prompt_context,
 		    (const char *)reference->question.bytes,

@@ -9237,6 +9237,25 @@ fixtures verify keyboard acceptance, byte-limited input and queued queries.
 They reconnect to verify persisted confirmation, cancellation and session
 overrides through the live editor.
 
+## Connected text-variable deletion
+
+`$RESET(TV,name)$` removes one named definition. It checks the session store
+first and the persistent store second. Removing a session definition exposes
+any saved value with the same name. An absent name emits an empty result.
+The built-in parser omits empty comma fields and validates the remaining
+arity and 1–19 byte identifier before deletion.
+
+For a protected record, ordinary and angle-expanded queries suspend at
+the deletion. The confirmation defaults to **No**. The terminal resumes
+the query after the choice and saves accepted persistent deletions through
+the existing disconnect path. Cancelling the interpreter leaves the record
+intact. [RIPtel reference](https://github.com/RealDeuce/remote-imaging-protocol/blob/c486b826e9a0c3d3e6cfa13902fcaf6abf51400a/version/3.0/ripscrip/5.1-text-variables.md#resettvname)
+
+Connected CP437 and UTF-8 tests verify shadowing, both confirmation choices,
+following ANSI input and deletion across reconnects. The native query test
+covers invalid arity and identifiers, absent records and cancellation during
+angle expansion.
+
 ## Connected FILEEXISTS
 
 `$FILEEXISTS(filename)$` takes one parameter and expands to `1` for a present

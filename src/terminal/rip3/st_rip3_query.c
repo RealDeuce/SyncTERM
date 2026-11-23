@@ -537,6 +537,19 @@ angle_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
 	    : kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE ? IO_ERROR_NOT_SUPPORTED : IO_ERROR_IO;
 }
 
+static bool
+process_builtin(struct st_rip3_query *query, const struct st_rip3_host_sink *sink,
+    const uint8_t *bytes, size_t length)
+{
+	struct st_rip3_user_variables *user = query->variables->user_variables;
+	bool pending = st_rip3_user_variables_confirming_delete(user);
+	st_rip3_host_variables_process(query->variables, sink, bytes, length);
+	if (pending || !st_rip3_user_variables_confirming_delete(user))
+		return false;
+	query->active_user = user;
+	return true;
+}
+
 static void
 angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_bytes *reference)
 {
@@ -550,10 +563,10 @@ angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_byte
 	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
 	if (st_rip3_builtin_reference_parse(&builtin,ordinary,length)==0 && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
 		struct angle_value value={0};const struct st_rip3_host_sink sink={&value,angle_reply,angle_diagnostic};
-		st_rip3_host_variables_process(query->variables,&sink,ordinary,length);
+		bool pending = process_builtin(query, &sink, ordinary, length);
 		const struct st_rip3_condition_bytes bytes={value.bytes,value.length};
 		if (value.status==IO_ERROR_CANCELLED) st_rip3_query_cancel(query);
-		else st_rip3_angle_supply(query->angle,&bytes,value.status);
+		else if (!pending) st_rip3_angle_supply(query->angle,&bytes,value.status);
 		free(value.bytes);
 	}
 	else if (st_rip3_variable_reference_parse(&user,reference->bytes,reference->length)!=0
@@ -684,7 +697,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		query->cursor+=value.length;
 		if (value.kind==REFERENCE) {
 			const struct st_rip3_host_sink sink={query,replace,forward_diagnostic};
-			st_rip3_host_variables_process(query->variables,&sink,bytes,value.length);
+			if (process_builtin(query, &sink, bytes, value.length)) return;
 		}
 		else if (value.kind==USER_REFERENCE) {
 			struct st_rip3_variable_reference decoded;

@@ -2026,6 +2026,7 @@ st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_ses
 		.definition = session->defining_variable,
 		.reject_blank = session->defining_variable && session->definition_reject_blank,
 		.require_confirmation = st_rip3_user_variables_definition_confirmation(session->variables.user_variables),
+		.confirming_delete = st_rip3_user_variables_confirming_delete(session->variables.user_variables),
 	};
 	return true;
 }

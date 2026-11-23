@@ -12,6 +12,7 @@ struct st_rip3_user_variables {
 	struct st_rip3_variable_reference reference;
 	struct st_rip3_variable_value initial, result;
 	enum st_rip3_user_variable_state state;
+	struct st_rip3_variables *deleting_from;
 	bool definition, require_confirmation;
 };
 
@@ -58,6 +59,7 @@ st_rip3_user_variables_abort(struct st_rip3_user_variables *variables)
 	variables->initial=(struct st_rip3_variable_value){0};
 	variables->result=(struct st_rip3_variable_value){0};
 	variables->state=ST_RIP3_USER_VARIABLE_IDLE;
+	variables->deleting_from = NULL;
 	variables->definition = variables->require_confirmation = false;
 }
 
@@ -80,12 +82,17 @@ valid_reference(const struct st_rip3_variable_reference *reference, size_t limit
 }
 
 static int
-lookup(struct st_rip3_user_variables *variables, const char *name, struct st_rip3_variable_entry *entry)
+lookup(struct st_rip3_user_variables *variables, const char *name, size_t length,
+    struct st_rip3_variable_entry *entry, struct st_rip3_variables **owner)
 {
-	size_t length = strlen(name);
-	int status = st_rip3_variables_get_entry(variables->host.session, name, length, entry);
-	if (status == IO_ERROR_NOT_FOUND)
-		status = st_rip3_variables_get_entry(variables->host.persistent, name, length, entry);
+	struct st_rip3_variables *store = variables->host.session;
+	int status = st_rip3_variables_get_entry(store, name, length, entry);
+	if (status == IO_ERROR_NOT_FOUND) {
+		store = variables->host.persistent;
+		status = st_rip3_variables_get_entry(store, name, length, entry);
+	}
+	if (status == 0 && owner != NULL)
+		*owner = store;
 	return status;
 }
 
@@ -146,7 +153,7 @@ st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 	variables->reference=copy;
 	struct st_rip3_variable_entry existing={0};
 	struct st_rip3_variable_value candidate={0};
-	int status=lookup(variables,copy.name,&existing);
+	int status=lookup(variables,copy.name,strlen(copy.name),&existing,NULL);
 	if (status!=0 && status!=IO_ERROR_NOT_FOUND) { failed(variables,status);return; }
 	bool found=status==0, define=(copy.directives&ST_RIP3_VARIABLE_SET)!=0;
 	bool retrieve=(copy.directives&ST_RIP3_VARIABLE_GET)!=0;
@@ -194,7 +201,7 @@ st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
 	variables->reference = *reference;
 	variables->definition = true;
 	struct st_rip3_variable_entry existing = {0};
-	int status = lookup(variables, reference->name, &existing);
+	int status = lookup(variables, reference->name, strlen(reference->name), &existing, NULL);
 	if (status != 0 && status != IO_ERROR_NOT_FOUND) {
 		failed(variables, status);
 		return;
@@ -228,6 +235,39 @@ st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
 		finish(variables, &value, source);
 }
 
+int
+st_rip3_user_variables_delete(struct st_rip3_user_variables *variables,
+    const char *name, size_t length)
+{
+	if (length == 0 || length >= 20)
+		return IO_ERROR_INVALID_FORMAT;
+	if (variables == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (variables->state == ST_RIP3_USER_VARIABLE_PROMPT)
+		return IO_ERROR_BUSY;
+	struct st_rip3_variable_entry entry;
+	struct st_rip3_variables *store = NULL;
+	int status = lookup(variables, name, length, &entry, &store);
+	if (status == IO_ERROR_NOT_FOUND)
+		return 0;
+	if (status != 0)
+		return status;
+	if (!entry.require_confirmation)
+		return st_rip3_variables_remove(store, name, length);
+	st_rip3_user_variables_abort(variables);
+	memcpy(variables->reference.name, entry.name, sizeof(entry.name));
+	variables->deleting_from = store;
+	variables->state = ST_RIP3_USER_VARIABLE_PROMPT;
+	return 0;
+}
+
+bool
+st_rip3_user_variables_confirming_delete(const struct st_rip3_user_variables *variables)
+{
+	return st_rip3_user_variables_state(variables) == ST_RIP3_USER_VARIABLE_PROMPT
+	    && variables->deleting_from != NULL;
+}
+
 void
 st_rip3_user_variables_respond(struct st_rip3_user_variables *variables,
     const uint8_t *value, size_t length, bool cancelled)
@@ -235,6 +275,17 @@ st_rip3_user_variables_respond(struct st_rip3_user_variables *variables,
 	if (variables==NULL) return;
 	if (variables->state!=ST_RIP3_USER_VARIABLE_PROMPT) {
 		diagnose(variables,ST_RIP3_USER_VARIABLE_INVALID);return;
+	}
+	if (variables->deleting_from != NULL) {
+		const char *name = variables->reference.name;
+		int status = cancelled ? 0 : st_rip3_variables_remove(variables->deleting_from, name, strlen(name));
+		if (status != 0)
+			failed(variables, status);
+		else {
+			st_rip3_user_variables_abort(variables);
+			variables->state = ST_RIP3_USER_VARIABLE_COMPLETE;
+		}
+		return;
 	}
 	if (cancelled) {
 		unsigned flags=variables->reference.directives;

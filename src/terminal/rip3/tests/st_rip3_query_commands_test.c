@@ -468,6 +468,37 @@ user_value(struct st_rip3_variables *store, const char *name, const char *expect
 }
 
 static int
+reset_text_variables(void)
+{
+	struct fixture f={0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
+	CHECK(st_rip3_variables_define(f.persistent,NULL,"KEEP",4,(const uint8_t *)"saved",5,true)==0);
+	CHECK(st_rip3_variables_set(f.session,"KEEP",4,(const uint8_t *)"live",4)==0);
+	CHECK(process(&f,"1\0330000$RESET(TV)$x$RESET(TV,)$y$RESET(TV,A B)$z"
+	    "$RESET(TV,X1234567890123456789)$$RESET(TV,KEEP,OTHER)$$&KEEP$",-1)==0);
+	CHECK(f.host_errors==5 && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE
+	    && f.reply_length==7 && memcmp(f.reply,"xyzlive",7)==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000a$RESET(tv,,keep,)$$&KEEP$b$RESET(TV,Missing)$",-1)==0);
+	CHECK(f.host_errors==5 && f.reply_length==7 && memcmp(f.reply,"asavedb",7)==0
+	    && user_value(f.session,"KEEP",NULL)==0 && user_value(f.persistent,"KEEP","saved")==0);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000<<RESET(TV,KEEP)>>$&KEEP=fallback$",-1)==0);
+	CHECK(st_rip3_query_prompt_pending(f.host.query) && f.reply_length==0
+	    && user_value(f.persistent,"KEEP","saved")==0);
+	st_rip3_query_cancel(f.host.query);
+	CHECK(user_value(f.persistent,"KEEP","saved")==0);
+	CHECK(process(&f,"1\0330000<<RESET(TV,KEEP)>>$&KEEP=fallback$",-1)==0);
+	CHECK(st_rip3_query_prompt_pending(f.host.query) && f.reply_length==0);
+	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,false);
+	st_rip3_query_process(f.host.query,64);
+	CHECK(!st_rip3_query_pending(f.host.query) && user_value(f.persistent,"KEEP",NULL)==0
+	    && f.reply_length==8 && memcmp(f.reply,"fallback",8)==0);
+	destroy(&f);
+	return 0;
+}
+
+static int
 user_queries(enum st_rip3_canvas canvas, const char *width)
 {
 	struct fixture f={0};
@@ -1305,6 +1336,7 @@ main(void)
 	CHECK(user_queries(ST_RIP3_CANVAS_640_480,"640")==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_800_600,"800")==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
+	CHECK(reset_text_variables()==0);
 	CHECK(user_recovery()==0);
 	CHECK(two_passes()==0);
 	CHECK(ordinary_pick_lists()==0);

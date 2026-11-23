@@ -239,7 +239,7 @@ void st_rip3_session_cancel(struct st_rip3_session *session);
 struct st_rip3_session_prompt {
 	const struct st_rip3_variable_reference *reference;
 	const struct st_rip3_variable_value *initial;
-	bool definition, reject_blank, require_confirmation;
+	bool definition, reject_blank, require_confirmation, confirming_delete;
 };
 /* Borrowed prompt views, invalidated by response/process/cancel/destruction.
  * Report only prompts owned by this session. */
