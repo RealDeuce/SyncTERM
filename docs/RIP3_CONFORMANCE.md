@@ -9159,3 +9159,21 @@ Connected tests exercise a paced text file in both encodings.
 The playback rate follows the existing current ENV value. Whether RIPtel
 retains the active rate through a scene reset despite defaulting the ENV
 records is tracked in [issue #172](https://github.com/bbs-land/remote-imaging-protocol/issues/172).
+
+## Connected prewrapped column text
+
+`1T` projects its normalized corners to device coordinates and assigns the
+selected global column slot to an article. `1t` expands one prewrapped line
+and draws it horizontally with the live classic or outline font, drawing
+color and write mode. SyncTERM visits the selected article's columns in slot
+order, uses the current font metrics for each line step, and clips ink to the
+column and viewport. Full justification distributes spare width between words.
+`1E` and `#` end the block. Drawing resets remove its column definitions.
+
+Connected CP437 and UTF-8 cases compare both pixel planes with original
+MicroANSI glyph masks. They exercise corner normalization, justification,
+color changes, slot ordering, a clipped viewport and malformed input recovery.
+They also draw with Dixon and verify that the drawing cursor is preserved.
+RIPtel's prewrapped metric, end and justify edge cases are tracked in
+[issue #173](https://github.com/bbs-land/remote-imaging-protocol/issues/173).
+Raw article flow, search highlighting and overflow navigation remain pending.

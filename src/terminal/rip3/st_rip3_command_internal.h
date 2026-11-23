@@ -15,7 +15,10 @@ struct st_rip3_frame;
 struct st_rip3_port_info;
 struct st_rip3_fill;
 struct st_rip3_outline_font;
+struct st_rip3_outline_layout;
 struct st_rip3_outline_style;
+struct st_rip3_style;
+struct st_rip3_text_position;
 struct st_rip3_text_context;
 int st_rip3_command_text_glyphs(const struct st_rip3_text_context *context,
 	const uint8_t *text, size_t length, const uint8_t **glyphs, size_t *count, uint8_t **owned);
@@ -24,6 +27,10 @@ int st_rip3_command_expanded_glyphs(const struct st_rip3_text_context *context,
 int st_rip3_command_outline_font(struct st_rip3_outline_font *result,
 	const struct st_rip3_text_context *context, const struct st_rip3_outline_style *style,
 	const struct st_rip3_frame *frame, unsigned orientation);
+int st_rip3_command_draw_outline(const struct st_rip3_command_host *host,
+	const struct st_rip3_style *style, const struct st_rip3_outline_layout *layout,
+	const struct st_rip3_outline_font *font, unsigned rgb_bits,
+	const struct st_rip3_text_position *anchor, const uint8_t *glyphs, size_t length);
 int st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,

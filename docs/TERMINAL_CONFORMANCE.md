@@ -997,6 +997,10 @@ CP437 and UTF-8 fixtures check nested return, persistent drawing state, local
 ANSI text, reply suppression, `3e` pacing, mouse actions and recovery after
 missing or recursive files. [RIPv3 scene playback coverage](RIP3_CONFORMANCE.md#connected-rip_read_scene)
 
+RIPv3 `1T`, `1t` and `1E` lay out prewrapped text in global column slots.
+Connected CP437 and UTF-8 tests verify original MicroANSI glyphs in both pixel
+planes, clipping, justification and recovery. [RIPv3 column coverage](RIP3_CONFORMANCE.md#connected-prewrapped-column-text)
+
 BIG's `cterm_big`/`syncterm_big_input` additionally verify every input split,
 continued same-connection graphics/ANSI/replies and explicit last-error/count
 diagnostics. Its native collection/fill/line/bar fixtures check retained

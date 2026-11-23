@@ -21,6 +21,7 @@
 #include "st_rip3_text_metric.h"
 #include "st_rip3_button_render.h"
 #include "st_rip3_command_internal.h"
+#include "st_rip3_columns.h"
 #include "st_rip3_query_internal.h"
 #include "st_rip3_input.h"
 #include "st_rip3_table_host.h"
@@ -39,7 +40,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE };
+enum graphical_job {
+	GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE,
+	GRAPHICAL_REGION_TEXT,
+};
 
 enum { SCENE_LIMIT = 8 };
 
@@ -73,6 +77,8 @@ struct st_rip3_session {
 	struct st_rip3_screen screen;
 	struct st_rip3_host_sink host_sink;
 	struct st_rip3_text_context text;
+	struct st_rip3_columns columns;
+	bool justify_region_text;
 	struct st_rip3_graphical *graphical;
 	struct st_rip3_text_argument text_argument;
 	enum graphical_job graphical_job;
@@ -458,6 +464,7 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	 * graphical consumer. Table/viewport operations never use this path. */
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
 	session->metric=(struct st_rip3_metric_state){0};
+	session->columns=(struct st_rip3_columns){0};
 	/* These services neither replace nor clear their independent save areas.
 	 * The physical black clear precedes PAL reset and keeps PAL selection. */
 	st_rip3_mouse_kill(session->commands.mouse);
@@ -926,6 +933,11 @@ prepare(void *context)
 					operation=true;
 					status=open_scene(session,(const char *)result->bytes,false);
 				}
+				else if (session->graphical_job==GRAPHICAL_REGION_TEXT) {
+					operation=true;
+					status=st_rip3_columns_line(&session->columns,&session->commands,
+					    result->bytes,result->length,session->justify_region_text);
+				}
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
@@ -1241,6 +1253,19 @@ read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 	session->graphical_job = GRAPHICAL_SCENE;
 }
 
+static int
+region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	if (length < 3 || (bytes[2] != '0' && bytes[2] != '1'))
+		return IO_ERROR_INVALID_FORMAT;
+	if (session->columns.active) {
+		session->justify_region_text = bytes[2] == '1';
+		st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_TEXT, bytes + 3, length - 3);
+		session->graphical_job = GRAPHICAL_REGION_TEXT;
+	}
+	return 0;
+}
+
 static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
@@ -1249,7 +1274,10 @@ command(void *context, const uint8_t *bytes, size_t length)
 	const struct st_rip3_command_sink sink={session,diagnose};
 	if (length != 0 && bytes[0] == 'h') scene_header(session, bytes, length);
 	else if (length != 0 && bytes[0] == '#') {
-		if (length == 1) set_input_lock(session, false);
+		if (length == 1) {
+			set_input_lock(session, false);
+			session->columns.active = false;
+		}
 		else diagnose(session, ST_RIP3_COMMAND_INVALID);
 	}
 	else if (length >= 2 && bytes[0] == '2' && bytes[1] == 0x1b)
@@ -1258,6 +1286,16 @@ command(void *context, const uint8_t *bytes, size_t length)
 		file_query(session,bytes,length);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
 		read_scene(session,bytes,length);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'T')
+		st_rip3_command_result(&sink, st_rip3_columns_define(&session->columns,&session->commands,bytes,length), false);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 't')
+		st_rip3_command_result(&sink, region_text(session,bytes,length), false);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'E') {
+		if (length == 2)
+			session->columns.active = false;
+		else
+			diagnose(session, ST_RIP3_COMMAND_INVALID);
+	}
 	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);
@@ -1308,6 +1346,7 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_query_cancel(session->refresh.query);
 	st_rip3_graphical_cancel(session->graphical);session->graphical_job=GRAPHICAL_NONE;
+	session->columns.active = false;
 	session->field_program=false;
 	st_rip3_input_reset(session->commands.input);
 	st_rip3_stream_reset(session->stream);

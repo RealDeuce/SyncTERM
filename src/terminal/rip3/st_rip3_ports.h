@@ -278,6 +278,11 @@ int st_rip3_ports_invert_rgb(struct st_rip3_ports *ports, const struct st_rip3_r
  * selection, cursor or viewport state, or reenter input processing. */
 int st_rip3_ports_button_view(struct st_rip3_ports *ports, const struct st_rip3_port_info *view,
 	int (*draw)(void *context), void *context);
+/* Temporarily intersect the current view with an absolute DEVICE rectangle.
+ * Draw relative to the supplied clipped origin. The callback must not change
+ * port state or reenter the parser. An empty/inactive view does no drawing. */
+int st_rip3_ports_draw_clipped(struct st_rip3_ports *, const struct st_rip3_rect *area,
+	int (*draw)(void *, struct st_rip3_point origin), void *context);
 /* Outer-reset physical RGB-black clear, independent of PAL/PORT/STYLE. */
 int st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports);
 

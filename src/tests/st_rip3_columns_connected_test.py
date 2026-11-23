@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+"""Independent MicroANSI cell masks in connected RIPv3 text regions."""
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+import argparse
+from pathlib import Path
+
+from st_migrated_control_test import connection
+from st_rip3_button_styles_connected_test import number
+from st_rip3_connected_test import query
+from st_rip3_scroll_connected_test import plane_pixel
+from st_terminal_conformance_test import Terminal
+
+
+# RIPtel MicroANSI 640x480 80x43 bank, glyph codes 0x41 and 0x82.
+CAPITAL_A = bytes.fromhex("38 6c c6 c6 fe fe c6 c6 c6 00 00")
+ACCENT = bytes.fromhex("04 08 10 00 78 cc fc c0 78 00 00")
+RED = 0xAA0000
+GREEN = 0x00AA00
+
+
+def region(area, column=0, article=1):
+    return b"1T" + b"".join(number(value, 2) for value in area) + number(column, 1) + number(article, 1)
+
+
+def check_pixels(frame, bounds, placements):
+    expected = {}
+    for x, y, mask, color in placements:
+        for dy, row in enumerate(mask):
+            for dx in range(8):
+                if row & (0x80 >> dx):
+                    expected[x + dx, y + dy] = color
+    x0, y0, x1, y1 = bounds
+    for phase in ("primary", "alternate"):
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                actual = plane_pixel(frame, x, y, phase)
+                assert actual == expected.get((x, y), 0), (phase, x, y, actual, expected.get((x, y), 0))
+
+
+def run(args):
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options="ScreenMode=Custom\nRIP=RIPv3\n",
+                    settings="CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\nAudioModes=0\n") as (
+                        client, root, peer, send):
+        terminal = Terminal(client, root, peer, send)
+
+        def wire(*commands):
+            return terminal.exchange(b"\x01|" + b"|".join(commands) + b"\r\n")
+
+        accent = b"\x82" if args.encoding == "CP437" else "é".encode("utf-8")
+        terminal.exchange(b"\x1b[!", b"RIPSCRIP030001")
+        terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
+
+        terminal.case("RIPv3 region normalization, full justification and end")
+        frame = wire(b"c04", region((59, 61, 20, 40)), b"1t1A " + accent,
+                     b"c02", b"1t0" + accent, b"1t0A", b"1E", b"1t0A")
+        check_pixels(frame, (17, 36, 63, 75),
+                     [(20, 40, CAPITAL_A, RED), (52, 40, ACCENT, RED), (20, 51, ACCENT, GREEN)])
+
+        terminal.case("RIPv3 columns visit numeric slots and skip holes")
+        frame = wire(region((70, 110, 77, 120), 17, 2), region((20, 110, 27, 120), 3, 2),
+                     b"c04", b"1t0A", b"c02", b"1t0" + accent, b"1t0A", b"1E")
+        check_pixels(frame, (16, 105, 81, 134), [(20, 110, CAPITAL_A, RED), (70, 110, ACCENT, GREEN)])
+
+        terminal.case("RIPv3 region syntax recovery and scene end")
+        frame = wire(region((20, 145, 27, 155), 4, 3), b"1T00", b"1t2A", b"1t0A", b"#", b"1t0A")
+        check_pixels(frame, (16, 141, 32, 168), [(20, 145, CAPITAL_A, GREEN)])
+        terminal.exchange(query(b"alive", at_cursor=True), b"alive")
+
+        terminal.case("RIPv3 region ink is clipped by the column and viewport")
+        viewport = b"v" + b"".join(number(value, 2) for value in (23, 160, 94, 194))
+        marker = b"X" + number(23, 2) + number(160, 2)
+        frame = wire(viewport, region((20, 170, 25, 180), 5, 4), b"1t0AAAA", b"1E", b"c04", marker)
+        check_pixels(frame, (17, 167, 33, 184), [(20, 170, bytes(row & 0x1C for row in CAPITAL_A), GREEN)])
+        assert plane_pixel(frame, 23, 160, "primary") == RED
+
+        terminal.case("RIPv3 regions use the selected outline font and preserve the drawing cursor")
+        wire(b"v0000" + number(639, 2) + number(479, 2), b"m8C8C",
+             b"y00000W0M000000001a1a000000Dixon", region((110, 200, 190, 279), 5, 5),
+             b"1t0F", b"1E")
+        frame = terminal.exchange(query(b"$TEXTXY$", at_cursor=True), b"300:300")
+        assert any(plane_pixel(frame, x, y, "primary") == RED
+                   for y in range(200, 280) for x in range(110, 191))
+        for phase in ("primary", "alternate"):
+            assert all(plane_pixel(frame, x, y, phase) == 0 for x, y in ((109, 200), (191, 200), (110, 199)))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("executable", type=Path)
+    parser.add_argument("encoding", choices=("CP437", "UTF-8"))
+    parser.add_argument("--reports", type=Path, required=True)
+    run(parser.parse_args())

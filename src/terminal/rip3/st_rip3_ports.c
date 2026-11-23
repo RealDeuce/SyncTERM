@@ -1148,6 +1148,26 @@ st_rip3_ports_button_view(struct st_rip3_ports *ports,const struct st_rip3_port_
 }
 
 int
+st_rip3_ports_draw_clipped(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
+    int (*draw)(void *, struct st_rip3_point), void *context)
+{
+	if (ports == NULL || !rect_valid(area) || draw == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct port *port = &ports->entries[ports->current];
+	struct st_rip3_rect visible = *area;
+	struct st_rip3_rect view = viewport_absolute(port);
+	if (!port->info.viewport_active || !clip(&visible, &view))
+		return 0;
+	struct st_rip3_rect saved = port->info.viewport;
+	const struct st_rip3_rect *bounds = &port->info.bounds;
+	port->info.viewport = (struct st_rip3_rect){visible.x0 - bounds->x0, visible.y0 - bounds->y0,
+	    visible.x1 - bounds->x0, visible.y1 - bounds->y0};
+	int status = draw(context, (struct st_rip3_point){visible.x0, visible.y0});
+	port->info.viewport = saved;
+	return status;
+}
+
+int
 st_rip3_ports_screen_fill(struct st_rip3_ports *ports,
     const struct st_rip3_rect *area, uint8_t color)
 {
