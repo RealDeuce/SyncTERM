@@ -14,6 +14,8 @@
 struct st_rip3_query {
 	const struct st_rip3_host_variables *variables;
 	const struct st_rip3_host_sink *sink;
+	void *playback_context;
+	int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename);
 	uint8_t *bytes, *output, *program;
 	size_t program_length, program_cursor;
 	size_t length, cursor, used, capacity;
@@ -40,7 +42,7 @@ slot_number(uint8_t byte)
 	return (uint8_t)(byte<='9' ? byte-'0' : byte-'A'+10);
 }
 
-enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE };
+enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK };
 struct token {
 	enum token_kind kind;
 	size_t length;
@@ -86,7 +88,18 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 {
 	struct token value={.kind=LITERAL,.length=1};
 	if (bytes[0]==0) return false;
-	if (bytes[0]=='$') {
+	if (bytes[0]=='$' && length>1 && (bytes[1]=='(' || bytes[1]==')')) {
+		/* A quoted dollar in a playback filename is part of the filename.
+		 * Other bytes here do not use the parenthesized argument grammar. */
+		value.length=2;
+		for (size_t i=2; i<length; i++) {
+			if (bytes[i]!='$' || bytes[i-1]=='\\') continue;
+			value.length=i+1;
+			value.kind=PLAYBACK;
+			break;
+		}
+	}
+	else if (bytes[0]=='$') {
 		size_t literal;
 		value.length=reference_length(bytes,length,&literal);
 		if (value.length==0) {
@@ -228,6 +241,14 @@ st_rip3_query_create(struct st_rip3_query **result,
 	if (query==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	query->variables=variables;query->sink=sink;
 	*result=query;return 0;
+}
+
+void
+st_rip3_query_bind_playback(struct st_rip3_query *query, void *context,
+    int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename))
+{
+	query->playback_context=context;
+	query->play=play;
 }
 
 void
@@ -448,6 +469,33 @@ settle(struct st_rip3_query *query)
 	}
 }
 
+static void
+playback(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
+{
+	/* The shipped prefix parser budgets 20 bytes for the filename. It
+	 * replaces a preceding backslash with a quoted dollar in this field. */
+	char filename[ST_RIP3_PLAYBACK_FILENAME_MAX+1];
+	size_t used=0;
+	for (size_t i=2; i<length-1; i++) {
+		if (bytes[i]=='$' && bytes[i-1]=='\\') {
+			filename[used-1]='$';
+			continue;
+		}
+		if (used==sizeof(filename)-1) {
+			append(query,bytes,length);
+			return;
+		}
+		filename[used++]=(char)bytes[i];
+	}
+	if (used==0) return;
+	filename[used]='\0';
+	enum st_rip3_playback_kind kind=bytes[1]=='(' ? ST_RIP3_PLAYBACK_JPEG : ST_RIP3_PLAYBACK_WAVE;
+	int status=query->play==NULL ? IO_ERROR_NOT_SUPPORTED
+	    : query->play(query->playback_context,kind,filename);
+	if (status!=0) diagnose(query,status==IO_ERROR_NOT_SUPPORTED ? ST_RIP3_HOST_UNSUPPORTED_REFERENCE
+	    : status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_OPERATION_FAILED);
+}
+
 void
 st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 {
@@ -491,6 +539,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			if (status!=0) { operation_failed(query,status,value.control);return; }
 			replace(query,template.bytes,template.length);
 		}
+		else if (value.kind==PLAYBACK) playback(query,bytes,value.length);
 		else if (value.kind==ESCAPED) {
 			append(query,bytes+(value.length>1 ? 1 : 0),1);
 		}

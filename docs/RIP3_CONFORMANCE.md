@@ -8931,3 +8931,27 @@ parsing, placement and expansion rules are tracked upstream.
 
 The queue contains 2511 implemented, 1684 pending, 2930 unreviewed,
 1551 context, 67 excluded and 32 blocked units.
+
+## Connected local JPEG and WAVE playback
+
+Immediate and stored host programs execute `$(PHOTO.JPG$` and `$)SOUND.WAV$`
+in their ordinary two-pass expansion. A directive consumes its source and
+inserts no reply bytes. Computed filenames can use the earlier angle pass.
+The filename decoder accepts a quoted dollar and budgets 20 decoded bytes.
+SyncTERM appends `.jpg` or `.wav` when the corresponding extension is omitted.
+
+JPEG uses the current port's image style, indexed palette and existing image
+presenter. The session reads local assets through the trusted resource lookup.
+The waveform form uses the same channel as wire `1w`. A missing or rejected
+asset leaves the following host text and the connection usable. Live CP437
+and UTF-8 tests verify source retention, selection of a computed name, a
+quoted name from REFRESH, image placement, and recovery after malformed media.
+The native waveform fixture verifies the reply and PCM output with the
+decoder available and the reply with it unavailable.
+
+The common native filename substitutions and their boundary cases are still
+open. Local RIP scene and BMP playback, and configuration of shared/search
+asset directories, are also pending. [Issue #161](https://github.com/bbs-land/remote-imaging-protocol/issues/161)
+
+The queue contains 2523 implemented, 1682 pending, 2919 unreviewed,
+1551 context, 67 excluded and 33 blocked units.

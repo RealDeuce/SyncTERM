@@ -7,6 +7,7 @@
 #include "st_rip3_stream.h"
 #include "st_rip3_number.h"
 #include "st_rip3_audio.h"
+#include "st_rip3_session.h"
 #include "st_audio_file.h"
 #include "filesystem.h"
 #include "path.h"
@@ -388,6 +389,66 @@ pcm(audio_engine_t *engine, size_t sounding)
 	return 0;
 }
 
+struct playback_input {
+	const char *wire;
+	struct answer answer;
+	unsigned errors;
+};
+
+static uint64_t
+playback_now(void *context)
+{
+	(void)context;
+	return 0;
+}
+
+static bool
+playback_next(void *context, uint8_t *byte)
+{
+	struct playback_input *input=context;
+	if (*input->wire=='\0') return false;
+	*byte=(uint8_t)*input->wire++;
+	return true;
+}
+
+static void
+playback_error(void *context, enum st_rip3_command_diagnostic kind)
+{
+	struct playback_input *input=context;
+	(void)kind;
+	input->errors++;
+}
+
+static void
+playback_reply(void *context, const uint8_t *bytes, size_t length)
+{
+	struct playback_input *input=context;
+	reference_reply(&input->answer,bytes,length);
+}
+
+static int
+host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *resources,
+    audio_engine_t *engine)
+{
+	struct playback_input input={"!|1\0330000before$)TONE NAME$after^m\r",{.expected="beforeafter\r"},0};
+	struct st_rip3_session *session=NULL;
+	const struct st_rip3_session_config config={.canvas=ST_RIP3_CANVAS_640_480,
+	    .encoding=ST_RIP3_TEXT_CP437,.source={&input,playback_now,playback_next},
+	    .sink={.context=&input,.reply=playback_reply,.diagnostic=playback_error},
+	    .audio=audio,.resources=resources};
+	CHECK(st_rip3_session_create(&session,&config)==0);
+	st_rip3_session_process(session,4096);
+	CHECK(input.answer.replies==1 && !input.answer.mismatch);
+	CHECK(input.errors==(st_audio_file_available() ? 0u : 1u));
+	CHECK(pcm(engine,st_audio_file_available() ? 4 : 0)==0);
+	input=(struct playback_input){"!|1\0330000$)bad.wav$$)missing$alive\r",{.expected="alive"},0};
+	st_rip3_session_process(session,4096);
+	CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1);
+	CHECK(pcm(engine,0)==0);
+	st_rip3_session_destroy(session);
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -447,6 +508,7 @@ main(int argc, char **argv)
 	}
 	else
 		CHECK(process(&host, "1w0000tone name.wav", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(host_wave(audio,&resources,engine)==0);
 	st_rip3_audio_destroy(audio); audio_engine_destroy(engine);
 	CHECK(fs_remove_file(file) == 0 && fs_remove_file(bad) == 0);
 	CHECK(fs_remove_directory(argv[1]) == 0);

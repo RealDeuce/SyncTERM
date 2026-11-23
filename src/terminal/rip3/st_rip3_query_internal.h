@@ -5,6 +5,14 @@
 #include "st_rip3_query.h"
 #include <stdint.h>
 
+enum st_rip3_playback_kind { ST_RIP3_PLAYBACK_JPEG, ST_RIP3_PLAYBACK_WAVE };
+enum { ST_RIP3_PLAYBACK_FILENAME_MAX = 20 };
+
+/* The session owns the media services. The filename is borrowed only during
+ * the call, and its operation status is consumed within the interpreter. */
+void st_rip3_query_bind_playback(struct st_rip3_query *query, void *context,
+	int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename));
+
 /* Private preflight/ownership status, consumed by the void command parser.
  * A busy evaluator retains its current program. No side effects on failure.
  * Success starts up to 64 work steps; remaining angle/ordinary work is resumed

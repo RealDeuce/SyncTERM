@@ -13472,6 +13472,39 @@
         "blocked": 32
       },
       "verification": "Read-only inspection of the fingerprinted original driver, including modal parser, ordinary splice and final host send. No original executable was run."
+    },
+    {
+      "after_commit": "63da2cb1",
+      "revision": "266a26951d211a8f9069cefa16a95da7d33b4e41",
+      "scope": "Connect ordinary local JPEG and WAVE playback in immediate and stored host programs.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.3-local-playback.md:16",
+        "version/3.0/ripscrip/5.3-local-playback.md:48",
+        "version/3.0/ripscrip/5.3-local-playback.md:55",
+        "version/3.0/ripscrip/5.3-local-playback.md:57",
+        "version/3.0/ripscrip/5.3-local-playback.md:126",
+        "version/3.0/ripscrip/5.3-local-playback.md:128",
+        "version/3.0/ripscrip/5.3-local-playback.md:132",
+        "version/3.0/ripscrip/5.3-local-playback.md:147",
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/5.3-local-playback.md:18",
+        "version/3.0/ripscrip/5.3-local-playback.md:86",
+        "version/3.0/ripscrip/5.3-local-playback.md:146"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.3-local-playback.md:11"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/161",
+      "states_after_update": {
+        "unreviewed": 2919,
+        "context": 1551,
+        "pending": 1682,
+        "implemented": 2523,
+        "excluded": 67,
+        "blocked": 33
+      },
+      "verification": "Native Release CMake build. Live TCP JPEG playback in CP437 and UTF-8. Native JPEG wire and WAV HCL tests with providers available and unavailable. Ordinary query regression and preservation/contract checks.",
+      "followup": "B161 requests the native playback filename substitutions and special forms. Local scene/BMP playback and resource-path configuration are independent pending work."
     }
   ]
 }

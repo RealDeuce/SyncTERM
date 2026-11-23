@@ -32,6 +32,7 @@
 #include "io_error.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 enum graphical_job { GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC };
 
@@ -1143,6 +1144,30 @@ st_rip3_session_mouse_cancel(struct st_rip3_session *session)
 	if (session!=NULL) st_rip3_mouse_cancel_silent(session->commands.mouse);
 }
 
+static int
+playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
+{
+	struct st_rip3_session *session=context;
+	/* Native filename substitutions are shared with the other media prefixes.
+	 * An unexpanded placeholder must never become a literal file lookup. */
+	if (strpbrk(filename,"*?[]")!=NULL) return IO_ERROR_NOT_SUPPORTED;
+	char name[ST_RIP3_PLAYBACK_FILENAME_MAX+sizeof(".wav")];
+	size_t length=strlen(filename);
+	memcpy(name,filename,length+1);
+	bool wave=kind==ST_RIP3_PLAYBACK_WAVE;
+	if (strrchr(name,'.')==NULL) {
+		memcpy(name+length,wave ? ".wav" : ".jpg",sizeof(".wav"));
+		length+=sizeof(".wav")-1;
+	}
+	if (wave) {
+		if (session->commands.audio==NULL || session->commands.resources==NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		return st_rip3_audio_play(session->commands.audio,session->commands.resources,name);
+	}
+	bool operation=false;
+	return st_rip3_command_jpeg(&session->commands,(const uint8_t *)name,length,&operation);
+}
+
 int
 st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_session_config *config)
 {
@@ -1267,6 +1292,10 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->refresh_variables.templates = NULL;
 	if (status == 0)
 		status = st_rip3_query_create(&session->refresh.query, &session->refresh_variables, &session->host_sink);
+	if (status==0) {
+		st_rip3_query_bind_playback(session->commands.query,session,playback);
+		st_rip3_query_bind_playback(session->refresh.query,session,playback);
+	}
 	if (status==0) status=st_rip3_graphical_create(&session->graphical,&session->variables,&session->host_sink,config->graphical_codepage_converted);
 	const struct st_rip3_command_sink button_sink={session,diagnose};
 	if (status==0) status=st_rip3_button_renderer_create(&session->commands.buttons,&session->commands,&button_sink,
