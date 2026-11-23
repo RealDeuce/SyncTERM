@@ -99,6 +99,71 @@ def run(args,width,height):
         values(b'after-ansi-save',b'after-ansi-save')
 
 
+        t.case('rip3-mtw-whole-list-validation-and-independent-window-state')
+        capture(b'\x01|h01000100\r\n')
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        capture(b'\x01|S0102|B0A0A0D0D\r\n')
+        capture(window((100, 90, 320, 260), 8, 6, 4, 1)
+                + b'\x1b[2;3H\x1b[s\x1b[3g\x1b[1;6H\x1bH'
+                  b'\x1b[2;5r\x1b[?69h\x1b[3;7s\x1b[4;5H'
+                  b'\x1b[31;44m\x1b(A\x1b)0\x1b[?25l\x1b7')
+        values(b'$CUR(TW,5)$')
+        capture(b'\x01|w0A050H0A12\r\n\x1b[4;5H')
+        values(b'$PROT(TW,5)$$CUR(TW,7)$')
+        capture(b'\x01|w0A050H0A11\r\n\x1b[3;6H')
+        values(b'$DTW(7)$$CUR(TW,5)$')
+        before = capture()
+        for invalid in (b'36', b'BASE', b'ALL,BOGUS'):
+            frame = values(b'$MTW(0,CUR,' + invalid + b')$alive', b'alive')
+            same(before, frame)
+            cursor(frame, 5, 4)
+            values(b'$TWW(0)$:$TWH(0)$:$CURX(0)$:$CURY(0)$', b'8:6:5:4')
+
+        frame = values(b'$MTW(0,cUr,0,35)$')
+        same(before, frame)
+        cursor(frame, 5, 4)
+        values(b'$CUR(TW)$:$INUSE(TW,35)$:$TWIN(7)$:$ISEXTWIN(0)$:$TWFONT(0)$:$TWW(0)$:$TWH(0)$',
+               b'5:0:NO:1:5:40:25')
+        expected = {640: (640, 475), 800: (800, 600), 1024: (800, 600), 720: (640, 475)}
+        w, h = expected[width]
+        values(b'$TWX0(0,BOUND,DEVICE)$:$TWY0(0,TEXT,DEVICE)$:$TWX1(0,TEXT,DEVICE)$:$TWY1(0,BOUND,DEVICE)$',
+               f'0:0:{w}:{h}'.encode())
+        frame = values(b'$CUR(TW,0)$')
+        cursor(frame, 1, 1, 0x14)
+        assert not frame.metadata['pixel_cursor_visible']
+        assert frame.application['cterm.rip3_g0'] == ord('A')
+        assert frame.application['cterm.rip3_g1'] == ord('0')
+        app = frame.application
+        assert (app['cterm.top_margin'], app['cterm.bottom_margin']) == (1, 25)
+        assert (app['cterm.left_margin'], app['cterm.right_margin']) == (1, 40)
+        frame = capture(b'\x1b[u')
+        cursor(frame, 3, 2, 0x14)
+        cursor(capture(b'\t'), 6, 2, 0x14)
+
+        t.case('rip3-mtw-retains-esc-snapshot-and-partial-ansi-input')
+        frame = capture(b'\x1b8')
+        same(before, frame)
+        cursor(frame, 5, 4, 0x14)
+        app = frame.application
+        assert (app['cterm.top_margin'], app['cterm.bottom_margin']) == (2, 5)
+        assert (app['cterm.left_margin'], app['cterm.right_margin']) == (3, 7)
+        values(b'$TWW$:$TWH$:$ISEXTWIN$', b'8:6:1')
+        frame = capture(b'\x1b[3' + query(b'$MTW$', at_cursor=True) + b'2m')
+        same(before, frame)
+        cursor(frame, 1, 1, 0x12)
+        values(b'$TWW$:$TWH$', b'40:25')
+
+        t.case('rip3-mtw-all-skips-inactive-and-maximizes-ordinary-window')
+        values(b'$UNPROT(TW,5)$$MTW(ALL)$')
+        frame = values(b'$CUR(TW,5)$')
+        cursor(frame, 1, 1)
+        values(b'$TWX0$:$TWY0$:$TWX1$:$TWY1$:$TWFONT$:$ISEXTWIN$', b'0:0:79:24:3:0')
+        values(b'$TWIN(7)$', b'NO')
+        frame = values(b'$ATW(7)$$CUR(TW,7)$')
+        cursor(frame, 6, 3)
+        values(b'$TWW$:$TWH$:after-mtw', b'8:6:after-mtw')
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable',type=Path)

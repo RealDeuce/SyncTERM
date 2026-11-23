@@ -331,7 +331,7 @@ int st_cterm_window_ansi_restore(st_cterm_t *target,const struct st_cterm_window
 	const st_cterm_t *resources);
 int st_cterm_window_definition_create(struct st_cterm_window_definition **result,const st_cterm_t *source);
 int st_cterm_window_definition_restore(st_cterm_t *target,const struct st_cterm_window_definition *definition);
-/* Prepare a differently sized RIP3 view with full vertical margins and a
+/* Prepare a differently sized RIP3 view with full margins and a
  * homed live cursor. Retain the saved cursor and the rest of the definition. */
 int st_cterm_window_definition_restore_maximized(st_cterm_t *target, const struct st_cterm_window_definition *definition);
 void st_cterm_window_definition_destroy(struct st_cterm_window_definition *definition);

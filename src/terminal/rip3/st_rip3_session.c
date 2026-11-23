@@ -761,15 +761,14 @@ header_viewports(struct st_rip3_session *session, unsigned flags)
 	if (flags & 32768) st_rip3_ports_header_clear_queries(ports);
 }
 
-static void
-header_window_geometry(struct st_rip3_session *session, unsigned number)
+static int
+maximize_window(void *context, unsigned number)
 {
+	struct st_rip3_session *session = context;
+	if (number >= 36) return IO_ERROR_OUT_OF_RANGE;
 	struct session_window *window = &session->windows[number];
-	if (!window_active(session, number) || window->info.protected) return;
-	if (session->sink.text_maximize == NULL) {
-		header_result(session, IO_ERROR_NOT_SUPPORTED);
-		return;
-	}
+	if (!window_active(session, number) || window->info.protected) return 0;
+	if (session->sink.text_maximize == NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_text_window_snapshot snapshot;
 	int status = window_snapshot(session, number, &snapshot);
 	if (status == 0) {
@@ -780,7 +779,7 @@ header_window_geometry(struct st_rip3_session *session, unsigned number)
 	}
 	if (status == 0) status = session->sink.text_maximize(session->sink.context, number, &snapshot.layout);
 	if (status == 0 && window->has_layout) window->layout = snapshot.layout;
-	header_result(session, status);
+	return status;
 }
 
 static void
@@ -790,7 +789,7 @@ header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned sl
 		for (unsigned i = 1; i < 36; ++i)
 			header_result(session, reset_window_entry(session, i));
 		header_result(session, select_text_window(session, 0, false));
-		header_window_geometry(session, 0);
+		header_result(session, maximize_window(session, 0));
 	}
 	if (flags & 2) header_result(session, select_text_window(session, slot, true));
 	if (flags & 4) {
@@ -798,7 +797,7 @@ header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned sl
 			if (i != session->current_window)
 				header_result(session, reset_window_entry(session, i));
 		if (session->current_window != 0)
-			header_window_geometry(session, 0);
+			header_result(session, maximize_window(session, 0));
 	}
 	header_backups(session, ST_RIP3_TABLE_TW, flags >> 3);
 	unsigned all[36], current = session->current_window;
@@ -808,8 +807,8 @@ header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned sl
 	if (flags & 256) (void)activate_text_windows(session, all, 36, true);
 	if (flags & 512) (void)activate_text_windows(session, &current, 1, true);
 	if (flags & 1024)
-		for (unsigned i = 0; i < 36; ++i) header_window_geometry(session, i);
-	if (flags & 2048) header_window_geometry(session, current);
+		for (unsigned i = 0; i < 36; ++i) header_result(session, maximize_window(session, i));
+	if (flags & 2048) header_result(session, maximize_window(session, current));
 	if (flags & 4096)
 		for (unsigned i = 0; i < 36; ++i) header_result(session, erase_window(session, i, true));
 	if (flags & 8192) header_result(session, erase_window(session, current, true));
@@ -1195,7 +1194,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->commands.refresh=&session->refresh;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
 	    .current=current_text_window,.select=select_default_window,.info=window_info,.snapshot=window_snapshot,
-	    .protect=protect_window,.activate=activate_text_windows,
+	    .protect=protect_window,.activate=activate_text_windows,.maximize=maximize_window,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
 	    .erase_eol=erase_window_lines,.copy_entries=copy_window_entries,.reset_entry=reset_window_entry,
 	    .backup_capture=capture_window_save,.backup_restore=restore_window_save,

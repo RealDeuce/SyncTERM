@@ -187,6 +187,46 @@ window_query(const struct st_rip3_host_variables *host,
 	memcpy(result,answer,length+1);return 0;
 }
 
+static int
+maximize_windows(const struct st_rip3_text_window_operations *windows,
+    const struct st_rip3_builtin_reference *words)
+{
+	struct {
+		bool current, all;
+		unsigned number;
+	} targets[40] = {0};
+	size_t count = words->count == 0 ? 1 : words->count;
+	targets[0].current = words->count == 0;
+	for (size_t i = 0; i < words->count; ++i) {
+		const char *parameter = words->parameters[i].text;
+		targets[i].all = strcmp(parameter, "ALL") == 0;
+		if (!targets[i].all) {
+			int status = window_number(parameter, &targets[i].current, &targets[i].number);
+			if (status != 0) return status;
+		}
+	}
+	if (windows == NULL || windows->maximize == NULL) return IO_ERROR_NOT_SUPPORTED;
+	int first_error = 0;
+	for (size_t i = 0; i < count; ++i) {
+		unsigned first = targets[i].number, last = first;
+		if (targets[i].all)
+			last = 35;
+		else if (targets[i].current) {
+			int status = current_number(windows, &first);
+			if (status != 0) {
+				if (first_error == 0) first_error = status;
+				continue;
+			}
+			last = first;
+		}
+		for (unsigned number = first; number <= last; ++number) {
+			int status = windows->maximize(windows->context, number);
+			if (first_error == 0 && status != 0) first_error = status;
+		}
+	}
+	return first_error;
+}
+
 int
 st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -198,7 +238,9 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 	int kind=query_kind(reference->name);
 	bool query=kind>=0;
 	bool home=strcmp(reference->name,"TWHOME")==0;
-	if (!activation && !visibility && !erase && !erase_eol && !query && !home && strcmp(reference->name,"TWGOTO")!=0)
+	bool maximize=strcmp(reference->name,"MTW")==0;
+	if (!activation && !visibility && !erase && !erase_eol && !query && !home && !maximize
+	    && strcmp(reference->name,"TWGOTO")!=0)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_builtin_reference words;
@@ -212,6 +254,11 @@ st_rip3_text_window_host_execute(const struct st_rip3_host_variables *host,
 	}
 	const struct st_rip3_text_window_operations *windows=host->text_windows;
 	if (query) return window_query(host,&words,kind,result,capacity);
+	if (maximize) {
+		status=maximize_windows(windows,&words);
+		if (status==0) result[0]=0;
+		return status;
+	}
 	if (!activation && !visibility && !erase && !erase_eol) {
 		status=position(windows,&words,home);
 		if (status==0) result[0]=0;

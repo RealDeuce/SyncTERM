@@ -32,6 +32,8 @@ struct st_rip3_text_window_operations {
 	int (*snapshot)(void *context, unsigned number, struct st_rip3_text_window_snapshot *result);
 	int (*protect)(void *context, unsigned number, bool protect);
 	int (*activate)(void *context, const unsigned *numbers, size_t count, bool active);
+	/* Maximize an active unprotected definition without changing selection or painting. */
+	int (*maximize)(void *context, unsigned number);
 	int (*position)(void *context, unsigned number, const struct st_rip3_text_cursor_position *position);
 	int (*cursor)(void *context, const unsigned *numbers, size_t count, bool visible);
 	/* ETW: whole target bounding rectangle, graphics palette index 0. */

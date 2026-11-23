@@ -8674,9 +8674,9 @@ whole-text-window backup fixture also passes after the shared capsule change.
 
 The queue now contains 2306 implemented, 1695 pending, 3062 unreviewed, 1520 context,
 67 excluded and 25 blocked units (8675 total). 45 clauses gain scoped runtime
-acceptance. Complete per-window mode support, MTW-specific lifetime vectors,
-HEADER/hard-reset lifetime integration and currently unexposed binding vectors
-remain pending. Full RIP3 compliance is incomplete. The original RIP154 freeze
+acceptance. The [connected MTW milestone](#connected-mtw-text-window-maximization)
+adds its snapshot lifetime vector. Complete per-window mode support and
+currently unexposed binding vectors remain pending. Full RIP3 compliance is incomplete. The original RIP154 freeze
 and user-deferred startup/default-font policy are unchanged; no speed claim is
 made from these functional checks.
 
@@ -8759,8 +8759,8 @@ context, 67 excluded and 30 blocked units.
 Type-3 flags 1, 4, 1024 and 2048 now apply the retained-font maximization
 through the live text-window owner. Each eligible window keeps its font,
 ordinary/extended kind, ANSI definition and queries. Its nominal grid uses the
-existing device cell metrics, with both rectangles at device origin and full
-vertical margins. The addressed window's live cursor homes. Its CSI-saved
+existing device cell metrics, with both rectangles at device origin and
+full scrolling margins. The addressed window's live cursor homes. Its CSI-saved
 position and requested caret state persist. The operation prepares a replacement
 view through the existing definition-copy machinery without copying or
 repainting scene pixels. Native resource failure preserves the target and
@@ -8847,3 +8847,29 @@ The issue tracks the remaining reset field set. [Issue #156](https://github.com/
 
 The queue contains 2466 implemented, 1688 pending, 2959 unreviewed,
 1541 context, 67 excluded and 27 blocked units.
+
+## Connected MTW text-window maximization
+
+The connected host interpreter validates the full selector list before applying
+MTW. The default is CUR. Explicit decimal slots, CUR and ALL run in argument
+order. An individual allocation failure preserves that target and allows later
+targets and host output to proceed. Undefined, inactive and protected windows
+are skipped.
+
+MTW and the type-3 HEADER geometry flags use one maximization operation.
+Read-only inspection of the fingerprinted RIPtel driver shows the host callback
+at RVA 0x2e32b calling the HEADER helper at 0x83a5. The retained font's nominal
+grid uses the target's current cell metrics. Both rectangles start at device
+origin, and the operation resets vertical and horizontal scrolling margins in
+SyncTERM. The addressed live cursor homes while its CSI-saved position and
+caret request persist. The existing raster is preserved, including when a
+noncurrent window is the target.
+
+The native fixture checks late syntax rejection, continued execution after
+allocation failure, repeated selector order and resident query retention.
+Connected CP437 and UTF-8 cases check ordinary and extended geometry,
+activation/protection, no repaint, ANSI attributes, tabs, designation,
+split ANSI input, and restoration of the earlier ESC 7 snapshot after MTW.
+
+The queue contains 2479 implemented, 1686 pending, 2944 unreviewed,
+1545 context, 67 excluded and 27 blocked units.

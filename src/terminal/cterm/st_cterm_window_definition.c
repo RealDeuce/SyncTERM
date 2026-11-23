@@ -226,9 +226,7 @@ st_cterm_window_definition_restore_maximized(st_cterm_t *destination, const stru
 	struct st_cterm_window_definition resized=*d;
 	resized.width=destination->width;resized.height=destination->height;
 	resized.top_margin=1;resized.bottom_margin=resized.height;
-	if (d->right_margin==d->width || d->right_margin>resized.width)
-		resized.right_margin=resized.width;
-	if (resized.left_margin>=resized.right_margin) resized.left_margin=1;
+	resized.left_margin=1;resized.right_margin=resized.width;
 	resized.xpos=resized.ypos=1;
 	resized.last_column_flag=0;
 	return restore_definition(destination,&resized,NULL);

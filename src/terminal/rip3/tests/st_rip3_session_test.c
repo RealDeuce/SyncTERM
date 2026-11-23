@@ -1586,6 +1586,38 @@ scene_header_geometry_failure(void)
 }
 
 static int
+maximize_window_list(void)
+{
+	struct fixture f={0};
+	struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_window=window;
+	options.sink.text_snapshot=observe_window;
+	options.sink.text_select=select_text;
+	options.sink.text_maximize=maximize_test_window;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(append(&f,"!|w0000030310\r")==0 && pump(&f)==0);
+	CHECK(store_query(&f,4,'0',"zero",false)==0 && store_query(&f,2,'0',"floating",false)==0);
+	CHECK(query(&f,"$CUR(TW,5)$","")==0);
+	CHECK(append(&f,"!|w0000040410\r")==0 && pump(&f)==0);
+	CHECK(store_query(&f,4,'5',"five",false)==0);
+	CHECK(append(&f,"!|1\0330000$MTW(0,CUR,36)$alive\r")==0 && pump(&f)==0);
+	CHECK(f.errors==1 && f.kind==ST_RIP3_COMMAND_INVALID && f.maximized==0
+	    && f.reply_length==5 && memcmp(f.reply,"alive",5)==0);
+	f.fail_zero_maximize=true;
+	f.reply_length=0;
+	CHECK(append(&f,"!|1\0330000$MTW(5,0,CUR)$alive\r")==0 && pump(&f)==0);
+	CHECK(f.errors==2 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE
+	    && f.reply_length==5 && memcmp(f.reply,"alive",5)==0);
+	CHECK(f.maximized==3 && f.maximize_targets[0]==5 && f.maximize_targets[1]==0 && f.maximize_targets[2]==5);
+	CHECK(query(&f,"$CUR(TW)$:$TWW(0)$:$TWH(0)$:$TWW$:$TWH$","5:4:4:80:43")==0);
+	CHECK(resident_value(&f,4,0,"zero")==0 && resident_value(&f,4,5,"five")==0
+	    && resident_value(&f,2,0,"floating")==0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live==0);
+	return 0;
+}
+
+static int
 scene_header_window_lifetime(void)
 {
 	struct fixture f = {0};
@@ -1835,7 +1867,7 @@ main(void)
 {
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
-	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0);
+	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

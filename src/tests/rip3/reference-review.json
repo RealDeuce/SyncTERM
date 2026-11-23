@@ -13150,6 +13150,36 @@
       },
       "verification": "Native Release build; live CP437 and UTF-8 headers on the three 4:3 canvases and a custom raster; native port, host queries, clipboard, definition, switch, backup and session tests; preservation and contract guards.",
       "followup": "B156 requests the remaining PORT 0 reset field set."
+    },
+    {
+      "after_commit": "98e83a55",
+      "revision": "9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6",
+      "scope": "Connect MTW selectors in the host interpreter and share the HEADER scroll-margin and geometry operation.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:171",
+        "version/3.0/ripscrip/5.1-text-variables.md:1495",
+        "version/3.0/ripscrip/5.1-text-variables.md:1499",
+        "version/3.0/ripscrip/5.1-text-variables.md:1503",
+        "version/3.0/ripscrip/5.1-text-variables.md:1513",
+        "version/3.0/ripscrip/5.1-text-variables.md:1517",
+        "version/3.0/ripscrip/5.1-text-variables.md:1518",
+        "version/3.0/ripscrip/5.1-text-variables.md:1519",
+        "version/3.0/ripscrip/5.1-text-variables.md:1521",
+        "version/3.0/ripscrip/5.1-text-variables.md:1523",
+        "version/3.0/ripscrip/5.1-text-variables.md:1525",
+        "version/3.0/ripscrip/5.1-text-variables.md:1529",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:94"
+      ],
+      "states_after_update": {
+        "unreviewed": 2944,
+        "context": 1545,
+        "pending": 1686,
+        "implemented": 2479,
+        "blocked": 27,
+        "excluded": 67
+      },
+      "verification": "Native Release build, focused session and CTerm tests, live ANSI snapshot and HEADER fixtures in both encodings, RIP154 preservation and contract guards.",
+      "followup": "Full per-window mode inventory and independent PORT 0 reset issue B156 remain pending."
     }
   ]
 }
