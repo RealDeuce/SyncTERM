@@ -292,7 +292,9 @@ check_rip3_absolute_text_position(void)
 		const char rows[]="11111111\x1b[2;1H22222222\x1b[3;1H33333333"
 		    "\x1b[4;1H44444444\x1b[5;1H55555555\x1b[6;1H66666666";
 		feed(terminal,rows,sizeof(rows)-1);
-		const char modes[]="\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b" "7\x1b[31;44m";
+		/* Save the ANSI cursor here. RIP3 ESC 7/8 hand off the full window
+		 * definition to the session owner. */
+		const char modes[]="\x1b[2;5r\x1b[?6h\x1b[2;3H\x1b[s\x1b[31;44m";
 		feed(terminal,modes,sizeof(modes)-1);
 		struct st_console_cell before[48],after[48];const struct st_console_rect all={0,0,8,6};
 		CHECK(st_console_read_cells(console,&all,before,8)==0);
@@ -322,7 +324,7 @@ check_rip3_absolute_text_position(void)
 			CHECK(st_console_font_glyph_text(console,after[i].glyph_font,after[i].glyph,text,sizeof(text),&length)==0);
 			CHECK(length==1 && text[0]==expected[i]);
 		}
-		const char restore[]="\x1b" "8";feed(terminal,restore,sizeof(restore)-1);
+		const char restore[]="\x1b[u";feed(terminal,restore,sizeof(restore)-1);
 		CHECK(st_cterm_state(terminal,&state)==0 && state.x==3 && state.y==3 && state.ext_attr.origin_mode);
 		/* A cursor outside both horizontal and vertical margins stays legal
 		 * for RIP movement and following text; ANSI CUP still uses margins. */
@@ -392,7 +394,7 @@ check_rip3_text_erase(void)
 		    .graphics_mode=ST_CTERM_GRAPHICS_RIP_3,.rip3_session_owner=true};
 		CHECK(st_cterm_create(&terminal,&config)==0);
 		const char rows[]="\x1b[31;44mABCDEF\x1b[2;1HGHIJKL\x1b[3;1HMNOPQR\x1b[4;1HSTUVWX"
-		    "\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b" "7\x1b[4m";
+		    "\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b[s\x1b[4m";
 		feed(terminal,rows,sizeof(rows)-1);
 		struct st_pixel_buffer *before=NULL,*after=NULL;
 		const struct st_console_rect all={0,0,48,32};
@@ -414,7 +416,7 @@ check_rip3_text_erase(void)
 		CHECK(st_console_get_pixels(&after,console,&all,false)==0);
 		for (size_t i=0;i<48*32;i++) CHECK(after->primary[i]==(ST_PIXEL_COLOR_RGB_TAG|0xabcdef));
 		st_pixel_buffer_destroy(after);
-		const char restore[]="\x1b" "8";feed(terminal,restore,sizeof(restore)-1);
+		const char restore[]="\x1b[u";feed(terminal,restore,sizeof(restore)-1);
 		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3 && state.attr==0x14);
 		CHECK(st_cterm_erase_text(terminal,true,0x1000000)==IO_ERROR_OUT_OF_RANGE);
 		CHECK(st_cterm_state(terminal,&state)==0 && state.x==2 && state.y==3);
@@ -447,7 +449,8 @@ check_rip3_ansi_eol(void)
 		const uint32_t colours[]={0x2468ac,0x123456};
 		for (size_t n=0;n<2;n++) {
 			CHECK(st_cterm_erase_text(terminal,true,0xabcdef)==0);
-			const char modes[]="\x1b[2;3r\x1b[?69h\x1b[2;4s\x1b[?6h\x1b[2;2H\x1b" "7";
+			/* CSI s saves the cursor before horizontal-margin mode is enabled. */
+			const char modes[]="\x1b[2;3r\x1b[?69l\x1b[?6h\x1b[2;2H\x1b[s\x1b[?69h\x1b[2;4s";
 			feed(terminal,modes,sizeof(modes)-1);feed(terminal,rendition[n],strlen(rendition[n]));
 			CHECK(st_cterm_set_text_cursor_visible(terminal,false)==0 && st_cterm_position_text(terminal,4,0)==0);
 			struct st_cterm_state before,after;
