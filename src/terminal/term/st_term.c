@@ -366,12 +366,15 @@ st_term_session_create(st_term_session_t **result,
 	uint16_t palette_mapping[16];
 	uint32_t palette_override[16];
 	const struct st_screen_mode_descriptor *mode;
+	bool reserve_status;
 	int status;
 
 	if (result == NULL || config == NULL || config->console == NULL
 	    || config->connection == NULL || config->fonts == NULL
-	    || st_console_size(config->console, &columns, &rows) != 0
-	    || (!config->hide_status && rows < 2))
+	    || st_console_size(config->console, &columns, &rows) != 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	reserve_status = !config->hide_status && config->graphics_mode != ST_CTERM_GRAPHICS_RIP_3;
+	if (reserve_status && rows < 2)
 		return IO_ERROR_INVALID_ARGUMENT;
 	session = calloc(1, sizeof(*session));
 	if (session == NULL)
@@ -421,8 +424,8 @@ st_term_session_create(st_term_session_t **result,
 		.palette_mapping = mode == NULL ? NULL : palette_mapping,
 		.petscii_machine = profile_petscii_machine(config->screen_mode),
 		.font_selector = config->font_selector,
-		.terminal_rows = config->hide_status ? rows : rows - 1,
-		.status_line = !config->hide_status,
+		.terminal_rows = reserve_status ? rows - 1 : rows,
+		.status_line = reserve_status,
 		.expand_lf = config->expand_lf,
 		.force_lcf = config->force_lcf,
 		.yellow_is_yellow = config->yellow_is_yellow,
@@ -552,6 +555,21 @@ st_term_session_cterm(st_term_session_t *session)
 }
 
 bool
+st_term_session_has_status_overlay(const st_term_session_t *session)
+{
+	return session != NULL && session->rip3 != NULL;
+}
+
+bool
+st_term_session_status_visible(const st_term_session_t *session)
+{
+	if (session == NULL)
+		return false;
+	return session->rip3 != NULL ? st_term_rip3_status_visible(session->rip3)
+	    : st_cterm_status_display(session->cterm) == 1;
+}
+
+bool
 st_term_session_text_view(st_term_session_t *session, st_console_t *display,
     struct st_term_text_view *view)
 {
@@ -612,6 +630,7 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 		if (session->suspended != suspended)
 			session->throttle_last_ms = 0;
 		session->suspended = suspended;
+		st_term_rip3_suspend_status(session->rip3, suspended);
 	}
 }
 

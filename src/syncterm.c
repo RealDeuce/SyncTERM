@@ -1103,7 +1103,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			.cterm = st_term_session_cterm(session),
 			.connection = connection,
 			.session = session,
-			.status_enabled = !profile->hide_status,
+			.status_enabled = st_term_session_status_visible(session),
 			.transfer_log = connection_transfer_log,
 			.transfer_log_context = &connection_ui,
 			.session_log = connection_log_snapshot,
@@ -1152,7 +1152,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			if (status != 0) break;
 			if (last_status_ms == 0 || now - last_status_ms >= 100) {
 				last_status_ms = now;
-				show_status = st_cterm_status_display(st_term_session_cterm(session)) == 1;
+				show_status = st_term_session_status_visible(session);
 				status = st_wren_connected_render_status(connected, show_status);
 				continue;
 			}

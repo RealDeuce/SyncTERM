@@ -87,28 +87,48 @@ colour_value(struct st_console_bitmap_presenter *presenter,
 }
 
 static bool
+resolve_row(struct st_console_bitmap_presenter *presenter, uint32_t *destination,
+    const uint32_t *source, uint32_t width)
+{
+	bool changed = false;
+	for (uint32_t x = 0; x < width; ++x) {
+		uint32_t value = colour_value(presenter, source[x]);
+		changed = changed || destination[x] != value;
+		destination[x] = value;
+	}
+	return changed;
+}
+
+static bool
 resolve_rectangle(struct st_console_bitmap_presenter *presenter,
 	struct st_rgb_buffer *destination, const st_console_t *console,
 	bool alternate, const struct st_console_rect *rectangle)
 {
 	const uint32_t *plane = alternate && console->pixels->alternate != NULL
 	    ? console->pixels->alternate : console->pixels->primary;
+	const struct st_pixel_buffer *indicator = st_console_status_pixels_locked(console);
+	uint32_t indicator_top = (console->rows - 1) * console->cell_height;
 	bool changed = false;
 
 	for (uint32_t y = 0; y < rectangle->height; ++y) {
-		size_t destination_offset = (size_t)(rectangle->y + y)
-		    * destination->width + rectangle->x;
+		uint32_t screen_y = rectangle->y + y;
+		size_t destination_offset = (size_t)screen_y * destination->width + rectangle->x;
 		size_t source_offset = st_console_pixel_position_locked(console,
-		    rectangle->x, rectangle->y + y);
-
-		for (uint32_t x = 0; x < rectangle->width; ++x) {
-			uint32_t value = colour_value(presenter,
-			    plane[source_offset + x]);
-
-			changed = changed
-			    || destination->pixels[destination_offset + x] != value;
-			destination->pixels[destination_offset + x] = value;
+		    rectangle->x, screen_y);
+		uint32_t *target = &destination->pixels[destination_offset];
+		uint32_t covered = 0;
+		if (indicator != NULL && screen_y >= indicator_top
+		    && screen_y - indicator_top < indicator->height && rectangle->x < indicator->width) {
+			covered = indicator->width - rectangle->x;
+			if (covered > rectangle->width)
+				covered = rectangle->width;
+			const uint32_t *pixels = alternate ? indicator->alternate : indicator->primary;
+			changed = resolve_row(presenter, target,
+			    pixels + (size_t)(screen_y - indicator_top) * indicator->width + rectangle->x,
+			    covered) || changed;
 		}
+		changed = resolve_row(presenter, target + covered, plane + source_offset + covered,
+		    rectangle->width - covered) || changed;
 	}
 	return changed;
 }
@@ -968,6 +988,27 @@ resolve_images(struct st_console_bitmap_presenter *presenter,
 		changed = fill_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
 		    &presenter->cursor_rectangle,
 		    colour_value(presenter, presenter->cursor_colour)) || changed;
+	}
+	const struct st_pixel_buffer *indicator = st_console_status_pixels_locked(console);
+	if (indicator != NULL && presenter->cursor_composed) {
+		uint32_t top = (console->rows - 1) * console->cell_height;
+		struct st_console_rect cursor = presenter->cursor_rectangle;
+		uint32_t right = cursor.x + cursor.width;
+		uint32_t bottom = cursor.y + cursor.height;
+		if (right > indicator->width)
+			right = indicator->width;
+		if (bottom > top + indicator->height)
+			bottom = top + indicator->height;
+		if (cursor.y < top)
+			cursor.y = top;
+		if (cursor.x < right && cursor.y < bottom) {
+			cursor.width = right - cursor.x;
+			cursor.height = bottom - cursor.y;
+			changed = copy_rgb_rectangle(presenter->images[BITMAP_PRIMARY_CURSOR],
+			    presenter->images[BITMAP_PRIMARY], &cursor) || changed;
+			changed = copy_rgb_rectangle(presenter->images[BITMAP_ALTERNATE_CURSOR],
+			    presenter->images[BITMAP_ALTERNATE], &cursor) || changed;
+		}
 	}
 	return changed;
 }

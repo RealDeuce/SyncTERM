@@ -124,7 +124,7 @@ def check_tab_navigation(t):
     key("tab")
     focused = key("tab")
     assert focused.primary != before.primary
-    same_pixels(values(b"$TABON$$OPTION(LIST)$", b"DOORWAY,HOTKEY,TAB"), focused)
+    same_pixels(values(b"$TABON$$OPTION(LIST)$", b"DOORWAY,HOTKEY,TAB,STATBAR"), focused)
     same_pixels(values(b"$SMF$$RMF(3)$"), focused)
     same_pixels(t.exchange(b"\x01|1Mbad\r\n" + remove_fields((0, 250, 20, 270), 1)), focused)
     same_pixels(key(ord("q"), b"q"), focused)
@@ -174,6 +174,40 @@ def check_tab_navigation(t):
     same_pixels(key("escape"), before)
     values(b"$MKILL$")
 
+    t.case("rip3-mkill-absolute-region")
+    for expression, survivors, retains_focus in (
+        (b"$MKILL(20,20,60,60,IN)$", (b"B", b"C"), False),
+        (b"$MKILL(20,20,60,60,OuT)$", (b"A", b"B"), False),
+        (b"$MKILL(60,60,20,20)$", (b"B", b"C"), False),
+        (b"$MKILL(20,20,20,60,OUT)$", (b"A", b"B", b"C"), True),
+        (b"$MKILL(20,20,60,60,UNKNOWN)$", (b"A", b"B", b"C"), True),
+        (b"$MKILL(20,20,65536,60)$", (b"A", b"B", b"C"), True),
+        (b"$MKILL( 20,20,60,60)$", (b"A", b"B", b"C"), True),
+        (b"$MKILL(40,20,120,60,in)$", (b"B", b"C"), False),
+        (b"$MKILL$", (), False),
+    ):
+        values(b"$MKILL$$WORLD(CUR,640,480)$")
+        before = t.exchange(
+            field((30, 30, 40, 40), b"ID=1:A")
+            + style(flags=256 | 1024)
+            + button((50, 30, 70, 50), b"ID=2:<><>B")
+            + field((60, 30, 80, 50), b"ID=3:C")
+            + b"\x01|c0F|X0Z0Z|X1J0Z|X230Z\r\n")
+        focused = key("tab")
+        if expression.startswith(b"$MKILL(40,"):
+            values(b"$WORLD(CUR,1280,480)$")
+        result = values(expression + b"alive", b"alive")
+        same_pixels(result, focused if retains_focus else before)
+        if retains_focus:
+            same_pixels(key("escape"), before)
+        if not survivors:
+            key("tab", b"\t")
+        for index, action in enumerate(survivors):
+            for _ in range(index + 1):
+                key("tab")
+            same_pixels(key("enter", action), before)
+    values(b"$WORLD(CUR,640,480)$")
+
 
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
@@ -198,7 +232,8 @@ def run(args):
         values(b"$IFS(LIST, _EMULATIONS)$:$IFS(LIST, _LANGUAGES)$", b"ANSI,DOORWAY,RIPSCRIP:ENG")
 
         t.case("rip3-doorway-option-and-ansi-use-the-same-keyboard-mode")
-        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,TAB:0")
+        values(b"$OPTION(LIST)$:$OPTION(DOORWAY)$", b"DOORWAY,HOTKEY,TAB,STATBAR:0")
+        values(b"$STATBAR$/$OPTION(STATBAR)$", b"YES/1")  # Local NoStatus suppresses the row only.
         key("up", b"\x1b[A")
         values(b"$OPTION(doorway, on)$$OPTION(DOORWAY, QUERY)$", b"1")
         key("up", b"\x00\x48")

@@ -80,6 +80,7 @@ struct st_rip3_session {
 	struct st_rip3_command_host commands;
 	struct st_rip3_host_variables variables;
 	struct st_rip3_host_variables refresh_variables;
+	bool status_bar;
 	struct st_rip3_refresh refresh;
 	struct st_rip3_table_host tables;
 	struct st_rip3_screen screen;
@@ -810,6 +811,12 @@ bool
 st_rip3_session_text_active(const struct st_rip3_session *session)
 {
 	return session!=NULL && session->text_active;
+}
+
+bool
+st_rip3_session_status_bar(const struct st_rip3_session *session)
+{
+	return session != NULL && session->status_bar;
 }
 
 static void
@@ -1895,6 +1902,10 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->graphical_codepage_converted=config->graphical_codepage_converted;
 	session->commands.codepage_converted=config->graphical_codepage_converted;
 	if (config->services!=NULL) session->variables=*config->services;
+	session->status_bar = true;
+	session->variables.status_bar = &session->status_bar;
+	session->variables.status_bar_context = config->sink.context;
+	session->variables.status_bar_changed = config->sink.status_bar_changed;
 	session->variables.codepage_converted=config->graphical_codepage_converted;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->variables.field_context=&session->field_context;

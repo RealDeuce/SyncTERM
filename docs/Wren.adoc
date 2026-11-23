@@ -7065,7 +7065,7 @@ host releases the previous handle when the callable changes.
 
 | `Status.enabled`
 | `true` while the SyncTERM-managed status row is active; `false`
-  when DECSSDT or startup config has hidden it.  The render
+  when DECSSDT, the RIPv3 status option or startup config has hidden it. The render
   callable should early-return on `!Status.enabled` so it doesn't
   do layout work that won't be displayed.
 |===

@@ -8,6 +8,7 @@
 #include "wren_host_internal.h"
 
 #include "io_error.h"
+#include "st_term.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -188,6 +189,8 @@ st_wren_status_render(WrenVM *vm, bool enabled)
 	cells = st_wren_surface_cells(vm, 1, width, 1);
 	if (cells == NULL)
 		return IO_ERROR_INVALID_FORMAT;
+	if (st_term_session_has_status_overlay(context->session))
+		return st_console_write_status_row(context->console, cells, width);
 	row = (struct st_console_rect){0, height - 1, width, 1};
 	return st_console_write_cells(context->console, &row, cells, width);
 }

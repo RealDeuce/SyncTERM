@@ -341,9 +341,17 @@ composite_rgb(st_console_t *console, const uint8_t *channels, uint32_t alpha,
 	return result;
 }
 
+static inline size_t
+render_pixel_position(const st_console_t *console, const struct st_pixel_buffer *pixels,
+    uint32_t x, uint32_t y)
+{
+	return pixels == console->pixels ? st_console_pixel_position_locked(console, x, y)
+	    : (size_t)y * pixels->width + x;
+}
+
 /* Each half stores short row spans, matching contiguous raster writes. */
 static void
-render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
+render_color_rll(st_console_t *console, struct st_pixel_buffer *pixels, uint32_t x, uint32_t y,
 	const struct st_console_cell *source, const struct st_console_font *font,
 	const struct st_console_color_glyph *color, uint32_t glyph_width,
 	uint32_t glyph_x, uint32_t first_y, uint32_t y_span, bool expanded,
@@ -373,7 +381,7 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 			row_cursors[1] = cursors[1];
 		}
 		previous_y = font_y;
-		size_t pixel = st_console_pixel_position_locked(console,
+		size_t pixel = render_pixel_position(console, pixels,
 		    x * console->cell_width, y * console->cell_height + py);
 		uint32_t font_x = glyph_x, x_accumulator = 0;
 		for (uint32_t px = 0; px < draw_width; ++px) {
@@ -397,8 +405,8 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 			    && (((source->flags & ST_CONSOLE_CELL_UNDERLINE) != 0)
 			    || (source->hyperlink != 0 && (px & 3U) == 0)))
 				value = foreground;
-			console->pixels->primary[pixel + px] = value;
-			console->pixels->alternate[pixel + px]
+			pixels->primary[pixel + px] = value;
+			pixels->alternate[pixel + px]
 			    = (source->flags & ST_CONSOLE_CELL_BLINK) == 0 ? value : background;
 			if (!expanded) {
 				font_x += x_step;
@@ -419,12 +427,11 @@ render_color_rll(st_console_t *console, uint32_t x, uint32_t y,
 }
 
 static void
-render_cell(st_console_t *console, uint32_t x, uint32_t y,
-	enum row_scale row_scale, struct font_cache *font_cache)
+render_cell_pixels(st_console_t *console, struct st_pixel_buffer *pixels,
+    const struct st_console_cell *source, uint32_t x, uint32_t y,
+    enum row_scale row_scale, bool draw_glyph, struct font_cache *font_cache,
+    uint32_t draw_width, uint32_t draw_height)
 {
-	size_t index = (size_t)y * console->columns + x;
-	const struct st_console_cell *cell = st_console_cell_at(console, index);
-	const struct st_console_cell *source = cell;
 	struct st_console_cell effective;
 	const struct st_console_font *font;
 	const uint8_t *glyph = NULL;
@@ -435,21 +442,10 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	size_t glyph_row_stride = 0;
 	uint32_t foreground;
 	uint32_t background;
-	bool draw_glyph = true;
 	bool hidden;
 	uint16_t glyph_font;
 	uint32_t glyph_index;
-	uint32_t draw_width,draw_height;
-	st_console_raster_cell_clip(console,x,y,&draw_width,&draw_height);
-	if (draw_width==0 || draw_height==0) goto finished;
 
-	if (row_scale == ROW_SCALE_BOTTOM) {
-		if ((cell->flags & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
-			source = st_console_cell_at(console, (size_t)(y - 1)
-			    * console->columns + x);
-		if ((source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT) == 0)
-			draw_glyph = false;
-	}
 	st_console_effective_cell_locked(console, source, &effective);
 	source = &effective;
 	glyph_font = st_console_cell_glyph_font(source);
@@ -482,19 +478,19 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 	    && (source->flags & ST_CONSOLE_CELL_REVEAL) == 0);
 	if (hidden) {
 		for (uint32_t py = 0; py < draw_height; ++py) {
-			size_t pixel = st_console_pixel_position_locked(console,
+			size_t pixel = render_pixel_position(console, pixels,
 			    x * console->cell_width, y * console->cell_height + py);
 
 			for (uint32_t px = 0; px < draw_width; ++px) {
-				console->pixels->primary[pixel + px] = background;
-				console->pixels->alternate[pixel + px] = background;
+				pixels->primary[pixel + px] = background;
+				pixels->alternate[pixel + px] = background;
 			}
 		}
-		goto finished;
+		return;
 	}
 	if (font == NULL) {
 		for (uint32_t py = 0; py < draw_height; ++py) {
-			size_t pixel = st_console_pixel_position_locked(console,
+			size_t pixel = render_pixel_position(console, pixels,
 			    x * console->cell_width, y * console->cell_height + py);
 
 			for (uint32_t px = 0; px < draw_width; ++px) {
@@ -503,15 +499,15 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 				    & ST_CONSOLE_CELL_UNDERLINE) != 0)
 				    || (source->hyperlink != 0 && (px & 3U) == 0));
 
-				console->pixels->primary[pixel + px]
+				pixels->primary[pixel + px]
 				    = set ? foreground : background;
-				console->pixels->alternate[pixel + px]
+				pixels->alternate[pixel + px]
 				    = set
 				    && (source->flags & ST_CONSOLE_CELL_BLINK) == 0
 				    ? foreground : background;
 			}
 		}
-		goto finished;
+		return;
 	}
 	if (color == NULL && row_scale == ROW_SCALE_NORMAL && font->width == 8
 	    && glyph_width == 8
@@ -521,7 +517,7 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 
 		for (uint32_t py = 0; py < draw_height; ++py) {
 			uint8_t bits = glyph[(size_t)py * glyph_row_stride];
-			size_t pixel = st_console_pixel_position_locked(console,
+			size_t pixel = render_pixel_position(console, pixels,
 			    x * console->cell_width, y * console->cell_height + py);
 
 			if ((source->flags & ST_CONSOLE_CELL_BOLD) != 0)
@@ -535,13 +531,13 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 			for (uint32_t px = 0; px < draw_width; ++px) {
 				bool set = (bits & (UINT8_C(0x80) >> px)) != 0;
 
-				console->pixels->primary[pixel + px]
+				pixels->primary[pixel + px]
 				    = set ? foreground : background;
-				console->pixels->alternate[pixel + px]
+				pixels->alternate[pixel + px]
 				    = set && !blink ? foreground : background;
 			}
 		}
-		goto finished;
+		return;
 	}
 	{
 		uint32_t font_y;
@@ -576,16 +572,16 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 			y_span = font->height;
 		}
 		if (color != NULL && color->row_stride == 0) {
-			render_color_rll(console, x, y, source, font, color, glyph_width,
+			render_color_rll(console, pixels, x, y, source, font, color, glyph_width,
 			    glyph_x, font_y, y_span, expanded, repeat_last, foreground, background,draw_width,draw_height);
-			goto finished;
+			return;
 		}
 		y_step = y_span / console->cell_height;
 		y_remainder = y_span % console->cell_height;
 		for (uint32_t py = 0; py < draw_height; ++py) {
 			const uint8_t *font_row = font_y < font->height
 			    ? glyph + (size_t)font_y * glyph_row_stride : NULL;
-			size_t pixel = st_console_pixel_position_locked(console,
+			size_t pixel = render_pixel_position(console, pixels,
 			    x * console->cell_width, y * console->cell_height + py);
 			uint32_t font_x = glyph_x;
 			uint32_t x_accumulator = 0;
@@ -641,8 +637,8 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 					if (decoration)
 						value = foreground;
 				}
-				console->pixels->primary[pixel + px] = value;
-				console->pixels->alternate[pixel + px]
+				pixels->primary[pixel + px] = value;
+				pixels->alternate[pixel + px]
 				    = (source->flags & ST_CONSOLE_CELL_BLINK) == 0
 				    ? value : background;
 				if (!expanded) {
@@ -662,9 +658,99 @@ render_cell(st_console_t *console, uint32_t x, uint32_t y,
 			}
 		}
 	}
-finished:
-	(*st_console_drawn_at(console, index)) = *cell;
+}
+
+static void
+render_cell(st_console_t *console, uint32_t x, uint32_t y,
+    enum row_scale row_scale, struct font_cache *font_cache)
+{
+	size_t index = (size_t)y * console->columns + x;
+	const struct st_console_cell *cell = st_console_cell_at(console, index);
+	const struct st_console_cell *source = cell;
+	bool draw_glyph = true;
+	uint32_t draw_width, draw_height;
+
+	st_console_raster_cell_clip(console, x, y, &draw_width, &draw_height);
+	if (draw_width != 0 && draw_height != 0) {
+		if (row_scale == ROW_SCALE_BOTTOM) {
+			if ((cell->flags & ST_CONSOLE_CELL_TERMINAL_FONT) != 0)
+				source = st_console_cell_at(console, (size_t)(y - 1) * console->columns + x);
+			draw_glyph = (source->flags & ST_CONSOLE_CELL_DOUBLE_HEIGHT) != 0;
+		}
+		render_cell_pixels(console, console->pixels, source, x, y, row_scale,
+		    draw_glyph, font_cache, draw_width, draw_height);
+	}
+	*st_console_drawn_at(console, index) = *cell;
 	st_console_drawn_at(console, index)->flags &= ~ST_CONSOLE_CELL_DIRTY;
+}
+
+int
+st_console_write_status_row(st_console_t *console, const struct st_console_cell *cells,
+    size_t count)
+{
+	if (console == NULL || (cells == NULL && count != 0) || console->raster_parent != NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	if (cells == NULL) {
+		bool visible = st_console_status_pixels_locked(console) != NULL;
+		st_pixel_buffer_destroy(console->status_pixels);
+		console->status_pixels = NULL;
+		console->status_visible = false;
+		int status = 0;
+		if (visible) {
+			st_console_dirty_rows(console, console->rows - 1, console->rows);
+			status = st_console_finish_change_locked(console);
+		}
+		(void)st_rwlock_unlock(st_console_state_lock(console));
+		return status;
+	}
+	uint32_t width = console->columns * console->cell_width;
+	uint32_t height = console->cell_height;
+	struct st_pixel_buffer *row = console->status_pixels;
+	int status = console->pixels == NULL ? IO_ERROR_NOT_SUPPORTED
+	    : count != console->columns ? IO_ERROR_OUT_OF_RANGE : 0;
+	if (status == 0 && (row == NULL || row->width != width || row->height != height)) {
+		status = st_pixel_buffer_create(&row, width, height, true);
+		if (status == 0) {
+			st_pixel_buffer_destroy(console->status_pixels);
+			console->status_pixels = row;
+		}
+	}
+	if (status == 0) {
+		struct font_cache cache = {0};
+		if (console->aspect_width != 0)
+			cache.tall_pixels = ((double)console->pixels->width * console->aspect_height)
+			    / ((double)console->pixels->height * console->aspect_width) >= 1.1;
+		for (uint32_t x = 0; x < console->columns; x++)
+			render_cell_pixels(console, row, &cells[x], x, 0, ROW_SCALE_NORMAL,
+			    true, &cache, console->cell_width, height);
+		if (console->status_visible) {
+			st_console_dirty_rows(console, console->rows - 1, console->rows);
+			status = st_console_finish_change_locked(console);
+		}
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return status;
+}
+
+int
+st_console_show_status_row(st_console_t *console, bool visible)
+{
+	if (console == NULL || console->raster_parent != NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+		return IO_ERROR_IO;
+	int status = 0;
+	if (console->status_visible != visible) {
+		console->status_visible = visible;
+		if (console->status_pixels != NULL) {
+			st_console_dirty_rows(console, console->rows - 1, console->rows);
+			status = st_console_finish_change_locked(console);
+		}
+	}
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	return status;
 }
 
 int

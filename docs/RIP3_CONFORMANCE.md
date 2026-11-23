@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-78af40f04da66012587b2f10f66899d95471350e](https://github.com/RealDeuce/remote-imaging-protocol/tree/78af40f04da66012587b2f10f66899d95471350e/version/3.0)
+a1b5f789c316a996d7baad3116d776ca7c4bca91](https://github.com/RealDeuce/remote-imaging-protocol/tree/a1b5f789c316a996d7baad3116d776ca7c4bca91/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -9368,10 +9368,9 @@ text windows with Doorway enabled and verify the arrow key's two-byte
 scancode reply and its normal ANSI sequence. `OPTION(HOTKEY)` uses the
 same button gate as `HKEYON` and `HKEYOFF`.
 
-`OPTION(LIST)` returns `DOORWAY,HOTKEY,TAB` for the connected client.
+`OPTION(LIST)` returns `DOORWAY,HOTKEY,TAB,STATBAR` for the connected client.
 The portable profile lists supported options in RIPtel's order, including
-options currently disabled. The status-bar binding is pending clarification
-of native indicator visibility and canvas geometry. [Issue #199](https://github.com/bbs-land/remote-imaging-protocol/issues/199)
+options currently disabled.
 
 `OPTION(LIST, QUERY)` preserves the literal reference and reports a
 syntax diagnostic. `IFS` reports Doorway under emulations and English
@@ -9399,10 +9398,33 @@ preserves it. Connected CP437 and UTF-8 cases check simple fields,
 button activation, held-press cancellation, focus lifetime and drawing
 through an active outline. [PR #198](https://github.com/bbs-land/remote-imaging-protocol/pull/198)
 
-The selective `MKILL` macro remains pending. The RIPtel callback requires
-five arguments for a region and dispatches reversed IN/OUT selector
-flags. The wire `1k` selection and argumentless `MKILL` are connected.
-[Issue #201](https://github.com/bbs-land/remote-imaging-protocol/issues/201)
+## Connected selective mouse-field removal
+
+`MKILL` takes zero arguments to remove all fields, or four decimal WORLD
+coordinates and an optional selector. `IN` is the default and removes
+fully contained fields. `OUT` removes fields with no positive-area
+intersection. Both apply the half-open predicate used by wire `1k` to
+an absolute device rectangle projected through the current ENV. Both field
+types participate. A crossing field survives either call. A converted
+empty selection and a rejected call preserve focus. Actual removal clears
+Tab focus and cancels a held gesture only if its field is removed. The
+backing raster and survivor order are preserved. Connected CP437 and
+UTF-8 cases check traversal, both selectors, invalid input, reversed
+endpoints and a WORLD-to-device scale change.
+[PR #204](https://github.com/bbs-land/remote-imaging-protocol/pull/204)
+
+## Connected status-bar option
+
+`SBARON`, `SBAROFF`, `STATBAR` and `OPTION(STATBAR)` share one
+session setting, enabled at connection start. The queries return
+`YES`/`NO` and `1`/`0` respectively. Sets take effect within the
+same expression. SyncTERM composites its status row over the output.
+The row occupies no ANSI or RIP canvas space and SCREEN backups use
+the underlying pixels. The connection's NoStatus preference suppresses
+the indicator while the protocol setting is still available. Native and
+connected tests cover initial geometry, the active ANSI window, drawing
+under the overlay and hiding the overlay after a SCREEN restore.
+[PR #202](https://github.com/bbs-land/remote-imaging-protocol/pull/202)
 
 ## Connected classic graphics font alignment
 
@@ -9609,8 +9631,8 @@ signed-word page numbers.
 empty text. It uses the RIPtel callback at RVA `0x24737`, which delegates
 to the same physical screen fill as HARD reset. The macro leaves palette
 entries, port and viewport state, offscreen pixels, text cursor and
-rendition, mouse fields and screen saves in place. The pinned macro
-description still names palette entry zero. [Issue #200](https://github.com/bbs-land/remote-imaging-protocol/issues/200)
+rendition, mouse fields and screen saves in place.
+[PR #203](https://github.com/bbs-land/remote-imaging-protocol/pull/203)
 
 Connected CP437 and UTF-8 fixtures distinguish black from a red
 palette entry zero. They clear both blink planes with a protected

@@ -101,6 +101,10 @@ struct st_rip3_host_variables {
 	 * Missing values are unsupported, never invented from palette size or a
 	 * default keyboard/mouse state. The client owns their platform mechanism. */
 	const struct st_rip3_local_queries *local;
+	/* Session setting, independent of screen saves and renderer availability. */
+	bool *status_bar;
+	void *status_bar_context;
+	void (*status_bar_changed)(void *context, bool enabled);
 	const struct st_rip3_host_directory *directory;
 	/* The session normalized one wire codepage byte per UTF-8 scalar. */
 	bool codepage_converted;

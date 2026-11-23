@@ -130,6 +130,9 @@ void st_term_session_destroy(st_term_session_t **session);
 /* Borrowed active parser. Reacquire after remote output can select/redefine a
  * RIP3 text window; do not cache across pumps. Bracket local writes below. */
 st_cterm_t *st_term_session_cterm(st_term_session_t *session);
+/* The RIPv3 indicator lives outside ANSI display state and screen contents. */
+bool st_term_session_has_status_overlay(const st_term_session_t *session);
+bool st_term_session_status_visible(const st_term_session_t *session);
 /* Borrowed positioned text grid for local selection on the session display.
  * False means the display is not the session's, or its entry grid is current.
  * Reacquire after any pump; the owner must keep the session alive during use. */

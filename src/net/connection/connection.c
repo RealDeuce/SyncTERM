@@ -844,13 +844,14 @@ st_connection_profile_geometry(const struct st_profile *profile,
 
 	if (profile == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	bool reserve_status = !profile->hide_status && profile->graphics_mode != ST_GRAPHICS_RIP_3;
 	mode = profile->screen_mode;
 	memset(result, 0, sizeof(*result));
 	if (mode == ST_SCREEN_MODE_CURRENT) {
 		if (current == NULL || current->columns == 0 || current->rows == 0)
 			return IO_ERROR_INVALID_ARGUMENT;
 		*result = *current;
-		if (!profile->hide_status && result->rows > 1)
+		if (reserve_status && result->rows > 1)
 			--result->rows;
 		return 0;
 	}
@@ -859,7 +860,7 @@ st_connection_profile_geometry(const struct st_profile *profile,
 			return IO_ERROR_INVALID_ARGUMENT;
 		result->columns = (uint32_t)st_settings.custom_columns;
 		result->rows = (uint32_t)st_settings.custom_rows;
-		if (!profile->hide_status && result->rows > 1)
+		if (reserve_status && result->rows > 1)
 			--result->rows;
 		return 0;
 	}
@@ -868,7 +869,7 @@ st_connection_profile_geometry(const struct st_profile *profile,
 		return IO_ERROR_INVALID_ARGUMENT;
 	result->columns = dimensions[mode].columns;
 	result->rows = dimensions[mode].rows;
-	if (!profile->hide_status && result->rows > 1)
+	if (reserve_status && result->rows > 1)
 		--result->rows;
 	return 0;
 }

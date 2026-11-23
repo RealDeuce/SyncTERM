@@ -1775,6 +1775,10 @@ main(int argc, char **argv)
 	profile.hide_status = false;
 	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
 	CHECK(geometry.columns == 80 && geometry.rows == 49);
+	profile.graphics_mode = ST_GRAPHICS_RIP_3;
+	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
+	CHECK(geometry.columns == 80 && geometry.rows == 50);
+	profile.graphics_mode = ST_GRAPHICS_NONE;
 	profile.screen_mode = ST_SCREEN_MODE_CGA_80X25;
 	CHECK(st_connection_profile_geometry(&profile, NULL, &geometry) == 0);
 	CHECK(geometry.columns == 80 && geometry.rows == 24);

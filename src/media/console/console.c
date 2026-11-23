@@ -1203,6 +1203,7 @@ free_console(st_console_t *console)
 	array_list_free(&console->fonts);
 	if (console->raster_parent==NULL) st_pixel_buffer_destroy(console->pixels);
 	else free(console->pixels);
+	st_pixel_buffer_destroy(console->status_pixels);
 	free(console->raster_rows);
 	free(console->drawn_cells);
 	free(console->cells);

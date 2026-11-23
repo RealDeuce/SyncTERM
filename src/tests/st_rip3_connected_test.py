@@ -28,6 +28,13 @@ def pixel(frame, x, y):
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
 
 
+def displayed_pixel(frame, x, y):
+    m = frame.metadata
+    ox = m["destination_x"] + (2 * x + 1) * m["destination_width"] // (2 * m["plane_width"])
+    oy = m["destination_y"] + (2 * y + 1) * m["destination_height"] // (2 * m["plane_height"])
+    return frame.rgb[oy * m["output_width"] + ox] & 0xffffff
+
+
 def cursor_visible(frame):
     key = "pixel_cursor_visible" if frame.metadata["pixel_cursor_enabled"] else "cursor_visible"
     return frame.metadata[key]
@@ -302,9 +309,7 @@ Hook.onKey(Key.f9) {|event|
         assert frame.primary == before.primary
         assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (
             before.application["cterm.x"], before.application["cterm.y"])
-        send(b"\x1b[!")
-        receive(peer, b"RIPSCRIP030001", root / "replies.bin")
-        send(b"\r!|c0C|X0808\r\n" + query(b"still-live"))
+        send(b"\x1b[!\r!|c0C|X0808\r\n" + query(b"still-live"))
         receive(peer, b"still-live", root / "replies.bin")
         frame = client.capture()
         assert pixel(frame, 8, 8) == 0xff5555
@@ -542,12 +547,11 @@ def font_switch_with_status(args, width, height):
         # default WORLD maps (100,100) to a different device Y coordinate.
         art_x, art_y = width * 100 // 640, height * 100 // 350
         t.exchange(b"\x1b[3\x01|c0F|X2S2S\r\n1mZ" + query(b"$WORLD$", at_cursor=True), b"640:350")
-        initial = client.wait_for(lambda frame: "Capture" in frame.lines[-1])
+        sample = (width - 4, height - 2)
+        initial = client.wait_for(lambda frame: displayed_pixel(frame, *sample) != pixel(frame, *sample))
         assert initial.lines[0].startswith("Z")
         assert initial.application["cterm.attr"] == 4
         assert pixel(initial, art_x, art_y) == 0xffffff
-        status_row = height // 8 - 1
-        status_fonts = tuple(cell_at(initial, x, status_row).font for x in range(width // 8))
         metrics = ("columns", "rows", "cell_width", "cell_height", "plane_width",
                    "plane_height", "output_width", "output_height")
         entry_geometry = tuple(initial.metadata[k] for k in metrics)
@@ -570,13 +574,41 @@ def font_switch_with_status(args, width, height):
             assert frame.metadata["pixel_cursor_visible"]
             assert pixel(frame, x, y) == pixel(frame, x + cw - 1, y + ch - 1) == 0x0000a8
             assert pixel(frame, art_x, art_y) == 0xffffff
-            assert "Capture" in frame.lines[-1]
-            assert tuple(cell_at(frame, x, status_row).font for x in range(width // 8)) == status_fonts
+            assert displayed_pixel(frame, *sample) != pixel(frame, *sample)
         frame = t.exchange(b"\x01|*\r\n" + query(b"$WORLD$", at_cursor=True), b"640:350")
         assert tuple(frame.metadata[k] for k in metrics) == entry_geometry
         assert pixel(frame, art_x, art_y) == 0
         frame = t.exchange(b"\x01|c0F|X2S2S\r\n")
         assert pixel(frame, art_x, art_y) == 0xffffff
+
+        t.case(f"rip3-status-keeps-window-and-backing-pixels-{width}x{height}")
+        def values(source, expected=b""):
+            return t.exchange(query(source, at_cursor=True), expected)
+
+        # Keep the sample inside a solid patch after output scaling. The
+        # 1280×800 canvas, for example, is presented at 1280×960.
+        patch = mega(width - 7) + mega(height - 4) + mega(width - 1) + mega(height - 1)
+        values(f"$WORLD(CUR,{width},{height})$".encode())
+        t.exchange(b"\x01|2T30|w0203070610|S010F|B" + patch + b"\r\n")
+        before = values(b"$SAVE$$STATBAR$/$OPTION(STATBAR)$", b"YES/1")
+        assert pixel(before, *sample) == 0xffffff
+        assert displayed_pixel(before, *sample) != 0xffffff
+        geometry = b"$CUR(TW)$/$TWW$/$TWH$/$RESX$/$RESY$/$PORTX1(0,PORT,DEVICE)$/$PORTY1(0,PORT,DEVICE)$"
+        expected_geometry = f"3/6/4/{width}/{height}/{width}/{height}".encode()
+        hidden = values(b"$SBAROFF$$STATBAR$/$OPTION(STATBAR)$:" + geometry, b"NO/0:" + expected_geometry)
+        assert hidden.primary == before.primary and hidden.alternate == before.alternate
+        assert displayed_pixel(hidden, *sample) == 0xffffff
+        values(b"$OPTION(STATBAR,ON)$$STATBAR$/$OPTION(STATBAR)$", b"YES/1")
+        overwritten = t.exchange(b"\x01|S0100|B" + patch + b"\r\n")
+        assert pixel(overwritten, *sample) == 0
+        assert displayed_pixel(overwritten, *sample) != 0
+        restored = values(b"$OPTION(STATBAR,OFF)$$RESTORE$$SBARON(1)$$STATBAR$/$OPTION(STATBAR,QUERY)$:"
+                          + geometry, b"NO/0:" + expected_geometry)
+        assert pixel(restored, *sample) == 0xffffff
+        assert displayed_pixel(restored, *sample) == 0xffffff
+        for key in ("cterm.x", "cterm.y", "cterm.attr", "cterm.top_margin", "cterm.bottom_margin"):
+            assert restored.application[key] == before.application[key]
+        values(b"$SBARON$$STATBAR$/$OPTION(STATBAR)$", b"YES/1")
 
 
 def check_definition_persistence(args):

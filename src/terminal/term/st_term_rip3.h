@@ -36,5 +36,7 @@ bool st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event 
 bool st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event);
 void st_term_rip3_mouse_cancel(struct st_term_rip3 *rip, bool keyboard_focus_lost);
 void st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event);
+bool st_term_rip3_status_visible(const struct st_term_rip3 *rip);
+void st_term_rip3_suspend_status(struct st_term_rip3 *rip, bool suspended);
 
 #endif

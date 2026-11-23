@@ -159,6 +159,8 @@ struct st_console {
 	uint32_t pixel_top;
 	bool full_surface_scroll;
 	struct st_pixel_buffer *pixels;
+	struct st_pixel_buffer *status_pixels;
+	bool status_visible;
 	/* Cell metadata represented by the current contents of pixels. */
 	struct st_console_cell *drawn_cells;
 	uint8_t *raster_rows;
@@ -237,6 +239,15 @@ static inline st_rwlock_t *
 st_console_state_lock(st_console_t *console)
 {
 	return console->raster_parent==NULL ? &console->state_lock : &console->raster_parent->state_lock;
+}
+
+static inline const struct st_pixel_buffer *
+st_console_status_pixels_locked(const st_console_t *console)
+{
+	const struct st_pixel_buffer *row = console->status_pixels;
+	return console->status_visible && row != NULL
+	    && row->width == console->columns * console->cell_width
+	    && row->height == console->cell_height ? row : NULL;
 }
 
 static inline uint32_t

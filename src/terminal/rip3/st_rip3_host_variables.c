@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_host_internal.h"
 
+#include "st_rip3_environments.h"
 #include "st_rip3_features.h"
 #include "st_rip3_geometry.h"
 #include "st_rip3_graphical_bytes.h"
@@ -116,6 +117,77 @@ host_directory(const struct st_rip3_host_directory *directory,
 	return st_rip3_directory_select(directory,text,create ? length : 0,converted,create);
 }
 
+static int
+kill_mouse_fields(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference)
+{
+	if (reference->count != 0 && reference->count != 4 && reference->count != 5)
+		return IO_ERROR_INVALID_FORMAT;
+	if (host->mouse == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (reference->count == 0) {
+		st_rip3_mouse_kill(host->mouse);
+		return 0;
+	}
+
+	unsigned coordinates[4];
+	for (size_t i = 0; i < 4; ++i) {
+		int status = st_rip3_host_number(reference->parameters[i].text, 0, 65535,
+		    &coordinates[i]);
+		if (status != 0)
+			return status;
+	}
+	unsigned flags = 1;
+	if (reference->count == 5) {
+		const struct st_rip3_builtin_parameter *parameter = &reference->parameters[4];
+		char selector[sizeof("OUT")] = {0};
+		if (parameter->length >= sizeof(selector))
+			return IO_ERROR_INVALID_FORMAT;
+		for (size_t i = 0; i < parameter->length; ++i) {
+			char ch = parameter->text[i];
+			selector[i] = ch >= 'a' && ch <= 'z' ? (char)(ch - 'a' + 'A') : ch;
+		}
+		if (strcmp(selector, "OUT") == 0)
+			flags = 4;
+		else if (strcmp(selector, "IN") != 0)
+			return IO_ERROR_INVALID_FORMAT;
+	}
+
+	const struct st_rip3_environments *environments = host->tables == NULL ? NULL
+	    : host->tables->tables[ST_RIP3_TABLE_ENV].live;
+	struct st_rip3_frame frame;
+	if (environments != NULL) {
+		unsigned current;
+		int status = st_rip3_environments_current(environments, &current);
+		if (status == 0)
+			status = st_rip3_environments_frame(environments, current, &frame);
+		if (status != 0)
+			return status;
+	}
+	else if (host->frame != NULL)
+		frame = *host->frame;
+	else
+		return IO_ERROR_NOT_SUPPORTED;
+
+	struct st_rip3_point first = {(int32_t)coordinates[0], (int32_t)coordinates[1]};
+	struct st_rip3_point second = {(int32_t)coordinates[2], (int32_t)coordinates[3]};
+	struct st_rip3_point a, b;
+	int status = st_rip3_world_to_device(&frame, &first, &a);
+	if (status == 0)
+		status = st_rip3_world_to_device(&frame, &second, &b);
+	if (status != 0)
+		return status;
+	/* Projection is monotonic, so ordering projected endpoints produces
+	 * the same half-open selector as ordering the WORLD endpoints first. */
+	struct st_rip3_rect area = {
+		a.x < b.x ? a.x : b.x,
+		a.y < b.y ? a.y : b.y,
+		a.x < b.x ? b.x : a.x,
+		a.y < b.y ? b.y : a.y,
+	};
+	return st_rip3_mouse_remove(host->mouse, &area, flags, NULL);
+}
+
 int
 st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -220,11 +292,13 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		st_rip3_refresh_clear(host->refresh);
 		return 0;
 	}
-	if (strcmp(reference->name,"MKILL")==0) {
-		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;
-		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
-		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
-		st_rip3_mouse_kill(host->mouse);result[0]=0;return 0;
+	if (strcmp(reference->name, "MKILL") == 0) {
+		if (capacity == 0)
+			return IO_ERROR_OUT_OF_RANGE;
+		int status = kill_mouse_fields(host, reference);
+		if (status == 0)
+			result[0] = 0;
+		return status;
 	}
 	if (strcmp(reference->name,"FIELDID")==0) {
 		if (reference->count!=0) return IO_ERROR_INVALID_FORMAT;

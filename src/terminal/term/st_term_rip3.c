@@ -35,6 +35,7 @@ struct st_term_rip3 {
 	struct st_term_rip3_view *windows[36];
 	unsigned selected_window;
 	bool targeting;
+	bool status_suspended;
 	bool mouse_feedback;
 	unsigned feedback_depth, feedback_count, tab_edge_count;
 	struct st_console_rect mouse_area, tab_edges[4];
@@ -1239,6 +1240,31 @@ doorway_mode(void *context)
 	return st_cterm_doorway_mode(st_term_rip3_text(rip));
 }
 
+bool
+st_term_rip3_status_visible(const struct st_term_rip3 *rip)
+{
+	return rip != NULL && !rip->config.hide_status && !rip->status_suspended
+	    && st_rip3_session_status_bar(rip->session);
+}
+
+static void
+status_bar_changed(void *context, bool enabled)
+{
+	struct st_term_rip3 *rip = context;
+	bool visible = enabled && !rip->config.hide_status && !rip->status_suspended;
+	if (st_console_show_status_row(rip->config.console, visible) != 0)
+		diagnostic(rip, ST_RIP3_COMMAND_OPERATION_FAILED);
+}
+
+void
+st_term_rip3_suspend_status(struct st_term_rip3 *rip, bool suspended)
+{
+	if (rip != NULL && rip->status_suspended != suspended) {
+		rip->status_suspended = suspended;
+		status_bar_changed(rip, st_rip3_session_status_bar(rip->session));
+	}
+}
+
 static void
 set_doorway_mode(void *context, bool enabled)
 {
@@ -1722,6 +1748,8 @@ void
 st_term_rip3_destroy(struct st_term_rip3 *rip)
 {
 	if (rip==NULL) return;
+	if (rip->ready)
+		(void)st_console_write_status_row(rip->config.console, NULL, 0);
 	st_term_rip3_cancel(rip);
 	if (rip->ready && rip->variable_path!=NULL) {
 		int status=st_rip3_resource_prepare_cache(rip->config.rip_directory,NULL);
@@ -1818,6 +1846,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_tab_focus=mouse_tab_focus,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
+	        .status_bar_changed=status_bar_changed,
 	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
@@ -1835,5 +1864,6 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	 * the text window. It must never clear a subsequently drawn RIP scene. */
 	if (status==0) status=st_cterm_start_text(ansi);
 	if (status!=0) {st_term_rip3_destroy(rip);return status;}
+	status_bar_changed(rip, st_rip3_session_status_bar(rip->session));
 	rip->ready=true;refresh_pointer(rip);*result=rip;return 0;
 }

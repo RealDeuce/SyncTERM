@@ -1324,3 +1324,21 @@ moves 1,021 line ranges, adds 41 units and retires 28, for 9,083 total.
 The new derivation covers the forward and backward cycles, focus lifetime,
 and supported-option discovery. The issue #193 derivation adds its stable
 integration record.
+
+## PRs #202–#204 status bar, CLS and selective MKILL
+
+Fork stable contains integration commit
+[`a1b5f789c316a996d7baad3116d776ca7c4bca91`](https://github.com/RealDeuce/remote-imaging-protocol/tree/a1b5f789c316a996d7baad3116d776ca7c4bca91).
+Its tree matches PR #204 head `4c55a9adfa87e90d91cdd5dcfb301e9fec683c0d`.
+The preceding integrations `fcddec80a9b02378f1e9c395e3abd82956f0073c` and
+`fe7be8b0bb3d68607a6eb0e5a10f78e735c2eda4` match the reviewed heads of
+PRs #202 and #203. The pinned archive has SHA-256
+`99639da12df19770959dd5f9c11c0b507186e07aa7c25d9d98a63c00a1dda2f9`.
+[PR #202](https://github.com/bbs-land/remote-imaging-protocol/pull/202),
+[PR #203](https://github.com/bbs-land/remote-imaging-protocol/pull/203),
+[PR #204](https://github.com/bbs-land/remote-imaging-protocol/pull/204)
+
+Three normative documents change. The inventory retains 9,052 source
+units, adds 66 and retires 31, for 9,118 total. The three new derivations
+cover the portable status display, the original physical-screen black
+fill and portable half-open mouse-field removal.

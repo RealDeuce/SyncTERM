@@ -753,6 +753,12 @@ int st_console_font_glyph_columns(st_console_t *console,
  */
 int st_console_pixel_size(st_console_t *console, uint32_t *width,
 	uint32_t *height);
+/* Display-only status cells on the last grid row of a bitmap console.
+ * NULL with a count of zero removes the buffered row and hides it.
+ * Screen reads, snapshots and scrolling use the underlying cells and pixels. */
+int st_console_write_status_row(st_console_t *console,
+	const struct st_console_cell *cells, size_t count);
+int st_console_show_status_row(st_console_t *console, bool visible);
 int st_console_set_pixel(st_console_t *console, uint32_t x, uint32_t y,
 	uint32_t colour);
 /*

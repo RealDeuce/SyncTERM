@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/198",
-  "revision": "78af40f04da66012587b2f10f66899d95471350e",
-  "previous_revision": "ceb61a4f09eab6e07692a3e6c962f8438435acf6",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/204",
+  "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+  "previous_revision": "78af40f04da66012587b2f10f66899d95471350e",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR head matches the integration commit contained in fork stable.",
-  "archive_sha256": "4292cf123d42870662cc3866dc4b071d1818990a627184c31c27633dfad175ba",
+  "upstream_state_at_adoption": "PRs #202, #203 and #204 match successive integration trees on fork stable.",
+  "archive_sha256": "99639da12df19770959dd5f9c11c0b507186e07aa7c25d9d98a63c00a1dda2f9",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,24 +17,19 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "previous_sha256": "33cb3751fcb324cbd4b64b1502bc1eaa5c2fc395cea5484227b3bfb05e7e62a6",
-      "sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "previous_sha256": "5f0301833ab0bf89b4993ec28706b02dedba94c00436faf8a1679b4f594e24ce",
-      "sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be"
-    },
-    {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "6864031d676e5e2de46eb1f308a57fba2f88ece9ef47420244ad9acc480182af",
-      "sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664"
+      "previous_sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664",
+      "sha256": "c1efa44b1ec74b0fbdd8abc7c809e5b01d2ba7745c61579a75d29398162f76e6"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "previous_sha256": "db3f0106da2dba21c510575c25d8d407012545b269a91f303799350f38692338",
-      "sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e"
+      "previous_sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e",
+      "sha256": "095a01a51389071d85793b922c29f108e7f80c2dbd33320b9bba0426d821f409"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+      "previous_sha256": "fa669ed6248da73bdff1842e9e3df738ddb76ab6aa77b40b1f711a4017a18354",
+      "sha256": "39ba7711ca3fdc9f938b548205d7643b94d1408c071325537c48001e775a8c62"
     }
   ],
   "new_documents": [],
@@ -1546,9 +1541,27 @@
     },
     {
       "path": "version/3.0/research/issue-197-tab-navigation.md",
-      "sha256": "6da80e25a86ff3560144d3c07ddbfa481e7ca95dd8caaa815b422437af3c8126",
+      "sha256": "3c526d0fa268f8b99a2b938716020d4efbe05cd7414d1bc76b9747b90d3e138d",
       "title": "Issue #197 - Tab navigation and OPTION(LIST)",
       "role": "Original field mutation and keyboard event evidence, portable focus lifetime, and option discovery order."
+    },
+    {
+      "path": "version/3.0/research/issue-199-status-bar.md",
+      "sha256": "ec77c8ce95ecba06233f10c5ee2219dd14cdee6fd7359407bce62f029e036339",
+      "title": "Issue #199 — Status-bar visibility and geometry",
+      "role": "Shared status setting, display composition and SCREEN backup boundaries."
+    },
+    {
+      "path": "version/3.0/research/issue-200-cls-black.md",
+      "sha256": "a1620dda1fcef8a06cfa4f1f9e794eef1a279f714169448ec6e20a300a98b720",
+      "title": "Issue #200 — Physical CLS fill",
+      "role": "The original physical-screen brush and state-preserving literal black fill."
+    },
+    {
+      "path": "version/3.0/research/issue-201-selective-mkill.md",
+      "sha256": "f4b76bd0aca7c7a790bb7d3158190b7879e8b93c31ca65cc2e80389877273364",
+      "title": "Issue #201 — Selective MKILL arity and selectors",
+      "role": "Native arity and comparison trace, and the portable selector policy."
     }
   ],
   "documents": [
@@ -1710,7 +1723,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664"
+      "sha256": "c1efa44b1ec74b0fbdd8abc7c809e5b01d2ba7745c61579a75d29398162f76e6"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1750,7 +1763,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e"
+      "sha256": "095a01a51389071d85793b922c29f108e7f80c2dbd33320b9bba0426d821f409"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
@@ -1758,7 +1771,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "fa669ed6248da73bdff1842e9e3df738ddb76ab6aa77b40b1f711a4017a18354"
+      "sha256": "39ba7711ca3fdc9f938b548205d7643b94d1408c071325537c48001e775a8c62"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -17428,6 +17441,110 @@
         "added": 41,
         "retired": 28
       }
+    },
+    {
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/202",
+      "revision": "fcddec80a9b02378f1e9c395e3abd82956f0073c",
+      "previous_revision": "78af40f04da66012587b2f10f66899d95471350e",
+      "reviewed_head": "d2d195fa5ecb6d443e6590f712821501f542529d",
+      "archive_sha256": "46a794df9e6ba4035ef623afe8960d7147ab6073252ff5b6d00c0d435509c027",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "ccfceb78809d0b6a3ec6b25d8a151d203b7fcc8b6ef7df7693b7edb53ad40664",
+          "sha256": "e17506aabbadac4aa52c170b9defb8d0f09d8350342dd62e3ccd28b57b7e7508"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
+          "previous_sha256": "ccffe7f3a1b2ca7c8a74eb799871df57ef0356cd99aa882ab3f42c73ae27878e",
+          "sha256": "095a01a51389071d85793b922c29f108e7f80c2dbd33320b9bba0426d821f409"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "fa669ed6248da73bdff1842e9e3df738ddb76ab6aa77b40b1f711a4017a18354",
+          "sha256": "1c4ed8fa0351b3e91f5f3d306ab49c2220384095e0bc3116ebe6dca129902b8f"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-199-status-bar.md",
+          "sha256": "ec77c8ce95ecba06233f10c5ee2219dd14cdee6fd7359407bce62f029e036339",
+          "title": "Issue #199 — Status-bar visibility and geometry",
+          "role": "Shared status setting, display composition and SCREEN backup boundaries."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9065,
+        "moved": 877,
+        "added": 31,
+        "retired": 18
+      }
+    },
+    {
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/203",
+      "revision": "fe7be8b0bb3d68607a6eb0e5a10f78e735c2eda4",
+      "previous_revision": "fcddec80a9b02378f1e9c395e3abd82956f0073c",
+      "reviewed_head": "c5b5168c440a7e90707bca53d6fc517912a94edf",
+      "archive_sha256": "cfaa8c7097f2a73ffb60387b93c5bf62999248d914544333280969473d4190d3",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "e17506aabbadac4aa52c170b9defb8d0f09d8350342dd62e3ccd28b57b7e7508",
+          "sha256": "b2555055794de075fc3a3616509454ea3435953b39e57224a7bc721ccb5e0209"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "1c4ed8fa0351b3e91f5f3d306ab49c2220384095e0bc3116ebe6dca129902b8f",
+          "sha256": "f5758be12e4b75d72c9983f804c26635220bc6af248060cc1ea95c1b9ef1eb20"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-200-cls-black.md",
+          "sha256": "a1620dda1fcef8a06cfa4f1f9e794eef1a279f714169448ec6e20a300a98b720",
+          "title": "Issue #200 — Physical CLS fill",
+          "role": "The original physical-screen brush and state-preserving literal black fill."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9091,
+        "moved": 568,
+        "added": 11,
+        "retired": 5
+      }
+    },
+    {
+      "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/204",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "previous_revision": "fe7be8b0bb3d68607a6eb0e5a10f78e735c2eda4",
+      "reviewed_head": "4c55a9adfa87e90d91cdd5dcfb301e9fec683c0d",
+      "archive_sha256": "99639da12df19770959dd5f9c11c0b507186e07aa7c25d9d98a63c00a1dda2f9",
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "b2555055794de075fc3a3616509454ea3435953b39e57224a7bc721ccb5e0209",
+          "sha256": "c1efa44b1ec74b0fbdd8abc7c809e5b01d2ba7745c61579a75d29398162f76e6"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "f5758be12e4b75d72c9983f804c26635220bc6af248060cc1ea95c1b9ef1eb20",
+          "sha256": "39ba7711ca3fdc9f938b548205d7643b94d1408c071325537c48001e775a8c62"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-201-selective-mkill.md",
+          "sha256": "f4b76bd0aca7c7a790bb7d3158190b7879e8b93c31ca65cc2e80389877273364",
+          "title": "Issue #201 — Selective MKILL arity and selectors",
+          "role": "Native arity and comparison trace, and the portable selector policy."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9094,
+        "moved": 320,
+        "added": 24,
+        "retired": 8
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -21395,6 +21512,85 @@
         "unreviewed": 2315
       },
       "verification": "Physical screen and host parser native checks, connected CP437 and UTF-8 screen cases at 640×480 and 720×400, and RIP 1.54 preservation."
+    },
+    {
+      "after_commit": "f230054a",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected portable status bar and selective MKILL, with fixed-black CLS clarification.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2536",
+        "version/3.0/ripscrip/5.1-text-variables.md:2568",
+        "version/3.0/ripscrip/5.1-text-variables.md:2570",
+        "version/3.0/ripscrip/5.1-text-variables.md:2572",
+        "version/3.0/ripscrip/5.1-text-variables.md:2576",
+        "version/3.0/ripscrip/5.1-text-variables.md:2578",
+        "version/3.0/ripscrip/5.1-text-variables.md:2580",
+        "version/3.0/ripscrip/5.1-text-variables.md:2584",
+        "version/3.0/ripscrip/5.1-text-variables.md:2586",
+        "version/3.0/ripscrip/5.1-text-variables.md:2588",
+        "version/3.0/ripscrip/5.1-text-variables.md:2592",
+        "version/3.0/ripscrip/5.1-text-variables.md:2594",
+        "version/3.0/ripscrip/5.1-text-variables.md:2596",
+        "version/3.0/ripscrip/5.1-text-variables.md:2605",
+        "version/3.0/ripscrip/5.1-text-variables.md:2607",
+        "version/3.0/ripscrip/5.1-text-variables.md:2615",
+        "version/3.0/ripscrip/5.1-text-variables.md:2617",
+        "version/3.0/ripscrip/5.1-text-variables.md:2623",
+        "version/3.0/ripscrip/5.1-text-variables.md:2625",
+        "version/3.0/ripscrip/5.1-text-variables.md:2627",
+        "version/3.0/ripscrip/5.1-text-variables.md:2629",
+        "version/3.0/ripscrip/5.1-text-variables.md:2630",
+        "version/3.0/ripscrip/5.1-text-variables.md:2631",
+        "version/3.0/ripscrip/5.1-text-variables.md:2632",
+        "version/3.0/ripscrip/5.1-text-variables.md:2633",
+        "version/3.0/ripscrip/5.1-text-variables.md:2634",
+        "version/3.0/ripscrip/5.1-text-variables.md:2636",
+        "version/3.0/ripscrip/5.1-text-variables.md:3165",
+        "version/3.0/ripscrip/5.1-text-variables.md:3171",
+        "version/3.0/ripscrip/5.1-text-variables.md:3173",
+        "version/3.0/ripscrip/5.1-text-variables.md:3179",
+        "version/3.0/ripscrip/5.1-text-variables.md:3181",
+        "version/3.0/ripscrip/5.1-text-variables.md:3190",
+        "version/3.0/ripscrip/5.1-text-variables.md:3192",
+        "version/3.0/ripscrip/5.1-text-variables.md:3194",
+        "version/3.0/ripscrip/5.1-text-variables.md:3198",
+        "version/3.0/ripscrip/5.1-text-variables.md:3900",
+        "version/3.0/ripscrip/5.1-text-variables.md:3902",
+        "version/3.0/ripscrip/5.1-text-variables.md:3904",
+        "version/3.0/ripscrip/5.1-text-variables.md:3906",
+        "version/3.0/ripscrip/5.1-text-variables.md:3908",
+        "version/3.0/ripscrip/5.1-text-variables.md:3910",
+        "version/3.0/ripscrip/5.1-text-variables.md:3911",
+        "version/3.0/ripscrip/5.1-text-variables.md:3913",
+        "version/3.0/ripscrip/5.1-text-variables.md:3919",
+        "version/3.0/ripscrip/5.1-text-variables.md:3921",
+        "version/3.0/ripscrip/5.1-text-variables.md:3929",
+        "version/3.0/ripscrip/5.1-text-variables.md:3931",
+        "version/3.0/ripscrip/5.1-text-variables.md:3933",
+        "version/3.0/ripscrip/5.1-text-variables.md:3934",
+        "version/3.0/ripscrip/5.1-text-variables.md:3935",
+        "version/3.0/ripscrip/5.1-text-variables.md:3936",
+        "version/3.0/ripscrip/5.1-text-variables.md:3937",
+        "version/3.0/ripscrip/5.1-text-variables.md:3938",
+        "version/3.0/ripscrip/5.1-text-variables.md:3939",
+        "version/3.0/ripscrip/5.1-text-variables.md:3941",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:345",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:348",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:143",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:144",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:145",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:173",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:220"
+      ],
+      "states_after_update": {
+        "blocked": 25,
+        "context": 1836,
+        "excluded": 71,
+        "implemented": 3353,
+        "pending": 1530,
+        "unreviewed": 2303
+      },
+      "verification": "Connected control-bitmap CP437 and UTF-8 sessions, native console and connection geometry, and RIP 1.54 source preservation."
     }
   ]
 }

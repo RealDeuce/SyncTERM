@@ -123,7 +123,7 @@ struct st_connection_error {
  * either worker thread.
  * For RLogin and shell, current_screen is the complete current screen when
  * the profile selects CURRENT; the initial terminal height excludes the
- * status row unless hide_status is set. Other modes obtain their complete
+ * status row for profiles that reserve one. Other modes obtain their complete
  * screen dimensions from the profile and global custom-mode settings.
  * On POSIX, a nonempty shell profile address is interpreted by /bin/sh -c;
  * an empty address directly executes the nonempty SHELL path, or /bin/sh when

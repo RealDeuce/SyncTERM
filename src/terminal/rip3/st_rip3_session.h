@@ -88,6 +88,7 @@ struct st_rip3_session_sink {
 	/* Transient mouse feedback on the shared native text/graphics raster. */
 	void (*mouse_invert)(void *context, const struct st_rip3_rect *area);
 	void (*mouse_tab_focus)(void *context, const struct st_rip3_rect *area);
+	void (*status_bar_changed)(void *context, bool enabled);
 	/* Publish completed owned-button redraws, including momentary keyboard
 	 * feedback before its action runs. No additional raster ownership. */
 	void (*mouse_redraw)(void *context);
@@ -202,6 +203,7 @@ void st_rip3_session_request_refresh(struct st_rip3_session *session);
  * The client must suppress ANSI display/side effects while this gate is off;
  * RIP identification/control handling remains independent of TTY visibility. */
 bool st_rip3_session_text_active(const struct st_rip3_session *session);
+bool st_rip3_session_status_bar(const struct st_rip3_session *session);
 /* CTerm calls through its owner after recognizing ESC7/8 and unwinding input.
  * One reusable connection save; failures are diagnosed here and consumed.
  * May be called from sink.text, but invokes no received-input/parser callback. */
