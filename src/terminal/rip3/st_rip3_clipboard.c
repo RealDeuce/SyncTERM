@@ -15,18 +15,9 @@ bounded(int64_t value)
 static int
 budget_available(struct st_rip3_ports *ports, uint64_t budget, uint64_t requested)
 {
-	uint64_t used = 0;
-	for (unsigned i = 1; i < 36; i++) {
-		struct st_rip3_port_info info;
-		int status = st_rip3_ports_info(ports,i,&info);
-		if (status != 0) return status;
-		if (!info.defined || !info.offscreen) continue;
-		uint64_t width = (uint64_t)((int64_t)info.bounds.x1-info.bounds.x0+1);
-		uint64_t height = (uint64_t)((int64_t)info.bounds.y1-info.bounds.y0+1);
-		uint64_t amount = width*height;
-		if (used > UINT64_MAX-amount) return IO_ERROR_OUT_OF_MEMORY;
-		used += amount;
-	}
+	uint64_t used;
+	int status = st_rip3_ports_bitmap_pixels(ports, 0, &used);
+	if (status != 0) return status;
 	return used > budget || requested > budget-used ? IO_ERROR_OUT_OF_MEMORY : 0;
 }
 

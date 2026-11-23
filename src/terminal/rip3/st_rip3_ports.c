@@ -146,6 +146,32 @@ st_rip3_ports_bind_clipboard(struct st_rip3_ports *ports,struct st_rip3_clipboar
 	if (ports!=NULL) ports->clipboard=selection;
 }
 
+int
+st_rip3_ports_clipboard_index(const struct st_rip3_ports *ports)
+{
+	return ports != NULL && ports->clipboard != NULL && ports->clipboard->set
+	    ? (int)ports->clipboard->port : -1;
+}
+
+int
+st_rip3_ports_bitmap_pixels(const struct st_rip3_ports *ports, unsigned excluding, uint64_t *result)
+{
+	if (ports == NULL || result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (excluding >= 36) return IO_ERROR_OUT_OF_RANGE;
+	uint64_t used = 0;
+	for (unsigned i = 1; i < 36; ++i) {
+		const struct st_rip3_port_info *info = &ports->entries[i].info;
+		if (i == excluding || !info->defined || !info->offscreen) continue;
+		uint64_t width = (uint64_t)((int64_t)info->bounds.x1 - info->bounds.x0 + 1);
+		uint64_t height = (uint64_t)((int64_t)info->bounds.y1 - info->bounds.y0 + 1);
+		uint64_t pixels = width * height;
+		if (pixels > UINT64_MAX - used) return IO_ERROR_OUT_OF_MEMORY;
+		used += pixels;
+	}
+	*result = used;
+	return 0;
+}
+
 void
 st_rip3_ports_bind_screen_reader(struct st_rip3_ports *ports,void *context,
     int (*read)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *))
@@ -307,6 +333,15 @@ st_rip3_ports_protect(struct st_rip3_ports *ports, unsigned number, bool protect
 	return 0;
 }
 
+static void
+delete_entry(struct st_rip3_ports *ports, unsigned number)
+{
+	clear_port(&ports->entries[number]);
+	ports->generations[number] = ++ports->sequence;
+	if (ports->clipboard != NULL && ports->clipboard->set && ports->clipboard->port == number)
+		*ports->clipboard = (struct st_rip3_clipboard_selection){0};
+}
+
 int
 st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number)
 {
@@ -317,14 +352,12 @@ st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number)
 	if (number != 0) {
 		if (ports->entries[number].info.protected)
 			return IO_ERROR_PERMISSION_DENIED;
-		clear_port(&ports->entries[number]);
-		ports->generations[number]=++ports->sequence;
+		delete_entry(ports, number);
 	}
 	else {
 		for (unsigned i = 1; i < 36; i++) {
-			if (!ports->entries[i].info.protected) {
-				clear_port(&ports->entries[i]);ports->generations[i]=++ports->sequence;
-			}
+			if (!ports->entries[i].info.protected)
+				delete_entry(ports, i);
 		}
 	}
 	if (!ports->entries[ports->current].info.defined)
@@ -340,9 +373,8 @@ st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 	ports->entries[ports->current].info.image = image_defaults;
 	if (!generations_available(ports,36)) return IO_ERROR_OUT_OF_RANGE;
 	for (unsigned i = 1; i < 36; i++) {
-		if (hard || !ports->entries[i].info.protected) {
-			clear_port(&ports->entries[i]);ports->generations[i]=++ports->sequence;
-		}
+		if (hard || !ports->entries[i].info.protected)
+			delete_entry(ports, i);
 	}
 	ports->generations[0]=++ports->sequence;
 	st_rip3_resident_query_clear(&ports->entries[0].query);
@@ -528,10 +560,8 @@ st_rip3_ports_header_prune(struct st_rip3_ports *ports, bool keep_current)
 		return IO_ERROR_OUT_OF_RANGE;
 	unsigned keep = keep_current ? ports->current : 0;
 	for (unsigned i = 1; i < 36; ++i) {
-		if (i != keep && ports->entries[i].info.defined && !ports->entries[i].info.protected) {
-			clear_port(&ports->entries[i]);
-			ports->generations[i] = ++ports->sequence;
-		}
+		if (i != keep && !ports->entries[i].info.protected)
+			delete_entry(ports, i);
 	}
 	if (!keep_current || keep != 0) {
 		ports->entries[0].info.bounds = ports->screen_bounds;
@@ -539,6 +569,23 @@ st_rip3_ports_header_prune(struct st_rip3_ports *ports, bool keep_current)
 	}
 	if (!keep_current) ports->current = 0;
 	return 0;
+}
+
+int
+st_rip3_ports_header_delete_clipboard(struct st_rip3_ports *ports)
+{
+	if (ports == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (ports->clipboard == NULL || !ports->clipboard->set) return 0;
+	unsigned number = ports->clipboard->port;
+	int status = 0;
+	if (number < 36 && ports->entries[number].info.defined) {
+		if (ports->entries[number].info.protected) return 0;
+		/* Ordinary wire delete(0) is a table-wide operation. Here the
+		 * physical target is one slot, so a zero assignment cannot delete it. */
+		status = number == 0 ? IO_ERROR_PERMISSION_DENIED : st_rip3_ports_delete(ports, number);
+	}
+	*ports->clipboard = (struct st_rip3_clipboard_selection){0};
+	return status;
 }
 
 void

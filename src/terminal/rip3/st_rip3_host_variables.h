@@ -46,6 +46,8 @@ struct st_rip3_host_variables {
 	 * its device canvas must match the queried PORT table. */
 	const struct st_rip3_frame *frame;
 	const struct st_rip3_table_host *tables;
+	/* Borrowed live pixel limit, shared with bitmap allocation. */
+	const uint64_t *offscreen_pixel_budget;
 	/* One converted local-time snapshot for an expansion batch. The client
 	 * owns clock conversion/time-zone selection; no global TZ or locale is
 	 * changed by the parser. Years 1..9999, ordinary seconds 0..59, and

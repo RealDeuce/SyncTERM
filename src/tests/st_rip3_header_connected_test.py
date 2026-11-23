@@ -202,6 +202,51 @@ def port_actions(t, values, wire, width, height):
     assert xy(frame) == (3, 2) and frame.application['connected'] == 1
 
 
+def clipboard_actions(t, values, wire, width, height):
+    budget = 36 * width * height
+    clear_clip = b'h01000001200040'
+    capture = b'1C0A0A0C0C'
+    t.case('rip3-header-physical-target-is-the-assigned-clipboard')
+    wire(b'h01000100')
+    values(f'$WORLD(CUR,{width},{height})$'.encode())
+    wire(b'2P2000008041')
+    # Selecting an unused slot defines a screen port. Neither selecting that
+    # port nor creating the unassigned bitmap gives it the clipboard role.
+    wire(b'h01000001200027')
+    values(b'$CUR(PORT)$:$INUSE(PORT,7)$:$OFFSCREEN(CLIP)$', b'7:1:-1')
+    wire(clear_clip)
+    values(b'$CUR(PORT)$:$INUSE(PORT,2)$:$OFFSCREEN(USED)$', b'7:1:32')
+    wire(capture)
+    values(b'$BASEMATH(CUR,64)$$OFFSCREEN(CliP)$:$OFFSCREEN(TOTAL)$:$OFFSCREEN(USED)$:$OFFSCREEN(FREE)$:$OFFSCREEN$',
+           f'1:{budget}:48:{budget - 48}:{budget - 48}'.encode())
+    values(b'$BASEMATH(CUR,36)$$OFFSCREEN(USED,FREE)$$OFFSCREEN(BOGUS)$alive', b'alive')
+
+    t.case('rip3-header-clipboard-protection-and-live-delete')
+    values(b'$PROT(PORT,1)$$SCB$')
+    before = t.exchange()
+    frame = wire(clear_clip)
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    values(b'$CUR(PORT)$:$OFFSCREEN(CLIP)$:$ISPROT(PORT,1)$:$OFFSCREEN(USED)$', b'7:1:1:48')
+    values(b'$UNPROT(PORT,1)$')
+    frame = wire(clear_clip)
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    values(b'$CUR(PORT)$:$OFFSCREEN(CLIP)$:$INUSE(PORT,1)$:$INUSE(PORT,2)$:$OFFSCREEN(USED)$',
+           b'7:-1:0:1:32')
+    values(b'$RCB$$CUR(PORT)$:$OFFSCREEN(CLIP)$:$ISPROT(PORT,1)$:$OFFSCREEN(USED)$', b'7:1:1:48')
+
+    t.case('rip3-header-delete-clipboard-after-selecting-it-and-prune')
+    values(b'$UNPROT(PORT,1)$')
+    wire(b'h01000001200061')
+    values(b'$CUR(PORT)$:$OFFSCREEN(CLIP)$:$INUSE(PORT,1)$:$INUSE(PORT,7)$', b'0:-1:0:1')
+    wire(capture)
+    wire(b'h01000001200080')
+    values(b'$CUR(PORT)$:$OFFSCREEN(CLIP)$:$INUSE(PORT,2)$:$OFFSCREEN(USED)$', b'0:-1:0:0')
+    wire(capture)
+    wire(b'2p10')
+    frame = values(b'$OFFSCREEN(CLIP)$:$INUSE(PORT,1)$:$OFFSCREEN(USED)$', b'-1:0:0')
+    assert frame.application['connected'] == 1
+
+
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -318,6 +363,7 @@ def run(args, width, height):
         text_window_actions(t, values, width, height)
         geometry_actions(t, values, width, height)
         port_actions(t, values, wire, width, height)
+        clipboard_actions(t, values, wire, width, height)
 
 
 if __name__ == '__main__':

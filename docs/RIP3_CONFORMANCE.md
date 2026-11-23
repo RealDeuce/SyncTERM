@@ -1163,8 +1163,9 @@ one-pixel ports, nested viewport offsets, offscreen origins, exclusive endpoints
 live WORLD changes, exact reply capacity, missing services, and recovery after
 malformed CP437/UTF-8 keyword bytes. A coherent RGB capture per canvas verifies
 scene retention after the query/recovery sequence. #25's unresolved two-field
-DOMAIN shorthand remains unsupported; OFFSCREEN's separate ambiguity remains
-under #6. The native CMake build and all 50 RIP3/preservation checks pass;
+DOMAIN shorthand remains unsupported. The separate OFFSCREEN query is covered
+in the [connected clipboard milestone](#connected-header-clipboard-deletion-and-offscreen).
+The native CMake build and all 50 RIP3/preservation checks pass;
 native Valgrind reports no errors or leaks in the port-query fixture.
 This does not add stream framing or change the active terminal route.
 
@@ -8716,8 +8717,7 @@ palette's index 0 erase.
 The [completed type-2 bounds and fill profile](#connected-header-port-black-fill)
 uses separate gates for bounds reset and literal black fill.
 
-Physical port deletion, palette upload parity and the full HARD state
-inventory also remain pending.
+Palette upload parity and the full HARD state inventory remain pending.
 
 
 ## Connected refresh expressions
@@ -8803,7 +8803,7 @@ The fill retains the stored viewport, cursor positions, image style, queries,
 remembered copy rectangles, selections and backups. Flags 2048 and 4096 set
 full viewport bounds without painting when the target is already active and
 unprotected. An earlier activation in the segment can make the bounds reset
-eligible. Type-2 bit 4 still awaits physical render-target deletion support.
+eligible.
 
 The CP437 and UTF-8 live fixtures exercise protected current screen and bitmap
 targets, inactive targets, all-port clearing with overlapping screen rectangles,
@@ -8814,3 +8814,36 @@ and query restore from an independent PORT backup.
 
 The queue contains 2455 implemented, 1689 pending, 2975 unreviewed,
 1537 context, 67 excluded and 25 blocked units.
+
+## Connected HEADER clipboard deletion and OFFSCREEN
+
+Type-2 bit 4 addresses the assigned clipboard port. RIPtel's header consumer
+reads port-system +0xa at RVA 0x16f1c, the same field read by OFFSCREEN(CLIP)
+at RVA 0x2f607 and by the GET_IMAGE helper. The logical current port lives
+independently at +8. SyncTERM uses its existing clipboard assignment for this
+operation. The driver was inspected as bytes using the verified original
+DLL fingerprint recorded in the preceding milestones.
+
+An eligible target loses its definition and clipboard assignment. Deleting the
+logical current port falls back to screen port 0. Protected targets retain
+their assignment. An absent assignment has no effect, and a stale one is
+cleared. An assigned zero is cleared while the screen and other ports survive.
+Ordinary port deletion and header pruning also clear the assignment when they
+remove its port. Whole PORT backups retain their independent assignment and
+bitmap snapshots. The header's earlier bit 2 uses the ordinary port selector,
+including creation of an unused screen-port slot.
+
+OFFSCREEN(CLIP) returns the assigned slot or -1. OFFSCREEN's default, FREE,
+TOTAL and USED modes report decimal device pixel counts using the allocator's
+existing budget. The accounting includes inactive and protected bitmaps.
+Native and live tests cover malformed modes, radix independence, the
+protection and deletion branches, bitmap creation and reclamation, selection
+order, continued input, and backup restore. A native fixture supplies stale
+and port-zero assignments to exercise those recovery paths.
+
+Type-2 bits 1 and 8 call a separate screen-port initializer at RVA 0x33d82.
+It writes cursor and image state beyond the geometry named in the reference.
+The issue tracks the remaining reset field set. [Issue #156](https://github.com/bbs-land/remote-imaging-protocol/issues/156)
+
+The queue contains 2466 implemented, 1688 pending, 2959 unreviewed,
+1541 context, 67 excluded and 27 blocked units.

@@ -118,6 +118,40 @@ st_rip3_port_query_frame(const struct st_rip3_host_variables *host,
 	return 0;
 }
 
+static int
+offscreen(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	if (reference->count > 1) return IO_ERROR_INVALID_FORMAT;
+	const char *mode = reference->count ? reference->parameters[0].text : "FREE";
+	bool clip = equal(mode, "CLIP"), total = equal(mode, "TOTAL");
+	bool used = equal(mode, "USED"), remaining = equal(mode, "FREE");
+	if (!clip && !total && !used && !remaining) return IO_ERROR_INVALID_FORMAT;
+	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_PORT].live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	const struct st_rip3_ports *ports = host->tables->tables[ST_RIP3_TABLE_PORT].live;
+	char text[24];
+	int length;
+	if (clip)
+		length = snprintf(text, sizeof(text), "%d", st_rip3_ports_clipboard_index(ports));
+	else {
+		if (host->offscreen_pixel_budget == NULL) return IO_ERROR_NOT_SUPPORTED;
+		uint64_t limit = *host->offscreen_pixel_budget;
+		uint64_t pixels = 0;
+		if (!total) {
+			int status = st_rip3_ports_bitmap_pixels(ports, 0, &pixels);
+			if (status != 0) return status;
+			if (pixels > limit) pixels = limit;
+		}
+		uint64_t value = used ? pixels : limit - pixels;
+		length = snprintf(text, sizeof(text), "%" PRIu64, value);
+	}
+	if (length < 0 || (size_t)length >= sizeof(text)) return IO_ERROR_IO;
+	if ((size_t)length >= capacity) return IO_ERROR_OUT_OF_RANGE;
+	memcpy(result, text, (size_t)length + 1);
+	return 0;
+}
+
 int
 st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -140,6 +174,7 @@ st_rip3_port_query_execute(const struct st_rip3_host_variables *host,
 	reference=&words;
 	const char *name = reference->name;
 	if (strcmp(name,"TEXTXY") == 0) return text_cursor(host,reference,result,capacity);
+	if (strcmp(name,"OFFSCREEN") == 0) return offscreen(host,reference,result,capacity);
 	bool width = strcmp(name, "PORTW") == 0, height = strcmp(name, "PORTH") == 0;
 	bool x0 = strcmp(name, "PORTX0") == 0, y0 = strcmp(name, "PORTY0") == 0;
 	bool x1 = strcmp(name, "PORTX1") == 0, y1 = strcmp(name, "PORTY1") == 0;

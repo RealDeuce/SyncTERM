@@ -72,6 +72,9 @@ void st_rip3_ports_bind_clipboard(struct st_rip3_ports *,struct st_rip3_clipboar
  * Merge into an owned, physically clipped raw source snapshot; never mutate
  * the scene/selection or reenter RIP. Binding/lifetime is client-owned and is
  * not part of PORT backups. Offscreen sources use their existing storage. */
+/* The physical target is the assigned clipboard index, independent of CUR. */
+int st_rip3_ports_clipboard_index(const struct st_rip3_ports *);
+int st_rip3_ports_bitmap_pixels(const struct st_rip3_ports *, unsigned excluding, uint64_t *result);
 void st_rip3_ports_bind_screen_reader(struct st_rip3_ports *,void *context,
 	int (*read)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *));
 int st_rip3_ports_current(const struct st_rip3_ports *ports, unsigned *result);
@@ -156,6 +159,7 @@ enum st_rip3_view_operation {
 };
 /* HEADER table pruning and resident query clearing. */
 int st_rip3_ports_header_prune(struct st_rip3_ports *, bool keep_current);
+int st_rip3_ports_header_delete_clipboard(struct st_rip3_ports *);
 void st_rip3_ports_header_clear_queries(struct st_rip3_ports *);
 /* Apply to numbered, defined ports without changing the current selection.
  * Validate every index before changes. Activation, deactivation and geometry

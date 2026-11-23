@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_ports.h"
 #include "st_rip3_backup.h"
+#include "st_rip3_clipboard.h"
 #include "st_pixels.h"
 #include "io_error.h"
 
@@ -384,6 +385,42 @@ destination_generations(void)
 	st_rip3_backup_destroy(saved);st_rip3_ports_destroy(ports);return 0;
 }
 
+
+static int
+header_clipboard_delete(void)
+{
+	struct st_rip3_ports *ports = NULL;
+	struct st_rip3_clipboard_selection clip = {0};
+	struct st_rip3_port_info info;
+	unsigned current;
+	const struct st_rip3_rect bitmap = {0, 0, 7, 3};
+
+	CHECK(st_rip3_ports_create_device(&ports, 64, 48) == 0);
+	st_rip3_ports_bind_clipboard(ports, &clip);
+	CHECK(st_rip3_ports_define(ports, 5, &bitmap, true) == 0);
+	CHECK(st_rip3_ports_select(ports, 7) == 0);
+
+	/* A stale zero assignment must not run the ordinary delete-all path. */
+	clip = (struct st_rip3_clipboard_selection){.set=true, .port=0};
+	CHECK(st_rip3_ports_header_delete_clipboard(ports) == IO_ERROR_PERMISSION_DENIED);
+	CHECK(!clip.set && st_rip3_ports_info(ports, 0, &info) == 0 && info.defined);
+	CHECK(st_rip3_ports_info(ports, 5, &info) == 0 && info.defined);
+	clip = (struct st_rip3_clipboard_selection){.set=true, .port=35};
+	CHECK(st_rip3_ports_header_delete_clipboard(ports) == 0 && !clip.set);
+	CHECK(st_rip3_ports_current(ports, &current) == 0 && current == 7);
+
+	clip = (struct st_rip3_clipboard_selection){.set=true, .port=5};
+	CHECK(st_rip3_ports_protect(ports, 5, true) == 0);
+	CHECK(st_rip3_ports_header_delete_clipboard(ports) == 0 && clip.set && clip.port == 5);
+	CHECK(st_rip3_ports_switch(ports, 5) == 0 && st_rip3_ports_protect(ports, 5, false) == 0);
+	CHECK(st_rip3_ports_activate(ports, false) == 0);
+	CHECK(st_rip3_ports_header_delete_clipboard(ports) == 0 && !clip.set);
+	CHECK(st_rip3_ports_current(ports, &current) == 0 && current == 0);
+	CHECK(st_rip3_ports_info(ports, 5, &info) == 0 && !info.defined);
+	st_rip3_ports_destroy(ports);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -391,7 +428,7 @@ main(void)
 	CHECK(lifecycle() == 0);
 	CHECK(copies() == 0);
 	CHECK(boundaries() == 0 && install_bitmap() == 0);
-	CHECK(screen_fill()==0);
+	CHECK(screen_fill()==0 && header_clipboard_delete()==0);
 	CHECK(captured_view()==0 && destination_generations()==0 && fixed_clipboard_face()==0);
 	return 0;
 }

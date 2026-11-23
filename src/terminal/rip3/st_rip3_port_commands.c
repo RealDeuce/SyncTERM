@@ -78,25 +78,13 @@ static int
 definition_budget(const struct st_rip3_command_host *host, unsigned replacement,
     uint64_t requested)
 {
-	uint64_t used = 0;
-
-	if (host->offscreen_pixel_budget == NULL)
-		return IO_ERROR_NOT_SUPPORTED;
-	/* Client admission policy counts the final table. Replacement is staged
-	 * atomically, so its old allocation remains alive until the new one exists;
-	 * the budget is a pixel-count limit, not a peak-memory guarantee. */
-	for (unsigned i = 1; i < 36; i++) {
-		struct st_rip3_port_info info;
-		int status = st_rip3_ports_info(host->ports,i,&info);
-		if (status != 0) return status;
-		if (i == replacement || !info.defined || !info.offscreen) continue;
-		uint64_t width = (uint64_t)((int64_t)info.bounds.x1-info.bounds.x0+1);
-		uint64_t height = (uint64_t)((int64_t)info.bounds.y1-info.bounds.y0+1);
-		uint64_t amount = width*height;
-		if (amount > *host->offscreen_pixel_budget-used) return IO_ERROR_OUT_OF_MEMORY;
-		used += amount;
-	}
-	return requested > *host->offscreen_pixel_budget-used ? IO_ERROR_OUT_OF_MEMORY : 0;
+	if (host->offscreen_pixel_budget == NULL) return IO_ERROR_NOT_SUPPORTED;
+	/* Admission counts the final table while replacement retains the old
+	 * allocation until the new bitmap is ready. */
+	uint64_t used, budget = *host->offscreen_pixel_budget;
+	int status = st_rip3_ports_bitmap_pixels(host->ports, replacement, &used);
+	if (status != 0) return status;
+	return used > budget || requested > budget-used ? IO_ERROR_OUT_OF_MEMORY : 0;
 }
 
 static int

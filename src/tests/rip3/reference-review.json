@@ -13116,6 +13116,40 @@
       },
       "verification": "Native Release CMake build; headless TCP header cases in CP437 and UTF-8; native surface, ports, viewport host and session tests; contract and RIP154 preservation.",
       "followup": "Physical render-target deletion in type-2 bit 4 has separate state/dispatch requirements and remains pending."
+    },
+    {
+      "after_commit": "62d68f5a",
+      "revision": "9a9f7c5eb8c13957b6a7e74af37041c047e3c4d6",
+      "scope": "Connect HEADER clipboard deletion, first-use port selection and OFFSCREEN accounting.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:508",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:509",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:520",
+        "version/3.0/ripscrip/5.1-text-variables.md:2041",
+        "version/3.0/ripscrip/5.1-text-variables.md:2043",
+        "version/3.0/ripscrip/5.1-text-variables.md:2045",
+        "version/3.0/ripscrip/5.1-text-variables.md:2049",
+        "version/3.0/ripscrip/5.1-text-variables.md:2050",
+        "version/3.0/ripscrip/5.1-text-variables.md:2051",
+        "version/3.0/ripscrip/5.1-text-variables.md:2052",
+        "version/3.0/ripscrip/5.1-text-variables.md:2054",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:118"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:507",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:510"
+      ],
+      "upstream_issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/156",
+      "states_after_update": {
+        "unreviewed": 2959,
+        "context": 1541,
+        "pending": 1688,
+        "implemented": 2466,
+        "blocked": 27,
+        "excluded": 67
+      },
+      "verification": "Native Release build; live CP437 and UTF-8 headers on the three 4:3 canvases and a custom raster; native port, host queries, clipboard, definition, switch, backup and session tests; preservation and contract guards.",
+      "followup": "B156 requests the remaining PORT 0 reset field set."
     }
   ]
 }

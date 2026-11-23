@@ -423,11 +423,6 @@ reset_scene(struct st_rip3_session *session, bool hard)
 	st_rip3_mouse_clear_queries(session->commands.mouse);
 	st_rip3_refresh_clear(&session->refresh);
 	status=st_rip3_ports_reset(session->commands.ports,hard);
-	if (status==0 && session->clipboard.set) {
-		struct st_rip3_port_info info;
-		status=st_rip3_ports_info(session->commands.ports,session->clipboard.port,&info);
-		if (status==0 && !info.defined) session->clipboard=(struct st_rip3_clipboard_selection){0};
-	}
 	if (status==0) status=st_rip3_ports_screen_clear_black(session->commands.ports);
 	if (status==0) status=st_rip3_palettes_reset(session->commands.palettes,hard);
 	if (status==0) status=st_rip3_styles_soft_reset(session->commands.styles);
@@ -862,8 +857,8 @@ header_segment(struct st_rip3_session *session, const struct st_rip3_header_segm
 		break;
 	case 2:
 		if (flags & 1) header_result(session, st_rip3_ports_header_prune(host->ports, false));
-		if (flags & 2) header_result(session, st_rip3_ports_switch(host->ports, slot));
-		if (flags & 4) header_result(session, IO_ERROR_NOT_SUPPORTED);
+		if (flags & 2) header_result(session, st_rip3_ports_select(host->ports, slot));
+		if (flags & 4) header_result(session, st_rip3_ports_header_delete_clipboard(host->ports));
 		if (flags & 8) header_result(session, st_rip3_ports_header_prune(host->ports, true));
 		header_backups(session, ST_RIP3_TABLE_PORT, flags >> 4);
 		header_viewports(session, flags);
@@ -1195,6 +1190,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	if (config->services!=NULL) session->variables=*config->services;
 	session->variables.frame=&session->frame;session->variables.tables=&session->tables;
 	session->variables.field_context=&session->field_context;
+	session->variables.offscreen_pixel_budget=config->offscreen_pixel_budget;
 	session->variables.refresh=&session->refresh;
 	session->commands.refresh=&session->refresh;
 	session->window_operations=(struct st_rip3_text_window_operations){.context=session,
