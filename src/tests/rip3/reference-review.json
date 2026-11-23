@@ -12501,6 +12501,54 @@
         "limits": "Full HARD state inventory, refresh expression, independent physical port target and clip application, text-window geometry reset bits, inactive text-window erase/visibility and palette upload parity remain pending.",
         "result": "The application and focused native targets built without introduced C compiler warnings. The stream, session, table host, both header and both ANSI save connection suites passed. The requirements and original RIP1.54 guards passed."
       }
+    },
+    {
+      "after_commit": "5c2f190d",
+      "revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
+      "scope": "Distinguish scene-header geometry from live reset and verify independent text-window action gates.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:529",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:531",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:532",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:533",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:536",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:537",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:538",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:540"
+      ],
+      "reconciled_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:516",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:530"
+      ],
+      "issues_opened": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/152",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/153"
+      ],
+      "implementation": [
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/rip3/st_rip3_ports.c",
+        "src/terminal/term/st_term_rip3.c"
+      ],
+      "tests": [
+        "rip3_session",
+        "syncterm_rip3_header_CP437",
+        "syncterm_rip3_header_UTF-8"
+      ],
+      "states_after_update": {
+        "unreviewed": 2994,
+        "context": 1520,
+        "pending": 1689,
+        "implemented": 2375,
+        "blocked": 30,
+        "excluded": 67
+      },
+      "policy": "Use the byte-verified original driver for static evidence of the active and protected gates. Keep header geometry separate from table deletion and live RESET. Follow the existing whole-text-window erase path while the header color contract is clarified.",
+      "verification": {
+        "configuration": "Native FreeBSD amd64 Release CMake and control bitmap TCP connections.",
+        "coverage": "Current/all text-window activation and caret gates, retained protected entries, erase bounding margins and live versus CSI cursor, fixed/floating query scope, one numbered save and independent base/stack cleanup, vacant target skip, inactive viewport bounds retention and active bounds expansion. CP437/UTF8 across the three reference rasters and 720x400.",
+        "limits": "Issues #152 and #153 track header geometry, erase color and clipping fill. Physical target deletion, refresh expression and complete HARD inventory remain pending.",
+        "result": "The app and session fixture built with the existing native Release CMake configuration. The session test and both TCP header encodings passed, including all four fixture rasters. The contract and RIP1.54 preservation guards passed."
+      }
     }
   ]
 }

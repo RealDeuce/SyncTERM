@@ -6,9 +6,67 @@ from pathlib import Path
 
 from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
-from st_rip3_extended_window_connected_test import xy
+from st_rip3_extended_window_connected_test import window, xy
 from st_rip3_mouse_connected_test import field
+from st_rip3_text_erase_connected_test import number
 from st_terminal_conformance_test import Terminal
+
+
+def text_header(flags, slot=0):
+    alphabet = b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#&'
+    digits = bytes(alphabet[(flags >> shift) & 63] for shift in (18, 12, 6, 0))
+    return b'\x01|h010000013' + digits + bytes([alphabet[slot]]) + b'\r\n'
+
+
+def text_window_actions(t, values, width, height):
+    t.case('rip3-header-text-window-activation-and-caret')
+    t.exchange(b'\x01|*\r\n')
+    values(f'$WORLD(CUR,{width},{height})$'.encode())
+    values(b'$CUR(TW,3)$')
+    t.exchange(window((32, 30, 260, 200), 8, 5, 0, 1) + b'\x1b[4;4H\x1b[s\x1b[2;3H')
+    values(b'$PROT(TW,3)$$CUR(TW,5)$')
+    t.exchange(window((320, 210, 600, 380), 8, 5, 0, 1) + b'\x1b[3;4H\x1b[?25l')
+    values(b'$CUR(TW,0)$')
+
+    # The protected target stays active while all unprotected windows stop
+    # accepting raw text. Select the protected window to fence the capture.
+    frame = t.exchange(text_header(64) + b'ignored' + text_header(2, 3))
+    assert xy(frame) == (3, 2)
+    values(b'$TWIN(0)$:$TWIN(3)$:$TWIN(5)$:$TWIN(35)$', b'NO:YES:NO:NO')
+    before = t.exchange()
+    frame = t.exchange(text_header(32768))
+    assert not frame.metadata['pixel_cursor_visible']
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    frame = t.exchange(text_header(262144))
+    assert frame.metadata['pixel_cursor_visible'] and xy(frame) == (3, 2)
+    # Inactive 5 ignores the show-all request and keeps its earlier hidden caret.
+    t.exchange(text_header(131072))
+    frame = t.exchange(text_header(2 | 512, 5))
+    assert not frame.metadata['pixel_cursor_visible'] and xy(frame) == (4, 3)
+    frame = t.exchange(text_header(262144))
+    assert frame.metadata['pixel_cursor_visible'] and xy(frame) == (4, 3)
+    t.exchange(text_header(128) + text_header(2, 3))
+    values(b'$TWIN(5)$', b'NO')
+
+    t.case('rip3-header-text-window-erase-bounds-and-live-cursor')
+    coords = b''.join(number(v, 2) for v in (33, 31, 321, 211))
+    frame = t.exchange(b'\x01|c04|X' + coords[:4] + b'|X' + coords[4:] + b'\r\n')
+    assert pixel(frame, 33, 31) == 0xaa0000 and pixel(frame, 321, 211) == 0xaa0000
+    values(b'$DVP$')
+    # Both candidate color sources are black. The portable color choice is
+    # tracked separately upstream. Here only scope, gates and homing matter.
+    frame = t.exchange(text_header(4096))
+    assert pixel(frame, 33, 31) == 0 and pixel(frame, 321, 211) == 0xaa0000
+    assert xy(frame) == (1, 1)
+    frame = t.exchange(b'\x1b[u')
+    assert xy(frame) == (4, 4)
+
+    # Activate-all enables 5 without defining unused slots. Current erase
+    # then clears only 5, including its bounding margin, and homes its cursor.
+    frame = t.exchange(text_header(256) + text_header(2, 5) + text_header(8192))
+    assert pixel(frame, 321, 211) == 0 and xy(frame) == (1, 1)
+    values(b'$CUR(TW)$:$TWIN(0)$:$TWIN(35)$:$ISPROT(TW,3)$', b'5:YES:NO:1')
+    t.exchange(b'\x01|*\r\n')
 
 
 def run(args, width, height):
@@ -44,9 +102,15 @@ def run(args, width, height):
         wire(b'h01000005002710262000223000254065')
         values(b'$CUR(TW)$:$CUR(BUT)$:$CUR(STYLE)$:$CUR(PORT)$:$CUR(PAL)$', b'5:7:6:2:5')
         values(b'$INUSE(PAL,4)$:$ISPROT(PAL,4)$:$INUSE(PAL,7)$', b'1:1:0')
-        wire(b'h01000001201402')
+        t.case('rip3-header-bounds-reset-skips-inactive-viewport')
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        wire(b'v' + b''.join(number(v, 2) for v in (40, 30, 60, 60)))
+        wire(b'h01000001201402')  # Deactivate current, then attempt bounds reset.
         values(b'$TEXTXY(2)$', b'-1')
-        wire(b'h01000001200G02')
+        frame = wire(b'h01000001200G02|c02|X0K0K|X1E1E')
+        assert pixel(frame, 20, 20) == 0 and pixel(frame, 50, 50) == 0x00aa00
+        frame = wire(b'h01000001201002|X0K0K')  # Reset the now-active current viewport.
+        assert pixel(frame, 20, 20) == 0x00aa00
         values(b'$TEXTXY(2)$', b'0:0')
         values(b'$CUR(TW,0)$$CUR(PORT,0)$')
 
@@ -108,6 +172,7 @@ def run(args, width, height):
         frame = wire(b'h01000001801')
         assert pixel(frame, 20, 20) == 0
         assert frame.metadata['pointer_shape'] == 4 and frame.application['connected'] == 1
+        text_window_actions(t, values, width, height)
 
 
 if __name__ == '__main__':

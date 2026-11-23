@@ -163,9 +163,8 @@ enum st_rip3_view_operation {
  * definitions and preserving queries, cursor/image state and copy pairs.
  * No definitions,
  * protection, current selection or pixels outside erased viewports change. */
-/* HEADER changes stored rectangles independently of activation. */
+/* HEADER table pruning and resident query clearing. */
 int st_rip3_ports_header_prune(struct st_rip3_ports *, bool keep_current);
-void st_rip3_ports_header_bounds(struct st_rip3_ports *, bool all);
 void st_rip3_ports_header_clear_queries(struct st_rip3_ports *);
 int st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,

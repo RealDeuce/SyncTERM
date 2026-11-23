@@ -748,20 +748,32 @@ header_viewports(struct st_rip3_session *session, unsigned flags)
 	if (flags & 256) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_DEACTIVATE, 0));
 	if (flags & 512) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_ACTIVATE, 0));
 	if (flags & 1024) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_ACTIVATE, 0));
-	if (flags & 2048) st_rip3_ports_header_bounds(ports, true);
-	if (flags & 4096) st_rip3_ports_header_bounds(ports, false);
+	/* Like MVP, HEADER bounds reset skips inactive viewports. RESET(VIEW)
+	 * also changes activation and is a different operation. */
+	if (flags & 2048) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_MAXIMIZE, 0));
+	if (flags & 4096) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_MAXIMIZE, 0));
 	if (flags & (8192 | 16384)) header_result(session, IO_ERROR_NOT_SUPPORTED);
 	if (flags & 32768) st_rip3_ports_header_clear_queries(ports);
+}
+
+static void
+header_window_geometry(struct st_rip3_session *session, unsigned number)
+{
+	/* The native geometry operation preserves the font, activation and
+	 * resident query. RESET(TW) would instead replace zero or delete a slot.
+	 * The remaining field and cursor rules are tracked upstream in #152. */
+	if (window_active(session, number) && !session->windows[number].info.protected)
+		header_result(session, IO_ERROR_NOT_SUPPORTED);
 }
 
 static void
 header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned slot)
 {
 	if (flags & 1) {
-		header_result(session, select_text_window(session, 0, false));
 		for (unsigned i = 1; i < 36; ++i)
 			header_result(session, reset_window_entry(session, i));
-		header_result(session, reset_window_entry(session, 0));
+		header_result(session, select_text_window(session, 0, false));
+		header_window_geometry(session, 0);
 	}
 	if (flags & 2) header_result(session, select_text_window(session, slot, true));
 	if (flags & 4) {
@@ -769,7 +781,7 @@ header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned sl
 			if (i != session->current_window)
 				header_result(session, reset_window_entry(session, i));
 		if (session->current_window != 0)
-			header_result(session, reset_window_entry(session, 0));
+			header_window_geometry(session, 0);
 	}
 	header_backups(session, ST_RIP3_TABLE_TW, flags >> 3);
 	unsigned all[36], current = session->current_window;
@@ -778,7 +790,9 @@ header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned sl
 	if (flags & 128) (void)activate_text_windows(session, &current, 1, false);
 	if (flags & 256) (void)activate_text_windows(session, all, 36, true);
 	if (flags & 512) (void)activate_text_windows(session, &current, 1, true);
-	if (flags & (1024 | 2048)) header_result(session, IO_ERROR_NOT_SUPPORTED);
+	if (flags & 1024)
+		for (unsigned i = 0; i < 36; ++i) header_window_geometry(session, i);
+	if (flags & 2048) header_window_geometry(session, current);
 	if (flags & 4096)
 		for (unsigned i = 0; i < 36; ++i) header_result(session, erase_window(session, i, true));
 	if (flags & 8192) header_result(session, erase_window(session, current, true));

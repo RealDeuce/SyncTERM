@@ -1540,6 +1540,48 @@ static int ansi_text_window(void)
 }
 
 static int
+scene_header_window_lifetime(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	options.sink.text_select = select_text;
+	options.sink.text_reset_entry = reset_test_window;
+	options.sink.text_backup_capture = capture_test_windows;
+	options.sink.text_backup_restore = restore_test_windows;
+	options.sink.text_backup_destroy = destroy_test_windows;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(store_query(&f, 4, '0', "zero", false) == 0);
+	CHECK(store_query(&f, 2, '0', "float", false) == 0);
+	CHECK(query(&f, "$CUR(TW,3)$", "") == 0);
+	CHECK(store_query(&f, 4, '3', "protected", false) == 0);
+	CHECK(query(&f, "$PROT(TW,3)$$CUR(TW,5)$", "") == 0);
+	CHECK(store_query(&f, 4, '5', "current", false) == 0);
+	CHECK(query(&f, "$CUR(TW,7)$$CUR(TW,0)$$DTW$$CUR(TW,5)$", "") == 0);
+	CHECK(query(&f, "$STW$$STW(PUSH)$$STW(0)$$STW(1)$$PROT(TW,S0)$", "") == 0);
+	/* 4 retains current, 8/16/32 clear base, one slot and stack. Inactive
+	 * zero is skipped by the distinct geometry helper and keeps its query. */
+	CHECK(append(&f, "!|h010000013000y5\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$CUR(TW)$:$INUSE(TW,3)$:$INUSE(TW,7)$:$TWIN(0)$", "5:1:0:NO") == 0);
+	CHECK(query(&f, "$INUSE(TW,BASE)$$INUSE(TW,STACK)$$INUSE(TW,S0)$$INUSE(TW,S1)$", "0010") == 0);
+	CHECK(resident_value(&f, 4, 0, "zero") == 0);
+	CHECK(resident_value(&f, 4, 5, "current") == 0);
+	/* 16384 clears floating and unprotected fixed values, even inactive 0,
+	 * independently of the protected active window's fixed value. */
+	CHECK(append(&f, "!|h01000001304000\r") == 0 && pump(&f) == 0);
+	CHECK(resident_value(&f, 2, 0, "") == 0 && resident_value(&f, 4, 0, "") == 0);
+	CHECK(resident_value(&f, 4, 5, "") == 0 && resident_value(&f, 4, 3, "protected") == 0);
+	CHECK(store_query(&f, 4, '0', "new-zero", false) == 0);
+	/* Flag 1 deletes the old current, then makes existing zero current.
+	 * Inactive zero stays inactive, so the following ANSI text is discarded. */
+	CHECK(append(&f, "!|h01000001300010\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$CUR(TW)$:$TWIN$:$INUSE(TW,5)$:$INUSE(TW,3)$", "0:NO:0:1") == 0);
+	CHECK(resident_value(&f, 4, 0, "new-zero") == 0 && resident_value(&f, 4, 3, "protected") == 0);
+	st_rip3_session_destroy(f.session);
+	CHECK(native_window_saves == 0 && st_rip3_session_test_live == 0);
+	return 0;
+}
+
+static int
 scene_header(void)
 {
 	struct fixture f={0};
@@ -1622,7 +1664,7 @@ scene_header(void)
 int
 main(void)
 {
-	CHECK(ansi_text_window()==0 && scene_header()==0);
+	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

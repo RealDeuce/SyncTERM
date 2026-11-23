@@ -542,16 +542,6 @@ st_rip3_ports_header_prune(struct st_rip3_ports *ports, bool keep_current)
 }
 
 void
-st_rip3_ports_header_bounds(struct st_rip3_ports *ports, bool all)
-{
-	for (unsigned i = 0; i < 36; ++i) {
-		struct port *port = &ports->entries[i];
-		if ((all || i == ports->current) && port->info.defined && !port->info.protected)
-			port->info.viewport = port_bounds(port);
-	}
-}
-
-void
 st_rip3_ports_header_clear_queries(struct st_rip3_ports *ports)
 {
 	st_rip3_resident_query_clear(&ports->floating_query);

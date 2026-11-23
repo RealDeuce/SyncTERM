@@ -8706,7 +8706,28 @@ Native tests inject a failed hard setup and verify that a later environment
 segment still applies. Headless TCP tests exercise the real terminal input and
 screen in CP437 and UTF-8 at 640x480, 800x600, 1024x768 and 720x400.
 
-Refresh expressions, separate physical-port deletion, explicit clipping
-application, palette upload parity, and some text-window geometry, erase, and
-cursor operations remain pending. The full HARD state inventory also needs
-review. The original RIP1.54 preservation check is still required.
+The type-3 window segment has connected coverage for active-state and
+caret gates, current versus all targets, protected entries, fixed and
+floating query cleanup, and base, numbered and stack backup cleanup.
+Whole-window erase still uses the shared RIP erase service. The connected
+cases exercise its bounds, active gate and cursor homing with both candidate
+color sources set to black.
+
+Read-only inspection of the hash-verified original driver showed that
+header geometry reset and live `RESET(TW)` have different effects. The header
+path now skips inactive windows and keeps the known deletion and selection
+actions. Eligible geometry changes await the field and cursor contract.
+Issue #152 tracks that distinction and the header erase color.
+[Upstream issue #152](https://github.com/bbs-land/remote-imaging-protocol/issues/152)
+
+Header viewport bounds reset now uses the existing operation that skips
+inactive and protected viewports. The TCP fixture verifies that a reactivated
+viewport retains its narrow clip until an active bounds reset. The original
+clipping-application branch also paints black, so issue #153 requests the
+pixel and clipping boundary for screen and bitmap ports.
+[Upstream issue #153](https://github.com/bbs-land/remote-imaging-protocol/issues/153)
+
+The queue contains 2375 implemented, 1689 pending, 2994 unreviewed, 1520
+context, 67 excluded and 30 blocked units. Refresh expressions, physical
+port deletion, palette upload parity and the full HARD state inventory
+also remain pending.
