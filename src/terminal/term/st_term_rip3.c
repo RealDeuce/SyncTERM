@@ -278,11 +278,22 @@ flush_text(void *context)
 	struct st_term_rip3 *rip=context;
 	if (rip->tty_length==0 || rip->flushing) return;
 	rip->flushing=true;size_t length=rip->tty_length,used=0;rip->tty_length=0;
-	int status=text_visibility(rip);
-	if (status==0 && rip->view!=NULL) status=st_term_rip3_view_begin(rip->view,rip->config.console);
-	if (status==0) status=st_cterm_write(st_term_rip3_text(rip),rip->tty,length,&used);
-	if (rip->view!=NULL && status==0) status=st_term_rip3_view_present(rip->view,rip->config.console,
-	    st_rip3_session_text_active(rip->session));
+	int status=0;
+	while (used<length && status==0) {
+		status=text_visibility(rip);
+		if (status==0 && rip->view!=NULL) status=st_term_rip3_view_begin(rip->view,rip->config.console);
+		st_cterm_t *text=st_term_rip3_text(rip);size_t consumed=0;
+		if (status==0) status=st_cterm_write(text,rip->tty+used,length-used,&consumed);
+		used+=consumed;
+		if (rip->view!=NULL && status==0) status=st_term_rip3_view_present(rip->view,rip->config.console,
+		    st_rip3_session_text_active(rip->session));
+		enum st_cterm_rip3_window_action action=st_cterm_take_rip3_window_action(text);
+		/* Replacing a window is safe only after CTerm's writer has unwound.
+		 * Consume the action once, then resume at the following original byte. */
+		if (status==0 && action!=ST_CTERM_RIP3_WINDOW_NONE)
+			st_rip3_session_ansi_window(rip->session,action==ST_CTERM_RIP3_WINDOW_RESTORE);
+		else if (consumed==0) break;
+	}
 	if (status!=0 || used!=length) diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
 	rip->flushing=false;
 }
@@ -534,6 +545,65 @@ text_copy(void *context,unsigned source,unsigned destination,bool active)
 	if (destination==rip->selected_window && rip->text_config.size_changed!=NULL)
 		rip->text_config.size_changed(rip->text_config.size_context,snapshot.layout.columns,snapshot.layout.rows,
 		    snapshot.layout.columns*snapshot.layout.cell_width,snapshot.layout.rows*snapshot.layout.cell_height);
+	return 0;
+}
+
+struct ansi_window_save {
+	struct st_rip3_text_window_layout layout;
+	struct st_cterm_window_definition *definition;
+	bool font_known;
+};
+
+static void
+text_ansi_destroy(void *object)
+{
+	struct ansi_window_save *saved=object;if (saved==NULL) return;
+	st_cterm_window_definition_destroy(saved->definition);free(saved);
+}
+
+static int
+text_ansi_capture(void *context,bool font_known,void **result)
+{
+	struct st_term_rip3 *rip=context;
+	struct ansi_window_save *saved=calloc(1,sizeof(*saved));
+	if (saved==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	struct st_rip3_text_window_snapshot snapshot;
+	int status=text_snapshot(rip,rip->selected_window,&snapshot);
+	if (status==0) status=st_cterm_window_ansi_create(&saved->definition,st_term_rip3_text(rip));
+	if (status!=0) {text_ansi_destroy(saved);return status;}
+	saved->layout=snapshot.layout;saved->font_known=font_known;*result=saved;return 0;
+}
+
+static int
+text_ansi_restore(void *context,const void *object)
+{
+	struct st_term_rip3 *rip=context;const struct ansi_window_save *saved=object;
+	st_cterm_t *connection=st_term_rip3_text(rip);
+	struct st_term_rip3_view *candidate=NULL;
+	uint32_t width,height;
+	int status=window_budget(rip,&saved->layout,rip->selected_window,NULL);
+	if (status==0) status=st_console_pixel_size(rip->config.console,&width,&height);
+	if (status==0) status=st_term_rip3_view_create(&candidate,&rip->text_config,&saved->layout,width,height);
+	st_cterm_t *target=st_term_rip3_view_text(candidate);
+	if (status==0) status=st_cterm_select_window_interpreter(target,connection);
+	/* Defined MicroANSI layouts resolve against the current built-in strikes.
+	 * Startup-console selections resolve against the live entry font catalog.
+	 * Neither path retrieves glyph resources from the saved object. */
+	if (status==0) status=st_cterm_window_ansi_restore(target,saved->definition,saved->font_known ? target : rip->text);
+	if (status==0) {
+		st_cterm_set_music_mode(target,st_cterm_music_mode(connection));
+		st_cterm_set_doorway_mode(target,st_cterm_doorway_mode(connection));
+	}
+	struct st_term_rip3_view *previous=rip->view;
+	if (status==0) {
+		rip->view=candidate;status=present_window(rip,true);
+		if (status!=0) rip->view=previous;
+	}
+	if (status!=0) {st_term_rip3_view_destroy(candidate);return status;}
+	rip->windows[rip->selected_window]=candidate;st_term_rip3_view_destroy(previous);
+	if (rip->text_config.size_changed!=NULL)
+		rip->text_config.size_changed(rip->text_config.size_context,saved->layout.columns,saved->layout.rows,
+		    saved->layout.columns*saved->layout.cell_width,saved->layout.rows*saved->layout.cell_height);
 	return 0;
 }
 
@@ -1399,7 +1469,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .text_backup_restore=text_backup_restore,.text_backup_destroy=text_backup_destroy,.text_cursor=text_cursor,
 	        .text_cursor_visible=text_cursor_visible,.text_erase=text_erase,.text_erase_eol=text_erase_eol,
 	        .mouse_invert=mouse_invert,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
-	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.text_reset_entry=text_reset_entry},
+	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.text_reset_entry=text_reset_entry,
+	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy},
 	    .services=&services,.random_seed=(uint32_t)now(rip),.resources=&rip->resources,
 	    .offscreen_pixel_budget=&rip->pixel_budget,.audio=rip->audio,.builtin_bitmap_errors=true};
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);

@@ -88,8 +88,9 @@ wire first use copies represented state into an unprotected slot, even from a
 protected source. CUR first use creates fresh full-screen defaults instead;
 ordinary ANSI parsing follows the connection across selection. ANSI-only
 charset designation/state lifetime is now connected; displayed glyphs remain
-CP437. The larger ESC7/8 TW snapshot remains blocked under B150, separately from
-CSI saved coordinates and the accepted resident-query bindings. Ordinary
+CP437. ESC7/8 now saves/restores the represented text-window metadata through
+the existing ANSI path, independently of CSI coordinates and whole-window
+backups. Remaining modes and HEADER lifetime integration stay pending. Ordinary
 `w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
@@ -103,7 +104,8 @@ Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
 are implemented. [PR #107](https://github.com/bbs-land/remote-imaging-protocol/pull/107)
 supplies the applicable ANSI charset/byte contract, now implemented for the
 ANSI-only designation/glyph/lifetime scope. Separate CSI-coordinate versus
-ESC7/8 full-window saved-state acceptance remains incomplete under B150. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
+ESC7/8 represented state is connected under the PR151 completion; full mode
+and HEADER lifetime acceptance remains incomplete. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Extended `b` now defines the selected connected text window using wide,
@@ -8631,3 +8633,47 @@ unchanged builds/rendering suites are reused for this reference-only change.
 Original RIP1.54, arbitrary entry raster, the no-VT102/external-launch scope and
 the user-deferred startup/default-font policy remain controlling. Owned reference
 archive/review scratch files are removed, and full RIP3 compliance is incomplete.
+
+
+## Connected ANSI ESC7/8 text-window state
+
+CTerm now recognizes ESC7/8 on the existing ANSI route and yields after the
+completed sequence with a successful consumed-prefix count. The connection
+owner handles the action after native input unwinds, then feeds following bytes
+to the resulting selected native window. No ECMA parsing moved into RIP framing,
+and command/resource failures remain diagnosed and consumed below the void
+session boundary. Ordinary ANSI/RIP1/non-owner handlers keep their existing
+cursor behavior; CSI s/u retains its separate per-window coordinates.
+
+One optional interpreter-owned save independently owns the logical definition,
+fixed query and represented native metadata. It captures the live cursor for
+both restored live and derived CSI-saved coordinates without overwriting the
+source's previous CSI save. Geometry/metrics and logical font selectors survive
+source reset/deletion; restore resolves compatible current font resources and
+never owns old font bitmaps or handles. Query and native preparation precede
+publication. An absent save, inactive input or protected target does nothing;
+protected sources can be saved, protection carries to nonzero targets, and zero
+stays unprotected. Repeated restore retains the save. Floating queries,
+connection encoding and selected window index remain live. Existing native
+raster views preserve pixels without clear/redraw/relocation or history replay;
+no scene buffer or damage tracker is added.
+
+`cterm_text_window` covers independent CSI/live coordinates, all ESC7 splits,
+origin-aware coordinate installation, explicit tabs, direct colors, designation
+state, metadata allocation failures, missing live font resources and original
+ANSI/RIP1/non-owner behavior. `rip3_session` covers atomic native/query failures,
+old/absent saves, ownership, floating-query exclusion, protection and teardown.
+`syncterm_rip3_ansi_save_CP437` and UTF-8 use coherent TCP control-bitmap captures
+at 640x480, 800x600, 1024x768 and 720x400: entry font, ordinary font2 80x25, changed
+extended geometry/font, requested hidden cursor, WORLD independence, same-batch
+and split ESC8 followed by accented text, source deletion, CSI/ESCc, SOFT/live
+RESET ALL, entry COPY and independent whole-window backups. The existing CP437
+whole-text-window backup fixture also passes after the shared capsule change.
+
+The queue now contains 2306 implemented, 1695 pending, 3062 unreviewed, 1520 context,
+67 excluded and 25 blocked units (8675 total). 45 clauses gain scoped runtime
+acceptance. Complete per-window mode support, MTW-specific lifetime vectors,
+HEADER/hard-reset lifetime integration and currently unexposed binding vectors
+remain pending. Full RIP3 compliance is incomplete. The original RIP154 freeze
+and user-deferred startup/default-font policy are unchanged; no speed claim is
+made from these functional checks.

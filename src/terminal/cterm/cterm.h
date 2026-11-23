@@ -111,6 +111,7 @@ struct cterminal {
 	/* RIP3 ANSI records designations, but always displays the CP437 bank.
 	 * SI/SO do not invoke G1 in this profile. Values are ESC final bytes. */
 	uint8_t rip3_g0,rip3_g1;
+	enum st_cterm_rip3_window_action rip3_window_action;
 	st_cterm_skypix_transfer_callback_t skypix_transfer;
 	void *skypix_transfer_context;
 	struct cterm_apc_state *apc;

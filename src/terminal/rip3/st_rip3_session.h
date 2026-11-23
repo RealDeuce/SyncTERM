@@ -105,6 +105,13 @@ struct st_rip3_session_sink {
 	 * Failure preserves the target definition and current selection. */
 	int (*text_reset_entry)(void *context,unsigned number,
 		const struct st_rip3_text_window_layout *fresh,bool zero_active);
+	/* ESC7/8 native metadata only, separate from whole-table backups. Capture
+	 * owns logical font descriptors, not resources. Restore prepares a complete
+	 * current target before publication, paints nothing, and retains selection.
+	 * All three callbacks or none; destroy has no live-session dependency. */
+	int (*text_ansi_capture)(void *context,bool font_known,void **result);
+	int (*text_ansi_restore)(void *context,const void *saved);
+	void (*text_ansi_destroy)(void *saved);
 };
 
 struct st_rip3_session_config {
@@ -147,7 +154,7 @@ struct st_rip3_session_config {
 
 /* One terminal/session thread owns every call and callback. Config/source/sink
  * structs are copied; referenced objects and callback contexts must outlive the
- * session. Callbacks must not reenter, cancel/destroy or change its bindings.
+ * session. Callbacks must not reenter parsing, cancel/destroy or change its bindings.
  * Creation prepares all represented tables/backups, font cache, variables,
  * templates, stream, query and input gate before publishing result. Failure
  * preserves result and borrowed services and invokes no client callback.
@@ -169,6 +176,10 @@ void st_rip3_session_process(struct st_rip3_session *session, size_t budget);
  * The client must suppress ANSI display/side effects while this gate is off;
  * RIP identification/control handling remains independent of TTY visibility. */
 bool st_rip3_session_text_active(const struct st_rip3_session *session);
+/* CTerm calls through its owner after recognizing ESC7/8 and unwinding input.
+ * One reusable connection save; failures are diagnosed here and consumed.
+ * May be called from sink.text, but invokes no received-input/parser callback. */
+void st_rip3_session_ansi_window(struct st_rip3_session *session,bool restore);
 bool st_rip3_session_mouse_active(const struct st_rip3_session *session);
 /* Current ENV metadata only; no raster allocation/presentation. */
 bool st_rip3_session_mouse_pointer(const struct st_rip3_session *session, unsigned *result);

@@ -12319,6 +12319,87 @@
         "coverage": "Implied/current/numeric/leading-zero/repeated/TBL/empty-comma/case-insensitive selectors; late invalid keyword/range/backup-selector rejection with no prefix effect; absent live binding; protected inactive and undefined no-ops; existing MVP inactive skip; screen/offscreen full port bounds and activation; exact saved copy geometry and retained bitmap pixels; fixed and floating queries, cursor/image record and assigned clipboard; zero WORLD/base64 independence; real PCB after viewport reset; screen sub-port origin and last included/first excluded pixel; coherent native text state/foreign selectors/raster/no-paint captures in CP437 and UTF8 at640x480,800x600,1024x768 and custom720x400.",
         "limits": "Full RIP3, other RESET families, HEADER and full ESC7/8 snapshot under B150 remain incomplete. No CTerm/ordinary ANSI or RIP154 renderer changes, new scene/damage tracking, alternate compiler/platform builds or speed claims."
       }
+    },
+    {
+      "after_commit": "4937fbe4",
+      "revision": "26128c7043d90cd00aa95c6b44aadbfc185f6a3a",
+      "scope": "Connect interpreter-owned ANSI ESC7/8 window state to live RIP3 sessions through existing CTerm recognition; retain CSI s/u independence and original ANSI/RIP154 route.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:118",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:122",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:123",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:124",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:125",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:126",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:127",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:129",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:130",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:131",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:132",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:133",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:135",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:139",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:141",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:142",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:143",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:144",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:145",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:147",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:151",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:153",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:155",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:157",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:159",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:161",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:167",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:168",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:169",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:170",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:172",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:173",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:174",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:179",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:187",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:188",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:189",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:190",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:191",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:192",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:193",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:195",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:196",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:198",
+        "version/3.0/ripscrip/7.2-data-backup-areas.md:252"
+      ],
+      "implementation": [
+        "src/terminal/cterm/cterm_dec.c",
+        "src/terminal/cterm/st_cterm.c",
+        "src/terminal/cterm/st_cterm_window_definition.c",
+        "src/terminal/rip3/st_rip3_session.c",
+        "src/terminal/term/st_term_rip3.c"
+      ],
+      "tests": [
+        "cterm_text_window",
+        "rip3_session",
+        "syncterm_rip3_ansi_save_CP437",
+        "syncterm_rip3_ansi_save_UTF-8",
+        "syncterm_rip3_text_backup_CP437"
+      ],
+      "states_after_update": {
+        "unreviewed": 3062,
+        "context": 1520,
+        "pending": 1695,
+        "implemented": 2306,
+        "excluded": 67,
+        "blocked": 25
+      },
+      "policy": "One optional reusable save in the connection text-window owner, separate from family backups. CTerm consumes the exact ESC prefix and returns control only after native input unwinds; the owner prepares logical/query/native values before replacement and continues following original bytes using the selected target. No ECMA parsing in RIP framing and no runtime parser/session error return. ANSI saves own logical selectors/metrics and no font resources; resolve compatible current resources on restore. No scene cells/history/pixels, global encoding/preferences/emulation/graphics selections, floating query or new damage tracker are saved. No HEADER/hard-reset or incomplete terminal-mode acceptance.",
+      "verification": {
+        "configuration": "One native FreeBSD amd64 Release CMake configuration with /usr/bin/cc; headless control bitmap TCP captures.",
+        "coverage": "Separate old CSI save versus captured live point; every ESC7 split; origin-aware derived native CSI coordinate; explicit horizontal/vertical tabs; indexed and direct colors; designation state; capture and restore allocation/resource failure with retained outputs; native ordinary ANSI/RIP1/non-owner legacy ESC behavior; one interpreter save, no initial default, protected source/current target and zero normalization, independent resident/floating queries, retry and destruction. Connected CP437/UTF8 at640x480,800x600,1024x768 and720x400: startup font, ordinary font2 80x25 and extended different geometry, hidden cursor, same-batch/split ESC8 plus accented text, WORLD independence, source reset/deletion, repeated restore, inactive gate, CSI/ESCc, SOFT/live ALL/entry COPY/whole-window backups and no repaint.",
+        "limits": "Full RIP3 compliance, remaining per-window mode support, MTW-specific lifetime vectors, HEADER/hard reset and unexposed article/column binding vectors remain incomplete. No speed, native-device or additional platform/compiler claims.",
+        "result": "Native configure/build completes without introduced C compiler warnings. All seven distinct relevant CTests pass: cterm_text_window, rip3_session, both connected ANSI-save encodings, existing CP437 whole-text-window backup, rip3_contract and original rip3_preservation_guard. Tests are repeated only after relevant fixture/implementation changes; unchanged earlier passes are retained."
+      }
     }
   ]
 }

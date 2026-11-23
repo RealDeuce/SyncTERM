@@ -73,6 +73,8 @@ struct st_rip3_session {
 	bool default_text_wrap;
 	struct session_window windows[36];
 	struct st_rip3_resident_query floating_window_query;
+	struct session_window ansi_window;
+	void *ansi_native;
 	struct st_rip3_text_window_host window_host;
 	struct st_rip3_text_window_operations window_operations;
 	uint64_t revision;
@@ -202,6 +204,40 @@ window_snapshot(void *context, unsigned number, struct st_rip3_text_window_snaps
 	value.font_known=session->windows[number].has_layout;
 	if (value.font_known) value.layout=session->windows[number].layout;
 	*result=value;return 0;
+}
+
+void
+st_rip3_session_ansi_window(struct st_rip3_session *session,bool restore)
+{
+	if (session==NULL) return;
+	struct session_window *current=&session->windows[session->current_window];
+	if (!current->info.defined || !session->text_active || (restore && current->info.protected)) return;
+	if (session->sink.text_ansi_capture==NULL || session->sink.text_ansi_restore==NULL
+	    || session->sink.text_ansi_destroy==NULL) return;
+	if (restore && session->ansi_native==NULL) return;
+	struct session_window prepared=restore ? session->ansi_window : *current;
+	prepared.query=(struct st_rip3_resident_query){0};
+	int status=st_rip3_resident_query_copy(&prepared.query,restore ? &session->ansi_window.query : &current->query);
+	void *native=NULL;
+	if (status==0 && !restore) {
+		status=session->sink.text_ansi_capture(session->sink.context,current->has_layout,&native);
+		if (status==0 && native==NULL) status=IO_ERROR_INVALID_FORMAT;
+	}
+	if (status==0 && restore) status=session->sink.text_ansi_restore(session->sink.context,session->ansi_native);
+	if (status!=0) {
+		st_rip3_resident_query_clear(&prepared.query);session->sink.text_ansi_destroy(native);
+		table_operation_failed(session,status);return;
+	}
+	prepared.info.active=true;
+	if (restore) {
+		if (session->current_window==0) {prepared.info.defined=true;prepared.info.protected=false;}
+		st_rip3_resident_query_clear(&current->query);*current=prepared;session->text_active=true;
+	}
+	else {
+		st_rip3_resident_query_clear(&session->ansi_window.query);
+		session->sink.text_ansi_destroy(session->ansi_native);
+		session->ansi_window=prepared;session->ansi_native=native;
+	}
 }
 
 struct window_save {
@@ -711,6 +747,8 @@ st_rip3_session_destroy(struct st_rip3_session *session)
 	st_rip3_ports_destroy(session->commands.ports);
 	for (unsigned i=0;i<36;i++) st_rip3_resident_query_clear(&session->windows[i].query);
 	st_rip3_resident_query_clear(&session->floating_window_query);
+	st_rip3_resident_query_clear(&session->ansi_window.query);
+	if (session->sink.text_ansi_destroy!=NULL) session->sink.text_ansi_destroy(session->ansi_native);
 	free(session);
 }
 
@@ -830,6 +868,9 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    || config->default_text_font>=5
 	    || (config->encoding!=ST_RIP3_TEXT_CP437 && config->encoding!=ST_RIP3_TEXT_UTF8)) return IO_ERROR_INVALID_ARGUMENT;
 	if ((config->sink.screen_capture==NULL)!=(config->sink.screen_restore==NULL)) return IO_ERROR_INVALID_ARGUMENT;
+	bool text_ansi=config->sink.text_ansi_capture!=NULL;
+	if ((config->sink.text_ansi_restore!=NULL)!=text_ansi || (config->sink.text_ansi_destroy!=NULL)!=text_ansi)
+		return IO_ERROR_INVALID_ARGUMENT;
 	bool text_backup=config->sink.text_backup_capture!=NULL;
 	if ((config->sink.text_backup_restore!=NULL)!=text_backup || (config->sink.text_backup_destroy!=NULL)!=text_backup)
 		return IO_ERROR_INVALID_ARGUMENT;

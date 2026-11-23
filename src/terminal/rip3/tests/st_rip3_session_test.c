@@ -1475,9 +1475,74 @@ static int text_backups(void)
 	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);return 0;
 }
 
+static unsigned ansi_saves,ansi_restores,ansi_live,ansi_value;
+static int ansi_status;
+static int capture_ansi(void *context,bool known,void **result)
+{
+	(void)context;(void)known;ansi_saves++;
+	if (ansi_status!=0) return ansi_status;
+	unsigned *value=malloc(sizeof(*value));if (value==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	*value=ansi_value;*result=value;ansi_live++;return 0;
+}
+static int restore_ansi(void *context,const void *saved)
+{
+	(void)context;ansi_restores++;if (ansi_status!=0) return ansi_status;
+	ansi_value=*(const unsigned *)saved;return 0;
+}
+static void destroy_ansi(void *saved) {if (saved!=NULL) {ansi_live--;free(saved);}}
+
+static int ansi_text_window(void)
+{
+	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select=select_text;options.sink.text_window=window;options.sink.text_reset_entry=reset_test_window;
+	options.sink.text_ansi_capture=capture_ansi;
+	CHECK(st_rip3_session_create(&f.session,&options)==IO_ERROR_INVALID_ARGUMENT && f.session==NULL);
+	options.sink.text_ansi_restore=restore_ansi;
+	CHECK(st_rip3_session_create(&f.session,&options)==IO_ERROR_INVALID_ARGUMENT && f.session==NULL);
+	options.sink.text_ansi_destroy=destroy_ansi;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==0); /* S absent. */
+	CHECK(store_query(&f,4,'0',"owned",false)==0 && store_query(&f,2,'0',"floating-before",false)==0);
+	extern bool st_rip3_resident_test_fail;
+	st_rip3_resident_test_fail=true;
+	st_rip3_session_ansi_window(f.session,false);CHECK(ansi_saves==0);
+	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==0);
+	st_rip3_resident_test_fail=false;
+	ansi_value=42;st_rip3_session_ansi_window(f.session,false);CHECK(ansi_live==1);
+	CHECK(query(&f,"$CUR(TW,5)$","")==0 && store_query(&f,4,'5',"old",false)==0
+	    && store_query(&f,2,'0',"floating-after",false)==0);
+	ansi_status=IO_ERROR_OUT_OF_MEMORY;ansi_value=99;
+	st_rip3_session_ansi_window(f.session,false);CHECK(ansi_live==1);
+	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_value==99 && resident_value(&f,4,5,"old")==0);
+	ansi_status=0;
+	st_rip3_resident_test_fail=true;unsigned before=ansi_restores;
+	st_rip3_session_ansi_window(f.session,false);CHECK(ansi_live==1);
+	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==before && ansi_value==99);
+	st_rip3_resident_test_fail=false;
+	CHECK(query(&f,"$RESET(TW,0)$","")==0); /* S outlives source definition. */
+	st_rip3_session_ansi_window(f.session,true);CHECK(ansi_value==42 && resident_value(&f,4,5,"owned")==0 && resident_value(&f,2,0,"floating-after")==0);
+	CHECK(store_query(&f,4,'5',"changed",false)==0);
+	st_rip3_session_ansi_window(f.session,true);CHECK(resident_value(&f,4,5,"owned")==0 && ansi_live==1);
+	CHECK(query(&f,"$PROT(TW,5)$","")==0);
+	ansi_value=77;st_rip3_session_ansi_window(f.session,false);CHECK(ansi_live==1); /* Protected source eligible. */
+	CHECK(query(&f,"$CUR(TW,3)$","")==0);
+	st_rip3_session_ansi_window(f.session,true);CHECK(query(&f,"$ISPROT(TW,3)$","1")==0 && ansi_value==77);
+	before=ansi_restores;st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==before);
+	CHECK(query(&f,"$CUR(TW,0)$","")==0);
+	st_rip3_session_ansi_window(f.session,true);CHECK(query(&f,"$ISPROT(TW,CUR)$","0")==0);
+	CHECK(query(&f,"$DTW$","")==0);before=ansi_saves;
+	st_rip3_session_ansi_window(f.session,false);CHECK(ansi_saves==before);
+	before=ansi_restores;st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==before);
+	st_rip3_session_destroy(f.session);CHECK(ansi_live==0 && st_rip3_session_test_live==0);
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	before=ansi_restores;st_rip3_session_ansi_window(f.session,true);CHECK(ansi_restores==before);
+	st_rip3_session_destroy(f.session);return 0;
+}
+
 int
 main(void)
 {
+	CHECK(ansi_text_window()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);

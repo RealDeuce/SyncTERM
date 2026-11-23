@@ -337,9 +337,75 @@ character_sets(void)
 	return 0;
 }
 
+static int
+ansi_window_save(void)
+{
+	struct fixture source={0},target={0};CHECK(create(&source,17)==0 && create(&target,17)==0);
+	/* CSI's old save remains independent of the live cursor captured by ESC7. */
+	const char setup[]="\x1b[1;1H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[3;1H\x1bJ\x1b[2;4H\x1b(A\x1b)0\x1b[31;44m\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m";
+	CHECK(feed(&source,setup,sizeof(setup)-1)==0);
+	static const char save_sequence[]="\x1b" "7";
+	for (size_t split=0;split<=2;split++) {
+		size_t used=0;
+		CHECK(st_cterm_write(source.text,save_sequence,split,&used)==0 && used==split);
+		CHECK(st_cterm_write(source.text,save_sequence+split,3-split,&used)==0 && used==2-split);
+		CHECK(st_cterm_take_rip3_window_action(source.text)==ST_CTERM_RIP3_WINDOW_SAVE);
+		CHECK(source.text->save_xpos==1 && source.text->save_ypos==1 && position(&source,4,2)==0);
+	}
+	struct st_cterm_window_definition *saved=NULL;
+	extern size_t st_cterm_definition_test_resources(const struct st_cterm_window_definition *);
+	CHECK(st_cterm_window_ansi_create(&saved,source.text)==0 && st_cterm_definition_test_resources(saved)==0);
+	for (size_t fail=0;fail<5;fail++) {
+		struct st_cterm_window_definition *failed=saved;
+		st_cterm_window_test_tracking=true;st_cterm_window_test_attempts=0;st_cterm_window_test_fail_at=fail;
+		CHECK(st_cterm_window_ansi_create(&failed,source.text)==IO_ERROR_OUT_OF_MEMORY && failed==saved);
+		CHECK(st_cterm_window_test_live==0);
+		st_cterm_window_test_tracking=false;st_cterm_window_test_fail_at=SIZE_MAX;
+	}
+	for (size_t fail=0;fail<9;fail++) {
+		st_cterm_window_test_tracking=true;st_cterm_window_test_attempts=0;st_cterm_window_test_fail_at=fail;
+		CHECK(st_cterm_window_ansi_restore(target.text,saved,target.text)==IO_ERROR_OUT_OF_MEMORY && target.text->attr==7);
+		CHECK(st_cterm_window_test_live==0);
+		st_cterm_window_test_tracking=false;st_cterm_window_test_fail_at=SIZE_MAX;
+	}
+	/* Font resources stay live: resolve the logical selector, or fail without
+	 * reviving saved glyph resources. The snapshot itself survives the source. */
+	destroy(&source);
+	bool valid=target.text->screen.font_valid[0];target.text->screen.font_valid[0]=false;
+	CHECK(st_cterm_window_ansi_restore(target.text,saved,target.text)==IO_ERROR_NOT_FOUND && target.text->attr==7);
+	target.text->screen.font_valid[0]=valid;
+	target.text->wire_encoding=ST_CTERM_ENCODING_UTF8;
+	CHECK(st_cterm_window_ansi_restore(target.text,saved,target.text)==0 && position(&target,4,2)==0);
+	CHECK(target.text->attr==0x14 && target.text->rip3_g0=='A' && target.text->rip3_g1=='0'
+	    && target.text->wire_encoding==ST_CTERM_ENCODING_UTF8 && target.text->fg_color==UINT32_C(0x800c2238)
+	    && target.text->bg_color==UINT32_C(0x80412b15));
+	CHECK(feed(&target,"\x1b[H\x1b[u",6)==0 && position(&target,4,2)==0);
+	CHECK(feed(&target,"\x1b[H\t",4)==0 && position(&target,6,1)==0);
+	size_t used=0;CHECK(st_cterm_write(target.text,"\x1b" "8Z",3,&used)==0 && used==2);
+	CHECK(st_cterm_take_rip3_window_action(target.text)==ST_CTERM_RIP3_WINDOW_RESTORE);
+	CHECK(st_cterm_take_rip3_window_action(target.text)==ST_CTERM_RIP3_WINDOW_NONE);
+	st_cterm_window_definition_destroy(saved);
+	static const char origin[]="\x1b[2;4r\x1b[?6h\x1b[2;4H";
+	CHECK(feed(&target,origin,sizeof(origin)-1)==0 && position(&target,4,3)==0);
+	CHECK(st_cterm_window_ansi_create(&saved,target.text)==0 && create(&source,17)==0);
+	CHECK(st_cterm_window_ansi_restore(source.text,saved,source.text)==0 && position(&source,4,3)==0);
+	CHECK(feed(&source,"\x1b[H\x1b[u",6)==0 && position(&source,4,3)==0);
+	st_cterm_window_definition_destroy(saved);destroy(&source);destroy(&target);
+	for (unsigned mode=0;mode<3;mode++) {
+		CHECK(create(&source,17)==0);
+		source.text->graphics_mode=mode==0 ? ST_CTERM_GRAPHICS_OFF : mode==1 ? ST_CTERM_GRAPHICS_RIP_1 : ST_CTERM_GRAPHICS_RIP_3;
+		if (mode==2) source.text->rip3_session_owner=false;
+		static const char legacy[]="\x1b[2;4H\x1b" "7\x1b[H\x1b" "8X";
+		CHECK(feed(&source,legacy,sizeof(legacy)-1)==0 && position(&source,5,2)==0);
+		CHECK(st_cterm_take_rip3_window_action(source.text)==ST_CTERM_RIP3_WINDOW_NONE);
+		destroy(&source);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(character_sets()==0 && definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
+	CHECK(ansi_window_save()==0 && character_sets()==0 && definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
 	    && window_copy()==0 && selection_continuations()==0 && default_window()==0 && soft_ansi_reset()==0);return 0;
 }

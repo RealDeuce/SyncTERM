@@ -1111,6 +1111,9 @@ void
 cterm_handle_decsc(struct cterminal *cterm, int *speed)	/* ESC 7 */
 {
 	(void)speed;
+	if (cterm->graphics_mode==ST_CTERM_GRAPHICS_RIP_3 && cterm->rip3_session_owner) {
+		cterm->rip3_window_action=ST_CTERM_RIP3_WINDOW_SAVE;return;
+	}
 	CURR_XY(&cterm->save_xpos, &cterm->save_ypos);
 }
 
@@ -1118,6 +1121,9 @@ void
 cterm_handle_decrc(struct cterminal *cterm, int *speed)	/* ESC 8 */
 {
 	(void)speed;
+	if (cterm->graphics_mode==ST_CTERM_GRAPHICS_RIP_3 && cterm->rip3_session_owner) {
+		cterm->rip3_window_action=ST_CTERM_RIP3_WINDOW_RESTORE;return;
+	}
 	if (cterm->save_ypos > 0 && cterm->save_ypos <= cterm->height
 	    && cterm->save_xpos > 0 && cterm->save_xpos <= cterm->width) {
 		if (cterm->save_ypos < CURR_MINY || cterm->save_ypos > CURR_MAXY

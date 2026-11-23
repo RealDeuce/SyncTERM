@@ -55,6 +55,11 @@ static int window_font_register(st_console_t *console,const struct st_console_fo
 	if (st_cterm_window_test_tracking && st_cterm_window_test_attempts++==st_cterm_window_test_fail_at) return IO_ERROR_OUT_OF_MEMORY;
 	return st_console_font_snapshot_register(console,font,id);
 }
+static int window_font_copy(st_console_t *destination,st_console_t *source,uint16_t identifier,uint16_t *result)
+{
+	if (st_cterm_window_test_tracking && st_cterm_window_test_attempts++==st_cterm_window_test_fail_at) return IO_ERROR_OUT_OF_MEMORY;
+	return st_console_copy_font(destination,source,identifier,result);
+}
 static void window_font_destroy(struct st_console_font_snapshot *font)
 {
 	if (font!=NULL) st_cterm_definition_test_fonts--;st_console_font_snapshot_destroy(font);
@@ -66,6 +71,7 @@ static void window_font_destroy(struct st_console_font_snapshot *font)
 
 #define calloc window_calloc
 #define strdup window_strdup
+#define st_console_copy_font window_font_copy
 #define st_console_font_snapshot_create window_font_capture
 #define st_console_font_snapshot_register window_font_register
 #define st_console_font_snapshot_destroy window_font_destroy

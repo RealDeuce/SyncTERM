@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Interpreter-owned ESC7/8, independently asserted over a live RIP3 connection."""
+# Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
+import argparse
+from pathlib import Path
+import time
+from st_migrated_control_test import connection
+from st_terminal_conformance_test import Terminal
+from st_rip3_connected_test import query
+from st_rip3_extended_window_connected_test import window,xy
+
+
+def run(args,width,height):
+    with connection(args.executable,args.reports,encoding=args.encoding,
+                    options='ScreenMode=Custom\nRIP=RIPv3\n',
+                    settings=f'CustomColumns={width//8}\nCustomRows={height//8}\nCustomFontHeight=8\nAudioModes=0\n') as (client,root,peer,send):
+        t=Terminal(client,root,peer,send);serial=0
+        def capture(data=b'',expected=b''):
+            nonlocal serial
+            serial+=1;fence=f'@AS{serial}@'.encode();send(data+query(fence,at_cursor=True))
+            received=bytearray();deadline=time.monotonic()+10
+            while not received.endswith(fence):
+                peer.settimeout(max(0.001,deadline-time.monotonic()))
+                part=peer.recv(4096);assert part,'connection closed';received.extend(part)
+                assert len(received)<65536
+            with (root/'replies.bin').open('ab') as stream:stream.write(received)
+            assert received==expected+fence,(bytes(received),expected+fence)
+            return client.capture()
+        def values(text,expected=b''):
+            return capture(query(text,at_cursor=True),expected)
+        def same(a,b):assert a.primary==b.primary and a.alternate==b.alternate
+        def cursor(frame,x,y,attr=None):
+            assert xy(frame)==(x,y),xy(frame)
+            if attr is not None:assert frame.application['cterm.attr']==attr,(frame.application['cterm.attr'],attr)
+            assert frame.application['connected']==1
+            assert (frame.metadata['plane_width'],frame.metadata['plane_height'])==(width,height)
+        capture(b'\x1b[!',b'RIPSCRIP030001')
+        t.case(f'rip3-ansi-save-absent-and-startup-font-{width}x{height}')
+        before=capture(b'\x1b[2;4H');frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2)
+        # The unredefined entry font is a valid source; it is not replaced by MAF.
+        capture(b'\x1b7');values(b'$CUR(TW,5)$')
+        before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2)
+        assert frame.metadata['pixel_cursor_width']==8
+        values(b'$CUR(TW,0)$');capture(b'\x01|*\r\n')
+        t.case('rip3-ansi-save-ordinary-font-two-and-requested-cursor')
+        capture(b'\x01|w0000270O12\r\n\x1b[H\x1b[s\x1b[2;4H\x1b[?25l\x1b7')
+        values(b'$CUR(TW,5)$');before=capture();frame=capture(b'\x1b8');same(before,frame)
+        cursor(frame,4,2);assert not frame.metadata['pixel_cursor_visible']
+        values(b'$ISEXTWIN$:$TWW$:$TWH$:$TWFONT$',b'0:80:25:3')
+        frame=capture(b'\x1b[H\x1b[u');cursor(frame,4,2)
+        values(b'$CUR(TW,0)$');frame=capture(b'\x1b[u');cursor(frame,1,1)
+        capture(b'\x1b[?25h')
+        t.case('rip3-ansi-save-live-versus-csi-cursor-and-same-chunk-following-text')
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        capture(window((30,40,400,250),8,5,2,1))
+        setup=b'\x1b[H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[2;4H\x1b(A\x1b)0\x1b[31;44m'
+        capture(setup+b'\x1b7\x1b[32m')
+        frame=capture(b'\x1b[u');cursor(frame,1,1,0x12)  # ESC7 did not replace source CSI save.
+        values(b'$CUR(TW,5)$');capture(window((450,300,600,380),4,3,4,1))
+        values(b'$WORLD(CUR,160,100)$')
+        before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2,0x14)
+        assert frame.application['cterm.rip3_g0']==ord('A') and frame.application['cterm.rip3_g1']==ord('0')
+        values(b'$CUR(TW)$:$TWW$:$TWH$:$TWFONT$',b'5:8:5:3')
+        frame=capture(b'\x1b[H\x1b[u');cursor(frame,4,2,0x14)
+        frame=capture(b'\x1b[H\t');cursor(frame,6,1,0x14)
+        word=b'\x82' if args.encoding=='CP437' else 'é'.encode()
+        frame=capture(b'\x1b[32m\x1b8'+word);cursor(frame,5,2,0x14)
+        before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2,0x14)
+        t.case('rip3-ansi-save-source-replacement-and-independent-whole-window-backup')
+        values(b'$STW$$CUR(TW,0)$$RESET(TW,0)$$CUR(TW,5)$')
+        before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2,0x14)
+        # Save a later state; restoring an earlier whole-table backup cannot rewind S.
+        capture(b'\x1b[3;2H\x1b[33m\x1b7');values(b'$RTW$')
+        frame=capture(b'\x1b8');cursor(frame,2,3,0x16)
+        t.case('rip3-ansi-save-protected-source-protected-target-and-zero-normalization')
+        values(b'$PROT(TW,5)$');capture(b'\x1b[35m\x1b7');values(b'$CUR(TW,3)$')
+        frame=capture(b'\x1b8');cursor(frame,2,3,0x15);values(b'$ISPROT(TW,3)$',b'1')
+        capture(b'\x1b[32m\x1b[H');frame=capture(b'\x1b8');cursor(frame,1,1,0x12)
+        values(b'$CUR(TW,0)$');frame=capture(b'\x1b8');cursor(frame,2,3,0x15)
+        values(b'$ISPROT(TW,CUR)$',b'0')
+        t.case('rip3-ansi-save-soft-reset-delete-and-inactive-gate')
+        # Save survives reset, including deletion/redefinition of its source.
+        capture(b'\x01|*\r\n');before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,2,3,0x15)
+        values(b'$CUR(TW,3)$$UNPROT(TW,3)$$RESET(TW,3)$')
+        values(b'$RESET(TW,ALL)$')
+        frame=capture(b'\x1b8');cursor(frame,2,3,0x15)
+        values(b'$DTW$');before=capture();frame=capture(b'\x1b7\x1b8ignored');same(before,frame)
+        values(b'$ATW$');frame=capture(b'\x1b8');cursor(frame,2,3,0x15)
+        capture(b'\x1b' b'c');before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,2,3,0x15)
+        values(b'$COPY(TW,0,7)$$CUR(TW,7)$');capture(b'\x1b[H\x1b[32m')
+        before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,2,3,0x15)
+        # Split input, one connection snapshot, followed by live text in that same write.
+        capture(b'\x1b');frame=capture(b'8'+word);cursor(frame,3,3,0x15)
+        t.case('rip3-ansi-save-nonzero-source-deletion-does-not-recreate-it')
+        values(b'$CUR(TW,3)$');capture(b'\x1b[2;4H\x1b7')
+        values(b'$RESET(TW,3)$$UNPROT(TW,5)$$CUR(TW,5)$')
+        before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2)
+        values(b'$CUR(TW)$:$INUSE(TW,3)$',b'5:0')
+        values(b'after-ansi-save',b'after-ansi-save')
+
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('executable',type=Path)
+    parser.add_argument('encoding',choices=('CP437','UTF-8'))
+    parser.add_argument('--reports',type=Path,required=True)
+    args=parser.parse_args()
+    for width,height in ((640,480),(800,600),(1024,768),(720,400)):run(args,width,height)

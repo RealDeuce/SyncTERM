@@ -315,6 +315,20 @@ int st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source
  * Restore into a fresh same-sized unpublished target and discard on error.
  * The caller supplies the current connection interpreter independently. */
 struct st_cterm_window_definition;
+/* RIP3 ESC7/8 hand off only after the recognized sequence has been consumed
+ * and the native input stack has unwound. A successful write may stop short;
+ * the connection owner takes the action before continuing the remaining bytes. */
+enum st_cterm_rip3_window_action {
+	ST_CTERM_RIP3_WINDOW_NONE, ST_CTERM_RIP3_WINDOW_SAVE, ST_CTERM_RIP3_WINDOW_RESTORE
+};
+enum st_cterm_rip3_window_action st_cterm_take_rip3_window_action(st_cterm_t *terminal);
+/* ANSI saves own metadata and logical font selectors only. Restore prepares
+ * a fresh unpublished target, resolving fonts from the current compatible
+ * resource owner. It neither restores encoding nor owns saved font resources.
+ * The snapshot's CSI saved position is derived from the captured live cursor. */
+int st_cterm_window_ansi_create(struct st_cterm_window_definition **result,const st_cterm_t *source);
+int st_cterm_window_ansi_restore(st_cterm_t *target,const struct st_cterm_window_definition *definition,
+	const st_cterm_t *resources);
 int st_cterm_window_definition_create(struct st_cterm_window_definition **result,const st_cterm_t *source);
 int st_cterm_window_definition_restore(st_cterm_t *target,const struct st_cterm_window_definition *definition);
 void st_cterm_window_definition_destroy(struct st_cterm_window_definition *definition);

@@ -115,8 +115,15 @@ replies include inactive sentinels, actual established font metrics, explicit
 DEVICE/WORLD bounds, live scaling, unclipped wide origins and unchanged pixels/
 cursor/wrap. Disputed far-edge defaults (#108) and startup-font initialization
 (#105) remain pending alongside MTW and TW backups/reset. PR #107's separate
-CSI saved coordinates and ESC7/8 full-TW snapshot also await implementation;
-older native saved-home checks are historical, not acceptance of that new rule.
+CSI saved coordinates remain separate from the now-connected ESC7/8 represented
+text-window save, covered by `cterm_text_window`, `rip3_session` and
+`syncterm_rip3_ansi_save_CP437`/UTF-8. Those tests assert old source CSI versus
+captured live position, origin-aware restored CSI coordinates, independent query
+ownership, atomic resource failures, repeated restore and protection, current
+target selection, no repaint across geometry/font changes and following bytes
+in the same batch. Coherent TCP captures cover 640x480, 800x600, 1024x768 and 720x400.
+Per-window mode completion and HEADER/hard-reset snapshot lifetimes remain
+pending; the existing ANSI engine is used throughout.
 Wire `g`/`H` address both the entry TTY and positioned windows,
 including fixed-width numeric fields in both radices, native CUP clamping,
 deactivated-window no-ops and nonfatal recovery; cursor-only commands retain

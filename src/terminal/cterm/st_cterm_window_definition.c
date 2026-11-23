@@ -13,6 +13,7 @@
 
 struct st_cterm_window_definition {
 	int width,height,xpos,ypos,save_xpos,save_ypos;
+	bool ansi;uint32_t cell_width,cell_height;
 	int top_margin,bottom_margin,left_margin,right_margin;
 	int cursor,cursor_style,rip3_visible_cursor,fetm,ttm;
 	unsigned char attr;bool negative,default_tabs;
@@ -59,8 +60,8 @@ capture_font(struct st_cterm_window_definition *definition,st_console_t *console
 	*index=(uint16_t)at;return 0;
 }
 
-int
-st_cterm_window_definition_create(struct st_cterm_window_definition **result,const st_cterm_t *source)
+static int
+create_definition(struct st_cterm_window_definition **result,const st_cterm_t *source,bool ansi)
 {
 	if (result==NULL || !valid_terminal(source)) return IO_ERROR_INVALID_ARGUMENT;
 	if (source->tab_count<0 || source->vtab_count<0 || source->tab_width<0
@@ -70,7 +71,8 @@ st_cterm_window_definition_create(struct st_cterm_window_definition **result,con
 		return IO_ERROR_OUT_OF_RANGE;
 	struct st_cterm_window_definition *d=calloc(1,sizeof(*d));if (d==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	d->width=source->width;d->height=source->height;d->xpos=source->xpos;d->ypos=source->ypos;
-	d->save_xpos=source->save_xpos;d->save_ypos=source->save_ypos;
+	d->ansi=ansi;
+	d->save_xpos=ansi ? source->xpos : source->save_xpos;d->save_ypos=ansi ? source->ypos : source->save_ypos;
 	d->top_margin=source->top_margin;d->bottom_margin=source->bottom_margin;
 	d->left_margin=source->left_margin;d->right_margin=source->right_margin;
 	d->cursor=source->cursor;d->rip3_visible_cursor=source->rip3_visible_cursor;d->cursor_style=source->cursor_style;
@@ -96,7 +98,15 @@ st_cterm_window_definition_create(struct st_cterm_window_definition **result,con
 	}
 	if (d->tab_count!=0) memcpy(d->tabs,source->tabs,(size_t)d->tab_count*sizeof(int));
 	if (d->vtab_count!=0) memcpy(d->vtabs,source->vtabs,(size_t)d->vtab_count*sizeof(int));
-	int status=st_console_get_video_flags(source->screen.console,&d->video_flags);
+	int status=st_console_cell_pixel_size(source->screen.console,&d->cell_width,&d->cell_height);
+	if (ansi) {
+		/* The logical selectors, not console registration IDs, survive. */
+		d->fonts.normal=d->fonts.bright=d->fonts.blink=d->fonts.bright_blink=0;
+		memset(d->font_valid,0,sizeof(d->font_valid));
+		if (status!=0) {st_cterm_window_definition_destroy(d);return status;}
+		*result=d;return 0;
+	}
+	if (status==0) status=st_console_get_video_flags(source->screen.console,&d->video_flags);
 	uint16_t old[260];
 	for (unsigned i=0;status==0 && i<256;i++) if (d->font_valid[i])
 		status=capture_font(d,source->screen.console,source->screen.font_identifiers[i],old,&d->font_indices[i]);
@@ -107,7 +117,19 @@ st_cterm_window_definition_create(struct st_cterm_window_definition **result,con
 }
 
 int
-st_cterm_window_definition_restore(st_cterm_t *destination,const struct st_cterm_window_definition *d)
+st_cterm_window_definition_create(struct st_cterm_window_definition **result,const st_cterm_t *source)
+{
+	return create_definition(result,source,false);
+}
+
+int
+st_cterm_window_ansi_create(struct st_cterm_window_definition **result,const st_cterm_t *source)
+{
+	return create_definition(result,source,true);
+}
+
+static int
+restore_definition(st_cterm_t *destination,const struct st_cterm_window_definition *d,const st_cterm_t *resources)
 {
 	if (!valid_terminal(destination) || d==NULL || destination->width!=d->width || destination->height!=d->height)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -123,8 +145,20 @@ st_cterm_window_definition_restore(st_cterm_t *destination,const struct st_cterm
 		free(tabs);free(vtabs);free(fg);free(bg);return IO_ERROR_OUT_OF_MEMORY;
 	}
 	uint16_t mapped[260];int status=0;
+	uint16_t logical[5]={0};
+	if (d->ansi) {
+		uint32_t cw,ch;
+		status=resources==NULL ? IO_ERROR_NOT_FOUND : st_console_cell_pixel_size(resources->screen.console,&cw,&ch);
+		if (status==0 && (cw!=d->cell_width || ch!=d->cell_height)) status=IO_ERROR_NOT_SUPPORTED;
+		for (size_t i=0;status==0 && i<5;i++) {
+			unsigned selector=d->selectors[i];
+			if (selector>UINT8_MAX || !resources->screen.font_valid[selector]) {status=IO_ERROR_NOT_FOUND;break;}
+			status=st_console_copy_font(destination->screen.console,resources->screen.console,
+			    resources->screen.font_identifiers[selector],&logical[i]);
+		}
+	}
 	for (size_t i=0;status==0 && i<d->count;i++) status=st_console_font_snapshot_register(destination->screen.console,d->resources[i],&mapped[i]);
-	if (status==0) status=st_console_set_video_flags(destination->screen.console,d->video_flags);
+	if (status==0 && !d->ansi) status=st_console_set_video_flags(destination->screen.console,d->video_flags);
 	if (status!=0) {free(tabs);free(vtabs);free(fg);free(bg);return status;}
 	if (d->tab_count!=0) memcpy(tabs,d->tabs,(size_t)d->tab_count*sizeof(int));
 	if (d->vtab_count!=0) memcpy(vtabs,d->vtabs,(size_t)d->vtab_count*sizeof(int));
@@ -140,16 +174,35 @@ st_cterm_window_definition_restore(st_cterm_t *destination,const struct st_cterm
 	destination->rip3_g0=d->rip3_g0;destination->rip3_g1=d->rip3_g1;
 	destination->attr=d->attr;destination->negative=d->negative;destination->fg_color=d->fg_color;destination->bg_color=d->bg_color;
 	destination->cell_flags=d->cell_flags;destination->extattr=d->extattr;
+	if (d->ansi) cterm_coord_conv_xy(destination,CTERM_COORD_ABSTERM,CTERM_COORD_CURR,
+	    &destination->save_xpos,&destination->save_ypos);
 	destination->saved_mode=d->saved_mode;destination->saved_mode_mask=d->saved_mode_mask;
-	destination->screen.codepage=d->codepage;destination->screen.fonts=d->fonts;
-	destination->screen.fonts.normal=mapped[d->fonts.normal];destination->screen.fonts.bright=mapped[d->fonts.bright];
-	destination->screen.fonts.blink=mapped[d->fonts.blink];destination->screen.fonts.bright_blink=mapped[d->fonts.bright_blink];
-	memcpy(destination->screen.font_valid,d->font_valid,sizeof(d->font_valid));
-	memcpy(destination->screen.font_codepages,d->font_codepages,sizeof(d->font_codepages));
-	for (unsigned i=0;i<256;i++) if (d->font_valid[i]) destination->screen.font_identifiers[i]=mapped[d->font_indices[i]];
-	memcpy(destination->screen.selectors,d->selectors,sizeof(d->selectors));
-	memcpy(destination->altfont,d->altfont,sizeof(d->altfont));
-	memcpy(destination->screen.mode_palette,d->mode_palette,sizeof(d->mode_palette));
+	if (!d->ansi) {
+		destination->screen.codepage=d->codepage;destination->screen.fonts=d->fonts;
+		destination->screen.fonts.normal=mapped[d->fonts.normal];destination->screen.fonts.bright=mapped[d->fonts.bright];
+		destination->screen.fonts.blink=mapped[d->fonts.blink];destination->screen.fonts.bright_blink=mapped[d->fonts.bright_blink];
+		memcpy(destination->screen.font_valid,d->font_valid,sizeof(d->font_valid));
+		memcpy(destination->screen.font_codepages,d->font_codepages,sizeof(d->font_codepages));
+		for (unsigned i=0;i<256;i++) if (d->font_valid[i]) destination->screen.font_identifiers[i]=mapped[d->font_indices[i]];
+		memcpy(destination->screen.selectors,d->selectors,sizeof(d->selectors));
+		memcpy(destination->altfont,d->altfont,sizeof(d->altfont));
+		memcpy(destination->screen.mode_palette,d->mode_palette,sizeof(d->mode_palette));
+	}
+	else {
+		/* Resolve only the logical selections against live compatible resources.
+		 * Unselected resources and connection encoding remain live. */
+		for (size_t i=0;i<5;i++) {
+			unsigned selector=d->selectors[i];
+			destination->screen.font_valid[selector]=true;
+			destination->screen.font_identifiers[selector]=logical[i];
+			destination->screen.font_codepages[selector]=resources->screen.font_codepages[selector];
+		}
+		memcpy(destination->screen.selectors,d->selectors,sizeof(d->selectors));
+		memcpy(destination->altfont,d->altfont,sizeof(d->altfont));
+		destination->screen.fonts=(struct st_console_font_selection){.normal=logical[1],.bright=logical[2],
+		    .blink=logical[3],.bright_blink=logical[4],.bright_selects_font=d->fonts.bright_selects_font,
+		    .blink_selects_font=d->fonts.blink_selects_font};
+	}
 	cterm_apply_window(destination);
 	status=st_cterm_position_text(destination,(uint32_t)(d->xpos-1),(uint32_t)(d->ypos-1));
 	destination->last_column_flag=d->last_column_flag;
@@ -157,4 +210,18 @@ st_cterm_window_definition_restore(st_cterm_t *destination,const struct st_cterm
 	cterm_render_set_colours(destination,destination->fg_color,destination->bg_color);
 	cterm_render_set_cursor(destination,destination->cursor);
 	return status!=0 ? status : cterm_render_take_error(destination);
+}
+
+int
+st_cterm_window_definition_restore(st_cterm_t *destination,const struct st_cterm_window_definition *d)
+{
+	if (d==NULL || d->ansi) return IO_ERROR_INVALID_ARGUMENT;
+	return restore_definition(destination,d,NULL);
+}
+
+int
+st_cterm_window_ansi_restore(st_cterm_t *destination,const struct st_cterm_window_definition *d,const st_cterm_t *resources)
+{
+	if (d==NULL || !d->ansi) return IO_ERROR_INVALID_ARGUMENT;
+	return restore_definition(destination,d,resources);
 }

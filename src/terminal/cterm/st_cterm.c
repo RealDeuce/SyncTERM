@@ -2579,6 +2579,7 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size,
 		status = cterm_render_take_error(owner->status_sub);
 	while (*consumed < size && status == 0) {
 		st_cterm_t *target = input_display(owner);
+		if (target->rip3_window_action!=ST_CTERM_RIP3_WINDOW_NONE) break;
 		uint8_t byte = input[*consumed];
 		bool text_mode = utf8 || target->emulation == CTERM_EMULATION_ANSI_BBS
 		    || target->emulation == CTERM_EMULATION_ATARIST_VT52;
@@ -2696,6 +2697,15 @@ write_plain(st_cterm_t *terminal, const void *bytes, size_t size,
 {
 	return cterm_input_write(terminal, bytes, size, consumed,
 	    semantic_utf8 ? CTERM_INPUT_SEMANTIC_UTF8 : CTERM_INPUT_WIRE);
+}
+
+enum st_cterm_rip3_window_action
+st_cterm_take_rip3_window_action(st_cterm_t *terminal)
+{
+	if (terminal==NULL || terminal->input_depth!=0) return ST_CTERM_RIP3_WINDOW_NONE;
+	enum st_cterm_rip3_window_action action=terminal->rip3_window_action;
+	terminal->rip3_window_action=ST_CTERM_RIP3_WINDOW_NONE;
+	return action;
 }
 
 
