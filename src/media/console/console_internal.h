@@ -275,8 +275,11 @@ st_console_raster_visible_height(const st_console_t *console)
 static inline uint32_t
 st_console_raster_colour(const st_console_t *console, uint32_t colour)
 {
-	return console->raster_parent==NULL || ST_CONSOLE_COLOR_IS_RGB(colour) ? colour
-	    : ST_CONSOLE_COLOR_RGB_TAG|(colour<=UINT16_MAX ? console->palette[colour] : 0);
+	if (console->raster_parent == NULL)
+		return colour;
+	uint32_t rgb = ST_CONSOLE_COLOR_IS_RGB(colour) ? colour & UINT32_C(0xffffff)
+	    : colour <= UINT16_MAX ? console->palette[colour] : 0;
+	return ST_CONSOLE_COLOR_RGB_TAG | ST_CONSOLE_COLOR_VIEW_RGB | rgb;
 }
 
 static inline void

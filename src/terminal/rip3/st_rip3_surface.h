@@ -74,10 +74,12 @@ int st_rip3_surface_capture_area_raw(const struct st_rip3_surface *,
 /* Project between independent raw captures in both destination phases.
  * Rectangles are logical offsets from the corresponding snapshot origins. */
 int st_rip3_surface_copy_snapshots(struct st_pixel_buffer *,const struct st_rip3_rect *,
-	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode);
+	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode,
+	const struct st_rip3_palette *);
 /* Borrow an independent raw source snapshot for one projected transfer. */
 int st_rip3_surface_copy_from_raw(struct st_rip3_surface *,const struct st_rip3_rect *,
-	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode);
+	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode,
+	const struct st_rip3_palette *);
 int st_rip3_surface_restore_raw(struct st_rip3_surface *,const struct st_pixel_buffer *);
 /* Copy a prepared, fully contained raw region and mark its primary pixels. */
 int st_rip3_surface_restore_area_raw(struct st_rip3_surface *,const struct st_pixel_buffer *,
@@ -133,6 +135,12 @@ int st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 	const struct st_rip3_rect *destination_area,
 	const struct st_rip3_surface *source,
 	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode);
+/* PUT_IMAGE Boolean modes promote mixed operands using the paste palette.
+ * Two indexed pixels still use the surface's 256-index logical domain. */
+int st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
+	const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
+	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode,
+	const struct st_rip3_palette *palette);
 /* Unscaled transfer: source_area's original upper-left maps to destination_x/y.
  * Clipping either operand discards the corresponding pixels in both operands,
  * preserving that translation. The uncovered source is retained. Overlap reads

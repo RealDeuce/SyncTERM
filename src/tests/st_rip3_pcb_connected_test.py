@@ -183,6 +183,64 @@ def run(args,width,height):
         frame=copy(0,(x,0,x+2,1),0,(x+1,0,x+3,1),1)
         assert [pixel(frame,i,0) for i in range(x,x+4)]==[0x112233,0xb192f3,0,0xa0b0c0]
 
+        def palette_entry(index,rgb):
+            return b'd'+number(index,2,64)+b'8'+number(rgb,4,64)
+        def paste(x,y,mode):
+            return b'1P'+coords((x,y))+number(mode,2)+b'0'
+
+        t.case('rip3-put-image-mixed-operands-use-the-published-paste-palette')
+        wire(palette_entry(1,0xff0000))
+        bar(1,(250,250,251,251))
+        wire(b'1C'+coords((250,250,250,250)))
+        wire(palette_entry(1,0xa854ff)+b'|M18')
+        frame=t.exchange(b'\x1b[1;61H\x1b[48;2;17;34;51m   ')
+        region(frame,(start,0,end,2),0x112233)
+        mixed=(0xb976cc,0xb976ff,0x000033)
+        frame=wire(b'|'.join(paste(start+i*cell_width,0,i+1) for i in range(3)))
+        for i,rgb in enumerate(mixed):
+            x=start+i*cell_width
+            region(frame,(x,0,x+2,2),rgb)
+
+        define(11,(0,0,6,2))
+        copy(0,(start+3,0,start+4,1),11,(0,0,6,2))
+        wire(b'2sB00|'+b'|'.join(paste(2*i,0,i+1) for i in range(3))+b'|2s000')
+        frame=copy(11,(0,0,6,2),0,(450,320,456,322))
+        for i,rgb in enumerate(mixed):
+            region(frame,(450+2*i,320,452+2*i,322),rgb)
+
+        t.case('rip3-put-image-composes-captured-rgb-over-drawing-indexes')
+        wire(b'M08')
+        bar(1,(450,325,455,326))
+        wire(b'1C'+coords((start+3,0,start+3,0)))
+        frame=wire(b'|'.join(paste(450+2*i,325,i+1) for i in range(3)))
+        for i,rgb in enumerate(mixed):
+            region(frame,(450+2*i,325,452+2*i,327),rgb)
+
+        t.case('rip3-get-image-distinguishes-identical-ansi-rgb-and-rip-indexes')
+        bar(1,(start,0,start+cell_width-1,3))
+        frame=t.exchange(b'\x1b[1;61H\x1b[48;2;168;84;255m ')
+        region(frame,(start,0,start+cell_width,4),0xa854ff)
+        wire(b'1C'+coords((start,0,start,0)))
+        frame=wire(palette_entry(1,0x0000ff))
+        region(frame,(start,0,start+cell_width,4),0xa854ff)
+        bar(1,(450,330,451,331))
+        frame=wire(paste(450,330,1))
+        region(frame,(450,330,452,332),0xa85400)
+
+        t.case('rip3-put-image-keeps-the-256-index-domain-in-rgb-input-mode')
+        wire(b'|'.join(palette_entry(index,rgb) for index,rgb in
+                      ((0xa3,0xff0000),(0xa7,0x00ff00),(0x04,0x0000ff))))
+        bar(0xa6,(250,250,251,251))
+        wire(b'1C'+coords((250,250,250,250)))
+        bar(5,(450,335,455,336))
+        frame=wire(b'M18|'+b'|'.join(paste(450+2*i,335,i+1) for i in range(3)))
+        for i,rgb in enumerate((0xff0000,0x00ff00,0x0000ff)):
+            region(frame,(450+2*i,335,452+2*i,337),rgb)
+        frame=wire(palette_entry(0xa3,0x00ffff))
+        region(frame,(450,335,452,337),0x00ffff)
+        wire(b'M08')
+        values(b'$RESET(PAL,17)$')
+
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')
         wire(b'1C010103030|2s100')
         # Put the known samples in the captured tile independently of capture scaling.

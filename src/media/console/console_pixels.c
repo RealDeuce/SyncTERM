@@ -325,7 +325,7 @@ composite_rgb(st_console_t *console, const uint8_t *channels, uint32_t alpha,
 	uint32_t background)
 {
 	uint32_t rgb;
-	uint32_t result = ST_CONSOLE_COLOR_RGB_TAG;
+	uint32_t result = ST_CONSOLE_COLOR_RGB_TAG | (background & ST_CONSOLE_COLOR_VIEW_RGB);
 
 	if (alpha == 0)
 		return background;

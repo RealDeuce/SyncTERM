@@ -161,8 +161,8 @@ transfer_test(void)
 	CHECK(st_rip3_surface_copy_projected(surface, &source, surface, &target,
 	    ST_RIP3_TRANSFER_INVERT) == 0);
 	CHECK(st_rip3_surface_read_color(surface, 0, 0, &value) == 0 && value == rgb);
-	const uint32_t rgb_results[] = {0xb192f3, 0xb1b2f3, 0x002000};
-	uint32_t background = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xa0b0c0);
+	const uint32_t rgb_results[] = {0x517253, 0x517273, 0x000020};
+	uint32_t background = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x405060);
 	const struct st_pixel_buffer backdrop = {.width=1,.height=1,.primary=&background};
 	for (size_t i = 0; i < sizeof(rgb_results) / sizeof(rgb_results[0]); i++) {
 		enum st_rip3_transfer_mode mode = (enum st_rip3_transfer_mode)(ST_RIP3_TRANSFER_XOR + i);
@@ -170,6 +170,22 @@ transfer_test(void)
 		CHECK(st_rip3_surface_copy_projected(surface, &target, surface, &source, mode) == 0);
 		CHECK(st_rip3_surface_read_color(surface, 1, 0, &value) == 0
 		    && value == (ST_PIXEL_COLOR_RGB_TAG | rgb_results[i]));
+	}
+	const struct st_rip3_palette palette = {.rgb = {[1] = 0xa0b0c0}};
+	const uint32_t mixed_results[] = {0xb192f3, 0xb1b2f3, 0x002000};
+	const uint32_t indexed = 1;
+	uint32_t inputs[2];
+	const struct st_pixel_buffer pair = {.width=2,.height=1,.primary=inputs};
+	for (unsigned direction = 0; direction < 2; direction++) {
+		inputs[direction] = rgb;
+		inputs[1-direction] = indexed;
+		for (size_t i = 0; i < sizeof(mixed_results) / sizeof(mixed_results[0]); i++) {
+			enum st_rip3_transfer_mode mode = (enum st_rip3_transfer_mode)(ST_RIP3_TRANSFER_XOR + i);
+			CHECK(st_rip3_surface_restore_raw(surface, &pair) == 0);
+			CHECK(st_rip3_surface_copy_projected_colors(surface, &target, surface, &source, mode, &palette) == 0);
+			CHECK(st_rip3_surface_read_color(surface, 1, 0, &value) == 0
+			    && value == (ST_PIXEL_COLOR_RGB_TAG | mixed_results[i]));
+		}
 	}
 	st_rip3_surface_destroy(surface);
 	return 0;

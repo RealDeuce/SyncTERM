@@ -252,10 +252,18 @@ decode_scene_byte(void *context, uint8_t byte, uint8_t output[4])
 	return status == 0 ? size : 0;
 }
 
+struct present_pixels {
+	const struct st_term_rip3 *rip;
+	const struct st_pixel_buffer *previous;
+};
+
+enum { RIP3_PALETTE_DAMAGE = 2 };
+
 static int
 modify(void *context, const struct st_pixel_buffer *destination, struct st_console_rect *changed)
 {
-	struct st_term_rip3 *rip=context;
+	const struct present_pixels *update = context;
+	const struct st_term_rip3 *rip = update->rip;
 	const struct st_pixel_buffer *source=rip->previous;
 	uint32_t left=source->width,top=source->height,right=0,bottom=0;
 	for (uint32_t y=0; y<source->height && y<destination->height; y++) {
@@ -263,8 +271,16 @@ modify(void *context, const struct st_pixel_buffer *destination, struct st_conso
 			size_t i=(size_t)y*source->width+x;
 			if (rip->damage[i]==0) continue;
 			size_t to=(size_t)y*destination->width+x;
-			destination->primary[to]=source->primary[i];
-			if (destination->alternate!=NULL) destination->alternate[to]=source->primary[i];
+			bool palette_only = rip->damage[i] == RIP3_PALETTE_DAMAGE;
+			/* A palette edit only recolors graphics still visible in the
+			 * native raster. Explicit writes can replace ANSI output. */
+			uint32_t old = update->previous->primary[i];
+			bool primary = !palette_only || destination->primary[to] == old;
+			bool alternate = destination->alternate != NULL
+			    && (!palette_only || destination->alternate[to] == old);
+			if (!primary && !alternate) continue;
+			if (primary) destination->primary[to]=source->primary[i];
+			if (alternate) destination->alternate[to]=source->primary[i];
 			if (x<left) left=x;
 			if (y<top) top=y;
 			if (x>=right) right=x+1;
@@ -318,10 +334,12 @@ present_frame(struct st_term_rip3 *rip,bool force)
 	/* Palette edits repaint existing graphics. Explicit paint damage also
 	 * overwrites intervening ANSI ink when a COPY repeats the same index. */
 	for (size_t i=0; i<rip->pixels; i++)
-		if (capture.pixels->primary[i]!=rip->previous->primary[i]) rip->damage[i]=1;
+		if (rip->damage[i] == 0 && capture.pixels->primary[i] != rip->previous->primary[i])
+			rip->damage[i] = RIP3_PALETTE_DAMAGE;
 	struct st_pixel_buffer *old=rip->previous;
 	rip->previous=capture.pixels;
-	status=st_console_modify_pixels(rip->config.console,modify,rip);
+	struct present_pixels update = {rip, old};
+	status=st_console_modify_pixels(rip->config.console,modify,&update);
 	if (status==0) {
 		rip->presented=revision;memset(rip->damage,0,rip->pixels);
 		st_pixel_buffer_destroy(old);
@@ -945,13 +963,13 @@ scene_end(void *context, void *state)
 }
 
 /* Explicit screen saves merge native ANSI ink into the existing raw graphics
- * capture. Reuse the last presented RGB image to retain underlying palette
- * indexes/literal reset black wherever native output has not changed the pixel.
- * These temporary buffers are backup work, never a second resident scene. */
+ * capture. Native view pixels carry their palette origin even when their RGB
+ * matches the last presented graphics color. */
 static uint32_t
 native_rgb(uint32_t value,const uint32_t *palette)
 {
-	return ST_PIXEL_COLOR_IS_RGB(value) ? value : ST_PIXEL_COLOR_RGB_TAG|palette[value];
+	return ST_PIXEL_COLOR_RGB_TAG | (ST_PIXEL_COLOR_IS_RGB(value)
+	    ? value & UINT32_C(0xffffff) : palette[value]);
 }
 static int
 screen_capture(void *context,struct st_pixel_buffer *pixels)
@@ -973,12 +991,11 @@ screen_capture(void *context,struct st_pixel_buffer *pixels)
 	if (status==0 && native->alternate!=NULL) status=st_pixel_buffer_ensure_alternate(pixels);
 	if (status==0) for (size_t i=0;i<count;i++) {
 		uint32_t expected=rip->previous->primary[i];
-		uint32_t value=native_rgb(native->primary[i],palette);
-		if (value!=expected) pixels->primary[i]=value;
-		if (pixels->alternate!=NULL) {
-			value=native_rgb(native->alternate[i],palette);
-			if (value!=expected) pixels->alternate[i]=value;
-		}
+		uint32_t alternate = native->alternate == NULL ? native->primary[i] : native->alternate[i];
+		if (native->primary[i] != expected)
+			pixels->primary[i] = native_rgb(native->primary[i], palette);
+		if (pixels->alternate != NULL && alternate != expected)
+			pixels->alternate[i] = native_rgb(alternate, palette);
 	}
 	free(palette);st_pixel_buffer_destroy(native);return status;
 }
@@ -1014,12 +1031,11 @@ screen_read(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer
 		 * Keep that unpresented graphics write instead of importing older native
 		 * ink over it. Reuse the existing paint bits, with no new damage map. */
 		if (rip->damage[absolute]!=0) continue;
-		uint32_t value=native_rgb(native->primary[at],palette);
-		if (value!=rip->previous->primary[absolute]) pixels->primary[at]=value;
-		if (pixels->alternate!=NULL) {
-			value=native_rgb(other[at],palette);
-			if (value!=rip->previous->primary[absolute]) pixels->alternate[at]=value;
-		}
+		uint32_t expected = rip->previous->primary[absolute];
+		if (native->primary[at] != expected)
+			pixels->primary[at] = native_rgb(native->primary[at], palette);
+		if (pixels->alternate != NULL && other[at] != expected)
+			pixels->alternate[at] = native_rgb(other[at], palette);
 	}
 	free(palette);st_pixel_buffer_destroy(native);return status;
 }

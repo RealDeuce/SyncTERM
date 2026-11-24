@@ -672,7 +672,8 @@ publish_copy(struct st_rip3_ports *ports,unsigned source,const struct st_rip3_re
 
 static int
 copy_native_screen(struct st_rip3_ports *ports,const struct st_rip3_rect *from,
-    unsigned destination,const struct st_rip3_rect *to,enum st_rip3_transfer_mode mode)
+    unsigned destination,const struct st_rip3_rect *to,enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *operand_palette)
 {
 	struct st_rip3_rect source=*from,target=*to;
 	struct st_rip3_rect target_bounds=ports->entries[destination].info.offscreen
@@ -684,7 +685,9 @@ copy_native_screen(struct st_rip3_ports *ports,const struct st_rip3_rect *from,
 	/* Absolute logical source starts are nonnegative, so physical clipping
 	 * only removes far edges. Retain the original logical span for sampling. */
 	const struct st_rip3_rect local={0,0,from->x1-from->x0,from->y1-from->y0};
-	if (status==0 && snapshot!=NULL) status=st_rip3_surface_copy_from_raw(port_surface(ports,destination),to,snapshot,&local,mode);
+	if (status == 0 && snapshot != NULL)
+		status = st_rip3_surface_copy_from_raw(port_surface(ports,destination), to,
+		    snapshot, &local, mode, operand_palette);
 	st_pixel_buffer_destroy(snapshot);return status;
 }
 
@@ -837,7 +840,8 @@ projected_coverage(uint64_t source, uint64_t destination, uint64_t physical_sour
 static int
 compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, const struct st_rip3_rect *destination_area,
-    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
+    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette,
+    bool promote_indexed)
 {
 	bool source_on_screen = !ports->entries[source].info.offscreen;
 	struct st_rip3_rect source_bounds = source_on_screen
@@ -869,7 +873,8 @@ compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
 	if (status == 0)
 		status = blit_capture(ports, ports->screen, &to, true, &destination_pixels);
 	if (status == 0 && source_pixels != NULL && destination_pixels != NULL) {
-		status = st_rip3_surface_copy_snapshots(destination_pixels, &logical_target, source_pixels, &logical_source, mode);
+		status = st_rip3_surface_copy_snapshots(destination_pixels, &logical_target,
+		    source_pixels, &logical_source, mode, promote_indexed ? palette : NULL);
 		if (status == 0)
 			status = st_rip3_surface_restore_area_raw(ports->screen, destination_pixels,
 			    (uint32_t)to.x0, (uint32_t)to.y0);
@@ -908,9 +913,9 @@ copy_port_area(struct st_rip3_ports *ports, unsigned source,
 	int status;
 	if (!dst->info.offscreen && ports->screen_reader != NULL
 	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
-		status = compose_screen_transfer(ports, source, &from, &to, mode, palette);
+		status = compose_screen_transfer(ports, source, &from, &to, mode, palette, false);
 	else if (!src->info.offscreen && ports->screen_reader != NULL)
-		status = copy_native_screen(ports, &from, destination, &to, mode);
+		status = copy_native_screen(ports, &from, destination, &to, mode, NULL);
 	else
 		status = st_rip3_surface_copy_projected(port_surface(ports, destination), &to,
 		    port_surface(ports, source), &from, mode);
@@ -1036,9 +1041,12 @@ blit(struct st_rip3_ports *ports, unsigned source,
 	int status;
 	if (read_inactive && !dst->info.offscreen && ports->screen_reader != NULL
 	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
-		status = compose_screen_transfer(ports, source, &logical_source, &logical_destination, mode, palette);
+		status = compose_screen_transfer(ports, source, &logical_source, &logical_destination, mode, palette, true);
 	else if (!src->info.offscreen && ports->screen_reader != NULL)
-		status = copy_native_screen(ports, &logical_source, destination, &logical_destination, mode);
+		status = copy_native_screen(ports, &logical_source, destination, &logical_destination, mode, palette);
+	else if (palette != NULL)
+		status = st_rip3_surface_copy_projected_colors(port_surface(ports, destination),
+		    &logical_destination, port_surface(ports, source), &logical_source, mode, palette);
 	else
 		status = st_rip3_surface_blit(port_surface(ports, destination),
 		    &destination_view, (int32_t)x, (int32_t)y,

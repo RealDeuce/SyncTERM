@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/230",
-  "revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
-  "previous_revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/232",
+  "revision": "1859b08987dddff557233533ace1bba664c608ec",
+  "previous_revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PR #230 was open upstream. Its tree matches the pinned fork stable integration.",
-  "archive_sha256": "b1cc7fdd9fe6e0afe1a3e4d2a111665d07cba77b9e1fec5dcfb255c329900cb1",
+  "upstream_state_at_adoption": "PR #232 was open upstream. Its tree matches the pinned fork stable integration.",
+  "archive_sha256": "67ec15a54a06e064d397ac5b8bdf6a1fc88b68c6e25d83d563a5d2e3a44472d1",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,24 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "previous_sha256": "b068963e464fd3496e29bcd6bb1d20f3f2b64c2ba339cf0f8ef2069e2d1df609",
-      "sha256": "dd318b39bb441818cda4dd71d193fb1e168b20885942403ae081efb4c46ed57f"
-    },
-    {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1",
-      "sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a"
-    },
-    {
-      "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "previous_sha256": "bb4b9cb71da592d89def383efbbce2f096b43556e0a366f1bc04bab2c538db1a",
-      "sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af"
+      "previous_sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a",
+      "sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9311,
+  "matched_source_blocks": 9325,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -968,7 +958,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 88,
+  "upstream_issue_resolutions": 89,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1641,6 +1631,12 @@
       "sha256": "eff3a5d719d96832613671abf7f2489d912cfc0a933939e9b57244ba9615b1a7",
       "title": "Issue #229 — PUT_IMAGE source viewport and reserved digit",
       "role": "Handler, viewport and compositor instruction traces and a portable wire example."
+    },
+    {
+      "path": "version/3.0/research/issue-231-put-image-color-domain.md",
+      "sha256": "e7dc3e8d7400e3fc17780df8fb0a19029c8364e76ae4ce0fa2eb3df4ebe34b72",
+      "title": "Issue #231 — PUT_IMAGE Boolean color operands",
+      "role": "Windows compositor calls and the portable capture and paste color-domain rule."
     }
   ],
   "documents": [
@@ -1774,7 +1770,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a"
+      "sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1917,7 +1913,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "8727ca4f4421b57877e645dc35e19d50b58e69bd",
+  "previous_ledger_commit": "6b99c897b3ec6abfce53823c53dfa6bf809b024d",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18337,6 +18333,65 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+      "revision": "1859b08987dddff557233533ace1bba664c608ec",
+      "archive_sha256": "67ec15a54a06e064d397ac5b8bdf6a1fc88b68c6e25d83d563a5d2e3a44472d1",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/231",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/232",
+          "reviewed_head": "1dbc2076584f6ecbb0872e46c2e0a5ffcc34e82f",
+          "integration": "1859b08987dddff557233533ace1bba664c608ec"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a",
+          "sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-231-put-image-color-domain.md",
+          "sha256": "e7dc3e8d7400e3fc17780df8fb0a19029c8364e76ae4ce0fa2eb3df4ebe34b72",
+          "title": "Issue #231 — PUT_IMAGE Boolean color operands",
+          "role": "Windows compositor calls and the portable capture and paste color-domain rule."
+        }
+      ],
+      "moved_source_blocks": 216,
+      "new_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:61",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:103",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:105",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:106",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:107",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:108",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:109",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:111",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:115",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:117",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:118",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:119",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:120",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:121",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:122",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:123",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:124",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:126"
+      ],
+      "retired_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1913,
+        "pending": 1452,
+        "implemented": 3724,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -23571,6 +23626,55 @@
         "context": 1907,
         "pending": 1455,
         "implemented": 3709,
+        "excluded": 71,
+        "blocked": 20
+      }
+    },
+    {
+      "after_commit": "6b99c897b3ec6abfce53823c53dfa6bf809b024d",
+      "revision": "1859b08987dddff557233533ace1bba664c608ec",
+      "scope": "Retain captured color identity and implement PUT_IMAGE Boolean domain selection for current screen and offscreen destinations. Use the active published palette for mixed operands.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/231"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:61",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:90",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:91",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:92",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:103",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:107",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:108",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:109",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:111",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:120",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:121",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:122",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:123",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:124",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:126"
+      ],
+      "tests": [
+        "rip3_paste_commands",
+        "rip3_surface_copy",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_pcb",
+        "rip3_contract",
+        "rip154_source_freeze",
+        "syncterm_rip154_raster_CP437",
+        "syncterm_rip3_ansi_save_CP437",
+        "syncterm_rip3_ansi_save_UTF-8",
+        "syncterm_rip3_scroll_CP437",
+        "syncterm_rip3_scroll_UTF-8",
+        "syncterm_rip3_header_CP437",
+        "syncterm_rip3_screen_CP437"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1913,
+        "pending": 1452,
+        "implemented": 3724,
         "excluded": 71,
         "blocked": 20
       }

@@ -1419,3 +1419,18 @@ clipboard port supplies its stored viewport even after deactivation.
 An undefined source or inactive destination skips the paste and retains the
 previous pair. Senders emit zero in the reserved digit, and portable
 receivers ignore its value.
+
+## PR #232 clipboard paste color domain
+
+The reference advances to fork stable integration `1859b08987dddff557233533ace1bba664c608ec`.
+Its tree matches PR #232 head `1dbc2076584f6ecbb0872e46c2e0a5ffcc34e82f`.
+The uncompressed Git archive has SHA-256
+`67ec15a54a06e064d397ac5b8bdf6a1fc88b68c6e25d83d563a5d2e3a44472d1`.
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/1859b08987dddff557233533ace1bba664c608ec), [PR #232](https://github.com/bbs-land/remote-imaging-protocol/pull/232)
+
+The bitmap chapter retains its previous source units, moves 216 to new
+line ranges and adds 18. Issue #231 is resolved by the portable rules for
+captured logical colors and `1P` modes 01–03. SyncTERM implements the
+256-index destination domain and resolves mixed operands through the
+current published palette. The reference's 16-index example describes
+clients with that logical destination domain.

@@ -234,12 +234,19 @@ write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode)
 }
 
 static uint32_t
-transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode mode)
+transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
 	if (mode == ST_RIP3_TRANSFER_COPY)
 		return source;
 	if (mode == ST_RIP3_TRANSFER_INVERT)
 		return source ^ (ST_PIXEL_COLOR_IS_RGB(source) ? UINT32_C(0xffffff) : UINT32_C(0xff));
+	if (palette != NULL && ST_PIXEL_COLOR_IS_RGB(destination | source)) {
+		if (!ST_PIXEL_COLOR_IS_RGB(destination))
+			destination = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)destination];
+		if (!ST_PIXEL_COLOR_IS_RGB(source))
+			source = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)source];
+	}
 	if (ST_PIXEL_COLOR_IS_RGB(destination & source)) {
 		switch (mode) {
 			case ST_RIP3_TRANSFER_XOR: return ST_PIXEL_COLOR_RGB_TAG | ((destination ^ source) & UINT32_C(0xffffff));
@@ -254,17 +261,18 @@ transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode
 int
 st_rip3_surface_copy_snapshots(struct st_pixel_buffer *destination,
     const struct st_rip3_rect *to, const struct st_pixel_buffer *source,
-    const struct st_rip3_rect *from, enum st_rip3_transfer_mode mode)
+    const struct st_rip3_rect *from, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
 	struct st_rip3_surface dst = {.pixels=destination->primary,.width=destination->width,.height=destination->height};
 	struct st_rip3_surface src = {.pixels=source->primary,.width=source->width,.height=source->height};
-	int status = st_rip3_surface_copy_projected(&dst, to, &src, from, mode);
+	int status = st_rip3_surface_copy_projected_colors(&dst, to, &src, from, mode, palette);
 	if (status != 0 || destination->alternate == NULL)
 		return status;
 	dst.pixels = destination->alternate;
 	if (source->alternate != NULL)
 		src.pixels = source->alternate;
-	return st_rip3_surface_copy_projected(&dst, to, &src, from, mode);
+	return st_rip3_surface_copy_projected_colors(&dst, to, &src, from, mode, palette);
 }
 
 int
@@ -433,7 +441,7 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 			    : source->pixels[((size_t)src.y0 + sy) * source->width
 			    + (uint32_t)src.x0 + sx];
 
-			destination->pixels[offset] = transfer_pixel(destination->pixels[offset], pixel, mode);
+			destination->pixels[offset] = transfer_pixel(destination->pixels[offset], pixel, mode, NULL);
 			if (destination->damage!=NULL) destination->damage[offset]=1;
 		}
 	}
@@ -442,10 +450,11 @@ st_rip3_surface_copy(struct st_rip3_surface *destination,
 }
 
 int
-st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
+st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
     const struct st_rip3_rect *destination_area,
     const struct st_rip3_surface *source,
-    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode)
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
 	struct st_rip3_rect src, dst;
 	uint32_t *saved = NULL;
@@ -485,12 +494,21 @@ st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 			uint32_t pixel = saved != NULL ? saved[(size_t)(sy-src.y0)*saved_width+(size_t)(sx-src.x0)]
 			    : source->pixels[(size_t)sy*source->width+(size_t)sx];
 			size_t offset = (size_t)y*destination->width+(uint32_t)x;
-			destination->pixels[offset] = transfer_pixel(destination->pixels[offset], pixel, mode);
+			destination->pixels[offset] = transfer_pixel(destination->pixels[offset], pixel, mode, palette);
 			if (destination->damage!=NULL) destination->damage[offset]=1;
 		}
 	}
 	free(saved);
 	return 0;
+}
+
+int
+st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
+    const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
+    const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode)
+{
+	return st_rip3_surface_copy_projected_colors(destination, destination_area,
+	    source, source_area, mode, NULL);
 }
 
 int
@@ -634,7 +652,8 @@ st_rip3_surface_capture_area_raw(const struct st_rip3_surface *surface,
 
 int
 st_rip3_surface_copy_from_raw(struct st_rip3_surface *destination,const struct st_rip3_rect *to,
-    const struct st_pixel_buffer *source,const struct st_rip3_rect *from,enum st_rip3_transfer_mode mode)
+    const struct st_pixel_buffer *source,const struct st_rip3_rect *from,enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
 	if (source==NULL || source->primary==NULL || source->width==0 || source->height==0
 	    || source->width>INT32_MAX || source->height>INT32_MAX) return IO_ERROR_INVALID_ARGUMENT;
@@ -642,7 +661,7 @@ st_rip3_surface_copy_from_raw(struct st_rip3_surface *destination,const struct s
 	for (size_t i=0;i<(size_t)source->width*source->height;i++)
 		if (!ST_PIXEL_COLOR_IS_RGB(source->primary[i]) && source->primary[i]>255) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_surface borrowed={.pixels=source->primary,.width=source->width,.height=source->height};
-	return st_rip3_surface_copy_projected(destination,to,&borrowed,from,mode);
+	return st_rip3_surface_copy_projected_colors(destination,to,&borrowed,from,mode,palette);
 }
 
 int

@@ -21,6 +21,9 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 
 /* Indexed colours use values 0 through 65535. RGB colours have this tag. */
 #define ST_CONSOLE_COLOR_RGB_TAG ST_PIXEL_COLOR_RGB_TAG
+/* Resolved RGB written by a raster view keeps its local palette origin in
+ * shared pixels. The renderer still reads only the low 24 color bits. */
+#define ST_CONSOLE_COLOR_VIEW_RGB UINT32_C(0x40000000)
 #define ST_CONSOLE_COLOR_RGB_VALUE(red, green, blue) \
 	ST_PIXEL_COLOR_RGB_VALUE((red), (green), (blue))
 #define ST_CONSOLE_COLOR_IS_RGB(colour) \

@@ -10092,6 +10092,18 @@ the existing console hooks. Native tests verify the full-width results.
 Connected CP437 and UTF-8 tests check all three modes against a direct RGB
 ANSI background and XOR against both colors of a blinking ANSI glyph.
 
+For mixed operands, `1P` resolves the index through the drawing palette
+published at paste time and stores a direct RGB result. When both operands
+are indexed, SyncTERM combines the indices in its 256-color logical domain
+and stores the resulting index. The ENV color mode controls later wire
+decoding and leaves captured pixel types intact. Raster views identify
+their RGB pixels in the shared console raster, so capture can distinguish
+an ANSI write even when it matches the previous drawing palette color.
+Palette publication recolors indexed drawing pixels still visible in that
+raster. The new connected cases check both mixed operand orders, offscreen
+paste, palette changes, and indexed composition with RGB decoding active.
+[PR #232](https://github.com/bbs-land/remote-imaging-protocol/pull/232)
+
 ## RGB port-copy composition
 
 `2C` modes `1`–`3` read the visible screen destination before applying
@@ -10105,5 +10117,4 @@ Live CP437 and UTF-8 sessions check a four-to-two RGB fit in all four
 non-COPY modes and an overlapping RGB XOR. The native PCB test checks
 a clipped four-to-three transfer, a successful zero-coverage fit, and
 pair retention after a failed destination read. Mixed indexed/RGB
-conversion and indexed mask width for both commands await clarification.
-[Issue #231](https://github.com/bbs-land/remote-imaging-protocol/issues/231)
+conversion and active indexed mask width for `2C` remain pending.
