@@ -70,7 +70,7 @@ protection_and_errors(void)
 	const uint32_t colors[] = {0x123456,0x654321};
 	const uint32_t invalid[] = {0x000000,0x1000000};
 	const unsigned masters[] = {4,63};
-	const unsigned bad_masters[] = {1,64};
+	const unsigned bad_masters[] = {64,1};
 	unsigned current = 77;
 	uint8_t index = 77;
 
@@ -108,7 +108,7 @@ protection_and_errors(void)
 	CHECK(st_rip3_palettes_protect(palettes, 35, false) == 0);
 	CHECK(st_rip3_palettes_desktop(palettes, 0, masters, 2) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 35, &palette) == 0);
-	CHECK(palette.rgb[0] == 0xaa0000 && palette.rgb[1] == 0xffffff);
+	CHECK(palette.rgb[0] == 0xa80000 && palette.rgb[1] == 0xffffff);
 	st_rip3_palettes_destroy(palettes);
 	return 0;
 }

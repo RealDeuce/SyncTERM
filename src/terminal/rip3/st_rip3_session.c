@@ -1482,8 +1482,7 @@ header_segment(struct st_rip3_session *session, const struct st_rip3_header_segm
 		(void)st_rip3_palettes_current(host->palettes, &current);
 		if (flags & 4) st_rip3_palettes_header_prune(host->palettes, current);
 		header_backups(session, ST_RIP3_TABLE_PAL, flags >> 3);
-		/* The indexed renderer resolves the current palette on presentation.
-		 * Uploading its existing entries under bit 64 or 128 is idempotent. */
+		if (flags & 64) st_rip3_palettes_header_upload(host->palettes);
 		break;
 	case 5:
 		st_rip3_environments_header(host->environments, flags & 7, slot, 0, 0);

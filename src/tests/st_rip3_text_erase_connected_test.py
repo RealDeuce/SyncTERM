@@ -53,7 +53,7 @@ def controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
     # must not alter STYLE-blue COPY erasure through the full display row.
     eol = (ox+3*cw, oy+2*ch, (columns-3)*cw, ch)
     frame = t.exchange(b"\x01|> erase to end\r\n")
-    expect_region(frame, width, height, eol, 0x0000aa)
+    expect_region(frame, width, height, eol, 0x0000a8)
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 3)
     assert frame.application["cterm.attr"] == 0x44
     frame = t.exchange(b"\x01|a0109\r\n")

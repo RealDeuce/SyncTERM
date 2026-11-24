@@ -143,7 +143,7 @@ def run(args, width, height):
         values(b'$ISPROT(PAL,5)$', b'1')
         # Selection in the same segment realizes the new palette before upload.
         frame = capture(b'\x01|h010000014326\r\n')
-        assert pixel(frame, 40, 40) == 0x00aa00 and pixel(frame, 0, 0) == 0x132535
+        assert pixel(frame, 40, 40) == 0x00a800 and pixel(frame, 0, 0) == 0x132535
         values(b'$RESET(SOFT)$')
         capture(b'\x01|h010000014305\r\n')
         values(b'$CUR(PAL)$:$INUSE(PAL,6)$:$ISPROT(PAL,5)$', b'6:0:1')

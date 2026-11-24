@@ -68,11 +68,12 @@ int
 st_rip3_palette_desktop(struct st_rip3_palette *palette, size_t start,
     const unsigned *master_colors, size_t count)
 {
+	static const unsigned levels[] = {0, 84, 168, 255};
 	unsigned master_copy[16];
 
 	if (palette == NULL || (master_colors == NULL && count != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (start > 16 || count > 16 - start)
+	if (start > 256 || count > 256 - start || count > 16)
 		return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i = 0; i < count; i++) {
 		if (master_colors[i] > 63)
@@ -82,9 +83,9 @@ st_rip3_palette_desktop(struct st_rip3_palette *palette, size_t start,
 		master_copy[i] = master_colors[i];
 	for (size_t i = 0; i < count; i++) {
 		unsigned color = master_copy[i];
-		unsigned r = (((color >> 2) & 1) * 2 + ((color >> 5) & 1)) * 85;
-		unsigned g = (((color >> 1) & 1) * 2 + ((color >> 4) & 1)) * 85;
-		unsigned b = ((color & 1) * 2 + ((color >> 3) & 1)) * 85;
+		unsigned r = levels[((color >> 2) & 1) * 2 + ((color >> 5) & 1)];
+		unsigned g = levels[((color >> 1) & 1) * 2 + ((color >> 4) & 1)];
+		unsigned b = levels[(color & 1) * 2 + ((color >> 3) & 1)];
 
 		palette->rgb[start + i] = rgb(r, g, b);
 	}

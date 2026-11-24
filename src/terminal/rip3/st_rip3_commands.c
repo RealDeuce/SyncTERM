@@ -123,7 +123,7 @@ desktop_palette(const struct st_rip3_command_host *host,
 		status = st_rip3_command_next_field(&fields, &value, 2, environment.base_math, false);
 		if (status != 0)
 			return status;
-		if (value > 15)
+		if (value > 255)
 			return IO_ERROR_OUT_OF_RANGE;
 		start = (size_t)value;
 		entries = 1;
@@ -133,14 +133,12 @@ desktop_palette(const struct st_rip3_command_host *host,
 		    i + 1 == entries);
 		if (status != 0)
 			return status;
-		if (value > 63)
-			return IO_ERROR_OUT_OF_RANGE;
 		colors[i] = (unsigned)value;
 	}
-	/* No state changes before every field passes. ENV supplies only the
-	 * radix; the bound palette's current entry and protection own the edit. */
-	*operation = true;
-	return st_rip3_palettes_desktop(host->palettes, start, colors, entries);
+	/* Collect every wire field before the palette processes decoded values. */
+	status = st_rip3_palettes_desktop(host->palettes, start, colors, entries);
+	*operation = status != IO_ERROR_OUT_OF_RANGE;
+	return status;
 }
 
 static uint32_t

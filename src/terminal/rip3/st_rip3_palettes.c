@@ -5,6 +5,7 @@
 #include "io_error.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 struct palette_entry {
 	struct st_rip3_palette_info info;
@@ -14,6 +15,8 @@ struct palette_entry {
 struct st_rip3_palettes {
 	unsigned current;
 	struct palette_entry entries[36];
+	/* A failed Q may update stored RGB without publishing any of its edits. */
+	struct st_rip3_palette published;
 };
 
 int
@@ -28,6 +31,7 @@ st_rip3_palettes_create(struct st_rip3_palettes **result)
 		return IO_ERROR_OUT_OF_MEMORY;
 	(void)st_rip3_palette_defaults(&palettes->entries[0].palette);
 	palettes->entries[0].info.defined = true;
+	palettes->published = palettes->entries[0].palette;
 	*result = palettes;
 	return 0;
 }
@@ -72,7 +76,16 @@ st_rip3_palettes_switch(struct st_rip3_palettes *palettes, unsigned number)
 		palettes->entries[number].info.defined = true;
 	}
 	palettes->current = number;
+	palettes->published = palettes->entries[number].palette;
 	return status;
+}
+
+void
+st_rip3_palettes_header_upload(struct st_rip3_palettes *palettes)
+{
+	const struct palette_entry *entry = &palettes->entries[palettes->current];
+	if (entry->info.defined && !entry->info.protected)
+		palettes->published = entry->palette;
 }
 
 int
@@ -117,18 +130,38 @@ int
 st_rip3_palettes_desktop(struct st_rip3_palettes *palettes, size_t start,
     const unsigned *master_colors, size_t count)
 {
-	struct palette_entry *entry;
-
-	if (palettes == NULL)
+	if (palettes == NULL || (master_colors == NULL && count != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	entry = &palettes->entries[palettes->current];
+	struct palette_entry *entry = &palettes->entries[palettes->current];
 	if (entry->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
-	return st_rip3_palette_desktop(&entry->palette, start, master_colors, count);
+	if (start > 256 || count > 256 - start || count > 16)
+		return IO_ERROR_OUT_OF_RANGE;
+	size_t valid = 0;
+	while (valid < count && master_colors[valid] <= 63)
+		valid++;
+	int status = st_rip3_palette_desktop(&entry->palette, start, master_colors, valid);
+	if (status != 0)
+		return status;
+	if (valid != count)
+		return IO_ERROR_OUT_OF_RANGE;
+	memcpy(palettes->published.rgb + start, entry->palette.rgb + start,
+	    count * sizeof(*entry->palette.rgb));
+	return 0;
 }
 
 int
 st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
+    struct st_rip3_palette *result)
+{
+	if (palettes == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*result = palettes->published;
+	return 0;
+}
+
+int
+st_rip3_palettes_current_stored(const struct st_rip3_palettes *palettes,
     struct st_rip3_palette *result)
 {
 	if (palettes == NULL || result == NULL)
@@ -149,6 +182,8 @@ st_rip3_palettes_reset_entry(struct st_rip3_palettes *palettes, unsigned number)
 		return IO_ERROR_PERMISSION_DENIED;
 	(void)st_rip3_palette_defaults(&entry->palette);
 	entry->info.defined = number == 0;
+	if (number == palettes->current)
+		palettes->published = entry->palette;
 	return 0;
 }
 
@@ -162,7 +197,10 @@ st_rip3_palettes_reset(struct st_rip3_palettes *palettes, bool hard)
 		if (!palettes->entries[i].info.protected)
 			(void)st_rip3_palettes_reset_entry(palettes,i);
 	}
-	if (hard) palettes->current = 0;
+	if (hard) {
+		palettes->current = 0;
+		palettes->published = palettes->entries[0].palette;
+	}
 	return 0;
 }
 
@@ -187,6 +225,8 @@ st_rip3_palettes_copy_entries(struct st_rip3_palettes *palettes, unsigned source
 	for (size_t i = 0; i < count; i++) {
 		palettes->entries[destinations[i]] = palettes->entries[source];
 		if (destinations[i] == 0) palettes->entries[0].info.protected = false;
+		if (destinations[i] == palettes->current)
+			palettes->published = palettes->entries[source].palette;
 	}
 	return 0;
 }
@@ -202,7 +242,11 @@ st_rip3_palettes_rgb(struct st_rip3_palettes *palettes, size_t start,
 	entry = &palettes->entries[palettes->current];
 	if (entry->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
-	return st_rip3_palette_rgb(&entry->palette, start, bits, colors, count);
+	int status = st_rip3_palette_rgb(&entry->palette, start, bits, colors, count);
+	if (status == 0)
+		memcpy(palettes->published.rgb + start, entry->palette.rgb + start,
+		    count * sizeof(*entry->palette.rgb));
+	return status;
 }
 
 int
@@ -215,7 +259,10 @@ st_rip3_palettes_defaults(struct st_rip3_palettes *palettes)
 	entry = &palettes->entries[palettes->current];
 	if (entry->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
-	return st_rip3_palette_defaults(&entry->palette);
+	int status = st_rip3_palette_defaults(&entry->palette);
+	if (status == 0)
+		palettes->published = entry->palette;
+	return status;
 }
 
 int
@@ -224,8 +271,7 @@ st_rip3_palettes_color(const struct st_rip3_palettes *palettes,
 {
 	if (palettes == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return st_rip3_palette_color(&palettes->entries[palettes->current].palette,
-	    direct, color, result);
+	return st_rip3_palette_color(&palettes->published, direct, color, result);
 }
 
 int
@@ -267,6 +313,7 @@ st_rip3_palettes_restore(struct st_rip3_palettes *palettes,
 	if (palettes == snapshot)
 		return 0;
 	*palettes = *snapshot;
+	palettes->published = palettes->entries[palettes->current].palette;
 	return 0;
 }
 
@@ -309,7 +356,9 @@ st_rip3_palettes_restore_screen(struct st_rip3_palettes *palettes,const struct s
 {
 	if (palettes==NULL || source==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	for (unsigned i=0;i<256;i++) if (source->rgb[i]>0xffffff) return IO_ERROR_OUT_OF_RANGE;
-	palettes->entries[palettes->current].palette=*source;return 0;
+	palettes->entries[palettes->current].palette = *source;
+	palettes->published = *source;
+	return 0;
 }
 
 void

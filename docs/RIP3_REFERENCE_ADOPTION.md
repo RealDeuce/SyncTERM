@@ -1616,3 +1616,16 @@ Wire `E` and `$EGW$` now use the documented HEADER full-port black fill.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/643ca5be60e8669cb45218c5cc172ed27c34cf41),
 [PR #274](https://github.com/bbs-land/remote-imaging-protocol/pull/274)
+
+
+## Master-color palette writes
+
+The reference advances to `65968b292f71b323f70a097c6f32b33cb714a369`.
+The stable tree matches the reviewed PR #276 head
+`bd4cbc53c4579cfaf2c9a85cf15204cf1a86b991`. The Git archive has SHA-256
+`a711e84790da189fcff296a38e26694f13e1de6e97573152a359dad74a1b33ad`.
+The three changed chapters document `a` over the full palette, the
+stored prefix after a `Q` range error, and the RGB publication mapping.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/65968b292f71b323f70a097c6f32b33cb714a369),
+[PR #276](https://github.com/bbs-land/remote-imaging-protocol/pull/276)

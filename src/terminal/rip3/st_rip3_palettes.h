@@ -37,10 +37,11 @@ int st_rip3_palettes_protect_current(struct st_rip3_palettes *palettes, bool pro
  * changing result. No mutable palette/table memory is exposed to callers. */
 int st_rip3_palettes_get(const struct st_rip3_palettes *palettes,
 	unsigned number, struct st_rip3_palette *result);
-/* The selected slot's RGB values remain usable after reset clears its in-use
- * bit. This view neither defines nor reselects it; numbered get still requires
- * a defined slot for PALENTRY and live-entry copy semantics. */
+/* Published RGB for rendering and indexed pixel conversion. */
 int st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
+	struct st_rip3_palette *result);
+/* SCREEN SAVE captures stored RGB even if the selected slot is undefined. */
+int st_rip3_palettes_current_stored(const struct st_rip3_palettes *palettes,
 	struct st_rip3_palette *result);
 /* Screen RESTORE overwrites only current RGB, including protected/undefined
  * slots. Retain current selection and all definition/protection flags. */
@@ -57,8 +58,8 @@ int st_rip3_palettes_reset(struct st_rip3_palettes *palettes, bool hard);
  * at destination zero. Selection is retained; duplicate destinations are legal. */
 int st_rip3_palettes_copy_entries(struct st_rip3_palettes *palettes, unsigned source,
 	const unsigned *destinations, size_t count);
-/* Edit the current palette. Protected entries reject all changes. Underlying
- * setters validate the whole input span before writing any RGB values. */
+/* Both setters reject protected palettes. A master-color range error may
+ * store the valid prefix. Only success publishes the edited span. */
 int st_rip3_palettes_desktop(struct st_rip3_palettes *palettes, size_t start,
 	const unsigned *master_colors, size_t count);
 int st_rip3_palettes_rgb(struct st_rip3_palettes *palettes, size_t start,
@@ -86,6 +87,8 @@ int st_rip3_palettes_restore(struct st_rip3_palettes *palettes,
  * operations accept live st_rip3_palettes objects. Destroy with backup_destroy. */
 /* Header table deletion skips zero, the retained slot and protected entries. */
 void st_rip3_palettes_header_prune(struct st_rip3_palettes *, unsigned keep);
+/* HEADER palette bit 64 republishes a defined, unprotected current slot. */
+void st_rip3_palettes_header_upload(struct st_rip3_palettes *palettes);
 int st_rip3_palettes_backup_create(struct st_rip3_backup **result);
 
 #endif

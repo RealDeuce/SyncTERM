@@ -1,24 +1,22 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/274",
-  "revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
-  "previous_revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/276",
+  "revision": "65968b292f71b323f70a097c6f32b33cb714a369",
+  "previous_revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #274 matches its fork stable integration tree.",
-  "archive_sha256": "59ba7aa1a2af63055b1483910298cdf4b01e060e5e8cbb607a508b4f7d0666b1",
+  "upstream_state_at_adoption": "The open PR #276 matches its fork stable integration tree.",
+  "archive_sha256": "a711e84790da189fcff296a38e26694f13e1de6e97573152a359dad74a1b33ad",
   "normative_scope": [
-    "Wire E and EGW use the shared full-port black fill and preserve port state."
+    "Live master-color palette writes use all 256 indices for a, preserve a failed Q stored prefix, and distinguish stored RGB from published RGB."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/7.0-drawing-ports.md",
-    "version/3.0/ripscrip/9.0-command-reference.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md"
+    "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9507,
+  "matched_source_blocks": 9505,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -952,7 +950,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 135,
+  "upstream_issue_resolutions": 136,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1757,6 +1755,12 @@
       "sha256": "dd7f86fb5abe26bb0de9d996bb81c83c319e9b3189fac31e6eb498daa8cad4c4",
       "title": "Issue #273 — Full-port black erase",
       "role": "Original erase dispatch, shared full-port black-fill helper and independent fill geometry."
+    },
+    {
+      "path": "version/3.0/research/issue-275-master-palette-publication.md",
+      "sha256": "1de213d59fb67d7776dd65d378f370ea6c981af2ed27157afe298dbeac6fc892",
+      "title": "Issue #275 — Master palette range, storage and publication",
+      "role": "Original master-color conversion, palette writes, deferred Q upload and single-entry GDI cutoff."
     }
   ],
   "documents": [
@@ -1866,7 +1870,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "329a1c82f0f749740f2d610e80cb55b4027319f97614b965fbc0f8bec3fa9d61"
+      "sha256": "6dc2c973483a2920f068266c7a30fb30e647203f568e9c16a987c6c27c10ff97"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
@@ -1918,7 +1922,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "af39b7fc28824c4bfaa4b8869d399b4be1bda94a82375e12e0cd9454a704d91a"
+      "sha256": "4970538aa7320708685f582cb509efce184a5244344e2248215027e665c66147"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1962,7 +1966,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "da48482e5e5ef74e96ca18aabcbdcc1c95c8a2fe3124833e1d302349c8e1bd90"
+      "sha256": "5a33f3f6390859a9e2ed36afee0a32677b23db67f29856e6dae110e4c1d96b53"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2033,7 +2037,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "802a74b465f754a0758e3a10097ffccf3e760b72",
+  "previous_ledger_commit": "693363da0007df68d9d0dcbe0b3cd92f73d4c396",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19998,6 +20002,103 @@
         "excluded": 71,
         "blocked": 16
       }
+    },
+    {
+      "previous_revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
+      "revision": "65968b292f71b323f70a097c6f32b33cb714a369",
+      "archive_sha256": "a711e84790da189fcff296a38e26694f13e1de6e97573152a359dad74a1b33ad",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/275",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/276",
+          "reviewed_head": "bd4cbc53c4579cfaf2c9a85cf15204cf1a86b991",
+          "integration": "65968b292f71b323f70a097c6f32b33cb714a369"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+          "previous_sha256": "329a1c82f0f749740f2d610e80cb55b4027319f97614b965fbc0f8bec3fa9d61",
+          "sha256": "6dc2c973483a2920f068266c7a30fb30e647203f568e9c16a987c6c27c10ff97"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "af39b7fc28824c4bfaa4b8869d399b4be1bda94a82375e12e0cd9454a704d91a",
+          "sha256": "4970538aa7320708685f582cb509efce184a5244344e2248215027e665c66147"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "da48482e5e5ef74e96ca18aabcbdcc1c95c8a2fe3124833e1d302349c8e1bd90",
+          "sha256": "5a33f3f6390859a9e2ed36afee0a32677b23db67f29856e6dae110e4c1d96b53"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-275-master-palette-publication.md",
+          "sha256": "1de213d59fb67d7776dd65d378f370ea6c981af2ed27157afe298dbeac6fc892",
+          "title": "Issue #275 — Master palette range, storage and publication",
+          "role": "Original master-color conversion, palette writes, deferred Q upload and single-entry GDI cutoff."
+        }
+      ],
+      "moved_source_blocks": 132,
+      "new_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:61",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:63",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:70",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:376",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:386",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:388",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:390",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:392",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:396",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:402",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:404",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:406",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:408",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:412",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:414",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:415",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:416",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:417",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:418",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:419",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:421",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:423",
+        "version/3.0/ripscrip/5.1-text-variables.md:3605",
+        "version/3.0/ripscrip/9.0-command-reference.md:69",
+        "version/3.0/ripscrip/9.0-command-reference.md:70"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:61",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:63",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:70",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:376",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:386",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:388",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:390",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:392",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:394",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:398",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:404",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:406",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:408",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:410",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:412",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:414",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:416",
+        "version/3.0/ripscrip/5.1-text-variables.md:3605",
+        "version/3.0/ripscrip/9.0-command-reference.md:69",
+        "version/3.0/ripscrip/9.0-command-reference.md:70"
+      ],
+      "states_after_update": {
+        "unreviewed": 2121,
+        "context": 1972,
+        "pending": 1349,
+        "implemented": 4007,
+        "excluded": 71,
+        "blocked": 10
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -26249,6 +26350,41 @@
         "version/3.0/ripscrip/7.0-drawing-ports.md:93",
         "version/3.0/ripscrip/9.0-command-reference.md:48",
         "version/3.0/ripscrip/9.1-text-variable-reference.md:116"
+      ]
+    },
+    {
+      "after_commit": "693363da0007df68d9d0dcbe0b3cd92f73d4c396",
+      "revision": "65968b292f71b323f70a097c6f32b33cb714a369",
+      "scope": "Live master-color palette writes use all 256 indices for a, preserve a failed Q stored prefix, and distinguish stored RGB from published RGB.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/275"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:61",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:70",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:380",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:381",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:382",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:384",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:386",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:388",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:390",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:392",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:400",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:401",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:402",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:404",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:406",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:408",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:412",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:416",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:417",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:418",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:419",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:421",
+        "version/3.0/ripscrip/5.1-text-variables.md:3605",
+        "version/3.0/ripscrip/9.0-command-reference.md:69",
+        "version/3.0/ripscrip/9.0-command-reference.md:70"
       ]
     }
   ],

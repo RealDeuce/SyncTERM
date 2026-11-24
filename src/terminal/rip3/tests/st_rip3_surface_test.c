@@ -23,8 +23,8 @@ palette_test(void)
 	struct st_rip3_palette palette;
 	struct st_rip3_palette saved;
 	unsigned master[] = {0, 32, 4, 36, 16, 2, 18, 8, 1, 9, 63};
-	const uint32_t legacy[] = {0, 0x550000, 0xaa0000, 0xff0000,
-	    0x005500, 0x00aa00, 0x00ff00, 0x000055, 0x0000aa, 0x0000ff,
+	const uint32_t legacy[] = {0, 0x540000, 0xa80000, 0xff0000,
+	    0x005400, 0x00a800, 0x00ff00, 0x000054, 0x0000a8, 0x0000ff,
 	    0xffffff};
 	const uint32_t colors[] = {0x04140d, 0x4c5660, 0xffffff};
 	uint32_t invalid[] = {0x010203, 0x1000000};
@@ -62,7 +62,7 @@ palette_test(void)
 	    == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_rip3_palette_rgb(&palette, 0, 8, NULL, 1)
 	    == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_palette_desktop(&palette, 15, master, 2)
+	CHECK(st_rip3_palette_desktop(&palette, 255, master, 2)
 	    == IO_ERROR_OUT_OF_RANGE);
 	master[2] = 64;
 	CHECK(st_rip3_palette_desktop(&palette, 0, master, 3)

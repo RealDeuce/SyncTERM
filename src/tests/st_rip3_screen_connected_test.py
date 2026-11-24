@@ -29,7 +29,7 @@ def check_clear(t, width, height):
                + b"\x1b[1;1H\x1b[32;45;5mX")
     t.exchange(b"\x01|v0A0A0K0K|2P6000002021|2s600|c02|X0000|v00000000\r\n")
     before = values(b"$PROT(PORT,6)$$SAVE(4)$$PALENTRY(0,0)$", b"6;42:0:0")
-    assert pixel(before, 36, 36) == 0xaa0000
+    assert pixel(before, 36, 36) == 0xa80000
     assert pixel(before, width-1, height-1) == 0xffffff
     assert before.primary != before.alternate
 
@@ -77,13 +77,13 @@ def run(args,width,height):
         data = live.read_bytes()
         assert struct.unpack_from('<iiHH',data,18)==(2,1,1,8)
         offset, = struct.unpack_from('<I',data,10)
-        assert data[offset:]==bytes((4,2,0,0)), data[offset:]
+        assert data[offset:]==bytes((15,2,0,0)), data[offset:]
         # Save from an inactive/protected offscreen current port, with PORT0
         # viewport excluding both the native text and graphics source pixels.
         t.exchange(b'\x01|v0A0A0K0K|2P6000002021|2s600|v00000000\r\n')
         values(b'$PROT(PORT,6)$')
         before=values(b'$SAVE$')
-        assert pixel(before,50,50)==0xaa0000 and pixel(before,0,0)==0xa80000
+        assert pixel(before,50,50)==0xa80000 and pixel(before,0,0)==0xa80000
         assert before.primary!=before.alternate
         expected=(colors(before,before.primary),colors(before,before.alternate))
         values(b'$CUR(PAL,17)$')
@@ -92,7 +92,7 @@ def run(args,width,height):
         t.exchange(b'\x1b[Hchanged')
         frame=values(b'$RESTORE$')
         assert (colors(frame,frame.primary),colors(frame,frame.alternate))==expected
-        assert pixel(frame,50,50)==0xaa0000 and pixel(frame,0,0)==0xa80000
+        assert pixel(frame,50,50)==0xa80000 and pixel(frame,0,0)==0xa80000
         values(b'$CUR(PAL)$:$ISPROT(PAL,17)$:$CUR(PORT)$:$ISPROT(PORT,6)$',b'17:1:6:1')
         values(b'$PALENTRY(17,15)$',b'6;42:0:0')
         # Indexed bitmap consumers must match restored native RGB under the
@@ -102,14 +102,14 @@ def run(args,width,height):
                    +b'|2W0000001010000Native.bmp\r\n')
         paths=list(root.rglob('Native.bmp'));assert len(paths)==1;data=paths[0].read_bytes()
         assert struct.unpack_from('<ii',data,18)==(1,1) and struct.unpack_from('<H',data,28)==(8,)
-        offset=struct.unpack_from('<I',data,10)[0];assert data[offset]==4
-        assert data[54+4*4:54+4*4+3]==bytes((0,0,170))
+        offset=struct.unpack_from('<I',data,10)[0];assert data[offset]==15
+        assert data[54+15*4:54+15*4+3]==bytes((0,0,168))
         values(b'$CUR(PORT,6)$')
         # Raw graphics indexes retain later palette recoloring; captured native
         # ANSI RGB and literal reset black retain their independent colors.
         values(b'$UNPROT(PAL,17)$')
         frame=t.exchange(b'\x01|a0F02|a0001\r\n')
-        assert pixel(frame,50,50)==0x00aa00 and pixel(frame,0,0)==0xa80000
+        assert pixel(frame,50,50)==0x00a800 and pixel(frame,0,0)==0xa80000
         assert pixel(frame,width-1,height-1)==0
         values(b'$RESTORE$')
         t.case('rip3-screen-native-cell-writes-and-circular-scroll-after-restore')

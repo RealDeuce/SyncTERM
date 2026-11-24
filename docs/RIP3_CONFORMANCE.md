@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-643ca5be60e8669cb45218c5cc172ed27c34cf41](https://github.com/RealDeuce/remote-imaging-protocol/tree/643ca5be60e8669cb45218c5cc172ed27c34cf41/version/3.0)
+65968b292f71b323f70a097c6f32b33cb714a369](https://github.com/RealDeuce/remote-imaging-protocol/tree/65968b292f71b323f70a097c6f32b33cb714a369/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -1301,7 +1301,9 @@ checks pass. Native Valgrind reports no errors, lost allocations or leaked file
 descriptors in the command fixture. The 93 frozen files and 41 legacy helper
 definitions still match the original preservation baseline.
 
-The complete-command adapter also implements Q/a desktop palette edits. Both
+The initial complete-command adapter implemented Q/a desktop palette edits.
+The later [master-color palette revision](#master-color-palette-writes)
+supersedes the range checks and publication behavior described here. Both
 read the current ENV radix, with only the last numeric field eligible for
 shortening. Q validates all sixteen master
 colours before committing; a validates its desktop index and master colour.
@@ -10513,8 +10515,16 @@ erase, palette independence, retained clipping, and invalid selector
 recovery. Native tests check bitmap storage and inactive ports.
 [PR #274](https://github.com/bbs-land/remote-imaging-protocol/pull/274)
 
-The desktop palette text still describes `a` as a 16-color edit. The
-original writes tested at entries 16, 235, 236 and 255 update the current
-palette record. The original `Q` also stores its valid prefix before a late
-master-color range error. The portable RGB publication and range-error
-rules are open. [Issue #275](https://github.com/bbs-land/remote-imaging-protocol/issues/275)
+## Master-color palette writes
+
+`a` updates any of the 256 drawing-palette entries. `Q` collects all 16
+wire fields before processing their decoded values. A range error leaves
+the valid prefix in the table for `PALENTRY`, copy and backups. The scene
+keeps its previous colors until the entries are published. Successful
+writes publish only the addressed entries with the RGB channel levels
+0, 84, 168 and 255. Selection and full uploads publish the stored palette.
+
+Native and connected CP437 and UTF-8 tests cover malformed fields, late
+range errors, high entries, protection, and full and partial publication.
+The connected tests also verify that processing continues after a rejected
+command. [PR #276](https://github.com/bbs-land/remote-imaging-protocol/pull/276)

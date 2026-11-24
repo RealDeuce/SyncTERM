@@ -158,7 +158,7 @@ def port_actions(t, values, wire, width, height):
     values(b'$CUR(PORT)$:$ISPROT(PORT,5)$:$TEXTXY$:$IMGSTYLE(5)$', b'5:1:48:57:12:21:15:23:1')
     frame = wire(b'a0002|W0|X' + coords(11, 22) + b'|X' + coords(13, 22))
     assert pixel(frame, 11, 22) == 0 and pixel(frame, 13, 22) == 0xaa0000
-    assert pixel(frame, 21, 18) == 0x00aa00
+    assert pixel(frame, 21, 18) == 0x00a800
 
     t.case('rip3-header-bitmap-clear-retains-pair-and-indexed-palette-state')
     values(b'$CUR(PORT,0)$')
@@ -474,6 +474,40 @@ def run(args, width, height):
         frame = t.exchange(b'\x01|d.8&m00 suffix|d018.1234\r\n'
                            + query(b'$PALENTRY(CUR,0,1)$:alive', at_cursor=True), b'6;63:0:0,0:0:0:alive')
         assert pixel(frame, 13, 13) == 0 and frame.application['connected'] == 1
+
+        t.case('rip3-master-palette-stored-prefix-and-publication')
+        wire(b'*')
+        values(f'$WORLD(CUR,{width},{height})$$CUR(PAL,5)$'.encode())
+        before = wire(b'c0E|X0E0E|c0F|X0F0F|c0G|X0G0G|c73|X0H0H')
+        assert pixel(before, 14, 14) == 0xffff55 and pixel(before, 15, 15) == 0xffffff
+        frame = wire(b'Q' + b'04' * 15 + b'0?')
+        assert frame.palette == before.palette
+        values(b'$PALENTRY(CUR,14)$', b'6;63:63:21')
+        frame = wire(b'Q' + b'04' * 15 + b'1S')
+        assert frame.palette == before.palette and pixel(frame, 14, 14) == 0xffff55
+        values(b'$PALENTRY(CUR,14,15)$:alive', b'6;42:0:0,63:63:63:alive')
+        frame = wire(b'a0G04|a7302|a7410')
+        assert pixel(frame, 14, 14) == 0xffff55 and pixel(frame, 15, 15) == 0xffffff
+        assert pixel(frame, 16, 16) == 0xa80000 and pixel(frame, 17, 17) == 0x00a800
+        values(b'$PROT(PAL,5)$')
+        frame = wire(b'h010000014105')
+        assert pixel(frame, 14, 14) == 0xffff55
+        values(b'$UNPROT(PAL,5)$')
+        frame = wire(b'h010000014105')  # Full upload of the current unprotected palette.
+        assert pixel(frame, 14, 14) == 0xa80000 and pixel(frame, 15, 15) == 0xffffff
+        wire(b'Q' + b'02' * 15 + b'1S')
+        frame = wire(b'2A500')  # Reselect the same slot.
+        assert pixel(frame, 14, 14) == 0x00a800 and pixel(frame, 15, 15) == 0xffffff
+        assert pixel(frame, 16, 16) == 0xa80000 and pixel(frame, 17, 17) == 0x00a800
+        wire(b'Q' + b'01' * 15 + b'1S')
+        frame = values(b'$SAVE0$')
+        assert pixel(frame, 14, 14) == 0x00a800
+        frame = values(b'$RESTORE0$')
+        assert pixel(frame, 14, 14) == 0x0000a8
+        frame = wire(b'Q' + b'09' * 16)
+        assert pixel(frame, 14, 14) == pixel(frame, 15, 15) == 0x0000ff
+        assert pixel(frame, 16, 16) == 0xa80000 and pixel(frame, 17, 17) == 0x00a800
+        assert frame.application['connected'] == 1
 
 
 if __name__ == '__main__':

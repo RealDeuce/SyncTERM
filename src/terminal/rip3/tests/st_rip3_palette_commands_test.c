@@ -81,9 +81,9 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	 * full white. Expectations are independent RGB values, not a conversion
 	 * through the palette routine under test. */
 	const char *all = "Q000W04100G020I0801091R0000000000";
-	const uint32_t expected[16] = {0xff0000,0x550000,0xaa0000,0xff0000,
-	    0x005500,0x0000ff,0x00ff00,0x000055,0x0000aa,0x0000ff,0xffffff,
-	    0,0,0,0,0x0000aa};
+	const uint32_t expected[16] = {0xff0000,0x540000,0xa80000,0xff0000,
+	    0x005400,0x0000ff,0x00ff00,0x000054,0x0000a8,0x0000ff,0xffffff,
+	    0,0,0,0,0x0000a8};
 	struct st_rip3_environments *env = NULL;
 	struct st_rip3_palettes *palettes = NULL;
 	struct st_rip3_surface *surface = NULL;
@@ -117,7 +117,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(query(palettes, "$CUR(PAL)$", "7") == 0);
 	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "6;63:0:0") == 0);
 	CHECK(query(palettes, "$PALENTRY(CUR,5)$", "6;0:0:63") == 0);
-	CHECK(st_rip3_palettes_get(palettes, 7, &palette) == 0);
+	CHECK(st_rip3_palettes_current_palette(palettes, &palette) == 0);
 	CHECK(st_rip3_surface_snapshot(surface, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) {
 		for (uint32_t x = 0; x < width; x++) {
@@ -142,10 +142,9 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 static int
 validation(enum st_rip3_canvas canvas)
 {
-	const char *invalid[] = {"Q", "a", "a0", "a00", "a000 comment", "a0G01", "a001S",
+	const char *invalid[] = {"Q", "a", "a0", "a00", "a000 comment", "a7401", "a001S",
 	    "a0F?", "a?001", "Q000000000000000000000000000000", /* 15 values */
 	    "Q0000000000000000000000000000000 comment", /* unfinished field */
-	    "Q0101010101010101010101010101011S", /* late range error */
 	    "Q0101010101010101010101010101010?"};
 	struct st_rip3_environments *env = NULL;
 	struct st_rip3_palettes *palettes = NULL;
@@ -169,12 +168,12 @@ validation(enum st_rip3_canvas canvas)
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&host, "Q000102030405060708090A0B0C0D0E0F tail", -1) == 0);
 	CHECK(process(&host, "a0202 tail", -1) == 0);
-	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[2] == 0x00aa00);
+	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[2] == 0x00a800);
 	CHECK(process(&host, "a--W", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "a.W", -1) == 0);
-	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[0] == 0x550000);
+	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[0] == 0x540000);
 	CHECK(process(&host, "Q0000000000000000000000000000001", -1) == 0);
-	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[15] == 0x0000aa);
+	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[15] == 0x0000a8);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "a0F&", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 0, &before) == 0 && before.rgb[15] == 0xffffff);
@@ -184,7 +183,7 @@ validation(enum st_rip3_canvas canvas)
 	CHECK(memcmp(&before, &after, sizeof(before)) == 0);
 	CHECK(process(&host, "Q0000000000000000000000000000000&", -1) == 0);
 	CHECK(process(&host, "a010#", -1) == 0);
-	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[1] == 0xffff55);
+	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[1] == 0xffff54);
 	CHECK(st_rip3_environments_get(env, 0, &value) == 0);
 	CHECK(st_rip3_environments_define(env, 1, &value) == 0);
 	CHECK(st_rip3_environments_select(env, 1) == 0);
@@ -201,6 +200,48 @@ validation(enum st_rip3_canvas canvas)
 	st_rip3_commands_process(&host, NULL, (const uint8_t *)"a0F10", 5);
 	CHECK(process(&host, "a0001", -1) == 0);
 	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "6;0:0:42") == 0);
+	st_rip3_palettes_destroy(palettes);
+	st_rip3_environments_destroy(env);
+	return 0;
+}
+
+static int
+master_publication(void)
+{
+	const char *failed = "Q0404040404040404040404040404041S";
+	struct st_rip3_environments *env = NULL;
+	struct st_rip3_palettes *palettes = NULL, *saved = NULL;
+	struct st_rip3_palette before, rgb;
+	const unsigned destination = 9;
+
+	CHECK(st_rip3_environments_create(&env, ST_RIP3_CANVAS_640_480) == 0);
+	CHECK(st_rip3_palettes_create(&palettes) == 0);
+	const struct st_rip3_command_host host = {.environments = env, .palettes = palettes};
+	CHECK(process(&host, "2A500", -1) == 0);
+	CHECK(st_rip3_palettes_current_palette(palettes, &before) == 0);
+	CHECK(st_rip3_palettes_protect(palettes, 5, true) == 0);
+	CHECK(process(&host, failed, ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(st_rip3_palettes_get(palettes, 5, &rgb) == 0 && memcmp(&before, &rgb, sizeof(rgb)) == 0);
+	CHECK(st_rip3_palettes_protect(palettes, 5, false) == 0);
+	CHECK(process(&host, failed, ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,14,15)$", "6;42:0:0,63:63:63") == 0);
+	CHECK(st_rip3_palettes_current_palette(palettes, &rgb) == 0 && memcmp(&before, &rgb, sizeof(rgb)) == 0);
+	CHECK(st_rip3_palettes_copy_entries(palettes, 5, &destination, 1) == 0);
+	CHECK(query(palettes, "$PALENTRY(9,14)$", "6;42:0:0") == 0);
+	CHECK(st_rip3_palettes_clone(&saved, palettes) == 0);
+	CHECK(process(&host, "a0G04", -1) == 0);
+	CHECK(process(&host, "a7302", -1) == 0);
+	CHECK(process(&host, "d0184ZHM", -1) == 0);
+	CHECK(st_rip3_palettes_current_palette(palettes, &rgb) == 0);
+	CHECK(rgb.rgb[1] == 0x103454 && rgb.rgb[14] == before.rgb[14]);
+	CHECK(rgb.rgb[16] == 0xa80000 && rgb.rgb[255] == 0x00a800);
+	CHECK(process(&host, "2A500", -1) == 0);
+	CHECK(st_rip3_palettes_current_palette(palettes, &rgb) == 0);
+	CHECK(rgb.rgb[14] == 0xa80000 && rgb.rgb[15] == before.rgb[15]);
+	CHECK(st_rip3_palettes_restore(palettes, saved) == 0);
+	CHECK(st_rip3_palettes_current_palette(palettes, &rgb) == 0);
+	CHECK(rgb.rgb[14] == 0xa80000 && rgb.rgb[16] == before.rgb[16]);
+	st_rip3_palettes_destroy(saved);
 	st_rip3_palettes_destroy(palettes);
 	st_rip3_environments_destroy(env);
 	return 0;
@@ -301,6 +342,7 @@ main(void)
 	CHECK(validation(ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(validation(ST_RIP3_CANVAS_800_600) == 0);
 	CHECK(validation(ST_RIP3_CANVAS_1024_768) == 0);
+	CHECK(master_publication() == 0);
 	CHECK(wire_drawing_palette() == 0);
 	return 0;
 }

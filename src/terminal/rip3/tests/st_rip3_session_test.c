@@ -1272,9 +1272,9 @@ static int screen_backups(void)
 	CHECK(pump(&f)==0 && !st_rip3_session_pending(f.session) && f.errors==0);
 	CHECK(f.reply_length==4 && memcmp(f.reply,"17:0",4)==0);
 	struct st_rip3_session_capture capture={0};CHECK(st_rip3_session_capture(f.session,&capture)==0);
-	if (capture.palette!=17 || capture.pixels->primary[10*640+10]!=(ST_PIXEL_COLOR_RGB_TAG|0xaa0000))
+	if (capture.palette!=17 || capture.pixels->primary[10*640+10]!=(ST_PIXEL_COLOR_RGB_TAG|0xa80000))
 		fprintf(stderr,"screen palette=%u pixel=%08x world=%ux%u\n",capture.palette,(unsigned)capture.pixels->primary[10*640+10],(unsigned)capture.frame.world_width,(unsigned)capture.frame.world_height);
-	CHECK(capture.palette==17 && capture.pixels->primary[10*640+10]==(ST_PIXEL_COLOR_RGB_TAG|0xaa0000));
+	CHECK(capture.palette==17 && capture.pixels->primary[10*640+10]==(ST_PIXEL_COLOR_RGB_TAG|0xa80000));
 	st_rip3_session_capture_dispose(&capture);
 	f.reply_length=0;
 	CHECK(append(&f,"!|1\0330000before:$RESTORE0$after\r")==0 && pump(&f)==0);

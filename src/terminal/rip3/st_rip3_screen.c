@@ -21,7 +21,7 @@ static int clone(const void *object,void **result)
 	const struct st_rip3_screen *screen=object;
 	if (!valid(screen) || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct screen_snapshot *s=calloc(1,sizeof(*s));if (s==NULL) return IO_ERROR_OUT_OF_MEMORY;
-	int status=st_rip3_palettes_current_palette(screen->palettes,&s->palette);
+	int status=st_rip3_palettes_current_stored(screen->palettes,&s->palette);
 	if (status==0) status=st_rip3_ports_screen_capture(screen->ports,&s->pixels);
 	if (status==0 && screen->capture!=NULL) status=screen->capture(screen->context,s->pixels);
 	if (status==0) for (size_t i=0;i<(size_t)s->pixels->width*s->pixels->height;i++) {
