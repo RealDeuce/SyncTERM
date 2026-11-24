@@ -32,9 +32,9 @@ Test: `st_audio`; optional audible smoke testing is not part of CTest.
 | `st_audio` runtime helper
 | link:../src/media/audio/st_audio_runtime.h[st_audio_runtime.h]
 | Application-owned lazy engine creation and allowed-backend policy.  Acquire
-returns a borrowed engine valid until runtime destruction.  The allowed mask
-controls lazy creation only while no engine exists; changing it does not
-replace an existing engine or transfer caller ownership.
+returns a borrowed engine. Disconnect closes output before displaying the notice.
+Session teardown then releases the streams and engine. The next acquisition opens
+an engine using the current allowed-backend mask and system device selection.
 
 | `st_audio_file`
 | link:../src/media/audio_file/st_audio_file.h[st_audio_file.h]

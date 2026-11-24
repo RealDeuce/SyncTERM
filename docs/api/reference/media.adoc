@@ -163,6 +163,8 @@ int audio_generate_tone(int16_t *result, size_t frame_count,
     double frequency, enum audio_wave_shape shape, bool clean_edges);
 int audio_beep(audio_engine_t *, double frequency, uint32_t duration_ms);
 int st_audio_runtime_create(st_audio_runtime_t **result, uint32_t allowed);
+void st_audio_runtime_close_device(st_audio_runtime_t *runtime);
+void st_audio_runtime_release_engine(st_audio_runtime_t *runtime);
 void st_audio_runtime_destroy(st_audio_runtime_t *runtime);
 void st_audio_runtime_set_allowed(st_audio_runtime_t *, uint32_t allowed);
 uint32_t st_audio_runtime_allowed(st_audio_runtime_t *);
@@ -222,11 +224,19 @@ exist to stop it.
 | st_audio_runtime_create(result, allowed), st_audio_runtime_destroy(runtime)
 | Manage application-lifetime lazy engine state and synchronization.
 
+| st_audio_runtime_close_device(runtime)
+| Close the device and cancel acquisitions during the disconnect notice. Existing
+  stream handles remain valid for cleanup.
+
+| st_audio_runtime_release_engine(runtime)
+| Release the engine after all session borrowers finish. Frontend pulls return silence
+  until the next acquisition. Backend policy and permanent shutdown state persist.
+
 | st_audio_runtime_set_allowed(runtime, allowed), st_audio_runtime_allowed(runtime)
 | Set/query the mask used only when an engine has not yet been created.
 
 | st_audio_runtime_acquire(runtime, result)
-| Lazily creates and returns a borrowed engine valid through runtime destroy.
+| Lazily creates and returns a borrowed engine valid until engine release or runtime destruction.
 |===
 
 ==== Audio file decoding

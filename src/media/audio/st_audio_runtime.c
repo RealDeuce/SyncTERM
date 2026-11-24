@@ -3,6 +3,7 @@
  */
 
 #include "st_audio_runtime.h"
+#include "audio_internal.h"
 
 #include "io_error.h"
 #include "st_threads.h"
@@ -17,6 +18,7 @@ struct st_audio_runtime {
 	st_mutex_t mutex;
 	bool pull;
 	bool stopped;
+	bool device_closed;
 };
 
 int
@@ -57,7 +59,7 @@ st_audio_runtime_pull(st_audio_runtime_t *runtime, int16_t *frames,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	if (runtime->engine == NULL)
+	if (runtime->engine == NULL || runtime->device_closed)
 		memset(frames, 0, frame_count * AUDIO_FRAME_SIZE);
 	else
 		status = audio_engine_pull(runtime->engine, frames, frame_count);
@@ -72,6 +74,28 @@ st_audio_runtime_stop(st_audio_runtime_t *runtime)
 		return;
 	runtime->stopped = true;
 	audio_engine_stop(runtime->engine);
+	(void)st_mutex_unlock(&runtime->mutex);
+}
+
+void
+st_audio_runtime_close_device(st_audio_runtime_t *runtime)
+{
+	if (runtime == NULL || st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
+		return;
+	runtime->device_closed = true;
+	audio_engine_t *engine = runtime->engine;
+	(void)st_mutex_unlock(&runtime->mutex);
+	audio_engine_close_device(engine);
+}
+
+void
+st_audio_runtime_release_engine(st_audio_runtime_t *runtime)
+{
+	if (runtime == NULL || st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
+		return;
+	audio_engine_destroy(runtime->engine);
+	runtime->engine = NULL;
+	runtime->device_closed = false;
 	(void)st_mutex_unlock(&runtime->mutex);
 }
 
@@ -133,7 +157,7 @@ bool st_audio_runtime_stopped(st_audio_runtime_t *runtime)
 {
 	bool value = false;
 	if (runtime != NULL && st_mutex_lock(&runtime->mutex) == ST_THREAD_SUCCESS) {
-		value = runtime->stopped;
+		value = runtime->stopped || runtime->device_closed;
 		(void)st_mutex_unlock(&runtime->mutex);
 	}
 	return value;
@@ -148,7 +172,7 @@ st_audio_runtime_acquire(st_audio_runtime_t *runtime, audio_engine_t **result)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (st_mutex_lock(&runtime->mutex) != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	if (runtime->stopped)
+	if (runtime->stopped || runtime->device_closed)
 		status = IO_ERROR_CANCELLED;
 	else if (runtime->engine == NULL)
 		status = runtime->pull ? audio_engine_create_pull(&runtime->engine)

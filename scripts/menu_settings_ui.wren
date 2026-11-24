@@ -754,8 +754,8 @@ class SettingsMenu {
   static audioHelp_() {
     return "# Audio Output Mode\n\nToggle the audio backends SyncTERM may " +
         "use. Enabled backends are attempted in the order shown. Changes " +
-        "apply before audio is first used; restart SyncTERM to change an " +
-        "already-open audio backend."
+        "apply the next time SyncTERM opens audio output. Disconnecting " +
+        "closes the current output device."
   }
 
   static webListsHelp_() {

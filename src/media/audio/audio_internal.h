@@ -35,6 +35,9 @@ int audio_engine_create_with_backends(audio_engine_t **result,
 	const struct audio_backend_descriptor *const backends[],
 	size_t backend_count);
 
+/* Single lifecycle owner. Stream handles remain valid for cleanup. */
+void audio_engine_close_device(audio_engine_t *engine);
+
 #if defined(ST_AUDIO_TESTING)
 size_t audio_engine_stream_count_for_test(audio_engine_t *engine);
 #endif

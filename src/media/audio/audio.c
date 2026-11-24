@@ -33,6 +33,7 @@ struct audio_engine {
 	st_mutex_t mutex;
 	st_thread_t worker;
 	bool worker_started;
+	bool device_closed; /* Protected by mutex alongside backend latency queries. */
 	atomic_bool failed;
 };
 
@@ -286,17 +287,33 @@ audio_engine_create(audio_engine_t **result, uint32_t allowed_backends)
 }
 
 void
+audio_engine_close_device(audio_engine_t *engine)
+{
+	if (engine == NULL)
+		return;
+	audio_engine_stop(engine);
+	if (engine->worker_started) {
+		(void)st_thread_join(engine->worker, NULL);
+		engine->worker_started = false;
+	}
+	if (engine->backend == NULL)
+		return;
+	(void)st_mutex_lock(&engine->mutex);
+	bool close = !engine->device_closed;
+	engine->device_closed = true;
+	(void)st_mutex_unlock(&engine->mutex);
+	if (close)
+		engine->backend->close(engine->backend_state);
+}
+
+void
 audio_engine_destroy(audio_engine_t *engine)
 {
 	audio_stream_t *stream;
 
 	if (engine == NULL)
 		return;
-	audio_mixer_stop(engine->mixer, IO_ERROR_CANCELLED);
-	if (engine->worker_started)
-		(void)st_thread_join(engine->worker, NULL);
-	if (engine->backend != NULL)
-		engine->backend->close(engine->backend_state);
+	audio_engine_close_device(engine);
 	while ((stream = engine->streams) != NULL) {
 		engine->streams = stream->next;
 		audio_mixer_stream_destroy(stream->mixer_stream);
@@ -574,9 +591,14 @@ size_t audio_stream_buffered_frames(audio_stream_t *stream)
 
 uint32_t audio_stream_latency_ms(audio_stream_t *stream)
 {
-	return stream == NULL || stream->engine->backend == NULL
-	    || stream->engine->backend->latency_ms == NULL ? 0
-	    : stream->engine->backend->latency_ms(stream->engine->backend_state);
+	if (stream == NULL || stream->engine->backend == NULL
+	    || stream->engine->backend->latency_ms == NULL)
+		return 0;
+	audio_engine_t *engine = stream->engine;
+	(void)st_mutex_lock(&engine->mutex);
+	uint32_t latency = engine->device_closed ? 0 : engine->backend->latency_ms(engine->backend_state);
+	(void)st_mutex_unlock(&engine->mutex);
+	return latency;
 }
 
 int

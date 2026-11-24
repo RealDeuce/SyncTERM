@@ -181,6 +181,13 @@ drain_thread(void *opaque)
 	return 0;
 }
 
+static int
+close_device_thread(void *context)
+{
+	audio_engine_close_device(context);
+	return 0;
+}
+
 static const struct audio_backend_descriptor unavailable_backend = {
 	AUDIO_BACKEND_CORE_AUDIO, fake_unavailable, fake_open, fake_close,
 	fake_write, fake_latency
@@ -309,6 +316,10 @@ test_clear_after_submission(void)
 	CHECK(st_mutex_unlock(&state->mutex) == ST_THREAD_SUCCESS);
 
 	clear_status = audio_stream_clear(stream);
+	/* The drain has entered the backend latency callback. Closing must let
+	 * that callback return before freeing its backend state. */
+	st_thread_t closer;
+	CHECK(st_thread_create(&closer, close_device_thread, engine) == ST_THREAD_SUCCESS);
 	CHECK(st_mutex_lock(&state->mutex) == ST_THREAD_SUCCESS);
 	state->released = true;
 	(void)st_condition_broadcast(&state->condition);
@@ -317,7 +328,9 @@ test_clear_after_submission(void)
 	CHECK(thread_status == 0);
 	CHECK(clear_status == 0);
 	CHECK(context.result == 0);
-
+	CHECK(st_thread_join(closer, NULL) == ST_THREAD_SUCCESS);
+	CHECK(latency_state == NULL && audio_stream_latency_ms(stream) == 0);
+	CHECK(audio_stream_append(stream, frames, 2, NULL) == IO_ERROR_CANCELLED);
 	audio_stream_destroy(stream);
 	audio_engine_destroy(engine);
 	return 0;
@@ -414,6 +427,8 @@ test_pull_runtime(void)
 	st_thread_t thread;
 
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
+	st_audio_runtime_close_device(runtime); /* Silent session. */
+	st_audio_runtime_release_engine(runtime);
 	memset(frames, 1, sizeof(frames));
 	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0);
 	for (size_t i = 0; i < 8; ++i) CHECK(frames[i] == 0);
@@ -441,6 +456,25 @@ test_pull_runtime(void)
 	CHECK(audio_stream_clear(stream) == 0);
 	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0 && remaining == 2);
 	CHECK(audio_stream_set_source(stream, NULL, NULL) == 0);
+	/* Pending one-shot audio belongs to the old session. Frontend pulls
+	 * between connections must return silence without reopening output. */
+	CHECK(audio_engine_play(engine, samples, 2, &options) == 0);
+	st_audio_runtime_close_device(runtime);
+	CHECK(st_audio_runtime_stopped(runtime));
+	CHECK(st_audio_runtime_acquire(runtime, &other) == IO_ERROR_CANCELLED);
+	CHECK(audio_stream_append(stream, samples, 2, &options) == IO_ERROR_CANCELLED);
+	audio_stream_destroy(stream);
+	st_audio_runtime_release_engine(runtime);
+	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0);
+	for (size_t i = 0; i < 8; ++i) CHECK(frames[i] == 0);
+	CHECK(audio_engine_create_pull(&other) == 0);
+	audio_engine_destroy(other);
+	CHECK(st_audio_runtime_allowed(runtime) == AUDIO_BACKEND_OSS);
+	CHECK(st_audio_runtime_acquire(runtime, &engine) == 0);
+	CHECK(audio_engine_play(engine, samples, 2, &options) == 0);
+	CHECK(st_audio_runtime_pull(runtime, frames, 4) == 0);
+	CHECK(memcmp(frames, expected, sizeof(expected)) == 0);
+	CHECK(audio_stream_create(&stream, engine, 0, 0) == 0);
 	CHECK(audio_stream_append(stream, samples, 2, &options) == 0);
 	drain = (struct drain_context){.stream = stream};
 	CHECK(st_thread_create(&thread, drain_thread, &drain) == ST_THREAD_SUCCESS);
@@ -451,6 +485,8 @@ test_pull_runtime(void)
 	CHECK(audio_stream_source_active(stream, true) == IO_ERROR_CANCELLED);
 	CHECK(audio_stream_set_source(stream, NULL, NULL) == 0);
 	audio_stream_destroy(stream);
+	st_audio_runtime_release_engine(runtime);
+	CHECK(st_audio_runtime_acquire(runtime, &other) == IO_ERROR_CANCELLED);
 	st_audio_runtime_destroy(runtime);
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
 	st_audio_runtime_stop(runtime);

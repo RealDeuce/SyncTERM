@@ -1181,6 +1181,7 @@ finished:
 		disconnect_details = st_wren_connected_status_details(connected);
 	st_wren_connected_destroy(connected);
 	connected = NULL;
+	st_audio_runtime_close_device(audio);
 	if (connection != NULL) {
 #if ST_CONSOLE_TEST
 		inspection.connection = NULL;
@@ -1218,6 +1219,7 @@ finished:
 	st_console_test_set_application_reader(display, NULL, NULL);
 #endif
 	st_term_session_destroy(&session);
+	st_audio_runtime_release_engine(audio);
 	connection_status(&connection_ui, NULL);
 	free(connection_ui.log);
 	st_mutex_destroy(&connection_ui.log_mutex);
