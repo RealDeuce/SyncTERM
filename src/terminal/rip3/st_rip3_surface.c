@@ -236,9 +236,35 @@ write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode)
 static uint32_t
 transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode mode)
 {
+	if (mode == ST_RIP3_TRANSFER_COPY)
+		return source;
 	if (mode == ST_RIP3_TRANSFER_INVERT)
 		return source ^ (ST_PIXEL_COLOR_IS_RGB(source) ? UINT32_C(0xffffff) : UINT32_C(0xff));
+	if (ST_PIXEL_COLOR_IS_RGB(destination & source)) {
+		switch (mode) {
+			case ST_RIP3_TRANSFER_XOR: return ST_PIXEL_COLOR_RGB_TAG | ((destination ^ source) & UINT32_C(0xffffff));
+			case ST_RIP3_TRANSFER_OR: return ST_PIXEL_COLOR_RGB_TAG | ((destination | source) & UINT32_C(0xffffff));
+			case ST_RIP3_TRANSFER_AND: return ST_PIXEL_COLOR_RGB_TAG | ((destination & source) & UINT32_C(0xffffff));
+			default: return source;
+		}
+	}
 	return write_pixel(destination, source, (enum st_rip3_write_mode)mode);
+}
+
+int
+st_rip3_surface_compose_snapshots(struct st_pixel_buffer *destination,
+    const struct st_pixel_buffer *source, enum st_rip3_transfer_mode mode)
+{
+	if (destination->width != source->width || destination->height != source->height)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const uint32_t *alternate = source->alternate != NULL ? source->alternate : source->primary;
+	size_t count = (size_t)destination->width * destination->height;
+	for (size_t i = 0; i < count; i++)
+		destination->primary[i] = transfer_pixel(destination->primary[i], source->primary[i], mode);
+	if (destination->alternate != NULL)
+		for (size_t i = 0; i < count; i++)
+			destination->alternate[i] = transfer_pixel(destination->alternate[i], alternate[i], mode);
+	return 0;
 }
 
 int

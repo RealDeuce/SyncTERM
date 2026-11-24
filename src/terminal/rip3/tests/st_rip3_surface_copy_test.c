@@ -161,6 +161,16 @@ transfer_test(void)
 	CHECK(st_rip3_surface_copy_projected(surface, &source, surface, &target,
 	    ST_RIP3_TRANSFER_INVERT) == 0);
 	CHECK(st_rip3_surface_read_color(surface, 0, 0, &value) == 0 && value == rgb);
+	const uint32_t rgb_results[] = {0xb192f3, 0xb1b2f3, 0x002000};
+	uint32_t background = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xa0b0c0);
+	const struct st_pixel_buffer backdrop = {.width=1,.height=1,.primary=&background};
+	for (size_t i = 0; i < sizeof(rgb_results) / sizeof(rgb_results[0]); i++) {
+		enum st_rip3_transfer_mode mode = (enum st_rip3_transfer_mode)(ST_RIP3_TRANSFER_XOR + i);
+		CHECK(st_rip3_surface_restore_area_raw(surface, &backdrop, 1, 0) == 0);
+		CHECK(st_rip3_surface_copy_projected(surface, &target, surface, &source, mode) == 0);
+		CHECK(st_rip3_surface_read_color(surface, 1, 0, &value) == 0
+		    && value == (ST_PIXEL_COLOR_RGB_TAG | rgb_results[i]));
+	}
 	st_rip3_surface_destroy(surface);
 	return 0;
 }

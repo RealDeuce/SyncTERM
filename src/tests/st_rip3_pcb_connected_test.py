@@ -12,6 +12,7 @@ from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
 from st_rip3_button_styles_connected_test import number
 from st_rip3_buttons_connected_test import style,button
+from st_rip3_scroll_connected_test import plane_pixel
 
 
 def run(args,width,height):
@@ -137,6 +138,31 @@ def run(args,width,height):
         frame=wire(b'1P'+coords((430,280))+b'001')
         region(frame,(430,280,432,282),0x112233)
         values(b'$CUR(PORT)$',b'0')
+
+        t.case('rip3-put-image-composes-with-the-live-rgb-destination')
+        frame=t.exchange(b'\x1b[1;61H\x1b[48;2;160;176;192m   ')
+        cell_width=frame.metadata['pixel_cursor_width']
+        end=frame.metadata['pixel_cursor_x']
+        start=end-3*cell_width
+        region(frame,(start,0,end,4),0xa0b0c0)
+        modes=((b'010',0xb192f3),(b'020',0xb1b2f3),(b'030',0x002000))
+        frame=wire(b'|'.join(b'1P'+coords((start+i*cell_width,0))+mode for i,(mode,_) in enumerate(modes)))
+        for i,(_,expected) in enumerate(modes):
+            x=start+i*cell_width
+            region(frame,(x,0,x+2,2),expected)
+            region(frame,(x+2,0,x+cell_width,4),0xa0b0c0)
+
+        t.case('rip3-put-image-composes-each-native-blink-plane')
+        glyph=b'\xdb' if args.encoding=='CP437' else '█'.encode()
+        before=t.exchange(b'\x1b[1;65H\x1b[5;38;2;160;176;192;48;2;204;136;68m'+glyph)
+        x=before.metadata['pixel_cursor_x']-cell_width
+        phases=('primary','alternate')
+        original=tuple(plane_pixel(before,x+1,3,phase) for phase in phases)
+        expected={0xa0b0c0:0xb192f3,0xcc8844:0xddaa77}
+        assert set(original)==expected.keys(),original
+        frame=wire(b'1P'+coords((x,2))+b'010')
+        assert tuple(plane_pixel(frame,x+1,3,phase) for phase in phases)==tuple(expected[color] for color in original)
+        assert tuple(plane_pixel(frame,x+2,3,phase) for phase in phases)==original
 
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')
         wire(b'1C010103030|2s100')

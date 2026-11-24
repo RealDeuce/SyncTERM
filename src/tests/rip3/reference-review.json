@@ -23509,6 +23509,37 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "e398afabd0068ae17518af2534a4942c05f28db8",
+      "revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+      "scope": "Apply 1P modes 01–03 to all 24 bits of direct RGB operands. Read the visible destination and publish both blink phases through the existing console hooks.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/231"
+      ],
+      "partially_implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:88",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:89",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:90"
+      ],
+      "tests": [
+        "rip3_paste_commands",
+        "rip3_surface_copy",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_ports",
+        "rip3_pcb",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1907,
+        "pending": 1455,
+        "implemented": 3709,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "archive_format": "git archive --format=tar"

@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
 #include "st_rip3_environments.h"
+#include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
 #include "io_error.h"
 
@@ -374,8 +375,16 @@ paste_clipboard(const struct st_rip3_command_host *host,
 	world = (struct st_rip3_rect){(int32_t)x,(int32_t)y,(int32_t)x,(int32_t)y};
 	status = translate(host,environment_number,&world,&device);
 	if (status != 0) return status;
+	struct st_rip3_palette palette;
+	const struct st_rip3_palette *present_palette = NULL;
+	if (!info.offscreen && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND
+	    && host->palettes != NULL) {
+		status = st_rip3_palettes_current_palette(host->palettes, &palette);
+		if (status != 0) return status;
+		present_palette = &palette;
+	}
 	return st_rip3_ports_put_image(host->ports,host->clipboard->port,destination,
-	    device.x0,device.y0,(enum st_rip3_transfer_mode)mode);
+	    device.x0,device.y0,(enum st_rip3_transfer_mode)mode,present_palette);
 }
 
 int

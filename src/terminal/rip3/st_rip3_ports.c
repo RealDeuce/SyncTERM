@@ -916,10 +916,48 @@ st_rip3_ports_paste(struct st_rip3_ports *ports,const unsigned *source)
 }
 
 static int
+compose_screen_paste(struct st_rip3_ports *ports, unsigned source,
+    const struct st_rip3_rect *source_area, const struct st_rip3_rect *destination_area,
+    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
+{
+	bool source_on_screen = !ports->entries[source].info.offscreen;
+	struct st_rip3_rect source_bounds = source_on_screen
+	    ? ports->screen_bounds : port_bounds(&ports->entries[source]);
+	struct st_rip3_rect from = *source_area, to = *destination_area;
+	if (!clip(&from, &source_bounds) || !clip(&to, &ports->screen_bounds))
+		return 0;
+	/* Logical origins are already paired and nonnegative. Physical storage
+	 * can trim the far edges of either operand, without moving either origin. */
+	int32_t width = from.x1 - from.x0, height = from.y1 - from.y0;
+	if (width > to.x1 - to.x0) width = to.x1 - to.x0;
+	if (height > to.y1 - to.y0) height = to.y1 - to.y0;
+	from.x1 = from.x0 + width;
+	from.y1 = from.y0 + height;
+	to.x1 = to.x0 + width;
+	to.y1 = to.y0 + height;
+
+	struct st_pixel_buffer *source_pixels = NULL, *destination_pixels = NULL;
+	int status = blit_capture(ports, port_surface(ports, source), &from, source_on_screen, &source_pixels);
+	if (status == 0)
+		status = blit_capture(ports, ports->screen, &to, true, &destination_pixels);
+	if (status == 0 && source_pixels != NULL && destination_pixels != NULL) {
+		status = st_rip3_surface_compose_snapshots(destination_pixels, source_pixels, mode);
+		if (status == 0)
+			status = st_rip3_surface_restore_area_raw(ports->screen, destination_pixels,
+			    (uint32_t)to.x0, (uint32_t)to.y0);
+		if (status == 0 && ports->screen_writer != NULL && palette != NULL)
+			status = ports->screen_writer(ports->screen_writer_context, &to, destination_pixels, palette);
+	}
+	st_pixel_buffer_destroy(source_pixels);
+	st_pixel_buffer_destroy(destination_pixels);
+	return status;
+}
+
+static int
 blit(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, unsigned destination,
     int32_t destination_x, int32_t destination_y,
-    enum st_rip3_transfer_mode mode, bool read_inactive)
+    enum st_rip3_transfer_mode mode, bool read_inactive, const struct st_rip3_palette *palette)
 {
 	const struct port *src;
 	const struct port *dst;
@@ -962,11 +1000,16 @@ blit(struct st_rip3_ports *ports, unsigned source,
 	struct st_rip3_rect logical_source={(int32_t)(from.x0+left-x),(int32_t)(from.y0+top-y),
 	    (int32_t)(from.x0+right-x),(int32_t)(from.y0+bottom-y)};
 	struct st_rip3_rect logical_destination={(int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom};
-	int status=!src->info.offscreen && ports->screen_reader!=NULL
-	    ? copy_native_screen(ports,&logical_source,destination,&logical_destination,mode)
-	    : st_rip3_surface_blit(port_surface(ports, destination),
-	        &destination_view, (int32_t)x, (int32_t)y,
-	        port_surface(ports, source), NULL, &from, mode);
+	int status;
+	if (read_inactive && !dst->info.offscreen && ports->screen_reader != NULL
+	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
+		status = compose_screen_paste(ports, source, &logical_source, &logical_destination, mode, palette);
+	else if (!src->info.offscreen && ports->screen_reader != NULL)
+		status = copy_native_screen(ports, &logical_source, destination, &logical_destination, mode);
+	else
+		status = st_rip3_surface_blit(port_surface(ports, destination),
+		    &destination_view, (int32_t)x, (int32_t)y,
+		    port_surface(ports, source), NULL, &from, mode);
 	if (status==0) publish_copy(ports,source,&logical_source,destination,&logical_destination);
 	return status;
 }
@@ -976,14 +1019,15 @@ st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, unsigned destination,
     int32_t x, int32_t y, enum st_rip3_transfer_mode mode)
 {
-	return blit(ports,source,source_area,destination,x,y,mode,false);
+	return blit(ports,source,source_area,destination,x,y,mode,false,NULL);
 }
 
 int
 st_rip3_ports_put_image(struct st_rip3_ports *ports, unsigned source,
-    unsigned destination, int32_t x, int32_t y, enum st_rip3_transfer_mode mode)
+    unsigned destination, int32_t x, int32_t y, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
-	return blit(ports,source,NULL,destination,x,y,mode,true);
+	return blit(ports,source,NULL,destination,x,y,mode,true,palette);
 }
 
 static int

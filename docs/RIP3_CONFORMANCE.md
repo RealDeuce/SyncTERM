@@ -10082,4 +10082,14 @@ and paste it as `#eeddcc`. They also paste the four interior samples from
 the reference's inactive viewport example, then use `PCB` to read back the
 pair after a skipped paste. Native tests check the undefined clipboard
 slot, source inversion in both surface copy paths and the indexed mode
-vectors. RGB XOR, OR and AND remain pending.
+vectors.
+
+Modes `01`, `02` and `03` compose all 24 bits when both pixels are direct
+RGB. For a screen destination, `1P` reads the live console region so a
+more recent ANSI write supplies the destination color. It applies the
+operation separately to each blink phase and updates the region through
+the existing console hooks. Native tests verify the full-width results.
+Connected CP437 and UTF-8 tests check all three modes against a direct RGB
+ANSI background and XOR against both colors of a blinking ANSI glyph.
+Mixed indexed/RGB conversion and indexed mask width await clarification.
+[Issue #231](https://github.com/bbs-land/remote-imaging-protocol/issues/231)
