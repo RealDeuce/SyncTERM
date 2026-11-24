@@ -698,12 +698,24 @@ struct blit_patch {
 
 static int
 blit_capture(const struct st_rip3_ports *ports,const struct st_rip3_surface *surface,
-    const struct st_rip3_rect *area,bool screen,struct st_pixel_buffer **result)
+    const struct st_rip3_rect *area,bool screen,bool alternate,struct st_pixel_buffer **result)
 {
 	int status=st_rip3_surface_capture_area_raw(surface,area,result);
 	if (status!=0 || *result==NULL || !screen || ports->screen_reader==NULL) return status;
-	if (ports->screen_writer!=NULL) status=st_pixel_buffer_ensure_alternate(*result);
+	if (alternate && ports->screen_writer!=NULL) status=st_pixel_buffer_ensure_alternate(*result);
 	if (status==0) status=ports->screen_reader(ports->screen_reader_context,area,*result);
+	return status;
+}
+
+static int
+store_pixels(struct st_rip3_ports *ports, struct st_rip3_surface *surface,
+    const struct st_rip3_rect *area, bool screen, struct st_pixel_buffer *pixels,
+    const struct st_rip3_palette *palette)
+{
+	int status = st_rip3_surface_restore_area_raw(surface, pixels,
+	    (uint32_t)area->x0, (uint32_t)area->y0);
+	if (status == 0 && screen && ports->screen_writer != NULL && palette != NULL)
+		status = ports->screen_writer(ports->screen_writer_context, area, pixels, palette);
 	return status;
 }
 
@@ -784,7 +796,7 @@ st_rip3_ports_blit_surface(struct st_rip3_ports *ports,const struct st_rip3_surf
 		const struct st_rip3_rect from={(int32_t)x0,(int32_t)y0,(int32_t)x1,(int32_t)y1};
 		struct blit_patch *copy=&patches[count++];
 		copy->area=(struct st_rip3_rect){(int32_t)(x0+dx),(int32_t)(y0+dy),(int32_t)(x1+dx),(int32_t)(y1+dy)};
-		status=blit_capture(ports,surface,&from,screen,&copy->pixels);
+		status=blit_capture(ports,surface,&from,screen,true,&copy->pixels);
 	}
 	size_t copies=count;
 	if (status==0 && fill->mode!=ST_RIP3_BLIT_KEEP) {
@@ -811,9 +823,7 @@ st_rip3_ports_blit_surface(struct st_rip3_ports *ports,const struct st_rip3_surf
 	 * write, including a corner that will itself be replaced. */
 	for (size_t i=0;status==0 && i<count;i++) {
 		struct blit_patch *patch=&patches[i];
-		status=st_rip3_surface_restore_area_raw(surface,patch->pixels,(uint32_t)patch->area.x0,(uint32_t)patch->area.y0);
-		if (status==0 && screen && ports->screen_writer!=NULL)
-			status=ports->screen_writer(ports->screen_writer_context,&patch->area,patch->pixels,palette);
+		status = store_pixels(ports, surface, &patch->area, screen, patch->pixels, palette);
 	}
 	for (size_t i=0;i<count;i++) st_pixel_buffer_destroy(patches[i].pixels);
 	return status;
@@ -869,17 +879,14 @@ compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
 		from.y1 = from.y0 + (to.y1-to.y0);
 
 	struct st_pixel_buffer *source_pixels = NULL, *destination_pixels = NULL;
-	int status = blit_capture(ports, port_surface(ports, source), &from, source_on_screen, &source_pixels);
+	int status = blit_capture(ports, port_surface(ports, source), &from, source_on_screen, true, &source_pixels);
 	if (status == 0)
-		status = blit_capture(ports, ports->screen, &to, true, &destination_pixels);
+		status = blit_capture(ports, ports->screen, &to, true, true, &destination_pixels);
 	if (status == 0 && source_pixels != NULL && destination_pixels != NULL) {
 		status = st_rip3_surface_copy_snapshots(destination_pixels, &logical_target,
 		    source_pixels, &logical_source, mode, promote_indexed ? palette : NULL);
 		if (status == 0)
-			status = st_rip3_surface_restore_area_raw(ports->screen, destination_pixels,
-			    (uint32_t)to.x0, (uint32_t)to.y0);
-		if (status == 0 && ports->screen_writer != NULL && palette != NULL)
-			status = ports->screen_writer(ports->screen_writer_context, &to, destination_pixels, palette);
+			status = store_pixels(ports, ports->screen, &to, true, destination_pixels, palette);
 	}
 	st_pixel_buffer_destroy(source_pixels);
 	st_pixel_buffer_destroy(destination_pixels);
@@ -1196,7 +1203,7 @@ st_rip3_ports_read_color(const struct st_rip3_ports *ports,unsigned number,int32
 
 int
 st_rip3_ports_capture_pixels(const struct st_rip3_ports *ports, unsigned number,
-    const struct st_rip3_rect *area, bool viewport, struct st_pixel_buffer **result)
+    const struct st_rip3_rect *area, bool viewport, bool alternate, struct st_pixel_buffer **result)
 {
 	if (!rect_valid(area) || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1212,17 +1219,33 @@ st_rip3_ports_capture_pixels(const struct st_rip3_ports *ports, unsigned number,
 	struct st_rip3_rect absolute = {origin.x0 + area->x0, origin.y0 + area->y0,
 	    origin.x0 + area->x1, origin.y0 + area->y1};
 	struct st_pixel_buffer *pixels = NULL;
-	status = st_rip3_surface_capture_area_raw(port_surface(ports, number), &absolute, &pixels);
-	if (status != 0) return status;
-	if (pixels == NULL) return IO_ERROR_OUT_OF_RANGE;
-	if (!info.offscreen && ports->screen_reader != NULL)
-		status = ports->screen_reader(ports->screen_reader_context, &absolute, pixels);
+	status = blit_capture(ports, port_surface(ports, number), &absolute, !info.offscreen, alternate, &pixels);
 	if (status != 0) {
 		st_pixel_buffer_destroy(pixels);
 		return status;
 	}
+	if (pixels == NULL) return IO_ERROR_OUT_OF_RANGE;
 	*result = pixels;
 	return 0;
+}
+
+int
+st_rip3_ports_write_viewport_pixels(struct st_rip3_ports *ports, unsigned number,
+    int32_t x, int32_t y, struct st_pixel_buffer *pixels, const struct st_rip3_palette *palette)
+{
+	if (pixels == NULL || pixels->width == 0 || pixels->height == 0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_port_info info;
+	int status = st_rip3_ports_info(ports, number, &info);
+	if (status != 0 || !info.viewport_active)
+		return status;
+	int64_t right = (int64_t)x + pixels->width - 1, bottom = (int64_t)y + pixels->height - 1;
+	if (x < info.clip.x0 || y < info.clip.y0 || right > info.clip.x1 || bottom > info.clip.y1)
+		return IO_ERROR_OUT_OF_RANGE;
+	const struct st_rip3_rect view = viewport_absolute(&ports->entries[number]);
+	const struct st_rip3_rect area = {view.x0+x, view.y0+y,
+	    view.x0+(int32_t)right, view.y0+(int32_t)bottom};
+	return store_pixels(ports, port_surface(ports, number), &area, !info.offscreen, pixels, palette);
 }
 
 int

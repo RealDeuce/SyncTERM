@@ -10,6 +10,7 @@ from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
 from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
+from st_rip3_scroll_connected_test import plane_pixel
 from st_terminal_conformance_test import Terminal, cell_at
 from syncterm_control import SHIFT
 
@@ -21,7 +22,7 @@ def bitmap_row(depth, row, palette=b""):
     return file_header + info_header + palette + row
 
 
-def check_bitmap(t, assets, values):
+def check_bitmap(t, assets, values, encoding):
     red, blue, green = 0xaa0000, 0x0000aa, 0x00aa00
     local_palette = b"\x00\x00\xaa\x00\xaa\x00\x00\x00"
     solid = bitmap_row(1, bytes(4), local_palette)
@@ -131,6 +132,21 @@ def check_bitmap(t, assets, values):
     assert (assets / "Raw.icn").read_bytes() == solid
     assert not (assets / "Raw.BMP").exists()
     values(b"alive", b"alive")
+
+    t.case("Wire bitmap wallpaper repeats the live composited seed in both blink phases")
+    reset()
+    glyph = b"\xdb" if encoding == "CP437" else "█".encode()
+    frame = t.exchange(b"\x1b[?25l\x1b[5;38;2;17;34;51;48;2;170;187;204m" + glyph)
+    phases = ("primary", "alternate")
+    retained = tuple(plane_pixel(frame, 1, 1, phase) for phase in phases)
+    assert set(retained) == {0x112233, 0xaabbcc}, retained
+    frame = wire(b"v" + coords(0, 0, 9, 5) + b"|1b" + coords(1, 1, 2, 1)
+                 + b"00" + number(8 | 16, 2) + b"000000Split.BMM")
+    for phase, rgb in zip(phases, retained):
+        for y in range(6):
+            actual = [plane_pixel(frame, x, y, phase) for x in range(10)]
+            assert actual == [blue, rgb] * 5, (phase, y, actual)
+        assert plane_pixel(frame, 10, 1, phase) == 0
 
     t.case("WRITE_ICON normalizes the basename and selects scaled or backing clipboard pixels")
     reset()
@@ -628,7 +644,7 @@ def run(args):
         assert pixel(frame, 170, 180) == 0
         frame = values(b"$(" + encoded + b"\\$$good", b"good")
         assert pixel(frame, 170, 180) == (0x454545 if supported == b"1" else 0)
-        check_bitmap(t, assets, values)
+        check_bitmap(t, assets, values, args.encoding)
         check_host_directory(t, root, assets, values, args.encoding)
 
 

@@ -19,13 +19,13 @@ test_calloc(size_t count, size_t size)
 
 static int
 capture_pixels(const struct st_rip3_ports *ports, unsigned number,
-    const struct st_rip3_rect *area, bool viewport, struct st_pixel_buffer **result)
+    const struct st_rip3_rect *area, bool viewport, bool alternate, struct st_pixel_buffer **result)
 {
 	if (st_rip3_bitmap_capture_test_failure == 2) {
 		st_rip3_bitmap_capture_test_failure = 0;
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
-	return st_rip3_ports_capture_pixels(ports, number, area, viewport, result);
+	return st_rip3_ports_capture_pixels(ports, number, area, viewport, alternate, result);
 }
 
 #define calloc test_calloc

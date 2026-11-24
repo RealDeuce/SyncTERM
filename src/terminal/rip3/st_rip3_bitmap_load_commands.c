@@ -222,7 +222,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	}
 	if ((flags&16) != 0) {
 		/* Shared clipboard capture may have changed the live current port. */
-		int wallpaper_status = st_rip3_wallpaper(host->ports,&area,(flags&32) != 0);
+		int wallpaper_status = st_rip3_wallpaper(host->ports,&area,(flags&32) != 0,&palette);
 		if (status == 0) status = wallpaper_status;
 	}
 done:

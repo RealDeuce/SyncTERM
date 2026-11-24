@@ -6,6 +6,7 @@
 
 struct st_rip3_ports;
 struct st_rip3_bitmap_destination;
+struct st_rip3_palette;
 
 /* Repeat the composited seed through the live current viewport with COPY.
  * Input uses inclusive viewport-relative DEVICE edges. Trim far edges to the
@@ -16,6 +17,7 @@ struct st_rip3_bitmap_destination;
  * success changes content only, including in protected ports. The owning void
  * parser consumes this service status. No file or clipboard policy occurs. */
 int st_rip3_wallpaper(struct st_rip3_ports *ports,
-	const struct st_rip3_bitmap_destination *seed, bool stagger);
+	const struct st_rip3_bitmap_destination *seed, bool stagger,
+	const struct st_rip3_palette *palette);
 
 #endif

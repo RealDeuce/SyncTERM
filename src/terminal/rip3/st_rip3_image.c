@@ -153,7 +153,7 @@ draw_image(struct st_rip3_ports *ports,
 		 * as device pixels; no palette, clear, aspect fit or ROP is repeated. */
 		const struct st_rip3_bitmap_destination seed = {info.image.area.x0,info.image.area.y0,
 		    (int64_t)info.image.area.x1-1,(int64_t)info.image.area.y1-1};
-		return st_rip3_wallpaper(ports,&seed,(info.image.flags&32) != 0);
+		return st_rip3_wallpaper(ports,&seed,(info.image.flags&32) != 0,palette);
 	}
 	return 0;
 }

@@ -23678,6 +23678,36 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "988ecf11a859f3e1a8ebcceb82f87814bda6b595",
+      "revision": "1859b08987dddff557233533ace1bba664c608ec",
+      "scope": "Repeat the live composited bitmap wallpaper seed, preserving ANSI RGB retained by transparent pixels and both console blink phases.",
+      "supporting_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:291",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:316"
+      ],
+      "tests": [
+        "rip3_wallpaper",
+        "rip3_bitmap_load_commands",
+        "syncterm_rip3_media_CP437",
+        "syncterm_rip3_media_UTF-8",
+        "rip3_image_wallpaper",
+        "rip3_image_commands_native",
+        "rip3_image_commands_disabled",
+        "rip3_bitmap_write_commands",
+        "rip3_viewport_commands",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1913,
+        "pending": 1452,
+        "implemented": 3724,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "archive_format": "git archive --format=tar"

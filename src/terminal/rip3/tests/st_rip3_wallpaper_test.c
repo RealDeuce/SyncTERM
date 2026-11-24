@@ -34,7 +34,7 @@ scene(bool stagger)
 	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 3; x++)
 		CHECK(st_rip3_ports_plot(ports,2+x,3+y,(uint8_t)(y*3+x+1),ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_protect(ports,1,true) == 0 && st_rip3_ports_info(ports,1,&before) == 0);
-	CHECK(st_rip3_wallpaper(ports,&seed,stagger) == 0);
+	CHECK(st_rip3_wallpaper(ports,&seed,stagger,NULL) == 0);
 	CHECK(st_rip3_ports_info(ports,1,&after) == 0 && memcmp(&before,&after,sizeof(before)) == 0);
 	unsigned current; CHECK(st_rip3_ports_current(ports,&current) == 0 && current == 1);
 	/* Check the whole screen, including untouched pixels outside the viewport. */
@@ -61,23 +61,23 @@ edges(void)
 	for (int32_t y = 0; y < 3; y++) for (int32_t x = 0; x < 3; x++)
 		CHECK(st_rip3_ports_plot(ports,3+x,2+y,(uint8_t)(3*y+x+1),ST_RIP3_COPY) == 0);
 	st_rip3_wallpaper_test_fail_allocate = true;
-	CHECK(st_rip3_wallpaper(ports,&seed,false) == IO_ERROR_OUT_OF_MEMORY && !st_rip3_wallpaper_test_fail_allocate);
+	CHECK(st_rip3_wallpaper(ports,&seed,false,NULL) == IO_ERROR_OUT_OF_MEMORY && !st_rip3_wallpaper_test_fail_allocate);
 	for (int32_t y = 0; y < 5; y++) for (int32_t x = 0; x < 6; x++) {
 		uint8_t actual, original = x >= 3 && y >= 2 ? (uint8_t)(3*(y-2)+x-2) : 85;
 		CHECK(st_rip3_ports_read(ports,0,x,y,&actual) == 0 && actual == original);
 	}
 	const struct st_rip3_bitmap_destination invalid[] = {{-1,0,1,1},{0,-1,1,1},{6,0,7,1},{0,5,1,6},{1,0,0,1}};
-	for (size_t i = 0; i < sizeof(invalid)/sizeof(*invalid); i++) CHECK(st_rip3_wallpaper(ports,invalid+i,false) != 0);
-	CHECK(st_rip3_wallpaper(ports,&seed,false) == 0);
+	for (size_t i = 0; i < sizeof(invalid)/sizeof(*invalid); i++) CHECK(st_rip3_wallpaper(ports,invalid+i,false,NULL) != 0);
+	CHECK(st_rip3_wallpaper(ports,&seed,false,NULL) == 0);
 	for (int32_t y = 0; y < 5; y++) for (int32_t x = 0; x < 6; x++) {
 		uint8_t actual; CHECK(st_rip3_ports_read(ports,0,x,y,&actual) == 0 && actual == expected[y][x]);
 	}
 	/* Covering the viewport needs no staging. Inactive ports likewise no-op. */
 	const struct st_rip3_bitmap_destination full = {0,0,20,20};
 	st_rip3_wallpaper_test_fail_allocate = true;
-	CHECK(st_rip3_wallpaper(ports,&full,true) == 0 && st_rip3_wallpaper_test_fail_allocate);
+	CHECK(st_rip3_wallpaper(ports,&full,true,NULL) == 0 && st_rip3_wallpaper_test_fail_allocate);
 	CHECK(st_rip3_ports_activate(ports,false) == 0);
-	CHECK(st_rip3_wallpaper(ports,&seed,true) == 0 && st_rip3_wallpaper_test_fail_allocate);
+	CHECK(st_rip3_wallpaper(ports,&seed,true,NULL) == 0 && st_rip3_wallpaper_test_fail_allocate);
 	st_rip3_wallpaper_test_fail_allocate = false;
 	st_rip3_ports_destroy(ports); return 0;
 }
@@ -94,11 +94,11 @@ main(void)
 	CHECK(st_rip3_ports_create(&ports,ST_RIP3_CANVAS_640_480) == 0 && st_rip3_ports_viewport(ports,&viewport) == 0);
 	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 4; x++)
 		CHECK(st_rip3_ports_plot(ports,1+x,1+y,(uint8_t)(4*y+x+1),ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_wallpaper(ports,&even,true) == 0);
+	CHECK(st_rip3_wallpaper(ports,&even,true,NULL) == 0);
 	for (int32_t y = 0; y < 5; y++) for (int32_t x = 0; x < 6; x++) {
 		uint8_t actual; CHECK(st_rip3_ports_read(ports,0,x,y,&actual) == 0 && actual == expected[y][x]);
 	}
-	CHECK(st_rip3_ports_plot(ports,2,3,73,ST_RIP3_COPY) == 0 && st_rip3_wallpaper(ports,&single,true) == 0);
+	CHECK(st_rip3_ports_plot(ports,2,3,73,ST_RIP3_COPY) == 0 && st_rip3_wallpaper(ports,&single,true,NULL) == 0);
 	for (int32_t y = 0; y < 5; y++) for (int32_t x = 0; x < 6; x++) {
 		uint8_t actual; CHECK(st_rip3_ports_read(ports,0,x,y,&actual) == 0 && actual == 73);
 	}

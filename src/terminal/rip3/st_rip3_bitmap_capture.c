@@ -48,7 +48,7 @@ capture(struct st_rip3_bitmap **result,
 	if (bitmap == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	bitmap->bit_depth = 8; bitmap->palette_size = 256;
 	for (unsigned i = 0; i < 256; i++) bitmap->palette[i] = palette->rgb[i];
-	status = st_rip3_ports_capture_pixels(ports, number, &visible, viewport, &bitmap->pixels);
+	status = st_rip3_ports_capture_pixels(ports, number, &visible, viewport, false, &bitmap->pixels);
 	if (status != 0) goto failed;
 	/* A screen restore can include native RGB ink. Resolve it under this
 	 * export's explicit palette; retain ordinary indexed pixels verbatim.

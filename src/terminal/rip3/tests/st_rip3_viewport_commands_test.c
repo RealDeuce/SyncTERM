@@ -196,7 +196,7 @@ consumers(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	st_rip3_bitmap_destroy(bitmap);
 	CHECK(st_rip3_ports_activate(f.host.ports,true) == 0);
 	CHECK(st_rip3_ports_copy(f.host.ports,1,NULL,0,&destination,ST_RIP3_TRANSFER_COPY) == 0);
-	CHECK(st_rip3_wallpaper(f.host.ports,&seed,false) == 0);
+	CHECK(st_rip3_wallpaper(f.host.ports,&seed,false,NULL) == 0);
 	CHECK(viewport(&f,image_area,2,36) == 0);
 	CHECK(st_rip3_ports_image_style(f.host.ports,1,NULL,4) == 0);
 	st_rip3_image_test_fail_allocate = true;
@@ -290,7 +290,7 @@ physical(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	fields[1] = fields[3] = 24;
 	CHECK(viewport(&f,fields,3,36) == 0);
 	CHECK(st_rip3_ports_plot(f.host.ports,0,0,9,ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_wallpaper(f.host.ports,&seed,false) == 0);
+	CHECK(st_rip3_wallpaper(f.host.ports,&seed,false,NULL) == 0);
 	/* Every transfer mode samples against the ten-pixel requested target,
 	 * rather than refitting the source to its two physical output pixels. */
 	for (unsigned mode = 0; mode < 5; mode++) {
