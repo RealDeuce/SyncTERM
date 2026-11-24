@@ -21904,6 +21904,27 @@
         "unreviewed": 2178
       },
       "verification": "Connected CP437 and UTF-8 transfers compare complete BMP bytes and the retained old destination tail. They verify immediate wire consumption, mixed scene/JPEG/icon batches, invalid or blocked destinations, and persistence of a completed icon after peer disconnect. Native codec and bitmap load tests and the RIP 1.54 source preservation check pass. Original post-transfer call is EXE RVA 0x206cf; fixed palette is DLL RVA 0x7f2e0."
+    },
+    {
+      "after_commit": "24db8828",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected fixed RIPtel character set and language replies, with separate dependency reports for the stateful callbacks.",
+      "implemented_source_units": [],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:67"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:68"
+      ],
+      "states_after_update": {
+        "blocked": 43,
+        "context": 1869,
+        "excluded": 71,
+        "implemented": 3465,
+        "pending": 1492,
+        "unreviewed": 2178
+      },
+      "verification": "RIPtel DLL callbacks at RVAs 0x2bb73 and 0x2be34 return the fixed CDCS and LANG values. Connected CP437 and UTF-8 cases check the wire replies and recovery from invalid arguments. Native graphical fixtures cover ordinary and angle expansion as well as conditional operands."
     }
   ]
 }

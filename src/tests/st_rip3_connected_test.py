@@ -229,6 +229,12 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(query(b"$COLORS$:$SHIFT$:$CTRL$"), b"256:0:0")
         if width == 640:
             datetime_queries(t)
+            t.case("rip3-fixed-character-set-and-language-replies")
+            frame = t.exchange(query(b"$CDCS$:$LANG$:$LANG(THREECHAR)$:$LANG(twochar)$:$LANG(VERBOSE)$",
+                                     at_cursor=True), b"USASCII:eng:eng:en:English")
+            assert frame.application["connected"] == 1
+            t.exchange(query(b"$CDCS(1)$$LANG(OTHER)$$LANG(TWOCHAR,VERBOSE)$alive",
+                             at_cursor=True), b"alive")
             t.case("rip3-connected-prompt")
             send(query(b"$*=PROMPT,20@RIP3 validation$") + b"\x1b[5n")
             client.wait_text("RIP3 validation")

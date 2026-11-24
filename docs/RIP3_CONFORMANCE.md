@@ -9816,3 +9816,19 @@ converted header, palette and pixels to independently packed bytes, and
 load the icon through its wire alias immediately after transfer. They also
 check host-directory changes within a batch, conversion failures, and
 recovery of a completed icon after disconnect.
+
+## Connected client character set and language queries
+
+`$CDCS$` reports `USASCII`. `$LANG$` and `$LANG(THREECHAR)$` report
+`eng`, `$LANG(TWOCHAR)$` reports `en`, and `$LANG(VERBOSE)$` reports
+`English`. These are fixed RIPtel replies from DLL RVAs `0x2bb73`
+and `0x2be34`. The CP437 and UTF-8 TCP fixtures exercise each result
+and rejection recovery. The graphical tests exercise the same providers
+in ordinary and angle expansion and conditional operands.
+
+The reference lists those providers and the related `CHARSET`, `DCS`
+and `SDCS` callbacks. The latter three still need a contract for their
+defaults, window ownership and rendering effects. The distinct `BSMODE`
+and `BSXMIT` callbacks also need a contract for their client-side key and
+terminal effects. [Issue #210](https://github.com/bbs-land/remote-imaging-protocol/issues/210) ·
+[Issue #209](https://github.com/bbs-land/remote-imaging-protocol/issues/209)

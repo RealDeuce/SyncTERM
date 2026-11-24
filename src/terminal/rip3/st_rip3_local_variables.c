@@ -162,6 +162,31 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		memcpy(result, value, size);
 		return 0;
 	}
+	if (strcmp(name, "CDCS") == 0 || strcmp(name, "LANG") == 0) {
+		bool language = name[0] == 'L';
+		if (reference->count > (language ? 1u : 0u))
+			return IO_ERROR_INVALID_FORMAT;
+		/* These RIPtel callbacks return fixed protocol strings. */
+		const char *value = language ? "eng" : "USASCII";
+		if (reference->count == 1) {
+			struct st_rip3_builtin_reference words;
+			int status = st_rip3_builtin_reference_words(&words, reference);
+			if (status != 0)
+				return status;
+			const char *form = words.parameters[0].text;
+			if (word_equal(form, "TWOCHAR"))
+				value = "en";
+			else if (word_equal(form, "VERBOSE"))
+				value = "English";
+			else if (!word_equal(form, "THREECHAR"))
+				return IO_ERROR_INVALID_FORMAT;
+		}
+		size_t size = strlen(value) + 1;
+		if (size > capacity)
+			return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result, value, size);
+		return 0;
+	}
 	bool shift=strcmp(reference->name,"SHIFT")==0,ctrl=strcmp(reference->name,"CTRL")==0;
 	bool mouse=strcmp(reference->name,"MSTAT")==0,colors=strcmp(reference->name,"COLORS")==0;
 	bool x_only = strcmp(name, "X") == 0, y_only = strcmp(name, "Y") == 0;
