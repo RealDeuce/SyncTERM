@@ -9928,9 +9928,26 @@ against 52 RIPtel vectors captured by RIPlib's x86 geometry probe.
 Connected CP437 and UTF-8 tests exercise each opcode, nondefault WORLD and
 coordinate width, outline and fill selectors, and malformed-command recovery.
 
-The adopted bounded-text contract specifies whole-string outline fitting,
-including point sizing, spacing and the resulting drawing state. The
-connected renderer remains pending.
+## Connected BOUNDED_TEXT outline fitting
+
+Level 0 `"` decodes both corners and the reserved field before running the
+ordinary graphics-text expansion. An exact raw `$TEXTDATA$` reads the
+retained metric bytes. Empty input and inactive viewports skip the draw.
+The command rejects a nonempty classic-font run inside the RIP parser.
+
+The outline renderer projects both corners through WORLD, normalizes the
+box and fits one upright run. The metric search uses the actual face,
+spacing rule and raw shadow-distance allowance. The temporary fit is
+anchored at the box's left and bottom, with the normal viewport translation
+and clipping. It uses the current drawing colors, effects and write mode.
+The fit leaves the graphics cursor, selected port and style in place.
+
+Only the final fit publishes the shared outline metric snapshot, including
+when the entire run clips. Native vectors cover the size and spacing
+search, bbox spacing and the shadow fit allowance. A separate native
+rendering case checks XOR and shadow ink below the box. Live CP437 and
+UTF-8 fixtures cover reversed WORLD corners, viewport translation,
+retained text, malformed input, clipped publication and cursor preservation.
 [PR #225](https://github.com/bbs-land/remote-imaging-protocol/pull/225)
 
 ## Connected WRITE_ICON export modes

@@ -31,6 +31,68 @@ width(const struct st_rip3_outline_cache *cache, const uint8_t *text, size_t len
 	return 0;
 }
 
+static void
+word(uint8_t *field, unsigned value)
+{
+	field[0]=(uint8_t)value;
+	field[1]=(uint8_t)(value>>8);
+}
+
+static int
+bounded(void)
+{
+	/* Independent PR #225 vectors. At 72 DPI each glyph steps one pixel
+	 * per point, and the logical height increases at the same rate. */
+	const struct st_rip3_font_asset *asset=st_rip3_font_asset_at(5);
+	uint8_t *copy=malloc(asset->size);
+	CHECK(copy!=NULL);
+	memcpy(copy,asset->data,asset->size);
+	struct st_rip3_rff file;
+	CHECK(st_rip3_rff_open(&file,copy,asset->size)==0 && file.units_per_em==1000);
+	copy[file.style_offset+3]=100;
+	word(copy+file.base+0x16,0);
+	word(copy+file.base+0x18,65536-1000);
+	word(copy+file.base+0x1a,2000);
+	word(copy+file.base+0x1c,0);
+	for (unsigned i=0;i<file.characters;i++)
+		word(copy+file.advances+2*i,1000);
+	struct st_rip3_frame frame;
+	CHECK(st_rip3_frame_init(&frame,ST_RIP3_CANVAS_640_480)==0
+	    && st_rip3_frame_world(&frame,640,480)==0);
+	struct st_rip3_outline_cache *cache=NULL;
+	const uint8_t text[]="AB";
+	const struct {
+		unsigned box_width, box_height, shadow, flags, points, spacing, advance;
+	} cases[]={
+		{40,24,0,0,20,100,40},
+		{14,8,0,0,7,100,14},
+		{26,10,0,0,10,130,26},
+		{38,20,2,0,18,100,36},
+		{21,7,0,0,7,157,20},
+		{10000,1,0,0,1,4095,80},
+		{26,10,0,0x400,10,115,26},
+	};
+	for (size_t i=0;i<sizeof(cases)/sizeof(cases[0]);i++) {
+		struct st_rip3_outline_font font;
+		unsigned spacing=100;
+		CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,10,cases[i].flags,0)==0);
+		CHECK(st_rip3_outline_cache_fit(&cache,&font,&spacing,&frame,cases[i].shadow,
+		    cases[i].box_width,cases[i].box_height,text,2)==0);
+		CHECK(font.points==cases[i].points && spacing==cases[i].spacing);
+		CHECK(width(cache,text,2,cases[i].advance,(int)cases[i].advance)==0
+		    && st_rip3_outline_cache_height(cache)==cases[i].points);
+	}
+	struct st_rip3_outline_font font;
+	unsigned spacing=100;
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,10,0,0)==0);
+	CHECK(st_rip3_outline_cache_fit(&cache,&font,&spacing,&frame,0,1,1,text,2)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(font.points==10 && spacing==100 && width(cache,text,2,26,26)==0
+	    && st_rip3_outline_cache_height(cache)==10);
+	st_rip3_outline_cache_destroy(cache);
+	free(copy);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -136,5 +198,5 @@ main(void)
 	CHECK(st_rip3_outline_cache_test_allocations==3);
 	st_rip3_outline_cache_reset(NULL);st_rip3_outline_cache_destroy(NULL);
 	st_rip3_outline_cache_destroy(other);st_rip3_outline_cache_destroy(cache);
-	return 0;
+	return bounded();
 }

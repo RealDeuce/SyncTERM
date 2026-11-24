@@ -65,6 +65,20 @@ step(int64_t *result, uint64_t device, uint64_t reference, unsigned spacing)
 	return 0;
 }
 
+static int
+set_spacing(struct st_rip3_outline_cache *cache, unsigned spacing)
+{
+	for (size_t code=0; code<256; code++) {
+		/* The validated u16/Q/DPI/H ranges keep this product in uint64_t. */
+		uint64_t device=cache->logical[code]*cache->dpi_x/1440;
+		int status=step(&cache->steps[code],device,
+		    cache->bounding_box_spacing ? (uint64_t)cache->bbox_width : device,spacing);
+		if (status!=0) return status;
+	}
+	cache->spacing=spacing;
+	return 0;
+}
+
 int
 st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache,
     const struct st_rip3_outline_font *font, unsigned spacing)
@@ -75,15 +89,10 @@ st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache,
 	uint64_t span=(uint64_t)font->bounds.xmax-(uint64_t)font->bounds.xmin;
 	if (span>INT64_MAX) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_outline_cache value={.bbox_width=(int64_t)span,.dpi_x=font->dpi_x,
-	    .spacing=spacing,.bounding_box_spacing=(font->flags&0x400)!=0,.valid=true};
+	    .bounding_box_spacing=(font->flags&0x400)!=0,.valid=true};
 	int status=st_rip3_outline_font_metric_map(value.logical,&value.height,font);
+	if (status==0) status=set_spacing(&value,spacing);
 	if (status!=0) return status;
-	for (size_t code=0; code<256; code++) {
-		/* The validated u16/Q/DPI/H ranges keep this product in uint64_t. */
-		uint64_t device=value.logical[code]*value.dpi_x/1440;
-		status=step(&value.steps[code],device,value.bounding_box_spacing ? span : device,spacing);
-		if (status!=0) return status;
-	}
 	*cache=value;
 	return 0;
 }
@@ -114,4 +123,95 @@ uint64_t
 st_rip3_outline_cache_height(const struct st_rip3_outline_cache *cache)
 {
 	return st_rip3_outline_cache_valid(cache) ? cache->height : 0;
+}
+
+static int
+fit_width(int64_t *width, const struct st_rip3_outline_cache *metrics,
+    unsigned shadow, const uint8_t *text, size_t length)
+{
+	struct st_rip3_outline_width measured;
+	int status=st_rip3_outline_cache_measure(&measured,metrics,text,length);
+	if (status!=0) return status;
+	if (measured.advance>INT64_MAX-(int64_t)shadow) return IO_ERROR_OUT_OF_RANGE;
+	*width=measured.advance+shadow;
+	return 0;
+}
+
+static int
+fit_size(struct st_rip3_outline_cache *metrics, struct st_rip3_outline_font *face,
+    const struct st_rip3_frame *frame, unsigned points, unsigned spacing)
+{
+	int status=0;
+	if (face->points!=points)
+		status=st_rip3_outline_font_bind(face,&face->file,face->face,frame,points,face->flags,0);
+	if (status==0) status=st_rip3_outline_cache_prepare(metrics,face,spacing);
+	return status;
+}
+
+int
+st_rip3_outline_cache_fit(struct st_rip3_outline_cache **cache,
+    struct st_rip3_outline_font *font, unsigned *spacing, const struct st_rip3_frame *frame,
+    unsigned shadow, uint64_t box_width, uint64_t box_height, const uint8_t *text, size_t length)
+{
+	const unsigned limit=4095;
+	if (cache==NULL || font==NULL || spacing==NULL || frame==NULL || text==NULL || length==0)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (box_width==0 || box_height==0 || box_width>UINT64_MAX/limit
+	    || box_height>UINT64_MAX/limit || font->orientation!=0 || shadow>limit)
+		return IO_ERROR_OUT_OF_RANGE;
+
+	struct st_rip3_outline_cache metrics;
+	struct st_rip3_outline_font face=*font;
+	int64_t width;
+	int status=st_rip3_outline_cache_prepare(&metrics,&face,*spacing);
+	if (status==0) status=fit_width(&width,&metrics,shadow,text,length);
+	if (status!=0) return status;
+	uint64_t height=metrics.height+shadow;
+	if (width<=0 || height==0) return IO_ERROR_OUT_OF_RANGE;
+	uint64_t size_x=face.points*box_width/(uint64_t)width;
+	uint64_t size_y=face.points*box_height/height;
+	uint64_t proposal=size_x<size_y ? size_x : size_y;
+	unsigned points=proposal<limit ? (unsigned)proposal : limit;
+
+	unsigned fitted=0;
+	while (points!=0) {
+		if (face.points!=points) {
+			status=fit_size(&metrics,&face,frame,points,*spacing);
+			if (status==0) status=fit_width(&width,&metrics,shadow,text,length);
+			if (status!=0) return status;
+			height=metrics.height+shadow;
+		}
+		if (width>0 && (uint64_t)width<=box_width && height!=0 && height<=box_height) {
+			fitted=points;
+			if (points==limit) break;
+			points++;
+		}
+		else if (fitted!=0) break;
+		else points--;
+	}
+	if (fitted==0) return IO_ERROR_OUT_OF_RANGE;
+	if (face.points!=fitted) {
+		status=fit_size(&metrics,&face,frame,fitted,*spacing);
+		if (status==0) status=fit_width(&width,&metrics,shadow,text,length);
+		if (status!=0) return status;
+	}
+	while ((uint64_t)width<box_width && metrics.spacing<limit) {
+		unsigned next=metrics.spacing+5;
+		status=set_spacing(&metrics,next>limit ? limit : next);
+		if (status==0) status=fit_width(&width,&metrics,shadow,text,length);
+		if (status!=0) return status;
+	}
+	while ((uint64_t)width>box_width) {
+		status=set_spacing(&metrics,metrics.spacing-1);
+		if (status==0) status=fit_width(&width,&metrics,shadow,text,length);
+		if (status!=0) return status;
+	}
+	if (*cache==NULL) {
+		status=st_rip3_outline_cache_create(cache);
+		if (status!=0) return status;
+	}
+	**cache=metrics;
+	*font=face;
+	*spacing=metrics.spacing;
+	return 0;
 }

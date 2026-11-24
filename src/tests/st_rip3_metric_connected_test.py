@@ -5,7 +5,8 @@ import argparse
 from pathlib import Path
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
-from st_rip3_connected_test import query
+from st_rip3_connected_test import pixel, query
+from st_rip3_button_styles_connected_test import number
 from syncterm_fixture import receive
 
 
@@ -21,11 +22,12 @@ def run(args,width,height):
             return (value+32768)%65536-32768
         def width_reply(count):
             return decimal(signed(count*cw))+b'\r'
-        def outline(name=b'Marin',size=90,rotation=0):
+        def outline(name=b'Marin',size=90,rotation=0,flags=0,baseline=0):
             alphabet=b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!?'
             def ultra(value):
                 return bytes((alphabet[value//64],alphabet[value%64]))
-            fields=b'00'+b'0000'+ultra(size)+b'00'+ultra(rotation)+ultra(rotation)+b'00'+ultra(100)+b'00'+b'000000'
+            fields=(b'00'+ultra(flags//4096)+ultra(flags%4096)+ultra(size)+b'00'
+                    +ultra(rotation)+ultra(rotation)+ultra(baseline)+ultra(100)+b'00'+b'000000')
             t.exchange(b'\x01|y'+fields+name+b'\r\n')
         def values(source,expected=b''):
             return t.exchange(query(source,at_cursor=True),expected)
@@ -158,6 +160,85 @@ def run(args,width,height):
         outline(b'absent')
         metric(b'F',b'50\r')
         metric(b'$TEXTDATA$',b'104\r',mode=1)
+        if (width,height)==(640,480):
+            t.case('rip3-bounded-outline-text-fits-upright-in-a-translated-viewport')
+            t.exchange(b'\x01|*\r\n\x1b[?25l')
+            values(b'$WORLD(CUR,640,480)$')
+            t.exchange(b'\x01|v0507HRDB|c0F|m0A0K\r\n')
+            values(b'$COORDSIZE(CUR,3)$')
+            # F advances 556/1000 em. Global height is 1166/1000 em.
+            # At 72 DPI the 41x25 box fits size 22, space 174, steps 20+20.
+            # F ink spans design x=18..547 and y=-662..0 per 1000 units.
+            outline(rotation=1800,flags=0x20,baseline=8)
+            metric(b'FF',b'100\r')
+            values(b'[3:]FF')
+
+            def bounded(corners,source=b'',reserved=b'1Z'):
+                return b'"'+b''.join(number(coord,3) for coord in corners)+reserved+source
+
+            def line(*commands):
+                return b'\x01|'+b'|'.join(commands)+b'\r\n'
+
+            def ink(frame,x0,x1,y0,y1):
+                return {(x,y) for x in range(x0,x1) for y in range(y0,y1)
+                        if pixel(frame,x,y)==0xffffff}
+
+            t.exchange(line(bounded((20,30,61,55),b'<<?3>>')))
+            values(b'$WORLD(CUR,1280,960)$')
+            # At 36 DPI, size 44 paints identically. Odd world endpoints
+            # truncate separately before calculating the reversed extent.
+            t.exchange(line(bounded((303,111,220,60),b'FF')))
+            frame=t.exchange(query(b'$WORLD(CUR,640,480)$$TEXTXY$',at_cursor=True),b'15:27')
+            left=ink(frame,0,40,35,68)
+            right=ink(frame,40,85,35,68)
+            assert left and all(25<=x<=37 and 47<=y<=62 for x,y in left), left
+            assert right=={(x+20,y) for x,y in left}
+            assert ink(frame,90,175,35,68)=={(x+90,y) for x,y in left|right}
+            outline(b'absent')
+            metric(b'$TEXTDATA$',b'40\r')
+            metric(b'$TEXTDATA$',b'25\r',mode=1)
+
+            t.case('rip3-bounded-text-uses-retained-bytes-and-preserves-the-cache-on-rejection')
+            outline()
+            metric(b'\\$V$',b'155\r')
+            frame=t.exchange(line(bounded((40,75,110,115),b'$tExTdAtA$'))
+                             +query(b'$TEXTXY$',at_cursor=True),b'15:27')
+            assert ink(frame,45,115,95,124)
+            # At size 35 and spacing 120, the retained '$V$' has steps 20, 30, 20.
+            outline(b'absent')
+            metric(b'$TEXTDATA$',b'20:30:20\r',mode=2)
+            metric(b'$TEXTDATA$',b'40\r',mode=1)
+            before=t.exchange()
+            frame=t.exchange(line(b'Y00000100',
+                                  bounded((40,75,110,115),b'$COORDSIZE(CUR,5)$'),
+                                  bounded((40,75,110,115)))
+                             +query(b'$COORDSIZE$:$TEXTXY$',at_cursor=True),b'3:15:27')
+            assert (frame.primary,frame.alternate)==(before.primary,before.alternate)
+            outline()
+            values(b'$DVP(CUR)$')
+            t.exchange(line(bounded((40,75,110,115),b'$COORDSIZE(CUR,5)$'))
+                       +query(b'$COORDSIZE$',at_cursor=True),b'3')
+            values(b'$AVP(CUR)$')
+            frame=t.exchange(line(bounded((40,75,40,115),b'F'),
+                                  bounded((40,75,110,115),b'$NULL$'),
+                                  bounded((40,75,110,115),b'F',reserved=b'?0'))
+                             +query(b'$TEXTXY$',at_cursor=True),b'15:27')
+            assert (frame.primary,frame.alternate)==(before.primary,before.alternate)
+            outline(b'absent')
+            metric(b'$TEXTDATA$',b'20:30:20\r',mode=2)
+            metric(b'$TEXTDATA$',b'40\r',mode=1)
+
+            t.case('rip3-bounded-text-publishes-final-metrics-even-when-clipped')
+            outline()
+            encoded=b'\x82' if args.encoding=='CP437' else b'\xc3\xa9'
+            frame=t.exchange(line(bounded((160,110,180,125),encoded)))
+            assert ink(frame,165,185,120,133)
+            clipped=t.exchange(line(bounded((650,110,661,124),encoded))
+                               +query(b'$TEXTXY$',at_cursor=True),b'15:27')
+            assert (frame.primary,frame.alternate)==(clipped.primary,clipped.alternate)
+            outline(b'absent')
+            metric(b'F',b'11\r')
+            metric(b'$TEXTDATA$',b'14\r',mode=1)
         values(b'alive',b'alive')
         assert client.capture().application['connected']==1
 

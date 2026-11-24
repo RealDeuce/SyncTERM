@@ -9,6 +9,7 @@
 
 struct st_rip3_outline_cache;
 struct st_rip3_outline_font;
+struct st_rip3_frame;
 
 struct st_rip3_outline_width {
 	int64_t advance; /* Wide cached X-width, including every byte's final gap. */
@@ -33,6 +34,11 @@ bool st_rip3_outline_cache_valid(const struct st_rip3_outline_cache *cache);
  * Internal metric-service statuses must remain inside the parser boundary. */
 int st_rip3_outline_cache_prepare(struct st_rip3_outline_cache *cache,
 	const struct st_rip3_outline_font *font, unsigned spacing);
+/* Fit nonempty text using a realized upright face. Publish only the final
+ * snapshot and return that realization and spacing for painting. */
+int st_rip3_outline_cache_fit(struct st_rip3_outline_cache **cache,
+	struct st_rip3_outline_font *font, unsigned *spacing, const struct st_rip3_frame *frame,
+	unsigned shadow, uint64_t width, uint64_t height, const uint8_t *text, size_t length);
 /* Bounded C-string measurement: stop at the first NUL or length. All codes are
  * unsigned, including 0x80..0xff. No 255-byte limit or intermediate WORD wrap.
  * NULL cache represents a cold/invalid snapshot; NULL text is valid only for

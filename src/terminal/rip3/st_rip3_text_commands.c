@@ -68,6 +68,39 @@ outline_text(const struct st_rip3_command_host *host, const struct st_rip3_style
 	return st_rip3_command_draw_outline(host,style,&layout,&font,rgb_bits,anchor,glyphs,length,NULL);
 }
 
+static int
+bounded_text(const struct st_rip3_command_host *host, struct st_rip3_style *style,
+    const struct st_rip3_frame *frame, unsigned rgb_bits, const struct st_rip3_text_argument *box,
+    const uint8_t *glyphs, size_t length)
+{
+	if (style->font_mode!=ST_RIP3_FONT_OUTLINE) return IO_ERROR_NOT_SUPPORTED;
+	uint64_t x0=box->x*frame->device_width/frame->world_width;
+	uint64_t y0=box->y*frame->device_height/frame->world_height;
+	uint64_t x1=box->x1*frame->device_width/frame->world_width;
+	uint64_t y1=box->y1*frame->device_height/frame->world_height;
+	uint64_t left=x0<x1 ? x0 : x1, right=x0<x1 ? x1 : x0;
+	uint64_t top=y0<y1 ? y0 : y1, bottom=y0<y1 ? y1 : y0;
+	if (left==right || top==bottom) return IO_ERROR_OUT_OF_RANGE;
+
+	/* Fit and paint an upright run. The current STYLE owns the unmodified
+	 * rotations, baseline and alignment. The painter adds the viewport origin. */
+	style->outline.flags&=~UINT32_C(0x30);
+	style->outline.string_rotation=0;
+	style->outline.character_rotation=0;
+	style->outline.baseline=0;
+	struct st_rip3_outline_layout layout;
+	struct st_rip3_outline_font font;
+	int status=st_rip3_outline_layout_prepare(&layout,&style->outline,frame);
+	if (status==0)
+		status=st_rip3_command_outline_font(&font,host->text,&style->outline,frame,0);
+	if (status==0)
+		status=st_rip3_outline_cache_fit(&host->text->outline_cache,&font,&layout.spacing,frame,
+		    style->outline.shadow,right-left,bottom-top,glyphs,length);
+	if (status!=0) return status;
+	const struct st_rip3_text_position anchor={(double)left,(double)bottom};
+	return st_rip3_command_draw_outline(host,style,&layout,&font,rgb_bits,&anchor,glyphs,length,NULL);
+}
+
 int
 st_rip3_command_draw_outline(const struct st_rip3_command_host *host, const struct st_rip3_style *style,
     const struct st_rip3_outline_layout *layout, const struct st_rip3_outline_font *font, unsigned rgb_bits,
@@ -147,26 +180,56 @@ int
 st_rip3_text_argument_prepare(const struct st_rip3_command_host *host, const uint8_t *command,
     size_t length, struct st_rip3_text_argument *argument, size_t *offset)
 {
-	if (length==0 || (command[0]!='T' && command[0]!='@')) return IO_ERROR_INVALID_ARGUMENT;
-	struct st_rip3_text_argument value={.positioned=command[0]=='@'};
+	if (length==0 || (command[0]!='T' && command[0]!='@' && command[0]!='"'))
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_text_argument value={.opcode=command[0]};
 	size_t at=1;
-	if (value.positioned) {
+	if (value.opcode!='T') {
 		struct st_rip3_environment environment;unsigned number;
 		int status=st_rip3_command_environment(host,&number,&environment);
 		if (status!=0) return status;
-		size_t width=environment.coordinate_size;at+=2*width;
-		if (length<=at) return IO_ERROR_INVALID_FORMAT;
+		size_t width=environment.coordinate_size;
+		bool bounded=value.opcode=='"';
+		at+=bounded ? 4*width+2 : 2*width;
+		if (length<at || (!bounded && length==at)) return IO_ERROR_INVALID_FORMAT;
 		status=st_rip3_command_field(&value.x,command+1,width,environment.base_math);
 		if (status==0) status=st_rip3_command_field(&value.y,command+1+width,width,environment.base_math);
+		if (status==0 && bounded) {
+			uint64_t reserved;
+			status=st_rip3_command_field(&value.x1,command+1+2*width,width,environment.base_math);
+			if (status==0) status=st_rip3_command_field(&value.y1,command+1+3*width,width,environment.base_math);
+			if (status==0) status=st_rip3_command_field(&reserved,command+at-2,2,environment.base_math);
+		}
 		if (status!=0) return status;
-		if (value.x>INT32_MAX || value.y>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+		if (value.x>INT32_MAX || value.y>INT32_MAX || value.x1>INT32_MAX || value.y1>INT32_MAX)
+			return IO_ERROR_OUT_OF_RANGE;
+		if (bounded) {
+			value.skip=length==at || command[at]==0;
+			if (!value.skip) {
+				struct st_rip3_port_info port;
+				if (host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
+				status=st_rip3_ports_current(host->ports,&number);
+				if (status==0) status=st_rip3_ports_info(host->ports,number,&port);
+				if (status!=0) return status;
+				value.skip=!port.viewport_active;
+			}
+			if (!value.skip) {
+				struct st_rip3_style style;
+				if (host->styles==NULL) return IO_ERROR_NOT_SUPPORTED;
+				status=st_rip3_styles_current(host->styles,&number);
+				if (status==0) status=st_rip3_styles_get(host->styles,number,&style);
+				if (status!=0) return status;
+				if (style.font_mode!=ST_RIP3_FONT_OUTLINE) return IO_ERROR_NOT_SUPPORTED;
+			}
+		}
 	}
 	*argument=value;*offset=at;return 0;
 }
 
 static int
 text_execute(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_text_argument *prepared)
+    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_text_argument *prepared,
+    bool expanded)
 {
 	struct st_rip3_environment environment;
 	struct st_rip3_frame frame;
@@ -178,7 +241,7 @@ text_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_classic_text_plan plan;
 	struct st_rip3_style style;
 	unsigned environment_number, number, port_number;
-	char kind=prepared==NULL ? (char)command[0] : prepared->positioned ? '@' : 'T';
+	char kind=prepared==NULL ? (char)command[0] : (char)prepared->opcode;
 	const uint8_t *arguments = prepared==NULL ? command+1 : command, *glyphs;
 	size_t count = prepared==NULL ? length-1 : length, glyph_count;
 	uint8_t *owned = NULL, foreground = 0, background = 0;
@@ -223,15 +286,23 @@ text_execute(const struct st_rip3_command_host *host,
 		*operation = true;
 		return st_rip3_ports_cursor(host->ports,port_number,&next);
 	}
+	if (kind=='"' && count!=0) {
+		const uint8_t *end=memchr(arguments,0,count);
+		if (end!=NULL) count=(size_t)(end-arguments);
+	}
 	if (count == 0) return 0; /* Empty TEXT never consumes font/ink state. */
 	if (host->text == NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_styles_current(host->styles,&number);
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
-	status = text_glyphs(host->text,arguments,count,&glyphs,&glyph_count,&owned,prepared!=NULL);
+	status = text_glyphs(host->text,arguments,count,&glyphs,&glyph_count,&owned,expanded);
 	if (status != 0) return status;
 	*operation = true;
+	if (kind=='"') {
+		status=bounded_text(host,&style,&frame,environment.rgb_bits,prepared,glyphs,glyph_count);
+		goto done;
+	}
 	if (!positioned) anchor = (struct st_rip3_text_position){
 	    (double)(port.cursor.x-origin_x),(double)(port.cursor.y-origin_y)};
 	if (style.font_mode==ST_RIP3_FONT_OUTLINE) {
@@ -302,12 +373,19 @@ int
 st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
-	return text_execute(host,command,length,operation,NULL);
+	if (command[0]=='"') {
+		struct st_rip3_text_argument argument;
+		size_t offset;
+		int status=st_rip3_text_argument_prepare(host,command,length,&argument,&offset);
+		if (status!=0 || argument.skip) return status;
+		return text_execute(host,command+offset,length-offset,operation,&argument,false);
+	}
+	return text_execute(host,command,length,operation,NULL,false);
 }
 
 int
 st_rip3_text_commands_expanded(const struct st_rip3_command_host *host,
     const struct st_rip3_text_argument *argument, const uint8_t *text, size_t length, bool *operation)
 {
-	return text_execute(host,text,length,operation,argument);
+	return text_execute(host,text,length,operation,argument,true);
 }

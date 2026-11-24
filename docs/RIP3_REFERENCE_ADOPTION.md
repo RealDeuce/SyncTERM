@@ -1386,5 +1386,6 @@ Thirteen normative documents change. The inventory retains 9,162 units,
 moves 668 line ranges, adds 149 units and retires 42, for 9,311 units.
 The reference contour data matches all 36 SyncTERM marker slices and
 462 stored points. SyncTERM implements the adopted marker overlap rules
-and affine viewport clipping. Bounded outline fitting and temporary
-resource cleanup remain pending.
+and affine viewport clipping. The connected bounded outline renderer
+implements the adopted fitting and snapshot rules. Temporary resource
+cleanup remains pending.

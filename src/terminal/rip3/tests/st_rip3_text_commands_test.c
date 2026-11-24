@@ -205,6 +205,45 @@ flat(struct fixture *f, uint8_t color)
 }
 
 static int
+bounded(void)
+{
+	struct fixture f={0};
+	struct st_rip3_style style, after;
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480)==0);
+	CHECK(st_rip3_styles_get(f.host.styles,3,&style)==0);
+	style.font_mode=ST_RIP3_FONT_OUTLINE;
+	style.write_mode=ST_RIP3_XOR;
+	style.outline=(struct st_rip3_outline_style){
+	    .name="Marin",.size=90,.spacing=100,.shadow=2,.flags=0xe0,
+	    .string_rotation=1800,.character_rotation=2700,.baseline=8,
+	};
+	CHECK(set_style(&f,&style)==0);
+	CHECK(process(&f,"\"0K051P0U00FF",-1)==0);
+	/* The viewport adds (2,1) in port space. Shadow extends beyond the
+	 * fitting box's bottom, and is limited only by the enclosing viewport. */
+	bool ink=false, shadow_below_box=false;
+	for (int32_t y=10;y<36;y++) for (int32_t x=22;x<57;x++) {
+		uint8_t color;
+		CHECK(st_rip3_ports_read(f.host.ports,1,x,y,&color)==0);
+		if (color==(85^12)) ink=true;
+		if (y>31 && color==(85^8)) shadow_below_box=true;
+	}
+	CHECK(ink && shadow_below_box);
+	CHECK(process(&f,"\"1P0U0K05ZZFF",-1)==0 && flat(&f,85)==0);
+	unsigned number;
+	CHECK(st_rip3_ports_current(f.host.ports,&number)==0 && number==1);
+	CHECK(st_rip3_styles_current(f.host.styles,&number)==0 && number==3);
+	CHECK(st_rip3_styles_get(f.host.styles,3,&after)==0
+	    && after.font_mode==style.font_mode && after.outline.flags==style.outline.flags
+	    && after.outline.size==90 && after.outline.spacing==100
+	    && after.outline.string_rotation==1800 && after.outline.character_rotation==2700
+	    && after.outline.baseline==8 && after.write_mode==ST_RIP3_XOR);
+	CHECK(cursor(&f).x==40 && cursor(&f).y==15);
+	destroy(&f);
+	return 0;
+}
+
+static int
 modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f = {0}; struct st_rip3_style style;
@@ -414,6 +453,6 @@ main(void)
 	CHECK(vector_and_failures(ST_RIP3_CANVAS_640_480,640,480) == 0);
 	CHECK(vector_and_failures(ST_RIP3_CANVAS_800_600,800,600) == 0);
 	CHECK(vector_and_failures(ST_RIP3_CANVAS_1024_768,1024,768) == 0);
-	CHECK(numeric() == 0 && errors() == 0 && color_modes() == 0);
+	CHECK(numeric() == 0 && errors() == 0 && color_modes() == 0 && bounded() == 0);
 	return 0;
 }

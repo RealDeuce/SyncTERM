@@ -36,7 +36,11 @@ struct st_rip3_text_context {
 
 /* Numeric prefix is decoded once before providers can change BASEMATH/COORDSIZE.
  * Parser-owned continuation; private statuses never leave the void session API. */
-struct st_rip3_text_argument {bool positioned;uint64_t x,y;};
+struct st_rip3_text_argument {
+	uint8_t opcode;
+	bool skip;
+	uint64_t x,y,x1,y1;
+};
 struct st_rip3_command_host;
 int st_rip3_text_argument_prepare(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, struct st_rip3_text_argument *argument, size_t *offset);

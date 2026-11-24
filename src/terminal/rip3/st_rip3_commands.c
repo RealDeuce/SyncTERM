@@ -570,7 +570,7 @@ execute(const struct st_rip3_command_host *host,
 	    || command[0] == 'v' || (length >= 2 && command[0] == '2'
 	    && (command[1] == 'P' || command[1] == 'p' || command[1] == 'C' || command[1] == 's')))
 		return st_rip3_port_commands_execute(host, command, length, operation);
-	if (command[0] == 'm' || command[0] == 'T' || command[0] == '@')
+	if (command[0] == 'm' || command[0] == 'T' || command[0] == '@' || command[0] == '"')
 		return st_rip3_text_commands_execute(host,command,length,operation);
 	if (command[0] == 'y' || command[0] == 'q')
 		return st_rip3_font_commands_execute(host,command,length,operation);

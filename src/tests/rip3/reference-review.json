@@ -1024,7 +1024,7 @@
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
     "Adopted #205 completion-only resource publication and temporary registration remain pending. Existing worker resume and cache paths are preserved.",
-    "Adopted #214 bounded outline-text fitting and #215 session-owned temporary resource cleanup are pending."
+    "Adopted #215 session-owned temporary resource cleanup is pending."
   ],
   "derivations": [
     {
@@ -22767,6 +22767,68 @@
         "context": 1900,
         "pending": 1529,
         "implemented": 3623,
+        "excluded": 71,
+        "blocked": 20
+      }
+    },
+    {
+      "after_commit": "f2d8eddf",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Connect the adopted BOUNDED_TEXT wire command, outline fit and final metric publication.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:102",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:104",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:105",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:106",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:107",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:108",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:110",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:112",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:116",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:118",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:122",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:124",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:126",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:129",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:131",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:135",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:139",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:141",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:145",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:147",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:148",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:149",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:150",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:151",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:152",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:153",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:154",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:155",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:157",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:752",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:56",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:59",
+        "version/3.0/ripscrip/9.0-command-reference.md:142",
+        "version/3.0/techspecs/2.4-outline-advance-and-cache.md:149"
+      ],
+      "tests": [
+        "rip3_outline_cache",
+        "rip3_text_commands",
+        "syncterm_rip3_metric_CP437",
+        "syncterm_rip3_metric_UTF-8",
+        "rip3_session",
+        "rip3_text_metric",
+        "rip3_graphical",
+        "rip3_button_create",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8",
+        "rip3_contract"
+      ],
+      "states_after_update": {
+        "unreviewed": 2168,
+        "context": 1900,
+        "pending": 1495,
+        "implemented": 3657,
         "excluded": 71,
         "blocked": 20
       }

@@ -1783,12 +1783,12 @@ command(void *context, const uint8_t *bytes, size_t length)
 		else
 			diagnose(session, ST_RIP3_COMMAND_INVALID);
 	}
-	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@')) {
+	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@' || bytes[0]=='"')) {
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(&session->commands,bytes,length,&session->text_argument,&offset);
 		if (status!=0) st_rip3_command_result(&sink,status,false);
-		else {
-			session->text_retained=bytes[0]=='@' && st_rip3_metric_sentinel(bytes+offset,length-offset);
+		else if (!session->text_argument.skip) {
+			session->text_retained=bytes[0]!='T' && st_rip3_metric_sentinel(bytes+offset,length-offset);
 			if (!session->text_retained)
 				st_rip3_graphical_start(session->graphical,ST_RIP3_GRAPHICAL_TEXT,bytes+offset,length-offset);
 			session->graphical_job=GRAPHICAL_TEXT;
