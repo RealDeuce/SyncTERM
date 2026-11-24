@@ -552,9 +552,8 @@ static int
 boundaries(void)
 {
 	static const char kinds[] = {'C','G','o','O','V','A'};
-	static const char *invalid[] = {"C", "C0000", "C0000000", "G00000?", "o0000000?", "O000000A0000?",
-	    "A", "A030300A0", "A030300A0030", "A0303??A003", "A030300A00?", "A030300000?"};
-	static const char *unsupported[] = {"C030303 comment", "A030300A003 comment"};
+	static const char *invalid[] = {"C", "C0000", "C03030 comment", "G00000?", "o0000000?", "O000000A0000?",
+	    "A", "A030300A0", "A030300A00 comment", "A0303??A003", "A030300A00?", "A030300000?"};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_environment environment;
 	struct st_rip3_style original, style;
@@ -568,8 +567,6 @@ boundaries(void)
 	CHECK(st_rip3_ports_viewport(host.ports, &area) == 0 && st_rip3_ports_erase(host.ports, 0x55) == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++)
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
-	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++)
-		CHECK(process(&host, unsupported[i], ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&missing, "C030303", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing = host; missing.styles = NULL;
 	CHECK(process(&missing, "C030303", ST_RIP3_COMMAND_UNSUPPORTED) == 0);

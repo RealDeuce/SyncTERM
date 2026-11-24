@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 int
 st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
@@ -30,11 +29,11 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 	uint8_t foreground = 0, background = 0, drawing = 0;
 	size_t count = length-1;
 	int status;
-	if (memchr(command+1,' ',count) != NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status != 0) return status;
 	size_t width = environment.coordinate_size;
-	if (count != 5*width) return IO_ERROR_INVALID_FORMAT;
+	if (count > 5*width) count = 5*width;
+	if (count <= 4*width) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < 5; i++) {
 		status = st_rip3_command_field(values+i,command+1+i*width,
 		    i == 4 ? count-4*width : width,environment.base_math);

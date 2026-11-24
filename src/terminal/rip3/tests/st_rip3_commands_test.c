@@ -134,6 +134,9 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&host, "fHRDC", -1) == 0);
 	CHECK(expect(env, 0, 36,2,639,480) == 0);
 	CHECK(process(&host, "fZKQO                 Set world coordinats to 1280x960", -1) == 0);
+	CHECK(process(&host, "fHSDCEXTRA", -1) == 0 && expect(env, 0, 36,2,640,480) == 0);
+	CHECK(process(&host, "fZKQ tail", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "fZKQO012", -1) == 0 && expect(env, 0, 36,2,1280,960) == 0);
 	CHECK(st_rip3_environments_frame(env, 0, &frame) == 0);
 	CHECK(frame.device_width == width && frame.device_height == height);
 	CHECK(st_rip3_world_to_device(&frame, &world, &device) == 0
@@ -174,7 +177,7 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(query(env, "$WORLD$", "32768:32767") == 0);
 	CHECK(process(&host, "n2", -1) == 0);
 	static const char *const invalid[] = {"J","J?","J100","n","n?000","n20000",
-	    "f","fZK","fZKQO1","fZK?0"};
+	    "f","fZK","fZKQ tail","fZK?0"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(process(&host, "fZKQO", -1) == 0);
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);

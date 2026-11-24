@@ -24023,6 +24023,57 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "c311a06688e4bfdc302f4392a8d8c4215806fdcc",
+      "revision": "1504b9597a766acde14b463864cecf8e21e84293",
+      "scope": "Apply delimiter-time dispatch and fixed-width surplus handling to WORLD, basic geometry, rounded rectangles and erase.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/237"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:203",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:263",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:59",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:87",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:88",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:89",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:91",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:93",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:97",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:107",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:108",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:109",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:111",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:113",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:119",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:121",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:125",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:127",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:131",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:147"
+      ],
+      "tests": [
+        "rip3_commands",
+        "rip3_drawing_commands",
+        "rip3_point_commands",
+        "rip3_fill_commands",
+        "rip3_curve_commands",
+        "rip3_sector_commands",
+        "rip3_rounded_commands",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2153,
+        "context": 1924,
+        "pending": 1437,
+        "implemented": 3765,
+        "blocked": 21,
+        "excluded": 71
+      }
     }
   ],
   "archive_format": "git archive --format=tar"

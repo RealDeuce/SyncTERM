@@ -262,11 +262,10 @@ boundaries(void)
 	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
 	CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports,&area)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
-	const char *invalid[]={"U", "u01010909", "U010109090?", "u010109090200", "U01010909?2"};
+	const char *invalid[]={"U", "u01010909", "U010109090?", "u010109092 comment", "U01010909?2"};
 	st_rip3_drawing_test_fail_calloc=true;
 	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++) CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
 	CHECK(st_rip3_drawing_test_fail_calloc && unchanged(&host)==0);st_rip3_drawing_test_fail_calloc=false;
-	CHECK(process(&host,"U0101090902 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	/* Four corners each allocate a vertex/run array and a coverage mask;
 	 * four straight sides allocate coverage. Every failure precedes fill. */
 	for (unsigned n=1; n<=8; n++) {
@@ -279,7 +278,7 @@ boundaries(void)
 	}
 	missing=host;missing.styles=NULL;
 	CHECK(process(&missing,"u0101090902",ST_RIP3_COMMAND_UNSUPPORTED)==0);
-	CHECK(process(&host,"U0101090902",-1)==0); /* U uses STYLE independently of N. */
+	CHECK(process(&host,"U0101090902 comment",-1)==0); /* U uses STYLE independently of N. */
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(st_rip3_ports_activate(host.ports,false)==0);st_rip3_drawing_test_fail_calloc=true;
 	CHECK(process(&host,"u0101090902",-1)==0 && st_rip3_drawing_test_fail_calloc);
@@ -335,9 +334,11 @@ boundaries(void)
 	number(bytes+21,5,1073741823,64);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,bytes,-1)==0 && unchanged(&host)==0);
 	env.world_width=640;env.world_height=480;
-	/* A two-character radius is incomplete at XY=3; no drawing prefix. */
+	/* Only the final radius can shorten at XY=3. */
 	env.coordinate_size=3;env.base_math=36;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
-	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"U00100100900902",ST_RIP3_COMMAND_INVALID)==0 && unchanged(&host)==0);
+	CHECK(st_rip3_ports_erase(host.ports,0x55)==0 && process(&host,"U00100100900902",-1)==0);
+	CHECK(st_rip3_ports_read(host.ports,0,5,1,&value)==0 && value==12);
+	CHECK(st_rip3_ports_read(host.ports,0,1,1,&value)==0 && value==0x55);
 	env.coordinate_size=2;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	struct scene scene={&host,0};const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream=NULL;CHECK(st_rip3_stream_create(&stream,&sink)==0);

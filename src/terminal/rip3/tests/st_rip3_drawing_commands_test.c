@@ -113,10 +113,10 @@ static int
 scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	static const char *input =
-	    "!|c03|W00|R02020A08|c04|R0K0S0C0K|c05|L020G0G0G\r\n"
+	    "!|c03|W00|R02020A08 outline|c04|R0K0S0C0K|c05|L020G0G0GEXTRA\r\n"
 	    "!|c0F|W0|L0S020Y02|W1|L0S040Y04|W2|L0Y060S06|W3|L0S080Y08|W4|L0S0A0Y0A\r"
 	    "!|W0|W05|c07|c03 comment|L00102S10|W1|c08|R040K040O|R0M0K0Q0O|c09|L0101011\r"
-	    "!|L00000000?|W0|c000A|k0000|R020A08C\r";
+	    "!|L0000000?|W0|c000A|k0000|R020A08C\r";
 	struct st_rip3_command_host host = {0};
 	struct stream_scene scene = {&host,0};
 	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
@@ -249,9 +249,9 @@ rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 static int
 validation(void)
 {
-	const char *invalid[] = {"L", "L000000", "L000000000", "L0000000?", "R0000000?",
+	const char *invalid[] = {"L", "L000000", "L0000010 comment", "L0000000?", "R0000000?",
 	    "W", "W000", "W05", "c", "c00000", "c074", "k074", "c0?"};
-	const char *unsupported[] = {"W.", "W0.", "c01 comment", "k01 comment", "W0 comment", "L00000101 comment"};
+	const char *unsupported[] = {"W.", "W0.", "c01 comment", "k01 comment", "W0 comment"};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_style style;
 	const struct st_rip3_rect area = {0,0,7,7};
@@ -518,8 +518,6 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 		CHECK(st_rip3_palettes_protect(host.palettes, 7, true) == 0);
 	}
 	bound = host.palettes; host.palettes = NULL;
-	CHECK(process(&host, "E0", ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(pixel(host.ports, 2, 2,3,12) == 0);
 	if (direct) {
 		CHECK(process(&host, "E", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(pixel(host.ports, 2, 2,3,12) == 0);
@@ -535,7 +533,7 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 	if (direct) host.palettes = bound;
 	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
 	wire(stream, "!|E0|E\r");
-	CHECK(scene.errors == 1 && st_rip3_drawing_test_fail_calloc);
+	CHECK(scene.errors == 0 && st_rip3_drawing_test_fail_calloc);
 	st_rip3_drawing_test_fail_calloc = false;
 	host.palettes = bound;
 	CHECK(st_rip3_palettes_get(host.palettes, direct ? 7 : 0, &palette) == 0);
@@ -580,9 +578,7 @@ erase_boundaries(void)
 	CHECK(st_rip3_ports_define(host.ports, 1, &bounds, true) == 0);
 	CHECK(st_rip3_ports_switch(host.ports, 1) == 0 && st_rip3_ports_erase(host.ports, 3) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports, &view) == 0);
-	CHECK(process(&host, "E0", ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&host, "E comment", ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&host, "E", -1) == 0);
+	CHECK(process(&host, "E comment", -1) == 0);
 	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++) {
 		CHECK(pixel(host.ports, 1, x,y,x >= 1 && x <= 6 && y >= 1 && y <= 6 ? 1 : 3) == 0);
 		CHECK(pixel(host.ports, 0, x,y,0x55) == 0);

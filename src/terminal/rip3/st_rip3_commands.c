@@ -472,9 +472,9 @@ execute(const struct st_rip3_command_host *host,
 	struct st_rip3_environment value;
 	unsigned number;
 	uint64_t first, second;
-	const uint8_t *arguments, *comment;
+	const uint8_t *arguments;
 	size_t count;
-	bool delay, commented;
+	bool delay;
 	int status;
 
 	*operation = false;
@@ -601,14 +601,7 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f' && !delay)
 		return IO_ERROR_NOT_SUPPORTED;
 	arguments = command + (delay ? 2 : 1); count = length - (delay ? 2 : 1);
-	/* The pinned f example explicitly retains the command before a spaced
-	 * inline comment. Unseparated extra-data rules remain under issue #7.
-	 * Text-valued commands never take this numeric-only branch. */
-	comment = memchr(arguments, ' ', count);
-	commented = comment != NULL;
-	if (comment != NULL)
-		count = (size_t)(comment - arguments);
-	if (commented && command[0] != 'f')
+	if (command[0] != 'f' && memchr(arguments, ' ', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (count == 0)
 		return IO_ERROR_INVALID_FORMAT;
@@ -655,9 +648,9 @@ execute(const struct st_rip3_command_host *host,
 		else {
 			size_t width = value.coordinate_size;
 
-			if (commented && count != width * 2)
-				return IO_ERROR_NOT_SUPPORTED;
-			if (count <= width || count > width * 2)
+			if (count > 2*width)
+				count = 2*width;
+			if (count <= width)
 				return IO_ERROR_INVALID_FORMAT;
 			status = st_rip3_command_field(&first, arguments, width, value.base_math);
 			if (status == 0)

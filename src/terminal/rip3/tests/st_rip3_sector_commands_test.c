@@ -259,7 +259,7 @@ unchanged(const struct st_rip3_command_host *host)
 static int
 boundaries(void)
 {
-	static const char *const invalid[] = {"I", "i", "_", "I0303002I", "I0303002I0?", "i0303002I030?", "_0303??2I0303", "I0303002I030"};
+	static const char *const invalid[] = {"I", "i", "_", "I0303002I", "I0303002I0?", "i0303002I030?", "_0303??2I0303", "I0303002I0 comment"};
 	struct st_rip3_command_host host={0},missing;
 	struct st_rip3_style original,style;
 	struct st_rip3_environment env;
@@ -271,7 +271,6 @@ boundaries(void)
 	CHECK(st_rip3_styles_get(host.styles,0,&original)==0);
 	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++)
 		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
-	CHECK(process(&host,"I0303002I03 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	missing=host; missing.styles=NULL;
 	CHECK(process(&missing,"I0303002I03",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	missing=host; missing.styles=NULL;

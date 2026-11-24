@@ -12,7 +12,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 int
 st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
@@ -40,14 +39,13 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	double x, y, rx, ry;
 	int status;
 
-	if (memchr(command+1, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
 	status = st_rip3_command_environment(host, &environment_number, &environment);
 	if (status != 0)
 		return status;
 	width = environment.coordinate_size;
 	total = angles ? (circle ? 3 : 4)*width+4 : fields*width;
-	if (count <= total-width || count > total)
+	if (count > total) count = total;
+	if (count <= total-width)
 		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < fields; i++) {
 		size_t field_width = angles && (i == 2 || i == 3) ? 2 : width;

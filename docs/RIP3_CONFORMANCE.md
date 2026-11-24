@@ -1289,8 +1289,8 @@ Tests cover the documented prologue/frame literals, all coordinate widths and
 canvases, lowercase/special UltraNum digits, fallbacks, shared `$WORLD$`/BASEMATH
 queries, protected state, excess/short fields, embedded NUL and SIZE_MAX input
 rejection, unsupported reserved values, absent services/sinks and continuation
-after errors. Only the explicit full-width f plus space-separated inline comment
-case is supported; other comment-boundary forms remain under #7. Raw byte-stream
+after errors. The original fixture covers the full-width f command followed by
+a space and inline commentary. Raw byte-stream
 framing, escaping/expansion, packet-split orchestration, reset and remaining
 commands are still required before active session acceptance.
 The native CMake build and all 60 selected RIP3/preservation and shared-audio
@@ -10188,3 +10188,19 @@ Native split-input cases check exact command bytes, slash parity and command
 chaining. Connected CP437 and UTF-8 cases check the literal bytes, variable
 expansion and the end of a full-size host response.
 [Pinned quoting contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1504b9597a766acde14b463864cecf8e21e84293/version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md#escaping-in-text-parameters)
+
+## Trailing text after fixed-width geometry
+
+WORLD, lines, rectangles, points, pixels, basic curves and erase now ignore
+surplus bytes after their full argument width. An already complete command
+can therefore be followed by text or more digits. A shortened final field
+still ends at a command delimiter. Bytes inside a required numeric field
+must decode successfully before the command takes effect.
+
+The original RIPtel dispatch probe recorded the same LINE arguments with
+spaced text, attached text or surplus digits. It recorded no dispatch
+before the following pipe or CR. Native fixtures check field widths,
+short radius fields and recovery from malformed input. Live CP437 and UTF-8
+fixtures verify the WORLD reply and the pixels drawn by a chain of commands
+with surplus text. Remaining command families and the timing wording are
+tracked in the ledger. [Issue #237](https://github.com/bbs-land/remote-imaging-protocol/issues/237)

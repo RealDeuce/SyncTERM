@@ -104,7 +104,7 @@ attributes(void)
 	char command[] = "s000000000000000003";
 	static const char *invalid[] = {"S", "S01", "S0100000", "S0C03", "S010?", "S01074",
 	    "s0000000000000000", "s000000000000000003000", "s000000000000007403", "s00000000000000000?",
-	    "B", "B000000", "B000000000", "B0000000?"};
+	    "B", "B000000", "B0000010 comment", "B0000000?"};
 	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 0, &initial) == 0);
 	for (unsigned base = 36; base <= 64; base += 28) {
@@ -152,7 +152,6 @@ attributes(void)
 	}
 	CHECK(process(&host, "S0103 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&host, "s000000000000000003 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "B00000101 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&host, "s----------------3", -1) == 0); /* Local MegaNum zero spelling. */
 	CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.fill_color == 3);
 	for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 0);
@@ -526,7 +525,7 @@ filled_boundaries(void)
 	struct st_rip3_environment environment;
 	struct st_rip3_ports *other = NULL;
 	const struct st_rip3_rect area = {0,0,7,7};
-	static const char *invalid[] = {"K", "K000000", "K000000000", "K0000040?"};
+	static const char *invalid[] = {"K", "K000000", "K0101040 comment", "K0000040?"};
 	uint8_t pixel;
 	bool borders = true;
 	char command[24];
@@ -537,7 +536,6 @@ filled_boundaries(void)
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
 	missing = host; missing.styles=NULL;
 	CHECK(process(&missing, "K01010404", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "K01010404 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
 	style.pen.thickness = 1;
 	style.borders=borders;

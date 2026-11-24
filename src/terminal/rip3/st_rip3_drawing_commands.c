@@ -184,7 +184,8 @@ point(const struct st_rip3_command_host *host, unsigned environment_number,
 	uint8_t ink = 0;
 	int status;
 
-	if (count <= width || count > 2*width) return IO_ERROR_INVALID_FORMAT;
+	if (count > 2*width) count = 2*width;
+	if (count <= width) return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_command_field(&world_x,arguments,width,environment->base_math);
 	if (status == 0) status = st_rip3_command_field(&world_y,arguments+width,count-width,environment->base_math);
 	if (status != 0) return status;
@@ -281,7 +282,10 @@ shape(const struct st_rip3_command_host *host,
 	uint8_t foreground = 0, background = 0;
 	int status;
 
-	if (count <= 3*width || count > 4*width)
+	/* A fixed numeric command stops collecting at its complete field width.
+	 * A shorter last field still has to reach the delimiter without a space. */
+	if (count > 4*width) count = 4*width;
+	if (count <= 3*width)
 		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < 4; i++) {
 		status = st_rip3_command_field(values+i, arguments+i*width,
@@ -369,12 +373,12 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	uint64_t value;
 	const uint8_t *arguments = command+1;
 	size_t count = length-1;
+	bool shape_command = command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K';
+	bool pixel_or_point = command[0] == 'X' || command[0] == 'j';
 	int status;
 
-	if (command[0] == 'E' && count != 0)
-		return IO_ERROR_INVALID_FORMAT;
-	if (memchr(arguments, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
+	if (command[0] != 'E' && !shape_command && !pixel_or_point && memchr(arguments, ' ', count) != NULL)
+		return IO_ERROR_NOT_SUPPORTED;
 	if (command[0] == 'W' && memchr(arguments, '.', count) != NULL)
 		return IO_ERROR_NOT_SUPPORTED; /* Termination/default value is unresolved. */
 	if (host->styles == NULL)
@@ -406,10 +410,10 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 			status = st_rip3_ports_erase(host->ports, background);
 		return status;
 	}
-	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K')
+	if (shape_command)
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0], operation);
-	if (command[0] == 'X' || command[0] == 'j')
+	if (pixel_or_point)
 		return point(host,environment_number,&environment,&style,arguments,count,command[0] == 'X',operation);
 	if (command[0] == '=') {
 		status = line_style(host,environment_number,&environment,&style,arguments,count);

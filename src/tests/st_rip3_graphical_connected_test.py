@@ -252,6 +252,32 @@ def run(args):
         t.exchange(line(font(b'Dixon' + b' '*4090 + setter)))
         values(b'$COORDSIZE$', b'2')
 
+        t.case("rip3-fixed-width-geometry-ignores-trailing-commentary")
+
+        def geometry(opcode, *fields):
+            return opcode + b"".join(number(value, 2) for value in fields)
+
+        commands = (
+            b"*", b"fHSDCextra", b"c0C", geometry(b"X", 5, 5), b"E erase the marker",
+            geometry(b"L", 10, 10, 14, 10) + b" line",
+            geometry(b"R", 20, 10, 24, 14) + b"outline",
+            b"S0102", geometry(b"B", 10, 20, 14, 24) + b"001",
+            b"N00", geometry(b"K", 20, 20, 24, 24) + b" filled rectangle",
+            geometry(b"X", 30, 10) + b" pixel",
+            geometry(b"j", 32, 10) + b"point",
+            geometry(b"C", 40, 12, 3) + b" circle",
+            geometry(b"U", 50, 10, 60, 20, 2) + b"rounded",
+            geometry(b"u", 65, 10, 75, 20, 2)[:-2] + b"2",
+            geometry(b"X", 80, 10)[:-1] + b" incomplete",
+            geometry(b"X", 82, 10),
+        )
+        frame = t.exchange(line(*commands) + query(b"$WORLD$:alive", at_cursor=True), b"640:480:alive")
+        for x, y in ((12, 10), (22, 10), (30, 10), (32, 10), (40, 9), (55, 10), (82, 10)):
+            assert pixel(frame, x, y) == 0xFF5555, (x, y, pixel(frame, x, y))
+        for x, y in ((12, 22), (22, 22), (70, 15)):
+            assert pixel(frame, x, y) == 0x00AA00, (x, y, pixel(frame, x, y))
+        assert pixel(frame, 5, 5) == pixel(frame, 80, 0) == 0
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

@@ -298,7 +298,7 @@ nonuniform_mapping(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 static int
 validation(void)
 {
-	static const char *const invalid[] = {"X","j","X00","j00","X00000","j00000","X000?","j000?","X00\2020","j00\303\251"};
+	static const char *const invalid[] = {"X","j","X00","j00","X000 comment","j00 00","X000?","j000?","X00\2020","j00\303\251"};
 	struct fixture f, missing = {0};
 	struct st_rip3_environment env;
 	uint8_t pixel = 0;
@@ -307,7 +307,7 @@ validation(void)
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(process(&f,"j0202",-1) == 0);
 	}
-	CHECK(process(&f,"X0202 comment",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"X0202 comment",-1) == 0);
 	CHECK(process(&f,"X022",-1) == 0 && process(&f,"j022",-1) == 0);
 	CHECK(process(&missing,"X0202",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.host.environments = f.host.environments; missing.host.styles = f.host.styles;
