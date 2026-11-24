@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Connected RIP3 block-mode storage and presentation through X/YMODEM."""
+"""Connected RIP3 block-mode requests, storage and media presentation."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from binascii import crc_hqx
@@ -98,6 +98,25 @@ def run(args):
         download(b"!|1\x1b0000$XFER(receive,XMODEMCRC,none,macro.bin)$\r",
                  "macro.bin", b"\n")
 
+        terminal.case("rip3-transfer-type-six-stores-without-playing")
+        download(b"!|9\x1b01060000extra.bin<>\r", "extra.bin")
+
+        terminal.case("rip3-both-receive-codes-reach-the-zmodem-worker")
+        zfin = b"\x08\x00\x00\x00\x00"
+        finish_frame = b"**\x18B" + (zfin + crc_hqx(zfin, 0).to_bytes(2, "big")).hex().encode() + b"\r\n"
+        for request in (b"!|9\x1b07010000<>\r\n", b"!|9\x1b08060000display-name<>\r\n"):
+            send(request)
+            zrinit = receive(peer, b"\r\n\x11", root / "replies.bin")
+            assert zrinit[:6] == b"**\x18B01" and len(zrinit) == 21, zrinit
+            header = bytes.fromhex(zrinit[4:18].decode("ascii"))
+            assert crc_hqx(header[:5], 0) == int.from_bytes(header[5:], "big")
+            send(finish_frame)
+            reply(finish_frame)
+            send(b"OO")
+            client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+            terminal.exchange(query(b"live", at_cursor=True), b"live")
+        assert not (cache / "display-name").exists()
+
         terminal.case("rip3-composite-batch-stores-an-unlisted-extension")
         send(b"!|9\x1b05040000batch.dat<>\r\n")
         receive(peer, b"C", root / "replies.bin")
@@ -153,6 +172,12 @@ def run(args):
         terminal.exchange(query(b"uploaded", at_cursor=True), b"uploaded")
 
         terminal.case("rip3-block-refusal-and-malformed-wire-recover-nonfatally")
+        for request in (b"05010000<>", b"09010000invalid.dat<>", b"0A060000<>",
+                        b"18010000macro.bin<>", b"11070000macro.bin<>",
+                        b"21010000macro.bin<>", b"01070000invalid.dat<>"):
+            terminal.exchange(b"!|9\x1b" + request + b"\r\n" + query(b"alive", at_cursor=True), b"alive")
+        terminal.exchange(query(b"$XFER(RECEIVE,YMODEM,NONE)$"
+                                b"$XFER(RECEIVE,YMODEM,NONE,ignored.dat)$alive", at_cursor=True), b"alive")
         terminal.exchange(b"!|9\x1b04010000kermit.bin<>\r\n"
                           + query(b"unsupported", at_cursor=True), b"\x18" * 10 + b"unsupported")
         terminal.exchange(b"!|9\x1b01010000bad.bin<>|c0F\r\n"
@@ -192,6 +217,19 @@ def run(args):
         assert pixel(frame, 39, 30) == 0
         stored("picture.jpg", jpeg.ljust(256, b"\x1a"))
 
+        terminal.case("rip3-completion-requires-jfif-for-automatic-jpeg-display")
+        # Remove the APP0 segment from this otherwise valid JPEG.
+        app0_end = 4 + int.from_bytes(jpeg[4:6], "big")
+        without_jfif = jpeg[:2] + jpeg[app0_end:]
+        terminal.exchange(query(b"$IMGSTYLE(CUR,100,30,119,49)$", at_cursor=True))
+        send(b"!|9\x1b01030000suffix.jpg<>\r\n")
+        reply(b"C")
+        send_file(without_jfif)
+        end_file()
+        frame = terminal.exchange(query(b"live", at_cursor=True), b"live")
+        assert pixel(frame, 100, 30) == 0
+        stored("suffix.jpg", without_jfif.ljust((len(without_jfif) + 127) // 128 * 128, b"\x1a"))
+
         terminal.case("rip3-active-batch-uses-receive-order-and-the-transfer-cache")
         first = (b"!|1\x1b0000$HOSTDIR(OTHER)$$IMGSTYLE(CUR,40,50,59,69)$\r\n"
                  b"!|c0C|X0B0B\r\n")
@@ -200,7 +238,8 @@ def run(args):
         send(b"!|9\x1b05050000batch.dat<>\r\n")
         reply(b"C")
         batch_file("one.RIP", first)
-        batch_file("picture2.JPG", jpeg)
+        batch_file("picture2.RIP", jpeg)
+        batch_file("no-extension", jpeg)
         batch_file("two.rip", second)
         batch_file("ordinary.dat", b"!|c0F|X0C0C\r\n")
         batch_file("hot.HIC", icon)
@@ -221,7 +260,8 @@ def run(args):
         assert pixel(frame, 70, 50) == (0x454545 if supported == b"1" else 0)
         stored("one.RIP", first)
         stored("two.rip", second)
-        stored("picture2.JPG", jpeg)
+        stored("picture2.RIP", jpeg)
+        stored("no-extension", jpeg)
         stored("ordinary.dat", b"!|c0F|X0C0C\r\n")
         stored("HOT.BMP", bmp)
         stored("MASK.BMP", bmp)

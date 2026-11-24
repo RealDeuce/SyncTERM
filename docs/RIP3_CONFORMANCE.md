@@ -9647,34 +9647,35 @@ The wire command must end at CR with a `<>` terminator. It reads the
 numeric fields in the active ENV radix. A handoff transfers ownership of
 the optional framing LF and pending binary bytes to the transfer worker,
 then returns later input to the terminal. The macro decodes both directions
-and all documented keywords. Batch receive passes an empty name to the
-transfer bridge. Refused operations recover inside RIP3.
+and all documented keywords. The common request gate requires a name for
+receive codes 0–5, so the YMODEM macro's empty tail rejects even when
+the macro was given a filename. Refused operations recover inside RIP3.
 
-Receive types 1, 2 and 4 store assets in the connected BBS's active RIP
+Receive types 1, 2, 4 and 6 store assets in the connected BBS's active RIP
 directory. This uses the same case-insensitive regular-file lookup as
 RIP3 asset writes. The shared RIP directory is read-only. Uploads use
 the transfer confirmation and read files only from the active BBS cache.
-The worker still supports its existing X/Y/ZMODEM protocols.
+The worker still supports its existing X/Y/ZMODEM protocols. Receive codes
+7 and 8 select the same ZMODEM receiver, which uses the peer's filenames.
+Code 8 upload and code 10 requests decline before taking the connection.
 
 `9U` validates the two numeric fields and accepts types 0 or 1 without
 switching the connection into encoded transfer mode. Ordinary input
 continues through the same parser.
 
-The CP437 and UTF-8 fixtures send actual XMODEM and YMODEM frames, check
-cached bytes and split CRLF handoff, decline and approve an upload, and verify recovery
-after unsupported protocols and malformed paths and commands. The native
-macro fixture checks both directions across the documented keyword
-matrix. The adopted transfer contract now describes the original DLL's
-filename gate and protocol and file-type limits. The remaining transfer
-work includes those validation rules, JFIF routing, and temporary-file
-registration. [PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
+The CP437 and UTF-8 fixtures exercise XMODEM and YMODEM files and both
+ZMODEM receive handshakes, check cached bytes and split CRLF handoff,
+decline and approve an upload, and verify recovery after refused and
+malformed requests. The native macro fixture checks both directions
+across the documented keyword matrix.
+[PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
 
 ## Connected block-mode scene and image playback
 
-Receive type 0 plays the completed file as a local RIP3 scene. Type 3
-displays a completed JPEG with the current port's image style. Type 5
-processes completed `.RIP` and `.JPG` files in receive order and stores
-the other files in the same BBS cache. The transfer worker reports file
+Receive type 0 plays the completed file as a local RIP3 scene. Types 3
+and 5 recognize JPEGs by their JFIF header and display them with the
+current port's image style. Type 5 plays a `.RIP` file when the header
+check leaves it unclassified. The transfer worker reports file
 completion, and the session presents the assets after binary transport
 ownership returns. The original client's receive handler at RVA
 `0x203e0` invokes transfer before traversing its received file list
@@ -9688,8 +9689,11 @@ the queued files. Failed file transfers do not enter either renderer.
 
 Received JPEG presentation uses the viewport when the style holds the
 internal zero-area inhibit value. Image-style DELETE retains the file.
-The separate transfer-controlled temporary-file registration and purge
-remain part of the block-mode clarification. [Issue #205](https://github.com/bbs-land/remote-imaging-protocol/issues/205)
+The worker writes to its existing cache destination and can leave
+partial bytes at that name after a failed transfer. Partial files never
+reach automatic playback or presentation. Portable completion-only resource
+publication and the separate temporary-file registry remain pending.
+[PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
 
 Connected CP437 and UTF-8 fixtures cover a scene before the caller's
 `TEXTXY` reply, JPEG colors and file retention, mixed batch order,
@@ -9801,7 +9805,7 @@ converter writes a 4-bit BMP with the fixed sixteen-color EGA palette,
 preserves the source indexes, and uses the `.BMP` extension for all three
 source types. It works in the BBS cache directory captured at transfer
 start. Receive type zero keeps its scene playback behavior. Image-capable
-batches recognize a JPEG signature even when the filename ends in a legacy
+batches recognize a JFIF header even when the filename ends in a legacy
 icon suffix. [PR #49](https://github.com/bbs-land/remote-imaging-protocol/pull/49)
 
 An existing longer BMP keeps the bytes beyond the new embedded BMP length.

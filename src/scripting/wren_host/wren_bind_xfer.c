@@ -532,8 +532,12 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 {
 	if (st_term_session_wire_owned(context->session)) return IO_ERROR_BUSY;
 	if (!st_wren_transfer_detect_enabled(context) || request == NULL || request->directory == NULL
-	    || !*request->directory || request->filename == NULL || !rip_protocol_supported(request->protocol)
-	    || (!request->upload && request->file_type > 5))
+	    || !*request->directory || request->filename == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	bool rip3 = request->cache_root != NULL;
+	/* Both RIPv3 receive codes use the same ZMODEM worker and its own names. */
+	unsigned protocol = rip3 && !request->upload && request->protocol == 8 ? 7 : request->protocol;
+	if (!rip_protocol_supported(protocol) || (!request->upload && request->file_type > (rip3 ? 6u : 5u)))
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
@@ -549,7 +553,7 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 			status = IO_ERROR_PERMISSION_DENIED;
 	}
 	else if (!request->upload) {
-		if (request->filename[0] != '\0' && !st_rip3_resource_name_valid(request->filename))
+		if (protocol < 5 && !st_rip3_resource_name_valid(request->filename))
 			return IO_ERROR_INVALID_ARGUMENT;
 		status = st_rip3_resource_prepare_cache(request->cache_root,
 		    strcmp(request->cache_root, request->directory) == 0 ? NULL : request->directory);
@@ -562,8 +566,8 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto fail;
 	}
-	s->rip_protocol = request->protocol; s->rip_file_type = request->file_type;
-	if (s->rip_cache_root != NULL && !request->upload && request->protocol < 5) {
+	s->rip_protocol = protocol; s->rip_file_type = request->file_type;
+	if (rip3 && !request->upload && protocol < 5) {
 		char *path = NULL;
 		status = rip_destination(s, s->rip_directory, s->rip_filename, &path);
 		free(path);

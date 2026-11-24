@@ -1033,7 +1033,7 @@
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 transfer validation and completion still require connected implementation."
+    "Adopted #205 completion-only resource publication and temporary registration remain pending. Existing worker resume and cache paths are preserved."
   ],
   "derivations": [
     {
@@ -22469,6 +22469,48 @@
         "context": 1879,
         "pending": 1510,
         "implemented": 3535,
+        "excluded": 71,
+        "blocked": 38
+      }
+    },
+    {
+      "after_commit": "7e886154",
+      "revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
+      "scope": "Connect block-mode request validation, both ZMODEM receive codes, type 6 and JFIF-first media dispatch through the existing worker.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2790",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:379",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:382",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:384",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:399",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:400",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:401",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:402",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:404",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:414",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:415",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:416",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:417",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:418",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:419",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:420",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:428"
+      ],
+      "tests": [
+        "syncterm_rip3_transfer_CP437",
+        "syncterm_rip3_transfer_UTF-8",
+        "transfer",
+        "transfer_interop_zmodem",
+        "rip3_contract",
+        "rip3_host_variables",
+        "rip3_session",
+        "syncterm_rip154_wire_CP437"
+      ],
+      "states_after_update": {
+        "unreviewed": 2170,
+        "context": 1895,
+        "pending": 1478,
+        "implemented": 3552,
         "excluded": 71,
         "blocked": 38
       }

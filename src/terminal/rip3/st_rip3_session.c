@@ -69,13 +69,11 @@ struct local_scene {
 	bool normalized;
 };
 
-enum received_asset_kind { RECEIVED_SCENE, RECEIVED_JPEG, RECEIVED_ICON, RECEIVED_JPEG_OR_ICON };
-
 struct received_asset {
 	struct received_asset *next;
 	char *directory;
 	char *cache_root;
-	enum received_asset_kind kind;
+	unsigned type;
 	char name[];
 };
 
@@ -980,9 +978,10 @@ received_jpeg_signature(const struct st_rip3_resource_paths *paths, const char *
 	bool matched;
 	if (st_rip3_resource_open_first(&file, &matched, paths, name) != 0)
 		return false;
-	uint8_t header[3];
+	uint8_t header[11];
 	bool jpeg = fread(header, 1, sizeof(header), file.stream) == sizeof(header)
-	    && header[0] == 0xff && header[1] == 0xd8 && header[2] == 0xff;
+	    && memcmp(header, "\xff\xd8\xff\xe0", 4) == 0
+	    && memcmp(header + 6, "JFIF", sizeof("JFIF")) == 0;
 	st_rip3_resource_dispose(&file);
 	return jpeg;
 }
@@ -995,25 +994,28 @@ process_received_asset(struct st_rip3_session *session, bool present)
 		.host = asset->directory, .named_host_root = asset->cache_root,
 	};
 	int status = 0;
-	enum received_asset_kind kind = asset->kind;
-	if (kind == RECEIVED_JPEG_OR_ICON)
-		kind = received_jpeg_signature(&paths, asset->name) ? RECEIVED_JPEG : RECEIVED_ICON;
-	if (kind == RECEIVED_ICON)
+	const char *extension = strrchr(asset->name, '.');
+	if ((asset->type == 3 || asset->type == 5) && received_jpeg_signature(&paths, asset->name)) {
+		if (present) {
+			struct st_rip3_command_host host = session->commands;
+			host.resources = &paths;
+			if (session->sink.before_command != NULL)
+				session->sink.before_command(session->sink.context);
+			status = st_rip3_command_received_jpeg(&host, asset->name);
+		}
+	}
+	else if (asset->type == 0 || (asset->type == 5 && extension != NULL
+	    && ascii_case_compare(extension, ".RIP") == 0)) {
+		if (present) {
+			struct local_scene scene = {0};
+			bool matched;
+			status = st_rip3_resource_open_first(&scene.file, &matched, &paths, asset->name);
+			if (status == 0)
+				status = start_scene(session, scene, true);
+		}
+	}
+	else if (st_rip3_bitmap_legacy_extension(extension) != NULL)
 		status = st_rip3_bitmap_convert_download(&paths, asset->name);
-	else if (present && kind == RECEIVED_JPEG) {
-		struct st_rip3_command_host host = session->commands;
-		host.resources = &paths;
-		if (session->sink.before_command != NULL)
-			session->sink.before_command(session->sink.context);
-		status = st_rip3_command_received_jpeg(&host, asset->name);
-	}
-	else if (present) {
-		struct local_scene scene = {0};
-		bool matched;
-		status = st_rip3_resource_open_first(&scene.file, &matched, &paths, asset->name);
-		if (status == 0)
-			status = start_scene(session, scene, true);
-	}
 	remove_received_asset(session);
 	if (status != 0 && status != IO_ERROR_IN_PROGRESS)
 		table_operation_failed(session, status);
@@ -1662,9 +1664,10 @@ request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
 	struct st_rip3_session *session = context;
 	if (session->scene_count != 0 || session->sink.transfer == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	if ((!upload && type > 5) || (!upload && type >= 4 && protocol < 5)
-	    || ((upload || protocol < 5) && !*filenames))
+	if (protocol == 9 || protocol > 10 || type > 6 || ((upload || protocol < 6) && !*filenames))
 		return IO_ERROR_INVALID_FORMAT;
+	if (protocol == 10 || (upload && protocol == 8))
+		return IO_ERROR_NOT_SUPPORTED;
 	bool skip_lf = st_rip3_stream_pending_lf(session->stream);
 	int status = session->sink.transfer(session->sink.context, upload, protocol, type,
 	    filenames, skip_lf);
@@ -1688,17 +1691,17 @@ wire_transfer(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 	struct st_rip3_environment environment;
 	unsigned current;
 	int status = st_rip3_command_environment(&session->commands, &current, &environment);
-	const size_t widths[] = {1, 1, 2, 4};
-	uint64_t value[4];
+	const size_t widths[] = {1, 1, 2, 2, 2};
+	uint64_t value[sizeof(widths) / sizeof(*widths)];
 	size_t offset = 2;
-	for (size_t i = 0; status == 0 && i < 4; ++i) {
+	for (size_t i = 0; status == 0 && i < sizeof(widths) / sizeof(*widths); ++i) {
 		status = st_rip3_command_field(&value[i], bytes + offset, widths[i],
 		    environment.base_math);
 		offset += widths[i];
 	}
 	if (status != 0)
 		return status;
-	if (value[0] > 1 || value[1] > 9)
+	if (value[0] > 1)
 		return IO_ERROR_INVALID_FORMAT;
 	size_t size = length - offset - 2;
 	if (memchr(bytes + offset, 0, size) != NULL)
@@ -2251,24 +2254,18 @@ int
 st_rip3_session_receive_asset(struct st_rip3_session *session, const char *directory,
     const char *cache_root, const char *name, unsigned file_type)
 {
-	if (session == NULL || directory == NULL || cache_root == NULL
+	if (session == NULL || directory == NULL || cache_root == NULL || file_type > 6
 	    || !st_rip3_resource_name_valid(name))
 		return IO_ERROR_INVALID_ARGUMENT;
 	const char *extension = strrchr(name, '.');
-	enum received_asset_kind kind;
-	if (file_type == 0 || (file_type == 5 && extension != NULL && ascii_case_compare(extension, ".RIP") == 0))
-		kind = RECEIVED_SCENE;
-	else if (st_rip3_bitmap_legacy_extension(extension) != NULL)
-		kind = file_type == 3 || file_type == 5 ? RECEIVED_JPEG_OR_ICON : RECEIVED_ICON;
-	else if (file_type == 3 || (file_type == 5 && extension != NULL && ascii_case_compare(extension, ".JPG") == 0))
-		kind = RECEIVED_JPEG;
-	else
+	if (file_type != 0 && file_type != 3 && file_type != 5
+	    && st_rip3_bitmap_legacy_extension(extension) == NULL)
 		return 0;
 	size_t length = strlen(name) + 1;
 	struct received_asset *asset = malloc(sizeof(*asset) + length);
 	if (asset == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	*asset = (struct received_asset){.kind = kind};
+	*asset = (struct received_asset){.type = file_type};
 	asset->directory = malloc(strlen(directory) + 1);
 	if (strcmp(cache_root, directory) != 0)
 		asset->cache_root = malloc(strlen(cache_root) + 1);
