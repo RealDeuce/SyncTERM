@@ -420,10 +420,10 @@ Hook.onKey(Key.f9) {|event|
         assert frame.primary == before.primary
         frame = t.exchange(b"\x01|gZZZZ\r\n\x1b[6n", b"\x1b[3;3R")
         assert frame.primary == before.primary
-        # g has fixed two-digit fields even when XY width is five; base-64
-        # 0l means column 47, which clamps to the window's right edge.
-        t.exchange(b"\x01|J1S|n5|g0l01\r\n\x1b[6n", b"\x1b[2;3R")
-        t.exchange(b"\x01|g??00|g000|H0|J10|n2\r\n\x1b[6n", b"\x1b[2;3R")
+        # X stays two digits even when XY width is five. In base 64, 0l
+        # means column 47, which clamps to the window's right edge.
+        t.exchange(b"\x01|J1S|n5|g0l1\r\n\x1b[6n", b"\x1b[2;3R")
+        t.exchange(b"\x01|g??00|g00|H0|J10|n2\r\n\x1b[6n", b"\x1b[2;3R")
         send(b"\x01|w0000000000|g0000|H\r\n" + query(b"cursor-off"))
         receive(peer, b"cursor-off", root / "replies.bin")
         frame = t.exchange(b"\x01|w0A050C0710\r\n\x1b[6n", b"\x1b[2;3R")

@@ -430,12 +430,12 @@ text_cursor(const struct st_rip3_command_host *host,
 		if (length!=1) return IO_ERROR_INVALID_FORMAT;
 	}
 	else {
-		/* Unlike w's XY fields, g always has two digits per coordinate. */
-		if (length!=5) return IO_ERROR_INVALID_FORMAT;
+		/* X occupies two digits. The final Y field can omit a leading zero. */
+		if (length<4 || length>5) return IO_ERROR_INVALID_FORMAT;
 		struct st_rip3_environment environment;unsigned number;
 		int status=st_rip3_command_environment(host,&number,&environment);
 		if (status==0) status=st_rip3_command_field(&column,command+1,2,environment.base_math);
-		if (status==0) status=st_rip3_command_field(&row,command+3,2,environment.base_math);
+		if (status==0) status=st_rip3_command_field(&row,command+3,length-3,environment.base_math);
 		if (status!=0) return status;
 	}
 	if (host->text_window==NULL || host->text_window->position==NULL) return IO_ERROR_NOT_SUPPORTED;

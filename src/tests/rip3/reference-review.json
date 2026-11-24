@@ -22936,6 +22936,36 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "f72477a8",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Accept shortened final numeric operands for connected RIP_GOTOXY, RIP_SCROLL and RIP_KILL_ENCLOSED_MOUSE_FIELDS.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/9.0-command-reference.md:59",
+        "version/3.0/ripscrip/9.0-command-reference.md:185"
+      ],
+      "tests": [
+        "rip3_session",
+        "syncterm_rip3_cursor_CP437",
+        "syncterm_rip3_cursor_UTF-8",
+        "syncterm_rip3_scroll_CP437",
+        "syncterm_rip3_scroll_UTF-8",
+        "syncterm_rip3_buttons_CP437",
+        "syncterm_rip3_buttons_UTF-8",
+        "syncterm_rip3_connected_CP437",
+        "syncterm_rip3_connected_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2164,
+        "context": 1900,
+        "pending": 1469,
+        "implemented": 3687,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ]
 }

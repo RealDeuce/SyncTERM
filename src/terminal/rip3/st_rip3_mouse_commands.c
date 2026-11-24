@@ -27,10 +27,11 @@ remove_fields(const struct st_rip3_command_host *host,
     const struct st_rip3_environment *env, unsigned number,
     const uint8_t *command, size_t length, bool *operation)
 {
-	if (length!=2+4*env->coordinate_size+4) return IO_ERROR_INVALID_FORMAT;
+	size_t flags_offset=2+4*env->coordinate_size;
+	if (length<=flags_offset || length>flags_offset+4) return IO_ERROR_INVALID_FORMAT;
 	uint64_t values[5];size_t at=2;
 	for (unsigned i=0;i<5;i++) {
-		size_t width=i==4 ? 4 : env->coordinate_size;
+		size_t width=i==4 ? length-flags_offset : env->coordinate_size;
 		int status=st_rip3_command_field(values+i,command+at,width,env->base_math);
 		if (status!=0) return status;
 		at+=width;

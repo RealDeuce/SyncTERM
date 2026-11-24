@@ -25,6 +25,17 @@ def controls(t, columns, rows, ox, oy, cw, ch):
              "\x1b[?6h\x1b[2;2H\x1b7\x1b[2 q\x1b[0;37m").encode()
     before = t.exchange(modes)
     assert xy(before) == (4, 3) and visible(before)
+    frame = t.exchange(b"\x01|g012\r\n")
+    assert xy(frame) == (2, 3) and frame.primary == before.primary
+    assert frame.application["cterm.ext_attr.origin_mode"] == 1
+    assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (2, rows-1)
+    assert (frame.application["cterm.left_margin"], frame.application["cterm.right_margin"]) == (3, columns-2)
+    frame = t.exchange(b"\x01|g02|g00?\r\n")
+    assert xy(frame) == (2, 3) and frame.primary == before.primary
+    frame = t.exchange(b"\x01|g000\r\n")
+    assert xy(frame) == (1, 1) and frame.primary == before.primary
+    frame = t.exchange(b"\x1b8")
+    assert xy(frame) == (4, 3) and frame.application["connected"] == 1
     frame = t.exchange(query(b"$COFF$", at_cursor=True))
     assert not visible(frame) and xy(frame) == (4, 3) and frame.primary == before.primary
     frame = t.exchange(query(b"$CON(CUR,36)$$TWGOTO(CUR,0,NO)$alive", at_cursor=True), b"alive")

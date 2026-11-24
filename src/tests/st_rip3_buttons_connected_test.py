@@ -25,8 +25,8 @@ def button(area,payload=b"<><>",hotkey=0,flags=0,radix=36,xy=2):
             +number(hotkey,2,radix)+number(flags,1,radix)+b"0"+payload+b"\r\n")
 
 
-def remove_fields(area,flags):
-    return b"\x01|1k"+b"".join(number(v,2) for v in area)+number(flags,4)+b"\r\n"
+def remove_fields(area,flags,*,flags_width=4):
+    return b"\x01|1k"+b"".join(number(v,2) for v in area)+number(flags,flags_width)+b"\r\n"
 
 
 def run(args,width,height):
@@ -271,7 +271,7 @@ def run(args,width,height):
         # Deleting that captured button removes feedback before freeing it.
         # A replacement with the same ID/rectangle cannot inherit the press.
         mouse(110,110,True)
-        after=t.exchange(remove_fields((0,0,200,200),1|8))
+        after=t.exchange(remove_fields((0,0,200,200),1|8,flags_width=1))
         assert after.primary==before.primary and after.alternate==before.alternate
         t.exchange(button((100,100,140,140),b"ID=7:<><>replacement:$FIELDID$"))
         mouse(110,110,True,move=True);mouse(110,110)
@@ -323,7 +323,7 @@ def run(args,width,height):
         t.exchange(style(flags=256|64|512|16|8|32768|1024,foreground=12))
         values(b"$PROT(BUT,5)$$SBS(0)$")
         frame=t.exchange(button((100,240,200,280),b"ID=13:<>Label<>auto:$FIELDID$")
-                         +b"\x01|1W0Auto.bmp\r\n")
+                         +b"\x01|1W2Auto.bmp\r\n")
         values(b"$CUR(BUT)$:$ISPROT(BUT,5)$:$INUSE(PORT,1)$",b"5:1:1")
         assert any(pixel(frame,x,y)==0xff5555 for y in range(240,280) for x in range(100,200))
         files=list(root.rglob("Auto.bmp"));assert len(files)==1,files
@@ -355,7 +355,7 @@ def run(args,width,height):
         values(b"$MKILL$$UNPROT(BUT,5)$")
         t.exchange(style(flags=256|64,foreground=12)+b"\x01|S0103|B00000V0V\r\n")
         values(b"$CUR(PORT,1)$")
-        frame=t.exchange(button((0,0,20,16),b"<>A<>")+b"\x01|1W0Alias.bmp\r\n")
+        frame=t.exchange(button((0,0,20,16),b"<>A<>")+b"\x01|1W2Alias.bmp\r\n")
         values(b"$CUR(PORT)$",b"1")
         assert all(pixel(frame,x,y)==0x00aaaa for y in range(16) for x in range(20))
         files=list(root.rglob("Alias.bmp"));assert len(files)==1,files
@@ -368,7 +368,7 @@ def run(args,width,height):
         frame=t.exchange(style(flags=256|64)
                          +b"\x01|y00000W0M000000001a1a000000NoSuchFont\r\n"
                          +button((40,40,60,56),b"<>Label<>")
-                         +b"\x01|1W0AfterFontError.bmp\r\n")
+                         +b"\x01|1W2AfterFontError.bmp\r\n")
         files=list(root.rglob("AfterFontError.bmp"));assert len(files)==1,files
         data=files[0].read_bytes();offset=int.from_bytes(data[10:14],"little")
         assert (int.from_bytes(data[18:22],"little"),int.from_bytes(data[22:26],"little"))==(20,16)

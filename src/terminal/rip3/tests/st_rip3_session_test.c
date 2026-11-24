@@ -658,14 +658,16 @@ text_cursor(void)
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
 	CHECK(append(&f,"!|g0509|H\r")==0 && pump(&f)==0 && f.moves==2 && f.column==0 && f.row==0);
 	CHECK(append(&f,"!|J1S|n5|g0l0A\r")==0 && pump(&f)==0 && f.moves==3 && f.column==47 && f.row==10);
-	CHECK(append(&f,"!|g??00|g000|H0|g00000\r")==0 && pump(&f)==0 && f.moves==3 && f.errors==4);
+	CHECK(append(&f,"!|g0la\r")==0 && pump(&f)==0 && f.moves==4 && f.column==47 && f.row==36);
+	CHECK(append(&f,"!|g000\r")==0 && pump(&f)==0 && f.moves==5 && f.column==0 && f.row==0);
+	CHECK(append(&f,"!|g??00|g00|H0|g00000\r")==0 && pump(&f)==0 && f.moves==5 && f.errors==4);
 	f.move_status=IO_ERROR_IO;
-	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==4 && f.errors==5
+	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==6 && f.errors==5
 	    && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
 	CHECK(query(&f,"$RESX$","640")==0);
 	f.move_status=0;
-	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==5 && f.column==0 && f.row==0);
-	CHECK(append(&f,"!|J10|n2|w0000000000|g0102|H\r")==0 && pump(&f)==0 && f.moves==5 && f.errors==5);
+	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==7 && f.column==0 && f.row==0);
+	CHECK(append(&f,"!|J10|n2|w0000000000|g012|H\r")==0 && pump(&f)==0 && f.moves==7 && f.errors==5);
 	CHECK(query(&f,"$RESX$","640")==0 && !st_rip3_session_text_active(f.session));
 	st_rip3_session_destroy(f.session);return 0;
 }
@@ -898,7 +900,7 @@ enclosed_fields(void)
 	    && pump(&f)==0 && f.errors==0);
 	/* Every byte passes the public void stream boundary independently. Flag
 	 * 8 retains simple fields and removes only the enclosed button. */
-	const char *wire="!|1k00001E1E0009\r";
+	const char *wire="!|1k00001E1E9\r";
 	for (size_t i=0;i<strlen(wire);i++) {
 		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);
 		st_rip3_session_process(f.session,1);
@@ -908,7 +910,7 @@ enclosed_fields(void)
 	CHECK(f.reply_length==6 && memcmp(f.reply,"simple",6)==0);f.reply_length=0;
 	/* Malformed bodies and unsupported flags fail inside RIP. Empty
 	 * selectors are successful no-ops, preserving a usable field/session. */
-	CHECK(append(&f,"!|1kbad|1k000000000001|1k00001E1E0074\r")==0 && pump(&f)==0 && f.errors==2);
+	CHECK(append(&f,"!|1k00001E1E|1k000000000001|1k00001E1E74\r")==0 && pump(&f)==0 && f.errors==2);
 	CHECK(st_rip3_session_mouse(f.session,15,15,true) && st_rip3_session_mouse(f.session,15,15,false));
 	CHECK(f.reply_length==6 && memcmp(f.reply,"simple",6)==0);f.reply_length=0;
 	CHECK(query(&f,"$COORDSIZE(CUR,5)$$BASEMATH(CUR,64)$","")==0);

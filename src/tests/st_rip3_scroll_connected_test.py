@@ -118,10 +118,10 @@ def run(args, width, height):
         assert frame.primary == before.primary and frame.alternate == before.alternate
         for malformed in (scroll(6, 4, 10, 8, 7, 2, width=3, radix=64),
                           scroll(6, 4, 10, 8, 5, 2, width=3, radix=64, reserved=1),
-                          scroll(6, 4, 10, 8, 5, 2, width=3, radix=64)[:-1]):
+                          scroll(6, 4, 10, 8, 5, 2, width=3, radix=64)[:-3]):
             frame = wire(malformed)
             assert frame.primary == before.primary and frame.alternate == before.alternate
-        frame = wire(scroll(6, 4, 10, 8, 5, 2, width=3, radix=64))
+        frame = wire(scroll(6, 4, 10, 8, 5, 2, width=3, radix=64)[:-3] + b"2")
         addresses(frame, 3, 0, (a, c, d, e, 0, f))
 
         t.case("rip3-scroll-offscreen-until-explicit-port-copy")

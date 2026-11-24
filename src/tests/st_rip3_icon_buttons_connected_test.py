@@ -178,7 +178,7 @@ def run(args,width,height):
         t.case(f'rip3-icon-auto-stamp-before-label-{width}x{height}')
         frame=t.exchange(style(flags=128|4096|64|512|1024,foreground=12,bevel=6,flags2=1)
                          +button((200,400,0,0),b'Face<>X<>auto-icon',flags=1)
-                         +b'\x01|1W0AutoIcon.bmp\r\n')
+                         +b'\x01|1W2AutoIcon.bmp\r\n')
         paths=list(root.rglob('AutoIcon.bmp'));assert len(paths)==1
         data=paths[0].read_bytes();offset=int.from_bytes(data[10:14],'little')
         assert struct.unpack_from('<ii',data,18)==(56,31)

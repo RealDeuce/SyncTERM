@@ -10022,3 +10022,17 @@ and a resumed prompt after selecting a different face. They check the
 glyph mask and the cached advance, a WORLD change during name expansion,
 the working limit and protection against evaluating rejected commands.
 [PR #29](https://github.com/bbs-land/remote-imaging-protocol/pull/29)
+
+## Shortened cursor, scroll and mouse fields
+
+Connected `g` accepts a one-digit Y after its two-digit X. Both fields
+use current Base Math independently of XY width. `1G` accepts a destination
+line shortened to one digit and retains the mode and reserved digits before
+it. `1k` accepts one through four flag digits after the full-width selector.
+Each of the three commands requires at least one digit in its final field.
+
+CP437 and UTF-8 sessions check cursor movement with ANSI origin mode and
+both margin axes set, the pixels of a scroll using three-digit XY and base
+64, and field deletion with one digit of flags. Malformed requests preserve
+the live session. The native parser tests cover lowercase base-64 digits,
+an all-zero Y, and a shortened field split across input calls.
