@@ -5,6 +5,15 @@ operating-system name, compiler name, or an optimistic terminal escape.  An
 item stays here until the implementation has a reliable capability probe or
 an explicit backend contract.
 
+## Opening URLs on POSIX
+
+X11 and Wayland advertise URL opening when the build detects the required
+POSIX spawn APIs. Both look up `xdg-open` on `PATH` when a link is opened.
+A missing launcher returns `IO_ERROR_NOT_FOUND`.
+
+The ANSI and ncurses backends have no URL handler wired up. Opening a URL
+through either backend returns `IO_ERROR_NOT_SUPPORTED`.
+
 ## ANSI terminals
 
 - Terminal palette mutation is not implemented.  Re-emitting an indexed
@@ -43,8 +52,8 @@ an explicit backend contract.
 - ANSI clipboard access is not implemented.  OSC 52 availability, permission,
   size limits, query support, and reply routing all require a capability and
   security contract.
-- Opening URLs and changing fullscreen state have no general ANSI-terminal
-  mechanism and are not exposed as successful operations by this backend.
+- Changing fullscreen state has no general ANSI-terminal mechanism and
+  returns `IO_ERROR_NOT_SUPPORTED`.
 
 ## ncurses
 
@@ -79,7 +88,7 @@ an explicit backend contract.
   it can disagree with the registered bitmap's one- or two-cell width.
   Curses exposes normal and high-visibility cursor
   modes, but not a portable distinction between underline and bar cursors.
-- Title, clipboard, URL, pointer, and fullscreen operations have no ncurses
+- Title, clipboard, pointer, and fullscreen operations have no ncurses
   contract used here and return `IO_ERROR_NOT_SUPPORTED`.
 
 ## X11
@@ -87,9 +96,6 @@ an explicit backend contract.
 - The backend uses the X input method selected for the caller's current
   `LC_CTYPE`.  An embedding application that never selects its user locale may
   therefore receive only the input support provided by Xlib's C locale.
-- Opening a URL has no X11 protocol.  The backend does not guess a desktop
-  launcher or spawn an external program and reports that operation as
-  unsupported.
 
 ## Wayland
 
@@ -97,6 +103,3 @@ an explicit backend contract.
   clipboard only with a serial from a keyboard or pointer event.  Setting the
   clipboard before an instance has received such an event reports
   `IO_ERROR_NOT_SUPPORTED`; no fabricated or stale serial is sent.
-- Opening a URL has no core Wayland or xdg-shell request.  The backend does not
-  infer a particular desktop portal or launcher and reports the operation as
-  unsupported.
