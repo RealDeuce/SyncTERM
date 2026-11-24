@@ -1625,16 +1625,15 @@ define_column(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 static int
 select_article(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
-	if (length != 8)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment env;
 	unsigned current;
-	uint64_t article, reserved;
+	uint64_t article;
 	int status = st_rip3_command_environment(&session->commands, &current, &env);
 	if (status == 0)
-		status = st_rip3_command_field(&article, bytes + 2, 2, env.base_math);
-	if (status == 0)
-		status = st_rip3_command_field(&reserved, bytes + 4, 4, env.base_math);
+		status = st_rip3_command_next_field(&fields, &article, 2, env.base_math, true);
+	if (status == 0 && fields.remaining != 0)
+		status = st_rip3_command_next_field(&fields, NULL, 4, env.base_math, true);
 	if (status != 0)
 		return status;
 	if (article >= ST_RIP3_ARTICLE_COUNT)
@@ -1645,17 +1644,16 @@ select_article(struct st_rip3_session *session, const uint8_t *bytes, size_t len
 static int
 region_text(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
-	if (length < 3)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment env;
 	unsigned current;
 	uint64_t justify;
 	int status = st_rip3_command_environment(&session->commands, &current, &env);
 	if (status == 0)
-		status = st_rip3_command_field(&justify, bytes + 2, 1, env.base_math);
+		status = st_rip3_command_next_field(&fields, &justify, 1, env.base_math, false);
 	if (status != 0 || justify > 1)
 		return status;
-	return st_rip3_columns_line(&session->columns, &session->commands, bytes + 3, length - 3, justify == 1);
+	return st_rip3_columns_line(&session->columns, &session->commands, fields.bytes, fields.remaining, justify == 1);
 }
 
 static bool
@@ -1794,12 +1792,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink, select_article(session,bytes,length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 't')
 		st_rip3_command_result(&sink, region_text(session,bytes,length), false);
-	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'E') {
-		if (length == 2)
-			st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
-		else
-			diagnose(session, ST_RIP3_COMMAND_INVALID);
-	}
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'E')
+		st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
 	else if (length != 0 && bytes[0] == 'y') {
 		size_t offset;
 		int status = st_rip3_font_argument_prepare(&session->commands, bytes, length,

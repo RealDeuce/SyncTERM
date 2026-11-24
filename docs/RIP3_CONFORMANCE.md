@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-90c23d75cc76ffb8d7b1f1e02da75bcf56053002](https://github.com/RealDeuce/remote-imaging-protocol/tree/90c23d75cc76ffb8d7b1f1e02da75bcf56053002/version/3.0)
+72648bc8a09eb8edfbb313b8f1355c675dd43253](https://github.com/RealDeuce/remote-imaging-protocol/tree/72648bc8a09eb8edfbb313b8f1355c675dd43253/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10391,3 +10391,19 @@ priority and reset, pointer shape, style protection and label
 rendering. Native fixtures also cover both radices and XY widths.
 [PR #259](https://github.com/bbs-land/remote-imaging-protocol/pull/259),
 [PR #260](https://github.com/bbs-land/remote-imaging-protocol/pull/260)
+
+
+## Column and article wire fields
+
+`1T` collects four fields at the active XY width and two required
+one-digit selectors. `1t` accepts one justification digit or a period
+for zero before literal text. `1E` skips surplus before ending the
+selected article. `1e` starts its search string after eight reserve
+digits or a single period. `1A` accepts a shortened article at the
+delimiter, and its reserve may be omitted, shortened, full-width or
+a period. A period within a partial numeric field discards the command.
+
+Connected CP437 and UTF-8 tests check glyph placement, search colors,
+article switching and recovery with the existing column intact. The
+native session test checks short article selection and command errors.
+[PR #262](https://github.com/bbs-land/remote-imaging-protocol/pull/262)

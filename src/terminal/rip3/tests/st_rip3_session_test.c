@@ -2280,7 +2280,7 @@ overflow_navigation(void)
 	options.sink.notice = paging_notice;
 	options.random_seed = 7;
 	CHECK(st_rip3_session_create(&f.session, &options) == 0);
-	CHECK(append(&f, "!|1e00000A0A0100010000000000|1E\r")==0 && pump(&f)==0);
+	CHECK(append(&f, "!|1e..0A0A.10001..|1E note\r")==0 && pump(&f)==0 && f.errors==0);
 	CHECK(query(&f, "$OVERFLOW()$:$OVERFLOW(1,PREV,QUERY)$", "00710000.OVR:00710001.OVR")==0);
 	CHECK(query(&f, "before$OVERFLOW(1,NEXT,SETVERBOSE)$after", "")==0 && f.paging_notice==1);
 	CHECK(query(&f, "before$OVERFLOW(1,PREV,SETVERBOSE)$after", "")==0 && f.paging_notice==2);
@@ -2290,7 +2290,7 @@ overflow_navigation(void)
 	CHECK(query(&f, "$OVERFLOW(1,65535)$$OVERFLOW(1,PAGE)$", "0")==0);
 	CHECK(query(&f, "$OVERFLOW(1,65536)$$OVERFLOW(1,PAGE)$", "1")==0);
 	CHECK(query(&f, "$OVERFLOW(1,NEXT)$$OVERFLOW(1,PREV,SET)$$OVERFLOW(1,PAGE)$", "1")==0);
-	CHECK(append(&f, "!|1T00000A0A11|1E\r")==0 && pump(&f)==0);
+	CHECK(append(&f, "!|1T..0A0A11 note|1A1|1E\r")==0 && pump(&f)==0 && f.errors==0);
 	CHECK(query(&f, "$OVERFLOW()$", "00710000.OVR")==0);
 	CHECK(append(&f, "!|1e00000A0A1100000000000000|1E\r")==0 && pump(&f)==0);
 	CHECK(query(&f, "$OVERFLOW()$", "<NONE>")==0);

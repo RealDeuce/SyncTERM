@@ -1,50 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/260",
-  "revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
-  "previous_revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/262",
+  "revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+  "previous_revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "Reviewed heads of PRs #256, #259 and #260 match their stable integration trees.",
-  "archive_sha256": "7c3f138cf353df341aecd260f3765712db5db5db94ffbffbdfa3fe5e0ad5885b",
+  "upstream_state_at_adoption": "The open PR #262 reviewed head matches its fork stable integration tree.",
+  "archive_sha256": "a0f0bb4d94d3bbe3503680a3fc03281495f6d5e8be06be0c28a47a0e05b36975",
   "normative_scope": [
-    "version/3.0/ripscrip",
-    "version/3.0/techspecs",
-    "version/2.0/techspecs",
-    "version/1.54/techspecs",
-    "version/implementation.md",
-    "version/glossary.md",
-    "version/baseline/techspecs/ansi-vt-support.md"
+    "Article selector optional and shortened fields in active Base Math.",
+    "Extended column reserve and search-string boundary, legacy column fields, prewrapped justification and end suffix."
   ],
   "changed_documents": [
-    {
-      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "previous_sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081",
-      "sha256": "30c29c23e9b2d310f0da6ee4b87db3e64dacbd40c5cfafdf707c5312e61aea26"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "previous_sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac",
-      "sha256": "a5685c5441840a44544cc51381a2de7ccb4308b5a5a6845f75bf5c3a8215ee1f"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "previous_sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be",
-      "sha256": "cffb0237262c71593b4f58ccc7514bda5ebb67e21fb62ead93c0cadf5a2c7029"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "7b56264386768f036d3954b6dfb547cc4024bd3ac2ede7839e283709ed3c82f1",
-      "sha256": "02f1f943d1983329f1fda00b96e285d136e741fcad0ac7662b653166b8ee2670"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3",
-      "sha256": "a6b82eb360df5454dda7d6e57d3914e828af7ff7ab622d9544af734bd26c1b39"
-    }
+    "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+    "version/3.0/ripscrip/3.1-column-text-system.md",
+    "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9410,
+  "matched_source_blocks": 9466,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -978,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 128,
+  "upstream_issue_resolutions": 129,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1741,6 +1714,12 @@
       "sha256": "e23089a58cc09a5d0d5953ba75945cec28836a92920d8221c7a519cf44a6ad95",
       "title": "Issue #258 — Mouse field suffix and cursor reserve",
       "role": "Original parser slots, simple-field hotkeys, default bits and optional pointer reserve."
+    },
+    {
+      "path": "version/3.0/research/issue-261-column-article-reserves.md",
+      "sha256": "5ea9b8b10ce318be33f2cf08c84c0ae32f3414e0db7576c70300aa3422d8bc7d",
+      "title": "Issue #261 — Article selection and column text boundaries",
+      "role": "Original RIPtel command slots, article handler and staged column reserve cases."
     }
   ],
   "documents": [
@@ -1866,11 +1845,11 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "30c29c23e9b2d310f0da6ee4b87db3e64dacbd40c5cfafdf707c5312e61aea26"
+      "sha256": "c80e4f601966b35cae2f4e2760fb999635d30c95c415cf61c3463521abcdbc0c"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
-      "sha256": "ca0bff05c290327883c237deffae635d278f408fb6225ee4193e002a7b750dfd"
+      "sha256": "e448798384bce77574f6a880ea6f2d220d9cd06833789ab37f4732763fedd9ac"
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
@@ -1946,7 +1925,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "a6b82eb360df5454dda7d6e57d3914e828af7ff7ab622d9544af734bd26c1b39"
+      "sha256": "f76bbd9c7728872d9e746809ce0d58584711d387bd1bd6ee40c8bd9eeb558dfe"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2017,7 +1996,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "0471b7347685226aa1a276ed2c50232397c9b600",
+  "previous_ledger_commit": "276862cd32bed1e7d53dc6d8fcc09e5ca871afb7",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19424,6 +19403,82 @@
         "excluded": 71,
         "blocked": 19
       }
+    },
+    {
+      "previous_revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
+      "revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+      "archive_sha256": "a0f0bb4d94d3bbe3503680a3fc03281495f6d5e8be06be0c28a47a0e05b36975",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/261",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/262",
+          "reviewed_head": "f5f340f86472aa619bc682e3a1dd5f6034e73159",
+          "integration": "72648bc8a09eb8edfbb313b8f1355c675dd43253"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "30c29c23e9b2d310f0da6ee4b87db3e64dacbd40c5cfafdf707c5312e61aea26",
+          "sha256": "c80e4f601966b35cae2f4e2760fb999635d30c95c415cf61c3463521abcdbc0c"
+        },
+        {
+          "path": "version/3.0/ripscrip/3.1-column-text-system.md",
+          "previous_sha256": "ca0bff05c290327883c237deffae635d278f408fb6225ee4193e002a7b750dfd",
+          "sha256": "e448798384bce77574f6a880ea6f2d220d9cd06833789ab37f4732763fedd9ac"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "a6b82eb360df5454dda7d6e57d3914e828af7ff7ab622d9544af734bd26c1b39",
+          "sha256": "f76bbd9c7728872d9e746809ce0d58584711d387bd1bd6ee40c8bd9eeb558dfe"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-261-column-article-reserves.md",
+          "sha256": "5ea9b8b10ce318be33f2cf08c84c0ae32f3414e0db7576c70300aa3422d8bc7d",
+          "title": "Issue #261 — Article selection and column text boundaries",
+          "role": "Original RIPtel command slots, article handler and staged column reserve cases."
+        }
+      ],
+      "moved_source_blocks": 105,
+      "new_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:809",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:827",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:884",
+        "version/3.0/ripscrip/3.1-column-text-system.md:31",
+        "version/3.0/ripscrip/3.1-column-text-system.md:42",
+        "version/3.0/ripscrip/3.1-column-text-system.md:45",
+        "version/3.0/ripscrip/3.1-column-text-system.md:91",
+        "version/3.0/ripscrip/3.1-column-text-system.md:254",
+        "version/3.0/ripscrip/3.1-column-text-system.md:256",
+        "version/3.0/ripscrip/3.1-column-text-system.md:257",
+        "version/3.0/ripscrip/3.1-column-text-system.md:258",
+        "version/3.0/ripscrip/3.1-column-text-system.md:259",
+        "version/3.0/ripscrip/3.1-column-text-system.md:260",
+        "version/3.0/ripscrip/3.1-column-text-system.md:262",
+        "version/3.0/ripscrip/3.1-column-text-system.md:264",
+        "version/3.0/ripscrip/3.1-column-text-system.md:266",
+        "version/3.0/ripscrip/9.0-command-reference.md:158"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:809",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:882",
+        "version/3.0/ripscrip/3.1-column-text-system.md:31",
+        "version/3.0/ripscrip/3.1-column-text-system.md:42",
+        "version/3.0/ripscrip/3.1-column-text-system.md:89",
+        "version/3.0/ripscrip/3.1-column-text-system.md:252",
+        "version/3.0/ripscrip/9.0-command-reference.md:158"
+      ],
+      "states_after_update": {
+        "unreviewed": 2127,
+        "context": 1970,
+        "pending": 1412,
+        "implemented": 3884,
+        "excluded": 71,
+        "blocked": 19
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -25345,6 +25400,33 @@
         "version/3.0/ripscrip/9.0-command-reference.md:183",
         "version/3.0/ripscrip/9.0-command-reference.md:194",
         "version/3.0/ripscrip/9.0-command-reference.md:255"
+      ]
+    },
+    {
+      "after_commit": "4d3aba14d1ca88f5fecd75101f318904910efd61",
+      "revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+      "scope": "Collect column and article wire fields through the live parser, including the extended reserve and literal prewrapped text boundary.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/261"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:809",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:827",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:884",
+        "version/3.0/ripscrip/3.1-column-text-system.md:31",
+        "version/3.0/ripscrip/3.1-column-text-system.md:42",
+        "version/3.0/ripscrip/3.1-column-text-system.md:45",
+        "version/3.0/ripscrip/3.1-column-text-system.md:91",
+        "version/3.0/ripscrip/3.1-column-text-system.md:258",
+        "version/3.0/ripscrip/3.1-column-text-system.md:259",
+        "version/3.0/ripscrip/3.1-column-text-system.md:260",
+        "version/3.0/ripscrip/3.1-column-text-system.md:262",
+        "version/3.0/ripscrip/3.1-column-text-system.md:264",
+        "version/3.0/ripscrip/3.1-column-text-system.md:266",
+        "version/3.0/ripscrip/9.0-command-reference.md:145",
+        "version/3.0/ripscrip/9.0-command-reference.md:147",
+        "version/3.0/ripscrip/9.0-command-reference.md:157",
+        "version/3.0/ripscrip/9.0-command-reference.md:158"
       ]
     }
   ],

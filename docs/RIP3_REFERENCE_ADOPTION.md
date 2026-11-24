@@ -1552,3 +1552,15 @@ fields, and shared keyboard activation.
 [PR #256](https://github.com/bbs-land/remote-imaging-protocol/pull/256),
 [PR #259](https://github.com/bbs-land/remote-imaging-protocol/pull/259),
 [PR #260](https://github.com/bbs-land/remote-imaging-protocol/pull/260)
+
+
+## Article selector and column reserves
+
+The reference advances to `72648bc8a09eb8edfbb313b8f1355c675dd43253`. Its tree matches
+the reviewed head of PR #262, and the Git archive has SHA-256
+`a0f0bb4d94d3bbe3503680a3fc03281495f6d5e8be06be0c28a47a0e05b36975`. Three chapters specify the article selector's
+optional reserve, the extended column's search-string boundary and
+the numeric fields for the legacy text-region commands.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/72648bc8a09eb8edfbb313b8f1355c675dd43253),
+[PR #262](https://github.com/bbs-land/remote-imaging-protocol/pull/262)

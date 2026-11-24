@@ -31,13 +31,10 @@ st_rip3_columns_decode(struct st_rip3_column_definition *definition, const struc
 		return status;
 	size_t width = env.coordinate_size;
 	bool extended = command[1] == 'e';
-	size_t fixed = 4 + 4 * width;
-	if (extended ? length < fixed + 14 : length != fixed)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {command + 2, length - 2};
 	uint64_t field[6];
 	for (size_t i = 0; i < 6; ++i) {
-		size_t offset = i < 4 ? i * width : 4 * width + i - 4;
-		status = st_rip3_command_field(&field[i], command + 2 + offset, i < 4 ? width : 1, env.base_math);
+		status = st_rip3_command_next_field(&fields, &field[i], i < 4 ? width : 1, env.base_math, false);
 		if (status != 0)
 			return status;
 	}
@@ -45,22 +42,17 @@ st_rip3_columns_decode(struct st_rip3_column_definition *definition, const struc
 		return IO_ERROR_OUT_OF_RANGE;
 	uint64_t flags = 0, color = 0;
 	if (extended) {
-		status = st_rip3_command_field(&flags, command + fixed, 4, env.base_math);
+		status = st_rip3_command_next_field(&fields, &flags, 4, env.base_math, false);
+		if (status == 0)
+			status = st_rip3_command_next_field(&fields, &color, 2, env.base_math, false);
+		if (status == 0)
+			status = st_rip3_command_next_field(&fields, NULL, 8, env.base_math, false);
 		if (status != 0)
 			return status;
 		if (flags > 3 || field[5] == 0)
 			return IO_ERROR_OUT_OF_RANGE;
-		uint64_t reserved;
-		status = st_rip3_command_field(&color, command + fixed + 4, 2, env.base_math);
-		if (status == 0)
-			status = st_rip3_command_field(&reserved, command + fixed + 6, 4, env.base_math);
-		if (status == 0)
-			status = st_rip3_command_field(&reserved, command + fixed + 10, 4, env.base_math);
-		if (status != 0)
-			return status;
 		if ((flags & 2) != 0 && color > UINT8_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
-		fixed += 14;
 	}
 	struct st_rip3_frame frame;
 	struct st_rip3_point first, last;
@@ -85,7 +77,7 @@ st_rip3_columns_decode(struct st_rip3_column_definition *definition, const struc
 		.slot = (unsigned)field[4], .article = (unsigned)field[5], .flags = (unsigned)flags,
 		.color = (uint8_t)color, .extended = extended, .suppressed = port.protected,
 	};
-	*tail = fixed;
+	*tail = length - fields.remaining;
 	return 0;
 }
 

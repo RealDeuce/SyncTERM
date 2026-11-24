@@ -33,8 +33,8 @@ def region(area, column=0, article=1):
     return b"1T" + b"".join(number(value, 2) for value in area) + number(column, 1) + number(article, 1)
 
 
-def extended(area, column, article, flags, color=0, words=b""):
-    return b"1e" + region(area, column, article)[2:] + number(flags, 4) + number(color, 2) + b"0" * 8 + words
+def extended(area, column, article, flags, color=0, words=b"", *, reserved=b"00000000"):
+    return b"1e" + region(area, column, article)[2:] + number(flags, 4) + number(color, 2) + reserved + words
 
 
 def select(article, reserved=b"0000"):
@@ -75,8 +75,12 @@ def check_default_outline_columns(args):
         frame = terminal.exchange(setup + commands(column, b"1t1A A", b"1t0", b"1t0A", b"1E"))
         check_pixels(frame, (98, 98, 125, 123), [(100, 100, CAPITAL_A, GREEN), (115, 100, CAPITAL_A, GREEN)])
 
+        terminal.case("Column fields follow active XY and accept zero shorthand before literal text")
+        frame = terminal.exchange(setup + commands(b"n3", b"1T.02S00L03C.1 note", b"1t.A", b"1E note", b"n2"))
+        check_pixels(frame, (0, 98, 24, 123), [(0, 100, CAPITAL_A, GREEN)])
+
         terminal.case("DEFAULT EX raw width 22 fits and width 21 wraps as the next glyph arrives")
-        frame = terminal.exchange(setup + commands(column) + b"A A\r\n" + commands(b"1E"))
+        frame = terminal.exchange(setup + commands(column) + b"A A\r\n" + commands(b"1E flush"))
         check_pixels(frame, (98, 98, 125, 123), [(100, 100, CAPITAL_A, GREEN), (114, 100, CAPITAL_A, GREEN)])
         terminal.exchange(setup)
         terminal.send(commands(region((100, 100, 120, 120))) + b"A ")
@@ -121,7 +125,8 @@ def check_overflow(terminal, root, accent):
 
     terminal.case("Overflow retains the original source and first undisplayed word")
     (cache / "PAGING.TXT").write_bytes(b"A\r\n\r\n" + accent + b" A")
-    frame = terminal.exchange(commands(b"c02", column(30), b"1R00000000PAGING.TXT", b"1E"))
+    first = extended((30, 300, 37, 310), 13, 13, 1, reserved=b"1234ZAZZ")
+    frame = terminal.exchange(commands(b"c02", first, b"1R00000000PAGING.TXT", b"1E"))
     check_pixels(frame, (29, 299, 38, 311), [(30, 300, CAPITAL_A, GREEN)])
     values(b"$OVERFLOW(13,PAGE)$:$OVERFLOW(13,CUR)$:$OVERFLOW(13,NEXT,QUERY)$:$OVERFLOW(13,PREV,QUERY)$",
            re.compile(rb"1:(\d{3,5})D0000\.OVR:\1D0001\.OVR:\1D0001\.OVR"))
@@ -176,10 +181,10 @@ def check_selection(terminal, accent):
     frame = terminal.exchange(
         commands(b"c02", region((195, 310, 211, 332), 15, 15),
                  region((220, 310, 236, 332), 16, 16), select(15, b"ZZZZ"))
-        + b"A\r\n" + commands(select(16))
-        + accent + b"\r\n" + commands(select(15))
-        + b"A\r\n" + commands(select(15))
-        + accent + b"\r\n" + commands(select(16))
+        + b"A\r\n" + commands(select(16, b""))
+        + accent + b"\r\n" + commands(select(15, b"0001 note"))
+        + b"A\r\n" + commands(select(15, b"01"))
+        + accent + b"\r\n" + commands(select(16, b"."))
         + b"A\r\n" + commands(b"1E"))
     check_pixels(frame, (192, 309, 229, 335),
                  [(195, 310, CAPITAL_A, GREEN), (195, 320, ACCENT, GREEN),
@@ -189,7 +194,7 @@ def check_selection(terminal, accent):
     frame = terminal.exchange(
         commands(region((245, 310, 252, 342), 0, 0), b"1t0A", b"1E",
                  b"1t0" + accent, b"#", select(35), b"1t0" + accent)
-        + b"\x1b[4;2HNO COL\x1b[6n\r\n" + commands(select(0), b"1t0A")
+        + b"\x1b[4;2HNO COL\x1b[6n\r\n" + commands(b"1A.", b"1t.A")
         + b"\x1b[3;2HOK", b"\x1b[4;8R")
     check_pixels(frame, (242, 309, 254, 344),
                  [(245, 310, CAPITAL_A, GREEN), (245, 320, ACCENT, GREEN), (245, 330, CAPITAL_A, GREEN)])
@@ -200,7 +205,7 @@ def check_selection(terminal, accent):
                       + query(b"$BASEMATH(CUR,64)$", at_cursor=True))
     reply = re.compile(rb"\d{3,5}H0000\.OVR:alive")
     terminal.exchange(
-        commands(select(17, b"00#&"), b"1A0a0000", b"1A00", b"1A00!!!!", b"1E")
+        commands(select(17, b"00#&"), b"1A0a0000", b"1A000.", b"1A00!!!!", b"1E")
         + query(b"$OVERFLOW()$:alive$BASEMATH(CUR,36)$", at_cursor=True), reply)
 
     terminal.case("Switching articles keeps each original overflow source open for more text")
@@ -445,9 +450,11 @@ def run(args):
 
         terminal.case("Extended columns expand search words and highlight complete tokens")
         terminal.exchange(query(b"$-=FIND=a$", at_cursor=True))
-        actual = extended((300, 120, 379, 141), 5, 9, 2, 4, b"  $&FIND$  ")
+        actual = extended((300, 120, 379, 141), 5, 9, 2, 4, b"  $&FIND$  ", reserved=b".")
+        malformed = extended((300, 170, 379, 191), 5, 9, 2, 4, b"A", reserved=b"0000.")
         invalid = extended((300, 170, 379, 191), 5, 9, 2, 4, b"ABCDEFGHIJKLMNOPQ")
-        frame = terminal.exchange(commands(actual) + b"A A" + accent + b" " + commands(invalid) + b"A\r\n!|1E\r\n")
+        frame = terminal.exchange(commands(actual, malformed) + b"A A" + accent + b" "
+                                  + commands(invalid) + b"A\r\n!|1E\r\n")
         check_pixels(frame, (297, 118, 381, 144),
                      [(300, 120, CAPITAL_A, RED), (316, 120, CAPITAL_A, GREEN),
                       (324, 120, ACCENT, GREEN), (340, 120, CAPITAL_A, RED)])
