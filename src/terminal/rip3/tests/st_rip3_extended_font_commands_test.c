@@ -95,6 +95,10 @@ fields(void)
 		CHECK(after.font_mode == ST_RIP3_FONT_OUTLINE && equal(&after.outline,&expected));
 		CHECK(after.font.font == before.font.font && after.font.magnification == before.font.magnification
 		    && after.drawing_color == before.drawing_color && after.write_mode == before.write_mode);
+		CHECK(process(&host,"y..000W0M....1a..Dixon",-1) == 0);
+		CHECK(st_rip3_styles_get(host.styles,0,&after) == 0);
+		const struct st_rip3_outline_style short_form = {.flags=32,.size=22,.spacing=100,.name="Dixon"};
+		CHECK(after.font_mode == ST_RIP3_FONT_OUTLINE && equal(&after.outline,&short_form));
 	}
 	for (unsigned sr=0; sr<=2700; sr+=900) for (unsigned cr=0; cr<=2700; cr+=900) {
 		char command[]="y&&&&&&&&&&0000&&01&&&&&&&&Unavailable Face";
@@ -165,7 +169,8 @@ errors_and_attributes(void)
 	    "y", "y00000001000000001a00000000", "y00000001000000000000000000Marin",
 	    "y00000001000100001a00000000Marin", "y00000001000001001a00000000Marin",
 	    "y00000001000000001a0000000?Marin", "y00000001000000001a0000000-Marin",
-	    "q", "q000", "q0G", "q?0",
+	    "y..000W0M....1a..", "y..000W0M....1a.00.000Dixon",
+	    "q", "q0.", "q0G", "q?0",
 	};
 	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
@@ -177,8 +182,8 @@ errors_and_attributes(void)
 	for (unsigned base=36; base<=64; base+=28) {
 		env.base_math=base; CHECK(st_rip3_environments_set(host.environments,0,&env) == 0);
 		CHECK(process(&host,"y0000&m01000000001a00000000Marin",-1) == 0); /* flags=4080 */
-		CHECK(process(&host,"q01",-1) == 0 && process(&host,"q02",-1) == 0
-		    && process(&host,"q04",-1) == 0 && process(&host,"q08",-1) == 0 && process(&host,"q00",-1) == 0);
+		CHECK(process(&host,"q1",-1) == 0 && process(&host,"q02 comment",-1) == 0
+		    && process(&host,"q04",-1) == 0 && process(&host,"q08",-1) == 0 && process(&host,"q.",-1) == 0);
 		CHECK(st_rip3_styles_get(host.styles,0,&after) == 0 && after.outline.flags == 4095);
 		CHECK(process(&host,"q0F",-1) == 0);
 		CHECK(process(&host,"q0G",ST_RIP3_COMMAND_INVALID) == 0);

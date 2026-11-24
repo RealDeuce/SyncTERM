@@ -656,11 +656,11 @@ text_cursor(void)
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 	options.sink.text_cursor=move_cursor;
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
-	CHECK(append(&f,"!|g0509|H\r")==0 && pump(&f)==0 && f.moves==2 && f.column==0 && f.row==0);
-	CHECK(append(&f,"!|J1S|n5|g0l0A\r")==0 && pump(&f)==0 && f.moves==3 && f.column==47 && f.row==10);
-	CHECK(append(&f,"!|g0la\r")==0 && pump(&f)==0 && f.moves==4 && f.column==47 && f.row==36);
-	CHECK(append(&f,"!|g000\r")==0 && pump(&f)==0 && f.moves==5 && f.column==0 && f.row==0);
-	CHECK(append(&f,"!|g??00|g00|H0|g00000\r")==0 && pump(&f)==0 && f.moves==5 && f.errors==4);
+	CHECK(append(&f,"!|g0509|H home\r")==0 && pump(&f)==0 && f.moves==2 && f.column==0 && f.row==0);
+	CHECK(append(&f,"!|J1S|n5|g0000l0000A\r")==0 && pump(&f)==0 && f.moves==3 && f.column==47 && f.row==10);
+	CHECK(append(&f,"!|g0000la\r")==0 && pump(&f)==0 && f.moves==4 && f.column==47 && f.row==36);
+	CHECK(append(&f,"!|g00000.\r")==0 && pump(&f)==0 && f.moves==5 && f.column==0 && f.row==0);
+	CHECK(append(&f,"!|g??00|g00|g000000.|g00000\r")==0 && pump(&f)==0 && f.moves==5 && f.errors==4);
 	f.move_status=IO_ERROR_IO;
 	CHECK(append(&f,"!|H\r")==0 && pump(&f)==0 && f.moves==6 && f.errors==5
 	    && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
@@ -695,14 +695,14 @@ extended_window(void)
 	CHECK(!f.overflow && f.windows==1 && !f.identical
 	    && f.window.extended && f.window.font==4 && f.window.x==110 && f.window.y==20
 	    && f.window.columns==40 && f.window.rows==25 && f.window.cell_width==20 && f.window.cell_height==24);
-	CHECK(append(&f,"!|a0010|b0A0KS2H8140P4000HXYZ\r")==0 && pump(&f)==0 && f.windows==2
+	CHECK(append(&f,"!|a0010|b0A0KS2H8140P4000HXYZ comment\r")==0 && pump(&f)==0 && f.windows==2
 	    && !f.identical && f.window.flags==17 && f.clear_rgb==0xff0000);
 	CHECK(append(&f,"!|b0A0KS2H8140P4000H001\r")==0 && pump(&f)==0 && f.windows==3 && !f.identical && f.window.flags==17);
 	CHECK(append(&f,"!|b0A0KS2H8140P4000H0|b0A0KS2H8140P4000H00|b0A0KS2H8140P4H\r")==0
 	    && pump(&f)==0 && f.windows==6 && !f.identical && f.window.flags==17);
 	const char *const invalid[]={"b","b0A0KS2H8140PZ","b0A0KS2H8000P48","b0A0KS2H8140048",
 	    "b0A0KS2H8140P50","b0A0KS2H8140P41S","b0A0KS2H8140P48?","b0A0KS2H8140P?8",
-	    "b0A0KS2H8140P4000H00?","b0A0KS2H8140P4000H0000"};
+	    "b0A0KS2H8140P4000H00?","b0A0KS2H8140P4000H00."};
 	unsigned errors=f.errors;
 	for (size_t i=0;i<sizeof(invalid)/sizeof(*invalid);i++) {
 		char bad[100];snprintf(bad,sizeof(bad),"!|%s\r",invalid[i]);
@@ -765,9 +765,9 @@ normal_window(void)
 		CHECK(append(&encoded,setup)==0 && pump(&encoded)==0);
 		/* 47 distinguishes MegaNum 1B from UltraNum 0l. */
 		const unsigned values[]={10,5,47,22};char line[32]="!|w";
-		for (unsigned i=0;i<4;i++) CHECK(st_rip3_number_encode(line+3+i*width,width,
-		    values[i],width,base ? 64 : 36)==0);
-		size_t at=3+4*width;memcpy(line+at,"10\r",4);
+		for (unsigned i=0;i<4;i++) CHECK(st_rip3_number_encode(line+3+2*i,2,
+		    values[i],2,base ? 64 : 36)==0);
+		memcpy(line+3+8,"10\r",4);
 		CHECK(append(&encoded,line)==0 && pump(&encoded)==0 && encoded.errors==0 && encoded.windows==1
 		    && encoded.window.columns==38 && encoded.window.rows==18 && encoded.window.x==80 && encoded.window.y==54);
 		st_rip3_session_destroy(encoded.session);
@@ -783,7 +783,7 @@ text_deactivation(void)
 		CHECK(st_rip3_session_create(&f.session,&options)==0 && st_rip3_session_text_active(f.session));
 		char setup[32];(void)snprintf(setup,sizeof(setup),"!|J%s|n%u\r",base ? "1S" : "10",width);
 		CHECK(append(&f,setup)==0 && pump(&f)==0 && f.errors==0);
-		char line[32]="!|w";size_t length=4*width+2;
+		char line[32]="!|w";size_t length=10;
 		memset(line+3,'0',length);line[3+length]='\r';line[4+length]=0;
 		/* Reject partial/malformed/unsupported layouts without disabling TTY. */
 		line[3+length-1]='?';CHECK(append(&f,line)==0 && pump(&f)==0 && f.errors==1
@@ -1056,8 +1056,8 @@ text_metrics(void)
 	struct st_rip3_session_capture before={0},after={0};
 	CHECK(st_rip3_session_capture(f.session,&before)==0);
 	/* Feed the complete metric prefix/string one byte at a time through
-	 * the public void receive path, including ignored nonnumeric reserved. */
-	const char *wire="!|r01????ab|r210000$textdata$\r";
+	 * the public void receive path, including a shortened reserved field. */
+	const char *wire="!|r.1.ab|r210000$textdata$\r";
 	for (size_t i=0;i<strlen(wire);i++) {
 		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);st_rip3_session_process(f.session,1);
 	}
@@ -1066,7 +1066,7 @@ text_metrics(void)
 	    && memcmp(after.pixels->primary,before.pixels->primary,(size_t)after.pixels->width*after.pixels->height*sizeof(*after.pixels->primary))==0);
 	st_rip3_session_capture_dispose(&before);st_rip3_session_capture_dispose(&after);
 	f.reply_length=0;
-	CHECK(append(&f,"!|r410000$COORDSIZE(CUR,5)$|r020000$COORDSIZE(CUR,5)$|r01000\r")==0 && pump(&f)==0
+	CHECK(append(&f,"!|r410000$COORDSIZE(CUR,5)$|r020000$COORDSIZE(CUR,5)$|r01????$COORDSIZE(CUR,5)$\r")==0 && pump(&f)==0
 	    && f.errors==3 && f.reply_length==0 && !st_rip3_session_pending(f.session));
 	CHECK(query(&f,"$COORDSIZE$","2")==0);
 	/* Ordinary metric user references stay literal and cannot prompt/store;

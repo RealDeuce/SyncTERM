@@ -37,19 +37,21 @@ st_rip3_metric_argument_prepare(const struct st_rip3_command_host *host,
     const uint8_t *command,size_t length,struct st_rip3_metric_argument *argument,size_t *offset)
 {
 	if (host==NULL || command==NULL || argument==NULL || offset==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (length<7 || command[0]!='r') return IO_ERROR_INVALID_FORMAT;
+	if (length==0 || command[0]!='r') return IO_ERROR_INVALID_FORMAT;
 	struct st_rip3_environment environment;unsigned number;
 	int status=st_rip3_command_environment(host,&number,&environment);
 	uint64_t mode,domain;
-	if (status==0) status=st_rip3_command_field(&mode,command+1,1,environment.base_math);
-	if (status==0) status=st_rip3_command_field(&domain,command+2,1,environment.base_math);
+	struct st_rip3_fields fields = {command+1,length-1};
+	if (status==0) status=st_rip3_command_next_field(&fields,&mode,1,environment.base_math,false);
+	if (status==0) status=st_rip3_command_next_field(&fields,&domain,1,environment.base_math,false);
+	if (status==0) status=st_rip3_command_next_field(&fields,NULL,4,environment.base_math,false);
 	if (status!=0) return status;
 	if (mode>3 || domain>1) return IO_ERROR_OUT_OF_RANGE;
-	const uint8_t *text=command+7;size_t count=length-7;
+	const uint8_t *text=fields.bytes;size_t count=fields.remaining;
 	const uint8_t *end=count==0 ? NULL : memchr(text,0,count);
 	if (end!=NULL) count=(size_t)(end-text);
 	*argument=(struct st_rip3_metric_argument){(unsigned)mode,(unsigned)domain,st_rip3_metric_sentinel(text,count),count==0};
-	*offset=7;return 0;
+	*offset=length-fields.remaining;return 0;
 }
 
 static int

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-504f87f2894fbc303102dbdde8ad9177307c90ec](https://github.com/RealDeuce/remote-imaging-protocol/tree/504f87f2894fbc303102dbdde8ad9177307c90ec/version/3.0)
+c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96](https://github.com/RealDeuce/remote-imaging-protocol/tree/c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10022,7 +10022,7 @@ output preservation after invalid requests.
 
 ## Connected outline font name expansion
 
-Wire `y` validates the fixed UltraNum fields and current STYLE protection
+Wire `y` validates its UltraNum fields and current STYLE protection
 before evaluating the typeface name. The baseline conversion uses WORLD at
 that point. The existing graphical evaluator runs angle preprocessing and
 one ordinary pass with a 4,095-byte working limit. RIPtel's handler passes
@@ -10344,4 +10344,21 @@ The original-driver captures measured dispatch after a separate CR
 in both radices with XY widths two and three. Native drawing tests
 cover widths two through five. Connected CP437 and UTF-8 cases check
 cursor replies, text-window geometry, fitting and recovery.
-[Issue #253](https://github.com/bbs-land/remote-imaging-protocol/issues/253)
+[PR #254](https://github.com/bbs-land/remote-imaging-protocol/pull/254)
+
+
+## Outline font and metric wire fields
+
+The original RIPtel collector applies the zero-field shorthand to each
+UltraNum slot of `y`, including both ignored slots. The typeface name
+starts immediately after the last slot. The same field layout accepts
+both full-width and abbreviated numeric inputs. Connected CP437 and
+UTF-8 cases compare Dixon glyphs selected through both spellings and
+check that a shortened prefix survives a prompt.
+
+The `r` metric query requires four valid current-base digits or a single
+period for its ignored field. Extra periods beyond the completed field
+belong to the text. Invalid prefixes leave retained text and the live
+session intact. The `q` attribute command accepts a shortened final
+value and ignores surplus after its complete field.
+[Issue #255](https://github.com/bbs-land/remote-imaging-protocol/issues/255)

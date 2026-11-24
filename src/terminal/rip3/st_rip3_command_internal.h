@@ -82,9 +82,9 @@ int st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_font_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
-enum { ST_RIP3_OUTLINE_NAME_OFFSET = 27 };
 int st_rip3_font_argument_prepare(const struct st_rip3_command_host *host,
-	const uint8_t *command, size_t length, struct st_rip3_outline_style *outline);
+	const uint8_t *command, size_t length, struct st_rip3_outline_style *outline,
+	size_t *name_offset);
 int st_rip3_font_commands_expanded(const struct st_rip3_command_host *host,
 	const struct st_rip3_outline_style *outline, const uint8_t *name, size_t length);
 int st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,

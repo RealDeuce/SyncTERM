@@ -47,8 +47,8 @@ int main(void)
 	CHECK(execute(&state,&host,"r010000$TEXTDATA$",NULL,0,false,"0\r")==0);
 	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"11\r")==0);
 	CHECK(execute(&state,&host,"r310000AB",(const uint8_t *)"AB",2,false,"11:11\r")==0);
-	CHECK(execute(&state,&host,"r01xxxxab",(const uint8_t *)"ab",2,false,"16\r")==0);
-	CHECK(execute(&state,&host,"r20????ab",(const uint8_t *)"ab",2,false,"16:16\r")==0);
+	CHECK(execute(&state,&host,"r01ZZZZab",(const uint8_t *)"ab",2,false,"16\r")==0);
+	CHECK(execute(&state,&host,"r209ZZZab",(const uint8_t *)"ab",2,false,"16:16\r")==0);
 	CHECK(execute(&state,&host,"r000000$textdata$",NULL,0,false,"32\r")==0);
 	CHECK(state.length==2 && memcmp(state.bytes,"ab",2)==0);
 	CHECK(execute(&state,&host,"r210000",NULL,0,false,"\r")==0);
@@ -81,6 +81,16 @@ int main(void)
 	    && argument.retained==before.retained && argument.literal_empty==before.literal_empty
 	    && offset==99 && state.length==sizeof(large));
 	CHECK(st_rip3_metric_argument_prepare(&host,(const uint8_t *)"r020000x",8,&argument,&offset)!=0);
+	CHECK(st_rip3_metric_argument_prepare(&host,(const uint8_t *)"r01????ab",9,&argument,&offset)!=0);
+	CHECK(st_rip3_metric_argument_prepare(&host,(const uint8_t *)"r0100.0ab",9,&argument,&offset)!=0);
+	CHECK(st_rip3_metric_argument_prepare(&host,(const uint8_t *)"r01abcdab",9,&argument,&offset)!=0);
+	env.base_math=64;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
+	CHECK(execute(&state,&host,"r01abcdab",(const uint8_t *)"ab",2,false,"160\r")==0);
+	CHECK(st_rip3_metric_argument_prepare(&host,(const uint8_t *)"r.1..A",6,&argument,&offset)==0
+	    && offset==4 && argument.mode==0 && argument.domain==1 && !argument.literal_empty);
+	env.base_math=36;
+	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	/* Literal empty outline input skips font preparation/reply; a nonempty
 	 * expression producing empty still enters the measurement path. */
 	style.font_mode=ST_RIP3_FONT_OUTLINE;style.outline.size=90;memcpy(style.outline.name,"Marin",6);

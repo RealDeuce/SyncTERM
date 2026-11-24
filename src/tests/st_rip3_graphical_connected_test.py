@@ -199,10 +199,11 @@ def run(args):
         t.exchange(b'\x01|*|c0F\r\n\x1b[?25l')
         values(b'$WORLD(CUR,640,480)$$-=FONT_NAME=dIxOn$[3:]Dixon')
 
-        def font(name, size=22, spacing=100, flags=32, baseline=0):
+        def font(name, size=22, spacing=100, flags=32, baseline=0, short=False):
             fields = ((0, 1), (0, 1), (flags, 4), (size, 2), (0, 2), (0, 2),
                       (0, 2), (baseline, 2), (spacing, 2), (100, 2), (0, 6))
-            return b'y' + b''.join(number(value, width, 64) for value, width in fields) + name
+            return b'y' + b''.join(b'.' if short and value == 0 else number(value, width, 64)
+                                  for value, width in fields) + name
 
         def text(x):
             return b'@' + number(x, 2) + number(100, 2) + b'F'
@@ -217,7 +218,7 @@ def run(args):
                     if pixel(frame, x + dx, y) == 0xffffff}
 
         frame = t.exchange(line(font(b'Dixon'), text(30), font(b'Marin', 90),
-                                font(b'$&FONT_NAME$'), text(75), font(b'Marin', 90),
+                                font(b'$&FONT_NAME$', short=True), text(75), font(b'Marin', 90),
                                 font(b'<<?3>>'), text(120))
                            + query(b'$TEXTXY$', at_cursor=True), b'133:100')
         reference = glyph(frame, 30)
@@ -225,7 +226,8 @@ def run(args):
 
         t.case('Invalid and protected font commands skip evaluation and preserve the selected face')
         setter = b'$COORDSIZE(CUR,5)$Marin'
-        t.exchange(line(font(setter, spacing=0), font(b'')))
+        t.exchange(line(font(setter, spacing=0), font(b'', short=True),
+                        b'y..000W0M....1a.00.000' + setter))
         values(b'$COORDSIZE$', b'2')
         values(b'$CUR(STYLE,7)$')
         t.exchange(line(font(b'Dixon')))
@@ -239,7 +241,7 @@ def run(args):
         frame = t.exchange(line(font(b'Marin', 90), font(b'$NULL$'), text(210))
                            + query(b'$TEXTXY$', at_cursor=True), b'223:100')
         assert not glyph(frame, 210)
-        send(line(font(b'<<FACEPROMPT>>'), text(260)) + query(b'$TEXTXY$', at_cursor=True))
+        send(line(font(b'<<FACEPROMPT>>', short=True), text(260)) + query(b'$TEXTXY$', at_cursor=True))
         client.wait_text('FACEPROMPT')
         client.text('Dixon')
         client.key('enter')

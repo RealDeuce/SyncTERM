@@ -1522,3 +1522,17 @@ UltraNum receive alphabets. Issues #249 and #250 are resolved in the pin.
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/504f87f2894fbc303102dbdde8ad9177307c90ec),
 [PR #251](https://github.com/bbs-land/remote-imaging-protocol/pull/251),
 [PR #252](https://github.com/bbs-land/remote-imaging-protocol/pull/252)
+
+
+## Text-window receive widths
+
+The reference advances to `c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96`. Its tree
+matches the reviewed PR #254 head `57a37a66bbc3db45b73c671fc475d1c4c970758f`.
+The Git archive has SHA-256
+`8a006f77a4e68914608416afa6d9d72928d6826eba9f1900a3c1ad176d68144a`.
+The adopted chapters specify active XY fields for GOTOXY and fixed
+two-digit text-cell corners for ordinary TEXT_WINDOW. Issue #253 is
+resolved in the pin.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96),
+[PR #254](https://github.com/bbs-land/remote-imaging-protocol/pull/254)

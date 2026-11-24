@@ -39,7 +39,7 @@ def run(args,width,height):
         t.exchange(b'\x01|m0A0K\r\n')
         t.case(f'rip3-metric-replies-and-no-paint-{width}x{height}')
         before=t.exchange()
-        frame=metric(b'ab',width_reply(2),reserved=b'????')
+        frame=t.exchange(b'\x01|r.1.ab\r\n',width_reply(2))
         assert frame.primary==before.primary and frame.alternate==before.alternate
         values(b'$TEXTXY$',b'10:20')
         metric(b'$textdata$',decimal(cw)+b':'+decimal(cw)+b'\r',mode=2)
@@ -57,9 +57,14 @@ def run(args,width,height):
         metric(b'$RESX$',width_reply(3))
         metric(b'\\$V$',width_reply(3))
         metric(b'$TEXTDATA$',width_reply(3))  # no second expansion of retained "$V$"
-        t.exchange(b'\x01|r410000$COORDSIZE(CUR,5)$|r020000$COORDSIZE(CUR,5)$|r01000\r\n')
+        t.exchange(b'\x01|r410000$COORDSIZE(CUR,5)$|r020000$COORDSIZE(CUR,5)$'
+                   b'|r01????$COORDSIZE(CUR,5)$|r01000\r\n')
         values(b'$COORDSIZE$',b'2')
         metric(b'$TEXTDATA$',width_reply(3))
+        t.exchange(b'\x01|r01000Hello\r\n',width_reply(4))
+        t.exchange(b'\x01|r01....Hello\r\n',width_reply(8))
+        t.exchange(b'\x01|J1S|r01abcdab|J10\r\n',width_reply(2))
+        metric(b'\$V$',width_reply(3))
         t.exchange(b'\x01|r010000<<MKILL>>\r\n')
         metric(b'$TEXTDATA$',width_reply(3))  # failed expansion retains the last completed text
         t.case('rip3-metric-original-byte-profile-and-working-prefix')

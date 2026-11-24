@@ -1801,13 +1801,14 @@ command(void *context, const uint8_t *bytes, size_t length)
 			diagnose(session, ST_RIP3_COMMAND_INVALID);
 	}
 	else if (length != 0 && bytes[0] == 'y') {
+		size_t offset;
 		int status = st_rip3_font_argument_prepare(&session->commands, bytes, length,
-		    &session->font_argument);
+		    &session->font_argument, &offset);
 		if (status != 0)
 			st_rip3_command_result(&sink, status, false);
 		else {
 			st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_FONT,
-			    bytes + ST_RIP3_OUTLINE_NAME_OFFSET, length - ST_RIP3_OUTLINE_NAME_OFFSET);
+			    bytes + offset, length - offset);
 			session->graphical_job = GRAPHICAL_FONT;
 		}
 	}

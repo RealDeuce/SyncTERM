@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/252",
-  "revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
-  "previous_revision": "6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/254",
+  "revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
+  "previous_revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The reviewed PR #251 and #252 heads match their respective fork stable integration trees.",
-  "archive_sha256": "60afc43a197f103c4c413a1a9093dcd9a633ba2ee5aed7a701154940c62ad91d",
+  "upstream_state_at_adoption": "The reviewed PR #254 head matches the fork stable integration tree.",
+  "archive_sha256": "8a006f77a4e68914608416afa6d9d72928d6826eba9f1900a3c1ad176d68144a",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,49 +17,24 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "previous_sha256": "1585578264447c019c5d849b27d7be6f83c888ae3227d65f5bc01612e59bfa62",
-      "sha256": "4354223f655cdf57bff0cbe15aba092e2a98f2b7a66b1ff8fe3688b7b3694228"
-    },
-    {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "previous_sha256": "b378d842d7355f8bde1708b80e38c7357d40d8c123e37a6cb47116ef53480e84",
-      "sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00"
+      "previous_sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00",
+      "sha256": "91783db83a041754321b908fe173e78724d151ec41cc2f954321bb26c780be06"
     },
     {
-      "path": "version/3.0/ripscrip/2.2-curves.md",
-      "previous_sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a",
-      "sha256": "e7d963779ee39a12dac02ecd15f3025f3962ae56d7bcfb26ab687023e7667f53"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "a6bdef70aa80ab20125226d31cecbbdcd96c4d0921561305d4e42d617d087339",
-      "sha256": "0e358ea61176f91c627d26a2a047003414b047105ddbb370ebad86d865a3233d"
-    },
-    {
-      "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
-      "previous_sha256": "d7108625fd84153a9231207abf1ca89178ffbf29a42118c19adea48bb283f767",
-      "sha256": "1317460dc05ad700bc7fbc193796c6be7b4dd17ba3125d0bf1e80930adc17991"
-    },
-    {
-      "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "previous_sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e",
-      "sha256": "90237db73b55c394c3928b81748767414df2d4ef07119d21b7f3ee8caee4c68e"
-    },
-    {
-      "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "previous_sha256": "f70bfe740392a82b071b5ee39d045ffa47e1a5ef8ad3d8a57aa49ea4c394f4a9",
-      "sha256": "5b98623399759b9fd063e7a2531e2a103a0156d30a049892828591e98824ba02"
+      "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+      "previous_sha256": "8009a137cccab826b54f75938f45f90407d6440111a65c59ba390cd0c37bcaef",
+      "sha256": "d0f2eadae6ece0e92dc9bcbda7d1cd3cc4bd21656822eab8446883684872aabe"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61",
-      "sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4"
+      "previous_sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4",
+      "sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9393,
+  "matched_source_blocks": 9435,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -993,7 +968,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 124,
+  "upstream_issue_resolutions": 125,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1732,6 +1707,12 @@
       "sha256": "8ef06a1a7022e592f03306dd6b17d8b09046f26ba414cc1b20e967eaa28d152e",
       "title": "Issue #250 — MegaNum receive alphabet",
       "role": "Original numeric byte validation, case and dispatch on staged input."
+    },
+    {
+      "path": "version/3.0/research/issue-253-text-window-wire-widths.md",
+      "sha256": "98e0324f4ebced7190eeb8ef284daa79e3b3467780a9b1928d2b8b881b59ddd8",
+      "title": "Issue #253 — GOTOXY and TEXT_WINDOW wire widths",
+      "role": "Original text-window descriptors and two-radix staged captures."
     }
   ],
   "documents": [
@@ -1829,7 +1810,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00"
+      "sha256": "91783db83a041754321b908fe173e78724d151ec41cc2f954321bb26c780be06"
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
@@ -1837,7 +1818,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "8009a137cccab826b54f75938f45f90407d6440111a65c59ba390cd0c37bcaef"
+      "sha256": "d0f2eadae6ece0e92dc9bcbda7d1cd3cc4bd21656822eab8446883684872aabe"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1937,7 +1918,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4"
+      "sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2008,7 +1989,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "cd91e3bdc5d64f1c751aa3710e27abe0fcf74237",
+  "previous_ledger_commit": "3eb7963f53866f039074704d756623b2b1295b8f",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19140,6 +19121,90 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
+      "revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
+      "archive_sha256": "8a006f77a4e68914608416afa6d9d72928d6826eba9f1900a3c1ad176d68144a",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/253",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/254",
+          "reviewed_head": "57a37a66bbc3db45b73c671fc475d1c4c970758f",
+          "integration": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+          "previous_sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00",
+          "sha256": "91783db83a041754321b908fe173e78724d151ec41cc2f954321bb26c780be06"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "8009a137cccab826b54f75938f45f90407d6440111a65c59ba390cd0c37bcaef",
+          "sha256": "d0f2eadae6ece0e92dc9bcbda7d1cd3cc4bd21656822eab8446883684872aabe"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4",
+          "sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-253-text-window-wire-widths.md",
+          "sha256": "98e0324f4ebced7190eeb8ef284daa79e3b3467780a9b1928d2b8b881b59ddd8",
+          "title": "Issue #253 — GOTOXY and TEXT_WINDOW wire widths",
+          "role": "Original text-window descriptors and two-radix staged captures."
+        }
+      ],
+      "moved_source_blocks": 175,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:527",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:235",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:236",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:237",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:238",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:239",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:245",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:520",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:521",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:522",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:523",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:524",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:526",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:528",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:530",
+        "version/3.0/ripscrip/9.0-command-reference.md:55",
+        "version/3.0/ripscrip/9.0-command-reference.md:59"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:527",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:235",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:236",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:237",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:238",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:239",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:518",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:519",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:520",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:521",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:522",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:524",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:526",
+        "version/3.0/ripscrip/9.0-command-reference.md:55",
+        "version/3.0/ripscrip/9.0-command-reference.md:59"
+      ],
+      "states_after_update": {
+        "unreviewed": 2139,
+        "context": 1959,
+        "pending": 1416,
+        "implemented": 3847,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -24948,6 +25013,54 @@
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:76",
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:108",
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:112"
+      ]
+    },
+    {
+      "after_commit": "3eb7963f53866f039074704d756623b2b1295b8f",
+      "revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
+      "scope": "Adopt verified original ordinary-window and text cursor widths.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/253"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:527",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:237",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:238",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:239",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:241",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:245",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:522",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:523",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:524",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:526",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:528",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:530",
+        "version/3.0/ripscrip/9.0-command-reference.md:55",
+        "version/3.0/ripscrip/9.0-command-reference.md:59"
+      ]
+    },
+    {
+      "after_commit": "3eb7963f53866f039074704d756623b2b1295b8f",
+      "revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
+      "scope": "Collect original outline-font, attribute and text-metric fields before handling their text or style effects.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/255"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:528",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:530",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:534",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:559",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:561",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:649",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:651",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:653",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:655",
+        "version/3.0/ripscrip/9.0-command-reference.md:149",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:665",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:667",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:669",
+        "version/3.0/ripscrip/9.0-command-reference.md:148"
       ]
     }
   ],

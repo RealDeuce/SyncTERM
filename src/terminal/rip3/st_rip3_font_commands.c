@@ -1,7 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
 #include "st_rip3_environments.h"
-#include "st_rip3_number.h"
 #include "st_rip3_styles.h"
 #include "io_error.h"
 
@@ -10,30 +9,34 @@
 
 int
 st_rip3_font_argument_prepare(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, struct st_rip3_outline_style *outline)
+    const uint8_t *command, size_t length, struct st_rip3_outline_style *outline,
+    size_t *name_offset)
 {
-	static const size_t widths[] = {1,1,4,2,2,2,2,2,2,2,6};
-	uint64_t values[11];
-	size_t offset = 1;
+	static const size_t widths[] = {1,1,4,2,2,2,2,2,2};
+	uint64_t values[sizeof(widths)/sizeof(widths[0])];
 	struct st_rip3_environment env;
 	struct st_rip3_style_info info;
 	unsigned environment, number;
 
-	if (length <= ST_RIP3_OUTLINE_NAME_OFFSET || command[ST_RIP3_OUTLINE_NAME_OFFSET] == 0)
+	if (length <= 1)
 		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {command+1,length-1};
+	for (size_t i = 0; i < sizeof(widths)/sizeof(widths[0]); i++) {
+		int status = st_rip3_command_next_field(&fields,&values[i],widths[i],64,false);
+		if (status != 0) return status;
+	}
+	/* Validate the two ignored fields before handing their suffix to the
+	 * font-name evaluator. The complete six-digit field can exceed 32 bits. */
+	int status = st_rip3_command_next_field(&fields,NULL,2,64,false);
+	if (status == 0) status = st_rip3_command_next_field(&fields,NULL,6,64,false);
+	if (status != 0) return status;
+	if (fields.remaining == 0 || fields.bytes[0] == 0) return IO_ERROR_INVALID_FORMAT;
 	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
-	int status = st_rip3_command_environment(host, &environment, &env);
+	status = st_rip3_command_environment(host, &environment, &env);
 	if (status == 0) status = st_rip3_styles_current(host->styles, &number);
 	if (status == 0) status = st_rip3_styles_info(host->styles, number, &info);
 	if (status != 0) return status;
 	if (info.protected) return IO_ERROR_PERMISSION_DENIED;
-	for (size_t i = 0; i < sizeof(widths)/sizeof(widths[0]); i++) {
-		/* Reserved digits can exceed 32 bits. Their accumulator's original
-		 * wrap has no observable effect; validate every digit without storing it. */
-		status = st_rip3_number_decode(&values[i],command+offset,widths[i],64);
-		if (status != 0) return status;
-		offset += widths[i];
-	}
 	if (values[5] > 2700 || values[5]%900 != 0
 	    || values[6] > 2700 || values[6]%900 != 0 || values[8] == 0)
 		return IO_ERROR_OUT_OF_RANGE;
@@ -50,6 +53,7 @@ st_rip3_font_argument_prepare(const struct st_rip3_command_host *host,
 	    .string_rotation=(unsigned)values[5],.character_rotation=(unsigned)values[6],
 	    .baseline=baseline,.spacing=(unsigned)values[8],
 	};
+	*name_offset = length-fields.remaining;
 	return 0;
 }
 
@@ -78,11 +82,12 @@ st_rip3_font_commands_execute(const struct st_rip3_command_host *host,
 {
 	if (command[0] == 'y') {
 		struct st_rip3_outline_style outline;
-		int status = st_rip3_font_argument_prepare(host, command, length, &outline);
+		size_t offset;
+		int status = st_rip3_font_argument_prepare(host, command, length, &outline, &offset);
 		if (status != 0) return status;
 		/* This entry has no graphical evaluator. The live session handles
 		 * quoted names and variable syntax before it commits the style. */
-		for (size_t i = ST_RIP3_OUTLINE_NAME_OFFSET; i < length; i++) {
+		for (size_t i = offset; i < length; i++) {
 			uint8_t c = command[i];
 			if (c == '$' || c == '[' || c == '\\' || c == '^' || c == '`'
 			    || (i+1 < length && ((c == '<' && command[i+1] == '<')
@@ -91,13 +96,12 @@ st_rip3_font_commands_execute(const struct st_rip3_command_host *host,
 		}
 		*operation = true;
 		return st_rip3_font_commands_expanded(host, &outline,
-		    command + ST_RIP3_OUTLINE_NAME_OFFSET, length - ST_RIP3_OUTLINE_NAME_OFFSET);
+		    command + offset, length - offset);
 	}
 	struct st_rip3_environment environment;
 	struct st_rip3_style style;
 	unsigned env, number;
-	const uint8_t *arguments = command+1;
-	size_t count = length-1;
+	struct st_rip3_fields fields = {command+1,length-1};
 	int status;
 
 	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -106,8 +110,7 @@ st_rip3_font_commands_execute(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_styles_get(host->styles,number,&style);
 	if (status != 0) return status;
 	uint64_t attributes;
-	if (count == 0 || count > 2) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&attributes,arguments,count,environment.base_math);
+	status = st_rip3_command_next_field(&fields,&attributes,2,environment.base_math,true);
 	if (status != 0) return status;
 	if (attributes > 15 || style.font_mode != ST_RIP3_FONT_OUTLINE) return IO_ERROR_OUT_OF_RANGE;
 	style.outline.flags |= (uint32_t)attributes;
