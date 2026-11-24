@@ -10225,3 +10225,19 @@ complete command waits for the delimiter across split input.
 Numeric decoders outside the listed command families still require review.
 [PR #241](https://github.com/bbs-land/remote-imaging-protocol/pull/241),
 [PR #242](https://github.com/bbs-land/remote-imaging-protocol/pull/242)
+
+## Curve and counted path fields
+
+Skewed ovals, markers, affine ellipses and standalone Bézier `Z` ignore
+surplus after their full fields. A field-start period supplies zero,
+including for an affine fill selector. The short final `Z` sample count is
+accepted at a delimiter, as verified on the original driver.
+
+Polygons, polylines, multicontour polygons and typed Bézier records accept
+a period as a complete numeric field and validate the full declared list.
+Typed Bézier selectors use literal digits 0 through 6. The original
+driver's argument captures in both radices confirm the difference.
+Connected CP437 and UTF-8 cases check visible geometry, rejected surplus
+and continued parsing. The native command tests exercise declared counts,
+clipping, and malformed fields before allocation. The remaining Bézier
+wording discrepancy is tracked upstream. [Issue #243](https://github.com/bbs-land/remote-imaging-protocol/issues/243)

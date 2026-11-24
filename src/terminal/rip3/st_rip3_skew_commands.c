@@ -8,7 +8,6 @@
 #include "io_error.h"
 
 #include <stdint.h>
-#include <string.h>
 
 enum border_policy {
 	BORDER_FROM_STYLE,
@@ -84,22 +83,18 @@ st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
 	bool fill_digit = command[0] == ':' || command[0] == '`';
 	size_t pairs = whole ? 3 : 5;
 	size_t xy = environment.coordinate_size;
-	size_t full_length = 1 + 2 * pairs * xy + (fill_digit ? 1 : 0);
-	size_t minimum = fill_digit ? full_length : full_length - xy + 1;
-	if (length < minimum || length > full_length)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {command + 1, length - 1};
 	struct st_rip3_frame frame;
 	status = st_rip3_command_frame(host, current, &frame);
 	if (status != 0)
 		return status;
 	struct st_rip3_vector control[5];
 	for (size_t i = 0; i < pairs; ++i) {
-		size_t offset = 1 + 2 * i * xy;
-		size_t y_width = !fill_digit && i + 1 == pairs ? length - offset - xy : xy;
 		uint64_t x, y;
-		status = st_rip3_command_field(&x, command + offset, xy, environment.base_math);
+		status = st_rip3_command_next_field(&fields, &x, xy, environment.base_math, false);
 		if (status == 0)
-			status = st_rip3_command_field(&y, command + offset + xy, y_width, environment.base_math);
+			status = st_rip3_command_next_field(&fields, &y, xy, environment.base_math,
+			    !fill_digit && i + 1 == pairs);
 		if (status != 0)
 			return status;
 		control[i] = (struct st_rip3_vector){
@@ -109,7 +104,7 @@ st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
 	}
 	uint64_t flags = 0;
 	if (fill_digit)
-		status = st_rip3_command_field(&flags, command + length - 1, 1, environment.base_math);
+		status = st_rip3_command_next_field(&fields, &flags, 1, environment.base_math, true);
 	if (status == 0)
 		status = st_rip3_ports_current(host->ports, &current);
 	struct st_rip3_port_info port;
@@ -153,19 +148,16 @@ st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 	bool marker=command[0]==';';
 	bool whole=command[0]=='&' || command[0]=='-';
 	bool filled=command[0]!='&' && command[0]!=']';
-	size_t fields=whole ? 5 : 7,position=0,body=length-1,total;
+	size_t count = whole ? 5 : 7;
+	struct st_rip3_fields fields = {command + 1, length - 1};
 	int status;
-	if (memchr(command+1,' ',body)!=NULL) return IO_ERROR_NOT_SUPPORTED;
 	status=st_rip3_command_environment(host,&environment,&env);
 	if (status!=0) return status;
-	total=(command[0]=='&' ? 2*env.coordinate_size+6 : whole ? 4*env.coordinate_size+2 : 4*env.coordinate_size+6);
-	if (body<=total-2 || body>total) return IO_ERROR_INVALID_FORMAT;
-	for (size_t i=0; i<fields; i++) {
+	for (size_t i = 0; i < count; i++) {
 		bool coordinate = i < 2 || (marker ? i == 3 || i == 4 : i < 4 && command[0] != '&');
 		size_t width = coordinate ? env.coordinate_size : 2;
-		status=st_rip3_command_field(values+i,command+1+position,i+1==fields ? body-position : width,env.base_math);
+		status = st_rip3_command_next_field(&fields, values+i, width, env.base_math, i+1 == count);
 		if (status!=0) return status;
-		position+=width;
 	}
 	if (marker && (values[2] >= 36 || values[5] >= 360 || values[6] > 3))
 		return IO_ERROR_OUT_OF_RANGE;

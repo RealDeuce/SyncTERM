@@ -242,7 +242,7 @@ static int
 boundaries(void)
 {
 	static const char *const invalid[]={"&","-", "]", "+", "[", "-----", "&040403020?",
-	    "-040403020?", "]04040302002I0?", "+04040302002I0?", "[04040302002I0?", "]04040302002I000"};
+	    "-040403020?", "]04040302002I0?", "+04040302002I0?", "[04040302002I0?", "]04040302002I0 comment"};
 	struct st_rip3_command_host host={0},missing;
 	struct st_rip3_environment env;
 	struct st_rip3_style style,original;
@@ -270,7 +270,7 @@ boundaries(void)
 			CHECK(st_rip3_polygon_test_malloc_countdown==0 && unchanged(&host)==0);
 		}
 	}
-	CHECK(process(&host,"&0404030200 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(process(&host,"&040403020 comment",ST_RIP3_COMMAND_INVALID)==0);
 	missing=host;missing.styles=NULL;
 	CHECK(process(&missing,"&0404030200",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	missing=host;missing.ports=NULL;
@@ -288,7 +288,7 @@ boundaries(void)
 	style=original;style.drawing_color=0xffffff;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"&0404030200",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"&04040302. comment",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	style=original;style.fill_color=0xffffff;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
@@ -318,7 +318,7 @@ boundaries(void)
 	/* A filled zero-width contour has no area. Its patterned COPY border
 	 * has identical results under every W, including NOT, in both gap modes.
 	 * Retraced vertical edges keep the same alternating phase on both visits. */
-	static const char *const vertical[]={"-0303000300","+03030003002I00","[03030003002I00"};
+	static const char *const vertical[]={"-0303.03. trailing","+0303.03.2I.0123","[0303.03002I00 trailing"};
 	for (unsigned mode=0; mode<5; mode++) for (unsigned opaque=0; opaque<2; opaque++) {
 		style.write_mode=(enum st_rip3_write_mode)mode;style.pen.draw_background=opaque!=0;
 		CHECK(st_rip3_styles_set(host.styles,0,&style)==0);

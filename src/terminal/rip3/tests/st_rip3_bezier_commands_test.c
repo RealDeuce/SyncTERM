@@ -230,8 +230,9 @@ unchanged(const struct st_rip3_command_host *host)
 static int
 boundaries(void)
 {
-	static const char *const invalid[]={"Z","Z0101010505050501","Z0101010505050501040","Z01010105050505010?",
+	static const char *const invalid[]={"Z","Z0101010505050501","Z01010105050505010 comment","Z01010105050505010?",
 	    "z0004","z01041","z010470101","z01040010?","z020400101","t01041010101050505",
+	    "z0200.010100606","z02000.0100606 comment","z020000101006060","z0200001010060.",
 	    "z02041010101050505005010","z0200101010105050500501"};
 	struct st_rip3_command_host host={0},missing;
 	struct st_rip3_environment env;
@@ -256,7 +257,7 @@ boundaries(void)
 	CHECK(process(&missing,"z01011010101050505",-1)==0 && unchanged(&host)==0);
 	CHECK(process(&missing,"x01011010101050505",-1)==0 && unchanged(&host)==0);
 	CHECK(process(&missing,"t010000101",-1)==0 && unchanged(&host)==0);
-	CHECK(process(&host,"Z010101050505050104 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(process(&host,"Z.010105050505010. incomplete",ST_RIP3_COMMAND_INVALID)==0);
 	for (const char *kind="Zztx"; *kind!=0; kind++) {
 		char bytes[64];shape(bytes,*kind,1,0,0,0,1,2,36,4);
 		for (unsigned allocation=1; allocation<=2; allocation++) {
@@ -282,7 +283,7 @@ boundaries(void)
 	style=original;style.drawing_color=0xffffff;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"Z010101050505050104",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"Z.0101050505050104 comment",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	style=original;style.fill_color=0xffffff;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
@@ -297,11 +298,20 @@ boundaries(void)
 	CHECK(st_rip3_bezier_command_test_malloc_countdown==1 && st_rip3_bezier_test_malloc_countdown==1 && unchanged(&host)==0);
 	st_rip3_bezier_command_test_malloc_countdown=0;st_rip3_bezier_test_malloc_countdown=0;
 	CHECK(st_rip3_ports_activate(host.ports,true)==0);
+	uint8_t value;
+	for (unsigned base = 36; base <= 64; base += 28) {
+		CHECK(process(&host, base == 36 ? "J10" : "J1S", -1) == 0);
+		/* A short sample count of two joins endpoints (0,6) and (7,6). */
+		CHECK(process(&host, "Z.060106040607062", -1) == 0);
+		for (int32_t x = 0; x < 8; x++)
+			CHECK(st_rip3_ports_read(host.ports, 0, x,6, &value) == 0 && value == 12);
+		CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0);
+	}
+	CHECK(process(&host, "J10", -1) == 0);
 	/* A terminal curve is closed to the first record in z/x; t rejects
 	 * the same body without drawing a prefix. N=2 makes the closed pair equal. */
 	CHECK(process(&host,"t01021010101050505",ST_RIP3_COMMAND_INVALID)==0 && unchanged(&host)==0);
 	CHECK(process(&host,"z01021010101050505",-1)==0);
-	uint8_t value;
 	CHECK(st_rip3_ports_read(host.ports,0,1,1,&value)==0 && value==12);
 	CHECK(st_rip3_ports_erase(host.ports,0x55)==0);
 	CHECK(process(&host,"x01021010101050505",-1)==0);
@@ -323,16 +333,16 @@ boundaries(void)
 	style.write_mode=ST_RIP3_NOT;style.fill_color=style.background_color=0xffffff;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
-	CHECK(process(&host,"x" "02" "00" "0" "0003" "0" "0703",-1)==0);
+	CHECK(process(&host,"x" "02" "." "0" ".03" "0" "0703",-1)==0);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(y==3 && x%2==0 ? 12 : 0x55));
 	style.pen.draw_background=true;
 	style.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0 && st_rip3_ports_erase(host.ports,0x55)==0);
-	CHECK(process(&host,"x" "02" "00" "0" "0003" "0" "0703",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
+	CHECK(process(&host,"x" "02" "." "0" ".03" "0" "0703",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && unchanged(&host)==0);
 	style.borders=borders;
 	style.background_color=1;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
-	CHECK(process(&host,"x" "02" "00" "0" "0003" "0" "0703",-1)==0);
+	CHECK(process(&host,"x" "02" "." "0" ".03" "0" "0703",-1)==0);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==(y==3 ? (x%2==0 ? 12 : 1) : 0x55));
 	original.borders=borders;

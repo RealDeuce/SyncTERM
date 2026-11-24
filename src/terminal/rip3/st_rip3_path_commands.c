@@ -11,7 +11,29 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
+
+static int
+read_vertices(struct st_rip3_fields *fields, const struct st_rip3_environment *environment,
+    const struct st_rip3_frame *frame, struct st_rip3_vector *points, size_t count, bool last)
+{
+	for (size_t i = 0; i < count; i++) {
+		uint64_t x, y;
+		int status = st_rip3_command_next_field(fields, &x, environment->coordinate_size,
+		    environment->base_math, false);
+		if (status == 0)
+			status = st_rip3_command_next_field(fields, &y, environment->coordinate_size,
+			    environment->base_math, last && i+1 == count);
+		if (status != 0)
+			return status;
+		/* Keep the exact projected integers through stroke clipping. */
+		if (points != NULL)
+			points[i] = (struct st_rip3_vector){
+			    (double)(x * frame->device_width / frame->world_width),
+			    (double)(y * frame->device_height / frame->world_height),
+			};
+	}
+	return 0;
+}
 
 static int
 multiple_contours(const uint8_t *bytes, size_t length,
@@ -20,39 +42,30 @@ multiple_contours(const uint8_t *bytes, size_t length,
     size_t *contour_count, size_t *vertices)
 {
 	uint64_t value;
-	size_t position = 2, numbers = 1;
+	struct st_rip3_fields fields = {bytes, length};
+	size_t numbers = 1;
 	int status;
-	if (length < 4) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&value,bytes,2,environment->base_math);
+	status = st_rip3_command_next_field(&fields, &value, 2, environment->base_math, false);
 	if (status != 0) return status;
 	if (value == 0 || value > 8192/5) return IO_ERROR_OUT_OF_RANGE;
 	*contour_count = (size_t)value; *vertices = 0;
 	for (size_t c = 0; c < *contour_count; c++) {
 		size_t width = c == 0 ? 2 : environment->coordinate_size;
-		if (width > length-position) return IO_ERROR_INVALID_FORMAT;
-		status = st_rip3_command_field(&value,bytes+position,width,environment->base_math);
+		status = st_rip3_command_next_field(&fields, &value, width, environment->base_math, false);
 		if (status != 0) return status;
-		position += width; numbers++;
+		numbers++;
 		if (value < 2) return IO_ERROR_INVALID_FORMAT;
 		if (numbers > 8193 || value > (8193-numbers)/2) return IO_ERROR_OUT_OF_RANGE;
 		size_t count = (size_t)value;
 		numbers += 2*count;
 		if (contours != NULL) contours[c] = (struct st_rip3_vector_contour){points+*vertices,count};
-		for (size_t i = 0; i < 2*count; i++) {
-			width = environment->coordinate_size;
-			if (c+1 == *contour_count && i+1 == 2*count && length-position < width) width = length-position;
-			if (width == 0 || width > length-position) return IO_ERROR_INVALID_FORMAT;
-			status = st_rip3_command_field(&value,bytes+position,width,environment->base_math);
-			if (status != 0) return status;
-			position += width;
-			if (points != NULL) {
-				if (i%2 == 0) points[*vertices+i/2].x = (double)(value*frame->device_width/frame->world_width);
-				else points[*vertices+i/2].y = (double)(value*frame->device_height/frame->world_height);
-			}
-		}
+		status = read_vertices(&fields, environment, frame,
+		    points == NULL ? NULL : points+*vertices, count, c+1 == *contour_count);
+		if (status != 0)
+			return status;
 		*vertices += count;
 	}
-	return position == length ? 0 : IO_ERROR_INVALID_FORMAT;
+	return fields.remaining == 0 ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
 int
@@ -68,39 +81,30 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	uint64_t value;
 	unsigned environment_number, current;
 	const uint8_t *arguments = command+1;
-	size_t count = length-1, vertices = 0, width, fields = 0, total, contour_count = 1;
+	size_t count = length-1, vertices = 0, contour_count = 1;
+	struct st_rip3_fields fields = {arguments, count};
 	bool multiple = command[0] == '<';
 	bool filled = command[0] == 'p' || multiple, borders = false, interior;
 	uint8_t foreground = 0, background = 0, drawing = 0;
 	int status;
 
-	if (memchr(arguments, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
-	if (count < 2)
-		return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_command_environment(host, &environment_number, &environment);
 	if (status != 0)
 		return status;
-	width = environment.coordinate_size;
 	if (multiple) {
 		status = multiple_contours(arguments,count,&environment,NULL,NULL,NULL,&contour_count,&vertices);
 		if (status != 0) return status;
 	}
 	else {
-		status = st_rip3_command_field(&value,arguments,2,environment.base_math);
+		status = st_rip3_command_next_field(&fields, &value, 2, environment.base_math, false);
 		if (status != 0) return status;
 		if (value == 0) return IO_ERROR_INVALID_FORMAT; /* Diagnosed zero, never 4096. */
 		vertices = (size_t)value;
-		fields = vertices*2;
-		total = 2+fields*width;
-		if (count <= total-width || count > total) return IO_ERROR_INVALID_FORMAT;
-		/* Validate the complete body before any allocation or ink lookup,
-		 * including a one-vertex command which ultimately draws nothing. */
-		for (size_t i = 0; i < fields; i++) {
-			status = st_rip3_command_field(&value,arguments+2+i*width,
-			    i == fields-1 ? count-2-i*width : width,environment.base_math);
-			if (status != 0) return status;
-		}
+		/* Validate the variable list before allocating or resolving ink. */
+		struct st_rip3_fields validate = fields;
+		status = read_vertices(&validate, &environment, NULL, NULL, vertices, true);
+		if (status != 0 || validate.remaining != 0)
+			return IO_ERROR_INVALID_FORMAT;
 		if (vertices == 1) return 0;
 	}
 	interior = multiple ? vertices > 2*contour_count : vertices >= 3;
@@ -155,18 +159,10 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 		status = multiple_contours(arguments,count,&environment,&frame,contours,points,&contour_count,&vertices);
 		if (status != 0) goto done;
 	}
-	else for (size_t i = 0; i < fields; i++) {
-		status = st_rip3_command_field(&value, arguments+2+i*width,
-		    i == fields-1 ? count-2-i*width : width, environment.base_math);
+	else {
+		status = read_vertices(&fields, &environment, &frame, points, vertices, true);
 		if (status != 0)
 			goto done;
-		/* Products fit uint64_t and projections are exact integers in double.
-		 * Keep far endpoints intact: clipping/saturation before stroke coverage
-		 * would alter both the edge slope and its continuing mask phase. */
-		if (i%2 == 0)
-			points[i/2].x = (double)(value*frame.device_width/frame.world_width);
-		else
-			points[i/2].y = (double)(value*frame.device_height/frame.world_height);
 	}
 	if (filled) {
 		struct st_rip3_fill fill;

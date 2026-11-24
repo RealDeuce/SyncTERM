@@ -160,9 +160,9 @@ def run(args):
                 fields[-1] = fields[-1].lstrip(b'0') or b'0'
             return opcode + b''.join(fields) + fill
 
-        frame = t.exchange(b'\x01|' + b'|'.join((affine(b',', 70, short=True), affine(b'.', 130),
+        frame = t.exchange(b'\x01|' + b'|'.join((affine(b',', 70, short=True), affine(b'.', 130) + b' oval',
                             affine(b':', 190, fill=b'1'), affine(b'`', 250, fill=b'Z'),
-                            affine(b'{', 310, short=True), affine(b':', 370, fill=b'0'))) + b'\r\n')
+                            affine(b'{', 310, short=True), affine(b':', 370, fill=b'.') + b' unfilled pie')) + b'\r\n')
         assert pixel(frame, 90, 200) == 0xff5555 and pixel(frame, 50, 200) == 0
         assert pixel(frame, 110, 200) == 0xff5555 and pixel(frame, 130, 200) == 0
         assert pixel(frame, 195, 195) == 0x00aa00 and pixel(frame, 185, 204) == 0
@@ -299,6 +299,33 @@ def run(args):
                                   b"c2 incomplete", geometry(b"X", 13, 10), b"M1.")
                            + query(b"$COLORMODE$:alive", at_cursor=True), b"1:alive")
         assert pixel(frame, 12, 10) == pixel(frame, 13, 10) == 0x00ff00
+
+        t.case("rip3-curve-and-counted-path-field-boundaries")
+        oval = geometry(b"&", 40, 40, 8, 6)
+        bezier = b"Z." + geometry(b"", 68, 5, 68, 10, 68, 15, 68, 2)
+        polygon = (b"P04." + geometry(b"", 95, 12, 95, 12, 106)
+                   + b"." + number(106, 2))
+        contour = b"<0104." + geometry(b"", 160, 12, 160, 12, 172) + b"." + number(172, 2)
+        y = number(130, 2)
+        polyline = b"t02.0." + y + b"0" + number(14, 2) + y
+        frame = t.exchange(line(
+            b"*", b"fHSDC", b"c0C", b"S0102", b"N00",
+            oval + b". ellipse", bezier + b" standalone",
+            polygon, polyline, contour,
+        ) + query(b"alive", at_cursor=True), b"alive")
+        for x, y in ((48, 40), (9, 68), (6, 95), (12, 101), (7, 130)):
+            assert pixel(frame, x, y) == 0xff5555, (x, y, pixel(frame, x, y))
+        assert pixel(frame, 6, 165) == 0x00aa00
+
+        before = frame
+        frame = t.exchange(line(b"c0E", oval + b"0 incomplete",
+                                bezier[:-1] + b". malformed",
+                                polygon + b" commentary", polyline + b"0",
+                                polyline[:4] + b"." + polyline[5:],
+                                contour + b" ignored nowhere")
+                           + query(b"alive", at_cursor=True), b"alive")
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+
 
 
 if __name__=='__main__':

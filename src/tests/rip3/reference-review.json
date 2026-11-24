@@ -24331,6 +24331,23 @@
         "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:563",
         "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:565"
       ]
+    },
+    {
+      "after_commit": "bb6f3cfec0a45827755d51636689cc93af99294d",
+      "revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
+      "scope": "Apply field-start zero abbreviation and fixed command completion through the curve and polygon wire decoders.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/240",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/243"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/2.2-curves.md:197",
+        "version/3.0/ripscrip/2.2-curves.md:311",
+        "version/3.0/ripscrip/2.2-curves.md:363",
+        "version/3.0/ripscrip/2.2-curves.md:367",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:265",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:333"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

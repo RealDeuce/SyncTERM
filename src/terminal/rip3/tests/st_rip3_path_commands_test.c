@@ -219,8 +219,8 @@ static int
 boundaries(void)
 {
 	static const char *const invalid[] = {"P", "P0", "P?4", "P0401010601060601?6",
-	    "P0401010601060601", "P0401010601060601060", "l020101060?", "P00"};
-	static const char *const unsupported[] = {"P040101060106060106 comment"};
+	    "P0401010601060601", "P0401010601060601060", "l020101060?", "P00",
+	    "P040101060106060106 comment", "P04010106.0606010. invalid"};
 	struct st_rip3_command_host host = {0}, missing;
 	struct st_rip3_environment environment;
 	struct st_rip3_style style;
@@ -232,7 +232,6 @@ boundaries(void)
 	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports, &view) == 0 && st_rip3_ports_erase(host.ports, 0x55) == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
-	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) CHECK(process(&host, unsupported[i], ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(unchanged(host.ports, 0x55) == 0);
 	st_rip3_path_test_fail_malloc = true;
 	CHECK(process(&host, invalid[3], ST_RIP3_COMMAND_INVALID) == 0 && st_rip3_path_test_fail_malloc);
@@ -279,10 +278,10 @@ boundaries(void)
 		CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0);
 	}
 	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
-	wire(stream,"!|P0401010601060601?6|P00|l020101061\r");
+	wire(stream,"!|P0401010601060601?6|P00|l02.01061\r");
 	CHECK(seen.errors == 2);
 	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
-		CHECK(st_rip3_ports_read(host.ports, 0, x,y,&value) == 0 && value == (y == 1 && x >= 1 && x <= 6 ? 12 : 0x55));
+		CHECK(st_rip3_ports_read(host.ports, 0, x,y,&value) == 0 && value == (y == 1 && x <= 6 ? 12 : 0x55));
 	CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
 	environment.base_math = 64; environment.coordinate_size = 5;
 	environment.world_width = environment.world_height = 1;
