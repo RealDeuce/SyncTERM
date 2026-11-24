@@ -285,7 +285,7 @@ struct st_rip3_session_capture {
 	struct st_rip3_frame frame;
 	int64_t cursor_x, cursor_y;
 	unsigned environment, style, port, palette;
-	unsigned scene_revision, scene_charset;
+	unsigned scene_revision;
 	uint64_t wait_ns;
 	bool viewport_active, query_pending, outline_cache_valid;
 };

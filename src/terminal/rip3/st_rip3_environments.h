@@ -11,6 +11,12 @@
 struct st_rip3_environments;
 struct st_rip3_backup;
 
+enum st_rip3_charset {
+	ST_RIP3_CHARSET_UNSET, /* Inherited ENV override or disabled shared fallback. */
+	ST_RIP3_CHARSET_USASCII,
+	ST_RIP3_CHARSET_KANJI,
+};
+
 /* Environment records own values/references, not the referenced objects.
  * Device dimensions belong to the client canvas and cannot vary per entry.
  * The shipping v3 limits supersede the inherited 2.x parameter tables:
@@ -23,6 +29,7 @@ struct st_rip3_environment {
 	unsigned coordinate_size;
 	unsigned rgb_bits;
 	unsigned mouse_pointer;
+	enum st_rip3_charset charset;
 };
 
 struct st_rip3_environment_info {
@@ -59,6 +66,12 @@ int st_rip3_environments_set(struct st_rip3_environments *environments,
  * Selection and every other record field remain unchanged. Wire M uses set. */
 int st_rip3_environments_color(struct st_rip3_environments *environments,
 	unsigned number, unsigned bits);
+enum st_rip3_charset st_rip3_environments_shared_charset(const struct st_rip3_environments *);
+void st_rip3_environments_set_shared_charset(struct st_rip3_environments *, enum st_rip3_charset);
+/* DCS name setters bypass protection. OFF clears only a protected override. */
+void st_rip3_environments_set_charset(struct st_rip3_environments *, unsigned number, enum st_rip3_charset);
+/* RESET clears defined unprotected overrides. The table form ignores number. */
+void st_rip3_environments_reset_charset(struct st_rip3_environments *, unsigned number, bool table);
 /* MCURSOR's protection-bypassing edit of the current defined ENV. Accept
  * the documented 0..7 preferences; the connection owns native presentation. */
 int st_rip3_environments_mouse(struct st_rip3_environments *environments, unsigned pointer);

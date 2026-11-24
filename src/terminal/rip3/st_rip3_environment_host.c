@@ -52,6 +52,78 @@ reply_text(char *result, size_t capacity, const char *text)
 }
 
 static int
+charset_keyword(const char *text, enum st_rip3_charset *charset)
+{
+	if (equal(text, "USASCII"))
+		*charset = ST_RIP3_CHARSET_USASCII;
+	else if (equal(text, "KANJI"))
+		*charset = ST_RIP3_CHARSET_KANJI;
+	else if (equal(text, "OFF"))
+		*charset = ST_RIP3_CHARSET_UNSET;
+	else
+		return IO_ERROR_INVALID_FORMAT;
+	return 0;
+}
+
+static int
+charset_metadata(const struct st_rip3_host_variables *host,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	bool shared = strcmp(reference->name, "SDCS") == 0;
+	bool stored = strcmp(reference->name, "DCS") == 0;
+	if (reference->count > (stored ? 2u : 1u))
+		return IO_ERROR_INVALID_FORMAT;
+	if (capacity == 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_builtin_reference words;
+	int status = st_rip3_builtin_reference_words(&words, reference);
+	if (status != 0)
+		return status;
+	struct st_rip3_environments *environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
+	enum st_rip3_charset charset = st_rip3_environments_shared_charset(environments);
+	if (shared) {
+		if (words.count != 0 && !equal(words.parameters[0].text, "QUERY")) {
+			status = charset_keyword(words.parameters[0].text, &charset);
+			if (status != 0)
+				return status;
+			st_rip3_environments_set_shared_charset(environments, charset);
+			result[0] = 0;
+			return 0;
+		}
+	}
+	else {
+		unsigned index;
+		if (words.count == 0 || equal(words.parameters[0].text, "CUR"))
+			status = st_rip3_environments_current(environments, &index);
+		else
+			status = st_rip3_host_number(words.parameters[0].text, 0, 35, &index);
+		if (status != 0)
+			return status;
+		struct st_rip3_environment value;
+		status = st_rip3_environments_get(environments, index, &value);
+		if (status == IO_ERROR_NOT_FOUND)
+			return reply_text(result, capacity, "-1");
+		if (status != 0)
+			return status;
+		if (words.count == 2 && !equal(words.parameters[1].text, "QUERY")) {
+			status = charset_keyword(words.parameters[1].text, &charset);
+			if (status != 0)
+				return status;
+			st_rip3_environments_set_charset(environments, index, charset);
+			result[0] = 0;
+			return 0;
+		}
+		if (stored || value.charset != ST_RIP3_CHARSET_UNSET)
+			charset = value.charset;
+	}
+	if (charset == ST_RIP3_CHARSET_UNSET && (shared || stored))
+		return reply_text(result, capacity, shared ? "-1" : "0");
+	return reply_text(result, capacity, charset == ST_RIP3_CHARSET_KANJI ? "KANJI" : "USASCII");
+}
+
+static int
 playback_rate(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
@@ -98,6 +170,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	const char *name = reference->name;
 	if (strcmp(name, "BAUDEMUL") == 0)
 		return playback_rate(host, reference, result, capacity);
+	if (strcmp(name, "CHARSET") == 0 || strcmp(name, "DCS") == 0 || strcmp(name, "SDCS") == 0)
+		return charset_metadata(host, reference, result, capacity);
 	bool base = strcmp(name, "BASEMATH") == 0;
 	bool coord = strcmp(name, "COORDSIZE") == 0;
 	bool world = strcmp(name, "WORLD") == 0;

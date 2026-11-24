@@ -122,7 +122,7 @@ struct st_rip3_session {
 	bool defining_variable, definition_reject_blank;
 	bool ready;
 	bool text_active, input_locked;
-	unsigned scene_revision, scene_charset;
+	unsigned scene_revision;
 	unsigned current_window;
 	unsigned default_text_font;
 	bool default_text_wrap;
@@ -665,7 +665,6 @@ hard_reset(void *context)
 	session->ansi_window = (struct session_window){0};
 	st_rip3_refresh_clear(&session->refresh);
 	session->scene_revision = 0;
-	session->scene_charset = 0;
 	for (unsigned i = 0; i < ST_RIP3_TABLE_COUNT; ++i)
 		(void)st_rip3_backup_clear_all(session->tables.tables[i].backup, true);
 	for (unsigned i = 1; i < 36; ++i) {
@@ -1449,7 +1448,8 @@ header_segment(struct st_rip3_session *session, const struct st_rip3_header_segm
 		header_backups(session, ST_RIP3_TABLE_SCREEN, flags >> 1);
 		break;
 	case 9:
-		session->scene_charset = flags;
+		st_rip3_environments_set_shared_charset(host->environments,
+		    flags == 0 ? ST_RIP3_CHARSET_USASCII : ST_RIP3_CHARSET_KANJI);
 		break;
 	}
 }
@@ -2425,7 +2425,6 @@ st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_se
 	if (status!=0) return status;
 	value.cursor_x=port.cursor.x;value.cursor_y=port.cursor.y;value.viewport_active=port.viewport_active;
 	value.scene_revision = session->scene_revision;
-	value.scene_charset = session->scene_charset;
 	value.query_pending=st_rip3_session_pending(session);value.wait_ns=st_rip3_session_wait_ns(session);
 	value.outline_cache_valid=st_rip3_outline_cache_valid(session->text.outline_cache);
 	*result=value;return 0;

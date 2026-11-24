@@ -1982,8 +1982,9 @@ scene_header(void)
 	CHECK(f.errors==3 && !st_rip3_session_input_locked(f.session));
 	CHECK(append(&f,"!|h00000002901200060\r")==0 && pump(&f)==0);
 	CHECK(f.errors==3 && st_rip3_session_capture(f.session,&state)==0);
-	CHECK(state.scene_revision==0 && state.scene_charset==1 && state.port==0);
+	CHECK(state.scene_revision==0 && state.port==0);
 	st_rip3_session_capture_dispose(&state);
+	CHECK(query(&f,"$SDCS$","KANJI")==0);
 	/* Reset setup failure stays within the header, clears the saved value
 	 * at acceptance and still applies the subsequent environment segment. */
 	st_rip3_session_ansi_window(f.session,false);CHECK(ansi_live==1);

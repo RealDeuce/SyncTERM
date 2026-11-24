@@ -14,6 +14,7 @@ struct st_rip3_environments {
 	struct st_rip3_frame device;
 	unsigned current;
 	uint32_t playback_rate;
+	enum st_rip3_charset shared_charset;
 	struct environment_entry entries[36];
 };
 
@@ -36,7 +37,8 @@ valid(const struct st_rip3_environment *value)
 	    && (value->base_math == 36 || value->base_math == 64)
 	    && value->coordinate_size >= 2 && value->coordinate_size <= 5
 	    && value->rgb_bits <= 8
-	    && value->mouse_pointer <= 7;
+	    && value->mouse_pointer <= 7
+	    && value->charset >= ST_RIP3_CHARSET_UNSET && value->charset <= ST_RIP3_CHARSET_KANJI;
 }
 
 int
@@ -64,6 +66,7 @@ st_rip3_environments_create_device(struct st_rip3_environments **result, uint32_
 	if (environments == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	environments->device = frame;
+	environments->shared_charset = ST_RIP3_CHARSET_USASCII;
 	environments->entries[0].info.defined = true;
 	(void)st_rip3_environment_defaults(&environments->entries[0].data);
 	*result = environments;
@@ -151,6 +154,41 @@ st_rip3_environments_color(struct st_rip3_environments *environments,
 	 * protected record setter. No other environment field is affected. */
 	environments->entries[number].data.rgb_bits=bits;
 	return 0;
+}
+
+enum st_rip3_charset
+st_rip3_environments_shared_charset(const struct st_rip3_environments *environments)
+{
+	return environments->shared_charset;
+}
+
+void
+st_rip3_environments_set_shared_charset(struct st_rip3_environments *environments,
+    enum st_rip3_charset charset)
+{
+	environments->shared_charset = charset;
+}
+
+void
+st_rip3_environments_set_charset(struct st_rip3_environments *environments,
+    unsigned number, enum st_rip3_charset charset)
+{
+	struct environment_entry *entry = &environments->entries[number];
+	if (charset != ST_RIP3_CHARSET_UNSET || entry->info.protected)
+		entry->data.charset = charset;
+}
+
+void
+st_rip3_environments_reset_charset(struct st_rip3_environments *environments,
+    unsigned number, bool table)
+{
+	unsigned first = table ? 0 : number;
+	unsigned end = table ? 36 : number + 1;
+	for (unsigned i = first; i < end; i++) {
+		struct environment_entry *entry = &environments->entries[i];
+		if (entry->info.defined && !entry->info.protected)
+			entry->data.charset = ST_RIP3_CHARSET_UNSET;
+	}
 }
 
 int
@@ -365,7 +403,10 @@ environment_restore(void *object, const void *saved)
 	if (environments->device.device_width != snapshot->device.device_width
 	    || environments->device.device_height != snapshot->device.device_height)
 		return IO_ERROR_CONFLICT;
+	/* Shared character-set fallback lives outside the ENV backup family. */
+	enum st_rip3_charset shared_charset = environments->shared_charset;
 	*environments = *snapshot;
+	environments->shared_charset = shared_charset;
 	return 0;
 }
 

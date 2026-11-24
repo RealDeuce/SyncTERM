@@ -1033,7 +1033,7 @@
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 transfer validation/completion, #209 Backspace behavior, and #210 remaining ENV charset metadata still require connected implementation."
+    "Adopted #205 transfer validation/completion and #209 Backspace behavior still require connected implementation."
   ],
   "derivations": [
     {
@@ -22386,6 +22386,50 @@
         "context": 1868,
         "pending": 1556,
         "implemented": 3500,
+        "excluded": 71,
+        "blocked": 38
+      }
+    },
+    {
+      "after_commit": "5311e898",
+      "revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
+      "scope": "Connect ENV character-set overrides, the shared fallback, selective RESET and HEADER type 9 to live sessions.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:702",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:294",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:46",
+        "version/3.0/ripscrip/5.1-text-variables.md:3173",
+        "version/3.0/ripscrip/5.1-text-variables.md:3179",
+        "version/3.0/ripscrip/5.1-text-variables.md:3181",
+        "version/3.0/ripscrip/5.1-text-variables.md:3193",
+        "version/3.0/ripscrip/5.1-text-variables.md:3195",
+        "version/3.0/ripscrip/5.1-text-variables.md:3199",
+        "version/3.0/ripscrip/5.1-text-variables.md:3201",
+        "version/3.0/ripscrip/5.1-text-variables.md:3207",
+        "version/3.0/ripscrip/5.1-text-variables.md:3208",
+        "version/3.0/ripscrip/5.1-text-variables.md:3209",
+        "version/3.0/ripscrip/5.1-text-variables.md:3210",
+        "version/3.0/ripscrip/5.1-text-variables.md:3211",
+        "version/3.0/ripscrip/5.1-text-variables.md:3213",
+        "version/3.0/ripscrip/5.1-text-variables.md:3729",
+        "version/3.0/ripscrip/7.1-data-tables.md:167",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:175",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:176",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:178"
+      ],
+      "tests": [
+        "syncterm_rip3_environment_CP437",
+        "syncterm_rip3_environment_UTF-8",
+        "rip3_session",
+        "rip3_environments",
+        "rip3_table_host",
+        "rip3_contract"
+      ],
+      "states_after_update": {
+        "unreviewed": 2171,
+        "context": 1874,
+        "pending": 1529,
+        "implemented": 3521,
         "excluded": 71,
         "blocked": 38
       }

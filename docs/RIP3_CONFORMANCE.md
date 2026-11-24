@@ -9826,10 +9826,19 @@ and `0x2be34`. The CP437 and UTF-8 TCP fixtures exercise each result
 and rejection recovery. The graphical tests exercise the same providers
 in ordinary and angle expansion and conditional operands.
 
-The adopted reference specifies the `CHARSET`, `DCS` and `SDCS` metadata
-lifetimes and the `BSMODE` and `BSXMIT` key and ANSI effects. Those five
-providers are pending implementation.
-[PR #221](https://github.com/bbs-land/remote-imaging-protocol/pull/221) ·
+`$CHARSET$` resolves the selected ENV's legacy charset metadata using its
+`$DCS$` override and the shared `$SDCS$` fallback. ENV copies and backups
+carry the override. The fallback follows its own lifetime across ENV
+restore and both RIP reset modes. Selective charset resets and the accepted
+HEADER type-9 path update the same metadata. Protected records follow the
+documented rules for setting and clearing the override.
+[PR #221](https://github.com/bbs-land/remote-imaging-protocol/pull/221)
+
+The connected CP437 and UTF-8 fixtures check reply bytes, rejection
+recovery, a setter inside graphics text, copy and restore, protected
+overrides, soft and hard resets, and the same ANSI glyphs before and after
+changing the fallback to KANJI. The native session test checks the two
+HEADER framing forms. `BSMODE` and `BSXMIT` remain pending.
 [PR #220](https://github.com/bbs-land/remote-imaging-protocol/pull/220)
 
 ## Connected mouse presence

@@ -9,6 +9,45 @@ from st_rip3_connected_test import query,pixel
 from st_rip3_button_styles_connected_test import number
 
 
+def charset_metadata(t, encoding):
+    def values(source, expected=b''):
+        return t.exchange(query(source, at_cursor=True), expected)
+
+    t.case('rip3-charset-metadata-replies-and-recovery')
+    values(b'$CDCS$/$SDCS()$/$DCS()$/$CHARSET()$/$LANG$', b'USASCII/USASCII/0/USASCII/eng')
+    values(b'$CHARSET(35)$:$DCS(35,OTHER)$:$DCS(35,KANJI)$:$INUSE(ENV,35)$', b'-1:-1:-1:0')
+    values(b'[$CHARSET(36)$][$CHARSET(-1)$][$CHARSET(CUR,0)$][$DCS(KANJI)$]'
+           b'[$DCS(CUR,OTHER)$][$SDCS(OTHER)$][$SDCS(OFF,QUERY)$]alive', b'[][][][][][][]alive')
+    sample = b'\x1b[H#' + (b'\xb3' if encoding == 'CP437' else '│'.encode())
+    t.check('rip3-charset-default-ansi-glyphs', sample, lines=((1, 1, '#│'),), reset=False)
+    t.exchange(b'\x01|T$SDCS(KANJI)$\r\n')
+    values(b'$SDCS(query)$:$DCS$:$CHARSET(cur)$', b'KANJI:0:KANJI')
+    t.check('rip3-charset-kanji-metadata-preserves-ansi-glyphs', sample,
+            lines=((1, 1, '#│'),), reset=False)
+
+    t.case('rip3-charset-entry-protection-copy-and-backup')
+    values(b'$DCS(CUR,USASCII)$$DCS(CUR,OFF)$$DCS(CUR,query)$:$CHARSET$', b'USASCII:USASCII')
+    values(b'$CUR(ENV,5)$$DCS$:$CHARSET$', b'0:KANJI')
+    values(b'$PROT(ENV,5)$$DCS(CUR,USASCII)$$DCS$:$CHARSET$', b'USASCII:USASCII')
+    values(b'$RESET(CHARSET,DCS,5)$$DCS$:$CHARSET$', b'USASCII:USASCII')
+    values(b'$DCS(CUR,OFF)$$DCS$:$CHARSET$', b'0:KANJI')
+    values(b'$DCS(CUR,KANJI)$$COPY(ENV,5,6)$$DCS(6)$:$ISPROT(ENV,6)$', b'KANJI:1')
+    values(b'$SENV$$DCS(5,USASCII)$$SDCS(OFF)$$CUR(ENV,0)$$RENV$'
+           b'$CUR(ENV)$:$DCS$:$SDCS$:$CHARSET$', b'5:KANJI:-1:KANJI')
+    values(b'$RESET(CHARSET,DCS,TBL)$$DCS(0)$:$DCS(5)$:$DCS(6)$', b'0:KANJI:KANJI')
+    values(b'$CUR(ENV,0)$$DCS(0,KANJI)$$RESET(CHARSET,DCS,CUR)$$DCS$:$CHARSET$', b'0:USASCII')
+
+    t.case('rip3-charset-header-soft-and-hard-reset')
+    values(b'$SDCS(USASCII)$$DCS(0,USASCII)$')
+    t.exchange(b'\x01|h00000401901\r\n' + query(b'$SDCS$', at_cursor=True), b'USASCII')
+    t.exchange(b'\x01|h00000002901200060\r\n' + query(b'$SDCS$:$CHARSET$', at_cursor=True), b'KANJI:USASCII')
+    t.exchange(b'\x01|*\r\n')
+    values(b'$CUR(ENV)$:$SDCS$:$DCS$:$CHARSET$:$DCS(5)$', b'0:KANJI:0:KANJI:KANJI')
+    values(b'$RESET(HARD)$$SDCS$:$DCS$:$DCS(5)$:$CHARSET$', b'KANJI:0:-1:KANJI')
+    values(b'$RESET(CHARSET,SDCS,CUR)$$SDCS$:$DCS$:$CHARSET$', b'-1:0:USASCII')
+    values(b'$SDCS(USASCII)$')
+
+
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -21,6 +60,8 @@ def run(args,width,height):
         def other_selections():
             values(b'$CUR(STYLE)$:$CUR(BUT)$:$CUR(PORT)$:$CUR(TW)$:$CUR(PAL)$',b'7:6:4:3:17')
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
+        if width == 640:
+            charset_metadata(t, args.encoding)
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         values(b'$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(PORT,4)$$CUR(TW,3)$$CUR(PAL,17)$')

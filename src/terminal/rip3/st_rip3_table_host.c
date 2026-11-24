@@ -649,6 +649,35 @@ aggregate_action(const struct st_rip3_table_host *host,const struct st_rip3_buil
 	result[0]=0;return 0;
 }
 
+static int
+reset_charset(const struct st_rip3_table_host *host, const struct st_rip3_builtin_reference *reference)
+{
+	if (reference->count != 3)
+		return IO_ERROR_INVALID_FORMAT;
+	const char *scope = reference->parameters[1].text;
+	const char *target = reference->parameters[2].text;
+	bool shared = equal(scope, "SDCS");
+	if (!shared && !equal(scope, "DCS"))
+		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_environments *environments = host->tables[ST_RIP3_TABLE_ENV].live;
+	if (environments == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	bool table = equal(target, "TBL");
+	unsigned index = 0;
+	int status = 0;
+	if (equal(target, "CUR"))
+		status = st_rip3_environments_current(environments, &index);
+	else if (!table)
+		status = st_rip3_host_number(target, 0, 35, &index);
+	if (status != 0)
+		return status;
+	if (shared)
+		st_rip3_environments_set_shared_charset(environments, ST_RIP3_CHARSET_UNSET);
+	else
+		st_rip3_environments_reset_charset(environments, index, table);
+	return 0;
+}
+
 int
 st_rip3_table_host_execute(const struct st_rip3_table_host *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
@@ -677,6 +706,11 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
 		if (reference->count==0) return IO_ERROR_NOT_SUPPORTED;
 		const char *scope = reference->parameters[0].text;
+		if (equal(scope, "CHARSET")) {
+			status = reset_charset(host, reference);
+			if (status == 0) result[0] = 0;
+			return status;
+		}
 		if (equal(scope, "SOFT") || equal(scope, "HARD")) {
 			if (reference->count!=1) return IO_ERROR_INVALID_FORMAT;
 			int (*reset)(void *) = equal(scope, "HARD") ? host->hard_reset : host->soft_reset;
