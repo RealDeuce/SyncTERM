@@ -208,10 +208,12 @@ int st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 /* Nonnegative explicit half-open DEVICE rectangles, without WORLD/sentinels.
  * Classify equal sizes before clipping: equal copies trim both sides together,
  * unequal copies fit independently trimmed logical rectangles. The ordinary
- * copy kernel then publishes the successful logical pair on the destination. */
+ * copy kernel then publishes the successful logical pair on the destination.
+ * Pass the active palette to present a native screen composite. */
 int st_rip3_ports_copy_device(struct st_rip3_ports *,unsigned source,
 	const struct st_rip3_copy_extent *,unsigned destination,
-	const struct st_rip3_copy_extent *,enum st_rip3_transfer_mode);
+	const struct st_rip3_copy_extent *,enum st_rip3_transfer_mode,
+	const struct st_rip3_palette *);
 /* Read optional metadata without selecting/defaulting any port. */
 int st_rip3_ports_copy_pair(const struct st_rip3_ports *,unsigned,
 	struct st_rip3_port_copy_pair *);

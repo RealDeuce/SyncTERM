@@ -164,6 +164,25 @@ def run(args,width,height):
         assert tuple(plane_pixel(frame,x+1,3,phase) for phase in phases)==tuple(expected[color] for color in original)
         assert tuple(plane_pixel(frame,x+2,3,phase) for phase in phases)==original
 
+        t.case('rip3-port-copy-scales-rgb-before-composing-with-live-ansi')
+        define(9,(0,0,4,1))
+        copy(0,(0,0,1,1),9,(0,0,2,1))
+        copy(0,(start+3,0,start+4,1),9,(2,0,4,1))
+        x=start+3
+        expected_colors=((0xb192f3,0),(0xb1b2f3,0xa0b0c0),(0x002000,0xa0b0c0),(0xeeddcc,0x5f4f3f))
+        for y,expected in enumerate(expected_colors):
+            frame=copy(9,(0,0,4,1),0,(x,y,x+2,y+1),y+1)
+            actual=(pixel(frame,x,y),pixel(frame,x+1,y))
+            assert actual==expected,(y,actual)
+            assert pixel(frame,x+2,y)==0xa0b0c0
+
+        t.case('rip3-port-copy-uses-original-rgb-pixels-on-screen-overlap')
+        frame=t.exchange(b'\x1b[1;61H\x1b[48;2;17;34;51m \x1b[48;2;160;176;192m ')
+        x=start+cell_width-1
+        assert [pixel(frame,i,0) for i in range(x,x+3)]==[0x112233,0xa0b0c0,0xa0b0c0]
+        frame=copy(0,(x,0,x+2,1),0,(x+1,0,x+3,1),1)
+        assert [pixel(frame,i,0) for i in range(x,x+4)]==[0x112233,0xb192f3,0,0xa0b0c0]
+
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')
         wire(b'1C010103030|2s100')
         # Put the known samples in the captured tile independently of capture scaling.

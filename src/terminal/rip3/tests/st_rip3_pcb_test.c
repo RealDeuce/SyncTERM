@@ -37,7 +37,7 @@ static int overlap_and_failure(void)
 	const struct st_rip3_copy_extent a={0,0,3,1},b={1,0,4,1};
 	CHECK(st_rip3_ports_create_device(&p,16,8)==0 && st_rip3_ports_define(p,1,&bounds,true)==0);
 	CHECK(pair(p,1,false,a,b)==0 && st_rip3_ports_switch(p,1)==0);
-	CHECK(st_rip3_ports_copy_device(p,1,&a,1,&b,ST_RIP3_TRANSFER_XOR)==0);
+	CHECK(st_rip3_ports_copy_device(p,1,&a,1,&b,ST_RIP3_TRANSFER_XOR,NULL)==0);
 	for (int32_t x=0;x<4;x++) CHECK(st_rip3_ports_plot(p,x,0,(uint8_t)(x+1),ST_RIP3_COPY)==0);
 	CHECK(pair(p,1,true,a,b)==0 && st_rip3_ports_protect(p,1,true)==0);
 	CHECK(st_rip3_ports_paste(p,&one)==0 && pixels(p,1,(const uint8_t[]){2,3,4,4},4)==0);
@@ -49,7 +49,7 @@ static int overlap_and_failure(void)
 	CHECK(pair(p,1,true,a,b)==0 && pixels(p,1,(const uint8_t[]){2,2,3,4},4)==0);
 	CHECK(st_rip3_ports_paste(p,&one)==0 && pair(p,1,true,b,a)==0);
 	const struct st_rip3_copy_extent cell={0,0,1,1};
-	CHECK(st_rip3_ports_copy_device(p,1,&cell,1,&cell,ST_RIP3_TRANSFER_COPY)==0 && pair(p,1,true,cell,cell)==0);
+	CHECK(st_rip3_ports_copy_device(p,1,&cell,1,&cell,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,1,true,cell,cell)==0);
 	st_rip3_ports_destroy(p);return 0;
 }
 static struct st_rip3_copy_extent extent(unsigned axis,int64_t start,int64_t end)
@@ -78,7 +78,7 @@ static int physical_boundaries(void)
 		CHECK(st_rip3_ports_erase(p,9)==0 && st_rip3_ports_viewport_device(p,&db)==0);
 		struct st_rip3_copy_extent a=extent(axis,cases[i].s0,cases[i].s1),b=extent(axis,cases[i].d0,cases[i].d1);
 		struct st_rip3_copy_extent ea=extent(axis,cases[i].es0,cases[i].es1),eb=extent(axis,cases[i].ed0,cases[i].ed1);
-		CHECK(st_rip3_ports_copy_device(p,1,&a,2,&b,ST_RIP3_TRANSFER_COPY)==0 && pair(p,2,true,ea,eb)==0);
+		CHECK(st_rip3_ports_copy_device(p,1,&a,2,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,2,true,ea,eb)==0);
 		if (i==3 || i==4) {uint8_t pixel;CHECK(st_rip3_ports_read(p,2,0,0,&pixel)==0 && pixel==9);}
 		if (i==0) {
 			CHECK(st_rip3_ports_blit(p,1,NULL,2,0,0,ST_RIP3_TRANSFER_COPY)==0);
@@ -94,50 +94,85 @@ static int physical_boundaries(void)
 			CHECK(pair(p,0,true,eb,ea)==0 && st_rip3_ports_switch(p,2)==0);
 		}
 		struct st_rip3_copy_extent outside=extent(axis,10,12);
-		CHECK(st_rip3_ports_copy_device(p,1,&outside,2,&b,ST_RIP3_TRANSFER_COPY)==0 && pair(p,2,true,ea,eb)==0);
+		CHECK(st_rip3_ports_copy_device(p,1,&outside,2,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,2,true,ea,eb)==0);
 		const unsigned target=2;
 		CHECK(st_rip3_ports_operate_views(p,&target,1,ST_RIP3_VIEW_DEACTIVATE,0)==0);
-		CHECK(st_rip3_ports_copy_device(p,1,&a,2,&b,ST_RIP3_TRANSFER_COPY)==0 && pair(p,2,true,ea,eb)==0);
+		CHECK(st_rip3_ports_copy_device(p,1,&a,2,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,2,true,ea,eb)==0);
 		st_rip3_ports_destroy(p);
 	}
 	return 0;
 }
-struct native_reader {unsigned calls;int status;uint32_t color;int32_t x;};
+struct native_reader {unsigned calls;int status;uint32_t color,width;int32_t x;};
 static int read_native(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer *pixels)
 {
 	struct native_reader *r=context;r->calls++;
-	CHECK(area->x0==r->x && area->y0==3 && pixels->width==2 && pixels->height==1);
+	CHECK(area->x0==r->x && area->y0==3 && pixels->width==r->width && pixels->height==1);
 	for (size_t i=0;i<(size_t)pixels->width*pixels->height;i++) pixels->primary[i]=r->color;
 	return r->status;
 }
 static int native_screen_sources(void)
 {
-	struct st_rip3_ports *p=NULL;struct native_reader r={.color=ST_PIXEL_COLOR_RGB_TAG|0x123456,.x=2};
+	struct st_rip3_ports *p=NULL;struct native_reader r={.color=ST_PIXEL_COLOR_RGB_TAG|0x123456,.width=2,.x=2};
 	const struct st_rip3_rect bitmap={0,0,1,0},wide={0,0,3,0};
 	const struct st_rip3_copy_extent a={2,3,4,4},b={0,0,2,1},c={2,0,4,1};
 	CHECK(st_rip3_ports_create_device(&p,16,8)==0 && st_rip3_ports_define(p,5,&bitmap,true)==0);
 	st_rip3_ports_bind_screen_reader(p,&r,read_native);
-	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&b,ST_RIP3_TRANSFER_COPY)==0 && r.calls==1);
+	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && r.calls==1);
 	uint32_t color;CHECK(st_rip3_ports_read_color(p,5,0,0,false,&color)==0 && color==(ST_PIXEL_COLOR_RGB_TAG|0x123456));
 	r.status=IO_ERROR_IO;r.color=ST_PIXEL_COLOR_RGB_TAG|0x654321;
-	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&(struct st_rip3_copy_extent){0,0,1,1},ST_RIP3_TRANSFER_COPY)==IO_ERROR_IO && r.calls==2);
+	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&(struct st_rip3_copy_extent){0,0,1,1},ST_RIP3_TRANSFER_COPY,NULL)==IO_ERROR_IO && r.calls==2);
 	CHECK(pair(p,5,true,a,b)==0 && st_rip3_ports_read_color(p,5,0,0,false,&color)==0 && color==(ST_PIXEL_COLOR_RGB_TAG|0x123456));
 	const unsigned five=5;
 	CHECK(st_rip3_ports_paste(p,&five)==0 && r.calls==2);
 	CHECK(st_rip3_ports_read_color(p,0,2,3,false,&color)==0 && color==(ST_PIXEL_COLOR_RGB_TAG|0x123456));
 	CHECK(st_rip3_ports_switch(p,5)==0 && st_rip3_ports_viewport_device(p,&wide)==0 && st_rip3_ports_switch(p,0)==0);
-	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&c,ST_RIP3_TRANSFER_COPY)==0 && r.calls==2 && pair(p,5,true,a,c)==0);
+	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&c,ST_RIP3_TRANSFER_COPY,NULL)==0 && r.calls==2 && pair(p,5,true,a,c)==0);
 	/* A screen viewport may exceed its native backing. Preserve the 4-to-3
 	 * logical map while the bounded read contains only two physical pixels. */
 	const struct st_rip3_rect screen_view={0,0,19,7};
 	const struct st_rip3_copy_extent edge={14,3,18,4},three={0,0,3,1};
 	CHECK(st_rip3_ports_viewport_device(p,&screen_view)==0);
 	r.status=0;r.x=14;
-	CHECK(st_rip3_ports_copy_device(p,0,&edge,5,&three,ST_RIP3_TRANSFER_COPY)==0 && r.calls==3);
+	CHECK(st_rip3_ports_copy_device(p,0,&edge,5,&three,ST_RIP3_TRANSFER_COPY,NULL)==0 && r.calls==3);
 	CHECK(pair(p,5,true,edge,three)==0);
 	CHECK(st_rip3_ports_read_color(p,5,0,0,false,&color)==0 && color==r.color);
 	CHECK(st_rip3_ports_read_color(p,5,1,0,false,&color)==0 && color==(ST_PIXEL_COLOR_RGB_TAG|0x123456));
 	st_rip3_ports_destroy(p);return 0;
+}
+static int native_screen_destination(void)
+{
+	struct st_rip3_ports *p=NULL;
+	struct st_rip3_surface *bitmap=NULL;
+	struct native_reader r={.color=ST_PIXEL_COLOR_RGB_TAG|0xa0b0c0,.width=1,.x=14};
+	uint32_t source[]={ST_PIXEL_COLOR_RGB_TAG|0x112233,ST_PIXEL_COLOR_RGB_TAG|0x445566};
+	const struct st_pixel_buffer pixels={.width=2,.height=1,.primary=source};
+	const struct st_rip3_rect source_view={0,0,3,0},target_view={0,0,19,7};
+	const struct st_rip3_copy_extent four={0,0,4,1},three={14,3,17,4},one={14,3,15,4};
+	CHECK(st_rip3_ports_create_device(&p,16,8)==0);
+	CHECK(st_rip3_surface_create(&bitmap,2,1)==0
+	    && st_rip3_surface_restore_raw(bitmap,&pixels)==0
+	    && st_rip3_ports_install_bitmap(p,5,&bitmap)==0);
+	CHECK(st_rip3_ports_switch(p,5)==0 && st_rip3_ports_viewport_device(p,&source_view)==0);
+	CHECK(st_rip3_ports_switch(p,0)==0 && st_rip3_ports_viewport_device(p,&target_view)==0);
+	CHECK(st_rip3_ports_erase(p,9)==0);
+	st_rip3_ports_bind_screen_reader(p,&r,read_native);
+	/* Four to three samples 0, 2, 3. Only source sample 0 exists. The screen's
+	 * narrower backing also leaves the last destination outside storage. */
+	CHECK(st_rip3_ports_copy_device(p,5,&four,0,&three,ST_RIP3_TRANSFER_XOR,NULL)==0 && r.calls==1);
+	CHECK(pair(p,0,true,four,three)==0);
+	uint32_t color;
+	CHECK(st_rip3_ports_read_color(p,0,14,3,false,&color)==0 && color==(ST_PIXEL_COLOR_RGB_TAG|0xb192f3));
+	CHECK(st_rip3_ports_read_color(p,0,15,3,false,&color)==0 && color==9);
+	/* Four to one samples 2. Publish the logical pair with no native read
+	 * or physical write, then fail an eligible read and retain that pair. */
+	CHECK(st_rip3_ports_copy_device(p,5,&four,0,&one,ST_RIP3_TRANSFER_XOR,NULL)==0 && r.calls==1);
+	CHECK(pair(p,0,true,four,one)==0);
+	r.status=IO_ERROR_IO;
+	CHECK(st_rip3_ports_copy_device(p,5,&four,0,&three,ST_RIP3_TRANSFER_XOR,NULL)==IO_ERROR_IO && r.calls==2);
+	CHECK(pair(p,0,true,four,one)==0);
+	CHECK(st_rip3_ports_read_color(p,0,14,3,false,&color)==0 && color==(ST_PIXEL_COLOR_RGB_TAG|0xb192f3));
+	st_rip3_ports_destroy(p);
+	return 0;
 }
 static int put_image_origin(void)
 {
@@ -158,7 +193,7 @@ static int moved_origins(void)
 	const struct st_rip3_copy_extent a={2,3,6,5},b={0,0,4,2};
 	CHECK(st_rip3_ports_create_device(&p,256,128)==0 && st_rip3_ports_define(p,5,&bitmap,true)==0);
 	CHECK(st_rip3_ports_viewport_device(p,&initial)==0 && st_rip3_ports_fill(p,&ink,7,ST_RIP3_COPY)==0);
-	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&b,ST_RIP3_TRANSFER_COPY)==0 && pair(p,5,true,a,b)==0);
+	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,5,true,a,b)==0);
 	CHECK(st_rip3_ports_erase(p,0)==0 && st_rip3_ports_paste(p,&five)==0);
 	uint8_t color;CHECK(st_rip3_ports_read(p,0,102,53,&color)==0 && color==7);
 	const struct st_rip3_rect moved={120,70,219,119};
@@ -252,7 +287,7 @@ static int selectors(void)
 	const struct st_rip3_rect bounds={0,0,3,0};
 	const struct st_rip3_copy_extent a={0,0,3,1},b={1,0,4,1};
 	CHECK(st_rip3_ports_define(p,5,&bounds,true)==0);
-	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&b,ST_RIP3_TRANSFER_COPY)==0);
+	CHECK(st_rip3_ports_copy_device(p,0,&a,5,&b,ST_RIP3_TRANSFER_COPY,NULL)==0);
 	CHECK(query(&host,"$PCB(CUR)$",false)==0 && pair(p,0,false,a,b)==0);
 	cb=(struct st_rip3_clipboard_selection){true,5};
 	CHECK(query(&host,"$PCB(0005)$",false)==0 && pair(p,0,true,b,a)==0);
@@ -272,5 +307,8 @@ static int selectors(void)
 }
 int main(void)
 {
-	CHECK(overlap_and_failure()==0 && physical_boundaries()==0 && native_screen_sources()==0 && put_image_origin()==0 && moved_origins()==0 && producers_and_backups()==0 && selectors()==0);return 0;
+	CHECK(overlap_and_failure()==0 && physical_boundaries()==0 && native_screen_sources()==0
+	    && native_screen_destination()==0 && put_image_origin()==0 && moved_origins()==0
+	    && producers_and_backups()==0 && selectors()==0);
+	return 0;
 }

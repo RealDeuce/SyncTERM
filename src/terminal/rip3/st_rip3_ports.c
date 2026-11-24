@@ -825,10 +825,67 @@ st_rip3_ports_copy_pair(const struct st_rip3_ports *ports,unsigned number,
 	*result=ports->entries[number].pair;return 0;
 }
 
-int
-st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
+/* The projected kernel samples at pixel centers. Sample i is available while
+ * (2*i+1)*source < 2*destination*physical_source. Port bounds are nonnegative
+ * and the span of either axis is at most 2^31. */
+static uint64_t
+projected_coverage(uint64_t source, uint64_t destination, uint64_t physical_source)
+{
+	return (2*destination*physical_source + source - 1)/(2*source);
+}
+
+static int
+compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
+    const struct st_rip3_rect *source_area, const struct st_rip3_rect *destination_area,
+    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
+{
+	bool source_on_screen = !ports->entries[source].info.offscreen;
+	struct st_rip3_rect source_bounds = source_on_screen
+	    ? ports->screen_bounds : port_bounds(&ports->entries[source]);
+	struct st_rip3_rect from = *source_area, to = *destination_area;
+	if (!clip(&from, &source_bounds) || !clip(&to, &ports->screen_bounds))
+		return 0;
+	/* Preserve the requested fit after clipping. Only capture and publish
+	 * the part of the destination whose source samples are physically present. */
+	const struct st_rip3_rect logical_source = {0,0,source_area->x1-source_area->x0,source_area->y1-source_area->y0};
+	const struct st_rip3_rect logical_target = {0,0,destination_area->x1-destination_area->x0,destination_area->y1-destination_area->y0};
+	uint64_t width = projected_coverage((uint64_t)logical_source.x1+1,
+	    (uint64_t)logical_target.x1+1, (uint64_t)(from.x1-from.x0)+1);
+	uint64_t height = projected_coverage((uint64_t)logical_source.y1+1,
+	    (uint64_t)logical_target.y1+1, (uint64_t)(from.y1-from.y0)+1);
+	if (width == 0 || height == 0)
+		return 0;
+	if (width < (uint64_t)(to.x1-to.x0)+1)
+		to.x1 = to.x0 + (int32_t)(width-1);
+	if (height < (uint64_t)(to.y1-to.y0)+1)
+		to.y1 = to.y0 + (int32_t)(height-1);
+	if (logical_source.x1 == logical_target.x1)
+		from.x1 = from.x0 + (to.x1-to.x0);
+	if (logical_source.y1 == logical_target.y1)
+		from.y1 = from.y0 + (to.y1-to.y0);
+
+	struct st_pixel_buffer *source_pixels = NULL, *destination_pixels = NULL;
+	int status = blit_capture(ports, port_surface(ports, source), &from, source_on_screen, &source_pixels);
+	if (status == 0)
+		status = blit_capture(ports, ports->screen, &to, true, &destination_pixels);
+	if (status == 0 && source_pixels != NULL && destination_pixels != NULL) {
+		status = st_rip3_surface_copy_snapshots(destination_pixels, &logical_target, source_pixels, &logical_source, mode);
+		if (status == 0)
+			status = st_rip3_surface_restore_area_raw(ports->screen, destination_pixels,
+			    (uint32_t)to.x0, (uint32_t)to.y0);
+		if (status == 0 && ports->screen_writer != NULL && palette != NULL)
+			status = ports->screen_writer(ports->screen_writer_context, &to, destination_pixels, palette);
+	}
+	st_pixel_buffer_destroy(source_pixels);
+	st_pixel_buffer_destroy(destination_pixels);
+	return status;
+}
+
+static int
+copy_port_area(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, unsigned destination,
-    const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode)
+    const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
 	const struct port *src;
 	const struct port *dst;
@@ -848,14 +905,27 @@ st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
 	    || !translate(src, source_area, &from)
 	    || !translate(dst, destination_area, &to))
 		return 0;
-	int status=!src->info.offscreen && ports->screen_reader!=NULL
-	    ? copy_native_screen(ports,&from,destination,&to,mode)
-	    : st_rip3_surface_copy_projected(port_surface(ports,destination),&to,
-	        port_surface(ports,source),&from,mode);
+	int status;
+	if (!dst->info.offscreen && ports->screen_reader != NULL
+	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
+		status = compose_screen_transfer(ports, source, &from, &to, mode, palette);
+	else if (!src->info.offscreen && ports->screen_reader != NULL)
+		status = copy_native_screen(ports, &from, destination, &to, mode);
+	else
+		status = st_rip3_surface_copy_projected(port_surface(ports, destination), &to,
+		    port_surface(ports, source), &from, mode);
 	/* Logical success publishes even when physical storage clips every sample.
 	 * A failed overlap snapshot or transfer leaves the old pair unchanged. */
 	if (status==0) publish_copy(ports,source,&from,destination,&to);
 	return status;
+}
+
+int
+st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
+    const struct st_rip3_rect *source_area, unsigned destination,
+    const struct st_rip3_rect *destination_area, enum st_rip3_transfer_mode mode)
+{
+	return copy_port_area(ports, source, source_area, destination, destination_area, mode, NULL);
 }
 
 static bool
@@ -877,7 +947,8 @@ trim_copy_extent(struct st_rip3_copy_extent *area,struct st_rip3_copy_extent *ot
 int
 st_rip3_ports_copy_device(struct st_rip3_ports *ports,unsigned source,
     const struct st_rip3_copy_extent *source_area,unsigned destination,
-    const struct st_rip3_copy_extent *destination_area,enum st_rip3_transfer_mode mode)
+    const struct st_rip3_copy_extent *destination_area, enum st_rip3_transfer_mode mode,
+    const struct st_rip3_palette *palette)
 {
 	if (ports==NULL || source_area==NULL || destination_area==NULL
 	    || source_area->x0<0 || source_area->y0<0 || destination_area->x0<0 || destination_area->y0<0
@@ -895,7 +966,7 @@ st_rip3_ports_copy_device(struct st_rip3_ports *ports,unsigned source,
 	 * in the existing raster kernel and never refits or shrinks this pair. */
 	const struct st_rip3_rect s={(int32_t)from.x0,(int32_t)from.y0,(int32_t)(from.x1-1),(int32_t)(from.y1-1)};
 	const struct st_rip3_rect d={(int32_t)to.x0,(int32_t)to.y0,(int32_t)(to.x1-1),(int32_t)(to.y1-1)};
-	return st_rip3_ports_copy(ports,source,&s,destination,&d,mode);
+	return copy_port_area(ports, source, &s, destination, &d, mode, palette);
 }
 
 int
@@ -912,45 +983,7 @@ st_rip3_ports_paste(struct st_rip3_ports *ports,const unsigned *source)
 	/* Copy values before a same-port operation can replace this owner's pair. */
 	struct st_rip3_port_copy_pair pair=ports->entries[number].pair;
 	if (!pair.set) return 0;
-	return st_rip3_ports_copy_device(ports,number,&pair.destination,ports->current,&pair.source,ST_RIP3_TRANSFER_COPY);
-}
-
-static int
-compose_screen_paste(struct st_rip3_ports *ports, unsigned source,
-    const struct st_rip3_rect *source_area, const struct st_rip3_rect *destination_area,
-    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
-{
-	bool source_on_screen = !ports->entries[source].info.offscreen;
-	struct st_rip3_rect source_bounds = source_on_screen
-	    ? ports->screen_bounds : port_bounds(&ports->entries[source]);
-	struct st_rip3_rect from = *source_area, to = *destination_area;
-	if (!clip(&from, &source_bounds) || !clip(&to, &ports->screen_bounds))
-		return 0;
-	/* Logical origins are already paired and nonnegative. Physical storage
-	 * can trim the far edges of either operand, without moving either origin. */
-	int32_t width = from.x1 - from.x0, height = from.y1 - from.y0;
-	if (width > to.x1 - to.x0) width = to.x1 - to.x0;
-	if (height > to.y1 - to.y0) height = to.y1 - to.y0;
-	from.x1 = from.x0 + width;
-	from.y1 = from.y0 + height;
-	to.x1 = to.x0 + width;
-	to.y1 = to.y0 + height;
-
-	struct st_pixel_buffer *source_pixels = NULL, *destination_pixels = NULL;
-	int status = blit_capture(ports, port_surface(ports, source), &from, source_on_screen, &source_pixels);
-	if (status == 0)
-		status = blit_capture(ports, ports->screen, &to, true, &destination_pixels);
-	if (status == 0 && source_pixels != NULL && destination_pixels != NULL) {
-		status = st_rip3_surface_compose_snapshots(destination_pixels, source_pixels, mode);
-		if (status == 0)
-			status = st_rip3_surface_restore_area_raw(ports->screen, destination_pixels,
-			    (uint32_t)to.x0, (uint32_t)to.y0);
-		if (status == 0 && ports->screen_writer != NULL && palette != NULL)
-			status = ports->screen_writer(ports->screen_writer_context, &to, destination_pixels, palette);
-	}
-	st_pixel_buffer_destroy(source_pixels);
-	st_pixel_buffer_destroy(destination_pixels);
-	return status;
+	return st_rip3_ports_copy_device(ports,number,&pair.destination,ports->current,&pair.source,ST_RIP3_TRANSFER_COPY,NULL);
 }
 
 static int
@@ -1003,7 +1036,7 @@ blit(struct st_rip3_ports *ports, unsigned source,
 	int status;
 	if (read_inactive && !dst->info.offscreen && ports->screen_reader != NULL
 	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
-		status = compose_screen_paste(ports, source, &logical_source, &logical_destination, mode, palette);
+		status = compose_screen_transfer(ports, source, &logical_source, &logical_destination, mode, palette);
 	else if (!src->info.offscreen && ports->screen_reader != NULL)
 		status = copy_native_screen(ports, &logical_source, destination, &logical_destination, mode);
 	else

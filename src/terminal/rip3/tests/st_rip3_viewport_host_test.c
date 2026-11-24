@@ -78,7 +78,7 @@ reset_views(void)
 	CHECK(st_rip3_ports_define_query(ports,false,0,(const uint8_t *)"zero",4,false)==0);
 	CHECK(st_rip3_ports_protect(ports,1,true)==0 && st_rip3_ports_define(ports,2,&bitmap,true)==0);
 	CHECK(st_rip3_ports_switch(ports,2)==0 && st_rip3_ports_erase(ports,9)==0);
-	CHECK(st_rip3_ports_copy_device(ports,0,&from,2,&to,ST_RIP3_TRANSFER_COPY)==0);
+	CHECK(st_rip3_ports_copy_device(ports,0,&from,2,&to,ST_RIP3_TRANSFER_COPY,NULL)==0);
 	CHECK(st_rip3_ports_cursor(ports,2,&cursor)==0 && st_rip3_ports_image_style(ports,2,&image,5)==0);
 	CHECK(st_rip3_ports_viewport_device(ports,&inner)==0 && st_rip3_ports_activate(ports,false)==0);
 	/* RESET activates a full viewport; MVP deliberately skips inactive ones. */

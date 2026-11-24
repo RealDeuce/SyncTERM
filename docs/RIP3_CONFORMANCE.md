@@ -10091,5 +10091,19 @@ operation separately to each blink phase and updates the region through
 the existing console hooks. Native tests verify the full-width results.
 Connected CP437 and UTF-8 tests check all three modes against a direct RGB
 ANSI background and XOR against both colors of a blinking ANSI glyph.
-Mixed indexed/RGB conversion and indexed mask width await clarification.
+
+## RGB port-copy composition
+
+`2C` modes `1`–`3` read the visible screen destination before applying
+XOR, OR, or AND to direct RGB pixels. The renderer snapshots source and
+destination before writing, including an overlapping copy within one
+screen. It keeps the existing center sampling for stretched transfers.
+Physical clipping skips unavailable samples and leaves the remembered
+logical rectangles intact, even when the copy covers no physical pixels.
+
+Live CP437 and UTF-8 sessions check a four-to-two RGB fit in all four
+non-COPY modes and an overlapping RGB XOR. The native PCB test checks
+a clipped four-to-three transfer, a successful zero-coverage fit, and
+pair retention after a failed destination read. Mixed indexed/RGB
+conversion and indexed mask width for both commands await clarification.
 [Issue #231](https://github.com/bbs-land/remote-imaging-protocol/issues/231)

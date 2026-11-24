@@ -252,19 +252,19 @@ transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode
 }
 
 int
-st_rip3_surface_compose_snapshots(struct st_pixel_buffer *destination,
-    const struct st_pixel_buffer *source, enum st_rip3_transfer_mode mode)
+st_rip3_surface_copy_snapshots(struct st_pixel_buffer *destination,
+    const struct st_rip3_rect *to, const struct st_pixel_buffer *source,
+    const struct st_rip3_rect *from, enum st_rip3_transfer_mode mode)
 {
-	if (destination->width != source->width || destination->height != source->height)
-		return IO_ERROR_INVALID_ARGUMENT;
-	const uint32_t *alternate = source->alternate != NULL ? source->alternate : source->primary;
-	size_t count = (size_t)destination->width * destination->height;
-	for (size_t i = 0; i < count; i++)
-		destination->primary[i] = transfer_pixel(destination->primary[i], source->primary[i], mode);
-	if (destination->alternate != NULL)
-		for (size_t i = 0; i < count; i++)
-			destination->alternate[i] = transfer_pixel(destination->alternate[i], alternate[i], mode);
-	return 0;
+	struct st_rip3_surface dst = {.pixels=destination->primary,.width=destination->width,.height=destination->height};
+	struct st_rip3_surface src = {.pixels=source->primary,.width=source->width,.height=source->height};
+	int status = st_rip3_surface_copy_projected(&dst, to, &src, from, mode);
+	if (status != 0 || destination->alternate == NULL)
+		return status;
+	dst.pixels = destination->alternate;
+	if (source->alternate != NULL)
+		src.pixels = source->alternate;
+	return st_rip3_surface_copy_projected(&dst, to, &src, from, mode);
 }
 
 int
@@ -473,10 +473,14 @@ st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 	 * center-sampling products fit uint64_t. Clip output without refitting.
 	 * Missing physical source pixels do not acquire invented padding values. */
 	for (int32_t y = dst.y0; y <= dst.y1; y++) {
-		uint64_t sy = (uint64_t)source_area->y0+((2*(uint64_t)(y-destination_area->y0)+1)*sh/(2*dh));
+		uint64_t sy = (uint64_t)(y-destination_area->y0);
+		if (sh != dh) sy = (2*sy+1)*sh/(2*dh);
+		sy += (uint32_t)source_area->y0;
 		if (sy < (uint32_t)src.y0 || sy > (uint32_t)src.y1) continue;
 		for (int32_t x = dst.x0; x <= dst.x1; x++) {
-			uint64_t sx = (uint64_t)source_area->x0+((2*(uint64_t)(x-destination_area->x0)+1)*sw/(2*dw));
+			uint64_t sx = (uint64_t)(x-destination_area->x0);
+			if (sw != dw) sx = (2*sx+1)*sw/(2*dw);
+			sx += (uint32_t)source_area->x0;
 			if (sx < (uint32_t)src.x0 || sx > (uint32_t)src.x1) continue;
 			uint32_t pixel = saved != NULL ? saved[(size_t)(sy-src.y0)*saved_width+(size_t)(sx-src.x0)]
 			    : source->pixels[(size_t)sy*source->width+(size_t)sx];

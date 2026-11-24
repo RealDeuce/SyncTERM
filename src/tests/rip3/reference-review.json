@@ -23540,6 +23540,40 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "02c18a73431ef4950cb6fe50e1c45c837926ef48",
+      "revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+      "scope": "Apply PORT_COPY Boolean modes to live direct RGB destinations, including scaled copies and overlap. Publish the full logical pair after physical sample trimming.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/231"
+      ],
+      "partially_implemented_source_units": [
+        "version/3.0/ripscrip/7.0-drawing-ports.md:498",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:499",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:500",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:501"
+      ],
+      "tests": [
+        "rip3_pcb",
+        "rip3_surface_copy",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_viewport_host",
+        "rip3_viewport_commands",
+        "rip3_paste_commands",
+        "rip3_ports",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1907,
+        "pending": 1455,
+        "implemented": 3709,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "archive_format": "git archive --format=tar"

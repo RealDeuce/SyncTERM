@@ -231,6 +231,18 @@ copy_zero(const struct st_rip3_copy_extent *area)
 }
 
 static int
+transfer_palette(const struct st_rip3_command_host *host, bool offscreen, uint64_t mode,
+    struct st_rip3_palette *palette, const struct st_rip3_palette **result)
+{
+	*result = NULL;
+	if (offscreen || mode < ST_RIP3_TRANSFER_XOR || mode > ST_RIP3_TRANSFER_AND
+	    || host->palettes == NULL)
+		return 0;
+	*result = palette;
+	return st_rip3_palettes_current_palette(host->palettes, palette);
+}
+
+static int
 copy_port(const struct st_rip3_command_host *host,
     unsigned environment_number, const struct st_rip3_environment *environment,
     const uint8_t *bytes, size_t length, bool *operation)
@@ -296,8 +308,13 @@ copy_port(const struct st_rip3_command_host *host,
 	}
 	if (from.x0 >= from.x1 || from.y0 >= from.y1 || to.x0 >= to.x1 || to.y0 >= to.y1)
 		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_palette palette;
+	const struct st_rip3_palette *present_palette;
+	status = transfer_palette(host, destination_info.offscreen, mode, &palette, &present_palette);
+	if (status != 0)
+		return status;
 	return st_rip3_ports_copy_device(host->ports,(unsigned)source_number,&from,
-	    (unsigned)destination_number,&to,(enum st_rip3_transfer_mode)mode);
+	    (unsigned)destination_number,&to,(enum st_rip3_transfer_mode)mode,present_palette);
 }
 
 static int
@@ -376,13 +393,9 @@ paste_clipboard(const struct st_rip3_command_host *host,
 	status = translate(host,environment_number,&world,&device);
 	if (status != 0) return status;
 	struct st_rip3_palette palette;
-	const struct st_rip3_palette *present_palette = NULL;
-	if (!info.offscreen && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND
-	    && host->palettes != NULL) {
-		status = st_rip3_palettes_current_palette(host->palettes, &palette);
-		if (status != 0) return status;
-		present_palette = &palette;
-	}
+	const struct st_rip3_palette *present_palette;
+	status = transfer_palette(host, info.offscreen, mode, &palette, &present_palette);
+	if (status != 0) return status;
 	return st_rip3_ports_put_image(host->ports,host->clipboard->port,destination,
 	    device.x0,device.y0,(enum st_rip3_transfer_mode)mode,present_palette);
 }

@@ -71,9 +71,10 @@ int st_rip3_surface_capture_raw(const struct st_rip3_surface *,struct st_pixel_b
  * with NULL. The rectangle is inclusive; logical mapping stays with the caller. */
 int st_rip3_surface_capture_area_raw(const struct st_rip3_surface *,
 	const struct st_rip3_rect *,struct st_pixel_buffer **);
-/* Compose equally sized, independent raw captures in both destination phases. */
-int st_rip3_surface_compose_snapshots(struct st_pixel_buffer *,
-	const struct st_pixel_buffer *,enum st_rip3_transfer_mode);
+/* Project between independent raw captures in both destination phases.
+ * Rectangles are logical offsets from the corresponding snapshot origins. */
+int st_rip3_surface_copy_snapshots(struct st_pixel_buffer *,const struct st_rip3_rect *,
+	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode);
 /* Borrow an independent raw source snapshot for one projected transfer. */
 int st_rip3_surface_copy_from_raw(struct st_rip3_surface *,const struct st_rip3_rect *,
 	const struct st_pixel_buffer *,const struct st_rip3_rect *,enum st_rip3_transfer_mode);
