@@ -611,7 +611,7 @@ icon_failures(const char *directory)
 	icon(body,"0000",5,0,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	icon(body,"0000",0,2,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	icon(body,"0000",0,0,2,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
-	icon(body,"0000",0,0,0,"Tile"); body[10] = '1'; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	icon(body,"0000",0,0,0,"Tile"); body[10] = '?'; CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	icon(body,"0000",0,1,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	icon(body,"0000",0,0,0,"Tile.BMP");
 	st_rip3_bitmap_file_test_fail_allocate = true;
@@ -631,7 +631,7 @@ icon_failures(const char *directory)
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
-	const char recovery[] = "!|1I|1I000000000Missing|1I000000000Tile|";
+	const char recovery[] = "!|1I|1I.......Missing|1I..Z...9Tile|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
 	CHECK(f.errors == previous+2 && f.prompts == 6 && f.selection.set && f.selection.port == 9);
@@ -737,7 +737,7 @@ errors(const char *directory)
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',5,"00","00","Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',0,"00","00",""); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
-	form(body,"00000000",'0',0,"00","00","Tile"); body[19] = '1'; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	form(body,"00000000",'0',0,"00","00","Tile"); body[19] = '?'; CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"02000101",'0',0,"00","00","Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',0,"08","ZZ","Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',0,"00","00","Tile");
@@ -754,7 +754,7 @@ errors(const char *directory)
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
-	const char recovery[] = "!|1b|1b000000000000000000Missing|1b000000000000000000Tile|";
+	const char recovery[] = "!|1b|1b.........Missing|1b........000ZTile|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
 	CHECK(f.errors == previous+2 && f.prompts == 7);

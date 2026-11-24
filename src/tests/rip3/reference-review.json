@@ -24665,6 +24665,21 @@
         "version/3.0/ripscrip/7.0-drawing-ports.md:472",
         "version/3.0/ripscrip/7.0-drawing-ports.md:526"
       ]
+    },
+    {
+      "after_commit": "76d4b81bb74be4884920879264ceb40985792e48",
+      "revision": "6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d",
+      "scope": "Collect the numeric bitmap load and export prefixes before filenames. Add PORT_WRITE temporary resource registration.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/240",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/249"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:155",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:157",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:261",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:263"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

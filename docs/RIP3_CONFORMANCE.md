@@ -10277,3 +10277,22 @@ the next byte. Native and CP437 and UTF-8 connected cases check
 capture, scroll/blit pixels, JPEG placement and filename expansion.
 The descriptor-specific rules are in the pinned reference.
 [PR #248](https://github.com/bbs-land/remote-imaging-protocol/pull/248)
+
+## Bitmap filenames and PORT_WRITE lifetime
+
+Bitmap load and export filenames begin after the consumed numeric
+fields. A period completes one numeric field. In `1I`, the two bytes
+of the inherited mode spelling are separate fields, and the second
+selects the bitmap operation. `1I` and `1b` consume the trailing
+reserved field before the filename and ignore its numeric value.
+The first `1I` operation byte's missing-resource box semantics remain
+a documentation question.
+
+`2W` reads two digits of flags and a separate two-digit reserved field.
+Flag value 1 marks a successful write for cleanup on disconnect.
+The export uses the existing screen crop or full offscreen backing
+bitmap. Both connected encodings check the contents of the flagged
+and permanent exports before disconnect and verify their respective
+cache lifetimes. Native tests verify that a failed flagged write
+preserves the original file without registering it.
+[Issue #249](https://github.com/bbs-land/remote-imaging-protocol/issues/249)

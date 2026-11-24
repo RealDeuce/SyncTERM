@@ -88,46 +88,47 @@ port_write(const struct st_rip3_command_host *host,
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_rect area;
-	uint64_t fields[4], source, reserved;
-	size_t width = environment->coordinate_size, prefix = 3+4*width+4;
-	int status;
+	uint64_t positions[4], source, flags;
+	struct st_rip3_fields fields = {command + 2, length - 2};
+	size_t width = environment->coordinate_size;
+	unsigned radix = environment->base_math;
+	int status = st_rip3_command_next_field(&fields, &source, 1, radix, false);
 
-	if (length <= prefix) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&source,command+2,1,environment->base_math);
 	for (size_t i = 0; status == 0 && i < 4; i++) {
-		status = st_rip3_command_field(fields+i,command+3+i*width,width,environment->base_math);
-		if (status == 0 && fields[i] > INT32_MAX) status = IO_ERROR_OUT_OF_RANGE;
+		status = st_rip3_command_next_field(&fields, &positions[i], width, radix, false);
+		if (status == 0 && positions[i] > INT32_MAX) status = IO_ERROR_OUT_OF_RANGE;
 	}
-	if (status == 0) status = st_rip3_command_field(&reserved,command+3+4*width,4,environment->base_math);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &flags, 2, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, NULL, 2, radix, false);
 	if (status != 0) return status;
+	if (fields.remaining == 0) return IO_ERROR_INVALID_FORMAT;
 	if (source > 35) return IO_ERROR_OUT_OF_RANGE;
-	if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
-	bool remainder = fields[2] == 0 && fields[3] == 0;
+	bool remainder = positions[2] == 0 && positions[3] == 0;
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;
 	status = st_rip3_ports_info(host->ports,(unsigned)source,&info);
 	if (status != 0) return status;
 	if (!info.defined) return IO_ERROR_NOT_FOUND;
-	if (!remainder && (fields[0] >= fields[2] || fields[1] >= fields[3]))
+	if (!remainder && (positions[0] >= positions[2] || positions[1] >= positions[3]))
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* The shipped writer ignores the computed crop for offscreen sources.
 	 * Inactive and protected defined sources remain readable in both paths. */
 	if (!info.offscreen) {
 		uint64_t view_width = (uint64_t)(info.viewport.x1-info.viewport.x0)+1;
 		uint64_t view_height = (uint64_t)(info.viewport.y1-info.viewport.y0)+1;
-		uint64_t right = remainder || fields[2] > view_width ? view_width : fields[2];
-		uint64_t bottom = remainder || fields[3] > view_height ? view_height : fields[3];
-		if (fields[0] >= right || fields[1] >= bottom) return IO_ERROR_INVALID_ARGUMENT;
+		uint64_t right = remainder || positions[2] > view_width ? view_width : positions[2];
+		uint64_t bottom = remainder || positions[3] > view_height ? view_height : positions[3];
+		if (positions[0] >= right || positions[1] >= bottom) return IO_ERROR_INVALID_ARGUMENT;
 		/* 2W uses raw device offsets with half-open far boundaries. */
 		area = (struct st_rip3_rect){
-		    (int32_t)fields[0], (int32_t)fields[1],
+		    (int32_t)positions[0], (int32_t)positions[1],
 		    (int32_t)(right-1), (int32_t)(bottom-1)};
 	}
-	char *filename = strndup((const char *)command + prefix, length - prefix);
+	char *filename = strndup((const char *)fields.bytes, fields.remaining);
 	if (filename == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	status = write_bitmap(host, (unsigned)source, info.offscreen ? NULL : &area,
-	    info.offscreen, false, filename, false);
+	    info.offscreen, false, filename, (flags & 1) != 0);
 	free(filename);
 	return status;
 }
@@ -145,10 +146,11 @@ st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status != 0) return status;
 	if (command[0] == '2') return port_write(host,&environment,command,length,operation);
-	status = st_rip3_command_field(&flags,command+2,1,environment.base_math);
+	struct st_rip3_fields fields = {command + 2, length - 2};
+	status = st_rip3_command_next_field(&fields, &flags, 1, environment.base_math, false);
 	if (status != 0) return status;
-	const uint8_t *end = memchr(command + 3, 0, length - 3);
-	size_t name_length = end == NULL ? length - 3 : (size_t)(end - (command + 3));
+	const uint8_t *end = memchr(fields.bytes, 0, fields.remaining);
+	size_t name_length = end == NULL ? fields.remaining : (size_t)(end - fields.bytes);
 	if (name_length == 0) return 0;
 	if (host->clipboard == NULL || host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;
@@ -160,7 +162,7 @@ st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 
 	char *filename = malloc(name_length + sizeof(".BMP"));
 	if (filename == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	memcpy(filename, command + 3, name_length);
+	memcpy(filename, fields.bytes, name_length);
 	filename[name_length] = '\0';
 	char *extension = strrchr(filename, '.');
 	const char *alias = st_rip3_bitmap_legacy_extension(extension);

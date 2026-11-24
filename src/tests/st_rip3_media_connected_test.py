@@ -120,8 +120,8 @@ def check_bitmap(t, assets, values, encoding):
         (assets / alias).write_bytes(solid)
         (assets / bitmap).write_bytes(converted)
         x = 210 + 3*i
-        frame = wire(b"1I" + coords(x, 30) + b"00000" + alias.encode()
-                     + b"|1b" + coords(x, 31, x+1, 31) + b"0000000000" + alias.encode())
+        frame = wire(b"1I" + coords(x, 30) + b".0.0." + alias.encode()
+                     + b"|1b" + coords(x, 31, x+1, 31) + b"....000Z" + alias.encode())
         assert tint(frame, x, 30, 2, 2) == [[blue, blue], [blue, blue]]
         assert (assets / alias).read_bytes() == solid
 
@@ -169,7 +169,7 @@ def check_bitmap(t, assets, values, encoding):
          + b"|S0102|B" + coords(100, 103, 105, 105)
          + b"|1C" + coords(100, 100, 105, 105) + b"0")
     values(b"$WORLD(CUR,1280,960)$")
-    wire(b"1W0Scaled.iCn|1W2Device.hIc|1W6Mask.mSk|1W2Extensionless")
+    wire(b"1W.Scaled.iCn|1W2Device.hIc|1W6Mask.mSk|1W2Extensionless")
 
     def rows(name, height):
         data = (assets / name).read_bytes()
@@ -222,7 +222,7 @@ def check_bitmap(t, assets, values, encoding):
     frame = wire(b"|".join([export(1, area, name) for area, name, _ in crops]
                            + [export(9, (0, 0, 0, 0), "Prior.bmp"),
                               export(1, (9, 1, 0, 0), "Prior.bmp"),
-                              export(2, (1, 1, 2, 2), "Backing.bmp")]))
+                              b"2W2" + b"".join(number(p, 3) for p in (1, 1, 2, 2)) + b".0ZBacking.bmp"]))
     assert (frame.primary, frame.alternate) == (before.primary, before.alternate)
     for _, name, expected in crops:
         bmp_pixels(name, expected)

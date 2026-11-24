@@ -365,6 +365,10 @@ def run(args):
         download(b"!|9\x1b01010000REGISTERED.BIN<>\r\n", "registered.bin")
         terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
         terminal.exchange(b"!|c0F|X0A0A|1C0A0A0B0B0|1W3SessionIcon.hic|1W1SessionTiny|1W1\r\n")
+        terminal.exchange(b"!|2W.0A0A0C0C01.SessionPort.bmp|2W.0A0A0C0C02Z0KeepPort.bmp\r\n")
+        port_export = (cache / "SessionPort.bmp").read_bytes()
+        assert port_export.startswith(b"BM")
+        assert (cache / "KeepPort.bmp").read_bytes() == port_export
         (cache / "Export.RIP").write_bytes(b"!|1W3FromScene\r\n")
         terminal.exchange(query(b"$>Export.RIP$alive", at_cursor=True), b"alive")
         for name in ("SessionIcon.BMH", "SessionTiny.BMP", "FromScene.BMP"):
@@ -395,8 +399,10 @@ def run(args):
             client.wait_for(lambda snap: snap.application.get("session_active") == 0)
         stored("DISCONNECTED.BMP", bmp)
         assert not (cache / "disconnected.icn").exists()
-        for name in ("registered.bin", "SessionIcon.BMH", "SessionTiny.BMP", "FromScene.BMP", "remove-at-eof.bin"):
+        for name in ("registered.bin", "SessionIcon.BMH", "SessionTiny.BMP", "FromScene.BMP",
+                     "SessionPort.bmp", "remove-at-eof.bin"):
             assert not (cache / name).exists(), name
+        assert (cache / "KeepPort.bmp").read_bytes() == port_export
         for path in (other / "SessionIcon.BMH", shared / "SessionIcon.BMH"):
             assert path.read_bytes() == b"separate resource"
         assert partial.read_bytes() == b"!|c0F|X0D0D\r\n".ljust(128, b"\x1a")

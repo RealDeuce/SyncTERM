@@ -44,21 +44,23 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	struct st_rip3_port_info info;
 	struct st_rip3_palette palette;
 	struct st_rip3_bitmap_destination area;
-	uint64_t x, y, mode, clipboard, scale, reserved;
-	size_t width = environment->coordinate_size, suffix = 2+2*width, prefix = suffix+5;
-	unsigned port;
-	int status;
+	uint64_t x, y, mode, clipboard, scale;
+	struct st_rip3_fields fields = {command + 2, length - 2};
+	size_t width = environment->coordinate_size;
+	unsigned radix = environment->base_math, port;
+	int status = st_rip3_command_next_field(&fields, &x, width, radix, false);
 
-	if (length <= prefix) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&x,command+2,width,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&y,command+2+width,width,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&mode,command+suffix,2,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&clipboard,command+suffix+2,1,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&scale,command+suffix+3,1,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&reserved,command+suffix+4,1,environment->base_math);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &y, width, radix, false);
+	/* The inherited two-byte mode spelling contains two separate fields.
+	 * Only the second field determines the bitmap raster operation. */
+	if (status == 0) status = st_rip3_command_next_field(&fields, NULL, 1, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &mode, 1, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &clipboard, 1, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &scale, 1, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, NULL, 1, radix, false);
 	if (status != 0) return status;
+	if (fields.remaining == 0) return IO_ERROR_INVALID_FORMAT;
 	if (x > INT32_MAX || y > INT32_MAX || mode > 4 || clipboard > 1 || scale > 1) return IO_ERROR_OUT_OF_RANGE;
-	if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_ports_current(host->ports,&port);
 	if (status == 0) status = st_rip3_ports_info(host->ports,port,&info);
@@ -69,7 +71,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	if (status != 0) return status;
 	area.x0 = (int64_t)(x*frame.device_width/frame.world_width);
 	area.y0 = (int64_t)(y*frame.device_height/frame.world_height);
-	char *name = bitmap_name(command+prefix,length-prefix);
+	char *name = bitmap_name(fields.bytes, fields.remaining);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	*operation = true;
 	status = st_rip3_bitmap_load(&bitmap,host->resources,name);
@@ -128,30 +130,31 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_bitmap *bitmap = NULL;
 	struct st_rip3_palette palette;
 	struct st_rip3_palette_info palette_info;
-	uint64_t fields[4], duplicate, mode, flags, transparent, reserved;
+	uint64_t positions[4], duplicate, mode, flags, transparent;
 	unsigned number, port;
 	int status;
 
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status != 0) return status;
 	if (command[1] == 'I') return load_icon(host,number,&environment,command,length,operation);
-	size_t width = environment.coordinate_size, suffix = 2+4*width, prefix = suffix+10;
-	if (length <= prefix) return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {command + 2, length - 2};
+	size_t width = environment.coordinate_size;
+	unsigned radix = environment.base_math;
 	for (size_t i = 0; i < 4; i++) {
-		status = st_rip3_command_field(fields+i,command+2+i*width,width,environment.base_math);
+		status = st_rip3_command_next_field(&fields, &positions[i], width, radix, false);
 		if (status != 0) return status;
-		if (fields[i] > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+		if (positions[i] > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	}
-	status = st_rip3_command_field(&duplicate,command+suffix,1,environment.base_math);
-	if (status == 0) status = st_rip3_command_field(&mode,command+suffix+1,1,environment.base_math);
-	if (status == 0) status = st_rip3_command_field(&flags,command+suffix+2,2,environment.base_math);
-	if (status == 0) status = st_rip3_command_field(&transparent,command+suffix+4,2,environment.base_math);
-	if (status == 0) status = st_rip3_command_field(&reserved,command+suffix+6,4,environment.base_math);
+	status = st_rip3_command_next_field(&fields, &duplicate, 1, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &mode, 1, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &flags, 2, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &transparent, 2, radix, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, NULL, 4, radix, false);
 	if (status != 0) return status;
+	if (fields.remaining == 0) return IO_ERROR_INVALID_FORMAT;
 	if (mode > 4 || flags > 63 || ((flags&8) != 0 && transparent > 255)) return IO_ERROR_OUT_OF_RANGE;
-	bool verbatim = fields[2] == 0 && fields[3] == 0;
-	if (!verbatim && (fields[0] > fields[2] || fields[1] > fields[3])) return IO_ERROR_INVALID_FORMAT;
-	if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
+	bool verbatim = positions[2] == 0 && positions[3] == 0;
+	if (!verbatim && (positions[0] > positions[2] || positions[1] > positions[3])) return IO_ERROR_INVALID_FORMAT;
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_ports_current(host->ports,&port);
 	if (status == 0) status = st_rip3_ports_info(host->ports,port,&info);
@@ -166,11 +169,11 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0) return status;
 	/* Keep the complete projected rectangle for sampling and error-box sizing.
 	 * Wire coordinates fit int32_t and device dimensions are at most 1024. */
-	area.x0 = (int64_t)(fields[0]*frame.device_width/frame.world_width);
-	area.y0 = (int64_t)(fields[1]*frame.device_height/frame.world_height);
-	area.x1 = (int64_t)(fields[2]*frame.device_width/frame.world_width);
-	area.y1 = (int64_t)(fields[3]*frame.device_height/frame.world_height);
-	char *name = bitmap_name(command+prefix,length-prefix);
+	area.x0 = (int64_t)(positions[0]*frame.device_width/frame.world_width);
+	area.y0 = (int64_t)(positions[1]*frame.device_height/frame.world_height);
+	area.x1 = (int64_t)(positions[2]*frame.device_width/frame.world_width);
+	area.y1 = (int64_t)(positions[3]*frame.device_height/frame.world_height);
+	char *name = bitmap_name(fields.bytes, fields.remaining);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	*operation = true;
 	status = st_rip3_bitmap_load(&bitmap,host->resources,name);

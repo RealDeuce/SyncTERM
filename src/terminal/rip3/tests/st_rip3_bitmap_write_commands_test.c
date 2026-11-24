@@ -446,7 +446,18 @@ port_write(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const ch
 	const char *const short_commands[] = {"2W","2W1","2W1000","2W1000000000000"};
 	for (size_t i = 0; i < sizeof(short_commands)/sizeof(short_commands[0]); i++)
 		CHECK(process(&f,short_commands[i],ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&f,"2W1" "00000000" "0001Reserved.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"2W1....000ZReserved.bmp",-1) == 0);
+	CHECK(expect_area(directory,"Reserved.bmp",10,6,backing) == 0);
+	CHECK(f.temporary_resources == NULL);
+	st_rip3_resource_test_fail_replace = true;
+	CHECK(process(&f,"2W1....01.Reserved.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(!st_rip3_resource_test_fail_replace && f.temporary_resources == NULL);
+	CHECK(expect_area(directory,"Reserved.bmp",10,6,backing) == 0);
+	CHECK(process(&f,"2W1....03.Session.bmp",-1) == 0 && f.temporary_resources != NULL);
+	CHECK(expect_area(directory,"Session.bmp",10,6,backing) == 0);
+	st_rip3_resource_purge_temporary(&f.temporary_resources);
+	CHECK(missing(directory,"Session.bmp") == 0);
+	CHECK(expect_area(directory,"Reserved.bmp",10,6,backing) == 0);
 	CHECK(process(&f,"2W1" "00000000" "0000../escape.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	/* The backing bitmap is exported even with an entirely external crop;
 	 * the screen branch cannot construct a positive capture there. */
