@@ -25428,6 +25428,35 @@
         "version/3.0/ripscrip/9.0-command-reference.md:157",
         "version/3.0/ripscrip/9.0-command-reference.md:158"
       ]
+    },
+    {
+      "after_commit": "586186663eed9bdeeb4e3fb4679df1175f3a3521",
+      "revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+      "scope": "Match RIPtel numeric field boundaries for scene playback, file queries, directory selection, host queries and wire variable definitions.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/263"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:29",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:31",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:95",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:109",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:111",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:159",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:161",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:237",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:239",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:241",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:94",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:96",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:98",
+        "version/3.0/ripscrip/9.0-command-reference.md:209",
+        "version/3.0/ripscrip/9.0-command-reference.md:210",
+        "version/3.0/ripscrip/9.0-command-reference.md:211",
+        "version/3.0/ripscrip/9.0-command-reference.md:238"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

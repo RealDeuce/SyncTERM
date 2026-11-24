@@ -252,7 +252,7 @@ query_forms(void)
 {
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
-	const char *const unsupported[] = {"1\0331000$D(1)$","1\0330001$D(1)$",
+	const char *const unsupported[] = {"1\0331000$D(1)$",
 	    "1\0330000literal[3]","1\0330000$UNKNOWN_NAME$"};
 	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
 		CHECK(process(&f,unsupported[i],ST_RIP3_COMMAND_UNSUPPORTED) == 0);
@@ -260,11 +260,13 @@ query_forms(void)
 	}
 	CHECK(process(&f,"1\0330?00$D(1)$",ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&f,"1\0330",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"1\033000.$RESX$",ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&f,"1\0330A00$RESX$",-1) == 0 && f.reply_length == 3 && memcmp(f.reply,"640",3) == 0);
+	CHECK(process(&f,"1\033...$RESX$",-1) == 0 && f.reply_length == 6 && memcmp(f.reply,"640640",6) == 0);
 	CHECK(process(&f,"J1S",-1) == 0);
-	CHECK(process(&f,"1\03300#0$RESX$",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.reply_length == 3);
+	CHECK(process(&f,"1\03300#0$RESX$",-1) == 0 && f.reply_length == 9 && memcmp(f.reply,"640640640",9) == 0);
 	CHECK(process(&f,"J10",-1) == 0);
-	CHECK(process(&f,"1\03300#0$RESX$",ST_RIP3_COMMAND_INVALID) == 0 && f.reply_length == 3);
+	CHECK(process(&f,"1\03300#0$RESX$",ST_RIP3_COMMAND_INVALID) == 0 && f.reply_length == 9);
 	struct st_rip3_query *bound = f.host.query;
 	f.host.query = NULL;
 	CHECK(process(&f,"1\0330000$D(1)$",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.query = bound;

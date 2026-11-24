@@ -256,8 +256,8 @@ Hook.onKey(Key.f9) {|event|
             assert client.capture().application["connected"] == 1
             t.case("rip3-wire-variable-definition")
             accented = b"\x82AB" if args.encoding == "CP437" else "éAB".encode()
-            frame = t.exchange(b"\x01|1D0047ZLength,4:" + accented + b"|1D00400Empty:?Title\r\n"
-                               + query(b"$&LENGTH$:$&EMPTY$", at_cursor=True),
+            frame = t.exchange(b"\x01|1D0047ZLength,4:" + accented + b"|1D004.Empty:?Title"
+                               b"|1D0040.Length:changed|1\x1b...$&LENGTH$:$&EMPTY$\r\n",
                                accented[:3] + b":NULL")
             assert frame.application["connected"] == 1
             send(b"\x01|1D00200Answer,8:?Enter reply|1\x1b0000$&ANSWER$\r\n\x1b[5n")
@@ -265,7 +265,7 @@ Hook.onKey(Key.f9) {|event|
             client.text("live")
             client.key("enter")
             receive(peer, b"live\x1b[0n", root / "replies.bin")
-            send(b"\x01|1D00000Answer:?Cancel editor|1\x1b0000$&ANSWER$\r\n\x1b[5n")
+            send(b"\x01|1D..Answer:?Cancel editor|1\x1b001Z$&ANSWER$\r\n\x1b[5n")
             client.wait_text("Cancel editor?")
             client.key("escape")
             receive(peer, b"live\x1b[0n", root / "replies.bin")

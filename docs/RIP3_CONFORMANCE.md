@@ -10407,3 +10407,20 @@ Connected CP437 and UTF-8 tests check glyph placement, search colors,
 article switching and recovery with the existing column intact. The
 native session test checks short article selection and command errors.
 [PR #262](https://github.com/bbs-land/remote-imaging-protocol/pull/262)
+
+
+## Scene, resource and query text boundaries
+
+The original `1R` collector expects a two-digit field and a six-digit
+field before the filename. The handler ignores both values. Each field
+can use one period for zero, so `1R..CHILD.RIP` opens the same scene as
+`1R00000000CHILD.RIP`. A period inside an unfinished field discards the
+command before filename expansion.
+
+`1F`, `2<ESC>`, `1D` and `1<ESC>` also begin text after the final full-width
+field or its period spelling. All five use active Base Math. The immediate
+query accepts valid nonzero reserve digits, which the collector ignores.
+Connected CP437 and UTF-8 fixtures exercise nested playback, metadata
+replies, directory selection, variable definitions and recovery after
+malformed fields. The pinned `1R` descriptor still lists a single field.
+[Issue #263](https://github.com/bbs-land/remote-imaging-protocol/issues/263)

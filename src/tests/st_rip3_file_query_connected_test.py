@@ -61,6 +61,8 @@ def run(args):
             check(mode, b"Missing", miss)
         check(b"02", b"Empty", b"1.0\r")
         check(b"00", b"Mixed", b"0")
+        check(b".", b"MiXeD.RiP", b"1", b".")
+        check(b"04", b"MiXeD.RiP", b"1.MIXED.RIP:20345" + ending, b".")
 
         term.case("RIPv3 file query reports the prepared name and converts only aliases")
         for name, reply in ((b"PiXeL.iCn", b"1.PIXEL.ICN:22"),
@@ -79,6 +81,7 @@ def run(args):
         term.exchange(query(b"$DVP(CUR)$$BASEMATH(CUR,64)$", at_cursor=True))
         data = (wire(b"05", b"Mixed.rip") + wire(b"00", b"Mixed.rip*")
                 + wire(b"00", b"") + wire(b"00", b"Mixed.rip", b"00??")
+                + wire(b"00", b"Mixed.rip", b"00.")
                 + wire(b"02", b"Pixel.ICN", b"00Aa"))
         term.exchange(data, b"1.22\r")
         term.exchange(query(b"$HOSTDIR(EMPTY)$", at_cursor=True))

@@ -1498,17 +1498,17 @@ static void
 file_query(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
 	const struct st_rip3_command_sink sink = {session,diagnose};
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment env;
 	unsigned current;
-	uint64_t mode, reserved;
-	int status = IO_ERROR_INVALID_FORMAT;
+	uint64_t mode;
 
-	if (length > 8 && memchr(bytes+8,0,length-8) == NULL) {
-		status = st_rip3_command_environment(&session->commands,&current,&env);
-		if (status == 0) status = st_rip3_command_field(&mode,bytes+2,2,env.base_math);
-		if (status == 0) status = st_rip3_command_field(&reserved,bytes+4,4,env.base_math);
-		if (status == 0 && mode > 4) status = IO_ERROR_OUT_OF_RANGE;
-	}
+	int status = st_rip3_command_environment(&session->commands,&current,&env);
+	if (status == 0) status = st_rip3_command_next_field(&fields,&mode,2,env.base_math,false);
+	if (status == 0) status = st_rip3_command_next_field(&fields,NULL,4,env.base_math,false);
+	if (status == 0 && (fields.remaining == 0 || memchr(fields.bytes,0,fields.remaining) != NULL))
+		status = IO_ERROR_INVALID_FORMAT;
+	if (status == 0 && mode > 4) status = IO_ERROR_OUT_OF_RANGE;
 	if (status != 0) {
 		st_rip3_command_result(&sink,status,false);
 		return;
@@ -1516,7 +1516,7 @@ file_query(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 	if (session->sink.reply == NULL || session->commands.resources == NULL) return;
 	char *output;
 	size_t size;
-	status = st_rip3_file_query(session->commands.resources,(unsigned)mode,bytes+8,length-8,&output,&size);
+	status = st_rip3_file_query(session->commands.resources,(unsigned)mode,fields.bytes,fields.remaining,&output,&size);
 	if (size != 0) reply(session,(const uint8_t *)output,size);
 	free(output);
 	st_rip3_command_result(&sink,status,true);
@@ -1527,17 +1527,18 @@ switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t l
 {
 	const struct st_rip3_host_directory *directory = session->variables.directory;
 	if (directory == NULL) return 0;
-	if (length <= 6 || memchr(bytes+6,0,length-6) != NULL) return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment env;
 	unsigned current;
-	uint64_t reserved;
 	int status = st_rip3_command_environment(&session->commands,&current,&env);
-	if (status == 0) status = st_rip3_command_field(&reserved,bytes+2,4,env.base_math);
+	if (status == 0) status = st_rip3_command_next_field(&fields,NULL,4,env.base_math,false);
 	if (status != 0) return status;
-	uint8_t *name = malloc(length-6);
+	if (fields.remaining == 0 || memchr(fields.bytes,0,fields.remaining) != NULL)
+		return IO_ERROR_INVALID_FORMAT;
+	uint8_t *name = malloc(fields.remaining);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	memcpy(name,bytes+6,length-6);
-	size_t size = st_rip3_directory_normalize(name,length-6);
+	memcpy(name,fields.bytes,fields.remaining);
+	size_t size = st_rip3_directory_normalize(name,fields.remaining);
 	if (size == 0 || (size == 5 && memcmp(name,"$OFF$",5) == 0))
 		status = st_rip3_directory_select(directory,name,0,session->variables.codepage_converted,size == 0);
 	else {
@@ -1552,22 +1553,23 @@ switch_directory(struct st_rip3_session *session, const uint8_t *bytes, size_t l
 static int
 define_variable(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment environment;
 	unsigned current;
-	uint64_t flags, reserved;
+	uint64_t flags;
 	struct st_rip3_variable_reference definition;
 	struct st_rip3_user_variables *user = session->variables.user_variables;
 	bool utf8 = session->text.encoding == ST_RIP3_TEXT_UTF8;
 
-	if (length <= 7 || memchr(bytes + 7, 0, length - 7) != NULL)
-		return IO_ERROR_INVALID_FORMAT;
 	int status = st_rip3_command_environment(&session->commands, &current, &environment);
 	if (status == 0)
-		status = st_rip3_command_field(&flags, bytes + 2, 3, environment.base_math);
+		status = st_rip3_command_next_field(&fields, &flags, 3, environment.base_math, false);
 	if (status == 0)
-		status = st_rip3_command_field(&reserved, bytes + 5, 2, environment.base_math);
+		status = st_rip3_command_next_field(&fields, NULL, 2, environment.base_math, false);
+	if (status == 0 && (fields.remaining == 0 || memchr(fields.bytes, 0, fields.remaining) != NULL))
+		status = IO_ERROR_INVALID_FORMAT;
 	if (status == 0)
-		status = st_rip3_variable_definition_parse(&definition, bytes + 7, length - 7,
+		status = st_rip3_variable_definition_parse(&definition, fields.bytes, fields.remaining,
 		    utf8, session->graphical_codepage_converted);
 	if (status != 0)
 		return status;
@@ -1588,22 +1590,22 @@ define_variable(struct st_rip3_session *session, const uint8_t *bytes, size_t le
 static void
 read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment env;
 	unsigned current;
-	uint64_t reserved;
 	const struct st_rip3_command_sink sink={session,diagnose};
 	int status = st_rip3_command_environment(&session->commands, &current, &env);
-	if (status == 0 && (length <= 10 || memchr(bytes + 10, 0, length - 10) != NULL))
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, NULL, 2, env.base_math, false);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, NULL, 6, env.base_math, false);
+	if (status == 0 && (fields.remaining == 0 || memchr(fields.bytes, 0, fields.remaining) != NULL))
 		status = IO_ERROR_INVALID_FORMAT;
-	if (status == 0)
-		status = st_rip3_command_field(&reserved, bytes + 2, 4, env.base_math);
-	if (status == 0)
-		status = st_rip3_command_field(&reserved, bytes + 6, 4, env.base_math);
 	if (status != 0) {
 		st_rip3_command_result(&sink, status, false);
 		return;
 	}
-	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_SCENE, bytes + 10, length - 10);
+	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_SCENE, fields.bytes, fields.remaining);
 	session->graphical_job = GRAPHICAL_SCENE;
 }
 

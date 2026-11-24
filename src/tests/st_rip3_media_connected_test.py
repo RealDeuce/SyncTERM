@@ -373,11 +373,13 @@ def check_host_directory(t, root, rip, values, encoding):
     wire(b"2\x1b0001  MiX Ed  ")
     frame = values(b"$<Override$$HOSTDIR$", b"MIX ED")
     assert pixel(frame, 2, 2) == 0xaa0000
-    wire(b"2\x1b0000")
+    wire(b"2\x1b.")
+    values(b"$HOSTDIR$", b"MIX ED")
+    wire(b"2\x1b00.Elsewhere")
     values(b"$HOSTDIR$", b"MIX ED")
     wire(b"2\x1b0000../not-a-name")
     values(b"$HOSTDIR$", b"MIX ED")
-    wire(b"2\x1b0000 $oFF$ ")
+    wire(b"2\x1b. $oFF$ ")
     frame = values(b"$<Override$$HOSTDIR$", b"<NONE>")
     assert pixel(frame, 2, 2) == 0x0000aa
     values(b"$-=DIR=Mix Ed$")
@@ -435,13 +437,13 @@ def check_read_scene(t, root, assets, encoding):
     shared = root / "RIP"
     shared.mkdir(exist_ok=True)
     (assets / "Parent.RIP").write_bytes(
-        b"!|c04|X0A0A|" + read_scene(b"Child.FN") + b"\r\n!|X0B0B\r\n")
+        b"!|c04|X0A0A|1R0A.Child.FN\r\n!|X0B0B\r\n")
     accent = b"\x82" if encoding == "CP437" else "é".encode("utf-8")
     (shared / "Child.FN").write_bytes(
         b"!|c02|X0C0C\r\n\x1b[9;4H" + accent + b"\x1b[6n"
         + query(b"local reply", at_cursor=True))
     t.exchange(query(b"$WORLD(CUR,640,480)$$-=SCENE=Parent.RIP$", at_cursor=True))
-    frame = t.exchange(b"\x1b[3;5H\x01|" + read_scene(b"$&SCENE$") + b"|X0D0D\r\n",
+    frame = t.exchange(b"\x1b[3;5H\x01|1R..$&SCENE$|X0D0D\r\n",
                        b"\x1b[9;5Rlocal reply")
     assert pixel(frame, 10, 10) == 0xaa0000
     assert [pixel(frame, point, point) for point in (11, 12, 13)] == [0x00aa00] * 3
@@ -450,7 +452,7 @@ def check_read_scene(t, root, assets, encoding):
 
     t.case("Missing and recursive 1R scenes return to the caller")
     (assets / "Self.FN").write_bytes(b"!|" + read_scene(b"Self.FN") + b"\r\n")
-    frame = t.exchange(b"\x01|" + read_scene(b"Missing.RIP") + b"|" + read_scene(b"Self.FN")
+    frame = t.exchange(b"\x01|1R.00.Child.FN|" + read_scene(b"Missing.RIP") + b"|" + read_scene(b"Self.FN")
                        + b"|X0E0E\r\n" + query(b"alive", at_cursor=True), b"alive")
     assert pixel(frame, 14, 14) == 0x00aa00 and frame.application["connected"] == 1
 

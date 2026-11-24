@@ -251,40 +251,38 @@ static int
 host_query(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
+	struct st_rip3_fields fields = {command + 2, length - 2};
 	struct st_rip3_environment environment;
 	unsigned number;
-	uint64_t mode, window, reserved;
-	int status;
+	uint64_t mode, window;
 
-	if (length < 6)
-		return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_environment(host,&number,&environment);
+	int status = st_rip3_command_environment(host,&number,&environment);
 	if (status == 0)
-		status = st_rip3_command_field(&mode,command+2,1,environment.base_math);
+		status = st_rip3_command_next_field(&fields,&mode,1,environment.base_math,false);
 	if (status == 0)
-		status = st_rip3_command_field(&window,command+3,1,environment.base_math);
+		status = st_rip3_command_next_field(&fields,&window,1,environment.base_math,false);
 	if (status == 0)
-		status = st_rip3_command_field(&reserved,command+4,2,environment.base_math);
+		status = st_rip3_command_next_field(&fields,NULL,2,environment.base_math,false);
 	if (status != 0)
 		return status;
-	if (mode>6 || (mode==0 && reserved!=0)) return IO_ERROR_NOT_SUPPORTED;
+	if (mode>6) return IO_ERROR_NOT_SUPPORTED;
 	*operation=true;
 	if (mode==1 || mode==3) {
 		if (host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
-		return st_rip3_ports_define_query(host->ports,mode==1,(unsigned)window,command+6,length-6,host->codepage_converted);
+		return st_rip3_ports_define_query(host->ports,mode==1,(unsigned)window,fields.bytes,fields.remaining,host->codepage_converted);
 	}
 	if (mode==2 || mode==4) {
 		if (host->text_window==NULL || host->text_window->resident_query==NULL) return IO_ERROR_NOT_SUPPORTED;
-		return host->text_window->resident_query(host->text_window->context,mode==2,(unsigned)window,command+6,length-6,host->codepage_converted);
+		return host->text_window->resident_query(host->text_window->context,mode==2,(unsigned)window,fields.bytes,fields.remaining,host->codepage_converted);
 	}
 	if (mode==5 || mode==6) {
 		if (host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
-		return st_rip3_mouse_query_encoded(host->mouse,mode==5,command+6,length-6,host->codepage_converted);
+		return st_rip3_mouse_query_encoded(host->mouse,mode==5,fields.bytes,fields.remaining,host->codepage_converted);
 	}
 	/* Private ownership/preflight status is consumed by the void command
 	 * boundary. Rejected source syntax has not started an operation. Nested
 	 * execution diagnostics remain inside the evaluator's void processing. */
-	status=st_rip3_query_start(host->query,command+6,length-6);
+	status=st_rip3_query_start(host->query,fields.bytes,fields.remaining);
 	if (status==IO_ERROR_INVALID_ARGUMENT || status==IO_ERROR_INVALID_FORMAT || status==IO_ERROR_OUT_OF_RANGE)
 		*operation=false;
 	return status;
