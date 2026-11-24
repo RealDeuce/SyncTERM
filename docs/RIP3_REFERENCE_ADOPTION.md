@@ -1564,3 +1564,15 @@ the numeric fields for the legacy text-region commands.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/72648bc8a09eb8edfbb313b8f1355c675dd43253),
 [PR #262](https://github.com/bbs-land/remote-imaging-protocol/pull/262)
+
+
+## Scene, resource and query text boundaries
+
+The reference advances to `b06c20c1e056e6f6432f958672bff8b5ecf6a2a7`. Its tree matches
+the reviewed head of PR #265, and the Git archive has SHA-256
+`7d315f89261c3dc9f41646778f6840ab53294f475ec572237a2e1d6f1492c963`. Four chapters specify the
+two-part scene prefix and the points where resource and query commands
+begin collecting text.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/b06c20c1e056e6f6432f958672bff8b5ecf6a2a7),
+[PR #265](https://github.com/bbs-land/remote-imaging-protocol/pull/265)

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-72648bc8a09eb8edfbb313b8f1355c675dd43253](https://github.com/RealDeuce/remote-imaging-protocol/tree/72648bc8a09eb8edfbb313b8f1355c675dd43253/version/3.0)
+b06c20c1e056e6f6432f958672bff8b5ecf6a2a7](https://github.com/RealDeuce/remote-imaging-protocol/tree/b06c20c1e056e6f6432f958672bff8b5ecf6a2a7/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10422,8 +10422,8 @@ field or its period spelling. All five use active Base Math. The immediate
 query accepts valid nonzero reserve digits, which the collector ignores.
 Connected CP437 and UTF-8 fixtures exercise nested playback, metadata
 replies, directory selection, variable definitions and recovery after
-malformed fields. The pinned `1R` descriptor still lists a single field.
-[Issue #263](https://github.com/bbs-land/remote-imaging-protocol/issues/263)
+malformed fields. The pinned reference includes the corrected `1R` descriptor.
+[PR #265](https://github.com/bbs-land/remote-imaging-protocol/pull/265)
 
 
 ## Table switch protection and numeric fields
@@ -10443,3 +10443,18 @@ changes, first-use cloning and palette publication to existing pixels.
 expression, and `3e` accepts a period to clear local playback pacing.
 The pinned palette, environment and text-window wire diagrams still
 require correction. [Issue #264](https://github.com/bbs-land/remote-imaging-protocol/issues/264)
+
+
+## Drawing palette field collection
+
+`D` and `d` use UltraNum for every field and require eight-bit input
+components. A period supplies one full field, and the final color can
+be shortened at the delimiter. `D` requires exactly the declared number
+of decoded colors. `d` ignores surplus after its one color completes.
+The decoder validates each bulk update before publishing any entry.
+
+Connected CP437 and UTF-8 tests check exact `PALENTRY` replies and the
+effect of publication on existing indexed pixels. Native cases include a
+256-entry packet using one period per color. The pinned header radix and
+input-precision descriptions still require correction.
+[Issue #266](https://github.com/bbs-land/remote-imaging-protocol/issues/266)

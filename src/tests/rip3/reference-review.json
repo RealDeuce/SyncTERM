@@ -1,23 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/262",
-  "revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
-  "previous_revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/265",
+  "revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
+  "previous_revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #262 reviewed head matches its fork stable integration tree.",
-  "archive_sha256": "a0f0bb4d94d3bbe3503680a3fc03281495f6d5e8be06be0c28a47a0e05b36975",
+  "upstream_state_at_adoption": "The open PR #265 reviewed head matches its fork stable integration tree.",
+  "archive_sha256": "7d315f89261c3dc9f41646778f6840ab53294f475ec572237a2e1d6f1492c963",
   "normative_scope": [
-    "Article selector optional and shortened fields in active Base Math.",
-    "Extended column reserve and search-string boundary, legacy column fields, prewrapped justification and end suffix."
+    "Scene filename boundary after two unused/reserved numeric fields.",
+    "Period spellings, ignored reserves and text boundaries for host queries, variable definition, file queries and directory selection."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-    "version/3.0/ripscrip/3.1-column-text-system.md",
+    "version/3.0/ripscrip/5.0-host-commands.md",
+    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+    "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
     "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9466,
+  "matched_source_blocks": 9470,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +952,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 129,
+  "upstream_issue_resolutions": 130,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1720,6 +1721,12 @@
       "sha256": "5ea9b8b10ce318be33f2cf08c84c0ae32f3414e0db7576c70300aa3422d8bc7d",
       "title": "Issue #261 — Article selection and column text boundaries",
       "role": "Original RIPtel command slots, article handler and staged column reserve cases."
+    },
+    {
+      "path": "version/3.0/research/issue-263-resource-query-text-boundaries.md",
+      "sha256": "0ddc3c06de6da25ae85ea592d957c4dd6d54173bf3019d2dceb05c0008b29535",
+      "title": "Issue #263 — Resource and query text boundaries",
+      "role": "Original resource and query command descriptors, read-scene handler and staged numeric-prefix captures."
     }
   ],
   "documents": [
@@ -1877,7 +1884,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "aa14c22c1e77e3c99b7d58c57f7aaae04ecb1c4339e32773299b87636c5e44a3"
+      "sha256": "bf867da024a6cd8c84ca58bff8bed27165ec2df0c5126bf75a6b87c02cd9c9bc"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
@@ -1897,7 +1904,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "a93ca9e491b1defeda1454bad78aabf4f137f82e86454c5e529558a026ab50ae"
+      "sha256": "d0b56f60aad88740df93482841527b6fffe8a2f3d6ebcd33c847510ff24b41d0"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1909,7 +1916,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "sha256": "90237db73b55c394c3928b81748767414df2d4ef07119d21b7f3ee8caee4c68e"
+      "sha256": "da5a4bff5a555007deae89c3e461ac1e948e1e2bdcbe775bf089495c771e20f9"
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
@@ -1925,7 +1932,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "f76bbd9c7728872d9e746809ce0d58584711d387bd1bd6ee40c8bd9eeb558dfe"
+      "sha256": "77077405a2e8f4b192c5ea873b93a5b4ef57bf8a821ce3367f5d9cd36b064d71"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1996,7 +2003,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "276862cd32bed1e7d53dc6d8fcc09e5ca871afb7",
+  "previous_ledger_commit": "03ea876f3de0571177a277ce51eeeed289da2097",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19479,6 +19486,91 @@
         "excluded": 71,
         "blocked": 19
       }
+    },
+    {
+      "previous_revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+      "revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
+      "archive_sha256": "7d315f89261c3dc9f41646778f6840ab53294f475ec572237a2e1d6f1492c963",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/263",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/265",
+          "reviewed_head": "228efb4b796d50a1044b8b5a3dfacc66cd0f0c3b",
+          "integration": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.0-host-commands.md",
+          "previous_sha256": "aa14c22c1e77e3c99b7d58c57f7aaae04ecb1c4339e32773299b87636c5e44a3",
+          "sha256": "bf867da024a6cd8c84ca58bff8bed27165ec2df0c5126bf75a6b87c02cd9c9bc"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "a93ca9e491b1defeda1454bad78aabf4f137f82e86454c5e529558a026ab50ae",
+          "sha256": "d0b56f60aad88740df93482841527b6fffe8a2f3d6ebcd33c847510ff24b41d0"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+          "previous_sha256": "90237db73b55c394c3928b81748767414df2d4ef07119d21b7f3ee8caee4c68e",
+          "sha256": "da5a4bff5a555007deae89c3e461ac1e948e1e2bdcbe775bf089495c771e20f9"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "f76bbd9c7728872d9e746809ce0d58584711d387bd1bd6ee40c8bd9eeb558dfe",
+          "sha256": "77077405a2e8f4b192c5ea873b93a5b4ef57bf8a821ce3367f5d9cd36b064d71"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-263-resource-query-text-boundaries.md",
+          "sha256": "0ddc3c06de6da25ae85ea592d957c4dd6d54173bf3019d2dceb05c0008b29535",
+          "title": "Issue #263 — Resource and query text boundaries",
+          "role": "Original resource and query command descriptors, read-scene handler and staged numeric-prefix captures."
+        }
+      ],
+      "moved_source_blocks": 149,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:116",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:33",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:155",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:156",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:157",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:158",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:159",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:161",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:169",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:243",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:245",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:98",
+        "version/3.0/ripscrip/9.0-command-reference.md:210"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:116",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:33",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:155",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:156",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:157",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:158",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:159",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:161",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:241",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:98",
+        "version/3.0/ripscrip/9.0-command-reference.md:210"
+      ],
+      "states_after_update": {
+        "unreviewed": 2127,
+        "context": 1969,
+        "pending": 1412,
+        "implemented": 3882,
+        "excluded": 71,
+        "blocked": 24
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -25496,6 +25588,38 @@
         "version/3.0/ripscrip/9.0-command-reference.md:218",
         "version/3.0/ripscrip/9.0-command-reference.md:236",
         "version/3.0/ripscrip/9.0-command-reference.md:237"
+      ]
+    },
+    {
+      "after_commit": "03ea876f3de0571177a277ce51eeeed289da2097",
+      "revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
+      "scope": "Adopt the scene and resource command boundary corrections and collect drawing-palette fields through the shared parser.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/263",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/266"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:428",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:432",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:436",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:440",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:454",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:476",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:480",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:488",
+        "version/3.0/ripscrip/5.0-host-commands.md:116",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:115",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:157",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:158",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:159",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:161",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:165",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:169",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:243",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:245",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:33",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:98",
+        "version/3.0/ripscrip/9.0-command-reference.md:210"
       ]
     }
   ],

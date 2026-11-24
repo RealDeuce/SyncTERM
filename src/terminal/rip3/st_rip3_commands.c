@@ -158,36 +158,25 @@ drawing_palette(const struct st_rip3_command_host *host,
 {
 	bool block = command[0] == 'D';
 	uint64_t entries = 1, start, bits;
-	size_t offset = block ? 3 : 1;
+	struct st_rip3_fields fields = {command + 1, length - 1};
 	uint32_t colors[256];
 	int status = 0;
 
-	if (length < (block ? 6u : 5u))
-		return IO_ERROR_INVALID_FORMAT;
 	/* Unlike desktop palette commands, both descriptors force UltraNums
 	 * for header fields as well as the packed colors. */
 	if (block)
-		status = st_rip3_command_field(&entries, command + 1, 2, 64);
+		status = st_rip3_command_next_field(&fields, &entries, 2, 64, false);
 	if (status == 0)
-		status = st_rip3_command_field(&start, command + offset, 2, 64);
+		status = st_rip3_command_next_field(&fields, &start, 2, 64, false);
 	if (status == 0)
-		status = st_rip3_command_field(&bits, command + offset + 2, 1, 64);
+		status = st_rip3_command_next_field(&fields, &bits, 1, 64, false);
 	if (status != 0)
 		return status;
 	if (start > 255 || entries > 256 - start || bits != 8)
 		return IO_ERROR_OUT_OF_RANGE;
-	offset += 3;
-	size_t payload = length - offset;
-	if (block && payload / 4 + (payload % 4 != 0) != entries)
-		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < entries; i++) {
 		uint64_t color;
-		size_t width = length - offset;
-		/* The last color can be short. The fixed d record stops after
-		 * four digits, while the variable D record counts its whole tail. */
-		if (width > 4)
-			width = 4;
-		status = st_rip3_command_field(&color, command + offset, width, 64);
+		status = st_rip3_command_next_field(&fields, &color, 4, 64, i + 1 == entries);
 		if (status != 0)
 			return status;
 		/* This published representation preserves the stored six bits
@@ -195,8 +184,11 @@ drawing_palette(const struct st_rip3_command_host *host,
 		colors[i] = drawing_palette_channel(color >> 16) << 16
 		    | drawing_palette_channel(color >> 8) << 8
 		    | drawing_palette_channel(color);
-		offset += width;
 	}
+	/* The variable D collector counts the whole tail. Fixed d has
+	 * already finished its last field and can ignore surplus. */
+	if (block && fields.remaining != 0)
+		return IO_ERROR_INVALID_FORMAT;
 	if (host->palettes == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;

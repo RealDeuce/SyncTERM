@@ -227,13 +227,21 @@ wire_drawing_palette(void)
 	const char *malformed[] = {
 		"D", "D00008A", "D020#8&m00", "D010#8&m000000", "D020#8&m00?000",
 		"D023&8&m000000", "D003&7", "D00408", "D41008", "d0#74ZHM", "d0#8", "d408&H00",
+		"D..8.", "D01.8.1234", "D01.8. note", "D02.81.4ZHM", "d.812.", "d..4ZHM",
 	};
 	for (size_t i = 0; i < sizeof(malformed) / sizeof(*malformed); i++)
 		CHECK(process(&host, malformed[i], ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "D00008", -1) == 0);
+	CHECK(process(&host, "D..8", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 5, &rgb) == 0 && memcmp(&rgb, &before, sizeof(rgb)) == 0);
 	CHECK(rgb.rgb[61] == 0x103454 && rgb.rgb[62] == 0xff0000 && rgb.rgb[63] == 0x103454);
 	CHECK(rgb.rgb[255] == 0x00003c);
+	CHECK(process(&host, "D03.8.4ZHM&", -1) == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,0,2)$", "6;0:0:0,4:13:21,0:0:15") == 0);
+	CHECK(process(&host, "d.84ZHM suffix", -1) == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,0)$", "6;4:13:21") == 0);
+	CHECK(process(&host, "d0z8.1234", -1) == 0);
+	CHECK(query(palettes, "$PALENTRY(CUR,61)$", "6;0:0:0") == 0);
 
 	CHECK(process(&host, "2A705", -1) == 0 && query(palettes, "$CUR(PAL)$", "7") == 0);
 	CHECK(st_rip3_palettes_info(palettes, 5, &info) == 0 && info.defined && info.protected);
@@ -274,6 +282,11 @@ wire_drawing_palette(void)
 	CHECK(process(&host, full, -1) == 0 && st_rip3_palettes_get(palettes, 7, &rgb) == 0);
 	for (size_t i = 0; i < 256; i++)
 		CHECK(rgb.rgb[i] == 0x000cf0);
+	char compact[5 + 256 + 1] = "D40.8";
+	memset(compact + 5, '.', 256);
+	CHECK(process(&host, compact, -1) == 0 && st_rip3_palettes_get(palettes, 7, &rgb) == 0);
+	for (size_t i = 0; i < 256; i++)
+		CHECK(rgb.rgb[i] == 0);
 	st_rip3_palettes_destroy(palettes);
 	st_rip3_environments_destroy(env);
 	return 0;

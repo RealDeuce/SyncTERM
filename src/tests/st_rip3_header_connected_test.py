@@ -465,6 +465,16 @@ def run(args, width, height):
         frame = values(b'$RCP$$CUR(PAL)$:$PALENTRY(CUR,62)$', b'5:6;1:2:3')
         assert pixel(frame, 10, 10) == 0x04080C and pixel(frame, 12, 12) == 0xFFFFFF
 
+        t.case('rip3-drawing-palette-period-and-decoded-color-count')
+        frame = t.exchange(b'\x01|2A..|D02.8.4ZHM|c01|X0D0D\r\n'
+                           + query(b'$PALENTRY(CUR,0,1)$', at_cursor=True), b'6;0:0:0,4:13:21')
+        assert pixel(frame, 13, 13) == 0x103454
+        rejected = wire(b'D02.8&m00|D01.8&m00.|D02.81.4ZHM|D01.8. note|D..8')
+        assert rejected.palette == frame.palette and pixel(rejected, 13, 13) == 0x103454
+        frame = t.exchange(b'\x01|d.8&m00 suffix|d018.1234\r\n'
+                           + query(b'$PALENTRY(CUR,0,1)$:alive', at_cursor=True), b'6;63:0:0,0:0:0:alive')
+        assert pixel(frame, 13, 13) == 0 and frame.application['connected'] == 1
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
