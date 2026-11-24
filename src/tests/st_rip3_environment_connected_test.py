@@ -62,6 +62,16 @@ def run(args,width,height):
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
         if width == 640:
             charset_metadata(t, args.encoding)
+            t.case('rip3-coordinate-width-reserve-and-invalid-size')
+            width_query = b'$BASEMATH$:$COORDSIZE$'
+            wire(b'(note|n3001suffix|)note')
+            values(width_query,b'36:3')
+            wire(b'n6|n50.')
+            values(width_query,b'36:3')
+            wire(b'J1S|n4&')
+            values(width_query,b'64:4')
+            wire(b'n.')
+            values(width_query,b'64:2')
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         values(b'$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(PORT,4)$$CUR(TW,3)$$CUR(PAL,17)$')

@@ -502,12 +502,9 @@ execute(const struct st_rip3_command_host *host,
 	delay = length >= 2 && command[0] == '3' && command[1] == 'D';
 	/* Comments bypass every expansion/service, and terminal-only grouping
 	 * commands carry no state, including when nested or unmatched. */
-	if (command[0] == '!')
+	if (command[0] == '!' || command[0] == '(' || command[0] == ')')
 		return 0;
-	if (command[0] == '(' || command[0] == ')')
-		return length == 1 ? 0 : IO_ERROR_INVALID_FORMAT;
 	if (command[0]=='*') {
-		if (length!=1) return IO_ERROR_INVALID_FORMAT;
 		if (host->soft_reset==NULL) return IO_ERROR_NOT_SUPPORTED;
 		*operation=true;return host->soft_reset(host->reset_context);
 	}
@@ -522,7 +519,6 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_button_commands_execute(host,command,length,operation,sink);
 	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);
 	if (command[0]=='e' || command[0]=='>') {
-		if (length!=1) return IO_ERROR_INVALID_FORMAT;
 		if (host->text_window==NULL || host->text_window->erase==NULL) return IO_ERROR_NOT_SUPPORTED;
 		*operation=true;return host->text_window->erase(host->text_window->context,command[0]=='e');
 	}
@@ -615,14 +611,14 @@ execute(const struct st_rip3_command_host *host,
 		}
 		else if (command[0] == 'n') {
 			status = st_rip3_command_next_field(&fields, &first, 1, value.base_math, false);
-			if (status == 0 && fields.remaining != 0) {
-				status = st_rip3_command_next_field(&fields, &second, 3, value.base_math, true);
-				if (status == 0 && second != 0)
-					return IO_ERROR_NOT_SUPPORTED;
-			}
+			if (status == 0 && fields.remaining != 0)
+				status = st_rip3_command_next_field(&fields, NULL, 3, value.base_math, true);
 			if (status != 0)
 				return status;
-			value.coordinate_size = first >= 2 && first <= 5 ? (unsigned)first : 2;
+			if (first == 0)
+				value.coordinate_size = 2;
+			else if (first >= 2 && first <= 5)
+				value.coordinate_size = (unsigned)first;
 		}
 		else {
 			size_t width = value.coordinate_size;

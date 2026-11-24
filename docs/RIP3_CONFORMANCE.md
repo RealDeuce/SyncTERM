@@ -9679,9 +9679,9 @@ CRC. If the CRC check fails, the transfer replaces that file from byte zero.
 Local cancellation during the CRC exchange preserves the partial file.
 Code 8 upload and code 10 requests decline before taking the connection.
 
-`9U` validates the two numeric fields and accepts types 0 or 1 without
-switching the connection into encoded transfer mode. Ordinary input
-continues through the same parser.
+`9U` accepts types 0 and 1 and leaves ordinary input routing active.
+The type can be shortened when the four-digit reserve is omitted.
+If supplied, the reserve is checked in active Base Math and discarded.
 
 The CP437 and UTF-8 fixtures exercise XMODEM and YMODEM files and both
 ZMODEM receive handshakes. They check the cache contents during a download,
@@ -10477,3 +10477,20 @@ device-free PCM test verifies repeat across successive pulls, one-shot
 replacement, stopping and recovery after missing or malformed requests.
 The pinned command entry still describes a single reserve.
 [Issue #269](https://github.com/bbs-land/remote-imaging-protocol/issues/269)
+
+
+## Coordinate width and zero-argument commands
+
+Wire `n` accepts widths 2 through 5. A zero width restores two digits.
+Other numeric widths retain the current value. A protected current ENV
+rejects the operation. The optional three-digit reserve is parsed in
+active Base Math and discarded. `9U` uses the same optional-reserve rules
+with its two-digit type and four-digit reserve.
+
+The zero-argument commands `#`, `(`, `)`, `*`, `e` and `>` ignore surplus
+bytes and run at the delimiter. Split-input tests verify that SOFT reset
+and scene-end input release wait for the delimiter. Connected CP437 and
+UTF-8 tests verify coordinate state, input release, reset and text erase.
+The pinned reference's coordinate fallback and encoded-stream command
+index still need correction.
+[Issue #270](https://github.com/bbs-land/remote-imaging-protocol/issues/270)

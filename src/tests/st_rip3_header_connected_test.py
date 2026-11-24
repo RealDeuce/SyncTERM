@@ -403,7 +403,7 @@ def run(args, width, height):
         click(1)
         click(0)
         values(b'alive-while-locked', b'alive-while-locked')
-        frame = wire(b'#', b'\n')
+        frame = wire(b'# end scene', b'\n')
         assert frame.metadata['pointer_shape'] == 0
         click(1)
         click(0)

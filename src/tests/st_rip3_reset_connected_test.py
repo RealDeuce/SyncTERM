@@ -72,7 +72,7 @@ def run(args, width, height):
                b"$COPY(PORT,TBL,BASE)$$COPY(STYLE,TBL,BASE)$$COPY(ENV,TBL,BASE)$"
                b"$WORLD(CUR,0,0)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$")
         # Pending ordinary ANSI syntax survives SOFT and completes in TW0.
-        frame = capture(b"\x1b[3\x01|*\r\n")
+        frame = capture(b"\x1b[3\x01|* reset scene\r\n")
         black(frame)
         assert (frame.application["cterm.x"], frame.application["cterm.y"], frame.application["cterm.attr"]) == (1, 1, 7)
         assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (1, 43)
@@ -119,7 +119,7 @@ def run(args, width, height):
         black(frame)
         # A new palette upload must not recolor the literal reset clear.
         values(b"$CUR(PAL,0)$")
-        frame = capture(b"\x01|a0010|*bad\r\n" + query(b"alive", at_cursor=True), b"alive")
+        frame = capture(b"\x01|a0010|*\r\n" + query(b"alive", at_cursor=True), b"alive")
         black(frame)
         assert frame.application["connected"] == 1
         assert (frame.metadata["plane_width"], frame.metadata["plane_height"],

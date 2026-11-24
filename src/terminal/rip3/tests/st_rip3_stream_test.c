@@ -275,17 +275,11 @@ static int
 noops(void)
 {
 	struct scene scene = {0};
-	const char *commands[] = {"!", "!$Name$\\[literal\\]", "(", ")", ")", "(", "("};
-	const struct st_rip3_command_sink sink = {&scene,scene_error};
+	const char *commands[] = {"!", "!$Name$\\[literal\\]", "(", ")", ")", "(", "(extra", ")extra"};
 
 	for (size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++)
 		scene_command(&scene, (const uint8_t *)commands[i], strlen(commands[i]));
 	CHECK(scene.errors == 0); /* No bindings, expansion, stack or matching needed. */
-	st_rip3_commands_process(&scene.host, &sink, (const uint8_t *)"(extra", 6);
-	st_rip3_commands_process(&scene.host, &sink, (const uint8_t *)")extra", 6);
-	CHECK(scene.errors == 2);
-	scene_command(&scene, (const uint8_t *)"!$NoExpansion$", 14);
-	CHECK(scene.errors == 2);
 	return 0;
 }
 

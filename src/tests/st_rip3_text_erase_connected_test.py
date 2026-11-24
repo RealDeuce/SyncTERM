@@ -52,7 +52,7 @@ def controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
     # Inactive graphics viewport, XOR, empty fill and red ANSI background
     # must not alter STYLE-blue COPY erasure through the full display row.
     eol = (ox+3*cw, oy+2*ch, (columns-3)*cw, ch)
-    frame = t.exchange(b"\x01|>\r\n")
+    frame = t.exchange(b"\x01|> erase to end\r\n")
     expect_region(frame, width, height, eol, 0x0000aa)
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 3)
     assert frame.application["cterm.attr"] == 0x44
@@ -64,7 +64,7 @@ def controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
     expect_region(frame, width, height, eol, 0x0000ff)
 
     whole = (ox, oy, columns*cw, rows*ch)
-    frame = t.exchange(b"\x01|e\r\n")
+    frame = t.exchange(b"\x01|e erase window\r\n")
     expect_region(frame, width, height, whole, 0xff0000)
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, 1)
     assert frame.application["cterm.ext_attr.origin_mode"] == 1 and frame.application["cterm.attr"] == 0x44
@@ -94,7 +94,8 @@ def controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
     assert frame.primary == before.primary and frame.application["connected"] == 1
 
 
-def ansi_controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding, mapped_red=0xa80000):
+def ansi_controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
+    ansi_red = 0xa80000
     modes = (f"\x1b[2;{rows-1}r\x1b[?69h\x1b[3;{columns-2}s"
              "\x1b[?6h\x1b[2;2H\x1b7\x1b[31;41;4m").encode()
     before = t.exchange(scene(width, height) + modes)
@@ -102,16 +103,14 @@ def ansi_controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding, map
     assert frame.primary == before.primary
     eol = (ox+3*cw, oy+2*ch, (columns-3)*cw, ch)
     frame = t.exchange(query(b"$tweraseeol( all,cur,0,0 )$", at_cursor=True))
-    # Custom's root profile uses the monochrome mapping; private MicroANSI
-    # windows use the default color mapping. Honor the target's ANSI mapping,
-    # independently of graphics PAL0 red and STYLE-blue/inactive viewport.
-    expect_region(frame, width, height, eol, mapped_red)
+    # Both Custom mode and private MicroANSI windows use the PC ANSI palette.
+    expect_region(frame, width, height, eol, ansi_red)
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 3)
     assert frame.application["cterm.attr"] == 0x44 and frame.application["cterm.ext_attr.origin_mode"] == 1
     assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (2, rows-1)
     assert (frame.application["cterm.left_margin"], frame.application["cterm.right_margin"]) == (3, columns-2)
     frame = t.exchange(query(b"$TWERASEEOL(1,35)$", at_cursor=True))
-    expect_region(frame, width, height, eol, mapped_red)
+    expect_region(frame, width, height, eol, ansi_red)
     # Omitted selector defaults to current, including direct ANSI RGB.
     t.exchange(scene(width, height) + b"\x1b[48;2;18;52;86m")
     frame = t.exchange(query(b"$TWERASEEOL$", at_cursor=True))
@@ -125,15 +124,16 @@ def ansi_controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding, map
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 3)
     label = b"\x82" if encoding == "CP437" else "é".encode()
     # Repeating ANSI-background paint erases subsequent non-ASCII ink too.
-    frame = t.exchange(scene(width, height) + label
+    # ESC 8 restored the rendition saved before the test selected red.
+    frame = t.exchange(scene(width, height) + b"\x1b[41m" + label
                        + query(b"$TWGOTO(CUR,3,2)$$COFF$$TWERASEEOL$", at_cursor=True))
-    expect_region(frame, width, height, eol, mapped_red)
+    expect_region(frame, width, height, eol, ansi_red)
     assert not frame.metadata["pixel_cursor_visible"]
     last_cell = (ox+(columns-1)*cw, oy+(rows-1)*ch, cw, ch)
     frame = t.exchange(scene(width, height)
                        + query(f"$TWGOTO(CUR,{columns-1},{rows-1})$".encode(), at_cursor=True)
                        + label + query(b"$TWERASEEOL$", at_cursor=True))
-    expect_region(frame, width, height, last_cell, mapped_red)
+    expect_region(frame, width, height, last_cell, ansi_red)
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (columns, rows)
     assert frame.application["cterm.last_column_flag.set"] == 1
     t.send(query(b"$DTW$off", at_cursor=True))
@@ -165,7 +165,7 @@ def main():
             t.case(f"rip3-text-erase-entry-{width}x{height}")
             controls(t, width, height, width//8, height//8, 0, 0, 8, 8, args.encoding)
             t.case(f"rip3-ansi-eol-entry-{width}x{height}")
-            ansi_controls(t, width, height, width//8, height//8, 0, 0, 8, 8, args.encoding, 0xa8a8a8)
+            ansi_controls(t, width, height, width//8, height//8, 0, 0, 8, 8, args.encoding)
             t.case(f"rip3-text-erase-positioned-{width}x{height}")
             t.exchange(b"\x01|w0A050H0A10\r\n")
             controls(t, width, height, 8, 6, 80*width//640, 40*height//350, width//80, height//43, args.encoding)

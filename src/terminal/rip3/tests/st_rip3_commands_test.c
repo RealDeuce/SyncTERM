@@ -166,21 +166,22 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(expect(env, 0, 36,5,1,2) == 0);
 	CHECK(process(&host, "f000011", -1) == 0);
 	CHECK(expect(env, 0, 36,5,1,1) == 0);
-	CHECK(process(&host, "n6000", -1) == 0); /* Invalid size defaults to two. */
-	CHECK(expect(env, 0, 36,2,1,1) == 0);
+	CHECK(process(&host, "n6000", -1) == 0); /* Unsupported nonzero size retains five. */
+	CHECK(expect(env, 0, 36,5,1,1) == 0);
 	CHECK(process(&host, "n-", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "f-1-1", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(expect(env, 0, 36,5,1,1) == 0);
+	CHECK(process(&host, "nZ001", -1) == 0 && expect(env, 0, 36,5,1,1) == 0);
+	CHECK(process(&host, "n.7", -1) == 0); /* Zero width resets; the short reserve is ignored. */
 	CHECK(expect(env, 0, 36,2,1,1) == 0);
-	CHECK(process(&host, "nZ001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(expect(env, 0, 36,2,1,1) == 0);
-	CHECK(process(&host, "n3", -1) == 0);
+	CHECK(process(&host, "n3001suffix", -1) == 0);
 	CHECK(process(&host, "fPA7PA7", -1) == 0); /* 32767 in each axis. */
 	CHECK(expect(env, 0, 36,3,32767,32767) == 0);
 	CHECK(process(&host, "fPA8PA7", -1) == 0);
 	CHECK(expect(env, 0, 36,3,32768,32767) == 0);
 	CHECK(query(env, "$WORLD$", "32768:32767") == 0);
 	CHECK(process(&host, "n2", -1) == 0);
-	static const char *const invalid[] = {"J","J?","J1 comment","n","n?000","n200 comment",
+	static const char *const invalid[] = {"J","J?","J1 comment","n","n?000","n200 comment","n30.","n3&",
 	    "f","fZK","fZKQ tail","fZK?0"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(process(&host, "fZKQO", -1) == 0);
@@ -188,6 +189,9 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		CHECK(expect(env, 0, 36,2,1280,960) == 0);
 	}
 	CHECK(process(&host, "J1S", -1) == 0);
+	CHECK(process(&host, "n4&", -1) == 0 && expect(env, 0, 64,4,1280,960) == 0);
+	CHECK(process(&host, "n1.", -1) == 0 && expect(env, 0, 64,4,1280,960) == 0);
+	CHECK(process(&host, "n0", -1) == 0 && expect(env, 0, 64,2,1280,960) == 0);
 	CHECK(process(&host, "f-1-1", ST_RIP3_COMMAND_INVALID) == 0); /* Not an UltraNum digit. */
 	CHECK(process(&host, "fK0F0", -1) == 0);
 	CHECK(process(&host, "1Qanything", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
@@ -198,6 +202,7 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_protect(env, 1, true) == 0);
 	CHECK(process(&host, "J1S", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(process(&host, "n5", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(process(&host, "n6", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(process(&host, "f0101", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(expect(env, 1, 36,2,1280,960) == 0);
 	CHECK(st_rip3_environments_protect(env, 1, false) == 0);

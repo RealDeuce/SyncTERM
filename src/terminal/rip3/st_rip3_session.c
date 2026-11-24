@@ -1806,16 +1806,15 @@ wire_transfer(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 static int
 encoded_stream(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
-	if (length != 8)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
 	struct st_rip3_environment environment;
 	unsigned current;
-	uint64_t type, reserved;
+	uint64_t type;
 	int status = st_rip3_command_environment(&session->commands, &current, &environment);
 	if (status == 0)
-		status = st_rip3_command_field(&type, bytes + 2, 2, environment.base_math);
-	if (status == 0)
-		status = st_rip3_command_field(&reserved, bytes + 4, 4, environment.base_math);
+		status = st_rip3_command_next_field(&fields, &type, 2, environment.base_math, true);
+	if (status == 0 && fields.remaining != 0)
+		status = st_rip3_command_next_field(&fields, NULL, 4, environment.base_math, true);
 	if (status == 0 && type > 1)
 		status = IO_ERROR_INVALID_FORMAT;
 	return status;
@@ -1830,11 +1829,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 	const struct st_rip3_command_sink sink={session,diagnose};
 	if (length != 0 && bytes[0] == 'h') scene_header(session, bytes, length);
 	else if (length != 0 && bytes[0] == '#') {
-		if (length == 1) {
-			set_input_lock(session, false);
-			st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
-		}
-		else diagnose(session, ST_RIP3_COMMAND_INVALID);
+		set_input_lock(session, false);
+		st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
 	}
 	else if (length >= 2 && bytes[0] == '2' && bytes[1] == 0x1b)
 		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);

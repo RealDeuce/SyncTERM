@@ -421,19 +421,38 @@ erase_eol(void *context, unsigned number)
 }
 
 static int
+encoded_stream(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(append(&f, "!|9U0|9U01.ignored|9U0101|9U..tail|9U1") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 0 && f.text_length == 0 && f.reply_length == 0);
+	CHECK(append(&f, "|9U02") == 0 && pump(&f) == 0 && f.errors == 0);
+	CHECK(append(&f, "\r") == 0 && pump(&f) == 0 && f.errors == 1
+	    && f.kind == ST_RIP3_COMMAND_INVALID);
+	CHECK(append(&f, "!|9U01&|9U010.|9U0.|9U\r") == 0 && pump(&f) == 0 && f.errors == 5);
+	CHECK(append(&f, "!|J1S|9U01&\r\nraw\r\n") == 0 && pump(&f) == 0 && f.errors == 5
+	    && f.text_length == 5 && memcmp(f.text, "raw\r\n", 5) == 0);
+	CHECK(query(&f, "alive", "alive") == 0);
+	st_rip3_session_destroy(f.session);
+	return 0;
+}
+
+static int
 text_erases(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 	options.device_width=4;options.device_height=3;options.sink.text_erase=erase_text;
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
-	CHECK(append(&f,"!|f0403|c02|S0102|B00000403|k01|W1|e\r")==0 && pump(&f)==0
+	CHECK(append(&f,"!|f0403|c02|S0102|B00000403|k01|W1|e extra\r")==0 && pump(&f)==0
 	    && f.errors==0 && f.erases==1 && f.erase_whole && f.erase_rgb==0);
 	struct st_rip3_session_capture capture={0};
 	CHECK(st_rip3_session_capture(f.session,&capture)==0);
 	for (size_t y=0;y<3;y++) for (size_t x=0;x<4;x++)
 		CHECK(capture.pixels->primary[y*4+x]==(ST_PIXEL_COLOR_RGB_TAG|(x>=1 && x<=2 && y>=1 ? 0 : 0xaa00)));
 	st_rip3_session_capture_dispose(&capture);
-	CHECK(append(&f,"!|a0010|v00000000|>\r")==0 && pump(&f)==0
+	CHECK(append(&f,"!|a0010|v00000000|>extra\r")==0 && pump(&f)==0
 	    && f.erases==2 && !f.erase_whole && f.erase_rgb==0xaa && f.errors==0);
 	CHECK(query(&f,"$ETW(ALL)$","")==0 && f.erases==3 && f.erase_whole && f.erase_rgb==0xff0000);
 	CHECK(st_rip3_session_capture(f.session,&capture)==0);
@@ -444,14 +463,13 @@ text_erases(void)
 	CHECK(query(&f,"$COLORMODE(CUR,RGB,1)$","")==0);
 	CHECK(append(&f,"!|k1|>\r")==0 && pump(&f)==0 && f.erases==4 && !f.erase_whole && f.erase_rgb==0xff);
 	CHECK(query(&f,"$DTW$$ETW$","")==0 && f.erases==4);
-	CHECK(append(&f,"!|e|>|e0|>0\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==2
-	    && f.kind==ST_RIP3_COMMAND_INVALID);
+	CHECK(append(&f,"!|e|>|e0|>0\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==0);
 	CHECK(query(&f,"$ETW(1,35)$$ATW$","")==0 && f.erases==4);
-	CHECK(append(&f,"!|1\0330000$ETW(CUR,36)$\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==3);
+	CHECK(append(&f,"!|1\0330000$ETW(CUR,36)$\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==1);
 	f.erase_status=IO_ERROR_IO;
-	CHECK(append(&f,"!|e\r")==0 && pump(&f)==0 && f.erases==5 && f.errors==4 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
+	CHECK(append(&f,"!|e\r")==0 && pump(&f)==0 && f.erases==5 && f.errors==2 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
 	f.erase_status=IO_ERROR_OUT_OF_MEMORY;
-	CHECK(append(&f,"!|>\r")==0 && pump(&f)==0 && f.erases==6 && f.errors==5 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	CHECK(append(&f,"!|>\r")==0 && pump(&f)==0 && f.erases==6 && f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
 	CHECK(query(&f,"$RESX$","4")==0);
 	CHECK(st_rip3_session_capture(f.session,&capture)==0);
 	for (size_t y=0;y<3;y++) for (size_t x=0;x<4;x++)
@@ -526,8 +544,9 @@ soft_reset(void)
 	f.window_status=IO_ERROR_OUT_OF_MEMORY;
 	CHECK(append(&f,"!|*\r")==0 && pump(&f)==0 && f.errors==1 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
 	f.window_status=0;
-	CHECK(append(&f,"!|*x\r")==0 && pump(&f)==0 && f.errors==2 && f.resets==3);
-	CHECK(query(&f,"$RESET(SOFT)$alive","alive")==0 && f.resets==4);
+	CHECK(append(&f,"!|*x")==0 && pump(&f)==0 && f.errors==1 && f.resets==3);
+	CHECK(append(&f,"\r")==0 && pump(&f)==0 && f.errors==1 && f.resets==4);
+	CHECK(query(&f,"$RESET(SOFT)$alive","alive")==0 && f.resets==5);
 	st_rip3_session_destroy(f.session);return 0;
 }
 
@@ -1969,8 +1988,8 @@ scene_header(void)
 	/* Release and relock in wire order. A zero count ignores decoded extras. */
 	CHECK(append(&f,"!|h0100040050000700\f")==0 && pump(&f)==0);
 	CHECK(st_rip3_session_input_locked(f.session) && st_rip3_session_key(f.session,'x'));
-	CHECK(append(&f,"!|#0\r")==0 && pump(&f)==0 && f.errors==2 && st_rip3_session_input_locked(f.session));
-	CHECK(append(&f,"!|#\n")==0 && pump(&f)==0 && !st_rip3_session_input_locked(f.session));
+	CHECK(append(&f,"!|n20.|#0")==0 && pump(&f)==0 && f.errors==2 && st_rip3_session_input_locked(f.session));
+	CHECK(append(&f,"\n")==0 && pump(&f)==0 && f.errors==2 && !st_rip3_session_input_locked(f.session));
 	/* Environment validation uses slot 2; the invalid width is ignored.
 	 * Radix applies immediately to the next chained command. */
 	CHECK(append(&f,"!|h01000001500K02&0|X0a01\r")==0 && pump(&f)==0);
@@ -2313,7 +2332,7 @@ main(void)
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && grouped_reset()==0 && hover_queries()==0 && hover_lifecycle()==0);
-	CHECK(world_state()==0);
+	CHECK(world_state()==0 && encoded_stream()==0);
 	CHECK(soft_reset()==0 && live_text_resets()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
