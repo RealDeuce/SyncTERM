@@ -34,7 +34,7 @@ bool st_pixel_image_jxl_supported(void);
 int st_pixel_image_decode_jxl(struct st_pixel_buffer **result,
 	const void *data, size_t length);
 
-/* Baseline 8-bit grayscale/YCbCr JPEG, with 1x1, 2x1, or 2x2 sampling.
+/* Sequential and progressive 8-bit grayscale/YCbCr JPEG, with 1x1, 2x1, or 2x2 sampling.
  * Damaged/truncated files are rejected; successful pixels are tagged RGB.
  * Build support does not imply runtime library availability. */
 bool st_pixel_image_jpeg_compiled(void);

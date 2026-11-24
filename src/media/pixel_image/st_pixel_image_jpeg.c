@@ -176,9 +176,8 @@ jpeg_profile(const struct jpeg_decompress_struct *decoder)
 	const jpeg_component_info *cb;
 	const jpeg_component_info *cr;
 
-	if (decoder->data_precision != 8 || decoder->progressive_mode
-	    || decoder->arith_code || decoder->image_width == 0
-	    || decoder->image_height == 0)
+	if (decoder->data_precision != 8 || decoder->arith_code
+	    || decoder->image_width == 0 || decoder->image_height == 0)
 		return false;
 	if (decoder->jpeg_color_space == JCS_GRAYSCALE)
 		return decoder->num_components == 1;

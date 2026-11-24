@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Construct baseline JPEG fixtures directly from T.81 marker/block syntax.
 
-No image decoder or encoder library is used.  Each block contains only its
+Each hand-authored baseline block contains only its
 DC coefficient: quantization = 1, inverse DCT yields (DC/8 + 128).
 The grayscale fixture changes from 64 to 192 at row eight.  Color fixtures
 have Y=80, Cb=96, Cr=192, approximately RGB=(170,45,23).
-Run this script in place to reproduce the tiny checked-in fixtures.
+jpegtran losslessly repacks two of these coefficient sets into progressive scans.
+Run this script with jpegtran on PATH to reproduce the checked-in fixtures.
 """
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 from pathlib import Path
 from struct import pack
+from subprocess import run
 
 
 def marker(code, payload):
@@ -58,3 +60,7 @@ if __name__ == '__main__':
         (root / (name + '.jpg')).write_bytes(jpeg(h, v, gray))
 
     (root / "cmyk.jpg").write_bytes(jpeg(1, 1, cmyk=True))
+
+    for name in ("gray", "420"):
+        run(["jpegtran", "-progressive", "-outfile", root / f"{name}-progressive.jpg",
+             root / f"{name}.jpg"], check=True)

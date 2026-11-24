@@ -18,7 +18,7 @@ if(NOT _st_pixel_image_jxl MATCHES "^(AUTO|ON|OFF)$")
 endif()
 
 set(ST_PIXEL_IMAGE_JPEG AUTO CACHE STRING
-	"Baseline JPEG decoder support: AUTO, ON, or OFF")
+	"8-bit JPEG decoder support: AUTO, ON, or OFF")
 set_property(CACHE ST_PIXEL_IMAGE_JPEG PROPERTY STRINGS AUTO ON OFF)
 string(TOUPPER "${ST_PIXEL_IMAGE_JPEG}" _st_pixel_image_jpeg)
 if(NOT _st_pixel_image_jpeg MATCHES "^(AUTO|ON|OFF)$")
@@ -107,7 +107,7 @@ int main(void) {
     d.out_color_space = JCS_RGB;
     d.dct_method = JDCT_ISLOW;
     d.quantize_colors = FALSE;
-    if (d.data_precision == 8 && !d.progressive_mode && !d.arith_code
+    if (d.data_precision == 8 && !d.arith_code
         && d.comp_info[0].h_samp_factor == 1
         && d.comp_info[0].v_samp_factor == 1)
         (void)jpeg_start_decompress(&d);

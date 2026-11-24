@@ -485,6 +485,8 @@ fallback with coherent screen index/palette captures on all three canvases.
 JPEG wallpaper tests now cover raw image-area seeds, retained background,
 extra far rows/columns, staggered COPY phase and nonfatal post-draw failure.
 Actual JPEG scenes exercise all 64 flag combinations under every vector mode.
+The connected RIP_IMAGE test displays a complete progressive grayscale JPEG
+and checks both blink planes at the top, bottom and outside its destination.
 PORT_WRITE file tests add raw DEVICE/half-open screen crops, independent far-axis
 clipping, whole-backing offscreen export, inactive/protected reads and nonfatal
 undefined/empty/allocation/write recovery, with independent BMP byte/pixel

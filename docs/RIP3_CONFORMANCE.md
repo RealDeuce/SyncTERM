@@ -573,11 +573,11 @@ bytes at every depth, including short palettes, zero reserved/padding bytes,
 the documented writer advisory fields and unchanged output pointers/sizes on
 error. Secondary decode comparisons supplement those independent byte checks.
 
-`pixel_jpeg_native` checks the baseline 8-bit libjpeg-compatible decoder with
-independently constructed JPEG bitstreams (no encoder or decoder generates
-the expected pixels). It checks grayscale row orientation, YCbCr 4:4:4/4:2:2/
-4:2:0 color conversion, cropped MCU edges, every truncated prefix, unsupported
-precision/progressive/arithmetic/CMYK/fractional sampling, invalid dimensions
+`pixel_jpeg_native` checks 8-bit baseline and progressive JPEG decoding. The
+expected pixels come from hand-authored coefficients. The progressive fixtures
+encode the same coefficients in multiple scans. Tests check grayscale row
+orientation, YCbCr 4:4:4/4:2:2/4:2:0 color conversion, cropped MCU edges,
+every truncated prefix, unsupported precision/arithmetic/CMYK/fractional sampling, invalid dimensions
 and unchanged outputs on error. Decoder warning repair is rejected rather than
 publishing an incomplete image. Heap-owned cleanup survives libjpeg error
 callbacks. `pixel_jpeg_disabled` checks the absent-backend API in the same native
@@ -2559,7 +2559,7 @@ original bundled font bytes and RIP1.54 behavior remain unchanged.
 
 ## Literal JPEG file display
 
-`st_rip3_jpeg_load` connects the existing baseline JPEG decoder to the trusted
+`st_rip3_jpeg_load` connects the JPEG decoder to the trusted
 MEDIA lookup order: host, shared, then configured search entries. Names are bare
 UTF-8 and matched caselessly; extensions are literal. No extension-completion
 rule is inferred. The loader checks the physical length and complete read,

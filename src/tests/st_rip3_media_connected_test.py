@@ -556,6 +556,14 @@ def check_wire_jpeg(t, values, supported):
     assert pixel(frame, 39, 30) == pixel(frame, 20, 49) == 0
     values(b"$INUSE(TV,NEXT_IMG)$:$&NEXT_IMG$", b"1:Gray.JPG")
 
+    t.case("wire JPEG displays the final progressive scans")
+    values(b"$IMGSTYLE(CUR,90,30,109,49)$")
+    frame = t.exchange(b"!|1p.Progress.jpg\r\n")
+    for phase in ("primary", "alternate"):
+        assert plane_pixel(frame, 90, 30, phase) == top
+        assert plane_pixel(frame, 108, 48, phase) == bottom
+        assert plane_pixel(frame, 109, 30, phase) == 0
+
     t.case("wire JPEG skips an unselected branch and unquotes the resource name once")
     values(b"$IMGSTYLE(CUR,50,60,69,79)$")
     frame = t.exchange(b"!|1p0000<<IF $INUSE(TV,NEXT_IMG)$=\"0\">>$&UNREACHED$"
@@ -605,6 +613,7 @@ def run(args):
         fixture = Path(__file__).resolve().parents[1] / "media/pixel_image/tests/jpeg/gray.jpg"
         contents = fixture.read_bytes()
         (assets / "Gray.jpg").write_bytes(contents)
+        (assets / "Progress.jpg").write_bytes(fixture.with_name("gray-progressive.jpg").read_bytes())
         (assets / "G$RAY.jpg").write_bytes(contents)
         (assets / "Broken.jpg").write_bytes(b"invalid JPEG")
 

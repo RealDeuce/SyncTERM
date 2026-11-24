@@ -7,6 +7,7 @@
 #include "io_error.h"
 #include "st_pixels.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +32,7 @@ fixture(const char *directory, const char *name)
 	FILE *file;
 	size_t length;
 	struct st_pixel_buffer *pixels = sentinel;
+	bool grayscale = strncmp(name, "gray", 4) == 0;
 
 	CHECK(snprintf(path, sizeof(path), "%s/%s.jpg", directory, name) > 0);
 	file = fopen(path, "rb");
@@ -63,7 +65,7 @@ fixture(const char *directory, const char *name)
 		for (size_t x = 0; x < 17; x++) {
 			uint32_t pixel = pixels->primary[y * 17 + x];
 
-			if (strcmp(name, "gray") == 0) {
+			if (grayscale) {
 				unsigned value = y < 8 ? 64 : 192;
 
 				CHECK(pixel == ST_PIXEL_COLOR_RGB_VALUE(value, value,
@@ -84,23 +86,27 @@ fixture(const char *directory, const char *name)
 	/* Corrupt all SOF dimensions/precision and unsupported coding modes.
 	 * These mutations have unambiguous header outcomes before entropy data. */
 	for (size_t i = 0; i + 10 < length; i++) {
-		if (bytes[i] == 255 && bytes[i + 1] == 0xc0) {
+		if (bytes[i] == 255 && (bytes[i + 1] == 0xc0 || bytes[i + 1] == 0xc2)) {
+			unsigned char frame = bytes[i + 1];
 			unsigned char saved = bytes[i + 4];
 
 			bytes[i + 4] = 12;
 			CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length) != 0);
 			CHECK(pixels == sentinel);
 			bytes[i + 4] = saved;
-			bytes[i + 1] = 0xc2;
+			if (frame == 0xc0) {
+				/* A sequential scan is invalid under a progressive frame header. */
+				bytes[i + 1] = 0xc2;
+				CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
+				    == IO_ERROR_INVALID_FORMAT);
+				CHECK(pixels == sentinel);
+			}
+			bytes[i + 1] = frame == 0xc0 ? 0xc9 : 0xca;
 			CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
 			    == IO_ERROR_NOT_SUPPORTED);
 			CHECK(pixels == sentinel);
-			bytes[i + 1] = 0xc9;
-			CHECK(st_pixel_image_decode_jpeg(&pixels, bytes, length)
-			    == IO_ERROR_NOT_SUPPORTED);
-			CHECK(pixels == sentinel);
-			bytes[i + 1] = 0xc0;
-			if (strcmp(name, "gray") != 0) {
+			bytes[i + 1] = frame;
+			if (!grayscale) {
 				unsigned char sampling = bytes[i + 11];
 
 				bytes[i + 11] = 0x31;
@@ -122,7 +128,8 @@ int
 main(int argc, char **argv)
 {
 	struct st_pixel_buffer *pixels = sentinel;
-	const char *names[] = {"gray", "444", "422", "420", "cmyk"};
+	const char *names[] = {"gray", "444", "422", "420", "cmyk",
+	    "gray-progressive", "420-progressive"};
 
 	CHECK(argc == 2);
 	CHECK(st_pixel_image_decode_jpeg(NULL, "", 1)
