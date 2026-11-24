@@ -1023,8 +1023,7 @@
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 completion-only resource publication and temporary registration remain pending. Existing worker resume and cache paths are preserved.",
-    "Adopted #215 session-owned temporary resource cleanup is pending."
+    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume."
   ],
   "derivations": [
     {
@@ -22829,6 +22828,48 @@
         "context": 1900,
         "pending": 1495,
         "implemented": 3657,
+        "excluded": 71,
+        "blocked": 20
+      }
+    },
+    {
+      "after_commit": "8d601e04",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Connect WRITE_ICON and completed-download session-owned cache cleanup.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:103",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:105",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:106",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:107",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:113",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:115",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:116",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:118",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:120",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:122",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:422",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:66",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:68",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:70",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:72",
+        "version/3.0/ripscrip/9.0-command-reference.md:166"
+      ],
+      "tests": [
+        "rip3_resource_write",
+        "rip3_session",
+        "rip3_bitmap_write_commands",
+        "syncterm_rip3_media_CP437",
+        "syncterm_rip3_media_UTF-8",
+        "syncterm_rip3_transfer_CP437",
+        "syncterm_rip3_transfer_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2168,
+        "context": 1900,
+        "pending": 1479,
+        "implemented": 3673,
         "excluded": 71,
         "blocked": 20
       }

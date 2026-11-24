@@ -33,6 +33,7 @@ struct fixture {
 	struct st_rip3_command_host host;
 	struct st_rip3_clipboard_selection clipboard;
 	struct st_rip3_resource_paths paths;
+	struct st_rip3_temporary_resource *temporary_resources;
 	unsigned errors;
 	enum st_rip3_command_diagnostic kind;
 };
@@ -162,12 +163,14 @@ create(struct fixture *f, enum st_rip3_canvas canvas, const char *directory)
 	CHECK(st_rip3_environments_set(f->host.environments,0,&environment) == 0);
 	f->clipboard = (struct st_rip3_clipboard_selection){true,1};
 	f->paths.host = directory; f->host.resources = &f->paths; f->host.clipboard = &f->clipboard;
+	f->host.temporary_resources = &f->temporary_resources;
 	return 0;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	st_rip3_resource_purge_temporary(&f->temporary_resources);
 	st_rip3_ports_destroy(f->host.ports); st_rip3_palettes_destroy(f->host.palettes);
 	st_rip3_environments_destroy(f->host.environments);
 }
@@ -215,6 +218,7 @@ scene(enum st_rip3_canvas canvas, const char *directory)
 		CHECK(st_rip3_ports_read(f.host.ports,2,x+1,y+1,&index) == 0 && index == pixels[3*y+x]);
 	}
 	st_rip3_stream_destroy(stream); destroy(&f);
+	CHECK(missing(directory,"temporary.BMH") == 0 && expect_backing(directory,"Tile.BMP") == 0);
 	return 0;
 }
 
@@ -233,10 +237,12 @@ recovery(const char *directory)
 	CHECK(process(&f,"1W2Tile.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
 	CHECK(!st_rip3_bitmap_encode_test_fail_allocate && expect_backing(directory,"Tile.BMP") == 0);
 	st_rip3_resource_test_fail_replace = true;
-	CHECK(process(&f,"1W2Tile.BMP",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(process(&f,"1W3Tile.BMP",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(!st_rip3_resource_test_fail_replace && expect_backing(directory,"Tile.BMP") == 0);
+	CHECK(f.temporary_resources == NULL);
 	CHECK(process(&f,"1W2Tile.BMP",-1) == 0 && expect_backing(directory,"Tile.BMP") == 0);
-	const char *const invalid[] = {"1W","1W2","1W?bad.bmp"};
+	CHECK(process(&f,"1W1",-1) == 0 && f.temporary_resources == NULL);
+	const char *const invalid[] = {"1W","1W?bad.bmp"};
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++)
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&f,"1W2../escape.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);

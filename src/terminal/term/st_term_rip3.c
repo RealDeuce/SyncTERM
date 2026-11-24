@@ -1867,7 +1867,7 @@ st_term_rip3_cancel(struct st_term_rip3 *rip)
 		if (st_rip3_session_text_active(rip->session))
 			(void)st_term_rip3_view_present(rip->view,rip->config.console,true);
 	}
-	present(rip);st_rip3_session_cancel(rip->session);
+	present(rip);st_rip3_session_disconnect(rip->session);
 	rip->position=rip->length=0;
 	feedback_end(rip);
 }

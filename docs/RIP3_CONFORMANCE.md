@@ -9697,7 +9697,7 @@ internal zero-area inhibit value. Image-style DELETE retains the file.
 The worker writes to its existing cache destination and can leave
 partial bytes at that name after a failed transfer. Partial files never
 reach automatic playback or presentation. Portable completion-only resource
-publication and the separate temporary-file registry remain pending.
+publication remains pending.
 [PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
 
 Connected CP437 and UTF-8 fixtures cover a scene before the caller's
@@ -9968,5 +9968,25 @@ Absent or undefined clipboard assignments produce no file.
 Connected CP437 and UTF-8 cases compare a 7×7 capture with its 7×5 export,
 check all three suffix translations and the default suffix, and reject a
 path outside the BBS cache. Native tests check write failures and both
-clipboard source types. Bit 0's session-owned temporary registration is
-pending implementation. [PR #226](https://github.com/bbs-land/remote-imaging-protocol/pull/226)
+clipboard source types. [PR #226](https://github.com/bbs-land/remote-imaging-protocol/pull/226)
+
+## Connected temporary resource lifetime
+
+The low bit of `1W` registers a successful export for session cleanup.
+The low bit of the first reserved word of level 9 ESC registers each
+successfully received file, including files that complete before a batch
+is interrupted. A converted legacy icon registers the received name.
+The separately named BMP follows the ordinary conversion rules.
+
+Registrations hold the resolved writable cache directory and name. They
+survive drawing resets, local playback, directory selection and later
+writes to the same cache location. Failed exports and incomplete downloads
+leave the registry alone. Transfers use the ordinary cache destination,
+including ZMODEM resume from an existing partial file.
+
+Disconnect and interpreter destruction consume the list through the same
+confined cache removal used by FILEDEL. Connected CP437 and UTF-8 tests
+check both flags, local playback, reset and directory changes, a later
+replacement, cancellation, and cleanup after a peer closes mid-batch.
+Same-named files in the shared directory and another HOSTDIR survive.
+[PR #226](https://github.com/bbs-land/remote-imaging-protocol/pull/226)

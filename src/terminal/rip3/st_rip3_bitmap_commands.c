@@ -48,7 +48,8 @@ scale_clipboard(struct st_rip3_bitmap *bitmap, const struct st_rip3_environments
 
 static int
 write_bitmap(const struct st_rip3_command_host *host, unsigned source,
-    const struct st_rip3_rect *area, bool backing_bitmap, bool scale, const char *filename)
+    const struct st_rip3_rect *area, bool backing_bitmap, bool scale, const char *filename,
+    bool temporary)
 {
 	struct st_rip3_palette palette;
 	struct st_rip3_bitmap *bitmap = NULL;
@@ -69,7 +70,13 @@ write_bitmap(const struct st_rip3_command_host *host, unsigned source,
 	if (status == IO_ERROR_NOT_FOUND) status = IO_ERROR_NOT_SUPPORTED;
 	if (status == 0 && scale) status = scale_clipboard(bitmap, host->environments);
 	if (status == 0) status = st_rip3_bitmap_encode(&bytes,&size,bitmap);
-	if (status == 0) status = st_rip3_resource_write(host->resources,filename,bytes,size);
+	if (status == 0) {
+		if (temporary)
+			status = st_rip3_resource_write_temporary(host->resources, filename, bytes, size,
+			    host->temporary_resources);
+		else
+			status = st_rip3_resource_write(host->resources, filename, bytes, size);
+	}
 	free(bytes); st_rip3_bitmap_destroy(bitmap);
 	return status;
 }
@@ -120,7 +127,7 @@ port_write(const struct st_rip3_command_host *host,
 	if (filename == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	status = write_bitmap(host, (unsigned)source, info.offscreen ? NULL : &area,
-	    info.offscreen, false, filename);
+	    info.offscreen, false, filename, false);
 	free(filename);
 	return status;
 }
@@ -134,12 +141,15 @@ st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 	unsigned number;
 	int status;
 
-	if (length < 4) return IO_ERROR_INVALID_FORMAT;
+	if (length < 3) return IO_ERROR_INVALID_FORMAT;
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status != 0) return status;
 	if (command[0] == '2') return port_write(host,&environment,command,length,operation);
 	status = st_rip3_command_field(&flags,command+2,1,environment.base_math);
 	if (status != 0) return status;
+	const uint8_t *end = memchr(command + 3, 0, length - 3);
+	size_t name_length = end == NULL ? length - 3 : (size_t)(end - (command + 3));
+	if (name_length == 0) return 0;
 	if (host->clipboard == NULL || host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	*operation = true;
 	if (!host->clipboard->set) return 0;
@@ -148,19 +158,18 @@ st_rip3_bitmap_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_ports_info(host->ports, host->clipboard->port, &info);
 	if (status != 0 || !info.defined) return status;
 
-	char *filename = malloc(length - 3 + sizeof(".BMP"));
+	char *filename = malloc(name_length + sizeof(".BMP"));
 	if (filename == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	memcpy(filename, command + 3, length - 3);
-	filename[length - 3] = '\0';
+	memcpy(filename, command + 3, name_length);
+	filename[name_length] = '\0';
 	char *extension = strrchr(filename, '.');
 	const char *alias = st_rip3_bitmap_legacy_extension(extension);
 	if (alias != NULL || extension == NULL)
-		memcpy(extension == NULL ? filename + length - 3 : extension,
+		memcpy(extension == NULL ? filename + name_length : extension,
 		    alias == NULL ? ".BMP" : alias, sizeof(".BMP"));
 	bool scale = info.offscreen && (flags & 2) == 0;
-	/* Temporary-file registration for bit 0 is tracked separately (#215). */
 	status = write_bitmap(host, host->clipboard->port, NULL,
-	    info.offscreen && !scale, scale, filename);
+	    info.offscreen && !scale, scale, filename, (flags & 1) != 0);
 	free(filename);
 	return status;
 }

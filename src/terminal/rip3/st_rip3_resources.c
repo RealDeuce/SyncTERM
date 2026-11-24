@@ -6,6 +6,7 @@
 #include "io_error.h"
 #include "path.h"
 #include "st_unicode_compare.h"
+#include "string_compat.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
@@ -342,20 +343,102 @@ st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_path
 	return status;
 }
 
-int
-st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
-    const char *name, const void *bytes, size_t size)
+struct st_rip3_temporary_resource {
+	struct st_rip3_temporary_resource *next;
+	char *directory, *root, *name;
+};
+
+static void
+free_temporary(struct st_rip3_temporary_resource *entry)
+{
+	free(entry->directory);
+	free(entry->root);
+	free(entry->name);
+	free(entry);
+}
+
+static int
+prepare_temporary(struct st_rip3_temporary_resource **result,
+    struct st_rip3_temporary_resource *entries, const struct st_rip3_resource_paths *paths,
+    const char *resolved)
+{
+	const char *name = path_basename(resolved);
+	for (const struct st_rip3_temporary_resource *entry = entries; entry != NULL; entry = entry->next) {
+		if (strcmp(entry->directory, paths->host) == 0 && strcmp(entry->name, name) == 0)
+			return 0;
+	}
+	struct st_rip3_temporary_resource *entry = malloc(sizeof(*entry));
+	if (entry == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	*entry = (struct st_rip3_temporary_resource){
+		.next = entries, .directory = strdup(paths->host), .name = strdup(name),
+		.root = paths->named_host_root == NULL ? NULL : strdup(paths->named_host_root),
+	};
+	if (entry->directory == NULL || entry->name == NULL
+	    || (paths->named_host_root != NULL && entry->root == NULL)) {
+		free_temporary(entry);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	*result = entry;
+	return 0;
+}
+
+static int
+write_resource(const struct st_rip3_resource_paths *paths, const char *name,
+    const void *bytes, size_t size, struct st_rip3_temporary_resource **entries)
 {
 	if (bytes == NULL && size != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
 	char *path = NULL;
 	int status = st_rip3_resource_transfer_path(&path, paths, name, false);
+	struct st_rip3_temporary_resource *entry = NULL;
+	if (status == 0 && entries != NULL)
+		status = prepare_temporary(&entry, *entries, paths, path);
 	/* Preserve an existing unique file's spelling and prepare the whole
 	 * replacement before rename. Any failure retains its previous contents.
 	 * The directory match rejects links and other non-file entries; this
 	 * function never follows a host-named link or writes a fallback tier. */
 	if (status == 0) status = fs_replace_file(path, bytes, size);
+	if (entry != NULL) {
+		if (status == 0)
+			*entries = entry;
+		else
+			free_temporary(entry);
+	}
 	free(path);
+	return status;
+}
+
+int
+st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
+    const char *name, const void *bytes, size_t size)
+{
+	return write_resource(paths, name, bytes, size, NULL);
+}
+
+int
+st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths,
+    const char *name, const void *bytes, size_t size, struct st_rip3_temporary_resource **entries)
+{
+	if (entries == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	return write_resource(paths, name, bytes, size, entries);
+}
+
+int
+st_rip3_resource_register_temporary(const struct st_rip3_resource_paths *paths,
+    const char *name, struct st_rip3_temporary_resource **entries)
+{
+	if (entries == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	char *path = NULL;
+	int status = st_rip3_resource_transfer_path(&path, paths, name, true);
+	struct st_rip3_temporary_resource *entry = NULL;
+	if (status == 0)
+		status = prepare_temporary(&entry, *entries, paths, path);
+	free(path);
+	if (entry != NULL)
+		*entries = entry;
 	return status;
 }
 
@@ -387,4 +470,18 @@ st_rip3_resource_remove(const struct st_rip3_resource_paths *paths, const char *
 	free(match.path);
 	free(key);
 	return status;
+}
+
+void
+st_rip3_resource_purge_temporary(struct st_rip3_temporary_resource **entries)
+{
+	while (*entries != NULL) {
+		struct st_rip3_temporary_resource *entry = *entries;
+		const struct st_rip3_resource_paths paths = {
+		    .host = entry->directory, .named_host_root = entry->root,
+		};
+		*entries = entry->next;
+		(void)st_rip3_resource_remove(&paths, entry->name);
+		free_temporary(entry);
+	}
 }

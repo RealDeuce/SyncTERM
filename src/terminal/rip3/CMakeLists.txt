@@ -69,7 +69,7 @@ add_library(st_rip3_storage STATIC st_rip3_variables_file.c st_rip3_bitmap_file.
 	st_rip3_resources.c st_rip3_file_query.c st_rip3_overflow.c ${_rip3_resource_directory})
 target_include_directories(st_rip3_storage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE st_pixel_image syncterm_filesystem
-	syncterm_path syncterm_string_util st_unicode_compare syncterm_value_convert)
+	syncterm_path syncterm_string_compat syncterm_string_util st_unicode_compare syncterm_value_convert)
 syncterm_target_atomics(st_rip3_storage)
 if(WIN32)
 	target_link_libraries(st_rip3_storage PRIVATE st_windows_utf)
@@ -1372,7 +1372,7 @@ if(BUILD_TESTING)
 	add_executable(st_rip3_resource_write_test tests/st_rip3_resource_write_test.c
 		tests/st_rip3_resource_write_fault_impl.c)
 	target_link_libraries(st_rip3_resource_write_test PRIVATE st_rip3_storage
-		syncterm_filesystem syncterm_path st_unicode_compare)
+		syncterm_filesystem syncterm_path syncterm_string_compat st_unicode_compare)
 	syncterm_target_atomics(st_rip3_resource_write_test)
 	set_target_properties(st_rip3_resource_write_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
@@ -1390,7 +1390,7 @@ if(BUILD_TESTING)
 		tests/st_rip3_resource_write_fault_impl.c tests/st_rip3_bitmap_capture_fault_impl.c
 		tests/st_rip3_bitmap_encode_fault_impl.c)
 	target_link_libraries(st_rip3_bitmap_write_commands_test PRIVATE st_rip3_commands
-		syncterm_filesystem syncterm_path st_unicode_compare)
+		syncterm_filesystem syncterm_path syncterm_string_compat st_unicode_compare)
 	syncterm_target_atomics(st_rip3_bitmap_write_commands_test)
 	set_target_properties(st_rip3_bitmap_write_commands_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)

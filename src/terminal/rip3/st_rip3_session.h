@@ -252,6 +252,9 @@ int st_rip3_session_receive_asset(struct st_rip3_session *session, const char *d
  * finish conversions for completed downloads. The source owner decides how to
  * clear its input queue. */
 void st_rip3_session_cancel(struct st_rip3_session *session);
+/* Finish pending completed-file work and purge this session's temporary
+ * resources. Also performed on destruction. Drawing resets never purge. */
+void st_rip3_session_disconnect(struct st_rip3_session *session);
 
 struct st_rip3_session_prompt {
 	const struct st_rip3_variable_reference *reference;

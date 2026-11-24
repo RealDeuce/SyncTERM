@@ -116,6 +116,8 @@ struct st_rip3_session {
 	struct local_scene scenes[SCENE_LIMIT];
 	size_t scene_count;
 	struct received_asset *received_head, *received_tail;
+	struct st_rip3_temporary_resource *temporary_resources;
+	bool temporary_download; /* Applies to every completed file of the accepted batch. */
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool defining_variable, definition_reject_blank;
@@ -1658,10 +1660,9 @@ transfer_active(void *context)
 }
 
 static int
-request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
-    const char *filenames)
+start_transfer(struct st_rip3_session *session, bool upload, unsigned protocol, unsigned type,
+    const char *filenames, bool temporary)
 {
-	struct st_rip3_session *session = context;
 	if (session->scene_count != 0 || session->sink.transfer == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (protocol == 9 || protocol > 10 || type > 6 || ((upload || protocol < 6) && !*filenames))
@@ -1672,6 +1673,7 @@ request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
 	int status = session->sink.transfer(session->sink.context, upload, protocol, type,
 	    filenames, skip_lf);
 	if (status == 0) {
+		session->temporary_download = !upload && temporary;
 		st_rip3_stream_clear_pending_lf(session->stream);
 		st_rip3_input_wait_for(session->commands.input, transfer_active, session);
 	}
@@ -1680,6 +1682,13 @@ request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
 		session->sink.reply(session->sink.context, cancel, sizeof(cancel));
 	}
 	return status;
+}
+
+static int
+request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
+    const char *filenames)
+{
+	return start_transfer(context, upload, protocol, type, filenames, false);
 }
 
 static int
@@ -1711,8 +1720,8 @@ wire_transfer(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 		return IO_ERROR_OUT_OF_MEMORY;
 	memcpy(filenames, bytes + offset, size);
 	filenames[size] = '\0';
-	status = request_transfer(session, value[0] != 0, (unsigned)value[1],
-	    (unsigned)value[2], filenames);
+	status = start_transfer(session, value[0] != 0, (unsigned)value[1],
+	    (unsigned)value[2], filenames, (value[3] & 1) != 0);
 	free(filenames);
 	return status;
 }
@@ -1849,10 +1858,18 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 }
 
 void
+st_rip3_session_disconnect(struct st_rip3_session *session)
+{
+	if (session == NULL) return;
+	st_rip3_session_cancel(session);
+	st_rip3_resource_purge_temporary(&session->temporary_resources);
+}
+
+void
 st_rip3_session_destroy(struct st_rip3_session *session)
 {
 	if (session==NULL) return;
-	st_rip3_session_cancel(session);
+	st_rip3_session_disconnect(session);
 	/* Query destruction precedes every borrowed processor/store/table and the
 	 * input gate. Saves own independent snapshots and precede live-table teardown. */
 	st_rip3_query_destroy(session->commands.query);
@@ -2089,6 +2106,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    .resident_query=window_resident_query};
 	session->commands.text_window=&session->window_host;
 	session->commands.audio=config->audio;session->commands.resources=config->resources;
+	session->commands.temporary_resources = &session->temporary_resources;
 	session->commands.offscreen_pixel_budget=config->offscreen_pixel_budget;session->commands.bitmap_errors=config->bitmap_errors;
 	session->commands.clipboard=&session->clipboard;session->commands.text=&session->text;
 	session->text.encoding=config->encoding;session->text.font=config->classic_font;session->text.outline_font=config->outline_font;
@@ -2257,6 +2275,18 @@ st_rip3_session_receive_asset(struct st_rip3_session *session, const char *direc
 	if (session == NULL || directory == NULL || cache_root == NULL || file_type > 6
 	    || !st_rip3_resource_name_valid(name))
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->temporary_download) {
+		const struct st_rip3_resource_paths paths = {
+		    .host = directory,
+		    .named_host_root = strcmp(cache_root, directory) == 0 ? NULL : cache_root,
+		};
+		/* Record the received name itself. The legacy converter can consume
+		 * that file and create a separately named bitmap. */
+		int status = st_rip3_resource_register_temporary(&paths, name,
+		    &session->temporary_resources);
+		if (status != 0)
+			table_operation_failed(session, status);
+	}
 	const char *extension = strrchr(name, '.');
 	if (file_type != 0 && file_type != 3 && file_type != 5
 	    && st_rip3_bitmap_legacy_extension(extension) == NULL)

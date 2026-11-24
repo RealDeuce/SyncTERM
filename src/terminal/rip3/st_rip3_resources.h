@@ -29,6 +29,8 @@ struct st_rip3_resource_paths {
 	const char *named_host_root;
 };
 
+struct st_rip3_temporary_resource;
+
 /* Create the per-BBS RIP cache and optionally its direct child.
  * Neither path can be a symlink or reparse point. The caller owns the paths
  * and supplies an existing trusted parent for the root. */
@@ -82,6 +84,16 @@ int st_rip3_resource_exists(const struct st_rip3_resource_paths *paths, const ch
  * No clipboard/port capture, encoding, reset or connection setup is implied. */
 int st_rip3_resource_write(const struct st_rip3_resource_paths *paths,
 	const char *name, const void *bytes, size_t size);
+/* Export and register the resolved cache location in one operation. A failed
+ * write leaves the list untouched. The interpreter owns the list through
+ * disconnect/destruction, independently of scene and resource selection. */
+int st_rip3_resource_write_temporary(const struct st_rip3_resource_paths *paths,
+	const char *name, const void *bytes, size_t size, struct st_rip3_temporary_resource **entries);
+/* Register a completed cache download. Purge consumes all registrations and
+ * attempts removal through the same confined cache lookup as FILEDEL. */
+int st_rip3_resource_register_temporary(const struct st_rip3_resource_paths *paths,
+	const char *name, struct st_rip3_temporary_resource **entries);
+void st_rip3_resource_purge_temporary(struct st_rip3_temporary_resource **entries);
 /* Resolve a regular cache file or a new download name, with no fallback.
  * Result owns the UTF-8 path on success. Uploads never create a directory. */
 int st_rip3_resource_transfer_path(char **result, const struct st_rip3_resource_paths *paths,

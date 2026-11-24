@@ -11,6 +11,7 @@
 struct st_rip3_environments;
 struct st_rip3_audio;
 struct st_rip3_resource_paths;
+struct st_rip3_temporary_resource;
 struct st_rip3_palettes;
 struct st_rip3_ports;
 struct st_rip3_styles;
@@ -64,6 +65,7 @@ struct st_rip3_command_host {
 	struct st_rip3_environments *environments;
 	struct st_rip3_audio *audio;
 	const struct st_rip3_resource_paths *resources;
+	struct st_rip3_temporary_resource **temporary_resources;
 	struct st_rip3_palettes *palettes;
 	struct st_rip3_ports *ports;
 	struct st_rip3_styles *styles;

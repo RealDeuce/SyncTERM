@@ -139,9 +139,9 @@ def run(args):
         prefix = contents[:12]
         destination = cache / "Resume.BIN"
 
-        def offer_resume_file(cached_prefix):
+        def offer_resume_file(cached_prefix, *, temporary=False):
             destination.write_bytes(cached_prefix)
-            send(b"!|9\x1b07010000<>\r\n")
+            send(b"!|9\x1b0701" + (b"0100" if temporary else b"0000") + b"<>\r\n")
             z_receive_init()
             info = b"resume.bin\x00" + str(len(contents)).encode("ascii") + b"\x00"
             send(z_header(4) + z_subpacket(info, b"k"))  # ZFILE, ZCRCW
@@ -160,7 +160,7 @@ def run(args):
             assert [path.name for path in cache.iterdir() if path.name.casefold() == "resume.bin"] == ["Resume.BIN"]
 
         terminal.case("rip3-zmodem-abort-during-prefix-check-keeps-the-partial-file")
-        offer_resume_file(prefix)
+        offer_resume_file(prefix, temporary=True)
         client.wait_text("RIP Asset Download")
         client.key("escape")
         reply(b"\x18" * 8 + b"\x08" * 8)
@@ -326,7 +326,7 @@ def run(args):
         assert not list(cache.parent.rglob("*.part"))
 
         terminal.case("rip3-cancelled-download-does-not-play-its-partial-scene")
-        send(b"!|9\x1b01000000interrupted.rip<>\r\n")
+        send(b"!|9\x1b01000100interrupted.rip<>\r\n")
         reply(b"C")
         send_file(b"!|c0F|X0D0D\r\n")
         send(b"\x18\x18")
@@ -335,11 +335,34 @@ def run(args):
         client.key("escape")
         frame = terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
         assert pixel(frame, 13, 13) == 0
+        partial = cache.parent / "HOST-OTHER" / "interrupted.rip"
+        assert partial.read_bytes() == b"!|c0F|X0D0D\r\n".ljust(128, b"\x1a")
 
-        terminal.case("rip3-completed-icon-survives-disconnect-before-the-batch-ends")
+        terminal.case("rip3-temporary-resources-remain-available-through-reset-and-directory-changes")
         terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
-        send(b"!|9\x1b05040000batch.dat<>\r\n")
+        download(b"!|9\x1b01010100registered.bin<>\r\n", "registered.bin")
+        download(b"!|9\x1b01010000REGISTERED.BIN<>\r\n", "registered.bin")
+        terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
+        terminal.exchange(b"!|c0F|X0A0A|1C0A0A0B0B0|1W3SessionIcon.hic|1W1SessionTiny|1W1\r\n")
+        (cache / "Export.RIP").write_bytes(b"!|1W3FromScene\r\n")
+        terminal.exchange(query(b"$>Export.RIP$alive", at_cursor=True), b"alive")
+        for name in ("SessionIcon.BMH", "SessionTiny.BMP", "FromScene.BMP"):
+            assert (cache / name).read_bytes().startswith(b"BM")
+        other = cache.parent / "HOST-OTHER"
+        shared = root / "RIP"
+        shared.mkdir(exist_ok=True)
+        for path in (other / "SessionIcon.BMH", shared / "SessionIcon.BMH"):
+            path.write_bytes(b"separate resource")
+        terminal.exchange(query(b"$RESET(HARD)$$HOSTDIR(OTHER)$", at_cursor=True))
+        stored("registered.bin", payload)
+        assert (cache / "SessionIcon.BMH").read_bytes().startswith(b"BM")
+        terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
+
+        terminal.case("rip3-completed-temporary-batch-files-are-processed-and-purged-on-disconnect")
+        send(b"!|9\x1b05040100batch.dat<>\r\n")
         reply(b"C")
+        batch_file("remove-at-eof.bin", b"completed")
+        stored("remove-at-eof.bin", b"completed")
         batch_file("disconnected.icn", icon)
         stored("disconnected.icn", icon)
         assert not (cache / "DISCONNECTED.BMP").exists()
@@ -351,6 +374,13 @@ def run(args):
             client.wait_for(lambda snap: snap.application.get("session_active") == 0)
         stored("DISCONNECTED.BMP", bmp)
         assert not (cache / "disconnected.icn").exists()
+        for name in ("registered.bin", "SessionIcon.BMH", "SessionTiny.BMP", "FromScene.BMP", "remove-at-eof.bin"):
+            assert not (cache / name).exists(), name
+        for path in (other / "SessionIcon.BMH", shared / "SessionIcon.BMH"):
+            assert path.read_bytes() == b"separate resource"
+        assert partial.read_bytes() == b"!|c0F|X0D0D\r\n".ljust(128, b"\x1a")
+        stored("Resume.BIN", prefix)
+        stored("extra.bin", payload)
 
     check_transfer_unavailable(args, reason="safe-mode", extra=("-s",))
     check_transfer_unavailable(args, reason="bridge-startup",
