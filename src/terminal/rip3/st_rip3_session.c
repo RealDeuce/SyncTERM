@@ -67,6 +67,14 @@ struct local_scene {
 	bool normalized;
 };
 
+struct received_asset {
+	struct received_asset *next;
+	char *directory;
+	char *cache_root;
+	bool jpeg;
+	char name[];
+};
+
 struct session_window {
 	struct st_rip3_text_window_info info;
 	bool has_layout;
@@ -105,6 +113,7 @@ struct st_rip3_session {
 	struct st_rip3_stream *stream;
 	struct local_scene scenes[SCENE_LIMIT];
 	size_t scene_count;
+	struct received_asset *received_head, *received_tail;
 	struct st_rip3_variables *session_values,*persistent_values;
 	struct st_rip3_user_variables *owned_user;
 	bool defining_variable, definition_reject_blank;
@@ -887,6 +896,34 @@ scene_playback_rate(struct local_scene *scene, uint32_t rate)
 }
 
 static int
+start_scene(struct st_rip3_session *session, struct local_scene scene, bool suspend_query)
+{
+	int status = 0;
+	if (!scene.normalized)
+		status = create_stream(session, &scene.stream, true);
+	if (status == 0 && suspend_query)
+		status = create_query(session, &scene.query, &session->variables);
+	if (status == 0 && suspend_query)
+		status = create_query(session, &scene.refresh, &session->refresh_variables);
+	if (status == 0 && session->sink.before_command != NULL)
+		session->sink.before_command(session->sink.context);
+	if (status == 0 && session->sink.scene_begin != NULL)
+		status = session->sink.scene_begin(session->sink.context, &scene.caller_input);
+	if (status == 0) {
+		uint32_t rate = st_rip3_environments_playback_rate(session->commands.environments);
+		if (rate != 0)
+			scene_playback_rate(&scene, rate);
+		session->scenes[session->scene_count++] = scene;
+		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
+	}
+	st_rip3_query_destroy(scene.query);
+	st_rip3_query_destroy(scene.refresh);
+	st_rip3_stream_destroy(scene.stream);
+	st_rip3_resource_dispose(&scene.file);
+	return status;
+}
+
+static int
 open_scene(struct st_rip3_session *session, const char *filename, bool suspend_query)
 {
 	if (session->commands.resources == NULL || session->scene_count == SCENE_LIMIT)
@@ -917,28 +954,47 @@ open_scene(struct st_rip3_session *session, const char *filename, bool suspend_q
 		return 0;
 	if (status != 0)
 		return status;
-	if (!scene.normalized)
-		status = create_stream(session, &scene.stream, true);
-	if (status == 0 && suspend_query)
-		status = create_query(session, &scene.query, &session->variables);
-	if (status == 0 && suspend_query)
-		status = create_query(session, &scene.refresh, &session->refresh_variables);
-	if (status == 0 && session->sink.before_command != NULL)
-		session->sink.before_command(session->sink.context);
-	if (status == 0 && session->sink.scene_begin != NULL)
-		status = session->sink.scene_begin(session->sink.context, &scene.caller_input);
-	if (status == 0) {
-		uint32_t rate = st_rip3_environments_playback_rate(session->commands.environments);
-		if (rate != 0)
-			scene_playback_rate(&scene, rate);
-		session->scenes[session->scene_count++] = scene;
-		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
+	return start_scene(session, scene, suspend_query);
+}
+
+static void
+remove_received_asset(struct st_rip3_session *session)
+{
+	struct received_asset *asset = session->received_head;
+	session->received_head = asset->next;
+	if (session->received_head == NULL)
+		session->received_tail = NULL;
+	free(asset->directory);
+	free(asset->cache_root);
+	free(asset);
+}
+
+static void
+display_received_asset(struct st_rip3_session *session)
+{
+	const struct received_asset *asset = session->received_head;
+	const struct st_rip3_resource_paths paths = {
+		.host = asset->directory, .named_host_root = asset->cache_root,
+	};
+	int status;
+	if (asset->jpeg) {
+		struct st_rip3_command_host host = session->commands;
+		host.resources = &paths;
+		if (session->sink.before_command != NULL)
+			session->sink.before_command(session->sink.context);
+		status = st_rip3_command_received_jpeg(&host, asset->name);
 	}
-	st_rip3_query_destroy(scene.query);
-	st_rip3_query_destroy(scene.refresh);
-	st_rip3_stream_destroy(scene.stream);
-	st_rip3_resource_dispose(&scene.file);
-	return status;
+	else {
+		struct local_scene scene = {0};
+		bool matched;
+		status = st_rip3_resource_open_first(&scene.file, &matched, &paths, asset->name);
+		if (status == 0)
+			status = start_scene(session, scene, true);
+	}
+	remove_received_asset(session);
+	if (status != 0 && status != IO_ERROR_IN_PROGRESS)
+		table_operation_failed(session, status);
+	++session->revision;
 }
 
 static bool
@@ -1110,6 +1166,10 @@ prepare(void *context)
 	struct st_rip3_session *session=context;
 	if (session->defining_variable)
 		return false;
+	if (session->scene_count == 0 && session->received_head != NULL) {
+		display_received_asset(session);
+		return activate_scene_queries(session);
+	}
 	(void)activate_scene_queries(session);
 	bool pending=continuation_pending(session);
 	if (pending)
@@ -1730,6 +1790,8 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	st_rip3_mouse_abort(session->commands.mouse);
 	while (session->scene_count != 0)
 		close_scene(session);
+	while (session->received_head != NULL)
+		remove_received_asset(session);
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_query_cancel(session->refresh.query);
 	st_rip3_session_abort_definition(session);
@@ -2140,7 +2202,42 @@ st_rip3_session_graphical_cancel(struct st_rip3_session *session)
 bool
 st_rip3_session_pending(const struct st_rip3_session *session)
 {
-	return session!=NULL && (session->scene_count != 0 || continuation_pending(session));
+	return session!=NULL && (session->scene_count != 0 || session->received_head != NULL
+	    || continuation_pending(session));
+}
+
+int
+st_rip3_session_receive_asset(struct st_rip3_session *session, const char *directory,
+    const char *cache_root, const char *name, bool jpeg)
+{
+	if (session == NULL || directory == NULL || cache_root == NULL
+	    || !st_rip3_resource_name_valid(name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	size_t length = strlen(name) + 1;
+	struct received_asset *asset = malloc(sizeof(*asset) + length);
+	if (asset == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	*asset = (struct received_asset){.jpeg = jpeg};
+	asset->directory = malloc(strlen(directory) + 1);
+	if (strcmp(cache_root, directory) != 0)
+		asset->cache_root = malloc(strlen(cache_root) + 1);
+	if (asset->directory == NULL
+	    || (strcmp(cache_root, directory) != 0 && asset->cache_root == NULL)) {
+		free(asset->directory);
+		free(asset->cache_root);
+		free(asset);
+		return IO_ERROR_OUT_OF_MEMORY;
+	}
+	strcpy(asset->directory, directory);
+	if (asset->cache_root != NULL)
+		strcpy(asset->cache_root, cache_root);
+	memcpy(asset->name, name, length);
+	if (session->received_tail != NULL)
+		session->received_tail->next = asset;
+	else
+		session->received_head = asset;
+	session->received_tail = asset;
+	return 0;
 }
 
 bool

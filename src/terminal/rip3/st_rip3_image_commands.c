@@ -48,9 +48,9 @@ image_style(const struct st_rip3_command_host *host, const uint8_t *command,
 	return st_rip3_image_style_define(host->ports,current,&frame,&world,(unsigned)flags);
 }
 
-int
-st_rip3_command_jpeg(const struct st_rip3_command_host *host,
-    const uint8_t *filename, size_t length, bool *operation)
+static int
+show_jpeg(const struct st_rip3_command_host *host,
+    const uint8_t *filename, size_t length, bool received, bool *operation)
 {
 	struct st_rip3_port_info port;
 	struct st_rip3_palette palette;
@@ -64,22 +64,41 @@ st_rip3_command_jpeg(const struct st_rip3_command_host *host,
 	if (status != 0 || !port.viewport_active) return status;
 	/* This explicit internal inhibit state is not produced by wire 1i's
 	 * all-zero coordinates. No image-style bit deletes a skipped JPEG. */
-	if (!port.image.enabled) return 0;
+	if (!port.image.enabled && !received) return 0;
 	if (host->resources == NULL || host->palettes == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_palettes_current_palette(host->palettes,&palette);
 	if (status != 0) return status;
-	char *name = malloc(length+1);
-	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
-	memcpy(name,filename,length); name[length] = 0;
+	char *name = malloc(length + 1);
+	if (name == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(name, filename, length);
+	name[length] = '\0';
 	*operation = true;
 	status = st_rip3_jpeg_load(&image,host->resources,name);
 	/* Invalid resource names are syntax; a later presentation/wallpaper
 	 * rectangle failure belongs to the operation, after any initial paint. */
 	if (status == IO_ERROR_INVALID_ARGUMENT || status == IO_ERROR_INVALID_ENCODING) *operation = false;
-	if (status == 0) status = st_rip3_draw_image(host->ports,image,NULL,0,&palette);
-	st_pixel_buffer_destroy(image); free(name);
+	if (status == 0)
+		status = received ? st_rip3_draw_received_jpeg(host->ports, image, &palette)
+		    : st_rip3_draw_image(host->ports, image, NULL, 0, &palette);
+	st_pixel_buffer_destroy(image);
+	free(name);
 	/* Every service failure remains inside the public void parser boundary. */
 	return status;
+}
+
+int
+st_rip3_command_jpeg(const struct st_rip3_command_host *host,
+    const uint8_t *filename, size_t length, bool *operation)
+{
+	return show_jpeg(host, filename, length, false, operation);
+}
+
+int
+st_rip3_command_received_jpeg(const struct st_rip3_command_host *host, const char *filename)
+{
+	bool operation = false;
+	return show_jpeg(host, (const uint8_t *)filename, strlen(filename), true, &operation);
 }
 
 int

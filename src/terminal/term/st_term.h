@@ -26,6 +26,8 @@ void st_term_session_set_auxiliary_active(st_term_session_t *session, bool activ
 bool st_term_session_inspect_transfer(st_term_session_t *session,
 	struct st_transfer_inspection *state, bool *reserved);
 bool st_term_session_transfer_active(const st_term_session_t *session);
+int st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory,
+	const char *cache_root, const char *name, bool jpeg);
 
 enum st_term_disposition {
 	ST_TERM_RETURN_TO_PICKER,

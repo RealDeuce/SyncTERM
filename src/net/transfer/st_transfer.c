@@ -200,7 +200,9 @@ int st_transfer_destination(st_transfer_t *t, const char *name, char **path, boo
 int st_transfer_received(st_transfer_t *t, enum st_transfer_receive_kind kind,
 	const uint8_t *bytes, size_t size, bool success)
 {
-	if (!t->config.receive_events) return 0;
+	if (!t->config.receive_events
+	    && !(t->config.receive_completion_events && kind == ST_TRANSFER_RECEIVE_END))
+		return 0;
 	do {
 		(void)st_mutex_lock(&t->mutex);
 		while (t->received_size == 16 && !t->abort && !t->eof)
@@ -277,7 +279,8 @@ int st_transfer_create(st_transfer_t **result, const struct st_transfer_config *
 	    || (config->upload && (config->path_count == 0 || config->paths == NULL))
 	    || (!config->upload && config->protocol != ST_TRANSFER_FAKE && (config->directory == NULL || !*config->directory))) return IO_ERROR_INVALID_ARGUMENT;
 	if (config->path_count > 65536
-	    || (config->upload && (config->discard || config->receive_events))
+	    || (config->upload && (config->discard || config->receive_events
+	    || config->receive_completion_events))
 	    || (config->receive_events && config->protocol == ST_TRANSFER_ZMODEM && !config->overwrite && !config->discard)
 	    || config->last_ch < 0 || config->last_ch > 255
 	    || (config->upload && config->path_count != 1 && config->protocol != ST_TRANSFER_ZMODEM

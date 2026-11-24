@@ -157,6 +157,13 @@ transfer_active(void *context)
 	return st_term_session_transfer_active(rip->owner);
 }
 
+int
+st_term_rip3_receive_asset(struct st_term_rip3 *rip, const char *directory,
+    const char *cache_root, const char *name, bool jpeg)
+{
+	return st_rip3_session_receive_asset(rip->session, directory, cache_root, name, jpeg);
+}
+
 st_cterm_t *
 st_term_rip3_text(struct st_term_rip3 *rip)
 {

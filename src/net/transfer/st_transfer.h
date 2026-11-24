@@ -32,6 +32,8 @@ struct st_transfer_config {
 	/* Owner must drain the bounded event mailbox. ZMODEM event consumers
 	 * select overwrite or discard, so playback always starts at offset zero. */
 	bool receive_events;
+	/* Queue only file completion events. The owner drains the same mailbox. */
+	bool receive_completion_events;
 	/* Borrowed until destroy joins the worker. Must honor the timeout and
 	 * short counts. No receive callback: the terminal owner feeds input. */
 	ssize_t (*send)(void *context, const void *bytes, size_t size, int64_t timeout_ms);

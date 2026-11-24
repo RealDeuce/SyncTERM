@@ -111,6 +111,15 @@ st_term_session_transfer_active(const st_term_session_t *session)
 	return session != NULL && (session->transfer != NULL || session->transfer_reserved);
 }
 
+int
+st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory,
+    const char *cache_root, const char *name, bool jpeg)
+{
+	if (session == NULL || session->rip3 == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	return st_term_rip3_receive_asset(session->rip3, directory, cache_root, name, jpeg);
+}
+
 static int write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
 static int ooii_render(void *context, const uint8_t *bytes, size_t size);
 static int ooii_reply(void *context, const uint8_t *bytes, size_t size);

@@ -159,9 +159,16 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	}
 	CHECK(rip3_test_image_area(ports, 2, &zero, 0) == 0);
 	CHECK(st_rip3_draw_image(ports, NULL, NULL, 0, NULL) == 0);
+	CHECK(st_rip3_draw_received_jpeg(ports, &image, &palette) == 0);
+	for (int32_t y = 0; y < 6; ++y)
+		for (int32_t x = 0; x < 6; ++x) {
+			CHECK(st_rip3_ports_read(ports, 2, x, y, &value) == 0);
+			CHECK(palette.rgb[value] == (x < 3 ? 0xff0000 : 0x00ff00));
+		}
 	CHECK(rip3_test_image_area(ports, 2, NULL, 0) == 0);
 	CHECK(st_rip3_ports_activate(ports, false) == 0);
 	CHECK(st_rip3_draw_image(ports, NULL, NULL, 0, NULL) == 0);
+	CHECK(st_rip3_draw_received_jpeg(ports, NULL, NULL) == 0);
 	st_rip3_ports_destroy(ports);
 	return 0;
 }

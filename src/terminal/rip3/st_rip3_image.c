@@ -47,10 +47,10 @@ validate_image(const struct st_pixel_buffer *image,
 	return 0;
 }
 
-int
-st_rip3_draw_image(struct st_rip3_ports *ports,
+static int
+draw_image(struct st_rip3_ports *ports,
     const struct st_pixel_buffer *image, const uint32_t *source_palette,
-    size_t source_palette_size, const struct st_rip3_palette *palette)
+    size_t source_palette_size, const struct st_rip3_palette *palette, bool received)
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_rect area, fitted, visible;
@@ -64,7 +64,7 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 	status = st_rip3_ports_current(ports, &current);
 	if (status == 0)
 		status = st_rip3_ports_info(ports, current, &info);
-	if (status != 0 || !info.viewport_active || !info.image.enabled)
+	if (status != 0 || !info.viewport_active || (!received && !info.image.enabled))
 		return status;
 	status = validate_image(image, source_palette, source_palette_size, palette);
 	if (status != 0)
@@ -73,7 +73,7 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 		return IO_ERROR_NOT_SUPPORTED;
 	area = (struct st_rip3_rect){0,0,info.viewport.x1 - info.viewport.x0,
 	    info.viewport.y1 - info.viewport.y0};
-	if (!info.image.automatic) {
+	if (!info.image.automatic && info.image.enabled) {
 		struct st_rip3_port_info screen;
 		status = st_rip3_ports_info(ports,0,&screen);
 		if (status != 0) return status;
@@ -156,4 +156,19 @@ st_rip3_draw_image(struct st_rip3_ports *ports,
 		return st_rip3_wallpaper(ports,&seed,(info.image.flags&32) != 0);
 	}
 	return 0;
+}
+
+int
+st_rip3_draw_image(struct st_rip3_ports *ports,
+    const struct st_pixel_buffer *image, const uint32_t *source_palette,
+    size_t source_palette_size, const struct st_rip3_palette *palette)
+{
+	return draw_image(ports, image, source_palette, source_palette_size, palette, false);
+}
+
+int
+st_rip3_draw_received_jpeg(struct st_rip3_ports *ports,
+    const struct st_pixel_buffer *image, const struct st_rip3_palette *palette)
+{
+	return draw_image(ports, image, NULL, 0, palette, true);
 }

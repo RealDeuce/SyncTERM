@@ -274,12 +274,16 @@ static int start_rip(struct st_wren_context *context, bool upload)
 		ST_TRANSFER_XMODEM_G, ST_TRANSFER_FAKE, ST_TRANSFER_YMODEM,
 		ST_TRANSFER_YMODEM_G, ST_TRANSFER_ZMODEM
 	};
+	bool rip3 = s->rip_cache_root != NULL;
+	bool display = !upload && (s->rip_file_type == 0 || s->rip_file_type == 5
+	    || (rip3 && s->rip_file_type == 3));
 	struct st_transfer_config config = {
 		.protocol = protocols[s->rip_protocol], .upload = upload,
 		.directory = s->rip_directory, .filename = s->rip_filename,
 		.destination = rip_destination, .destination_context = s,
-		.overwrite = true, .discard = !upload && s->rip_file_type == 0,
-		.receive_events = !upload && (s->rip_file_type == 0 || s->rip_file_type == 5),
+		.overwrite = true, .discard = !rip3 && !upload && s->rip_file_type == 0,
+		.receive_events = !rip3 && display,
+		.receive_completion_events = rip3 && display,
 	};
 	char **sources = NULL;
 	size_t count = 0;
@@ -291,7 +295,7 @@ static int start_rip(struct st_wren_context *context, bool upload)
 		if (s->rip_protocol < 3) config.protocol = s->rip_protocol == 2
 		    ? ST_TRANSFER_XMODEM_1K : ST_TRANSFER_XMODEM_128;
 	}
-	int status = start(context, &config, true, !upload && (s->rip_file_type == 0 || s->rip_file_type == 5));
+	int status = start(context, &config, true, display);
 	rip_free_sources(sources, count);
 	return status;
 }
@@ -506,9 +510,6 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 	    || !*request->directory || request->filename == NULL || request->protocol > 7
 	    || request->protocol == 4 || (!request->upload && request->file_type > 5))
 		return IO_ERROR_NOT_SUPPORTED;
-	if (request->cache_root != NULL && !request->upload
-	    && (request->file_type == 0 || request->file_type == 3 || request->file_type == 5))
-		return IO_ERROR_NOT_SUPPORTED;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0)
@@ -625,6 +626,24 @@ void st_wren_transfer_pump(struct st_wren_context *context)
 			}
 			continue;
 		}
+		if (s->rip_cache_root != NULL) {
+			if (event.kind != ST_TRANSFER_RECEIVE_END || !event.success)
+				continue;
+			bool jpeg = s->rip_file_type == 3 || (s->rip_file_type == 5
+			    && rip_extension(event.filename, ".jpg"));
+			bool scene = s->rip_file_type == 0 || (s->rip_file_type == 5
+			    && rip_extension(event.filename, ".rip"));
+			if (jpeg || scene)
+				status = st_term_session_rip3_receive_asset(context->session, s->rip_directory,
+				    s->rip_cache_root, event.filename, jpeg);
+			if (status != 0) {
+				struct st_transfer_log log = {.level = ST_CTERM_LOG_WARNING};
+				snprintf(log.text, sizeof(log.text), "RIP3 asset playback request failed (%d)", status);
+				log_entry(context, &log);
+				(void)st_transfer_request_abort(s->worker);
+			}
+			continue;
+		}
 		switch (event.kind) {
 		case ST_TRANSFER_RECEIVE_BEGIN:
 			if (s->rip_file_type == 0 || rip_extension(event.filename, ".rip")) {
@@ -686,6 +705,10 @@ static void finish(struct st_wren_context *context)
 }
 void st_wren_transfer_dispose(struct st_wren_context *context)
 {
+	struct st_wren_transfer *s = context->transfer;
+	if (s != NULL && s->rip_cache_root != NULL && s->worker != NULL
+	    && !st_transfer_done(s->worker))
+		(void)st_transfer_request_abort(s->worker);
 	finish(context); free(context->transfer); context->transfer = NULL;
 }
 bool st_wren_transfer_detect_enabled(const struct st_wren_context *context)

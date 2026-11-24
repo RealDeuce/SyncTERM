@@ -9664,6 +9664,33 @@ The CP437 and UTF-8 fixtures send actual XMODEM and YMODEM frames, check
 cached bytes and split CRLF handoff, decline and approve an upload, and verify recovery
 after unsupported protocols and malformed paths and commands. The native
 macro fixture checks both directions across the full documented keyword
-matrix. Receive types that play scenes or display images still need the
-RIP3 render path. The original DLL's filename gate and protocol/file-type
+matrix. The original DLL's filename gate and protocol/file-type
 limits differ from the published table. [Issue #205](https://github.com/bbs-land/remote-imaging-protocol/issues/205)
+
+## Connected block-mode scene and image playback
+
+Receive type 0 plays the completed file as a local RIP3 scene. Type 3
+displays a completed JPEG with the current port's image style. Type 5
+processes completed `.RIP` and `.JPG` files in receive order and stores
+the other files in the same BBS cache. The transfer worker reports file
+completion, and the session presents the assets after binary transport
+ownership returns. The original client's receive handler at RVA
+`0x203e0` invokes transfer before traversing its received file list
+at `0x2051b`.
+
+Playback opens the file in the cache directory selected for the
+transfer. A scene changing HOSTDIR affects later lookups but preserves
+the source directory of the remaining received files. A suspended
+`$XFER$` expression resumes after playback, and ordinary input follows
+the queued files. Failed file transfers do not enter either renderer.
+
+Received JPEG presentation uses the viewport when the style holds the
+internal zero-area inhibit value. Image-style DELETE retains the file.
+The separate transfer-controlled temporary-file registration and purge
+remain part of the block-mode clarification. [Issue #205](https://github.com/bbs-land/remote-imaging-protocol/issues/205)
+
+Connected CP437 and UTF-8 fixtures cover a scene before the caller's
+`TEXTXY` reply, JPEG colors and file retention, mixed batch order,
+directory changes within the batch, and a cancelled scene. The native
+image fixture checks the received-image zero-area fallback and inactive
+viewports.

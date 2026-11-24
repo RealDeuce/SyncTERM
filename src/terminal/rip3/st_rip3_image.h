@@ -41,5 +41,9 @@ struct st_rip3_ports;
 int st_rip3_draw_image(struct st_rip3_ports *ports,
 	const struct st_pixel_buffer *image, const uint32_t *source_palette,
 	size_t source_palette_size, const struct st_rip3_palette *palette);
+/* The received-image entry uses the viewport when the stored style has
+ * the internal zero-area inhibit value. */
+int st_rip3_draw_received_jpeg(struct st_rip3_ports *ports,
+	const struct st_pixel_buffer *image, const struct st_rip3_palette *palette);
 
 #endif

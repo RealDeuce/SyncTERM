@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Connected RIP3 block mode through SyncTERM's actual XMODEM worker."""
+"""Connected RIP3 block-mode storage and presentation through X/YMODEM."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from binascii import crc_hqx
 from pathlib import Path
 
 from st_migrated_control_test import connection
-from st_rip3_connected_test import query
+from st_rip3_connected_test import pixel, query
 from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
 
 
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
-                    options="RIP=RIPv3\n") as (client, root, peer, send):
+                    options="ScreenMode=Custom\nRIP=RIPv3\n",
+                    settings="CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\n"
+                             "CustomAspectWidth=4\nCustomAspectHeight=3\n") as (client, root, peer, send):
         terminal = Terminal(client, root, peer, send)
         terminal.exchange(b"\x1b[!", b"RIPSCRIP030001")
         terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
@@ -28,17 +30,40 @@ def run(args):
             assert len(matches) == 1 and matches[0].parent.name == "HOST-ART", matches
             assert matches[0].read_bytes() == data
 
+        def reply(data):
+            receive(peer, data, root / "replies.bin")
+
+        def send_file(data, prefix=b""):
+            for offset in range(0, len(data), 128):
+                block = data[offset:offset + 128].ljust(128, b"\x1a")
+                send((prefix if offset == 0 else b"") + packet(1 + offset // 128, block))
+                reply(b"\x06")
+
+        def end_file(last=b"\x06"):
+            send(b"\x04")
+            reply(b"\x15")
+            send(b"\x04")
+            reply(last)
+
+        def batch_file(name, data):
+            header = name.encode("ascii") + b"\x00" + str(len(data)).encode("ascii") + b"\x00"
+            send(packet(0, header.ljust(128, b"\x00")))
+            reply(b"\x06C")
+            send_file(data)
+            end_file(b"\x06C")
+
+        def end_batch():
+            send(packet(0, bytes(128)))
+            reply(b"\x06")
+            client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+
         def download(command, filename, prefix=b""):
             send(command)
             receive(peer, b"C", root / "replies.bin")
             # CR was already consumed by the RIP parser. The delayed LF
             # and the first binary block can arrive in the same read.
-            send(prefix + packet(1, payload))
-            receive(peer, b"\x06", root / "replies.bin")
-            send(b"\x04")
-            receive(peer, b"\x15", root / "replies.bin")
-            send(b"\x04")
-            receive(peer, b"\x06", root / "replies.bin")
+            send_file(payload, prefix)
+            end_file()
             client.wait_for(lambda frame: not frame.application.get("transfer.active"))
             frame = terminal.exchange(query(b"ready", at_cursor=True), b"ready")
             assert frame.application["connected"] == 1
@@ -53,17 +78,8 @@ def run(args):
         terminal.case("rip3-composite-batch-stores-an-unlisted-extension")
         send(b"!|9\x1b05040000batch.dat<>\r\n")
         receive(peer, b"C", root / "replies.bin")
-        send(packet(0, b"other.dat\x004\x00".ljust(128, b"\x00")))
-        receive(peer, b"\x06C", root / "replies.bin")
-        send(packet(1, b"data".ljust(128, b"\x1a")))
-        receive(peer, b"\x06", root / "replies.bin")
-        send(b"\x04")
-        receive(peer, b"\x15", root / "replies.bin")
-        send(b"\x04")
-        receive(peer, b"\x06C", root / "replies.bin")
-        send(packet(0, bytes(128)))
-        receive(peer, b"\x06", root / "replies.bin")
-        client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+        batch_file("other.dat", b"data")
+        end_batch()
         stored("other.dat", b"data")
 
         terminal.case("rip3-cached-upload-requires-user-confirmation")
@@ -98,6 +114,67 @@ def run(args):
         terminal.exchange(b"!|9U000000\r\n!|9U010000\r\n!|9U020000\r\n"
                           + query(b"$XFER(RECEIVE,XMODEMCRC,NONE)$after", at_cursor=True), b"after")
         assert not list(root.rglob("escape.bin"))
+
+        terminal.case("rip3-received-scene-plays-before-the-calling-expression-resumes")
+        terminal.exchange(query(b"$WORLD(CUR,640,480)$", at_cursor=True))
+        scene = b"!|c0C|X0A0A|m0K0U\r\n"
+        send(b"!|1\x1b0000$XFER(RECEIVE,XMODEMCRC,RIP,paint.rip)$$TEXTXY$\r\n")
+        reply(b"C")
+        send_file(scene)
+        assert pixel(client.capture(), 10, 10) == 0
+        end_file(b"\x0620:30")
+        frame = terminal.exchange(query(b"live", at_cursor=True), b"live")
+        assert pixel(frame, 10, 10) == 0xff5555
+        stored("paint.rip", scene.ljust(128, b"\x1a"))
+
+        fixture = Path(__file__).resolve().parents[1] / "media/pixel_image/tests/jpeg/gray.jpg"
+        jpeg = fixture.read_bytes()
+        send(query(b"$IFS(JPEG)$", at_cursor=True))
+        supported = peer.recv(1)
+        assert supported in (b"0", b"1")
+        terminal.case("rip3-received-image-uses-the-current-style-and-retains-the-file")
+        terminal.exchange(query(b"$IMGSTYLE(CUR,20,30,39,49,DELETE)$", at_cursor=True))
+        send(b"!|9\x1b01030000picture.jpg<>\r\n")
+        reply(b"C")
+        send_file(jpeg)
+        end_file()
+        frame = terminal.exchange(query(b"live", at_cursor=True), b"live")
+        assert pixel(frame, 20, 30) == (0x454545 if supported == b"1" else 0)
+        assert pixel(frame, 38, 48) == (0xbababa if supported == b"1" else 0)
+        assert pixel(frame, 39, 30) == 0
+        stored("picture.jpg", jpeg.ljust(256, b"\x1a"))
+
+        terminal.case("rip3-active-batch-uses-receive-order-and-the-transfer-cache")
+        first = (b"!|1\x1b0000$HOSTDIR(OTHER)$$IMGSTYLE(CUR,40,50,59,69)$\r\n"
+                 b"!|c0C|X0B0B\r\n")
+        second = b"!|c0A|X0B0B\r\n"
+        send(b"!|9\x1b05050000batch.dat<>\r\n")
+        reply(b"C")
+        batch_file("one.RIP", first)
+        batch_file("picture2.JPG", jpeg)
+        batch_file("two.rip", second)
+        batch_file("ordinary.dat", b"!|c0F|X0C0C\r\n")
+        assert pixel(client.capture(), 11, 11) == 0
+        end_batch()
+        frame = terminal.exchange(query(b"$HOSTDIR$", at_cursor=True), b"OTHER")
+        assert pixel(frame, 11, 11) == 0x55ff55
+        assert pixel(frame, 12, 12) == 0
+        assert pixel(frame, 40, 50) == (0x454545 if supported == b"1" else 0)
+        stored("one.RIP", first)
+        stored("two.rip", second)
+        stored("picture2.JPG", jpeg)
+        stored("ordinary.dat", b"!|c0F|X0C0C\r\n")
+
+        terminal.case("rip3-cancelled-download-does-not-play-its-partial-scene")
+        send(b"!|9\x1b01000000interrupted.rip<>\r\n")
+        reply(b"C")
+        send_file(b"!|c0F|X0D0D\r\n")
+        send(b"\x18\x18")
+        reply(b"\x18" * 8 + b"\x08" * 8)
+        client.wait_text("Transfer completion failed")
+        client.key("escape")
+        frame = terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
+        assert pixel(frame, 13, 13) == 0
 
 
 if __name__ == "__main__":

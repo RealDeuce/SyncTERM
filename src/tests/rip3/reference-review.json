@@ -21665,6 +21665,40 @@
         "unreviewed": 2232
       },
       "verification": "Native XFER keyword matrix, CP437 and UTF-8 XMODEM and YMODEM recordings through TCP, resource and stream tests, and RIP 1.54 transfer and source preservation."
+    },
+    {
+      "after_commit": "2f64ff82",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected block-mode scene and JPEG display, active mixed batches and playback order.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.1-jpeg-images.md:55",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:59",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:68",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:78",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:386",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:415",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:418",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:420",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:42",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:43",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:44",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:45",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:46",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:49"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/4.1-jpeg-images.md:80",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:434"
+      ],
+      "states_after_update": {
+        "blocked": 30,
+        "context": 1856,
+        "excluded": 71,
+        "implemented": 3397,
+        "pending": 1533,
+        "unreviewed": 2231
+      },
+      "verification": "Connected CP437 and UTF-8 XMODEM/YMODEM fixtures and native JPEG style, session, and transfer tests. The original client receive list handoff appears at EXE RVAs 0x20470 and 0x2051b. The RIP 1.54 source preservation gate remains separate."
     }
   ]
 }

@@ -241,6 +241,10 @@ bool st_rip3_session_graphical_pending(const struct st_rip3_session *session);
 /* Abandon only a failed render continuation; preserve stream framing/stores. */
 void st_rip3_session_graphical_cancel(struct st_rip3_session *session);
 bool st_rip3_session_pending(const struct st_rip3_session *session);
+/* Queue a completed regular file for display once transport ownership
+ * returns. Copies all names. The terminal supplies trusted cache paths. */
+int st_rip3_session_receive_asset(struct st_rip3_session *session, const char *directory,
+	const char *cache_root, const char *name, bool jpeg);
 /* EOF/transport cancellation: discard incomplete framing and owned host/prompt
  * work, cancel the delay and stop the exclusive player. Never take queued bytes
  * or emit text/replies. Retain completed table/store/drawing/cache effects; this
