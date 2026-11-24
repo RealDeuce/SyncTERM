@@ -21699,6 +21699,30 @@
         "unreviewed": 2231
       },
       "verification": "Connected CP437 and UTF-8 XMODEM/YMODEM fixtures and native JPEG style, session, and transfer tests. The original client receive list handoff appears at EXE RVAs 0x20470 and 0x2051b. The RIP 1.54 source preservation gate remains separate."
+    },
+    {
+      "after_commit": "c7949a56",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected 1p graphical filename expansion and INUSE(TV) for the documented slideshow idiom.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.1-jpeg-images.md:21",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:23",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:25",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:27",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:29",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:35",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:39",
+        "version/3.0/ripscrip/5.1-text-variables.md:4444"
+      ],
+      "states_after_update": {
+        "blocked": 30,
+        "context": 1856,
+        "excluded": 71,
+        "implemented": 3402,
+        "pending": 1528,
+        "unreviewed": 2231
+      },
+      "verification": "Connected CP437 and UTF-8 media, native graphical expansion and JPEG command tests, and the RIP 1.54 source-preservation gate. Original IMAGE uses flags 0x83 and limit 0x400 at DLL RVA 0xc323; the separate INUSE text-variable case is at 0x13037."
     }
   ]
 }

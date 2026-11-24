@@ -45,7 +45,7 @@
 
 enum graphical_job {
 	GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE,
-	GRAPHICAL_COLUMN_SEARCH,
+	GRAPHICAL_COLUMN_SEARCH, GRAPHICAL_IMAGE,
 };
 
 enum { SCENE_LIMIT = 8 };
@@ -1217,6 +1217,9 @@ prepare(void *context)
 				else if (session->graphical_job==GRAPHICAL_COLUMN_SEARCH)
 					status=st_rip3_columns_define(&session->columns,&session->commands,&session->column_definition,
 					    result->bytes,result->length,session->graphical_codepage_converted);
+				else if (session->graphical_job == GRAPHICAL_IMAGE)
+					status = result->length == 0 ? 0 : st_rip3_command_jpeg(&session->commands,
+					    result->bytes, result->length, &operation);
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
@@ -1731,6 +1734,15 @@ command(void *context, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink, define_variable(session, bytes, length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
 		read_scene(session,bytes,length);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'p') {
+		int status = st_rip3_image_argument_prepare(&session->commands, bytes, length);
+		if (status != 0)
+			st_rip3_command_result(&sink, status, false);
+		else {
+			st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_IMAGE, bytes + 6, length - 6);
+			session->graphical_job = GRAPHICAL_IMAGE;
+		}
+	}
 	else if (length >= 2 && bytes[0] == '1' && (bytes[1] == 'T' || bytes[1] == 'e'))
 		st_rip3_command_result(&sink, define_column(session,bytes,length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'A')

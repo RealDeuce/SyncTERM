@@ -91,12 +91,23 @@ int main(void)
 		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,"$CDCS$ $RESX(1)$","$CDCS$ $RESX(1)$")==0);
 	}
 	CHECK(run(&f,ST_RIP3_GRAPHICAL_TEXT,"$&V$","$RESX$")==0);
+	CHECK(run(&f,ST_RIP3_GRAPHICAL_IMAGE,"$&V$","$RESX$")==0);
+	CHECK(st_rip3_variables_set(f.persistent,"SAVED",5,(const uint8_t *)"",0)==0);
+	CHECK(run(&f,ST_RIP3_GRAPHICAL_IMAGE,
+	    "$INUSE(tv,v)$/$INUSE(TV,RESX)$/$INUSE(TV,ABSENT)$/$INUSE(TV,SAVED)$","1/1/0/1")==0);
+	CHECK(run(&f,ST_RIP3_GRAPHICAL_IMAGE,"$INUSE(TV,0INVALID)$","$INUSE(TV,0INVALID)$")==0);
 	CHECK(run(&f,ST_RIP3_GRAPHICAL_METRIC,"$&V$ $-=SIDE=Y$","$&V$ $-=SIDE=Y$")==0);
 	char big[256];memset(big,'A',255);big[255]=0;CHECK(set(&f,"BIG",(const uint8_t *)big,255)==0);
 	CHECK(run(&f,ST_RIP3_GRAPHICAL_LABEL,"$&BIG$$-=SIDE=Y$",big)==0);
 	struct st_rip3_variable_value value;CHECK(st_rip3_variables_get(f.session,"SIDE",4,&value)==IO_ERROR_NOT_FOUND);
 	/* Angle expansion must discard suffixes before the ordinary pass. */
 	CHECK(run(&f,ST_RIP3_GRAPHICAL_LABEL,"<<BIG>>$-=SIDE=Y$",big)==0);
+	CHECK(st_rip3_variables_get(f.session,"SIDE",4,&value)==IO_ERROR_NOT_FOUND);
+	char image_name[1025], overlong[1045];
+	memset(image_name, 'A', sizeof(image_name) - 1);
+	image_name[sizeof(image_name) - 1] = '\0';
+	snprintf(overlong, sizeof(overlong), "%s$-=SIDE=Y$", image_name);
+	CHECK(run(&f,ST_RIP3_GRAPHICAL_IMAGE,overlong,image_name)==0);
 	CHECK(st_rip3_variables_get(f.session,"SIDE",4,&value)==IO_ERROR_NOT_FOUND);
 	const uint8_t nul[]={'A',0,'$','M','K','I','L','L','$'};
 	CHECK(st_rip3_templates_set(f.templates.slots,5,nul,sizeof(nul))==0);

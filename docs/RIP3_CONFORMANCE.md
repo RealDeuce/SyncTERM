@@ -9694,3 +9694,27 @@ Connected CP437 and UTF-8 fixtures cover a scene before the caller's
 directory changes within the batch, and a cancelled scene. The native
 image fixture checks the received-image zero-area fallback and inactive
 viewports.
+
+## Connected wire JPEG filename expansion
+
+Wire `1p` consumes four reserved digits in the active Base Math. The
+original handler at RVA `0xc2c6` uses the following filename and calls
+the expansion worker with preprocessing enabled, flags `0x83` and a
+1,024-byte limit. SyncTERM applies that limit to the working filename,
+runs angle preprocessing and one ordinary expansion pass, and resolves
+the resulting name through the existing RIP resource lookup. The
+presenter uses the active port and image style after expansion.
+
+`INUSE(TV,name)` now checks the session and persistent variable stores
+and the predefined-variable registry. The original callback at RVA
+`0x13037` checks both stored and registered names and returns `1` for
+an existing name or `0` for a missing one. The query checks presence without
+expanding the value or opening a prompt.
+
+Connected CP437 and UTF-8 cases exercise the slideshow initializer,
+the already-defined branch, a quoted dollar in a real cache filename,
+an invalid numeric field and an inactive viewport. They check the
+independently authored JPEG colors and verify that eligible variable
+effects occur before presentation. The native expansion fixture
+checks the filename limit and proves that inserted text stays
+unexpanded for the remainder of the ordinary pass.

@@ -189,7 +189,7 @@ kill_mouse_fields(const struct st_rip3_host_variables *host,
 }
 
 static bool
-transfer_keyword(const char *text, const char *keyword)
+keyword_equal(const char *text, const char *keyword)
 {
 	while (*keyword != 0) {
 		char ch = *text++;
@@ -214,16 +214,16 @@ transfer(const struct st_rip3_host_variables *host,
 	};
 	if (reference->count < 3)
 		return IO_ERROR_INVALID_FORMAT;
-	bool upload = transfer_keyword(reference->parameters[0].text, "SEND");
-	if (!upload && !transfer_keyword(reference->parameters[0].text, "RECEIVE"))
+	bool upload = keyword_equal(reference->parameters[0].text, "SEND");
+	if (!upload && !keyword_equal(reference->parameters[0].text, "RECEIVE"))
 		return IO_ERROR_INVALID_FORMAT;
 	unsigned protocol = 0;
 	while (protocol < sizeof(protocols) / sizeof(*protocols)
-	    && !transfer_keyword(reference->parameters[1].text, protocols[protocol]))
+	    && !keyword_equal(reference->parameters[1].text, protocols[protocol]))
 		++protocol;
 	unsigned type = 0;
 	while (type < sizeof(types) / sizeof(*types)
-	    && !transfer_keyword(reference->parameters[2].text, types[type].name))
+	    && !keyword_equal(reference->parameters[2].text, types[type].name))
 		++type;
 	if (protocol == sizeof(protocols) / sizeof(*protocols)
 	    || type == sizeof(types) / sizeof(*types))
@@ -258,6 +258,26 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		return IO_ERROR_OUT_OF_RANGE;
 	if (!st_rip3_builtin_known(reference->name, strlen(reference->name)))
 		return IO_ERROR_NOT_FOUND;
+	if (strcmp(reference->name, "INUSE") == 0 && reference->count != 0
+	    && keyword_equal(reference->parameters[0].text, "TV")) {
+		if (reference->count != 2)
+			return IO_ERROR_INVALID_FORMAT;
+		const struct st_rip3_builtin_parameter *name = &reference->parameters[1];
+		if (name->length == 0 || name->length >= 20)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity < 2)
+			return IO_ERROR_OUT_OF_RANGE;
+		bool defined = st_rip3_builtin_known(name->text, name->length);
+		if (!defined) {
+			int status = st_rip3_user_variables_inuse(host->user_variables, name->text,
+			    name->length, &defined);
+			if (status != 0)
+				return status;
+		}
+		result[0] = defined ? '1' : '0';
+		result[1] = '\0';
+		return 0;
+	}
 	if (strcmp(reference->name, "XFER") == 0) {
 		if (capacity == 0)
 			return IO_ERROR_OUT_OF_RANGE;

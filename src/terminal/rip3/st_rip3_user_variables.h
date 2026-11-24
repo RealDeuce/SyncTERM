@@ -70,6 +70,9 @@ void st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
  * session record first. A protected record is removed only on acceptance. */
 int st_rip3_user_variables_delete(struct st_rip3_user_variables *variables,
 	const char *name, size_t length);
+/* The INUSE(TV,name) query reads both stores without invoking the editor. */
+int st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables,
+	const char *name, size_t length, bool *defined);
 bool st_rip3_user_variables_confirming_delete(const struct st_rip3_user_variables *variables);
 /* Respond only in PROMPT state. Values truncate to 255 protocol bytes before
  * the format adapter. Cancellation ignores value/length. '*' rejects user

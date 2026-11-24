@@ -121,22 +121,31 @@ st_rip3_command_bitmap_playback(const struct st_rip3_command_host *host, const c
 }
 
 int
-st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation)
+st_rip3_image_argument_prepare(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length)
 {
 	struct st_rip3_environment environment;
 	uint64_t reserved;
 	unsigned number;
-	int status;
+	if (length <= 6 || command[6] == '\0')
+		return IO_ERROR_INVALID_FORMAT;
 
+	/* The IMAGE handler consumes its mega4 field before the filename.
+	 * The original renderer uses only the filename. */
+	int status = st_rip3_command_environment(host, &number, &environment);
+	if (status == 0)
+		status = st_rip3_command_field(&reserved, command + 2, 4, environment.base_math);
+	return status;
+}
+
+int
+st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
 	if (command[1] == 'i') return image_style(host,command,length,operation);
-	if (length <= 6) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_environment(host,&number,&environment);
-	if (status == 0) status = st_rip3_command_field(&reserved,command+2,4,environment.base_math);
+	int status = st_rip3_image_argument_prepare(host, command, length);
 	if (status != 0) return status;
-	if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
-	/* Unexpanded variables, conditionals, controls and quoting cannot become
-	 * literal disk filenames. The enclosing expansion stage is still pending. */
+	/* The standalone literal dispatcher has no session expansion state. */
 	for (size_t i = 6; i < length; i++) {
 		if (strchr("$[\\^`",command[i]) != NULL
 		    || (i+1 < length && ((command[i] == '<' && command[i+1] == '<')

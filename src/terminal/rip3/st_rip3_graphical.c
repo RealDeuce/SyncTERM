@@ -88,7 +88,22 @@ st_rip3_graphical_start(struct st_rip3_graphical *w, enum st_rip3_graphical_cons
 		failed(w,ST_RIP3_HOST_INVALID_REFERENCE);return;
 	}
 	w->consumer=consumer;
-	w->limit=consumer==ST_RIP3_GRAPHICAL_SCENE ? 4095 : consumer<=ST_RIP3_GRAPHICAL_LABEL ? 255 : 1022;
+	switch (consumer) {
+	case ST_RIP3_GRAPHICAL_FILENAME:
+	case ST_RIP3_GRAPHICAL_LABEL:
+		w->limit = 255;
+		break;
+	case ST_RIP3_GRAPHICAL_TEXT:
+	case ST_RIP3_GRAPHICAL_METRIC:
+		w->limit = 1022;
+		break;
+	case ST_RIP3_GRAPHICAL_IMAGE:
+		w->limit = 1024;
+		break;
+	case ST_RIP3_GRAPHICAL_SCENE:
+		w->limit = 4095;
+		break;
+	}
 	length=st_rip3_graphical_prefix(bytes,length,w->limit,w->converted);
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);

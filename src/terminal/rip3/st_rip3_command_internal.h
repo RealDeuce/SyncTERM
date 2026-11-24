@@ -61,6 +61,8 @@ int st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
+int st_rip3_image_argument_prepare(const struct st_rip3_command_host *host,
+	const uint8_t *command, size_t length);
 int st_rip3_command_jpeg(const struct st_rip3_command_host *host,
 	const uint8_t *filename, size_t length, bool *operation);
 int st_rip3_command_received_jpeg(const struct st_rip3_command_host *host, const char *filename);

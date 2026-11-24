@@ -82,7 +82,7 @@ valid_reference(const struct st_rip3_variable_reference *reference, size_t limit
 }
 
 static int
-lookup(struct st_rip3_user_variables *variables, const char *name, size_t length,
+lookup(const struct st_rip3_user_variables *variables, const char *name, size_t length,
     struct st_rip3_variable_entry *entry, struct st_rip3_variables **owner)
 {
 	struct st_rip3_variables *store = variables->host.session;
@@ -94,6 +94,20 @@ lookup(struct st_rip3_user_variables *variables, const char *name, size_t length
 	if (status == 0 && owner != NULL)
 		*owner = store;
 	return status;
+}
+
+int
+st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables,
+    const char *name, size_t length, bool *defined)
+{
+	if (variables == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_variable_entry entry;
+	int status = lookup(variables, name, length, &entry, NULL);
+	if (status != 0 && status != IO_ERROR_NOT_FOUND)
+		return status;
+	*defined = status == 0;
+	return 0;
 }
 
 static void

@@ -298,7 +298,8 @@ recovery(const struct st_rip3_resource_paths *paths)
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,paths) == 0);
 	CHECK(process(&f,"1p000",ST_RIP3_COMMAND_INVALID) == 0 && process(&f,"1p0000",ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&f,"1p0001Gray.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"1p0001Gray.JPG",
+	    st_pixel_image_jpeg_compiled() ? -1 : ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&f,"1p0000$&FILE$",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&f,"1p0000<<IF 1>>Gray.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&f,"1p0000Gray[.JPG",ST_RIP3_COMMAND_UNSUPPORTED) == 0);

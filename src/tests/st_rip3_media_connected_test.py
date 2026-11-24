@@ -409,6 +409,33 @@ def check_read_scene(t, root, assets, encoding):
     t.exchange(query(b"$BAUDEMUL(0)$", at_cursor=True))
 
 
+def check_wire_jpeg(t, values, supported):
+    top = 0x454545 if supported else 0
+    bottom = 0xbababa if supported else 0
+    values(b"$IMGSTYLE(CUR,20,30,39,49,DELETE)$")
+    t.case("wire JPEG initializes the slideshow variable and resolves it at draw time")
+    values(b"$INUSE(TV,NEXT_IMG)$/$INUSE(tv,RESX)$", b"0/1")
+    t.send(b"!|1p0001<")
+    frame = t.exchange(b"<IF $INUSE(TV,NEXT_IMG)$=\"0\">>$-=NEXT_IMG=Gray.JPG$"
+                       b"<<ENDIF>>$&NEXT_IMG$\r\n")
+    assert pixel(frame, 20, 30) == top and pixel(frame, 38, 48) == bottom
+    assert pixel(frame, 39, 30) == pixel(frame, 20, 49) == 0
+    values(b"$INUSE(TV,NEXT_IMG)$:$&NEXT_IMG$", b"1:Gray.JPG")
+
+    t.case("wire JPEG skips an unselected branch and unquotes the resource name once")
+    values(b"$IMGSTYLE(CUR,50,60,69,79)$")
+    frame = t.exchange(b"!|1p0000<<IF $INUSE(TV,NEXT_IMG)$=\"0\">>$&UNREACHED$"
+                       b"<<ELSE>>G\\$RAY.jpg<<ENDIF>>\r\n")
+    assert pixel(frame, 50, 60) == top and pixel(frame, 68, 78) == bottom
+
+    t.case("wire JPEG validation precedes expansion and inactive output keeps provider effects")
+    baseline = values(b"$DVP(CUR)$")
+    frame = t.exchange(b"!|1p0!00$-=BAD=1$Gray.JPG\r\n!|1p0000$-=SIDE=done$Gray.JPG\r\n"
+                       + query(b"$INUSE(TV,BAD)$:$&SIDE$", at_cursor=True), b"0:done")
+    assert frame.primary == baseline.primary and frame.alternate == baseline.alternate
+    values(b"$AVP(CUR)$")
+
+
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -438,14 +465,17 @@ def run(args):
         (assets / "G$RAY.jpg").write_bytes(contents)
         (assets / "Broken.jpg").write_bytes(b"invalid JPEG")
 
-        t.case("HCL JPEG uses current style and cached asset")
         # The asset's first eight source rows are gray 64, its last is gray 192.
         # The default indexed palette maps those to 69 and 186 respectively.
         t.exchange(b"\x01|*\r\n")
-        values(b"$WORLD(CUR,640,480)$$-=PICTURE=gray$")
+        values(b"$WORLD(CUR,640,480)$")
         send(query(b"$IFS(JPEG)$", at_cursor=True))
         supported = peer.recv(1)
         assert supported in (b"0", b"1"), supported
+        check_wire_jpeg(t, values, supported == b"1")
+        t.case("HCL JPEG uses current style and cached asset")
+        t.exchange(b"\x01|*\r\n")
+        values(b"$WORLD(CUR,640,480)$$-=PICTURE=gray$")
         frame = values(b"$IMGSTYLE(CUR,20,30,39,49,DELETE)$begin$(<<PICTURE>>$end", b"beginend")
         assert pixel(frame, 20, 30) == (0x454545 if supported == b"1" else 0)
         assert pixel(frame, 38, 48) == (0xbababa if supported == b"1" else 0)
