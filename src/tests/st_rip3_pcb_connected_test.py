@@ -97,7 +97,7 @@ def run(args,width,height):
         selections(frame)
 
         t.case('rip3-pcb-get-image-default-pointer-and-put-image-producer')
-        bar(4,(300,200,302,202));wire(b'1C'+coords((300,200,302,202)))
+        bar(4,(300,200,302,202));wire(b'1C'+coords((300,200,302,202))+b'0')
         values(b'$INUSE(PORT,1)$',b'1')
         bar(0,(300,200,302,202))
         frame=values(b'$PCB(CUR)$');region(frame,(300,200,303,203),0)
@@ -111,7 +111,7 @@ def run(args,width,height):
         t.case('rip3-pcb-port-backup-owns-pair-and-pointer')
         values(b'$PROT(PORT,1)$$SCB$')
         values(b'$UNPROT(PORT,1)$')
-        bar(1,(400,200,402,202));wire(b'1C'+coords((400,200,402,202)))
+        bar(1,(400,200,402,202));wire(b'1C'+coords((400,200,402,202))+b'0')
         values(b'$RCB$$ISPROT(PORT,1)$',b'1')
         bar(0,(300,200,302,202))
         frame=values(b'$PCB$');region(frame,(300,200,303,203),0xaa0000)
@@ -133,7 +133,7 @@ def run(args,width,height):
         frame=values(b'$PCB(5)$');assert pixel(frame,0,0)==0x112233
 
         t.case('rip3-put-image-inverts-all-rgb-channels')
-        wire(b'1C'+coords((0,0,0,0)))
+        wire(b'1C'+coords((0,0,0,0))+b'0')
         frame=wire(b'1P'+coords((400,280))+b'040')
         region(frame,(400,280,402,282),0xeeddcc)
         assert pixel(frame,402,280)==0 and pixel(frame,400,282)==0
@@ -193,7 +193,7 @@ def run(args,width,height):
         t.case('rip3-put-image-mixed-operands-use-the-published-paste-palette')
         wire(palette_entry(1,0xff0000))
         bar(1,(250,250,251,251))
-        wire(b'1C'+coords((250,250,250,250)))
+        wire(b'1C'+coords((250,250,250,250))+b'0')
         wire(palette_entry(1,0xa854ff)+b'|M18')
         frame=t.exchange(b'\x1b[1;61H\x1b[48;2;17;34;51m   ')
         region(frame,(start,0,end,2),0x112233)
@@ -213,7 +213,7 @@ def run(args,width,height):
         t.case('rip3-put-image-composes-captured-rgb-over-drawing-indexes')
         wire(b'M08')
         bar(1,(450,325,455,326))
-        wire(b'1C'+coords((start+3,0,start+3,0)))
+        wire(b'1C'+coords((start+3,0,start+3,0))+b'0')
         frame=wire(b'|'.join(paste(450+2*i,325,i+1) for i in range(3)))
         for i,rgb in enumerate(mixed):
             region(frame,(450+2*i,325,452+2*i,327),rgb)
@@ -222,7 +222,7 @@ def run(args,width,height):
         bar(1,(start,0,start+cell_width-1,3))
         frame=t.exchange(b'\x1b[1;61H\x1b[48;2;168;84;255m ')
         region(frame,(start,0,start+cell_width,4),0xa854ff)
-        wire(b'1C'+coords((start,0,start,0)))
+        wire(b'1C'+coords((start,0,start,0))+b'0')
         frame=wire(palette_entry(1,0x0000ff))
         region(frame,(start,0,start+cell_width,4),0xa854ff)
         bar(1,(450,330,451,331))
@@ -233,7 +233,7 @@ def run(args,width,height):
         wire(b'|'.join(palette_entry(index,rgb) for index,rgb in
                       ((0xa3,0xff0000),(0xa7,0x00ff00),(0x04,0x0000ff))))
         bar(0xa6,(250,250,251,251))
-        wire(b'1C'+coords((250,250,250,250)))
+        wire(b'1C'+coords((250,250,250,250))+b'0')
         bar(5,(450,335,455,336))
         frame=wire(b'M18|'+b'|'.join(paste(450+2*i,335,i+1) for i in range(3)))
         for i,rgb in enumerate((0xff0000,0x00ff00,0x0000ff)):
@@ -367,7 +367,9 @@ def run(args,width,height):
         malformed = b'2p1.0 partial reserved|2s10. malformed|2P1..05050003000 incomplete'
         same(frame,wire(malformed + b'|' + copy_prefix + b' incomplete reserved'))
         values(b'$CUR(PORT)$:$INUSE(PORT,1)$:$OFFSCREEN(USED)$',b'0:1:12')
-        frame = wire(b'1C' + coords((15,15,17,16)) + b'0|1P.' + number(21,2) + b'.Z paste')
+        wire(b'1C' + coords((15,15,17,16)))
+        values(b'$OFFSCREEN(CLIP)$',b'-1')
+        frame = wire(b'1C' + coords((15,15,17,16)) + b'Z capture|1P.' + number(21,2) + b'.Z paste')
         region(frame,(0,21,3,23),0xaa0000)
         wire(b'2p1.01 delete')
         values(b'$CUR(PORT)$:$INUSE(PORT,1)$:alive',b'0:0:alive')

@@ -206,7 +206,7 @@ def port_actions(t, values, wire, width, height):
 def clipboard_actions(t, values, wire, width, height):
     budget = 36 * width * height
     clear_clip = b'h01000001200040'
-    capture = b'1C0A0A0C0C'
+    capture = b'1C0A0A0C0C0'
     t.case('rip3-header-physical-target-is-the-assigned-clipboard')
     wire(b'h01000100')
     values(f'$WORLD(CUR,{width},{height})$'.encode())

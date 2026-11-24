@@ -25,7 +25,7 @@ def run(args,width,height):
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         t.case(f'rip3-port-backup-clipboard-and-protected-survivors-{width}x{height}')
         define(1,(80,80,180,160))
-        wire(b'S0104|B0K0K0P0P|1C0K0K0P0P')  # First unused offscreen port is 2.
+        wire(b'S0104|B0K0K0P0P|1C0K0K0P0P0')  # First unused offscreen port is 2.
         values(b'$CUR(PORT,2)$$PROT(PORT,2)$')
         before=values(b'$SCB$$SCB(0)$$SCB(PUSH)$$COPY(PORT,BASE,S7)$')
         assert pixel(before,20,20)==0xaa0000
@@ -41,7 +41,7 @@ def run(args,width,height):
         define(3,(300,200,330,230),8)  # Absent in saved table, protected live survivor.
         define(4,(350,250,380,280))
         values(b'$CUR(PORT,0)$')
-        wire(b'S0101|B14141919|1C14141919')  # First unused is now 5; pointer differs.
+        wire(b'S0101|B14141919|1C141419190')  # First unused is now 5; pointer differs.
         wire(b'S0105|B0000'+number(width-1,2)+number(height-1,2))
         values(b'$CUR(PORT,4)$$CUR(PAL,17)$$CUR(STYLE,7)$')
         before=client.capture();after=values(b'$RCB$')
@@ -66,7 +66,7 @@ def run(args,width,height):
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         define(8,(10,10,30,30))
         values(b'$SCB(4)$')
-        wire(b'S0104|B0K0K0P0P|1C0K0K0P0P')
+        wire(b'S0104|B0K0K0P0P|1C0K0K0P0P0')
         values(b'$RCB(4)$$INUSE(PORT,1)$$INUSE(PORT,8)$',b'01')
         before=client.capture();after=wire(b'1P5K5K0')
         assert before.primary==after.primary and before.alternate==after.alternate

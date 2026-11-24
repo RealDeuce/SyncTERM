@@ -124,7 +124,7 @@ wire_matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		}
 		CHECK(st_rip3_number_encode(body+2+4*width_xy,4,5,4,radix) == 0);
 		for (size_t reserved = 0; reserved <= 12; reserved++) {
-			memset(body+6+4*width_xy,'0',reserved); body[6+4*width_xy+reserved] = 0;
+			memset(body+6+4*width_xy,radix == 64 ? '&' : 'Z',reserved); body[6+4*width_xy+reserved] = 0;
 			CHECK(wire(&f,body,false) == 0 && style(&f,1,false,10,20,111,121,5) == 0);
 		}
 	}
@@ -140,8 +140,10 @@ wire_matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(wire(&f,"1i000000005",false) == 0 && style(&f,1,false,0,0,1,1,5) == 0);
 	CHECK(wire(&f,"1i1E4I80940004000000000000",false) == 0);
 	CHECK(style(&f,1,false,25,81,145,165,4) == 0);
-	CHECK(wire(&f,"1i0000000000051",true) == 0 && wire(&f,"1i00000000?",true) == 0);
+	CHECK(wire(&f,"1i..00010005Z. invalid",true) == 0 && wire(&f,"1i00000000?",true) == 0);
 	CHECK(style(&f,1,false,25,81,145,165,4) == 0);
+	CHECK(wire(&f,"1i..... reserved omitted is separate",true) == 0);
+	CHECK(wire(&f,"1i...... complete",false) == 0 && style(&f,1,false,0,0,1,1,0) == 0);
 	destroy(&f); return 0;
 }
 

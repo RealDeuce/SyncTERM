@@ -59,7 +59,7 @@ def run(args, width, height):
         # A protected clipboard and offscreen ports survive; an unprotected
         # live port and window must disappear. Their backups remain independent.
         far = number(width, 2) + number(height, 2)
-        capture(b"\x01|v0000" + far + b"|1C00000303\r\n")
+        capture(b"\x01|v0000" + far + b"|1C000003030\r\n")
         values(b"$PROT(PORT,1)$$CUR(PAL,5)$")
         capture(b"\x01|a0010|2P500000G0G1|2s500|S0102|B00000F0F"
                 b"|2P600000G0G1|2s600|S0101|B00000F0F|2P700000G0G1\r\n")
@@ -173,7 +173,7 @@ def run(args, width, height):
             values(b'$-+=P=DISK$$-+=N=SHADOW$$-=N=MEM$$-=EFFECT=cold$')
             values(protected.encode() + f'$WORLD(CUR,{width},{height})$'.encode())
             values(b'$UNPROT(TW,5)$$ATW(5)$$PROT(TW,5)$$TWIN$', b'YES')
-            capture(b'\x01|1C0A0A0C0C\r\n')
+            capture(b'\x01|1C0A0A0C0C0\r\n')
             values(b'$OFFSCREEN(CLIP)$', b'1')
             values(b'$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$'
                    + ''.join(f'$PROT({family},S2)$' for family in saved_families).encode())

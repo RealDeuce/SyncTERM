@@ -204,12 +204,13 @@ wire(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct fixture f = {0}; CHECK(create(&f,canvas,width,height) == 0 && pattern(&f,0,0) == 0);
 	struct st_rip3_stream *stream = NULL; const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
 	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
-	const char input[] = "!|1C010103030|1C03030101\r";
+	const char input[] = "!|1C010103030|1C03030101. reversed\r";
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)input+i,1);
 	CHECK(f.errors == 0 && f.selection.set && f.selection.port == 1 && bitmap(&f,1,4,4,0,false) == 0);
-	CHECK(process(&f,"1C0101033",-1) == 0 && bitmap(&f,1,4,4,0,false) == 0); /* Short final coordinate. */
-	CHECK(process(&f,"1C010103031",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&f,"1C0101030300",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"1C0101033",ST_RIP3_COMMAND_INVALID) == 0); /* Missing fields. */
+	CHECK(process(&f,"1C01010303",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"1C01010303Z capture",-1) == 0);
+	CHECK(process(&f,"1C0101030300",-1) == 0);
 	CHECK(process(&f,"1C010?03030",ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(bitmap(&f,1,4,4,0,false) == 0);
 	f.budget = 0;

@@ -95,7 +95,7 @@ def run(args,width,height):
         client.text('a');t.input(b'A:7:'+accented)
         t.case('rip3-mouse-backup-ordinary-clipboard-and-hot-icon-resources')
         values(b'$MKILL$')
-        t.exchange(b'\x01|S0103|BDW0KDZ0L|1CDW0KDZ0L\r\n'
+        t.exchange(b'\x01|S0103|BDW0KDZ0L|1CDW0KDZ0L0\r\n'
                    +style(flags=1|1024|2,bevel=0)
                    +button((400,300,0,0),b'ID=8:<><>clipboard:$FIELDID$',hotkey=ord('c')))
         t.exchange(b'\x01|2P6000001011|2W6000000000000Seed.bmp\r\n')

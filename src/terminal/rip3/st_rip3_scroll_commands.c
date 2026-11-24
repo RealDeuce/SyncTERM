@@ -48,19 +48,16 @@ st_rip3_scroll_blit_command(const struct st_rip3_command_host *host,
 	size_t width=environment.coordinate_size;
 	bool scroll=command[1]=='G';
 	size_t coordinates=scroll ? 4 : 6;
-	size_t mode_offset=2+coordinates*width;
-	size_t minimum=mode_offset+(scroll ? 3 : 1);
-	size_t maximum=mode_offset+2+(scroll ? width : 0);
-	if (length<minimum || length>maximum)
-		return IO_ERROR_INVALID_FORMAT;
-	uint64_t positions[6],mode,reserved=0;
-	for (size_t i=0;status==0 && i<coordinates;i++)
-		status=st_rip3_command_field(&positions[i],command+2+i*width,width,environment.base_math);
-	if (status==0) status=st_rip3_command_field(&mode,command+mode_offset,1,environment.base_math);
-	if (status==0 && length>mode_offset+1)
-		status=st_rip3_command_field(&reserved,command+mode_offset+1,1,environment.base_math);
-	if (status==0 && scroll)
-		status=st_rip3_command_field(&positions[5],command+mode_offset+2,length-mode_offset-2,environment.base_math);
+	struct st_rip3_fields fields = {command + 2, length - 2};
+	uint64_t positions[6], mode, reserved = 0;
+	for (size_t i = 0; status == 0 && i < coordinates; i++)
+		status = st_rip3_command_next_field(&fields, &positions[i], width, environment.base_math, false);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, &mode, 1, environment.base_math, false);
+	if (status == 0 && (scroll || fields.remaining != 0))
+		status = st_rip3_command_next_field(&fields, &reserved, 1, environment.base_math, !scroll);
+	if (status == 0 && scroll)
+		status = st_rip3_command_next_field(&fields, &positions[5], width, environment.base_math, true);
 	if (status!=0) return status;
 	if (mode>(scroll ? 6u : 5u)) return IO_ERROR_OUT_OF_RANGE;
 	if ((scroll && reserved!=0) || host->ports==NULL || host->palettes==NULL) return IO_ERROR_NOT_SUPPORTED;

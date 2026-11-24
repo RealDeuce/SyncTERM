@@ -1779,11 +1779,12 @@ command(void *context, const uint8_t *bytes, size_t length)
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
 		read_scene(session,bytes,length);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'p') {
-		int status = st_rip3_image_argument_prepare(&session->commands, bytes, length);
+		size_t filename;
+		int status = st_rip3_image_argument_prepare(&session->commands, bytes, length, &filename);
 		if (status != 0)
 			st_rip3_command_result(&sink, status, false);
 		else {
-			st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_IMAGE, bytes + 6, length - 6);
+			st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_IMAGE, bytes + filename, length - filename);
 			session->graphical_job = GRAPHICAL_IMAGE;
 		}
 	}

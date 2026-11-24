@@ -24437,6 +24437,28 @@
         "version/3.0/ripscrip/2.2-curves.md:394",
         "version/3.0/ripscrip/2.2-curves.md:395"
       ]
+    },
+    {
+      "after_commit": "13d071e9d88edd2016162a6840fba63ef3f89cc7",
+      "revision": "03b2e042e9c187327daae5c7a2568c9285513391",
+      "scope": "Apply fixed numeric collection and zero-field abbreviations to IMAGE, IMAGE_STYLE, GET_IMAGE, COPY_BLIT and SCROLL.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/240",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/245"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:19",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:21",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:392",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:447",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:21",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:23",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:25",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:49",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:51",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:53",
+        "version/3.0/ripscrip/4.1-jpeg-images.md:101"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

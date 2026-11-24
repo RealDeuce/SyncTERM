@@ -159,6 +159,19 @@ def run(args, width, height):
         assert [replace(cell, flags=cell.flags & ~8) for cell in frame.cells] == [
             replace(cell, flags=cell.flags & ~8) for cell in before.cells]
 
+        t.case("rip3-scroll-and-copy-blit-numeric-delimiter")
+        fresh()
+        before = wire(paint_rows(x=0))
+        frame = wire(b"1G.010203..0 incomplete")
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+        frame = wire(b"1G.010203..04 copied")
+        addresses(frame, 0, 4, (b, c, d))
+        frame = wire(b"1g..02.0808.. copy")
+        addresses(frame, 8, 8, (a,))
+        before = frame
+        frame = wire(b"1g..02.0C0C. incomplete")
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+
         t.case("rip3-copy-blit-diagonal-overlap-and-exposed-source")
         fresh()
         frame = wire(paint_rows(2) + b"|a0009|W4|" + copy_blit(5, 4, 3, 2, 4, 3, 5))

@@ -10257,3 +10257,22 @@ The recommended sender value stays zero. Native tests and connected
 CP437 and UTF-8 sessions verify port state, viewport clipping, copy
 and paste pixels, and recovery after invalid input. The remaining
 wording is tracked upstream. [Issue #244](https://github.com/bbs-land/remote-imaging-protocol/issues/244)
+
+## Image and bitmap movement numeric fields
+
+GET_IMAGE needs its final reserved digit. RIPtel forwards any valid
+value, including a period for zero, and the capture handler only reads
+the four coordinates. COPY_BLIT permits omission of its own reserved
+digit at a delimiter. SCROLL still requires that field before the
+destination line and retains its portable zero-only rule. Complete
+fixed bodies ignore surplus. A malformed field leaves the scene and
+clipboard intact.
+
+IMAGE_STYLE accepts an omitted or shortened twelve-digit reserved
+field at the delimiter and ignores any transmitted numeric value.
+A period can complete that field before surplus. For IMAGE, a period
+can replace the four-digit prefix, and filename expansion begins at
+the next byte. Native and CP437 and UTF-8 connected cases check
+capture, scroll/blit pixels, JPEG placement and filename expansion.
+The descriptor-specific reserved rules are tracked upstream.
+[Issue #245](https://github.com/bbs-land/remote-imaging-protocol/issues/245)

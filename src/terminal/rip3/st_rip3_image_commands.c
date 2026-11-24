@@ -19,25 +19,21 @@ image_style(const struct st_rip3_command_host *host, const uint8_t *command,
     size_t length, bool *operation)
 {
 	struct st_rip3_environment env; struct st_rip3_frame frame;
-	unsigned number, current; uint64_t values[4], flags, reserved;
+	unsigned number, current; uint64_t values[4], flags;
 	int status = st_rip3_command_environment(host,&number,&env);
 	if (status != 0) return status;
-	size_t prefix = 2+4*env.coordinate_size;
-	if (length <= prefix || length > prefix+16) return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {command + 2, length - 2};
 	for (size_t i = 0; i < 4; i++) {
-		status = st_rip3_command_field(values+i,command+2+i*env.coordinate_size,env.coordinate_size,env.base_math);
+		status = st_rip3_command_next_field(&fields, values+i, env.coordinate_size, env.base_math, false);
 		if (status != 0) return status;
 		if (values[i] > INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	}
-	size_t flags_size = length-prefix > 4 ? 4 : length-prefix;
-	status = st_rip3_command_field(&flags,command+prefix,flags_size,env.base_math);
+	status = st_rip3_command_next_field(&fields, &flags, 4, env.base_math, true);
 	if (status != 0) return status;
 	if (flags > 63) return IO_ERROR_OUT_OF_RANGE;
-	for (size_t i = prefix+4; i < length; i++) {
-		/* Reserved is a zero block, not one potentially >64-bit number. */
-		status = st_rip3_command_field(&reserved,command+i,1,env.base_math);
+	if (fields.remaining != 0) {
+		status = st_rip3_command_next_field(&fields, NULL, 12, env.base_math, true);
 		if (status != 0) return status;
-		if (reserved != 0) return IO_ERROR_NOT_SUPPORTED;
 	}
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_ports_current(host->ports,&current);
@@ -122,20 +118,20 @@ st_rip3_command_bitmap_playback(const struct st_rip3_command_host *host, const c
 
 int
 st_rip3_image_argument_prepare(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length)
+    const uint8_t *command, size_t length, size_t *filename_offset)
 {
 	struct st_rip3_environment environment;
-	uint64_t reserved;
+	struct st_rip3_fields fields = {command + 2, length - 2};
 	unsigned number;
-	if (length <= 6 || command[6] == '\0')
-		return IO_ERROR_INVALID_FORMAT;
-
-	/* The IMAGE handler consumes its mega4 field before the filename.
-	 * The original renderer uses only the filename. */
 	int status = st_rip3_command_environment(host, &number, &environment);
 	if (status == 0)
-		status = st_rip3_command_field(&reserved, command + 2, 4, environment.base_math);
-	return status;
+		status = st_rip3_command_next_field(&fields, NULL, 4, environment.base_math, false);
+	if (status != 0)
+		return status;
+	if (fields.remaining == 0 || fields.bytes[0] == '\0')
+		return IO_ERROR_INVALID_FORMAT;
+	*filename_offset = length - fields.remaining;
+	return 0;
 }
 
 int
@@ -143,13 +139,14 @@ st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
 	if (command[1] == 'i') return image_style(host,command,length,operation);
-	int status = st_rip3_image_argument_prepare(host, command, length);
+	size_t filename;
+	int status = st_rip3_image_argument_prepare(host, command, length, &filename);
 	if (status != 0) return status;
 	/* The standalone literal dispatcher has no session expansion state. */
-	for (size_t i = 6; i < length; i++) {
+	for (size_t i = filename; i < length; i++) {
 		if (strchr("$[\\^`",command[i]) != NULL
 		    || (i+1 < length && ((command[i] == '<' && command[i+1] == '<')
 		    || (command[i] == '(' && command[i+1] == '(')))) return IO_ERROR_NOT_SUPPORTED;
 	}
-	return st_rip3_command_jpeg(host,command+6,length-6,operation);
+	return st_rip3_command_jpeg(host,command+filename,length-filename,operation);
 }

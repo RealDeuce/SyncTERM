@@ -41,7 +41,8 @@ st_rip3_command_next_field(struct st_rip3_fields *fields, uint64_t *result,
 	if (fields->remaining == 0)
 		return IO_ERROR_INVALID_FORMAT;
 	if (fields->bytes[0] == '.') {
-		*result = 0;
+		if (result != NULL)
+			*result = 0;
 		width = 1;
 	}
 	else {
@@ -50,9 +51,20 @@ st_rip3_command_next_field(struct st_rip3_fields *fields, uint64_t *result,
 				return IO_ERROR_INVALID_FORMAT;
 			width = fields->remaining;
 		}
-		int status = st_rip3_command_field(result, fields->bytes, width, radix);
-		if (status != 0)
-			return status;
+		if (result != NULL) {
+			int status = st_rip3_command_field(result, fields->bytes, width, radix);
+			if (status != 0)
+				return status;
+		}
+		else {
+			/* An ignored field can be too wide for a single integer. */
+			for (size_t i = 0; i < width; i++) {
+				uint64_t digit;
+				int status = st_rip3_command_field(&digit, fields->bytes+i, 1, radix);
+				if (status != 0)
+					return status;
+			}
+		}
 	}
 	fields->bytes += width;
 	fields->remaining -= width;

@@ -291,7 +291,7 @@ Hook.onKey(Key.f9) {|event|
         offset = int.from_bytes(data[10:14], "little")
         assert data[offset:] == bytes((12, 12, 0, 0, 12, 12, 0, 0))
         frame = t.exchange(b"\r!|1b2S2S0000" + b"00" + b"0000" + b"0000Tile.bmp"
-                           + b"|1C2S2S2T2T|1P3C2S0\r\n")
+                           + b"|1C2S2S2T2T0|1P3C2S0\r\n")
         assert all(pixel(frame, px, py) == 0xff5555
                    for py in (100, 101) for px in (100, 101, 120, 121))
         bitmap_width = {800: 10, 1024: 12}.get(width, 8)

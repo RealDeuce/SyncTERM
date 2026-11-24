@@ -48,7 +48,8 @@ struct st_rip3_fields {
 	size_t remaining;
 };
 /* Read one ordinary wire field. A leading period consumes one byte;
- * otherwise only a final field can use fewer digits than its width. */
+ * otherwise only a final field can use fewer digits than its width.
+ * A NULL result validates the field without interpreting its value. */
 int st_rip3_command_next_field(struct st_rip3_fields *fields, uint64_t *result,
 	size_t width, unsigned radix, bool final);
 int st_rip3_command_environment(const struct st_rip3_command_host *host,
@@ -70,7 +71,7 @@ int st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host
 int st_rip3_image_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_image_argument_prepare(const struct st_rip3_command_host *host,
-	const uint8_t *command, size_t length);
+	const uint8_t *command, size_t length, size_t *filename_offset);
 int st_rip3_command_jpeg(const struct st_rip3_command_host *host,
 	const uint8_t *filename, size_t length, bool *operation);
 int st_rip3_command_received_jpeg(const struct st_rip3_command_host *host, const char *filename);

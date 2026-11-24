@@ -537,7 +537,7 @@ def check_wire_jpeg(t, values, supported):
     values(b"$IMGSTYLE(CUR,20,30,39,49,DELETE)$")
     t.case("wire JPEG initializes the slideshow variable and resolves it at draw time")
     values(b"$INUSE(TV,NEXT_IMG)$/$INUSE(tv,RESX)$", b"0/1")
-    t.send(b"!|1p0001<")
+    t.send(b"!|1p.<")
     frame = t.exchange(b"<IF $INUSE(TV,NEXT_IMG)$=\"0\">>$-=NEXT_IMG=Gray.JPG$"
                        b"<<ENDIF>>$&NEXT_IMG$\r\n")
     assert pixel(frame, 20, 30) == top and pixel(frame, 38, 48) == bottom
@@ -556,6 +556,15 @@ def check_wire_jpeg(t, values, supported):
                        + query(b"$INUSE(TV,BAD)$:$&SIDE$", at_cursor=True), b"0:done")
     assert frame.primary == baseline.primary and frame.alternate == baseline.alternate
     values(b"$AVP(CUR)$")
+
+    t.case("wire image style accepts the zero field and complete reserved suffix")
+    area = b"".join(number(v, 2) for v in (80, 90, 98, 108))
+    frame = t.exchange(b"!|1i" + area + b".Z short reserved followed by space"
+                       b"|1p.Gray.jpg\r\n")
+    assert pixel(frame, 80, 90) == 0
+    frame = t.exchange(b"!|1i" + area + b".ZZZZZZZZZZZZ ignored|1p.Gray.jpg\r\n")
+    assert pixel(frame, 80, 90) == top and pixel(frame, 97, 107) == bottom
+    assert pixel(frame, 98, 107) == pixel(frame, 97, 108) == 0
 
 
 def run(args):

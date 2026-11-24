@@ -185,7 +185,7 @@ def run(args,width,height):
         # GET_IMAGE captures the requested 4x2 uniform source into its
         # documented 5x3 clipboard allocation. Erase the source afterward:
         # button rendering must read the clipboard, not the old screen.
-        t.exchange(b"\x01|S0103|BDW0KDZ0L|1CDW0KDZ0L|S0100|BDW0KDZ0L\r\n")
+        t.exchange(b"\x01|S0103|BDW0KDZ0L|1CDW0KDZ0L0|S0100|BDW0KDZ0L\r\n")
         frame=t.exchange(style(flags=1|256|1024,width=50,height=40,flags2=96)
                          +button((400,300,0,0),b"ID=12:<><>clipboard:$FIELDID$"))
         assert all(pixel(frame,x,y)==0x00aaaa for y in range(300,303) for x in range(400,405))
