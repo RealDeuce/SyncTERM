@@ -10141,3 +10141,14 @@ phase throughout the viewport and check the outside edge. Native tests
 cover staggered phase, viewport clipping, and allocation failure. Seed
 rectangles that extend beyond physical backing await a repetition rule.
 [Pinned wallpaper contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1859b08987dddff557233533ace1bba664c608ec/version/3.0/ripscrip/4.0-icons-and-bitmaps.md#bitmap-flags), [Issue #235](https://github.com/bbs-land/remote-imaging-protocol/issues/235)
+
+## Port selection and deletion on a connection
+
+Live CP437 and UTF-8 cases verify same-port protection ordering in `2s`,
+full-screen geometry when it creates an undefined screen port, selection
+of a protected bitmap, and recovery from invalid selectors. The `2p` cases
+check protected deletion rejection, delete-all with a protected inactive
+destination, and fallback to port zero when the requested destination is
+deleted. The tests verify clipboard release, offscreen memory usage, and
+pixel preservation on the screen and in a protected bitmap.
+[Pinned port contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/fecb3bdb5481f3a84b9d229d6201ff68e4ce4840/version/3.0/ripscrip/7.0-drawing-ports.md#rip_switch_port)

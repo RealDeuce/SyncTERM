@@ -23813,6 +23813,52 @@
         "excluded": 71,
         "blocked": 21
       }
+    },
+    {
+      "after_commit": "9eb92f961d12d9253bea67fef89c6c4c10a9cf36",
+      "revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
+      "scope": "Verify port selection, protection precedence, deletion, clipboard release and fallback on connected sessions.",
+      "verified_source_units": [
+        "version/3.0/ripscrip/7.0-drawing-ports.md:437",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:438",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:439",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:441",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:443",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:445",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:447",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:449",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:451",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:453",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:493",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:392",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:398",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:399",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:400",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:401",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:402",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:404",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:412",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:413",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:414",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:415",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:416",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:423"
+      ],
+      "tests": [
+        "rip3_port_commands",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1920,
+        "pending": 1436,
+        "implemented": 3749,
+        "excluded": 71,
+        "blocked": 21
+      }
     }
   ],
   "archive_format": "git archive --format=tar"

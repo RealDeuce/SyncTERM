@@ -316,6 +316,44 @@ def run(args,width,height):
         values(b'after-pcb',b'after-pcb')
         assert client.capture().application['connected']==1
 
+        t.case('rip3-port-switch-protection-order-and-undefined-screen-target')
+        values(b'$RESET(HARD)$'+f'$WORLD(CUR,{width},{height})$'.encode())
+        define(1,(0,0,2,2),flags=3)
+        bar(4,(0,0,1,1))
+        for flags,protected in ((b'06',b'0'),(b'09',b'1'),(b'03',b'0'),(b'0C',b'0')):
+            wire(b'2s1'+flags)
+            values(b'$CUR(PORT)$:$ISPROT(PORT,1)$',b'1:'+protected)
+        wire(b'2s704')
+        values(b'$CUR(PORT)$:$ISPROT(PORT,1)$:$INUSE(PORT,7)$:$ISPROT(PORT,7)$'
+               b':$OFFSCREEN(USED)$',b'7:1:1:0:4')
+        frame=wire(b'c0A|X'+coords((width-1,height-1)))
+        assert pixel(frame,width-1,height-1)==0x55ff55
+        values(b'$DVP(7)$')
+        wire(b'2s104')
+        values(b'$CUR(PORT)$:$ISPROT(PORT,1)$:$ISPROT(PORT,7)$:$TEXTXY(7)$',b'1:1:1:-1')
+        values(b'$BASEMATH(CUR,64)$')
+        wire(b'2sa08|2s7000')
+        values(b'$CUR(PORT)$:$ISPROT(PORT,1)$',b'1:1')
+        values(b'$BASEMATH(CUR,36)$')
+
+        t.case('rip3-port-delete-preserves-protected-ports-and-releases-clipboard')
+        wire(b'2p1700')
+        values(b'$CUR(PORT)$:$INUSE(PORT,1)$:$ISPROT(PORT,1)$',b'1:1:1')
+        wire(b'2s000|1C020202020')
+        define(6,(0,0,3,2))
+        wire(b'2s900')
+        before=values(b'$OFFSCREEN(CLIP)$:$OFFSCREEN(USED)$',b'2:14')
+        same(before,wire(b'2p0700'))
+        values(b'$CUR(PORT)$:$INUSE(PORT,1)$:$INUSE(PORT,6)$:$INUSE(PORT,9)$'
+               b':$OFFSCREEN(CLIP)$:$OFFSCREEN(USED)$:$TEXTXY(7)$',b'7:1:0:0:-1:4:-1')
+        frame=wire(b'2s000|'+copy_command(1,(0,0,2,2),0,(20,20,22,22)))
+        region(frame,(20,20,22,22),0xaa0000)
+        wire(b'2sA00|2p0A|2s001')
+        values(b'$CUR(PORT)$:$INUSE(PORT,10)$:$ISPROT(PORT,CUR)$',b'0:0:0')
+        values(b'$UNPROT(PORT,1)$')
+        wire(b'2s100|2p110')
+        values(b'$CUR(PORT)$:$INUSE(PORT,1)$:$OFFSCREEN(USED)$',b'0:0:0')
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
