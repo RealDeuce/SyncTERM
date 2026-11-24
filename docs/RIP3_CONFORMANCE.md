@@ -10424,3 +10424,22 @@ Connected CP437 and UTF-8 fixtures exercise nested playback, metadata
 replies, directory selection, variable definitions and recovery after
 malformed fields. The pinned `1R` descriptor still lists a single field.
 [Issue #263](https://github.com/bbs-land/remote-imaging-protocol/issues/263)
+
+
+## Table switch protection and numeric fields
+
+`2A`, `2E`, `2T`, and `2Y` collect one digit for the slot and up to two
+digits for flags in active Base Math. Either field can use a period for
+zero. The flags are required. Surplus after complete fields is ignored.
+The protection sequence is source protect (4), source unprotect (8),
+select, destination protect (1), then destination unprotect (2).
+Protecting slot zero reports a local diagnostic and the sequence continues.
+The wire `2T` first-use clone still copies its logical ANSI state and starts
+unprotected before applying destination flags.
+
+Connected CP437 and UTF-8 tests check the table selections, protection
+changes, first-use cloning and palette publication to existing pixels.
+`2R` also accepts a period in its four-digit reserve before the refresh
+expression, and `3e` accepts a period to clear local playback pacing.
+The pinned palette, environment and text-window wire diagrams still
+require correction. [Issue #264](https://github.com/bbs-land/remote-imaging-protocol/issues/264)

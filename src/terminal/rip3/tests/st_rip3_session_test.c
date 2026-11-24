@@ -556,7 +556,7 @@ window_table(void)
 	CHECK(append(&f,"!|2T20\r")==0 && pump(&f)==0 && f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
 	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,2)$","1:0")==0);
 	f.window_status=0;
-	CHECK(append(&f,"!|2T2\r")==0 && pump(&f)==0 && f.errors==3);
+	CHECK(append(&f,"!|2T2.\r")==0 && pump(&f)==0 && f.errors==3);
 	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,2)$","2:1")==0);
 	CHECK(append(&f,"!|2T2?\r")==0 && pump(&f)==0 && f.errors==4);
 	CHECK(query(&f,"$CUR(TW)$","2")==0);

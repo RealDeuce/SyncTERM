@@ -204,28 +204,26 @@ drawing_palette(const struct st_rip3_command_host *host,
 }
 
 static int
+switch_fields(const struct st_rip3_command_host *host, const uint8_t *command,
+    size_t length, uint64_t *target, uint64_t *flags)
+{
+	struct st_rip3_fields fields = {command + 2, length - 2};
+	struct st_rip3_environment environment;
+	unsigned current;
+	int status = st_rip3_command_environment(host, &current, &environment);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, target, 1, environment.base_math, false);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, flags, 2, environment.base_math, true);
+	return status;
+}
+
+static int
 switch_palette(const struct st_rip3_command_host *host, const uint8_t *command,
     size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
-	struct st_rip3_environment environment;
-	unsigned current;
 	uint64_t target, flags;
-
-	if (length < 4)
-		return IO_ERROR_INVALID_FORMAT;
-	int status = st_rip3_command_environment(host, &current, &environment);
-	if (status != 0)
-		return status;
-	size_t flag_width = length >= 5 ? 2 : 1;
-	if (environment.base_math == 36) {
-		for (size_t i = 2; i < 3 + flag_width; i++) {
-			if (command[i] >= 'a' && command[i] <= 'z')
-				return IO_ERROR_INVALID_FORMAT;
-		}
-	}
-	status = st_rip3_command_field(&target, command + 2, 1, environment.base_math);
-	if (status == 0)
-		status = st_rip3_command_field(&flags, command + 3, flag_width, environment.base_math);
+	int status = switch_fields(host, command, length, &target, &flags);
 	if (status != 0)
 		return status;
 	if (target >= 36)
@@ -316,16 +314,10 @@ static int
 switch_style(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
-	struct st_rip3_environment environment;
 	uint64_t number, flags;
-	unsigned current, environment_number;
-	int status, source, destination;
-	size_t count = length-2;
-	if (memchr(command+2,' ',count) != NULL) return IO_ERROR_NOT_SUPPORTED;
-	if (count < 2 || count > 3) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_environment(host,&environment_number,&environment);
-	if (status == 0) status = st_rip3_command_field(&number,command+2,1,environment.base_math);
-	if (status == 0) status = st_rip3_command_field(&flags,command+3,count-1,environment.base_math);
+	unsigned current;
+	int source, destination;
+	int status = switch_fields(host, command, length, &number, &flags);
 	if (status != 0) return status;
 	if (number > 35) return 0; /* The shipped handler ignores invalid slots. */
 	if (host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -341,32 +333,40 @@ switch_style(const struct st_rip3_command_host *host,
 
 static int
 switch_environment(const struct st_rip3_command_host *host,
-    const uint8_t *command,size_t length,bool *operation)
+    const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
 {
-	if (length!=4) return IO_ERROR_INVALID_FORMAT;
-	struct st_rip3_environment environment;unsigned current;
-	uint64_t target;
-	int status=st_rip3_command_environment(host,&current,&environment);
-	if (status==0) status=st_rip3_command_field(&target,command+2,2,environment.base_math);
-	if (status!=0) return status;
-	if (target>=36) return IO_ERROR_OUT_OF_RANGE;
-	*operation=true;return st_rip3_environments_activate(host->environments,(unsigned)target);
+	uint64_t target, flags;
+	int status = switch_fields(host, command, length, &target, &flags);
+	if (status != 0) return status;
+	if (target >= 36) return IO_ERROR_OUT_OF_RANGE;
+	unsigned current;
+	status = st_rip3_environments_current(host->environments, &current);
+	if (status != 0) return status;
+	*operation = true;
+	if (flags & 4)
+		st_rip3_command_result(sink, st_rip3_environments_protect(host->environments, current, true), true);
+	if ((flags & 8) && current != 0)
+		st_rip3_command_result(sink, st_rip3_environments_protect(host->environments, current, false), true);
+	status = st_rip3_environments_activate(host->environments, (unsigned)target);
+	if (status != 0) return status;
+	if (flags & 1)
+		st_rip3_command_result(sink, st_rip3_environments_protect(host->environments, (unsigned)target, true), true);
+	if ((flags & 2) && target != 0)
+		st_rip3_command_result(sink, st_rip3_environments_protect(host->environments, (unsigned)target, false), true);
+	return 0;
 }
 
 static int
 switch_text_window(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
-	if (length<3 || length>4) return IO_ERROR_INVALID_FORMAT;
-	struct st_rip3_environment environment;unsigned number;
-	int status=st_rip3_command_environment(host,&number,&environment);
-	uint64_t target,reserved=0;
-	if (status==0) status=st_rip3_command_field(&target,command+2,1,environment.base_math);
-	if (status==0 && length==4) status=st_rip3_command_field(&reserved,command+3,1,environment.base_math);
-	if (status!=0) return status;
-	if (target>=36) return IO_ERROR_OUT_OF_RANGE;
-	if (host->text_window==NULL || host->text_window->select==NULL) return IO_ERROR_NOT_SUPPORTED;
-	*operation=true;return host->text_window->select(host->text_window->context,(unsigned)target);
+	uint64_t target, flags;
+	int status = switch_fields(host, command, length, &target, &flags);
+	if (status != 0) return status;
+	if (target >= 36) return IO_ERROR_OUT_OF_RANGE;
+	if (host->text_window == NULL || host->text_window->select == NULL) return IO_ERROR_NOT_SUPPORTED;
+	*operation = true;
+	return host->text_window->select(host->text_window->context, (unsigned)target, (unsigned)flags);
 }
 
 static int
@@ -501,11 +501,10 @@ execute(const struct st_rip3_command_host *host,
 	if (memchr(command, 0, length) != NULL)
 		return IO_ERROR_INVALID_FORMAT;
 	if (length >= 2 && command[0] == '3' && command[1] == 'e') {
-		if (length < 4)
-			return IO_ERROR_INVALID_FORMAT;
+		struct st_rip3_fields fields = {command + 2, length - 2};
 		status = st_rip3_command_environment(host, &number, &value);
 		if (status == 0)
-			status = st_rip3_command_field(&first, command + 2, 2, value.base_math);
+			status = st_rip3_command_next_field(&fields, &first, 2, value.base_math, true);
 		if (status != 0)
 			return status;
 		return st_rip3_environments_set_playback_rate(host->environments, (uint32_t)first);
@@ -542,16 +541,16 @@ execute(const struct st_rip3_command_host *host,
 	if (length >= 2 && command[0] == '2' && command[1] == 'A')
 		return switch_palette(host, command, length, operation, sink);
 	if (length >= 2 && command[0] == '2' && command[1] == 'E')
-		return switch_environment(host,command,length,operation);
+		return switch_environment(host, command, length, operation, sink);
 	if (length >= 2 && command[0] == '2' && command[1] == 'T')
 		return switch_text_window(host,command,length,operation);
 	if (length >= 2 && command[0] == '2' && command[1] == 'R') {
-		if (length < 6) return IO_ERROR_INVALID_FORMAT;
+		struct st_rip3_fields fields = {command + 2, length - 2};
 		status = st_rip3_command_environment(host, &number, &value);
-		if (status == 0) status = st_rip3_command_field(&first, command + 2, 4, value.base_math);
+		if (status == 0) status = st_rip3_command_next_field(&fields, NULL, 4, value.base_math, false);
 		if (status != 0) return status;
 		*operation = true;
-		return st_rip3_refresh_define(host->refresh, command + 6, length - 6);
+		return st_rip3_refresh_define(host->refresh, fields.bytes, fields.remaining);
 	}
 	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
 		return host_query(host,command,length,operation);

@@ -25457,6 +25457,46 @@
         "version/3.0/ripscrip/9.0-command-reference.md:211",
         "version/3.0/ripscrip/9.0-command-reference.md:238"
       ]
+    },
+    {
+      "after_commit": "67e8f85864dfacdee851c9137d57983236d6b9d7",
+      "revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+      "scope": "Match table switch field widths and protection sequencing in live sessions, and collect refresh and playback-rate fields through the shared decoder.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/264"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:426",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:428",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:430",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:436",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:539",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:541",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:545",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:547",
+        "version/3.0/ripscrip/5.0-host-commands.md:298",
+        "version/3.0/ripscrip/5.0-host-commands.md:300",
+        "version/3.0/ripscrip/5.0-host-commands.md:302",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:342",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:344",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:348",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:352",
+        "version/3.0/ripscrip/7.1-data-tables.md:223",
+        "version/3.0/ripscrip/7.1-data-tables.md:225",
+        "version/3.0/ripscrip/7.1-data-tables.md:231",
+        "version/3.0/ripscrip/7.1-data-tables.md:281",
+        "version/3.0/ripscrip/7.1-data-tables.md:283",
+        "version/3.0/ripscrip/7.1-data-tables.md:285",
+        "version/3.0/ripscrip/7.1-data-tables.md:287",
+        "version/3.0/ripscrip/7.1-data-tables.md:289",
+        "version/3.0/ripscrip/7.1-data-tables.md:291",
+        "version/3.0/ripscrip/9.0-command-reference.md:57",
+        "version/3.0/ripscrip/9.0-command-reference.md:74",
+        "version/3.0/ripscrip/9.0-command-reference.md:206",
+        "version/3.0/ripscrip/9.0-command-reference.md:218",
+        "version/3.0/ripscrip/9.0-command-reference.md:236",
+        "version/3.0/ripscrip/9.0-command-reference.md:237"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

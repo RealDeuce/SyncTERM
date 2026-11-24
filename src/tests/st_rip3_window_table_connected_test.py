@@ -95,6 +95,12 @@ def run(args, width, height):
         frame = capture(b"\x01|2T30\r\n"
                         + query(b"$CUR(TW)$:$ISPROT(TW,CUR)$:$ISPROT(TW,1)$", at_cursor=True), b"3:0:1")
         assert (frame.application["cterm.x"], frame.application["cterm.y"], frame.application["cterm.attr"]) == (1, 1, 0x44)
+        capture(b"\x01|2T505 note\r\n")
+        variables(b"$CUR(TW)$:$ISPROT(TW,3)$:$ISPROT(TW,5)$", b"5:1:1")
+        capture(b"\x01|2T30Fignored\r\n")
+        variables(b"$CUR(TW)$:$ISPROT(TW,3)$:$ISPROT(TW,5)$", b"3:0:0")
+        capture(b"\x01|2T|2T5|2T50.|2T3. note\r\n")
+        variables(b"$CUR(TW)$:$ISPROT(TW,3)$", b"3:0")
         variables(b"$CUR(TW,1)$")
         before = capture(scene(width, height))
         frame = variables(b"$CUR(TW,4)$$TWW$:$TWH$:$TWFONT$:$CURX$:$CURY$:$CURSOR$:$ISPROT(TW,CUR)$",

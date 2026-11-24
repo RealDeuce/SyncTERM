@@ -502,7 +502,7 @@ def check_read_scene(t, root, assets, encoding):
     frame = t.exchange(b"\x1b[12;3H\x01|" + read_scene(b"Pace.TXT") + b"\r\n")
     assert time.monotonic() - begin >= 0.19
     assert frame.lines[11][2:8] == "abcdef"
-    t.exchange(b"\x01|3e00\r\n")
+    t.exchange(b"\x01|3e.\r\n" + query(b"$BAUDEMUL$", at_cursor=True), b"0")
 
     t.case("HCL scene macros finish nested scenes before replying")
     (assets / "Macro.RIP").write_bytes(query(b"$>Nested$local", at_cursor=True))

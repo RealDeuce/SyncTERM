@@ -305,6 +305,16 @@ def run(args):
                            + query(b"$COLORMODE$:alive", at_cursor=True), b"1:alive")
         assert pixel(frame, 12, 10) == pixel(frame, 13, 10) == 0x00ff00
 
+        t.case("rip3-palette-and-style-switch-field-boundaries")
+        frame = t.exchange(line(b"*", b"fHSDC", b"2A1. note", b"a0C10", b"c0C",
+                                geometry(b"X", 10, 10), b"2Y1. note", b"c02",
+                                geometry(b"X", 11, 10), b"2Y..", geometry(b"X", 12, 10))
+                           + query(b"$CUR(PAL)$:$CUR(STYLE)$", at_cursor=True), b"1:0")
+        assert [pixel(frame, x, 10) for x in range(10, 13)] == [0xff0000, 0x00aa00, 0xff0000]
+        frame = t.exchange(line(b"2A00. invalid", b"2A000 note")
+                           + query(b"$CUR(PAL)$:alive", at_cursor=True), b"0:alive")
+        assert [pixel(frame, x, 10) for x in range(10, 13)] == [0xff5555, 0x00aa00, 0xff5555]
+
         t.case("rip3-curve-and-counted-path-field-boundaries")
         oval = geometry(b"&", 40, 40, 8, 6)
         bezier = b"Z." + geometry(b"", 68, 5, 68, 10, 68, 15, 68, 2)

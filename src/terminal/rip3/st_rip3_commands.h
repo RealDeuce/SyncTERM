@@ -29,7 +29,7 @@ struct st_rip3_text_window_host {
 	/* Prepare/apply one ordinary or extended window. Status is consumed by the enclosing
 	 * void parser boundary, never returned as a transport/session error. */
 	int (*define)(void *context, const struct st_rip3_text_window_layout *layout);
-	int (*select)(void *context, unsigned number);
+	int (*select)(void *context, unsigned number, unsigned flags);
 	int (*deactivate)(void *context);
 	/* Stored floating/numbered TW expressions (modes 2/4). Definition only;
 	 * no provider work or click dispatch. Numeric/reserved framing is consumed. */

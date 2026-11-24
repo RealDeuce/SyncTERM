@@ -73,7 +73,7 @@ def run(args,width,height):
                b'$BASEMATH(5,64)$$COORDSIZE(5,4)$$COLORMODE(5,RGB,8)$'
                b'$PROT(ENV,5)$')
         t.case(f'rip3-env-activation-writeback-and-independent-tables-{width}x{height}')
-        before=client.capture();after=wire(b'2E05')
+        before=client.capture();after=wire(b'2E5.')
         assert before.primary==after.primary and before.alternate==after.alternate
         assert after.metadata['pointer_shape']==6
         assert (after.metadata['plane_width'],after.metadata['plane_height'])==(width,height)
@@ -91,8 +91,8 @@ def run(args,width,height):
         values(b'$COLORMODE(CUR,PAL)$')
         frame=wire(b'c04|X'+number(62,4,64)+number(30,4,64))
         assert pixel(frame,62,30)==0xaa0000  # Current base64 and four-digit coordinates are active.
-        # The wire width is two digits even while coordinate size is four.
-        wire(b'2E05')
+        # The slot and flags widths are independent of the coordinate size.
+        wire(b'2E500 comment')
         values(b'$CUR(ENV,2)$')
         values(b'$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',b'640:350:36:2:0:1200')
         values(b'$PROT(STYLE,7)$')
@@ -102,7 +102,7 @@ def run(args,width,height):
         values(b'$COLORMODE(CUR,PAL)$$MCURSOR$$UNPROT(STYLE,7)$')
         values(b'$BASEMATH(5)$:$COORDSIZE(5)$:$COLORMODE(5)$:$WORLD(5)$:$ISPROT(ENV,5)$',
                f'36:2:0:{2*width}:{2*height}:1'.encode())
-        frame=wire(b'2E0Z');assert frame.metadata['pointer_shape']==0
+        frame=wire(b'2EZ0');assert frame.metadata['pointer_shape']==0
         values(b'$CUR(ENV)$:$INUSE(ENV,35)$',b'35:1')
         t.case('rip3-env-protection-bypasses-and-entry-copy-preflight')
         values(b'$CUR(ENV,5)$')
@@ -125,7 +125,7 @@ def run(args,width,height):
         other_selections()
         values(b'$COPY(ENV,2,9)$$WORLD(9,0,0)$$CUR(ENV,9)$')
         values(b'$CUR(ENV)$:$WORLD$',b'9:0:0')
-        wire(b'X0000|2E00')  # Unusable projection is local; the next selector still runs.
+        wire(b'X0000|2E..')  # Unusable projection is local; the next selector still runs.
         values(b'$CUR(ENV)$:$WORLD$',b'0:640:350')
         t.case('rip3-env-nonzero-backup-selection-soft-and-nonfatal-recovery')
         values(b'$CUR(ENV,6)$$SENV(1)$$CUR(ENV,0)$')
@@ -135,9 +135,19 @@ def run(args,width,height):
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$CUR(ENV)$:$WORLD$:$INUSE(ENV,5)$$INUSE(ENV,6)$$INUSE(ENV,8)$',b'0:640:350:111')
         values(b'$BAUDEMUL$',b'1200')
-        values(b'$CUR(ENV,36)$');wire(b'2E|2E0|2E10|2E?0|2E00')
+        values(b'$CUR(ENV,36)$');wire(b'2E|2E0|2E10.|2E?0|2E..')
         values(b'$CUR(ENV)$:alive',b'0:alive')
         assert client.capture().application['connected']==1
+
+        t.case('rip3-env-wire-source-and-destination-protection')
+        wire(b'2E1. text|2E205 note')
+        values(b'$CUR(ENV)$:$ISPROT(ENV,1)$:$ISPROT(ENV,2)$',b'2:1:1')
+        wire(b'2E10Fignored')
+        values(b'$CUR(ENV)$:$ISPROT(ENV,1)$:$ISPROT(ENV,2)$',b'1:0:0')
+        wire(b'2E005')
+        values(b'$CUR(ENV)$:$ISPROT(ENV,CUR)$:$ISPROT(ENV,1)$',b'0:0:1')
+        wire(b'2E10')
+        values(b'$CUR(ENV)$:$ISPROT(ENV,1)$:alive',b'1:1:alive')
 
 
 if __name__=='__main__':

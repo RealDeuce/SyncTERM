@@ -563,9 +563,22 @@ select_text_window(struct st_rip3_session *session, unsigned number, bool clone)
 }
 
 static int
-select_window(void *context, unsigned number)
+select_window(void *context, unsigned number, unsigned flags)
 {
-	return select_text_window(context,number,true);
+	struct st_rip3_session *session = context;
+	const struct st_rip3_command_sink sink = {session, diagnose};
+	unsigned current = session->current_window;
+	if (flags & 4)
+		st_rip3_command_result(&sink, protect_window(session, current, true), true);
+	if (flags & 8)
+		st_rip3_command_result(&sink, protect_window(session, current, false), true);
+	int status = select_text_window(session, number, true);
+	if (status != 0) return status;
+	if (flags & 1)
+		st_rip3_command_result(&sink, protect_window(session, number, true), true);
+	if (flags & 2)
+		st_rip3_command_result(&sink, protect_window(session, number, false), true);
+	return 0;
 }
 
 static int

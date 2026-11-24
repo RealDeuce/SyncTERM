@@ -216,7 +216,7 @@ wire_drawing_palette(void)
 	CHECK(st_rip3_environments_create(&env, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_palettes_create(&palettes) == 0);
 	const struct st_rip3_command_host host = {.environments = env, .palettes = palettes};
-	CHECK(process(&host, "2A500", -1) == 0 && query(palettes, "$CUR(PAL)$", "5") == 0);
+	CHECK(process(&host, "2A5. comment", -1) == 0 && query(palettes, "$CUR(PAL)$", "5") == 0);
 	CHECK(process(&host, "D020#8&m004ZHM", -1) == 0);
 	CHECK(query(palettes, "$PALENTRY(CUR,62,63)$", "6;63:0:0,4:13:21") == 0);
 	CHECK(process(&host, "d3&8&", -1) == 0 && query(palettes, "$PALENTRY(CUR,255)$", "6;0:0:15") == 0);
@@ -243,6 +243,7 @@ wire_drawing_palette(void)
 	CHECK(st_rip3_palettes_info(palettes, 5, &info) == 0 && !info.protected);
 	CHECK(st_rip3_palettes_info(palettes, 7, &info) == 0 && !info.protected);
 	CHECK(process(&host, "2A7", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "2A70.", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "2A001", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(query(palettes, "$CUR(PAL)$", "0") == 0);
 	CHECK(process(&host, "2A304", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);

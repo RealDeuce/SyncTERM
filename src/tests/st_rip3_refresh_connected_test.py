@@ -34,7 +34,7 @@ def run(args, width, height):
         t.case(f'rip3-refresh-register-expand-and-local-action-{width}x{height}')
         local()
         accented = b'\x82' if args.encoding == 'CP437' else 'é'.encode()
-        bind(accented + b'$&NAME$^m', b'1234')
+        bind(accented + b'$&NAME$^m', b'.')
         values(b'$-=NAME=ready$')
         local(accented + b'ready\r')
         values(b'$-=NAME=later$prefix$REFRESH$suffix', accented + b'later\rprefixsuffix')
@@ -42,7 +42,7 @@ def run(args, width, height):
         bind(b'radix^m', b'ZZa&')
         local(b'radix\r')
         values(b'$BASEMATH(CUR,36)$')
-        bind(b'bad', b'00*0')
+        bind(b'bad', b'00.')
         local(b'radix\r')
 
         t.case('rip3-refresh-header-and-scene-lifetime')
@@ -54,7 +54,7 @@ def run(args, width, height):
         local(b'radix\r')
         t.exchange(b'\x01|h01000G00\r\n')
         local()
-        for clear in (b'\x01|2R0000$OFF$\r\n', b'\x01|2R0000\r\n',
+        for clear in (b'\x01|2R0000$OFF$\r\n', b'\x01|2R.\r\n',
                       query(b'$NOREFRESH$', at_cursor=True), b'\x01|*\r\n',
                       b'\x01|h01000100\r\n'):
             bind(b'again')

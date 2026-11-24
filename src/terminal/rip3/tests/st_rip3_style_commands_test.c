@@ -193,13 +193,13 @@ boundaries(void)
 	struct st_rip3_style_info info;
 	unsigned current;
 	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
-	const char *const invalid[]={"2Y","2Y1","2Y?00","2Y10?","2Y1000"};
+	const char *const invalid[]={"2Y","2Y1","2Y?00","2Y10?","2Y10."};
 	for (unsigned i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
 		CHECK(st_rip3_styles_current(host.styles,&current)==0 && current==0);
 		CHECK(st_rip3_styles_info(host.styles,1,&info)==0 && !info.defined && !info.protected);
 	}
-	CHECK(process(&host,"2Y100 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(process(&host,"2Y1. comment",-1)==0 && st_rip3_styles_current(host.styles,&current)==0 && current==1);
 	CHECK(process(&host,"2YG0",-1)==0 && st_rip3_styles_current(host.styles,&current)==0 && current==16);
 	/* Same-slot effects apply in source-then-destination order. */
 	for (unsigned flags=0; flags<16; flags++) {
