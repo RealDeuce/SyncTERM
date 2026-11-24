@@ -34,16 +34,35 @@ def run(args):
                    +b"\x1b[?25l\x1b[5mNATIVE TEXT\x1b[m")
         initial=t.exchange()
         m=initial.metadata
-        def mouse(x,y,left=False,move=False):
+        def mouse(x,y,left=False,move=False,*,buttons=None):
             px=m["destination_x"]+(2*x+1)*m["destination_width"]//(2*m["plane_width"])
             py=m["destination_y"]+(2*y+1)*m["destination_height"]//(2*m["plane_height"])
             before=client.capture().metadata["events_dequeued"]
-            client.mouse(px,py,action=0 if move else 1,buttons=int(left))
+            client.mouse(px,py,action=0 if move else 1,buttons=int(left) if buttons is None else buttons)
             return client.wait_for(lambda s:s.metadata["events_dequeued"]>before)
         def click(x,y,expected):
             mouse(x,y,True)
             mouse(x,y)
             return t.input(expected) if expected else t.exchange()
+
+        t.case("rip3-mouse-coordinate-and-button-queries")
+        values(b"$M$", b"000")
+        values(b"$WORLD(CUR,1280,960)$")
+        mouse(297,321,buttons=2|4)
+        values(b"$X$/$Y(device)$/$M$/$XYM$/$XYM(DEVICE)$",
+               b"0594/0321/011/0594:0642:011/0297:0321:011")
+        mouse(297,321,buttons=1|4)
+        values(b"$XYM(DEVICE)$", b"0297:0321:101")
+        mouse(298,322,buttons=4)
+        values(b"[$X(bad)$][$M(DEVICE)$][$XYM(DEVICE,WORLD)$]$XYM(DEVICE)$",
+               b"[][][]0298:0322:001")
+        before = client.capture().metadata["events_dequeued"]
+        client.focus(False)
+        client.wait_for(lambda snapshot: snapshot.metadata["events_dequeued"] > before)
+        values(b"$M$/$XYM(DEVICE)$", b"000/0298:0322:000")
+        client.focus(True)
+        mouse(298,322)
+        values(b"$WORLD(CUR,640,480)$")
 
         t.case("rip3-field-native-feedback-and-self-delete")
         t.exchange(field((0,0,96,16),b"$MKILL$clicked^M",invert=True))
@@ -99,8 +118,11 @@ def run(args):
         click(110,110,b"\x03\r"+label+b"0110:0110")
         values(b"$MKILL$")
         values(b"$WORLD(CUR,1280,480)$")
-        t.exchange(field((200,100,240,120),b"scaled:$XY(WORLD)$:$XY(DEVICE)$"))
-        click(100,100,b"scaled:0200:0100:0100:0100")
+        t.exchange(field((200,100,240,120),b"scaled:$XY(WORLD)$:$XYM(DEVICE)$"))
+        mouse(100,100,buttons=1|2)
+        mouse(100,100,buttons=2)
+        t.input(b"scaled:0200:0100:0100:0100:010")
+        mouse(100,100)
         values(b"$MKILL$$WORLD(CUR,640,480)$")
 
         t.case("rip3-field-identity-grammar-and-scoped-expansion")

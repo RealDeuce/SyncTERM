@@ -21762,6 +21762,58 @@
         "unreviewed": 2231
       },
       "verification": "Connected CP437 and UTF-8 queries verify the supported protocol list, affirmative and negative replies, refusal and recovery in safe mode and after bridge startup failure. Native IFS tests verify the list grammar and ordering. Existing JPEG tests correlate the advertised bit with image rendering."
+    },
+    {
+      "after_commit": "52f1df27",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected X, Y, M and XYM pointer queries and the ISPALETTE policy conflict B206.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1089",
+        "version/3.0/ripscrip/5.1-text-variables.md:1091",
+        "version/3.0/ripscrip/5.1-text-variables.md:1093",
+        "version/3.0/ripscrip/5.1-text-variables.md:1135",
+        "version/3.0/ripscrip/5.1-text-variables.md:1139",
+        "version/3.0/ripscrip/5.1-text-variables.md:1150",
+        "version/3.0/ripscrip/5.1-text-variables.md:1152",
+        "version/3.0/ripscrip/5.1-text-variables.md:1154",
+        "version/3.0/ripscrip/5.1-text-variables.md:1160",
+        "version/3.0/ripscrip/5.1-text-variables.md:1162",
+        "version/3.0/ripscrip/5.1-text-variables.md:1164",
+        "version/3.0/ripscrip/5.1-text-variables.md:1174",
+        "version/3.0/ripscrip/5.1-text-variables.md:1178",
+        "version/3.0/ripscrip/5.1-text-variables.md:1187",
+        "version/3.0/ripscrip/5.1-text-variables.md:1189",
+        "version/3.0/ripscrip/5.1-text-variables.md:1191",
+        "version/3.0/ripscrip/5.1-text-variables.md:1193",
+        "version/3.0/ripscrip/5.1-text-variables.md:1195",
+        "version/3.0/ripscrip/5.1-text-variables.md:1201",
+        "version/3.0/ripscrip/5.1-text-variables.md:1205",
+        "version/3.0/ripscrip/5.1-text-variables.md:1216",
+        "version/3.0/ripscrip/5.1-text-variables.md:1218",
+        "version/3.0/ripscrip/5.1-text-variables.md:1220",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:73",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:76",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:77",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:78",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:79"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1148",
+        "version/3.0/ripscrip/5.1-text-variables.md:1214"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3322",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:178"
+      ],
+      "states_after_update": {
+        "blocked": 32,
+        "context": 1863,
+        "excluded": 71,
+        "implemented": 3445,
+        "pending": 1507,
+        "unreviewed": 2200
+      },
+      "verification": "Original DLL callbacks 0x346d1, 0x34b65, 0x34d2d and 0x34eac supply independent formatting and button-order evidence. CP437 and UTF-8 connected mouse fixtures check scaled and direct coordinates, individual button transitions, focus loss, activation and recovery. Native tests cover the text-cell context. The RIP 1.54 preservation gate passes. Original ISPALETTE at 0x182fc returns the literal 1 at 0x7970c."
     }
   ]
 }

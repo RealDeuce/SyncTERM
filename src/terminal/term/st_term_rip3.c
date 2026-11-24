@@ -45,6 +45,7 @@ struct st_term_rip3 {
 		struct st_pixel_buffer *pixels;
 	} feedback[5];
 	struct st_rip3_point mouse_position;
+	struct st_rip3_pointer_buttons mouse_buttons;
 	uint8_t tty[4096];
 	size_t tty_length;
 	bool flushing;
@@ -1594,17 +1595,30 @@ mouse_capture(void *context, int32_t x, int32_t y)
 	rip->local.mouse_position=&rip->mouse_position;
 }
 
+static void
+mouse_button_state(struct st_term_rip3 *rip, uint32_t buttons)
+{
+	rip->mouse_buttons = (struct st_rip3_pointer_buttons){
+		.left = (buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0,
+		.middle = (buttons & ST_CONSOLE_MOUSE_BUTTON_MIDDLE) != 0,
+		.right = (buttons & ST_CONSOLE_MOUSE_BUTTON_RIGHT) != 0,
+	};
+}
+
 void
 st_term_rip3_captured_input(struct st_term_rip3 *rip,uint64_t token,const struct st_console_event *event)
 {
 	if (rip==NULL || token==0 || st_rip3_session_press_token(rip->session)!=token) return;
 	if (event->type==ST_CONSOLE_EVENT_MOUSE) {
+		mouse_button_state(rip,event->data.mouse.buttons);
 		mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 		(void)st_rip3_session_mouse(rip->session,event->data.mouse.pixel_x,event->data.mouse.pixel_y,
 		    (event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
 	}
-	else if (event->type == ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
+	else if (event->type == ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused) {
+		mouse_button_state(rip,0);
 		st_rip3_session_focus_lost(rip->session);
+	}
 	else st_rip3_session_pointer_boundary(rip->session);
 }
 
@@ -1619,6 +1633,7 @@ bool
 st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return false;
+	mouse_button_state(rip,event->data.mouse.buttons);
 	if (rip->pick_list!=NULL) { pick_list_input(rip,event);return true; }
 	if (st_rip3_session_input_locked(rip->session)) return true;
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
@@ -1703,8 +1718,10 @@ st_term_rip3_mouse_cancel(struct st_term_rip3 *rip, bool keyboard_focus_lost)
 {
 	if (rip!=NULL) {
 		st_term_rip3_pick_list_disarm(rip->pick_list);
-		if (keyboard_focus_lost)
+		if (keyboard_focus_lost) {
+			mouse_button_state(rip,0);
 			st_rip3_session_focus_lost(rip->session);
+		}
 		else
 			st_rip3_session_pointer_boundary(rip->session);
 	}
@@ -1714,6 +1731,7 @@ void
 st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return;
+	mouse_button_state(rip,event->data.mouse.buttons);
 	if (rip->pick_list!=NULL) { st_term_rip3_pick_list_disarm(rip->pick_list);return; }
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	(void)st_rip3_session_mouse(rip->session,-1,-1,(event->data.mouse.buttons&ST_CONSOLE_MOUSE_BUTTON_LEFT)!=0);
@@ -1849,6 +1867,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;
 	rip->local=(struct st_rip3_local_queries){.context=rip,.modifiers=modifiers,.colors=&rip->colors,
+	    .mouse_buttons=&rip->mouse_buttons,
 	    .doorway_mode=doorway_mode,.set_doorway_mode=set_doorway_mode};
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_ANSI,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_DOORWAY,true);

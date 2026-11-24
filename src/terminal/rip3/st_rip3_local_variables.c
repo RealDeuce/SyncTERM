@@ -164,8 +164,10 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	bool shift=strcmp(reference->name,"SHIFT")==0,ctrl=strcmp(reference->name,"CTRL")==0;
 	bool mouse=strcmp(reference->name,"MSTAT")==0,colors=strcmp(reference->name,"COLORS")==0;
-	bool position=strcmp(reference->name,"XY")==0;
-	if (!shift && !ctrl && !mouse && !colors && !position) return IO_ERROR_NOT_SUPPORTED;
+	bool x_only = strcmp(name, "X") == 0, y_only = strcmp(name, "Y") == 0;
+	bool buttons_only = strcmp(name, "M") == 0, with_buttons = strcmp(name, "XYM") == 0;
+	bool position = x_only || y_only || with_buttons || strcmp(name, "XY") == 0;
+	if (!shift && !ctrl && !mouse && !colors && !position && !buttons_only) return IO_ERROR_NOT_SUPPORTED;
 	if (reference->count>(position ? 1u : 0u)) return IO_ERROR_INVALID_FORMAT;
 	struct st_rip3_builtin_reference words;
 	bool device=false,world=false;
@@ -177,6 +179,14 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 	}
 	const struct st_rip3_local_queries *local=host->local;
 	if (local==NULL) return IO_ERROR_NOT_SUPPORTED;
+	char buttons[4] = {0};
+	if (buttons_only || with_buttons) {
+		if (local->mouse_buttons == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		buttons[0] = local->mouse_buttons->left ? '1' : '0';
+		buttons[1] = local->mouse_buttons->middle ? '1' : '0';
+		buttons[2] = local->mouse_buttons->right ? '1' : '0';
+	}
 	char text[32];int length;
 	if (shift || ctrl) {
 		if (capacity<2) return IO_ERROR_OUT_OF_RANGE;
@@ -196,6 +206,10 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		if (local->colors==NULL) return IO_ERROR_NOT_SUPPORTED;
 		length=snprintf(text,sizeof(text),"%u",*local->colors);
 	}
+	else if (buttons_only) {
+		memcpy(text, buttons, sizeof(buttons));
+		length = 3;
+	}
 	else {
 		if (local->mouse_position==NULL) return IO_ERROR_NOT_SUPPORTED;
 		struct st_rip3_point captured=*local->mouse_position;
@@ -211,11 +225,15 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		else if (!device) {
 			struct st_rip3_frame current;int status=frame(host,&current);
 			if (status!=0) return status;
-			/* The XY variable truncates signed products, unlike pixel mapping's
+			/* Pointer queries truncate signed products, unlike pixel mapping's
 			 * containing-cell floor rule. Narrow only after this conversion. */
 			x=x*current.world_width/current.device_width;y=y*current.world_height/current.device_height;
 		}
-		length=snprintf(text,sizeof(text),"%0*" PRId64 ":%0*" PRId64,padding,signed_word(x),padding,signed_word(y));
+		if (x_only || y_only)
+			length = snprintf(text, sizeof(text), "%0*" PRId64, padding, signed_word(x_only ? x : y));
+		else
+			length = snprintf(text, sizeof(text), "%0*" PRId64 ":%0*" PRId64 "%s%s",
+			    padding, signed_word(x), padding, signed_word(y), with_buttons ? ":" : "", buttons);
 	}
 	if (length<0 || (size_t)length>=sizeof(text)) return IO_ERROR_IO;
 	if ((size_t)length>=capacity) return IO_ERROR_OUT_OF_RANGE;

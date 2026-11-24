@@ -17,6 +17,10 @@ struct st_rip3_query_cells {
 	unsigned cell_width, cell_height, columns, rows;
 };
 
+struct st_rip3_pointer_buttons {
+	bool left, middle, right;
+};
+
 /* One interpreter thread borrows these bindings and their backing values.
  * Keep binding pointers stable while an enclosing query is pending; values
  * may change between processing calls. Read each reference when reached,
@@ -33,6 +37,7 @@ struct st_rip3_local_queries {
 	/* Captured coordinates of this host/query event, not a fresh live-pointer
 	 * request. A missing capture is unsupported, independently of MSTAT. */
 	const struct st_rip3_point *mouse_position;
+	const struct st_rip3_pointer_buttons *mouse_buttons;
 	const bool *mouse_installed;
 	/* Destination device capacity, independently of current palette/ENV mode. */
 	const unsigned *colors;

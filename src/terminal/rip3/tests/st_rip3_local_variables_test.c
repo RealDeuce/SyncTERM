@@ -168,14 +168,21 @@ positions(enum st_rip3_canvas canvas)
 	struct st_rip3_frame current;CHECK(st_rip3_frame_init(&current,canvas)==0
 	    && st_rip3_frame_world(&current,current.device_width*2,current.device_height*2)==0);
 	struct st_rip3_point capture={297,321};
-	struct st_rip3_local_queries local={.mouse_position=&capture};
+	struct st_rip3_pointer_buttons buttons = {.middle = true, .right = true};
+	struct st_rip3_local_queries local={.mouse_position=&capture,.mouse_buttons=&buttons};
 	struct st_rip3_host_variables host={.local=&local,.frame=&current};
 	CHECK(query(&host,"$XY(DEVICE)$","0297:0321",-1)==0 && query(&host,"$XY$","0594:0642",-1)==0);
+	CHECK(query(&host,"$X$","0594",-1)==0 && query(&host,"$Y(device)$","0321",-1)==0);
+	CHECK(query(&host,"$M$","011",-1)==0 && query(&host,"$XYM$","0594:0642:011",-1)==0);
 	CHECK(query(&host,"$XY(, world ,,)$","0594:0642",-1)==0);
 	struct st_rip3_query_cells window={.origin={0,0},.cell_width=8,.cell_height=16,.columns=80,.rows=25};
 	local.text_window_query=true;local.text_window=&window;
 	CHECK(query(&host,"$XY$","37:20",-1)==0 && query(&host,"$XY(WORLD)$","0594:0642",-1)==0
 	    && query(&host,"$XY(device)$","0297:0321",-1)==0);
+	CHECK(query(&host,"$X$","37",-1)==0 && query(&host,"$Y$","20",-1)==0);
+	CHECK(query(&host,"$XYM$","37:20:011",-1)==0);
+	buttons = (struct st_rip3_pointer_buttons){.left = true};
+	CHECK(query(&host,"$XYM(DEVICE)$","0297:0321:100",-1)==0);
 	capture=(struct st_rip3_point){-1,-1};CHECK(query(&host,"$XY$","00:00",-1)==0);
 	capture=(struct st_rip3_point){640,400};CHECK(query(&host,"$XY$","79:24",-1)==0);
 	window.origin=(struct st_rip3_point){100,200};capture=(struct st_rip3_point){108,216};
@@ -205,6 +212,8 @@ positions(enum st_rip3_canvas canvas)
 	tables.tables[ST_RIP3_TABLE_ENV].live=NULL;
 	CHECK(query(&host,"$XY$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0 && query(&host,"$XY(DEVICE)$","0297:0321",-1)==0);
 	local.mouse_position=NULL;CHECK(query(&host,"$XY(DEVICE)$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
+	CHECK(query(&host,"$M$","100",-1)==0);
+	CHECK(query(&host,"$XYM(DEVICE)$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	st_rip3_environments_destroy(env);return 0;
 }
 

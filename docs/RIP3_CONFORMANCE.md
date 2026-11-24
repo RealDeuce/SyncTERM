@@ -9733,3 +9733,26 @@ The connected CP437 and UTF-8 fixtures query the list and individual
 features, exercise X/YMODEM on the same worker, and check that a refused
 transfer leaves the session available in safe mode and after a bridge startup
 failure.
+
+## Connected mouse coordinate and button queries
+
+`$X$` and `$Y$` return one axis from the same captured pointer coordinates
+as `$XY$`. `$XYM$` adds a colon and the three button digits returned by
+`$M$` in left, middle, right order. The current WORLD dimensions scale the
+captured DEVICE point with integer truncation. Coordinates are signed
+decimal with a minimum width of four, independent of Base Math. In a
+text-window query context, an omitted domain uses two-digit minimum cell
+coordinates clamped to that window. Explicit WORLD or DEVICE overrides
+that default. The original callbacks at RVAs `0x346d1`, `0x34b65`,
+`0x34d2d` and `0x34eac` establish the widths, conversion and button order.
+
+Button status starts at `000` and clears on focus loss. Position queries
+use the most recent session capture, so an initial query before any pointer
+event has no position to report. Connected CP437 and UTF-8 fixtures check
+scaled and direct coordinates, independent button changes, field
+activation with the middle button still held and recovery after invalid
+arguments. The native formatter test checks the text-cell context.
+
+The shipped `ISPALETTE` callback returns a fixed `1` for every valid call.
+The pinned description makes the result depend on the video device.
+[Issue #206](https://github.com/bbs-land/remote-imaging-protocol/issues/206)
