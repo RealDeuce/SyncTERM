@@ -47,12 +47,12 @@ def run(args, width, height, cw, ch, font0_width, font0_height, columns, rows, b
         assert frame.primary == before.primary and frame.application["cterm.ext_attr.auto_wrap"] == 0
         frame = t.exchange(b"\x01|gZZZZ\r\n\x1b[6n", f"\x1b[{rows};{columns}R".encode())
         geometry(frame, width, height, origin[0]+(columns-1)*cw, origin[1]+(rows-1)*ch, cw, ch)
-        before = t.exchange(b"\x01|H\r\nF\x1b[3g\x1b[1;6H\x1bH\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b7\x1b[31;44m")
+        before = t.exchange(b"\x01|H\r\nF\x1b[3g\x1b[1;6H\x1bH\x1b[2;3r\x1b[?6h\x1b[2;2H\x1b[s\x1b[31;44m")
         frame = t.exchange(command + b"\x1b[6n", b"\x1b[1;1R")
         assert frame.primary == before.primary and frame.application["cterm.attr"] == 7
         assert frame.application["cterm.ext_attr.origin_mode"] == 0
         assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (1, rows)
-        t.exchange(b"\x1b8\x1b[6n", b"\x1b[1;1R")
+        t.exchange(b"\x1b[u\x1b[6n", b"\x1b[1;1R")
         t.exchange(b"\t\x1b[6n", b"\x1b[1;9R")
         t.exchange(query(b"$COFF$", at_cursor=True))
         frame = t.exchange(command)
@@ -66,6 +66,19 @@ def run(args, width, height, cw, ch, font0_width, font0_height, columns, rows, b
             frame = t.exchange(query(b"$CON$", at_cursor=True)
                                + window((0, 0, 800, 500), 40, 25, 0, 8) + b"\x1b[2 q")
             geometry(frame, width, height, 160, 37, 12, 17)
+
+        if width == 640:
+            t.case("rip3-extended-window-field-and-reserved-shorthand")
+            # Active XY 3. Short zero corners and flags, then a complete
+            # three-digit ignored reserved field followed by surplus text.
+            prefix = b"\x01|n3|b..02S02S02020"
+            t.exchange(prefix + b".02Z comment|g001001\r\n\x1b[6n", b"\x1b[2;2R")
+            prefix = b"\x01|b..02S02S02020"
+            t.exchange(prefix + b"00010?\r\n\x1b[6n", b"\x1b[2;2R")
+            t.exchange(prefix + b"0001Z\r\n\x1b[6n", b"\x1b[1;1R")
+            frame = t.exchange(prefix + b"1|n2\r\n")
+            assert frame.application["cterm.ext_attr.auto_wrap"] == 1
+
         t.case(f"rip3-extended-minimum-cell-{width}x{height}")
         frame = t.exchange(query(b"$CON$", at_cursor=True) + scene(width, height)
                            + window((20, 30, 21, 31), 1, 1, 4, 24) + b"\x1b[2 q")

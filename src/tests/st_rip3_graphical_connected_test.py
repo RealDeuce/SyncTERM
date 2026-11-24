@@ -59,9 +59,12 @@ def run(args):
             t.exchange(b'\x01|m0000|T'+source+b'\r\n'+query(b'$TEXTXY$',at_cursor=True),
                        f'{len(expected)*8}:0'.encode())
         t.case('rip3-graphical-position-prefix-survives-setter')
-        t.exchange(b'\x01|@0A1E$COORDSIZE(CUR,5)$A\r\n'
-                   +query(b'$TEXTXY$:$COORDSIZE$',at_cursor=True),b'10:50:5')
+        t.exchange(b'\x01|@.1E$COORDSIZE(CUR,5)$A\r\n'
+                   +query(b'$TEXTXY$:$COORDSIZE$',at_cursor=True),b'0:50:5')
         values(b'$COORDSIZE(CUR,2)$')
+        t.case('rip3-graphics-move-ignores-surplus-after-complete-fields')
+        t.exchange(b'\x01|m0A. ignored|m.1-|@.1-$COORDSIZE(CUR,5)$A\r\n'
+                   +query(b'$TEXTXY$:$COORDSIZE$',at_cursor=True),b'10:0:2')
         t.case('rip3-graphical-working-prefix-discards-provider-suffix')
         t.exchange(b'\x01|m0000|T'+b'A'*1022+b'$COORDSIZE(CUR,5)$\r\n'
                    +query(b'$TEXTXY$:$COORDSIZE$',at_cursor=True),b'8176:0:2')

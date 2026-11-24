@@ -97,6 +97,16 @@ def run(args, width, height):
         t.exchange(b"\x01|w0A050H0A10\r\n")
         controls(t, 8, 6, 80*width//640, 40*height//350, width//80, height//43)
 
+        t.case(f"rip3-cursor-and-window-wire-widths-{width}x{height}")
+        t.exchange(b"\x01|n3|w..030310 comment|g001002tail\r\n\x1b[6n", b"\x1b[3;2R")
+        # With XY 3, g0102 has X=36 and shortened Y=2 in MegaNum.
+        t.exchange(b"\x01|g0102\r\n\x1b[6n", b"\x1b[3;4R")
+        # Missing font in w and an invalid byte in a pending Y preserve state.
+        t.exchange(b"\x01|w000009091|g01022|g0010?\r\n\x1b[6n", b"\x1b[4;4R")
+        t.exchange(b"\x01|g..1\r\n\x1b[6n", b"\x1b[1;1R")
+        frame = t.exchange(b"\x01|g.02\r\n\x1b[6n", b"\x1b[3;1R")
+        assert xy(frame) == (1, 3) and frame.application["connected"] == 1
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

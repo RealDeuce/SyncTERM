@@ -183,7 +183,7 @@ def run(args,width,height):
                 return {(x,y) for x in range(x0,x1) for y in range(y0,y1)
                         if pixel(frame,x,y)==0xffffff}
 
-            t.exchange(line(bounded((20,30,61,55),b'<<?3>>')))
+            t.exchange(line(bounded((20,30,61,55),b'<<?3>>',reserved=b'.')))
             values(b'$WORLD(CUR,1280,960)$')
             # At 36 DPI, size 44 paints identically. Odd world endpoints
             # truncate separately before calculating the reversed extent.

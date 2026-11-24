@@ -317,6 +317,9 @@ numeric(void)
 			uint8_t value = expected[y*3+x]; if ((x == 1 && y == 0) || y == 2) value = 12;
 			CHECK(st_rip3_ports_read(f.host.ports,1,6+x,7+y,&actual) == 0 && actual == value);
 		}
+		CHECK(process(&f,"m.. comment",-1) == 0 && cursor(&f).x == 0 && cursor(&f).y == 0);
+		CHECK(process(&f,"@..B",-1) == 0 && cursor(&f).x == 3 && cursor(&f).y == 0);
+		CHECK(process(&f,"m.0.",ST_RIP3_COMMAND_INVALID) == 0 && cursor(&f).x == 3);
 		destroy(&f);
 	}
 	struct fixture f = {0}; struct st_rip3_environment environment;

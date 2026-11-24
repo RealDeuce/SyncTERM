@@ -189,20 +189,21 @@ st_rip3_text_argument_prepare(const struct st_rip3_command_host *host, const uin
 		int status=st_rip3_command_environment(host,&number,&environment);
 		if (status!=0) return status;
 		size_t width=environment.coordinate_size;
+		unsigned radix=environment.base_math;
+		struct st_rip3_fields fields = {command+1,length-1};
 		bool bounded=value.opcode=='"';
-		at+=bounded ? 4*width+2 : 2*width;
-		if (length<at || (!bounded && length==at)) return IO_ERROR_INVALID_FORMAT;
-		status=st_rip3_command_field(&value.x,command+1,width,environment.base_math);
-		if (status==0) status=st_rip3_command_field(&value.y,command+1+width,width,environment.base_math);
+		status=st_rip3_command_next_field(&fields,&value.x,width,radix,false);
+		if (status==0) status=st_rip3_command_next_field(&fields,&value.y,width,radix,false);
 		if (status==0 && bounded) {
-			uint64_t reserved;
-			status=st_rip3_command_field(&value.x1,command+1+2*width,width,environment.base_math);
-			if (status==0) status=st_rip3_command_field(&value.y1,command+1+3*width,width,environment.base_math);
-			if (status==0) status=st_rip3_command_field(&reserved,command+at-2,2,environment.base_math);
+			status=st_rip3_command_next_field(&fields,&value.x1,width,radix,false);
+			if (status==0) status=st_rip3_command_next_field(&fields,&value.y1,width,radix,false);
+			if (status==0) status=st_rip3_command_next_field(&fields,NULL,2,radix,false);
 		}
 		if (status!=0) return status;
+		if (!bounded && fields.remaining==0) return IO_ERROR_INVALID_FORMAT;
 		if (value.x>INT32_MAX || value.y>INT32_MAX || value.x1>INT32_MAX || value.y1>INT32_MAX)
 			return IO_ERROR_OUT_OF_RANGE;
+		at=length-fields.remaining;
 		if (bounded) {
 			value.skip=length==at || command[at]==0;
 			if (!value.skip) {
@@ -253,9 +254,9 @@ text_execute(const struct st_rip3_command_host *host,
 		size_t width=environment.coordinate_size;
 		if (prepared!=NULL) {x=prepared->x;y=prepared->y;}
 		else {
-			if (kind=='m' ? (count<=width || count>2*width) : count<2*width) return IO_ERROR_INVALID_FORMAT;
-			status=st_rip3_command_field(&x,arguments,width,environment.base_math);
-			if (status==0) status=st_rip3_command_field(&y,arguments+width,kind=='m' ? count-width : width,environment.base_math);
+			struct st_rip3_fields fields = {arguments,count};
+			status=st_rip3_command_next_field(&fields,&x,width,environment.base_math,false);
+			if (status==0) status=st_rip3_command_next_field(&fields,&y,width,environment.base_math,true);
 			if (status!=0) return status;
 			if (x>INT32_MAX || y>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 		}
@@ -265,10 +266,6 @@ text_execute(const struct st_rip3_command_host *host,
 		anchor = (struct st_rip3_text_position){(double)(x*frame.device_width/frame.world_width),
 		    (double)(y*frame.device_height/frame.world_height)};
 		raw_x = x; raw_y = y;
-		if (kind=='@' && prepared==NULL) {
-			arguments += 2*width; count -= 2*width;
-			if (count == 0) return IO_ERROR_INVALID_FORMAT;
-		}
 	}
 	else {
 		if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -373,7 +370,7 @@ int
 st_rip3_text_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
-	if (command[0]=='"') {
+	if (command[0]=='@' || command[0]=='"') {
 		struct st_rip3_text_argument argument;
 		size_t offset;
 		int status=st_rip3_text_argument_prepare(host,command,length,&argument,&offset);

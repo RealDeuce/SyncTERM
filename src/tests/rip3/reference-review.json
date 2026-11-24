@@ -24932,6 +24932,23 @@
         "version/3.0/ripscrip/9.0-command-reference.md:167",
         "version/3.0/ripscrip/9.0-command-reference.md:235"
       ]
+    },
+    {
+      "after_commit": "c29b9d4c66ddc7f2456e7ab5263979e3eda59934",
+      "revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
+      "scope": "Use the original widths for terminal cursor and ordinary window definitions, and collect graphics and extended text-window numeric fields before dispatch.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/253"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:337",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:544",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:546",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:21",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:76",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:108",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:112"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

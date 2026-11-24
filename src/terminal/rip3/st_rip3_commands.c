@@ -378,14 +378,14 @@ normal_text_window(const struct st_rip3_command_host *host,
 	struct st_rip3_environment environment;unsigned number;
 	int status=st_rip3_command_environment(host,&number,&environment);
 	if (status!=0) return status;
-	if (length!=1+4*environment.coordinate_size+2) return IO_ERROR_INVALID_FORMAT;
-	bool zero=true;uint64_t values[6];size_t at=1;
+	struct st_rip3_fields fields = {command+1,length-1};
+	bool zero=true;uint64_t values[6];
 	for (unsigned i=0;i<6;i++) {
-		size_t width=i<4 ? environment.coordinate_size : 1;
-		status=st_rip3_command_field(values+i,command+at,width,environment.base_math);
+		/* Ordinary window bounds use fixed-width text cells. */
+		size_t width=i<4 ? 2 : 1;
+		status=st_rip3_command_next_field(&fields,values+i,width,environment.base_math,false);
 		if (status!=0) return status;
 		if (values[i]!=0) zero=false;
-		at+=width;
 	}
 	if (zero) {
 		if (host->text_window!=NULL && host->text_window->deactivate!=NULL) {
@@ -415,19 +415,17 @@ extended_text_window(const struct st_rip3_command_host *host,
 	struct st_rip3_environment environment;unsigned number;
 	int status=st_rip3_command_environment(host,&number,&environment);
 	if (status!=0) return status;
-	size_t prefix=1+4*environment.coordinate_size+5;
-	if (length<=prefix || length>prefix+7) return IO_ERROR_INVALID_FORMAT;
-	uint64_t fields[9]={0};size_t at=1;
+	struct st_rip3_fields wire = {command+1,length-1};
+	uint64_t fields[8];
 	for (unsigned i=0;i<7;i++) {
 		size_t width=i<4 ? environment.coordinate_size : i<6 ? 2 : 1;
-		status=st_rip3_command_field(fields+i,command+at,width,environment.base_math);
+		status=st_rip3_command_next_field(&wire,fields+i,width,environment.base_math,false);
 		if (status!=0) return status;
-		at+=width;
 	}
-	size_t remaining=length-at,flags=remaining>4 ? 4 : remaining;
-	status=st_rip3_command_field(fields+7,command+at,flags,environment.base_math);
-	if (status==0 && remaining>4)
-		status=st_rip3_command_field(fields+8,command+at+4,remaining-4,environment.base_math);
+	/* Flags can end at the delimiter when no reserved field follows. */
+	status=st_rip3_command_next_field(&wire,fields+7,4,environment.base_math,true);
+	if (status==0 && wire.remaining!=0)
+		status=st_rip3_command_next_field(&wire,NULL,3,environment.base_math,true);
 	if (status!=0) return status;
 	if (fields[4]==0 || fields[5]==0 || fields[7]>63 || (!(fields[7]&8) && fields[6]>4))
 		return IO_ERROR_OUT_OF_RANGE;
@@ -452,16 +450,14 @@ text_cursor(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {
 	uint64_t column=0,row=0;
-	if (command[0]=='H') {
-		if (length!=1) return IO_ERROR_INVALID_FORMAT;
-	}
-	else {
-		/* X occupies two digits. The final Y field can omit a leading zero. */
-		if (length<4 || length>5) return IO_ERROR_INVALID_FORMAT;
+	if (command[0]=='g') {
 		struct st_rip3_environment environment;unsigned number;
+		struct st_rip3_fields fields = {command+1,length-1};
 		int status=st_rip3_command_environment(host,&number,&environment);
-		if (status==0) status=st_rip3_command_field(&column,command+1,2,environment.base_math);
-		if (status==0) status=st_rip3_command_field(&row,command+3,length-3,environment.base_math);
+		if (status==0) status=st_rip3_command_next_field(&fields,&column,
+		    environment.coordinate_size,environment.base_math,false);
+		if (status==0) status=st_rip3_command_next_field(&fields,&row,
+		    environment.coordinate_size,environment.base_math,true);
 		if (status!=0) return status;
 	}
 	if (host->text_window==NULL || host->text_window->position==NULL) return IO_ERROR_NOT_SUPPORTED;

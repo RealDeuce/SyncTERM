@@ -427,14 +427,14 @@ Hook.onKey(Key.f9) {|event|
         before = t.exchange(b"\x01|w0A050C0710\r\n")
         frame = t.exchange(b"\x01|g0102\r\n\x1b[6n", b"\x1b[3;2R")
         assert frame.primary == before.primary
-        frame = t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")
+        frame = t.exchange(b"\x01|H comment\r\n\x1b[6n", b"\x1b[1;1R")
         assert frame.primary == before.primary
         frame = t.exchange(b"\x01|gZZZZ\r\n\x1b[6n", b"\x1b[3;3R")
         assert frame.primary == before.primary
-        # X stays two digits even when XY width is five. In base 64, 0l
-        # means column 47, which clamps to the window's right edge.
-        t.exchange(b"\x01|J1S|n5|g0l1\r\n\x1b[6n", b"\x1b[2;3R")
-        t.exchange(b"\x01|g??00|g00|H0|J10|n2\r\n\x1b[6n", b"\x1b[2;3R")
+        # In base 64, five-digit X 0000l means column 47 and clamps to
+        # the right edge. The final five-digit Y field can be shortened.
+        t.exchange(b"\x01|J1S|n5|g0000l1\r\n\x1b[6n", b"\x1b[2;3R")
+        t.exchange(b"\x01|g??00|g00|J10|n2\r\n\x1b[6n", b"\x1b[2;3R")
         send(b"\x01|w0000000000|g0000|H\r\n" + query(b"cursor-off"))
         receive(peer, b"cursor-off", root / "replies.bin")
         frame = t.exchange(b"\x01|w0A050C0710\r\n\x1b[6n", b"\x1b[2;3R")

@@ -10038,8 +10038,8 @@ the working limit and protection against evaluating rejected commands.
 
 ## Shortened cursor, scroll and mouse fields
 
-Connected `g` accepts a one-digit Y after its two-digit X. Both fields
-use current Base Math independently of XY width. `1G` accepts a destination
+At XY width two, connected `g` accepts a one-digit Y after its two-digit X.
+Both fields use current Base Math and the active XY width. `1G` accepts a destination
 line shortened to one digit and retains the mode and reserved digits before
 it. `1k` accepts one through four flag digits after the full-width selector.
 Each of the three commands requires at least one digit in its final field.
@@ -10324,3 +10324,24 @@ leave the marker unchanged. Lookup and raster failure keep the current
 port and clipboard selection. Both connected encodings check a nonzero
 viewport origin, a scaled WORLD and the next reply on the same connection.
 [PR #251](https://github.com/bbs-land/remote-imaging-protocol/pull/251)
+
+
+## Text and cursor wire fields
+
+RIPtel slots 30 and 69 collect active-width coordinates for `g` and
+two-digit corner coordinates for `w`. Those widths govern encoding.
+Both commands still use text cells. `g` accepts a shortened final
+Y. `H` ignores surplus after its opcode. `b` retains active XY for
+its rectangle and accepts an omitted reserved field, with short flags
+at the delimiter. A transmitted reserved field is validated and ignored.
+
+`m`, `@` and bounded text now collect leading periods as one complete
+zero field. `m` skips surplus after both coordinates. `@` and bounded
+text determine the string boundary before expansion can change the
+numeric settings. Malformed fields are consumed within RIP3.
+
+The original-driver captures measured dispatch after a separate CR
+in both radices with XY widths two and three. Native drawing tests
+cover widths two through five. Connected CP437 and UTF-8 cases check
+cursor replies, text-window geometry, fitting and recovery.
+[Issue #253](https://github.com/bbs-land/remote-imaging-protocol/issues/253)
