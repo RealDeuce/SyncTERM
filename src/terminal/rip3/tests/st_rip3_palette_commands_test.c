@@ -170,7 +170,8 @@ validation(enum st_rip3_canvas canvas)
 	CHECK(process(&host, "Q000102030405060708090A0B0C0D0E0F tail", -1) == 0);
 	CHECK(process(&host, "a0202 tail", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[2] == 0x00aa00);
-	CHECK(process(&host, "a--W", -1) == 0);
+	CHECK(process(&host, "a--W", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "a.W", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[0] == 0x550000);
 	CHECK(process(&host, "Q0000000000000000000000000000001", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[15] == 0x0000aa);

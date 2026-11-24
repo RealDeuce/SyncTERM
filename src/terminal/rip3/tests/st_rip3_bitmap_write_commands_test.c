@@ -482,7 +482,8 @@ port_write(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const ch
 	CHECK(process(&f,"n2",-1) == 0);
 
 	CHECK(process(&f,"J10",-1) == 0);
-	CHECK(process(&f,"2Wz" "00000000" "0000Mega.bmp",-1) == 0 && expect_area(directory,"Mega.bmp",3,2,solid) == 0);
+	CHECK(process(&f,"2Wz" "00000000" "0000Mega.bmp",ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&f,"2WZ" "00000000" "0000Mega.bmp",-1) == 0 && expect_area(directory,"Mega.bmp",3,2,solid) == 0);
 	CHECK(process(&f,"2WZ" "0#000&01" "0000BadBase.bmp",ST_RIP3_COMMAND_INVALID) == 0);
 	const struct st_rip3_rect large = {0,0,72,72};
 	uint8_t canonical[73*73];

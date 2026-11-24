@@ -23,15 +23,15 @@
 int
 st_rip3_command_field(uint64_t *result, const uint8_t *bytes, size_t length, unsigned radix)
 {
-	uint8_t digits[5];
-
-	if (length == 0 || length > sizeof(digits))
+	if (length == 0 || length > 5)
 		return IO_ERROR_INVALID_FORMAT;
-	/* This is a documented wire quirk, not a change to the strict reusable
-	 * digit codec or to the frozen legacy number reader. */
-	for (size_t i = 0; i < length; i++)
-		digits[i] = radix == 36 && bytes[i] == '-' ? '0' : bytes[i];
-	return st_rip3_number_decode(result, digits, length, radix);
+	/* RIPtel's MegaNum wire collector admits only digits and uppercase letters. */
+	if (radix == 36) {
+		for (size_t i = 0; i < length; i++)
+			if (bytes[i] >= 'a' && bytes[i] <= 'z')
+				return IO_ERROR_INVALID_FORMAT;
+	}
+	return st_rip3_number_decode(result, bytes, length, radix);
 }
 
 int

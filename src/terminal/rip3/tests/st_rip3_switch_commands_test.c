@@ -321,8 +321,8 @@ validation(void)
 	CHECK(process(&f,"2s10a",-1) == 0 && state(&f,1,true,false) == 0); /* UltraNum a=36; higher bits ignored. */
 	CHECK(process(&f,"2s10A",-1) == 0 && state(&f,1,false,false) == 0);
 	CHECK(process(&f,"J10",-1) == 0);
-	CHECK(process(&f,"2s10a",-1) == 0); /* MegaNum folds case: a=10. */
-	CHECK(process(&f,"2s1--",-1) == 0 && state(&f,1,false,false) == 0);
+	CHECK(process(&f,"2s10a",ST_RIP3_COMMAND_INVALID) == 0 && state(&f,1,false,false) == 0);
+	CHECK(process(&f,"2s1--",ST_RIP3_COMMAND_INVALID) == 0 && state(&f,1,false,false) == 0);
 	const struct st_rip3_rect point = {0,0,0,0};
 	CHECK(st_rip3_ports_define(f.host.ports,35,&point,true) == 0);
 	CHECK(process(&f,"2sZ00",-1) == 0 && state(&f,35,false,false) == 0);

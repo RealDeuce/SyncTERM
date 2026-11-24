@@ -24680,6 +24680,19 @@
         "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:261",
         "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:263"
       ]
+    },
+    {
+      "after_commit": "ca2fb7342a550f2659ec25647f7ec51053082b3d",
+      "revision": "6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d",
+      "scope": "Apply the original MegaNum wire alphabet and reject dash bytes in numeric fields.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/244",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/250"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:121",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:444"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

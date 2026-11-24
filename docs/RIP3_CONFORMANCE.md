@@ -1299,8 +1299,8 @@ descriptors in the command fixture. The 93 frozen files and 41 legacy helper
 definitions still match the original preservation baseline.
 
 The complete-command adapter also implements Q/a desktop palette edits. Both
-read the current ENV radix, including the local MegaNum dash rule, with only the
-last numeric field eligible for shortening. Q validates all sixteen master
+read the current ENV radix, with only the last numeric field eligible for
+shortening. Q validates all sixteen master
 colours before committing; a validates its desktop index and master colour.
 The bound palette table's current entry owns the edit and its protection;
 ENV protection does not protect another table's contents. No implicit ENV
@@ -1380,7 +1380,7 @@ reports unsupported without mutation for that branch. Full 2P, 2s and zero-endpo
 integration remain under #10/#2 and the scene-context blockers.
 
 Literal command tests cover all four coordinate widths, both radices (including
-UltraNum lowercase/#/&, MegaNum dash), full/shortened/omitted reserved fields,
+UltraNum lowercase/#/&), full/shortened/omitted reserved fields,
 all onscreen flag combinations, clipping, redefinition, protected failures,
 delete-all survivors, undefined targets, invalid late fields, reversed bounds,
 huge-coordinate clipping without overflow, missing services and canvas mismatch. One coherent independent
@@ -3539,7 +3539,7 @@ does not require a PORT binding. Public parser entry points remain void.
 Independent literal tables exercise 6000 flag/width cases across three canvases,
 two radices, XY widths 2–5 and five uniform/nonuniform frame profiles. Boundaries
 include decoded zero, 255/256/257, 511/512 and both two-digit maxima. Other cases
-cover stock/custom masks, ignored user patterns, MegaNum dash zeroes, final-field
+cover stock/custom masks, ignored user patterns, final-field
 shortening, malformed input, missing bindings and protection. Existing all-canvas
 coherent stroke captures now obtain the custom pattern/background flag through
 byte-split wire `=`; the thick-line fixture also uses the wire command. The
@@ -10257,8 +10257,8 @@ When the reserved field of `2P`, `2p`, `2C`, or `1P` is present,
 the receiver validates its encoding and ignores its numeric value.
 The recommended sender value stays zero. Native tests and connected
 CP437 and UTF-8 sessions verify port state, viewport clipping, copy
-and paste pixels, and recovery after invalid input. The adopted SWITCH_PORT examples also document rejection of lowercase
-in base 36. SyncTERM still accepts those spellings.
+and paste pixels, and recovery after invalid input. SWITCH_PORT
+rejects lowercase in base 36 and accepts it as UltraNum in base 64.
 [PR #247](https://github.com/bbs-land/remote-imaging-protocol/pull/247)
 
 ## Image and bitmap movement numeric fields
@@ -10298,3 +10298,18 @@ and permanent exports before disconnect and verify their respective
 cache lifetimes. Native tests verify that a failed flagged write
 preserves the original file without registering it.
 [Issue #249](https://github.com/bbs-land/remote-imaging-protocol/issues/249)
+
+## Wire digit alphabets
+
+RIPv3 MegaNum fields accept `0`–`9` and `A`–`Z`. UltraNum treats
+lowercase letters as distinct digits. The ordinary wire collector
+discards commands with a dash inside an unfinished numeric field.
+A period at the start of a field still supplies zero. Filename text
+and surplus after a complete fixed numeric command bypass the digit
+check.
+
+Original-driver captures distinguish discarded dash separators from
+dispatched commands. Connected CP437 and UTF-8 tests verify color and
+geometry across both radices, switch and base-math state after malformed
+fields, and subsequent commands on the same connection.
+[Issue #250](https://github.com/bbs-land/remote-imaging-protocol/issues/250)

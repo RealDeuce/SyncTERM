@@ -321,7 +321,8 @@ field_widths(void)
 	CHECK(process(&host, "2P10000ZZZZ0", -1) == 0);
 	CHECK(st_rip3_ports_info(host.ports, 1, &info) == 0
 	    && info.bounds.x1 == 639 && info.bounds.y1 == 479);
-	CHECK(process(&host, "2P1----02022", -1) == 0); /* MegaNum dash-as-zero. */
+	CHECK(process(&host, "2P1----02022", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "2P1..02022", -1) == 0);
 	CHECK(process(&host, "2p10", -1) == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "v00000z0&", -1) == 0);

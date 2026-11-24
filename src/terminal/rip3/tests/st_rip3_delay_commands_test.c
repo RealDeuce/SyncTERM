@@ -153,7 +153,7 @@ fields(void)
 	environment.graphics_style = 7; environment.port = 9;
 	const struct { unsigned radix; const char *command; uint64_t duration; } cases[] = {
 		{36,"3D0",0},{36,"3D0000",0},{36,"3D1",16666667},{36,"3D0001 tail",16666667},
-		{36,"3D001O",1000000000},{36,"3D002D",1416666667},{36,"3D--1O",1000000000},
+		{36,"3D001O",1000000000},{36,"3D002D",1416666667},
 		{36,"3DZZZZ",27993583333334},{64,"3Da",600000000},
 		{64,"3D&&&&",279620250000000},
 	};
@@ -167,7 +167,7 @@ fields(void)
 		CHECK(st_rip3_environments_get(f.host.environments,1,&environment) == 0
 		    && st_rip3_environments_playback_rate(f.host.environments) == 2399 && environment.graphics_style == 7 && environment.port == 9);
 	}
-	const char *const invalid[] = {"3D","3D000 comment","3D0?","3D0.","3D-"};
+	const char *const invalid[] = {"3D","3D000 comment","3D0?","3D0.","3D-","3D--1O"};
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		st_rip3_input_delay(f.host.input,60);
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0 && st_rip3_input_wait_ns(f.host.input) == 1000000000);

@@ -327,6 +327,18 @@ def run(args):
         assert frame.primary == before.primary and frame.alternate == before.alternate
 
 
+        t.case("rip3-meganum-wire-alphabet-and-ultranum-case")
+        frame = t.exchange(line(
+            b"*", b"fHSDC", b"c0C", b"c0a", b"X1408",
+            b"c--", b"X1508", b"X0e08", b"2s10a", b"J1s", b"c0A lowercase suffix", b"X1608",
+        ) + query(b"$CUR(PORT)$:$BASEMATH$:alive", at_cursor=True), b"0:36:alive")
+        assert pixel(frame, 40, 8) == pixel(frame, 41, 8) == 0xff5555
+        assert pixel(frame, 14, 8) == 0 and pixel(frame, 42, 8) == 0x55ff55
+
+        frame = t.exchange(line(b"J1S", b"X0a08", b"X0A08", b"J1s")
+                           + query(b"$BASEMATH$:alive", at_cursor=True), b"64:alive")
+        assert pixel(frame, 36, 8) == pixel(frame, 10, 8) == 0x55ff55
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

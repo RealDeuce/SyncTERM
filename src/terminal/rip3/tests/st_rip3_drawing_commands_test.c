@@ -393,7 +393,8 @@ line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	}
 	CHECK(process(&host,"=0000003",-1) == 0); /* Only the final thickness shortens. */
 	CHECK(process(&host,"=00ZZZZ03",-1) == 0); /* Stock patterns ignore user_pat. */
-	CHECK(process(&host,"=------03",-1) == 0); /* MegaNum dash-as-zero. */
+	CHECK(process(&host, "=------03", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "=...03", -1) == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(st_rip3_styles_get(host.styles,0,&style) == 0 && style.pen.pattern == 0xffff
@@ -446,7 +447,10 @@ widths(void)
 	CHECK(process(&host, "c-", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "c.2", -1) == 0 && process(&host, "c0.", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "X0b01", -1) == 0 && pixel(host.ports, 0, 37,1, 0) == 0);
-	CHECK(process(&host, "J10", -1) == 0 && process(&host, "c-", -1) == 0 && process(&host, "W--", -1) == 0);
+	CHECK(process(&host, "J10", -1) == 0);
+	CHECK(process(&host, "c-", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "W--", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "W.", -1) == 0);
 	CHECK(process(&host, "c03", -1) == 0);
 	CHECK(process(&host, "=00000003", -1) == 0);
 	CHECK(process(&host, "L20102810", -1) == 0);

@@ -141,7 +141,9 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(frame.device_width == width && frame.device_height == height);
 	CHECK(st_rip3_world_to_device(&frame, &world, &device) == 0
 	    && device.x == (int32_t)width && device.y == (int32_t)height);
-	CHECK(process(&host, "J1s", -1) == 0);
+	CHECK(process(&host, "J1s", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(expect(env, 0, 36,2,1280,960) == 0);
+	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(expect(env, 0, 64,2,1280,960) == 0);
 	CHECK(process(&host, "J1C", -1) == 0); /* Numeric 48 falls back to base 36. */
 	CHECK(expect(env, 0, 36,2,1280,960) == 0);
@@ -149,7 +151,9 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&host, "J1", -1) == 0); /* Short last parameter. */
 	CHECK(expect(env, 0, 36,2,1280,960) == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
-	CHECK(process(&host, "J--", -1) == 0); /* MegaNum wire '-' means zero. */
+	CHECK(process(&host, "J--", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(expect(env, 0, 64,2,1280,960) == 0);
+	CHECK(process(&host, "J.", -1) == 0);
 	CHECK(expect(env, 0, 36,2,1280,960) == 0);
 	CHECK(process(&host, "J10 comment", -1) == 0);
 	CHECK(expect(env, 0, 36,2,1280,960) == 0);
@@ -164,8 +168,8 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(expect(env, 0, 36,5,1,1) == 0);
 	CHECK(process(&host, "n6000", -1) == 0); /* Invalid size defaults to two. */
 	CHECK(expect(env, 0, 36,2,1,1) == 0);
-	CHECK(process(&host, "n-", -1) == 0);
-	CHECK(process(&host, "f-1-1", -1) == 0);
+	CHECK(process(&host, "n-", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "f-1-1", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(expect(env, 0, 36,2,1,1) == 0);
 	CHECK(process(&host, "nZ001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(expect(env, 0, 36,2,1,1) == 0);
@@ -310,7 +314,9 @@ baud(enum st_rip3_canvas canvas)
 	}
 	CHECK(process(&host, "3e0A00 comment", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
-	CHECK(process(&host, "3e----", -1) == 0);
+	CHECK(process(&host, "3e----", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
+	CHECK(process(&host, "3e0000", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "3e&&&&", -1) == 0);

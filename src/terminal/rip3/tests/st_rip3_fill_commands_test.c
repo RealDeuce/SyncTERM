@@ -152,7 +152,8 @@ attributes(void)
 	}
 	CHECK(process(&host, "S0103 comment", -1) == 0);
 	CHECK(process(&host, "s000000000000000003 comment", -1) == 0);
-	CHECK(process(&host, "s----------------3", -1) == 0); /* Local MegaNum zero spelling. */
+	CHECK(process(&host, "s----------------3", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "s........3", -1) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.fill_color == 3);
 	for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 0);
 	destroy(&host);

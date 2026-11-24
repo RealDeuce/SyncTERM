@@ -111,7 +111,9 @@ values(void)
 		}
 	}
 	CHECK(process(&host, "Y0000010", -1) == 0); /* Short final flags. */
-	CHECK(process(&host, "J10", -1) == 0 && process(&host, "Y----010-", -1) == 0);
+	CHECK(process(&host, "J10", -1) == 0);
+	CHECK(process(&host, "Y----010-", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "Y..01.", -1) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.font.font == 0
 	    && after.font.direction == 0 && after.font.magnification == 1 && after.font.flags == 9);
 	st_rip3_styles_destroy(host.styles);
