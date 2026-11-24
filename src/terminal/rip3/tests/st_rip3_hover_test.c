@@ -14,7 +14,7 @@ struct fixture {
 };
 static void failure(void *context) {((struct fixture *)context)->failures++;}
 static bool busy(void *context) {return ((struct fixture *)context)->busy;}
-static void activate(void *context,const uint8_t *program,size_t length,bool reset,int identity,bool pointer,int32_t x,int32_t y)
+static void activate(void *context,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int identity,bool pointer,int32_t x,int32_t y)
 {
 	(void)reset;(void)pointer;(void)x;(void)y;struct fixture *f=context;
 	if (f->remove_old) {

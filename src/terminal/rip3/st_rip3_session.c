@@ -1949,7 +1949,16 @@ mouse_changed(void *context)
 }
 
 static void
-mouse_activate(void *context, const uint8_t *program, size_t length, bool reset, int identity, bool pointer, int32_t x, int32_t y)
+mouse_reset_after_action(void *context)
+{
+	struct st_rip3_session *session=context;
+	int status=soft_reset(session);
+	if (status!=0) table_operation_failed(session,status);
+}
+
+static void
+mouse_activate(void *context, const uint8_t *program, size_t length, enum st_rip3_mouse_reset reset,
+    int identity, bool pointer, int32_t x, int32_t y)
 {
 	struct st_rip3_session *session=context;
 	st_rip3_columns_invalidate(&session->columns);
@@ -1957,11 +1966,12 @@ mouse_activate(void *context, const uint8_t *program, size_t length, bool reset,
 	    || st_rip3_button_renderer_pending(session->commands.buttons)) {
 		diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;
 	}
-	if (reset && soft_reset(session)!=0) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
+	if (reset==ST_RIP3_MOUSE_RESET_BEFORE && soft_reset(session)!=0) {diagnose(session,ST_RIP3_COMMAND_OPERATION_FAILED);return;}
 	if (pointer && session->sink.mouse_capture!=NULL) session->sink.mouse_capture(session->sink.context,x,y);
 	struct st_rip3_field_context previous=session->field_context;
 	session->field_context=(struct st_rip3_field_context){true,identity};
-	int status=st_rip3_query_start_owned(session->commands.query,program,length,st_rip3_mouse_callback_owner(session->commands.mouse));
+	int status=st_rip3_query_start_owned(session->commands.query,program,length,st_rip3_mouse_callback_owner(session->commands.mouse),
+	    reset==ST_RIP3_MOUSE_RESET_AFTER ? mouse_reset_after_action : NULL);
 	session->field_context=previous;
 	session->field_program=status==0 && st_rip3_query_pending(session->commands.query);
 	session->field_program_id=identity;

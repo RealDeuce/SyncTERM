@@ -11,7 +11,7 @@ static void flip(void *context,const struct st_rip3_rect *area)
 {
 	struct fixture *f=context;(void)area;++f->flips;
 }
-static void activate(void *context,const uint8_t *program,size_t length,bool reset,int identity,bool pointer,int32_t x,int32_t y)
+static void activate(void *context,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int identity,bool pointer,int32_t x,int32_t y)
 {
 	struct fixture *f=context;++f->calls;
 	(void)x;(void)y;(void)reset;
@@ -191,7 +191,7 @@ static int select_visual(void *context,bool selected)
 static void destroy_visual(void *context) {++((struct visual_fixture *)context)->destroyed;}
 static void changed_visual(void *context) {++((struct visual_fixture *)context)->changed;}
 static void error_visual(void *context) {++((struct visual_fixture *)context)->errors;}
-static void activate_visual(void *context,const uint8_t *program,size_t length,bool reset,int identity,bool pointer,int32_t x,int32_t y)
+static void activate_visual(void *context,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int identity,bool pointer,int32_t x,int32_t y)
 {
 	struct visual_fixture *f=context;
 	activate(&f->input,program,length,reset,identity,pointer,x,y);
@@ -234,7 +234,7 @@ static int suspended_select(void *context,bool selected)
 	s->busy=true;return 0;
 }
 static void suspended_destroy(void *context) {((struct suspended *)context)->destroyed++;}
-static void suspended_activate(void *context,const uint8_t *program,size_t length,bool reset,int id,bool pointer,int32_t x,int32_t y)
+static void suspended_activate(void *context,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int id,bool pointer,int32_t x,int32_t y)
 {
 	(void)reset;(void)id;(void)pointer;(void)x;(void)y;
 	struct suspended *s=context;s->actions++;s->result=length!=0 ? program[0] : 0;s->busy=true;
@@ -282,7 +282,7 @@ static int grouped_select(void *context,bool selected)
 	return g->fail ? IO_ERROR_NOT_FOUND : 0;
 }
 static void grouped_destroy(void *context) {((struct grouped_visual *)context)->group->destroyed++;}
-static void grouped_activate(void *context,const uint8_t *program,size_t length,bool reset,int id,bool pointer,int32_t x,int32_t y)
+static void grouped_activate(void *context,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int id,bool pointer,int32_t x,int32_t y)
 {
 	(void)reset;(void)pointer;(void)x;(void)y;
 	struct grouped *g=context;g->actions++;g->owner=st_rip3_mouse_callback_owner(g->mouse);

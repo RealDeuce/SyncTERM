@@ -102,9 +102,6 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	}
 	if (values[5]>1 || values[6]>1) return IO_ERROR_OUT_OF_RANGE;
 	if (values[7]!=0) return IO_ERROR_NOT_SUPPORTED;
-	/* Clear/zoom needs its own native text-window lifecycle; it must not be
-	 * approximated by SOFT (which resets unrelated tables and mouse fields). */
-	if (values[6]!=0) return IO_ERROR_NOT_SUPPORTED;
 	if (values[1]>values[3] || values[2]>values[4]) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_frame frame;
 	status=st_rip3_environments_frame(host->environments,number,&frame);
@@ -128,5 +125,5 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_rect area={(int32_t)(ox+x0),(int32_t)(oy+y0),(int32_t)(ox+x1),(int32_t)(oy+y1)};
 	const uint8_t *program=command+at;size_t program_length=length-at;
 	int identity=st_rip3_mouse_identity(&program,&program_length);
-	*operation=true;return st_rip3_mouse_define(host->mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,values[5]!=0,false,identity,program,program_length,NULL);
+	*operation=true;return st_rip3_mouse_define(host->mouse,ST_RIP3_MOUSE_SIMPLE,NULL,&area,values[5]!=0,values[6]!=0,identity,program,program_length,NULL);
 }

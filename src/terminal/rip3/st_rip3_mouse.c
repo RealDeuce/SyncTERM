@@ -25,7 +25,8 @@ struct activation {
 	uint64_t instance;
 	unsigned stage;
 	int identity;int32_t x,y;
-	bool keyboard,reset;
+	bool keyboard;
+	enum st_rip3_mouse_reset reset;
 	uint64_t redraw[];
 };
 struct st_rip3_mouse {
@@ -481,7 +482,9 @@ commit(struct st_rip3_mouse *mouse,struct field *field,bool keyboard,int32_t x,i
 	struct activation *action=field->length>SIZE_MAX-sizeof(*action)-extra ? NULL : malloc(sizeof(*action)+extra+field->length);
 	if (action!=NULL) {
 		*action=(struct activation){.length=field->length,.instance=field->instance,.identity=field->identity,
-		    .x=x,.y=y,.keyboard=keyboard,.reset=field->reset,.redraw_capacity=capacity};
+		    .x=x,.y=y,.keyboard=keyboard,.redraw_capacity=capacity};
+		if (field->reset)
+			action->reset=field->kind==ST_RIP3_MOUSE_SIMPLE ? ST_RIP3_MOUSE_RESET_AFTER : ST_RIP3_MOUSE_RESET_BEFORE;
 		if (field->length!=0) memcpy(action_program(action),field->program,field->length);
 	}
 	if (keyboard) st_rip3_mouse_cancel(mouse);

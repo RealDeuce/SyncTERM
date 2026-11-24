@@ -22,6 +22,7 @@ struct st_rip3_query {
 	const struct st_rip3_host_sink *sink;
 	void *playback_context;
 	int (*play)(void *context, enum st_rip3_playback_kind kind, const char *filename);
+	void (*complete)(void *context);
 	uint8_t *bytes, *output, *program;
 	size_t program_length, program_cursor;
 	size_t length, cursor, used, used_units, capacity;
@@ -423,6 +424,15 @@ st_rip3_query_cancel(struct st_rip3_query *query)
 	query->length=query->cursor=query->used=query->used_units=query->capacity=0;
 	query->program_length=query->program_cursor=0;
 	query->pass=0;query->allocation_failed=false;query->template_owner=0;
+	query->complete=NULL;
+}
+
+static void
+finish_program(struct st_rip3_query *query)
+{
+	void (*complete)(void *)=query->complete;
+	st_rip3_query_cancel(query);
+	if (complete!=NULL) complete(query->sink->context);
 }
 
 static void
@@ -618,6 +628,7 @@ angle_step(struct st_rip3_query *query)
 			    : status==IO_ERROR_INVALID_FORMAT || status==IO_ERROR_OUT_OF_RANGE ? ST_RIP3_HOST_INVALID_REFERENCE
 			    : ST_RIP3_HOST_UNSUPPORTED_REFERENCE);return false;
 		}
+		if (!st_rip3_query_pending(query)) finish_program(query);
 	}
 	return true;
 }
@@ -640,13 +651,13 @@ settle(struct st_rip3_query *query)
 	}
 	if (query->active_user!=NULL || query->pick_list!=NULL
 	    || st_rip3_input_wait_ns(query->variables->input)!=0 || refresh_waiting(query)) return;
-	if (query->pass==3 && query->program_cursor==query->program_length) { st_rip3_query_cancel(query);return; }
+	if (query->pass==3 && query->program_cursor==query->program_length) { finish_program(query);return; }
 	while (query->cursor==query->length && (query->pass==1 || query->pass==2)) {
 		if (query->pass==2) {
 			if (query->used!=0) query->sink->reply(query->sink->context,query->output,query->used);
 			free(query->bytes);free(query->output);query->bytes=query->output=NULL;
 			query->length=query->cursor=query->used=query->used_units=query->capacity=0;query->pass=3;
-			if (query->program_cursor==query->program_length) st_rip3_query_cancel(query);
+			if (query->program_cursor==query->program_length) finish_program(query);
 			return;
 		}
 		free(query->bytes);query->bytes=query->output;query->length=query->used;query->cursor=0;
@@ -786,7 +797,8 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 }
 
 int
-st_rip3_query_start_owned(struct st_rip3_query *query, const uint8_t *bytes, size_t length,uint64_t owner)
+st_rip3_query_start_owned(struct st_rip3_query *query, const uint8_t *bytes, size_t length,uint64_t owner,
+    void (*complete)(void *context))
 {
 	if (query==NULL || query->sink->reply==NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (st_rip3_query_pending(query)) return IO_ERROR_BUSY;
@@ -797,14 +809,19 @@ st_rip3_query_start_owned(struct st_rip3_query *query, const uint8_t *bytes, siz
 	for (size_t i=0; i+1<length; i++) if (bytes[i]=='<' && bytes[i+1]=='<') {
 		int status=st_rip3_angle_create(&query->angle,bytes,length);
 		if (status!=0) return status;
+		query->complete=complete;
 		query->pass=4;st_rip3_query_process(query,64);return 0;
 	}
 	int status=start_program(query,bytes,length);
-	if (status==0) st_rip3_query_process(query,64);
+	if (status==0) {
+		query->complete=complete;
+		if (st_rip3_query_pending(query)) st_rip3_query_process(query,64);
+		else finish_program(query);
+	}
 	return status;
 }
 
 int st_rip3_query_start(struct st_rip3_query *query,const uint8_t *bytes,size_t length)
 {
-	return st_rip3_query_start_owned(query,bytes,length,0);
+	return st_rip3_query_start_owned(query,bytes,length,0,NULL);
 }

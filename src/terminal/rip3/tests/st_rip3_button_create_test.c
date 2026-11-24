@@ -423,7 +423,7 @@ static int staged_format(void *ctx,const struct st_rip3_variable_reference *refe
 	(void)reference;(void)source;struct staged *f=ctx;f->formats++;
 	memcpy(f->value,value->bytes,value->length);f->value[value->length]=0;*out=*value;return 0;
 }
-static void staged_activate(void *ctx,const uint8_t *program,size_t length,bool reset,int identity,bool pointer,int32_t x,int32_t y)
+static void staged_activate(void *ctx,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int identity,bool pointer,int32_t x,int32_t y)
 {
 	(void)reset;(void)identity;(void)pointer;(void)x;(void)y;
 	struct staged *f=ctx;f->actions++;

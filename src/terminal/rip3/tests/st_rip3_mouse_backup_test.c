@@ -10,7 +10,7 @@
 #define CHECK(x) do {if (!(x)) {fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1;}} while (0)
 extern size_t st_rip3_hover_test_attempts,st_rip3_hover_test_live,st_rip3_hover_test_fail_at;
 struct fixture {struct st_rip3_mouse *mouse;char output[128];size_t used;unsigned flips;bool busy,pause;};
-static void activate(void *context,const uint8_t *program,size_t length,bool reset,int identity,bool pointer,int32_t x,int32_t y)
+static void activate(void *context,const uint8_t *program,size_t length,enum st_rip3_mouse_reset reset,int identity,bool pointer,int32_t x,int32_t y)
 {
 	(void)reset;(void)pointer;(void)x;(void)y;
 	struct fixture *f=context;

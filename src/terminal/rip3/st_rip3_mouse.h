@@ -12,6 +12,7 @@
 struct st_rip3_mouse;
 struct st_rip3_backup;
 enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
+enum st_rip3_mouse_reset { ST_RIP3_MOUSE_RESET_NONE, ST_RIP3_MOUSE_RESET_BEFORE, ST_RIP3_MOUSE_RESET_AFTER };
 struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;unsigned group;enum st_rip3_group_kind group_kind;bool selected;};
 struct st_rip3_mouse_visual {
 	void *context;
@@ -39,7 +40,7 @@ struct st_rip3_mouse_sink {
 	void *context;
 	void (*invert)(void *context, const struct st_rip3_rect *area);
 	/* The program is an independent copy: this callback may delete fields. */
-	void (*activate)(void *context, const uint8_t *program, size_t length, bool reset, int identity,
+	void (*activate)(void *context, const uint8_t *program, size_t length, enum st_rip3_mouse_reset reset, int identity,
 	    bool pointer, int32_t x, int32_t y);
 	void (*resource_failure)(void *context);
 	void (*render_failure)(void *context);
@@ -65,7 +66,8 @@ int st_rip3_mouse_group_check(const struct st_rip3_mouse *,unsigned,enum st_rip3
  * suspension; zero for hover and ungrouped actions. */
 uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *);
 /* Half-open, clipped absolute DEVICE bounds. Simple fields and button
- * records share this owner's 128 entries. No drawing buffers or damage map. */
+ * records share this owner's 128 entries. Reset runs after a simple field's
+ * successful action or before a button's action. */
 int st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
 	bool invert, bool reset, int identity, const uint8_t *program, size_t length,

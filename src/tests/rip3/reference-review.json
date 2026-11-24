@@ -22966,6 +22966,48 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "91214479",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Connect the simple mouse field clr flag to SOFT after successful host actions.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/227"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:184",
+        "version/3.0/ripscrip/9.0-command-reference.md:183"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:200"
+      ],
+      "tests": [
+        "rip3_mouse",
+        "rip3_mouse_backup",
+        "rip3_hover",
+        "rip3_button_create",
+        "rip3_session",
+        "rip3_query_commands",
+        "syncterm_rip3_mouse_CP437",
+        "syncterm_rip3_mouse_UTF-8",
+        "syncterm_rip3_buttons_CP437",
+        "syncterm_rip3_buttons_UTF-8",
+        "syncterm_rip3_keyboard_CP437",
+        "syncterm_rip3_keyboard_UTF-8",
+        "syncterm_rip3_reset_CP437",
+        "syncterm_rip3_reset_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1900,
+        "pending": 1466,
+        "implemented": 3690,
+        "excluded": 71,
+        "blocked": 21
+      }
     }
   ]
 }

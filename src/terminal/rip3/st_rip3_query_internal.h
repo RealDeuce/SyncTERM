@@ -19,7 +19,10 @@ void st_rip3_query_bind_playback(struct st_rip3_query *query, void *context,
 int st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_t length);
 
 /* Grouped callbacks carry the original stable owner through every stage;
- * zero uses ordinary definitions. Deleting an owner never retargets writes. */
-int st_rip3_query_start_owned(struct st_rip3_query *,const uint8_t *,size_t,uint64_t owner);
+ * zero uses ordinary definitions. Deleting an owner never retargets writes.
+ * The optional completion runs with the sink context after normal completion
+ * and the last reply. Cancellation clears it. It must not reenter this query. */
+int st_rip3_query_start_owned(struct st_rip3_query *,const uint8_t *,size_t,uint64_t owner,
+	void (*complete)(void *context));
 
 #endif

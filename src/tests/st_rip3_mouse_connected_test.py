@@ -10,7 +10,7 @@ from pathlib import Path
 
 from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
-from st_rip3_connected_test import query
+from st_rip3_connected_test import pixel, query
 from st_terminal_conformance_test import Terminal
 
 
@@ -159,15 +159,36 @@ def run(args):
         click(100,100,b"offset")
         click(101,100,b"")
         click(9,20,b"")
-        # SOFT destroys fields; malformed/unsupported fields cannot replace a
+        # SOFT destroys fields; malformed fields cannot replace a
         # usable one or escape as a connection error.
         t.exchange(b"\x01|*\r\n")
         click(10,20,b"")
         values(b"$WORLD(CUR,640,480)$")
         t.exchange(field((10,20,20,30),b"valid")
-                   +field((10,20,20,30),b"clear-pending",clear=True)
                    +b"\x01|1Mbad|1Kbad\r\n")
         click(15,25,b"valid")
+
+        t.case("rip3-field-clear-runs-after-successful-host-action")
+        t.exchange(b"\x01|2T20|w0A050C0710|c0C|X2S2S\r\n"
+                   +field((90,90,110,110),b"$CUR(TW)$unclosed$",clear=True)
+                   +field((120,90,140,110),b"ID=7:$D(3)$old:$CUR(TW)$:$FIELDID$",invert=True,clear=True))
+        before=values(b"$CUR(TW)$",b"2")
+        assert pixel(before,100,100)==0xff5555
+        rejected=click(100,100,b"")
+        assert rejected.primary==before.primary and rejected.alternate==before.alternate
+        values(b"$CUR(TW)$",b"2")
+        mouse(130,100,True)
+        values(b"$CUR(TW)$",b"2")
+        mouse(150,120)
+        cancelled=values(b"$CUR(TW)$",b"2")
+        assert cancelled.primary==before.primary and cancelled.alternate==before.alternate
+        cleared=click(130,100,b"old:2:7")
+        assert pixel(cleared,100,100)==0
+        assert cleared.application["cterm.x"]==cleared.application["cterm.y"]==1
+        values(b"$CUR(TW)$:$INUSE(TW,2)$",b"0:0")
+        t.exchange(b"\x1b[20;40H\x1b[6n",b"\x1b[20;40R")
+        click(130,100,b"")
+        click(15,25,b"")
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
 

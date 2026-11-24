@@ -10036,3 +10036,21 @@ both margin axes set, the pixels of a scroll using three-digit XY and base
 64, and field deletion with one digit of flags. Malformed requests preserve
 the live session. The native parser tests cover lowercase base-64 digits,
 an all-zero Y, and a shortened field split across input calls.
+
+## Mouse-field clear and zoom
+
+An inside release on a `1M` field with `clr=1` runs its host action in the
+existing window. Normal completion runs the same drawing reset as `*`,
+which clears the display, restores full-screen text and removes the old
+mouse fields. A malformed action or cancelled gesture leaves the scene in
+place. The completion belongs to the host action, so a delay defers the
+reset until the reply is ready.
+
+RIPtel's simple-field constructor stores the flag at RVA `0x0d1c1`. The
+inside-release handler calls `0x2c297`, which runs the host program before
+invoking the drawing reset at `0x2c3ee`. The `1U` button reset continues to
+follow its documented reset-before-host rule. CP437 and UTF-8 live tests
+check the old window and FIELDID in a delayed reply, the cleared pixels
+and text cursor afterward, and recovery after a malformed action.
+The accepted range beyond `0` and `1` and source-field mutation details
+await reference clarification. [Issue #227](https://github.com/bbs-land/remote-imaging-protocol/issues/227)
