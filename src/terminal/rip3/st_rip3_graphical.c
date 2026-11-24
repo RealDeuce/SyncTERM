@@ -100,6 +100,7 @@ st_rip3_graphical_start(struct st_rip3_graphical *w, enum st_rip3_graphical_cons
 	case ST_RIP3_GRAPHICAL_IMAGE:
 		w->limit = 1024;
 		break;
+	case ST_RIP3_GRAPHICAL_FONT:
 	case ST_RIP3_GRAPHICAL_SCENE:
 		w->limit = 4095;
 		break;

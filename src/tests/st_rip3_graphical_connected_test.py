@@ -170,6 +170,66 @@ def run(args):
         assert pixel(frame, 580, 200) == 0xff5555
         assert pixel(frame, 540, 200) == 0
 
+        t.case('Extended font names expand before the selected face is drawn')
+        t.exchange(b'\x01|*|c0F\r\n\x1b[?25l')
+        values(b'$WORLD(CUR,640,480)$$-=FONT_NAME=dIxOn$[3:]Dixon')
+
+        def font(name, size=22, spacing=100, flags=32, baseline=0):
+            fields = ((0, 1), (0, 1), (flags, 4), (size, 2), (0, 2), (0, 2),
+                      (0, 2), (baseline, 2), (spacing, 2), (100, 2), (0, 6))
+            return b'y' + b''.join(number(value, width, 64) for value, width in fields) + name
+
+        def text(x):
+            return b'@' + number(x, 2) + number(100, 2) + b'F'
+
+        def line(*commands):
+            return b'\x01|' + b'|'.join(commands) + b'\r\n'
+
+        # Dixon F has 610/1000 em advance. At 22 points and 72 DPI
+        # the advance is 13 and the centered glyph fits these regions.
+        def glyph(frame, x):
+            return {(dx, y) for dx in range(-8, 14) for y in range(79, 113)
+                    if pixel(frame, x + dx, y) == 0xffffff}
+
+        frame = t.exchange(line(font(b'Dixon'), text(30), font(b'Marin', 90),
+                                font(b'$&FONT_NAME$'), text(75), font(b'Marin', 90),
+                                font(b'<<?3>>'), text(120))
+                           + query(b'$TEXTXY$', at_cursor=True), b'133:100')
+        reference = glyph(frame, 30)
+        assert reference and glyph(frame, 75) == reference and glyph(frame, 120) == reference
+
+        t.case('Invalid and protected font commands skip evaluation and preserve the selected face')
+        setter = b'$COORDSIZE(CUR,5)$Marin'
+        t.exchange(line(font(setter, spacing=0), font(b'')))
+        values(b'$COORDSIZE$', b'2')
+        values(b'$CUR(STYLE,7)$')
+        t.exchange(line(font(b'Dixon')))
+        values(b'$PROT(STYLE,7)$')
+        frame = t.exchange(line(font(setter), text(170))
+                           + query(b'$TEXTXY$:$COORDSIZE$', at_cursor=True), b'183:100:2')
+        assert glyph(frame, 170) == reference
+        values(b'$UNPROT(STYLE,7)$')
+
+        t.case('Empty expanded names defer face failure and font prompts resume in wire order')
+        frame = t.exchange(line(font(b'Marin', 90), font(b'$NULL$'), text(210))
+                           + query(b'$TEXTXY$', at_cursor=True), b'223:100')
+        assert not glyph(frame, 210)
+        send(line(font(b'<<FACEPROMPT>>'), text(260)) + query(b'$TEXTXY$', at_cursor=True))
+        client.wait_text('FACEPROMPT')
+        client.text('Dixon')
+        client.key('enter')
+        frame = t.input(b'273:100')
+        assert glyph(frame, 260) == reference and frame.application['connected'] == 1
+
+        t.case('Outline font prefixes precede expansion and bound the name working buffer')
+        t.exchange(line(font(b'$WORLDH(0,960)$Dixon', flags=0x220, baseline=8)))
+        values(b'$WORLD$', b'640:960')
+        values(b'$WORLD(CUR,640,480)$')
+        frame = t.exchange(line(text(310)) + query(b'$TEXTXY$', at_cursor=True), b'323:100')
+        assert glyph(frame, 310) == {(x, y+8) for x, y in reference}
+        t.exchange(line(font(b'Dixon' + b' '*4090 + setter)))
+        values(b'$COORDSIZE$', b'2')
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

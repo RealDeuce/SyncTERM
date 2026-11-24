@@ -10005,3 +10005,19 @@ BMP and validate the stored viewport, zero-ending remainder and independent
 right and bottom clipping at a changed WORLD scale. They also read the
 entire backing bitmap of a protected, inactive offscreen port and verify
 output preservation after invalid requests.
+
+## Connected outline font name expansion
+
+Wire `y` validates the fixed UltraNum fields and current STYLE protection
+before evaluating the typeface name. The baseline conversion uses WORLD at
+that point. The existing graphical evaluator runs angle preprocessing and
+one ordinary pass with a 4,095-byte working limit. RIPtel's handler passes
+that limit and flags `0x83` at RVA `0x1af2b`. SyncTERM stores up to 39
+bytes of the result in the selected STYLE. An empty result still selects
+outline mode and defers face lookup until drawing.
+
+Live CP437 and UTF-8 tests draw Dixon selected from a variable, a template
+and a resumed prompt after selecting a different face. They check the
+glyph mask and the cached advance, a WORLD change during name expansion,
+the working limit and protection against evaluating rejected commands.
+[PR #29](https://github.com/bbs-land/remote-imaging-protocol/pull/29)

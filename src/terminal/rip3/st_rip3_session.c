@@ -47,7 +47,7 @@
 
 enum graphical_job {
 	GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE,
-	GRAPHICAL_COLUMN_SEARCH, GRAPHICAL_IMAGE,
+	GRAPHICAL_COLUMN_SEARCH, GRAPHICAL_IMAGE, GRAPHICAL_FONT,
 };
 
 enum { SCENE_LIMIT = 8 };
@@ -100,6 +100,7 @@ struct st_rip3_session {
 	struct st_rip3_column_definition column_definition;
 	struct st_rip3_graphical *graphical;
 	struct st_rip3_text_argument text_argument;
+	struct st_rip3_outline_style font_argument;
 	enum graphical_job graphical_job;
 	struct st_rip3_metric_argument metric_argument;
 	struct st_rip3_metric_state metric;
@@ -1248,6 +1249,11 @@ prepare(void *context)
 				else if (session->graphical_job == GRAPHICAL_IMAGE)
 					status = result->length == 0 ? 0 : st_rip3_command_jpeg(&session->commands,
 					    result->bytes, result->length, &operation);
+				else if (session->graphical_job == GRAPHICAL_FONT) {
+					operation = true;
+					status = st_rip3_font_commands_expanded(&session->commands,
+					    &session->font_argument, result->bytes, result->length);
+				}
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
 				st_rip3_command_result(&sink,status,operation);
@@ -1791,6 +1797,17 @@ command(void *context, const uint8_t *bytes, size_t length)
 			st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
 		else
 			diagnose(session, ST_RIP3_COMMAND_INVALID);
+	}
+	else if (length != 0 && bytes[0] == 'y') {
+		int status = st_rip3_font_argument_prepare(&session->commands, bytes, length,
+		    &session->font_argument);
+		if (status != 0)
+			st_rip3_command_result(&sink, status, false);
+		else {
+			st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_FONT,
+			    bytes + ST_RIP3_OUTLINE_NAME_OFFSET, length - ST_RIP3_OUTLINE_NAME_OFFSET);
+			session->graphical_job = GRAPHICAL_FONT;
+		}
 	}
 	else if (length!=0 && (bytes[0]=='T' || bytes[0]=='@' || bytes[0]=='"')) {
 		size_t offset;

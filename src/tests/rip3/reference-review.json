@@ -22899,6 +22899,43 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "7ba354fb",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Connect expanded outline font names through the live graphical evaluator and STYLE.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:528",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:530",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:532",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:534",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:536",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:553",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:557",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:561",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:635",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:637",
+        "version/3.0/ripscrip/9.0-command-reference.md:144"
+      ],
+      "tests": [
+        "rip3_extended_font_commands",
+        "rip3_graphical",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8",
+        "rip3_session",
+        "syncterm_rip3_metric_CP437",
+        "syncterm_rip3_metric_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2167,
+        "context": 1900,
+        "pending": 1468,
+        "implemented": 3685,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ]
 }
