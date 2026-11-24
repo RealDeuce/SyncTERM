@@ -375,7 +375,7 @@ boundaries(void)
 	}
 	st_rip3_drawing_test_fail_calloc=true;
 	CHECK(process(&host,bytes,ST_RIP3_COMMAND_RESOURCE_FAILURE)==0 && !st_rip3_drawing_test_fail_calloc && line_pixels(&host,0x55)==0);
-	CHECK(process(&host,"<010201010601 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+	CHECK(process(&host,"<010201010601 comment",ST_RIP3_COMMAND_INVALID)==0);
 	missing=host;missing.styles=NULL;
 	CHECK(process(&missing,bytes,ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	CHECK(st_rip3_ports_activate(host.ports,false)==0);st_rip3_path_test_fail_malloc=true;

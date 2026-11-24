@@ -25,8 +25,8 @@ def main():
     if not {"IFS", "NULL", "T", "BACKSTAT", "WORLD"}.issubset(names):
         raise ValueError("missing pinned reference inventory")
     for family, notation in (("APP", "$APP0$`-`$APP9$"),
-                             ("SAVE", "$SAVE0-9$"),
-                             ("RESTORE", "$RESTORE0-9$")):
+                             ("SAVE", "$SAVE0$`…`$SAVE9$"),
+                             ("RESTORE", "$RESTORE0$`…`$RESTORE9$")):
         if notation not in source:
             raise ValueError("review changed fixed-slot family: " + family)
         names.update(family + str(index) for index in range(10))
@@ -51,7 +51,12 @@ def main():
     for count, label in ((64, "Data-capable"), (20, "Mixed data/active")):
         line = next(line for line in graphical.splitlines()
                     if line.startswith("| " + label))
-        group = line.split("|")[2].strip().split(", ")
+        group = set()
+        for entry in line.split("|")[2].strip().split(", "):
+            match = re.fullmatch(r"([A-Z][A-Z0-9_]*)|\[([A-Z][A-Z0-9_]*)\]\([^()\s]+\)", entry)
+            if match is None:
+                raise ValueError("invalid pinned graphical name: " + entry)
+            group.add(match[1] or match[2])
         if len(group) != count:
             raise ValueError("review changed graphical registration set")
         allowed.update(group)

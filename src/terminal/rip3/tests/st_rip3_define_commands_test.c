@@ -244,11 +244,11 @@ ranges(void)
 	CHECK(process(&f,bytes,ST_RIP3_COMMAND_INVALID) == 0);
 	definition(bytes,&f,36,0,0,6,4,1);
 	CHECK(process(&f,bytes,ST_RIP3_COMMAND_INVALID) == 0);
-	definition(bytes,&f,1,0,0,6,4,1); bytes[strlen(bytes)-1] = '1';
-	CHECK(process(&f,bytes,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	definition(bytes,&f,1,0,0,6,4,1); bytes[strlen(bytes)-1] = '?';
+	CHECK(process(&f,bytes,ST_RIP3_COMMAND_INVALID) == 0);
 	/* Ignored near coordinates cannot shrink the allocation, overflow a
 	 * projection, or change an initially unset clipboard pointer. */
-	definition(bytes,&f,1,1073741823,1073741823,6,4,1);
+	definition(bytes,&f,1,1073741823,1073741823,6,4,1); bytes[strlen(bytes)-1] = '1';
 	CHECK(process(&f,bytes,-1) == 0);
 	CHECK(st_rip3_ports_info(f.host.ports,1,&info) == 0 && rect(&info.bounds,0,0,5,3));
 	CHECK(!f.clipboard.set);
