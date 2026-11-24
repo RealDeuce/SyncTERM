@@ -2,7 +2,7 @@
 #ifndef ST_RIP3_AUDIO_H_
 #define ST_RIP3_AUDIO_H_
 
-#include "audio.h"
+#include "st_audio_runtime.h"
 #include "st_rip3_resources.h"
 #include "st_rip3_tones.h"
 
@@ -10,13 +10,12 @@
 
 struct st_rip3_audio;
 
-/* One session thread owns create/play/stop/destroy. The client owns the engine
- * and must destroy this player first. Its existing mixer consumer pulls the
- * player's exclusive stream; no new worker or physical device is opened here.
- * The player's mutex protects PCM ownership and cursor against that consumer.
- * Source activation never occurs while holding the player's mutex. */
-int st_rip3_audio_create(struct st_rip3_audio **result, audio_engine_t *engine,
-	float volume_left_db, float volume_right_db);
+/* One session thread owns the player. The borrowed runtime must outlive it.
+ * Streams acquire the shared engine on first use. The player's mutex protects
+ * PCM ownership and cursor against the mixer consumer. */
+int st_rip3_audio_create(struct st_rip3_audio **result, st_audio_runtime_t *runtime);
+/* Probe the decoder and prepare the WAV stream on demand. */
+bool st_rip3_audio_wav_available(struct st_rip3_audio *player);
 void st_rip3_audio_destroy(struct st_rip3_audio *player);
 /* Read-only MEDIA lookup and PCM WAVE validation precede decoding through the
  * shared audio-file service. Success replaces the prior file in one channel;

@@ -389,10 +389,10 @@ baud_stream(void)
 }
 
 static int
-pcm(audio_engine_t *engine, size_t sounding)
+pcm(st_audio_runtime_t *runtime, size_t sounding)
 {
 	int16_t frames[6 * 2];
-	CHECK(audio_engine_pull(engine, frames, 6) == 0);
+	CHECK(st_audio_runtime_pull(runtime, frames, 6) == 0);
 	for (size_t i = 0; i < 6; i++) {
 		CHECK(frames[2*i] == (i < sounding ? 998 : 0));
 		CHECK(frames[2*i+1] == (i < sounding ? -999 : 0));
@@ -439,7 +439,7 @@ playback_reply(void *context, const uint8_t *bytes, size_t length)
 
 static int
 host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *resources,
-    audio_engine_t *engine, const uint8_t *wave, size_t wave_size)
+    st_audio_runtime_t *runtime, const uint8_t *wave, size_t wave_size)
 {
 	struct playback_input input={"!|1\0330000before$)tone n*ame$after^m\r",{.expected="beforeafter\r"},0};
 	struct st_rip3_session *session=NULL;
@@ -451,57 +451,57 @@ host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *reso
 	st_rip3_session_process(session,4096);
 	CHECK(input.answer.replies==1 && !input.answer.mismatch);
 	CHECK(input.errors==(st_audio_file_available() ? 0u : 1u));
-	CHECK(pcm(engine,st_audio_file_available() ? 4 : 0)==0);
+	CHECK(pcm(runtime,st_audio_file_available() ? 4 : 0)==0);
 	input=(struct playback_input){"!|1\0330000$)bad.wav$$)missing$alive\r",{.expected="alive"},0};
 	st_rip3_session_process(session,4096);
 	CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1);
-	CHECK(pcm(engine,0)==0);
+	CHECK(pcm(runtime,0)==0);
 	input=(struct playback_input){"!|1w0000|1w.0.bad.wav|1w..bad.wav|1w..missing|1\0330000alive\r",
 	    {.expected="alive"},0};
 	st_rip3_session_process(session,4096);
 	CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==3);
-	CHECK(pcm(engine,0)==0);
+	CHECK(pcm(runtime,0)==0);
 	if (st_audio_file_available()) {
 		input=(struct playback_input){"!|1\0330000$-=CLIP=tone name$|1w1.$&CLIP$|1\0330000repeat\r",
 		    {.expected="repeat"},0};
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
-		CHECK(pcm(engine,6)==0 && pcm(engine,6)==0);
+		CHECK(pcm(runtime,6)==0 && pcm(runtime,6)==0);
 		input=(struct playback_input){"!|1w.0.bad.wav|1w1.missing|1\0330000still\r",{.expected="still"},0};
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1);
-		CHECK(pcm(engine,6)==0);
+		CHECK(pcm(runtime,6)==0);
 		input=(struct playback_input){"!|1w277Ztone name|1\0330000once\r",{.expected="once"},0};
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
-		CHECK(pcm(engine,4)==0 && pcm(engine,0)==0);
+		CHECK(pcm(runtime,4)==0 && pcm(runtime,0)==0);
 		input=(struct playback_input){"!|1w3000tone name.wav|1\0330000repeat\r",{.expected="repeat"},0};
 		st_rip3_session_process(session,4096);
-		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(engine,6)==0);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(runtime,6)==0);
 		input=(struct playback_input){"!|1w..$oFf$|1\0330000off\r",{.expected="off"},0};
 		st_rip3_session_process(session,4096);
-		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(engine,0)==0);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(runtime,0)==0);
 		input=(struct playback_input){"!|1\0330000$)tone name$$)\\$OFF\\$$live\r",{.expected="live"},0};
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
-		CHECK(pcm(engine,4)==0); /* The missing HCL resource does not stop the tone. */
+		CHECK(pcm(runtime,4)==0); /* The missing HCL resource does not stop the tone. */
 		char *off_file=NULL;
 		CHECK(path_join_alloc(&off_file,resources->host,"$OFF$.wav")==0);
 		CHECK(fs_replace_file(off_file,wave,wave_size)==0);
 		input=(struct playback_input){"!|1\0330000$)\\$OFF\\$$live\r",{.expected="live"},0};
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
-		CHECK(pcm(engine,4)==0);
+		CHECK(pcm(runtime,4)==0);
 		input=(struct playback_input){"!|1w..\\$OFF\\$|1\0330000literal\r",{.expected="literal"},0};
 		st_rip3_session_process(session,4096);
-		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(engine,4)==0);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(runtime,4)==0);
 		CHECK(fs_remove_file(off_file)==0);
 		free(off_file);
 	}
 	else {
 		input=(struct playback_input){"!|1w1.tone name|1\0330000unavailable\r",{.expected="unavailable"},0};
 		st_rip3_session_process(session,4096);
-		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1 && pcm(engine,0)==0);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1 && pcm(runtime,0)==0);
 	}
 	st_rip3_session_destroy(session);
 	return 0;
@@ -511,7 +511,7 @@ int
 main(int argc, char **argv)
 {
 	struct st_rip3_command_host host = {0};
-	audio_engine_t *engine = NULL;
+	st_audio_runtime_t *runtime = NULL;
 	struct st_rip3_audio *audio = NULL;
 	struct st_rip3_resource_paths resources = {0};
 	char *file = NULL, *bad = NULL;
@@ -537,11 +537,11 @@ main(int argc, char **argv)
 	CHECK(path_join_alloc(&bad, argv[1], "bad.wav") == 0);
 	CHECK(fs_replace_file(file, wave, sizeof(wave)) == 0);
 	CHECK(fs_replace_file(bad, "bad", 3) == 0);
-	CHECK(audio_engine_create_pull(&engine) == 0);
-	CHECK(st_rip3_audio_create(&audio, engine, 0,0) == 0);
+	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
+	CHECK(st_rip3_audio_create(&audio, runtime) == 0);
 	resources.host = argv[1];
-	CHECK(host_wave(audio,&resources,engine,wave,sizeof(wave))==0);
-	st_rip3_audio_destroy(audio); audio_engine_destroy(engine);
+	CHECK(host_wave(audio,&resources,runtime,wave,sizeof(wave))==0);
+	st_rip3_audio_destroy(audio); st_audio_runtime_destroy(runtime);
 	CHECK(fs_remove_file(file) == 0 && fs_remove_file(bad) == 0);
 	CHECK(fs_remove_directory(argv[1]) == 0);
 	free(file); free(bad);

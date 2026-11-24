@@ -51,8 +51,20 @@ equal(const char *text, const char *uppercase)
 static bool
 supported(const struct st_rip3_features *features, unsigned index)
 {
+	if (index == ST_RIP3_FEATURE_WAV && features->wav_available != NULL)
+		return features->wav_available(features->context);
 	return index != ST_RIP3_FEATURE_EXTAPPS
 	    && (features->bits & (UINT32_C(1) << index)) != 0;
+}
+
+static bool
+category_supported(const struct st_rip3_features *features, enum category category)
+{
+	for (unsigned i = 0; i < ST_RIP3_FEATURE_COUNT; i++) {
+		if (entries[i].category == category && supported(features, i))
+			return true;
+	}
+	return false;
 }
 
 int
@@ -97,7 +109,6 @@ st_rip3_features_query(const struct st_rip3_features *features,
 	/* Each registered keyword is at most 12 bytes plus a comma. This also
 	 * bounds the shorter category list. No caller output is used as scratch. */
 	char output[ST_RIP3_FEATURE_COUNT * 13 + 1] = {0};
-	bool defined[CATEGORY_COUNT] = {0};
 	size_t length = 0;
 	bool list;
 	int status;
@@ -109,13 +120,9 @@ st_rip3_features_query(const struct st_rip3_features *features,
 	list = equal(keyword, "LIST");
 	if (category != NULL && !list)
 		return IO_ERROR_INVALID_FORMAT;
-	for (unsigned i = 0; i < ST_RIP3_FEATURE_COUNT; i++) {
-		if (supported(features, i))
-			defined[entries[i].category] = true;
-	}
 	if (list && category == NULL) {
 		for (unsigned i = 0; i < CATEGORY_COUNT; i++) {
-			if (defined[i]) {
+			if (category_supported(features, i)) {
 				status = append(output, sizeof(output), &length, categories[i]);
 				if (status != 0)
 					return status;
@@ -124,8 +131,8 @@ st_rip3_features_query(const struct st_rip3_features *features,
 	}
 	else if (list) {
 		for (unsigned i = 0; i < ST_RIP3_FEATURE_COUNT; i++) {
-			if (supported(features, i)
-			    && (equal(category, "ALL") || equal(category, categories[entries[i].category]))) {
+			if ((equal(category, "ALL") || equal(category, categories[entries[i].category]))
+			    && supported(features, i)) {
 				status = append(output, sizeof(output), &length, entries[i].name);
 				if (status != 0)
 					return status;
@@ -141,7 +148,7 @@ st_rip3_features_query(const struct st_rip3_features *features,
 		}
 		for (unsigned i = 0; i < CATEGORY_COUNT; i++) {
 			if (equal(keyword, categories[i]))
-				found = defined[i];
+				found = category_supported(features, i);
 		}
 		output[length++] = found ? '1' : '0';
 	}

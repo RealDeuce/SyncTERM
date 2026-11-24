@@ -1936,6 +1936,12 @@ read_local_clock(void *context, struct tm *local)
 	return when != (time_t)-1 && cterm_rip_localtime(when, local);
 }
 
+static bool
+wav_available(void *context)
+{
+	return st_rip3_audio_wav_available(context);
+}
+
 int
 st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *config,
     st_cterm_t *ansi, const struct st_cterm_config *text_config, st_term_session_t *owner)
@@ -1971,11 +1977,9 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_RIPSCRIP,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_BMP,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_JPEG,st_pixel_image_jpeg_supported());
-	if (config->audio!=NULL) {
-		audio_engine_t *engine=NULL;
-		if (st_audio_runtime_acquire(config->audio,&engine)==0
-		    && st_rip3_audio_create(&rip->audio,engine,0,0)==0)
-			(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_WAV,true);
+	if (config->audio != NULL && st_rip3_audio_create(&rip->audio, config->audio) == 0) {
+		rip->features.wav_available = wav_available;
+		rip->features.context = rip->audio;
 	}
 	if (status==0) status=st_rip3_variables_create(&rip->session_values);
 	if (status==0 && config->rip_directory!=NULL && config->rip_directory[0]!='\0') {

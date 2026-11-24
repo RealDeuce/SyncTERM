@@ -14,7 +14,7 @@
 #include <string.h>
 
 struct st_rip3_audio {
-	audio_engine_t *engine;
+	st_audio_runtime_t *runtime;
 	audio_stream_t *stream;
 	audio_stream_t *tone_stream;
 	/* Shared only with this player's existing mixer consumer callbacks. */
@@ -143,13 +143,11 @@ source(void *context, int16_t *output, size_t requested)
 }
 
 int
-st_rip3_audio_create(struct st_rip3_audio **result, audio_engine_t *engine,
-    float left, float right)
+st_rip3_audio_create(struct st_rip3_audio **result, st_audio_runtime_t *runtime)
 {
 	struct st_rip3_audio *player;
-	int status;
 
-	if (result == NULL || engine == NULL)
+	if (result == NULL || runtime == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	player = calloc(1, sizeof(*player));
 	if (player == NULL)
@@ -158,16 +156,39 @@ st_rip3_audio_create(struct st_rip3_audio **result, audio_engine_t *engine,
 		free(player);
 		return IO_ERROR_IO;
 	}
-	player->engine = engine;
-	status = audio_stream_create(&player->stream, engine, left, right);
-	if (status == 0)
-		status = audio_stream_set_source(player->stream, source, player);
-	if (status != 0) {
-		st_rip3_audio_destroy(player);
-		return status;
-	}
+	player->runtime = runtime;
 	*result = player;
 	return 0;
+}
+
+static int
+prepare_stream(struct st_rip3_audio *player, audio_stream_t **stream, float gain,
+    size_t (*callback)(void *, int16_t *, size_t))
+{
+	audio_engine_t *engine;
+	audio_stream_t *created = NULL;
+	int status;
+
+	if (*stream != NULL)
+		return 0;
+	status = st_audio_runtime_acquire(player->runtime, &engine);
+	if (status == 0)
+		status = audio_stream_create(&created, engine, gain, gain);
+	if (status == 0)
+		status = audio_stream_set_source(created, callback, player);
+	if (status != 0) {
+		audio_stream_destroy(created);
+		return status;
+	}
+	*stream = created;
+	return 0;
+}
+
+bool
+st_rip3_audio_wav_available(struct st_rip3_audio *player)
+{
+	return player != NULL && st_audio_file_available()
+	    && prepare_stream(player, &player->stream, 0, source) == 0;
 }
 
 void
@@ -191,6 +212,8 @@ st_rip3_audio_stop(struct st_rip3_audio *player)
 
 	if (player == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (player->stream == NULL)
+		return 0;
 	/* Quiesce without holding the callback's lock. */
 	status = audio_stream_clear(player->stream);
 	if (st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
@@ -226,6 +249,11 @@ st_rip3_audio_play(struct st_rip3_audio *player,
 	st_rip3_resource_dispose(&resource);
 	if (status != 0)
 		return status;
+	status = prepare_stream(player, &player->stream, 0, source);
+	if (status != 0) {
+		free(frames);
+		return status;
+	}
 	if (st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS) {
 		free(frames);
 		return IO_ERROR_IO;
@@ -279,16 +307,8 @@ st_rip3_audio_play_tones(struct st_rip3_audio *player, const struct st_rip3_tone
 {
 	if (player == NULL || tones->repeats == 0 || tones->notes[0].milliseconds == 0)
 		return false;
-	if (player->tone_stream == NULL) {
-		int status = audio_stream_create(&player->tone_stream, player->engine, -12.0f, -12.0f);
-		if (status == 0)
-			status = audio_stream_set_source(player->tone_stream, tone_source, player);
-		if (status != 0) {
-			audio_stream_destroy(player->tone_stream);
-			player->tone_stream = NULL;
-			return false;
-		}
-	}
+	if (prepare_stream(player, &player->tone_stream, -12.0f, tone_source) != 0)
+		return false;
 	if (st_rip3_audio_tones_pending(player) || st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
 		return false;
 	player->tones = *tones;

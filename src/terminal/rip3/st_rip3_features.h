@@ -33,7 +33,10 @@ enum st_rip3_feature {
 };
 
 struct st_rip3_features {
-	uint32_t bits; /* Private representation; initialize the whole object to zero. */
+	uint32_t bits; /* Initialize the whole object to zero. */
+	/* Optional live probe takes precedence over the registered WAV bit. */
+	bool (*wav_available)(void *context);
+	void *context;
 };
 
 /* No capability is assumed from a kernel existing or a build option. The
@@ -48,7 +51,8 @@ int st_rip3_features_set(struct st_rip3_features *features,
  * categories return empty. Only supported features and nonempty categories
  * appear in sorted comma-separated lists. LIST/ALL emits features alone.
  * Output is NUL terminated without CR or trailing delimiter. Invalid arguments
- * and insufficient capacity leave the output buffer unchanged. No host I/O. */
+ * and insufficient capacity leave the output buffer unchanged. WAV is probed
+ * only when the answer depends on its availability. */
 int st_rip3_features_query(const struct st_rip3_features *features,
 	const char *keyword, const char *category, char *result, size_t capacity);
 

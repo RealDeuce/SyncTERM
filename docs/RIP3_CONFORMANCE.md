@@ -32,7 +32,10 @@ nonblocking input and continuation pumping, delays, bundled classic/outline
 fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying and live reset, bitmap/clipboard operations and remembered-pair PCB paste,
 trusted per-BBS asset reads/exports, in-scene bitmap errors, basic prompts and pick lists,
 session/persistent variables, local modifier/capacity queries and WAV playback
-through the existing mixer when audio is available. Persistent variables use
+through the existing mixer when audio is available. The first playable WAV,
+tone sequence, or IFS query whose answer depends on WAV support acquires the
+shared audio engine. Silent connections, resets and stop commands leave it
+unopened. Persistent variables use
 `rip3-variables.bin` in the existing RIP cache, separately from 1.54 storage.
 Device geometry comes from the entry's selected raster; WORLD remains independent.
 The three 4:3 presets remain supported without overriding other entry modes.

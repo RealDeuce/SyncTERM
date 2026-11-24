@@ -121,6 +121,7 @@ consume(void *context)
 int
 main(int argc, char **argv)
 {
+	st_audio_runtime_t *runtime = NULL;
 	audio_engine_t *engine = NULL;
 	struct st_rip3_audio *player = NULL;
 	struct st_rip3_resource_paths paths = {0};
@@ -138,11 +139,32 @@ main(int argc, char **argv)
 		changed[i + 2] = 0x30; changed[i + 3] = 0xf8;
 	}
 	CHECK(put(replacement, changed, sizeof(changed)) == 0);
+	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
+	CHECK(st_rip3_audio_create(NULL, runtime) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_audio_create(&player, NULL) == IO_ERROR_INVALID_ARGUMENT && player == NULL);
+	CHECK(st_rip3_audio_create(&player, runtime) == 0);
+	CHECK(st_rip3_audio_play(player, NULL, "$OFF$", false) == 0);
+	CHECK(st_rip3_audio_play(player, &paths, "missing.wav", false) == 0);
+	CHECK(put(bad_file, wave, 1) == 0);
+	CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == IO_ERROR_INVALID_FORMAT);
+	CHECK(!st_rip3_audio_play_tones(player, &(struct st_rip3_tones){0}));
+	st_rip3_audio_stop_tones(player);
+	st_rip3_audio_destroy(player);
+	CHECK(st_rip3_audio_create(&player, runtime) == 0);
+	/* The mixer permits one engine per process. A second owner can still
+	 * take it after all the silent operations above, making a probe fail. */
 	CHECK(audio_engine_create_pull(&engine) == 0);
-	CHECK(st_rip3_audio_create(NULL, engine, 0, 0) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_audio_create(&player, NULL, 0, 0) == IO_ERROR_INVALID_ARGUMENT && player == NULL);
-	CHECK(st_rip3_audio_create(&player, engine, 97, 0) == IO_ERROR_INVALID_ARGUMENT && player == NULL);
-	CHECK(st_rip3_audio_create(&player, engine, 0, 0) == 0);
+	CHECK(!st_rip3_audio_wav_available(player));
+	audio_engine_destroy(engine);
+	CHECK(st_rip3_audio_wav_available(player) == st_audio_file_available());
+	engine = NULL;
+	if (st_audio_file_available())
+		CHECK(audio_engine_create_pull(&engine) == IO_ERROR_BUSY);
+	else {
+		CHECK(audio_engine_create_pull(&engine) == 0);
+		audio_engine_destroy(engine);
+	}
+	CHECK(st_audio_runtime_acquire(runtime, &engine) == 0);
 	CHECK(st_rip3_audio_play(player, &paths, NULL, false) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_audio_stop(NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_audio_stop(player) == 0 && pull(engine, 5, 0, 0, 0) == 0);
@@ -231,7 +253,7 @@ main(int argc, char **argv)
 		CHECK(st_thread_join(thread, &result) == ST_THREAD_SUCCESS && result == 0);
 		CHECK(!consumer.failed && consumer.pulls != 0);
 		st_condition_destroy(&consumer.condition); st_mutex_destroy(&consumer.mutex);
-		CHECK(st_rip3_audio_create(&player, engine, 0, 0) == 0);
+		CHECK(st_rip3_audio_create(&player, runtime) == 0);
 		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == 0);
 		audio_engine_stop(engine);
 		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == IO_ERROR_CANCELLED);
@@ -244,7 +266,7 @@ main(int argc, char **argv)
 		puts("RIP3 WAV decoder unavailable: rejection and format/lifecycle checks verified");
 	}
 	st_rip3_audio_destroy(player);
-	audio_engine_destroy(engine);
+	st_audio_runtime_destroy(runtime);
 	CHECK(fs_remove_file(file) == 0 && fs_remove_file(replacement) == 0 && fs_remove_file(bad_file) == 0);
 	CHECK(fs_remove_directory(argv[1]) == 0);
 	free(file); free(replacement); free(bad_file);

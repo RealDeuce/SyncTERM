@@ -156,6 +156,10 @@ Hook.onKey(Key.f9) {|event|
         assert {pixel(frame, x, y) for y in range(8) for x in range(8)} == {0xa80000, 0x0000a8}
         t.exchange(b"\x1b[0m\x1b[2J\x1b[H")
 
+        t.case("rip3-wav-capability-with-audio-disabled")
+        t.exchange(query(b"$IFS(ANSI)$:$IFS(WAV)$:$IFS(_AUDIO)$:[$IFS(LIST,_AUDIO)$]"),
+                   b"1:0:0:[]")
+
         t.case("rip3-bare-lf-and-form-feed-end-commands-on-the-wire")
         frame = t.exchange(
             b"\x1b[2;1H" + query(b"LF", at_cursor=True)[:-2] + b"\nraw\x1b[6n"

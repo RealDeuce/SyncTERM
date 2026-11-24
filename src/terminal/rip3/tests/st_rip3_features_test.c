@@ -29,6 +29,14 @@ expect(const struct st_rip3_features *features, const char *keyword,
 	return 0;
 }
 
+static bool
+probe_wave(void *context)
+{
+	unsigned *calls = context;
+	++*calls;
+	return true;
+}
+
 int
 main(void)
 {
@@ -100,5 +108,18 @@ main(void)
 	CHECK(st_rip3_features_query(&features, "JPEG", "ALL", result, sizeof(result)) == IO_ERROR_INVALID_FORMAT);
 	CHECK(st_rip3_features_query(&features, "LIST", NULL, NULL, sizeof(result)) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(memcmp(result, before, sizeof(result)) == 0);
+	unsigned probes = 0;
+	struct st_rip3_features deferred = {.wav_available = probe_wave, .context = &probes};
+	CHECK(expect(&deferred, "JPEG", NULL, "0") == 0);
+	CHECK(expect(&deferred, "_IMAGE", NULL, "0") == 0);
+	CHECK(expect(&deferred, "LIST", "_IMAGE", "") == 0);
+	CHECK(expect(&deferred, "UNKNOWN", NULL, "0") == 0);
+	CHECK(probes == 0);
+	/* expect() evaluates each query twice to check the output bounds. */
+	CHECK(expect(&deferred, "wav", NULL, "1") == 0 && probes == 2);
+	CHECK(expect(&deferred, "_audio", NULL, "1") == 0 && probes == 4);
+	CHECK(expect(&deferred, "LIST", "_audio", "WAV") == 0 && probes == 6);
+	CHECK(expect(&deferred, "LIST", "ALL", "WAV") == 0 && probes == 8);
+	CHECK(expect(&deferred, "LIST", NULL, "_AUDIO") == 0 && probes == 10);
 	return 0;
 }
