@@ -915,11 +915,11 @@ st_rip3_ports_paste(struct st_rip3_ports *ports,const unsigned *source)
 	return st_rip3_ports_copy_device(ports,number,&pair.destination,ports->current,&pair.source,ST_RIP3_TRANSFER_COPY);
 }
 
-int
-st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
+static int
+blit(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, unsigned destination,
     int32_t destination_x, int32_t destination_y,
-    enum st_rip3_transfer_mode mode)
+    enum st_rip3_transfer_mode mode, bool read_inactive)
 {
 	const struct port *src;
 	const struct port *dst;
@@ -934,7 +934,7 @@ st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
 	src = &ports->entries[source];
 	dst = &ports->entries[destination];
 	if (!src->info.defined || !dst->info.defined
-	    || !src->info.viewport_active || !dst->info.viewport_active
+	    || (!src->info.viewport_active && !read_inactive) || !dst->info.viewport_active
 	    || !translate(src, source_area, &from))
 		return 0;
 	source_view = viewport_absolute(src);
@@ -969,6 +969,21 @@ st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
 	        port_surface(ports, source), NULL, &from, mode);
 	if (status==0) publish_copy(ports,source,&logical_source,destination,&logical_destination);
 	return status;
+}
+
+int
+st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
+    const struct st_rip3_rect *source_area, unsigned destination,
+    int32_t x, int32_t y, enum st_rip3_transfer_mode mode)
+{
+	return blit(ports,source,source_area,destination,x,y,mode,false);
+}
+
+int
+st_rip3_ports_put_image(struct st_rip3_ports *ports, unsigned source,
+    unsigned destination, int32_t x, int32_t y, enum st_rip3_transfer_mode mode)
+{
+	return blit(ports,source,NULL,destination,x,y,mode,true);
 }
 
 static int

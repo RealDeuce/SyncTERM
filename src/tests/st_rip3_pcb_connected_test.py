@@ -128,6 +128,29 @@ def run(args,width,height):
         copy(0,(0,0,1,1),5,(0,0,1,1))
         bar(0,(0,0,0,0))
         frame=values(b'$PCB(5)$');assert pixel(frame,0,0)==0x112233
+
+        t.case('rip3-put-image-inverts-all-rgb-channels')
+        wire(b'1C'+coords((0,0,0,0)))
+        frame=wire(b'1P'+coords((400,280))+b'040')
+        region(frame,(400,280,402,282),0xeeddcc)
+        assert pixel(frame,402,280)==0 and pixel(frame,400,282)==0
+        frame=wire(b'1P'+coords((430,280))+b'001')
+        region(frame,(430,280,432,282),0x112233)
+        values(b'$CUR(PORT)$',b'0')
+
+        t.case('rip3-put-image-reads-inactive-clipboard-viewport')
+        wire(b'2s100')
+        bar(4,(0,0,0,0));bar(2,(1,0,1,0));bar(1,(1,1,1,1))
+        wire(b'v'+coords((1,0,1,1))+b'|2s000')
+        values(b'$DVP(1)$')
+        frame=wire(b'1P'+coords((450,280))+b'0')
+        assert pixel(frame,450,280)==0x00aa00 and pixel(frame,450,281)==0x0000aa
+        assert pixel(frame,451,280)==0 and pixel(frame,449,280)==0
+        same(frame,values(b'$PCB(1)$'))
+        values(b'$DVP(0)$')
+        frame=wire(b'1P'+coords((460,280))+b'0')
+        assert pixel(frame,460,280)==0
+        values(b'$AVP(0)$')
         values(b'after-pcb',b'after-pcb')
         assert client.capture().application['connected']==1
 

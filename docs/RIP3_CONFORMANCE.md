@@ -10061,3 +10061,19 @@ check the old window and FIELDID in a delayed reply, the cleared pixels
 and text cursor afterward, and recovery after a malformed action.
 The accepted range beyond `0` and `1` and source-field mutation details
 await reference clarification. [Issue #227](https://github.com/bbs-land/remote-imaging-protocol/issues/227)
+
+## Clipboard paste source and invert mode
+
+`1P` reads the stored clipboard viewport even when that viewport is
+deactivated. The destination viewport must be active. The optional reserved
+digit is decoded in the current Base Math and has no effect. RIPtel's
+wire handler at RVA `0x0d32f` discards the reserved value and checks the
+current destination's activation. The clipboard helper at `0x02a00` reads
+the defined source's stored rectangle. [Issue #229](https://github.com/bbs-land/remote-imaging-protocol/issues/229)
+
+Mode `04` complements the source pixel's eight index bits or all 24 RGB
+bits. Connected CP437 and UTF-8 tests capture an ANSI pixel of `#112233`
+and paste it as `#eeddcc`. They also use a narrowed, inactive clipboard
+viewport, check that `PCB` skips it, and verify that `1P` skips an inactive
+destination. The native tests check source inversion in both surface copy
+paths and retain the existing indexed mode vectors.

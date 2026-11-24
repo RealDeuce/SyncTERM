@@ -231,6 +231,9 @@ int st_rip3_ports_blit(struct st_rip3_ports *ports, unsigned source,
 	const struct st_rip3_rect *source_area, unsigned destination,
 	int32_t destination_x, int32_t destination_y,
 	enum st_rip3_transfer_mode mode);
+/* PUT_IMAGE reads the clipboard's stored viewport even when inactive. */
+int st_rip3_ports_put_image(struct st_rip3_ports *ports, unsigned source,
+	unsigned destination, int32_t x, int32_t y, enum st_rip3_transfer_mode mode);
 /* Raw read coordinates are port-relative, independent of viewport activation. */
 int st_rip3_ports_read(const struct st_rip3_ports *ports, unsigned number,
 	int32_t x, int32_t y, uint8_t *result);

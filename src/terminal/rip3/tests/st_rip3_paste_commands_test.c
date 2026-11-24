@@ -157,7 +157,6 @@ validation(void)
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(row(&f,0,0,0,original,8) == 0);
 	}
-	CHECK(process(&f,"1P0000001",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&f,"1P0000000 comment",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	struct st_rip3_ports *ports = f.host.ports;
 	struct st_rip3_environments *environments = f.host.environments;
@@ -182,10 +181,12 @@ validation(void)
 	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0);
 	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_copy_test_fail_malloc);
 	CHECK(row(&f,0,0,0,original,8) == 0 && f.clipboard.port == 1);
-	CHECK(process(&f,"1P0200000",-1) == 0 && row(&f,0,0,0,copied,10) == 0);
+	CHECK(process(&f,"1P0200001",-1) == 0 && row(&f,0,0,0,copied,10) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0);
-	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && row(&f,0,0,0,copied,10) == 0);
+	CHECK(process(&f,"1P0001000",-1) == 0 && row(&f,0,0,1,copied,8) == 0);
+	struct st_rip3_port_info clipboard;
+	CHECK(st_rip3_ports_info(f.host.ports,1,&clipboard) == 0 && !clipboard.viewport_active);
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0 && st_rip3_ports_activate(f.host.ports,true) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	CHECK(process(&f,"1P0200000",-1) == 0 && row(&f,0,0,0,copied,10) == 0);

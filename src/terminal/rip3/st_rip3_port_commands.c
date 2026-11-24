@@ -355,10 +355,9 @@ paste_clipboard(const struct st_rip3_command_host *host,
 	if (status == 0)
 		status = st_rip3_command_field(&mode,bytes+prefix,
 		    length-prefix > 2 ? 2 : length-prefix,environment->base_math);
-	if (status == 0 && length == prefix+3) {
+	/* The receiver validates the wire digit but RIPtel ignores its value. */
+	if (status == 0 && length == prefix+3)
 		status = st_rip3_command_field(&reserved,bytes+prefix+2,1,environment->base_math);
-		if (status == 0 && reserved != 0) return IO_ERROR_NOT_SUPPORTED;
-	}
 	if (status != 0) return status;
 	if (x > INT32_MAX || y > INT32_MAX || mode > 4) return IO_ERROR_OUT_OF_RANGE;
 	if (host->clipboard == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -370,13 +369,11 @@ paste_clipboard(const struct st_rip3_command_host *host,
 	if (status != 0 || destination == host->clipboard->port) return status;
 	status = st_rip3_ports_info(host->ports,host->clipboard->port,&info);
 	if (status != 0) return status;
-	/* Pointer lifecycle and inactive-source paste behavior are unresolved
-	 * under #42. Do not invent a fallback or clear the owner's state. */
-	if (!info.defined || !info.viewport_active) return IO_ERROR_NOT_SUPPORTED;
+	if (!info.defined) return IO_ERROR_NOT_SUPPORTED;
 	world = (struct st_rip3_rect){(int32_t)x,(int32_t)y,(int32_t)x,(int32_t)y};
 	status = translate(host,environment_number,&world,&device);
 	if (status != 0) return status;
-	return st_rip3_ports_blit(host->ports,host->clipboard->port,NULL,destination,
+	return st_rip3_ports_put_image(host->ports,host->clipboard->port,destination,
 	    device.x0,device.y0,(enum st_rip3_transfer_mode)mode);
 }
 

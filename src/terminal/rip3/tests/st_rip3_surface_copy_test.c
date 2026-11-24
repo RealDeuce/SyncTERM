@@ -1,6 +1,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_surface.h"
 #include "io_error.h"
+#include "st_pixels.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -150,6 +151,16 @@ transfer_test(void)
 		    &source, (enum st_rip3_transfer_mode)mode) == 0);
 		CHECK(expect(surface, result[mode], 2, 1) == 0);
 	}
+	uint32_t rgb = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0x112233), value;
+	const struct st_pixel_buffer pixel = {.width=1,.height=1,.primary=&rgb};
+	const uint32_t inverted = ST_PIXEL_COLOR_RGB_TAG | UINT32_C(0xeeddcc);
+	CHECK(st_rip3_surface_restore_area_raw(surface, &pixel, 0, 0) == 0);
+	CHECK(st_rip3_surface_blit(surface, NULL, 1, 0, surface, NULL, &source,
+	    ST_RIP3_TRANSFER_INVERT) == 0);
+	CHECK(st_rip3_surface_read_color(surface, 1, 0, &value) == 0 && value == inverted);
+	CHECK(st_rip3_surface_copy_projected(surface, &source, surface, &target,
+	    ST_RIP3_TRANSFER_INVERT) == 0);
+	CHECK(st_rip3_surface_read_color(surface, 0, 0, &value) == 0 && value == rgb);
 	st_rip3_surface_destroy(surface);
 	return 0;
 }

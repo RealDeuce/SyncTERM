@@ -23036,6 +23036,47 @@
         "excluded": 71,
         "blocked": 21
       }
+    },
+    {
+      "after_commit": "d509cf60",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Correct 1P source inversion, inactive clipboard reads and reserved digit handling on live sessions.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/229"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:67",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:68",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:69",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:71",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:75",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:77",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:81",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:89",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:83",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:93",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:95"
+      ],
+      "tests": [
+        "rip3_paste_commands",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_surface_copy",
+        "rip3_pcb",
+        "rip3_blit",
+        "syncterm_rip3_port_backup_CP437",
+        "syncterm_rip3_port_backup_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1900,
+        "pending": 1455,
+        "implemented": 3701,
+        "excluded": 71,
+        "blocked": 21
+      }
     }
   ]
 }
