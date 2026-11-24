@@ -9,9 +9,31 @@
 #include "st_rip3_wallpaper.h"
 #include "st_pixels.h"
 #include "string_compat.h"
+#include "string_util.h"
 #include "io_error.h"
 
 #include <stdlib.h>
+#include <string.h>
+
+static char *
+bitmap_name(const uint8_t *bytes, size_t length)
+{
+	char *name = strndup((const char *)bytes, length);
+	if (name == NULL)
+		return NULL;
+	char *extension = strrchr(name, '.');
+	if (extension != NULL) {
+		static const char legacy[][5] = {".ICN", ".HIC", ".MSK"};
+		static const char bitmap[][5] = {".BMP", ".BMH", ".BMM"};
+		for (size_t i = 0; i < sizeof(legacy) / sizeof(legacy[0]); ++i) {
+			if (ascii_case_compare(extension, legacy[i]) == 0) {
+				memcpy(extension, bitmap[i], sizeof(bitmap[i]));
+				break;
+			}
+		}
+	}
+	return name;
+}
 
 static bool
 file_failure(int status)
@@ -55,7 +77,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	if (status != 0) return status;
 	area.x0 = (int64_t)(x*frame.device_width/frame.world_width);
 	area.y0 = (int64_t)(y*frame.device_height/frame.world_height);
-	char *name = strndup((const char *)command+prefix,length-prefix);
+	char *name = bitmap_name(command+prefix,length-prefix);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	*operation = true;
 	status = st_rip3_bitmap_load(&bitmap,host->resources,name);
@@ -156,7 +178,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	area.y0 = (int64_t)(fields[1]*frame.device_height/frame.world_height);
 	area.x1 = (int64_t)(fields[2]*frame.device_width/frame.world_width);
 	area.y1 = (int64_t)(fields[3]*frame.device_height/frame.world_height);
-	char *name = strndup((const char *)command+prefix,length-prefix);
+	char *name = bitmap_name(command+prefix,length-prefix);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	*operation = true;
 	status = st_rip3_bitmap_load(&bitmap,host->resources,name);

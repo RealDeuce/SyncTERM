@@ -108,6 +108,30 @@ def check_bitmap(t, assets, values):
     assert tint(frame, 32, 32, 4, 4) == [[0, 0, 0, 0]] + [[0, red, blue, blue]] * 3
     assert frame.application["connected"] == 1
 
+    t.case("Wire icon and bitmap commands normalize legacy extensions before lookup")
+    reset()
+    converted = bitmap_row(24, b"\xaa\x00\x00" * 2 + bytes(2))
+    for i, (alias, bitmap) in enumerate((("Legacy.iCn", "legacy.BMP"),
+                                        ("Legacy.hIc", "legacy.BMH"),
+                                        ("Legacy.mSk", "legacy.BMM"))):
+        # Both names contain a valid BMP, with different colors. Only the
+        # normalized name provides the blue pixels.
+        (assets / alias).write_bytes(solid)
+        (assets / bitmap).write_bytes(converted)
+        x = 210 + 3*i
+        frame = wire(b"1I" + coords(x, 30) + b"00000" + alias.encode()
+                     + b"|1b" + coords(x, 31, x+1, 31) + b"0000000000" + alias.encode())
+        assert tint(frame, x, 30, 2, 2) == [[blue, blue], [blue, blue]]
+        assert (assets / alias).read_bytes() == solid
+
+    (assets / "Raw.icn").write_bytes(solid)
+    frame = wire(b"1I" + coords(250, 30) + b"00000Raw.icn"
+                 + b"|1b" + coords(250, 31, 251, 31) + b"0000000000Raw.icn")
+    assert tint(frame, 250, 30, 2, 2) == [[0, 0], [0xffffff, 0xffffff]]
+    assert (assets / "Raw.icn").read_bytes() == solid
+    assert not (assets / "Raw.BMP").exists()
+    values(b"alive", b"alive")
+
 
 def check_host_directory(t, root, rip, values, encoding):
     def wire(commands):

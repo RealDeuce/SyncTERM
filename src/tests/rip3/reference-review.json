@@ -21845,6 +21845,29 @@
         "unreviewed": 2200
       },
       "verification": "Original handlers at RVAs 0x13037 and 0x2db24 establish aggregate presence and protection, boolean replies and the eight-slot scan. The native table tests and live CP437 and UTF-8 button-style sessions cover full and partial tables, base and stack, and direct S8 versus the aggregate scan."
+    },
+    {
+      "after_commit": "35b12d9a",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected legacy filename substitution for LOAD_ICON and LOAD_BITMAP. Records the remaining verbatim-extension wording conflict under B208.",
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/6.1-content-file-roles.md:34",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:179"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:143",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:201",
+        "version/3.0/ripscrip/6.1-content-file-roles.md:28"
+      ],
+      "states_after_update": {
+        "blocked": 41,
+        "context": 1863,
+        "excluded": 71,
+        "implemented": 3452,
+        "pending": 1493,
+        "unreviewed": 2198
+      },
+      "verification": "Connected CP437 and UTF-8 tests place differently colored images at literal and translated filenames and check all three suffixes in both commands. An unpaired literal name exercises missing-resource recovery. Native bitmap command tests and RIP 1.54 source preservation pass. Original normalization evidence is at DLL RVA 0xc6eb through 0xc740 and in the PR #49 routing matrix."
     }
   ]
 }

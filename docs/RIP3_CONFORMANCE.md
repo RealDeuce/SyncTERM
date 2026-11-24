@@ -9776,3 +9776,20 @@ to be clarified. [Issue #207](https://github.com/bbs-land/remote-imaging-protoco
 Connected CP437 and UTF-8 cases check undefined and fully protected live
 tables, independent base and stack presence, and a populated S8 that
 answers a direct query while the aggregate scan remains empty.
+
+## Connected legacy extensions for wire bitmap loads
+
+`1I` and `1b` translate `.ICN` to `.BMP`, `.HIC` to `.BMH`, and
+`.MSK` to `.BMM` before resource lookup. The suffix match is
+case-insensitive. The loader uses the usual cache and shared-directory
+lookup for the translated name. A missing translated bitmap triggers
+the command's missing-resource behavior. Creation of a BMP from a
+completed legacy asset transfer is a separate pending operation.
+[PR #49](https://github.com/bbs-land/remote-imaging-protocol/pull/49)
+
+Connected cases in CP437 and UTF-8 give the legacy and translated
+names different bitmap colors and check both wire commands. A second
+case supplies only the legacy name and checks the missing-bitmap result
+and subsequent query. The older verbatim-extension wording conflicts
+with the detailed file-role rule.
+[Issue #208](https://github.com/bbs-land/remote-imaging-protocol/issues/208)
