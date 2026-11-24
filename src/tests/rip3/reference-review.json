@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/232",
-  "revision": "1859b08987dddff557233533ace1bba664c608ec",
-  "previous_revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/234",
+  "revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
+  "previous_revision": "1859b08987dddff557233533ace1bba664c608ec",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PR #232 was open upstream. Its tree matches the pinned fork stable integration.",
-  "archive_sha256": "67ec15a54a06e064d397ac5b8bdf6a1fc88b68c6e25d83d563a5d2e3a44472d1",
+  "upstream_state_at_adoption": "PR #234 was open upstream. Its tree matches the pinned fork stable integration.",
+  "archive_sha256": "c3ea16f60fea4d0ea257abda7e82606fc917dc97f946f10384b0922616891a89",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a",
-      "sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1"
+      "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+      "previous_sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af",
+      "sha256": "3419abcfc80f448f4a86e49a858dea0bd393b62c4a2319a18b64d891bc9724a9"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9325,
+  "matched_source_blocks": 9343,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -958,7 +958,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 89,
+  "upstream_issue_resolutions": 90,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1637,6 +1637,12 @@
       "sha256": "e7dc3e8d7400e3fc17780df8fb0a19029c8364e76ae4ce0fa2eb3df4ebe34b72",
       "title": "Issue #231 — PUT_IMAGE Boolean color operands",
       "role": "Windows compositor calls and the portable capture and paste color-domain rule."
+    },
+    {
+      "path": "version/3.0/research/issue-233-port-copy-color-domain.md",
+      "sha256": "d5ff05698dbc4f73d8f24dde5b18a1025627187ce687dd698d4d226950682838",
+      "title": "Issue #233 — PORT_COPY logical color domains",
+      "role": "Native matched and fit ROP traces and the portable indexed and RGB operation rules."
     }
   ],
   "documents": [
@@ -1830,7 +1836,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af"
+      "sha256": "3419abcfc80f448f4a86e49a858dea0bd393b62c4a2319a18b64d891bc9724a9"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -1913,7 +1919,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "6b99c897b3ec6abfce53823c53dfa6bf809b024d",
+  "previous_ledger_commit": "b0360c25cc4366e7c267d328f7221f1157a398f7",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18392,6 +18398,64 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "1859b08987dddff557233533ace1bba664c608ec",
+      "revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
+      "archive_sha256": "c3ea16f60fea4d0ea257abda7e82606fc917dc97f946f10384b0922616891a89",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/233",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/234",
+          "reviewed_head": "2cd8528480f6c44bae213799c970c6aa3d97ef90",
+          "integration": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af",
+          "sha256": "3419abcfc80f448f4a86e49a858dea0bd393b62c4a2319a18b64d891bc9724a9"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-233-port-copy-color-domain.md",
+          "sha256": "d5ff05698dbc4f73d8f24dde5b18a1025627187ce687dd698d4d226950682838",
+          "title": "Issue #233 — PORT_COPY logical color domains",
+          "role": "Native matched and fit ROP traces and the portable indexed and RGB operation rules."
+        }
+      ],
+      "moved_source_blocks": 104,
+      "new_source_units": [
+        "version/3.0/ripscrip/7.0-drawing-ports.md:511",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:513",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:515",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:517",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:521",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:523",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:530",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:532",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:533",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:534",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:535",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:536",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:537",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:538",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:539",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:540",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:542"
+      ],
+      "retired_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1920,
+        "pending": 1447,
+        "implemented": 3738,
+        "excluded": 71,
+        "blocked": 21
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -23707,6 +23771,47 @@
         "implemented": 3724,
         "excluded": 71,
         "blocked": 20
+      }
+    },
+    {
+      "after_commit": "b0360c25cc4366e7c267d328f7221f1157a398f7",
+      "revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
+      "scope": "Apply the shared Boolean color-domain rules to 2C after sampling, with live and stored operands and destination-width source inversion.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/233"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/7.0-drawing-ports.md:497",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:498",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:499",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:500",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:501",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:511",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:513",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:515",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:517",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:535",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:536",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:537",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:538",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:539",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:542"
+      ],
+      "tests": [
+        "rip3_pcb",
+        "rip3_viewport_commands",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1920,
+        "pending": 1447,
+        "implemented": 3738,
+        "excluded": 71,
+        "blocked": 21
       }
     }
   ],

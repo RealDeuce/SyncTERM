@@ -309,13 +309,12 @@ copy_port(const struct st_rip3_command_host *host,
 	if (from.x0 >= from.x1 || from.y0 >= from.y1 || to.x0 >= to.x1 || to.y0 >= to.y1)
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_palette palette;
-	const struct st_rip3_palette *present_palette = NULL;
-	if (!destination_info.offscreen)
-		status = transfer_palette(host, mode, &palette, &present_palette);
+	const struct st_rip3_palette *operand_palette;
+	status = transfer_palette(host, mode, &palette, &operand_palette);
 	if (status != 0)
 		return status;
 	return st_rip3_ports_copy_device(host->ports,(unsigned)source_number,&from,
-	    (unsigned)destination_number,&to,(enum st_rip3_transfer_mode)mode,present_palette);
+	    (unsigned)destination_number,&to,(enum st_rip3_transfer_mode)mode,operand_palette);
 }
 
 static int

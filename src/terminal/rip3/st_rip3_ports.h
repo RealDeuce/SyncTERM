@@ -209,7 +209,7 @@ int st_rip3_ports_copy(struct st_rip3_ports *ports, unsigned source,
  * Classify equal sizes before clipping: equal copies trim both sides together,
  * unequal copies fit independently trimmed logical rectangles. The ordinary
  * copy kernel then publishes the successful logical pair on the destination.
- * Pass the active palette to present a native screen composite. */
+ * Pass the active palette for mixed index/RGB composition and presentation. */
 int st_rip3_ports_copy_device(struct st_rip3_ports *,unsigned source,
 	const struct st_rip3_copy_extent *,unsigned destination,
 	const struct st_rip3_copy_extent *,enum st_rip3_transfer_mode,

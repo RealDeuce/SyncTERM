@@ -135,8 +135,8 @@ int st_rip3_surface_copy_projected(struct st_rip3_surface *destination,
 	const struct st_rip3_rect *destination_area,
 	const struct st_rip3_surface *source,
 	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode);
-/* PUT_IMAGE Boolean modes promote mixed operands using the paste palette.
- * Two indexed pixels still use the surface's 256-index logical domain. */
+/* Boolean transfers with a palette resolve mixed operands through that palette.
+ * Two indexed pixels use the destination's 256-index logical domain. */
 int st_rip3_surface_copy_projected_colors(struct st_rip3_surface *destination,
 	const struct st_rip3_rect *destination_area, const struct st_rip3_surface *source,
 	const struct st_rip3_rect *source_area, enum st_rip3_transfer_mode mode,

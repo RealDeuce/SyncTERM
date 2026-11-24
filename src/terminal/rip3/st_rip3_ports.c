@@ -850,8 +850,7 @@ projected_coverage(uint64_t source, uint64_t destination, uint64_t physical_sour
 static int
 compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
     const struct st_rip3_rect *source_area, const struct st_rip3_rect *destination_area,
-    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette,
-    bool promote_indexed)
+    enum st_rip3_transfer_mode mode, const struct st_rip3_palette *palette)
 {
 	bool source_on_screen = !ports->entries[source].info.offscreen;
 	struct st_rip3_rect source_bounds = source_on_screen
@@ -884,7 +883,7 @@ compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
 		status = blit_capture(ports, ports->screen, &to, true, true, &destination_pixels);
 	if (status == 0 && source_pixels != NULL && destination_pixels != NULL) {
 		status = st_rip3_surface_copy_snapshots(destination_pixels, &logical_target,
-		    source_pixels, &logical_source, mode, promote_indexed ? palette : NULL);
+		    source_pixels, &logical_source, mode, palette);
 		if (status == 0)
 			status = store_pixels(ports, ports->screen, &to, true, destination_pixels, palette);
 	}
@@ -920,12 +919,12 @@ copy_port_area(struct st_rip3_ports *ports, unsigned source,
 	int status;
 	if (!dst->info.offscreen && ports->screen_reader != NULL
 	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
-		status = compose_screen_transfer(ports, source, &from, &to, mode, palette, false);
+		status = compose_screen_transfer(ports, source, &from, &to, mode, palette);
 	else if (!src->info.offscreen && ports->screen_reader != NULL)
-		status = copy_native_screen(ports, &from, destination, &to, mode, NULL);
+		status = copy_native_screen(ports, &from, destination, &to, mode, palette);
 	else
-		status = st_rip3_surface_copy_projected(port_surface(ports, destination), &to,
-		    port_surface(ports, source), &from, mode);
+		status = st_rip3_surface_copy_projected_colors(port_surface(ports, destination), &to,
+		    port_surface(ports, source), &from, mode, palette);
 	/* Logical success publishes even when physical storage clips every sample.
 	 * A failed overlap snapshot or transfer leaves the old pair unchanged. */
 	if (status==0) publish_copy(ports,source,&from,destination,&to);
@@ -1048,7 +1047,7 @@ blit(struct st_rip3_ports *ports, unsigned source,
 	int status;
 	if (read_inactive && !dst->info.offscreen && ports->screen_reader != NULL
 	    && mode >= ST_RIP3_TRANSFER_XOR && mode <= ST_RIP3_TRANSFER_AND)
-		status = compose_screen_transfer(ports, source, &logical_source, &logical_destination, mode, palette, true);
+		status = compose_screen_transfer(ports, source, &logical_source, &logical_destination, mode, palette);
 	else if (!src->info.offscreen && ports->screen_reader != NULL)
 		status = copy_native_screen(ports, &logical_source, destination, &logical_destination, mode, palette);
 	else if (palette != NULL)

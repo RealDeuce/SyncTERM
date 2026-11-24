@@ -28,8 +28,10 @@ def run(args,width,height):
             return b''.join(number(v,2) for v in area)
         def define(n,area,flags=1):
             return wire(b'2P'+number(n,1)+coords(area)+number(flags,1))
+        def copy_command(source,area,destination,target,mode=0):
+            return b'2C'+number(source,1)+coords(area)+number(destination,1)+coords(target)+number(mode,1)
         def copy(source,area,destination,target,mode=0):
-            return wire(b'2C'+number(source,1)+coords(area)+number(destination,1)+coords(target)+number(mode,1))
+            return wire(copy_command(source,area,destination,target,mode))
         def bar(color,area):
             return wire(b'W0|S01'+number(color,2)+b'|B'+coords(area))
         def same(before,after):
@@ -238,6 +240,57 @@ def run(args,width,height):
             region(frame,(450+2*i,335,452+2*i,337),rgb)
         frame=wire(palette_entry(0xa3,0x00ffff))
         region(frame,(450,335,452,337),0x00ffff)
+        wire(b'M08')
+        values(b'$RESET(PAL,17)$')
+
+        t.case('rip3-port-copy-composes-mixed-colors-after-fitting')
+        whole=(0,0,0,0)
+        define(12,(0,0,1,1))
+        wire(palette_entry(1,0xff0000)+b'|2sC00|W0|c01|X0000|2s000')
+        wire(palette_entry(1,0xa854ff)+b'|M18')
+        frame=t.exchange(b'\x1b[1;61H\x1b[48;2;17;34;51m   ')
+        region(frame,(start,0,end,2),0x112233)
+        copies=[]
+        for i in range(3):
+            x=start+i*cell_width
+            copies.extend((copy_command(12,whole,0,(x,0,x+1,1),i+1),
+                           copy_command(12,whole,0,(x+3,0,x+5,2),i+1)))
+        frame=wire(b'|'.join(copies))
+        for i,rgb in enumerate(mixed):
+            x=start+i*cell_width
+            assert pixel(frame,x,0)==rgb and pixel(frame,x+1,0)==0x112233
+            region(frame,(x+3,0,x+5,2),rgb)
+        live_rgb=(start+6,0,start+7,1)
+
+        t.case('rip3-port-copy-composes-rgb-over-indexes-on-screen-and-offscreen')
+        wire(b'M08')
+        bar(1,(450,341,452,341))
+        define(13,(0,0,3,1))
+        wire(b'2sD00|S0101|B00000200|2s000')
+        define(14,(0,0,1,1))
+        copy(0,live_rgb,14,whole)
+        cmds=[copy_command(0,live_rgb,0,(450+i,341,451+i,342),i+1) for i in range(3)]
+        cmds.extend((copy_command(0,live_rgb,13,(0,0,1,1),1),
+                     copy_command(14,whole,13,(1,0,2,1),2),
+                     copy_command(14,whole,13,(2,0,3,1),3)))
+        frame=wire(b'M18|'+b'|'.join(cmds))
+        assert [pixel(frame,450+i,341) for i in range(3)]==list(mixed)
+        frame=copy(13,whole,0,(450,342,453,343))
+        assert [pixel(frame,450+i,342) for i in range(3)]==list(mixed)
+
+        t.case('rip3-port-copy-keeps-full-index-width-and-inverts-the-source')
+        define(15,(0,0,2,1))
+        wire(b'M08|2sF00|c'+number(0xa6,2)+b'|X0000|c06|X0100|2s000')
+        colors=((0xa3,0xff0000),(0xa7,0x00ff00),(0x04,0x0000ff),(0xf9,0xffff00))
+        wire(b'|'.join(palette_entry(index,rgb) for index,rgb in colors))
+        bar(5,(450,344,452,344))
+        frame=wire(b'M18|'+b'|'.join(copy_command(15,(0,0,1,1),0,(450+i,344,451+i,345),i+1)
+                                     for i in range(3)))
+        assert [pixel(frame,450+i,344) for i in range(3)]==[rgb for _,rgb in colors[:3]]
+        frame=copy(15,(1,0,2,1),0,live_rgb,4)
+        assert pixel(frame,start+6,0)==0xffff00
+        frame=wire(palette_entry(0xf9,0x00ffff))
+        assert pixel(frame,start+6,0)==0x00ffff
         wire(b'M08')
         values(b'$RESET(PAL,17)$')
 

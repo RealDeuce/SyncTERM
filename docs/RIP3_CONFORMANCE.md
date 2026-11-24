@@ -10116,8 +10116,16 @@ logical rectangles intact, even when the copy covers no physical pixels.
 Live CP437 and UTF-8 sessions check a four-to-two RGB fit in all four
 non-COPY modes and an overlapping RGB XOR. The native PCB test checks
 a clipped four-to-three transfer, a successful zero-coverage fit, and
-pair retention after a failed destination read. Mixed indexed/RGB
-conversion and active indexed mask width for `2C` remain pending.
+pair retention after a failed destination read.
+
+In modes 1–3, a direct RGB operand selects RGB composition. Any indexed
+operand resolves through the palette published when `2C` starts. Copies
+between two indexes use SyncTERM's 256-index destination domain. Mode 4
+complements the sampled source, using eight bits for an index and 24 bits
+for direct RGB. The live tests cover mixed colors in both directions,
+equal-size copies, constant-color fits, and stored offscreen destinations.
+An indexed inversion over ANSI RGB recolors on a subsequent palette edit.
+[PR #234](https://github.com/bbs-land/remote-imaging-protocol/pull/234)
 
 ## Composited wallpaper seed
 

@@ -1434,3 +1434,17 @@ captured logical colors and `1P` modes 01–03. SyncTERM implements the
 256-index destination domain and resolves mixed operands through the
 current published palette. The reference's 16-index example describes
 clients with that logical destination domain.
+
+## PR #234 port-copy color operations
+
+The reference advances to fork stable integration `fecb3bdb5481f3a84b9d229d6201ff68e4ce4840`.
+Its tree matches PR #234 head `2cd8528480f6c44bae213799c970c6aa3d97ef90`.
+The uncompressed Git archive has SHA-256
+`c3ea16f60fea4d0ea257abda7e82606fc917dc97f946f10384b0922616891a89`.
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/fecb3bdb5481f3a84b9d229d6201ff68e4ce4840), [PR #234](https://github.com/bbs-land/remote-imaging-protocol/pull/234)
+
+The drawing-port chapter retains its previous source units, moves 104 to
+new line ranges and adds 17. Issue #233 is resolved by extending the
+portable Boolean rules to unscaled and fitted PORT_COPY. Indexed source
+inversion takes the destination's logical width. SyncTERM's RIPv3
+destination uses eight index bits.
