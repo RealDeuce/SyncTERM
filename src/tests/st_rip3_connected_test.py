@@ -543,7 +543,7 @@ Hook.onKey(Key.f9) {|event|
                                + b"\x01|k" + ultra(red) + b"\r\n" + query(b"$EGW$")
                                + b"\x01|c" + ultra(green) + b"|X0101|S01" + ultra(blue)
                                + b"|K03010503\r\n" + query(b"$COLORMODE$"), str(bits).encode())
-            assert pixel(frame, 10, 10) == 0xff0000
+            assert pixel(frame, 10, 10) == 0
             assert pixel(frame, 1, 1) == 0x00ff00
             assert pixel(frame, 4, 2) == 0x0000ff
             assert frame.application["connected"] == 1

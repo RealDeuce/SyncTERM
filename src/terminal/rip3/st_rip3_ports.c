@@ -614,35 +614,25 @@ st_rip3_ports_header_clear_queries(struct st_rip3_ports *ports)
 
 int
 st_rip3_ports_operate_views(struct st_rip3_ports *ports,
-    const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,
-    uint8_t background)
+    const unsigned *numbers, size_t count, enum st_rip3_view_operation operation)
 {
-	bool selected[36] = {0};
-
 	if (ports == NULL || (count != 0 && numbers == NULL)
 	    || operation < ST_RIP3_VIEW_ACTIVATE || operation > ST_RIP3_PORT_CLEAR_BLACK)
 		return IO_ERROR_INVALID_ARGUMENT;
 	for (size_t i = 0; i < count; i++) {
 		if (numbers[i] >= 36)
 			return IO_ERROR_OUT_OF_RANGE;
-		selected[numbers[i]] = true;
 	}
-	for (unsigned i = 0; i < 36; i++) {
-		struct port *port = &ports->entries[i];
+	for (size_t i = 0; i < count; i++) {
+		unsigned number = numbers[i];
+		struct port *port = &ports->entries[number];
 
-		if (!selected[i] || !port->info.defined)
+		if (!port->info.defined)
 			continue;
-		if (operation == ST_RIP3_VIEW_ERASE || operation == ST_RIP3_PORT_CLEAR_BLACK) {
+		if (operation == ST_RIP3_PORT_CLEAR_BLACK) {
 			if (!port->info.viewport_active)
 				continue;
-			struct st_rip3_surface *surface = port_surface(ports, i);
-			int status;
-			if (operation == ST_RIP3_PORT_CLEAR_BLACK)
-				status = st_rip3_surface_clear_black(surface, &port->info.bounds);
-			else {
-				struct st_rip3_rect view = viewport_absolute(port);
-				status = st_rip3_surface_fill(surface, NULL, &view, background, ST_RIP3_COPY);
-			}
+			int status = st_rip3_surface_clear_black(port_surface(ports, number), &port->info.bounds);
 			if (status != 0)
 				return status;
 		}

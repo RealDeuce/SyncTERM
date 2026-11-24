@@ -124,7 +124,7 @@ main(void)
 	CHECK(reset_views()==0);
 	struct st_rip3_ports *ports = NULL;
 	struct st_rip3_table_host tables = {0};
-	struct st_rip3_host_variables host = {.tables=&tables,.background=8};
+	struct st_rip3_host_variables host = {.tables=&tables};
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_port_info info;
@@ -188,18 +188,19 @@ main(void)
 	CHECK(run(&host, "$DVP(ABCDEFGHIJKLMNOPQRST)$", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
 	CHECK(run(&host, "$EGW$", -1) == 0);
-	CHECK(st_rip3_ports_read(ports, 2, 0, 0, &pixel) == 0 && pixel == 8);
+	uint32_t color;
+	CHECK(st_rip3_ports_read_color(ports, 2, 0, 0, false, &color) == 0
+	    && color == ST_PIXEL_COLOR_RGB_TAG);
 	CHECK(st_rip3_ports_read(ports, 1, 2, 2, &pixel) == 0 && pixel == 15);
-	CHECK(run(&host, "$EGW(5)$", -1) == 0);
-	CHECK(run(&host, "$EGW(ALL)$", -1) == 0);
-	host.background = 5;
 	CHECK(run(&host, "$EGW(4,BAD)$", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
-	CHECK(st_rip3_ports_read(ports, 4, 0, 0, &pixel) == 0 && pixel == 8);
-	host.background = 8;
+	CHECK(st_rip3_ports_read(ports, 4, 0, 0, &pixel) == 0 && pixel == 1);
+	CHECK(run(&host, "$EGW(4,CUR,35,1,5)$", -1) == 0);
+	CHECK(run(&host, "$EGW(ALL)$", -1) == 0);
 	CHECK(run(&host, "$AVP(0)$", -1) == 0);
 	for (int32_t y = 0; y < 4; y++) {
 		for (int32_t x = 0; x < 4; x++)
-			CHECK(st_rip3_ports_read(ports, 2, x, y, &pixel) == 0 && pixel == 8);
+			CHECK(st_rip3_ports_read_color(ports, 2, x, y, false, &color) == 0
+			    && color == ST_PIXEL_COLOR_RGB_TAG);
 	}
 	CHECK(st_rip3_ports_read(ports, 5, 0, 0, &pixel) == 0 && pixel == 10);
 	CHECK(st_rip3_ports_info(ports, 35, &info) == 0 && !info.defined);
@@ -207,16 +208,16 @@ main(void)
 	    && info.bounds.x0 == 10 && info.bounds.y0 == 20 && info.bounds.x1 == 14 && info.bounds.y1 == 24);
 	CHECK(st_rip3_ports_current(ports, &current) == 0 && current == 2);
 	CHECK(st_rip3_palette_defaults(&palette) == 0);
+	palette.rgb[0] = 0xaa0000;
 	CHECK(st_rip3_ports_snapshot(ports, &palette, &capture) == 0);
-	/* One owned coherent RGB scene capture: protected viewport erasure,
-	 * inactive scene retention, one-pixel viewport and unaffected margins. */
+	/* One RGB capture checks full protected-port erasure, inactive-port
+	 * retention, palette independence and unaffected physical margins. */
 	for (uint32_t y = 0; y < 480; y++) {
 		for (uint32_t x = 0; x < 640; x++) {
 			uint32_t expected = ST_PIXEL_COLOR_RGB_VALUE(0,0,170);
-			if (x >= 10 && x <= 14 && y >= 20 && y <= 24) expected = ST_PIXEL_COLOR_RGB_VALUE(0,170,170);
-			if (x >= 11 && x <= 13 && y >= 21 && y <= 23) expected = ST_PIXEL_COLOR_RGB_VALUE(85,85,85);
+			if (x >= 10 && x <= 14 && y >= 20 && y <= 24) expected = ST_PIXEL_COLOR_RGB_TAG;
 			if (x >= 30 && x <= 33 && y >= 40 && y <= 43) expected = ST_PIXEL_COLOR_RGB_VALUE(170,85,0);
-			if (x == 50 && y == 60) expected = ST_PIXEL_COLOR_RGB_VALUE(85,85,85);
+			if (x == 50 && y == 60) expected = ST_PIXEL_COLOR_RGB_TAG;
 			CHECK(capture->primary[(size_t)y * 640 + x] == expected);
 		}
 	}
@@ -236,12 +237,12 @@ main(void)
 	CHECK(run(&host, "$AVP$", -1) == 0);
 	{
 		const unsigned invalid[] = {2,36};
-		CHECK(st_rip3_ports_operate_views(ports, invalid, 2, ST_RIP3_VIEW_DEACTIVATE, 0) == IO_ERROR_OUT_OF_RANGE);
+		CHECK(st_rip3_ports_operate_views(ports, invalid, 2, ST_RIP3_VIEW_DEACTIVATE) == IO_ERROR_OUT_OF_RANGE);
 		CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
-		CHECK(st_rip3_ports_operate_views(ports, NULL, 0, ST_RIP3_VIEW_ERASE, 0) == 0);
-		CHECK(st_rip3_ports_operate_views(ports, NULL, 1, ST_RIP3_VIEW_ERASE, 0) == IO_ERROR_INVALID_ARGUMENT);
-		CHECK(st_rip3_ports_operate_views(ports, invalid, 1, (enum st_rip3_view_operation)99, 0) == IO_ERROR_INVALID_ARGUMENT);
-		CHECK(st_rip3_ports_operate_views(NULL, invalid, 1, ST_RIP3_VIEW_ERASE, 0) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_rip3_ports_operate_views(ports, NULL, 0, ST_RIP3_PORT_CLEAR_BLACK) == 0);
+		CHECK(st_rip3_ports_operate_views(ports, NULL, 1, ST_RIP3_PORT_CLEAR_BLACK) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_rip3_ports_operate_views(ports, invalid, 1, (enum st_rip3_view_operation)99) == IO_ERROR_INVALID_ARGUMENT);
+		CHECK(st_rip3_ports_operate_views(NULL, invalid, 1, ST_RIP3_PORT_CLEAR_BLACK) == IO_ERROR_INVALID_ARGUMENT);
 	}
 	{
 		struct st_rip3_host_variables absent = {0};

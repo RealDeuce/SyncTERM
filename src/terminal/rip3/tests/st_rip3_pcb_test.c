@@ -96,7 +96,7 @@ static int physical_boundaries(void)
 		struct st_rip3_copy_extent outside=extent(axis,10,12);
 		CHECK(st_rip3_ports_copy_device(p,1,&outside,2,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,2,true,ea,eb)==0);
 		const unsigned target=2;
-		CHECK(st_rip3_ports_operate_views(p,&target,1,ST_RIP3_VIEW_DEACTIVATE,0)==0);
+		CHECK(st_rip3_ports_operate_views(p,&target,1,ST_RIP3_VIEW_DEACTIVATE)==0);
 		CHECK(st_rip3_ports_copy_device(p,1,&a,2,&b,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,2,true,ea,eb)==0);
 		st_rip3_ports_destroy(p);
 	}

@@ -374,6 +374,15 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	bool pixel_or_point = command[0] == 'X' || command[0] == 'j';
 	int status;
 
+	if (command[0] == 'E') {
+		if (host->ports == NULL)
+			return IO_ERROR_NOT_SUPPORTED;
+		status = st_rip3_ports_current(host->ports, &number);
+		if (status != 0)
+			return status;
+		*operation = true;
+		return st_rip3_ports_operate_views(host->ports, &number, 1, ST_RIP3_PORT_CLEAR_BLACK);
+	}
 	if (host->styles == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_environment(host, &environment_number, &environment);
@@ -383,23 +392,6 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_styles_get(host->styles, number, &style);
 	if (status != 0)
 		return status;
-	if (command[0] == 'E') {
-		struct st_rip3_port_info port;
-		uint8_t background;
-
-		if (host->ports == NULL)
-			return IO_ERROR_NOT_SUPPORTED;
-		status = st_rip3_ports_current(host->ports, &number);
-		if (status == 0)
-			status = st_rip3_ports_info(host->ports, number, &port);
-		if (status != 0 || !port.viewport_active)
-			return status;
-		*operation = true;
-		status = st_rip3_command_ink(host, environment.rgb_bits, style.background_color, &background);
-		if (status == 0)
-			status = st_rip3_ports_erase(host->ports, background);
-		return status;
-	}
 	if (shape_command)
 		return shape(host, environment_number, &environment, &style, arguments,
 		    count, command[0], operation);

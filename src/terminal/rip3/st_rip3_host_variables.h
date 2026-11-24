@@ -78,9 +78,6 @@ struct st_rip3_host_variables {
 	/* Explicit zone override, with an empty string for an unknown zone.
 	 * When NULL, a live client uses the zone associated with local_clock. */
 	const char *time_zone;
-	/* Fallback background, already resolved to a palette index. A bound live
-	 * STYLE takes precedence, using live ENV/PAL for direct-color resolution. */
-	uint8_t background;
 	/* Active D references set this gate. The enclosing evaluator must yield
 	 * before executing another reference/host action while its wait is nonzero. */
 	struct st_rip3_input *input;

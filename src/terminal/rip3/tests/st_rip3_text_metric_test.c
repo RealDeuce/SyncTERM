@@ -179,7 +179,7 @@ int main(void)
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0 && st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(execute(&state,&host,"r110000FF",(const uint8_t *)"FF",2,false,"5\r")==0);
 	unsigned port_number=0;
-	CHECK(st_rip3_ports_operate_views(host.ports,&port_number,1,ST_RIP3_VIEW_DEACTIVATE,0)==0);
+	CHECK(st_rip3_ports_operate_views(host.ports,&port_number,1,ST_RIP3_VIEW_DEACTIVATE)==0);
 	style.outline.size=90;CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(execute(&state,&host,"r010000F",(const uint8_t *)"F",1,false,"2\r")==0);
 	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"5\r")==0);
@@ -189,7 +189,7 @@ int main(void)
 	    && st_rip3_environments_protect(host.environments,1,true)==0);
 	const struct st_rip3_rect area={0,0,639,349};
 	CHECK(st_rip3_ports_define(host.ports,1,&area,false)==0 && st_rip3_ports_switch(host.ports,1)==0
-	    && st_rip3_ports_operate_views(host.ports,(const unsigned[]){1},1,ST_RIP3_VIEW_DEACTIVATE,0)==0
+	    && st_rip3_ports_operate_views(host.ports,(const unsigned[]){1},1,ST_RIP3_VIEW_DEACTIVATE)==0
 	    && st_rip3_ports_protect(host.ports,1,true)==0);
 	CHECK(execute(&state,&host,"r110000$TEXTDATA$",NULL,0,false,"5\r")==0);
 	/* Raw C-prefix sentinel recognition is exact and case insensitive. */

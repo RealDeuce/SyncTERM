@@ -1,26 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/272",
-  "revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
-  "previous_revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/274",
+  "revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
+  "previous_revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PRs #271 and #272 match their respective fork stable integration trees.",
-  "archive_sha256": "2d6323e13c1ea240c6d168cdf5709b8feed9207ed9c97532c37c908da9573c42",
+  "upstream_state_at_adoption": "The open PR #274 matches its fork stable integration tree.",
+  "archive_sha256": "59ba7aa1a2af63055b1483910298cdf4b01e060e5e8cbb607a508b4f7d0666b1",
   "normative_scope": [
-    "Wire WAV flags, filename expansion, early stop and single-channel replacement.",
-    "Coordinate width fallback and optional reserves, zero-argument commands and accepted encoded-stream syntax."
+    "Wire E and EGW use the shared full-port black fill and preserve port state."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-    "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-    "version/3.0/ripscrip/4.5-audio-files.md",
-    "version/3.0/ripscrip/5.3-local-playback.md",
-    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/9.0-command-reference.md"
+    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+    "version/3.0/ripscrip/5.1-text-variables.md",
+    "version/3.0/ripscrip/7.0-drawing-ports.md",
+    "version/3.0/ripscrip/9.0-command-reference.md",
+    "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9496,
+  "matched_source_blocks": 9507,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -954,7 +952,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 134,
+  "upstream_issue_resolutions": 135,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1753,6 +1751,12 @@
       "sha256": "8dc3046b4a55b4621813e4dfd17ef9b35e28ee5e4d30549be08eb6fc2f212d6f",
       "title": "Issue #270 — Coordinate width and fixed-field edge cases",
       "role": "Original optional reserves, coordinate effect and zero-argument dispatch."
+    },
+    {
+      "path": "version/3.0/research/issue-273-full-port-erase.md",
+      "sha256": "dd7f86fb5abe26bb0de9d996bb81c83c319e9b3189fac31e6eb498daa8cad4c4",
+      "title": "Issue #273 — Full-port black erase",
+      "role": "Original erase dispatch, shared full-port black-fill helper and independent fill geometry."
     }
   ],
   "documents": [
@@ -1854,7 +1858,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "dd318b39bb441818cda4dd71d193fb1e168b20885942403ae081efb4c46ed57f"
+      "sha256": "70b14b3d69c9ef060c7a5cba19fa6555b510d09eb459c95f1b54233a714b6cae"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1914,7 +1918,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "02f1f943d1983329f1fda00b96e285d136e741fcad0ac7662b653166b8ee2670"
+      "sha256": "af39b7fc28824c4bfaa4b8869d399b4be1bda94a82375e12e0cd9454a704d91a"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1946,7 +1950,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "5b98623399759b9fd063e7a2531e2a103a0156d30a049892828591e98824ba02"
+      "sha256": "56b50bdcea68df7e5496c1d399fb9d7857c49e50c546b93488e9288728f1d5ae"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -1958,11 +1962,11 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "7a31ef894af6691210ea0acc1cab53dfd603c7fed242badea8eabef8bc542223"
+      "sha256": "da48482e5e5ef74e96ca18aabcbdcc1c95c8a2fe3124833e1d302349c8e1bd90"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "e1fe512188a716d67da6e74c64a4a01a159b05d52e991802928737112df18974"
+      "sha256": "1eaa5301e91e3ebc397fce41f47eba0ba9bca657f6ca43014bda4eed52e4cdd8"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2029,7 +2033,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "91386830b86180bc23fc9e34a1f6b12f3559ba9f",
+  "previous_ledger_commit": "802a74b465f754a0758e3a10097ffccf3e760b72",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19898,6 +19902,102 @@
         "blocked": 15,
         "excluded": 71
       }
+    },
+    {
+      "previous_revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
+      "revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
+      "archive_sha256": "59ba7aa1a2af63055b1483910298cdf4b01e060e5e8cbb607a508b4f7d0666b1",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/273",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/274",
+          "reviewed_head": "6d652cb5ce3e38f713cf0888a7d415081b6fdc4c",
+          "integration": "643ca5be60e8669cb45218c5cc172ed27c34cf41"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "dd318b39bb441818cda4dd71d193fb1e168b20885942403ae081efb4c46ed57f",
+          "sha256": "70b14b3d69c9ef060c7a5cba19fa6555b510d09eb459c95f1b54233a714b6cae"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "02f1f943d1983329f1fda00b96e285d136e741fcad0ac7662b653166b8ee2670",
+          "sha256": "af39b7fc28824c4bfaa4b8869d399b4be1bda94a82375e12e0cd9454a704d91a"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "5b98623399759b9fd063e7a2531e2a103a0156d30a049892828591e98824ba02",
+          "sha256": "56b50bdcea68df7e5496c1d399fb9d7857c49e50c546b93488e9288728f1d5ae"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "7a31ef894af6691210ea0acc1cab53dfd603c7fed242badea8eabef8bc542223",
+          "sha256": "da48482e5e5ef74e96ca18aabcbdcc1c95c8a2fe3124833e1d302349c8e1bd90"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "e1fe512188a716d67da6e74c64a4a01a159b05d52e991802928737112df18974",
+          "sha256": "1eaa5301e91e3ebc397fce41f47eba0ba9bca657f6ca43014bda4eed52e4cdd8"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-273-full-port-erase.md",
+          "sha256": "dd7f86fb5abe26bb0de9d996bb81c83c319e9b3189fac31e6eb498daa8cad4c4",
+          "title": "Issue #273 — Full-port black erase",
+          "role": "Original erase dispatch, shared full-port black-fill helper and independent fill geometry."
+        }
+      ],
+      "moved_source_blocks": 1325,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:169",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:171",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:181",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:183",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:185",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:187",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:189",
+        "version/3.0/ripscrip/5.1-text-variables.md:1970",
+        "version/3.0/ripscrip/5.1-text-variables.md:1986",
+        "version/3.0/ripscrip/5.1-text-variables.md:1988",
+        "version/3.0/ripscrip/5.1-text-variables.md:1990",
+        "version/3.0/ripscrip/5.1-text-variables.md:1991",
+        "version/3.0/ripscrip/5.1-text-variables.md:1992",
+        "version/3.0/ripscrip/5.1-text-variables.md:1993",
+        "version/3.0/ripscrip/5.1-text-variables.md:1994",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:93",
+        "version/3.0/ripscrip/9.0-command-reference.md:48",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:116"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:169",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:171",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:181",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:183",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:185",
+        "version/3.0/ripscrip/5.1-text-variables.md:1970",
+        "version/3.0/ripscrip/5.1-text-variables.md:1986",
+        "version/3.0/ripscrip/5.1-text-variables.md:1988",
+        "version/3.0/ripscrip/5.1-text-variables.md:1990",
+        "version/3.0/ripscrip/5.1-text-variables.md:1992",
+        "version/3.0/ripscrip/5.1-text-variables.md:1994",
+        "version/3.0/ripscrip/5.1-text-variables.md:1996",
+        "version/3.0/ripscrip/5.1-text-variables.md:1998",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:93",
+        "version/3.0/ripscrip/9.0-command-reference.md:48",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:116"
+      ],
+      "states_after_update": {
+        "unreviewed": 2124,
+        "context": 1972,
+        "pending": 1359,
+        "implemented": 3983,
+        "excluded": 71,
+        "blocked": 16
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -26115,6 +26215,40 @@
         "version/3.0/ripscrip/9.0-command-reference.md:40",
         "version/3.0/ripscrip/9.0-command-reference.md:200",
         "version/3.0/ripscrip/9.0-command-reference.md:225"
+      ]
+    },
+    {
+      "after_commit": "802a74b465f754a0758e3a10097ffccf3e760b72",
+      "revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
+      "scope": "Use the adopted full-port black fill from live wire E and EGW. Record the master-color palette discrepancy.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/273",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/275"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:171",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:175",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:176",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:177",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:179",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:181",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:183",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:185",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:187",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:189",
+        "version/3.0/ripscrip/5.1-text-variables.md:1970",
+        "version/3.0/ripscrip/5.1-text-variables.md:1972",
+        "version/3.0/ripscrip/5.1-text-variables.md:1974",
+        "version/3.0/ripscrip/5.1-text-variables.md:1976",
+        "version/3.0/ripscrip/5.1-text-variables.md:1986",
+        "version/3.0/ripscrip/5.1-text-variables.md:1988",
+        "version/3.0/ripscrip/5.1-text-variables.md:1992",
+        "version/3.0/ripscrip/5.1-text-variables.md:1993",
+        "version/3.0/ripscrip/5.1-text-variables.md:1994",
+        "version/3.0/ripscrip/5.1-text-variables.md:1996",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:93",
+        "version/3.0/ripscrip/9.0-command-reference.md:48",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:116"
       ]
     }
   ],

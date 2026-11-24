@@ -176,7 +176,6 @@ enum st_rip3_view_operation {
 	ST_RIP3_VIEW_ACTIVATE,
 	ST_RIP3_VIEW_DEACTIVATE,
 	ST_RIP3_VIEW_MAXIMIZE,
-	ST_RIP3_VIEW_ERASE,
 	ST_RIP3_VIEW_RESET,
 	ST_RIP3_PORT_CLEAR_BLACK,
 };
@@ -184,16 +183,14 @@ enum st_rip3_view_operation {
 int st_rip3_ports_header_prune(struct st_rip3_ports *, bool keep_current);
 int st_rip3_ports_header_delete_clipboard(struct st_rip3_ports *);
 void st_rip3_ports_header_clear_queries(struct st_rip3_ports *);
-/* Apply to numbered, defined ports without changing the current selection.
+/* Apply in the given order to defined ports without changing selection.
  * Validate every index before changes. Activation, deactivation and geometry
  * changes skip protected ports. Maximize skips inactive viewports and reset
- * activates them; both restore full bounds without painting. Erase uses COPY
- * of the supplied background index across the viewport. Clear-black fills the
- * port's physical bounds with literal black. Both paint operations require an
- * active viewport and allow protected ports, preserving all port metadata. */
+ * activates them. Both restore full bounds without painting. Clear-black
+ * fills the port's physical bounds with literal black when the viewport is
+ * active, including for protected ports, and preserves all port metadata. */
 int st_rip3_ports_operate_views(struct st_rip3_ports *ports,
-	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation,
-	uint8_t background);
+	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation);
 /* Drawing coordinates are relative to the current viewport's upper-left.
  * Protection locks configuration but permits all content operations. */
 int st_rip3_ports_plot(struct st_rip3_ports *ports, int32_t x, int32_t y,

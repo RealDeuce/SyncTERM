@@ -1604,3 +1604,15 @@ dispatch.
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/e7534a26c8e893a1390153f151171f62ff7d4f6f),
 [PR #271](https://github.com/bbs-land/remote-imaging-protocol/pull/271),
 [PR #272](https://github.com/bbs-land/remote-imaging-protocol/pull/272)
+
+
+## Full-port black erase
+
+The reference advances to `643ca5be60e8669cb45218c5cc172ed27c34cf41`.
+The stable tree matches the reviewed PR #274 head
+`6d652cb5ce3e38f713cf0888a7d415081b6fdc4c`. The Git archive has SHA-256
+`59ba7aa1a2af63055b1483910298cdf4b01e060e5e8cbb607a508b4f7d0666b1`.
+Wire `E` and `$EGW$` now use the documented HEADER full-port black fill.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/643ca5be60e8669cb45218c5cc172ed27c34cf41),
+[PR #274](https://github.com/bbs-land/remote-imaging-protocol/pull/274)

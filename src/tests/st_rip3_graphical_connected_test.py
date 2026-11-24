@@ -30,16 +30,22 @@ def run(args):
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
         t.case('classic font zero draws DEFAULT EX on a fresh connection')
         glyph = default_glyph()
-        t.case('rip3-erase-view-uses-stored-device-geometry-with-zero-world')
+        t.case('rip3-erase-clears-full-protected-port-at-zero-world')
         values(b'$WORLD(CUR,640,480)$')
-        frame = t.exchange(b'\x01|c02|X0A0A|X0D0D|v0A0A0C0C|f..|E surplus\r\n'
+        frame = t.exchange(b'\x01|c02|X0A0A|X0D0D|X0H0H|2P50A0A0G0G2|v0A0A0C0C|k02|f..\r\n'
+                           + query(b'$PROT(PORT,5)$', at_cursor=True) + b'\x01|E surplus\r\n'
                            + query(b'$WORLD$', at_cursor=True), b'0:0')
         assert pixel(frame, 10, 10) == 0
-        assert pixel(frame, 13, 13) == 0x00aa00
-        values(b'$DVP$')
-        frame_after = t.exchange(b'\x01|E\r\n' + query(b'alive', at_cursor=True), b'alive')
-        assert frame_after.primary == frame.primary and frame_after.alternate == frame.alternate
-        assert frame_after.application['connected'] == 1
+        assert pixel(frame, 13, 13) == 0
+        assert pixel(frame, 17, 17) == 0x00aa00
+        frame = t.exchange(query(b'$WORLD(CUR,640,480)$', at_cursor=True)
+                           + b'\x01|a0004|c02|X0A0A|X0D0D\r\n')
+        assert pixel(frame, 10, 10) == 0x00aa00 and pixel(frame, 13, 13) == 0
+        before = values(b'$CUR(PORT,0)$$EGW(5,BAD)$')
+        assert pixel(before, 10, 10) == 0x00aa00
+        erased = values(b'$EGW(5)$$CUR(PORT)$', b'0')
+        assert pixel(erased, 10, 10) == 0 and pixel(erased, 17, 17) == 0x00aa00
+        assert erased.application['connected'] == 1
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$WORLD(CUR,640,480)$')
         t.exchange(b'\x01|Y00000100|c0F\r\n')

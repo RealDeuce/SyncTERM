@@ -194,7 +194,7 @@ define_port(const struct st_rip3_command_host *host,
 	if ((flags & 4) != 0) {
 		unsigned port = (unsigned)number;
 		status = st_rip3_ports_operate_views(host->ports, &port, 1,
-		    ST_RIP3_VIEW_DEACTIVATE, 0);
+		    ST_RIP3_VIEW_DEACTIVATE);
 	}
 	if (status == 0 && (flags & 8) != 0)
 		status = st_rip3_ports_protect(host->ports, (unsigned)number, true);

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-e7534a26c8e893a1390153f151171f62ff7d4f6f](https://github.com/RealDeuce/remote-imaging-protocol/tree/e7534a26c8e893a1390153f151171f62ff7d4f6f/version/3.0)
+643ca5be60e8669cb45218c5cc172ed27c34cf41](https://github.com/RealDeuce/remote-imaging-protocol/tree/643ca5be60e8669cb45218c5cc172ed27c34cf41/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10499,15 +10499,22 @@ encoded-stream command syntax.
 [PR #272](https://github.com/bbs-land/remote-imaging-protocol/pull/272)
 
 
-## Graphics erase with zero WORLD
+## Full-port black erase
 
-Wire `E` erases using the port's stored DEVICE geometry even when WORLD
-has a zero dimension. Inactive viewports still skip the erase.
-Connected CP437 and UTF-8 tests check the stored extent, inactive gate
-and continued command processing with WORLD set to 0:0.
+Wire `E`, `$EGW$` and HEADER type 2 share the same fill. Each defined
+target with an active viewport clears its full physical bounds to opaque
+RGB black, including protected screen and bitmap ports. WORLD can be
+zero. Erase preserves the stored viewport for subsequent drawing and
+keeps cursor, query, image and copy-pair state. `$EGW$` validates the
+entire selector list before clearing any target.
 
-This revision still specifies the current graphics background and stored
-viewport for `E`. The original wire handler and `$EGW$` call the
-full-port black-fill routine already specified for HEADER type 2. The
-portable scope and color of both operations are tracked upstream.
-[Issue #273](https://github.com/bbs-land/remote-imaging-protocol/issues/273)
+Connected CP437 and UTF-8 tests cover the narrow viewport and full-port
+erase, palette independence, retained clipping, and invalid selector
+recovery. Native tests check bitmap storage and inactive ports.
+[PR #274](https://github.com/bbs-land/remote-imaging-protocol/pull/274)
+
+The desktop palette text still describes `a` as a 16-color edit. The
+original writes tested at entries 16, 235, 236 and 255 update the current
+palette record. The original `Q` also stores its valid prefix before a late
+master-color range error. The portable RGB publication and range-error
+rules are open. [Issue #275](https://github.com/bbs-land/remote-imaging-protocol/issues/275)

@@ -486,7 +486,7 @@ table_reset(const struct st_rip3_table_host *host,const struct st_rip3_table_bin
 			if (status==0) {
 				unsigned numbers[36];size_t number_count=kind==RESET_TABLE ? 36 : 1;
 				for (unsigned j=0;j<number_count;j++) numbers[j]=kind==RESET_TABLE ? j : index;
-				status=st_rip3_ports_operate_views(binding->live,numbers,number_count,ST_RIP3_VIEW_RESET,0);
+				status=st_rip3_ports_operate_views(binding->live,numbers,number_count,ST_RIP3_VIEW_RESET);
 			}
 		}
 		else if (type==ST_RIP3_TABLE_TW) {

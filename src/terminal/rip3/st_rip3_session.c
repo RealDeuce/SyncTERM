@@ -1356,16 +1356,16 @@ header_viewports(struct st_rip3_session *session, unsigned flags)
 	for (unsigned i = 0; i < 36; ++i) windows[i] = i;
 	struct st_rip3_ports *ports = session->commands.ports;
 	(void)st_rip3_ports_current(ports, &current);
-	if (flags & 128) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_DEACTIVATE, 0));
-	if (flags & 256) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_DEACTIVATE, 0));
-	if (flags & 512) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_ACTIVATE, 0));
-	if (flags & 1024) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_ACTIVATE, 0));
+	if (flags & 128) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_DEACTIVATE));
+	if (flags & 256) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_DEACTIVATE));
+	if (flags & 512) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_ACTIVATE));
+	if (flags & 1024) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_ACTIVATE));
 	/* Like MVP, HEADER bounds reset skips inactive viewports. RESET(VIEW)
 	 * also changes activation and is a different operation. */
-	if (flags & 2048) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_MAXIMIZE, 0));
-	if (flags & 4096) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_MAXIMIZE, 0));
-	if (flags & 8192) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_PORT_CLEAR_BLACK, 0));
-	if (flags & 16384) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_PORT_CLEAR_BLACK, 0));
+	if (flags & 2048) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_MAXIMIZE));
+	if (flags & 4096) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_MAXIMIZE));
+	if (flags & 8192) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_PORT_CLEAR_BLACK));
+	if (flags & 16384) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_PORT_CLEAR_BLACK));
 	if (flags & 32768) st_rip3_ports_header_clear_queries(ports);
 }
 
