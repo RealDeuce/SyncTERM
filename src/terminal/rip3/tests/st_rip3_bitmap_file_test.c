@@ -107,12 +107,13 @@ main(int argc, char **argv)
 	CHECK(put(host,"Broken.BMP",bytes,13) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_INVALID_FORMAT) == 0);
 	memcpy(bytes,literal,sizeof(literal)); bytes[0] = 'X';
 	CHECK(put(host,"Broken.BMP",bytes,58) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_INVALID_FORMAT) == 0);
-	memcpy(bytes,literal,sizeof(literal)); bytes[2] = 53;
-	CHECK(put(host,"Broken.BMP",bytes,58) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_INVALID_FORMAT) == 0);
-	bytes[2] = 59;
-	CHECK(put(host,"Broken.BMP",bytes,58) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_INVALID_FORMAT) == 0);
+	memcpy(bytes,literal,sizeof(literal)); bytes[2] = 0;
+	CHECK(put(host,"Size.BMP",bytes,58) == 0 && expect(&paths,"Size.BMP",0x112233) == 0);
+	bytes[2] = 55;
+	CHECK(put(host,"Size.BMP",bytes,58) == 0 && expect(&paths,"Size.BMP",0x112233) == 0);
 	memset(bytes+2,255,4);
-	CHECK(put(host,"Broken.BMP",bytes,58) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_INVALID_FORMAT) == 0);
+	CHECK(put(host,"Size.BMP",bytes,58) == 0 && expect(&paths,"Size.BMP",0x112233) == 0);
+	CHECK(put(host,"Broken.BMP",bytes,57) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_INVALID_FORMAT) == 0);
 	memcpy(bytes,literal,sizeof(literal)); bytes[30] = 1;
 	CHECK(put(host,"Broken.BMP",bytes,58) == 0 && failure(&paths,"Broken.BMP",IO_ERROR_NOT_SUPPORTED) == 0);
 	memcpy(bytes,literal,sizeof(literal)); bytes[14] = 12;

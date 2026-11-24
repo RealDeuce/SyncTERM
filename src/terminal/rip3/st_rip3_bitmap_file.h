@@ -7,9 +7,8 @@ struct st_rip3_resource_paths;
 
 /* Read an owned decoded BMP through the media lookup namespace. Append .BMP
  * only when no extension is supplied; explicit names/extensions stay literal.
- * Read at most the file header's declared BMP length, validating it against
- * the actual file before file-buffer allocation. Contents and modification
- * times are retained; trailing bytes are ignored. No automatic legacy
+ * The physical file size bounds the read and the decoder ignores bfSize.
+ * Contents and modification times are retained. No automatic legacy
  * conversion, clipboard, delivery, prompt or parser/session error policy is
  * implied. All failures preserve result;
  * callers consume storage/asset statuses inside their owning parser. */

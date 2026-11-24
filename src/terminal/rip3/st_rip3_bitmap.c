@@ -92,7 +92,7 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 {
 	const uint8_t *data = bytes;
 	struct st_rip3_bitmap *bitmap;
-	uint32_t width, height, offset, length, colours = 0;
+	uint32_t width, height, offset, colours = 0;
 	unsigned depth;
 	size_t stride;
 	bool short_rows = false;
@@ -101,9 +101,9 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	if (result == NULL || data == NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (size < 54 || data[0] != 'B' || data[1] != 'M')
 		return IO_ERROR_INVALID_FORMAT;
-	length = dword(data + 2);
+	/* RIPtel uses the physical byte count even when bfSize disagrees. */
 	offset = dword(data + 10);
-	if (length < 54 || length > size || offset < 54 || offset > length)
+	if (offset < 54 || offset > size)
 		return IO_ERROR_INVALID_FORMAT;
 	if (dword(data + 14) != 40 || dword(data + 30) != 0)
 		return IO_ERROR_NOT_SUPPORTED;
@@ -118,11 +118,11 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 		return IO_ERROR_NOT_SUPPORTED;
 	if (width > (SIZE_MAX - 31) / depth) return IO_ERROR_OUT_OF_RANGE;
 	stride = (((size_t)width * depth + 31) / 32) * 4;
-	if (height > (length - offset) / stride) {
+	if (height > (size - offset) / stride) {
 		/* RADIOBUT.BMP and .BMH use RIPtel's rounded-down 4-bit rows.
 		 * Require an exact fit and at least one stored byte per row. */
 		if (depth != 4 || width == 1 || width % 8 != 1
-		    || (uint64_t)(width / 2) * height != length - offset)
+		    || (uint64_t)(width / 2) * height != size - offset)
 			return IO_ERROR_INVALID_FORMAT;
 		stride = width / 2;
 		short_rows = true;

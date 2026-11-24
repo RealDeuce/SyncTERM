@@ -2137,11 +2137,11 @@ were removed. The active application route is unchanged.
 
 The independent BMP file loader now combines media lookup with the existing
 memory decoder. It appends `.BMP` only when an extension is absent and retains
-explicit filenames/extensions. It validates the BMP file header's declared
-length against actual file size before allocating that file buffer, reads only
-the declared container, and preserves the caller's result on every failure.
+explicit filenames/extensions. It reads the complete file and uses the physical
+byte count to bound decoding, matching RIPtel 3.1 even when the BMP header's
+`bfSize` is zero, understated, or overstated. Failures preserve the caller's result.
 All streams/buffers close/free before return. Contents and modification times
-are retained; trailing bytes are ignored. Legacy conversion/deletion, deliveries,
+are retained. Legacy conversion/deletion, deliveries,
 file-error UI and numeric load-command dispatch remain separate work.
 
 The new explicit bitmap-stamp kernel uses the requested device rectangle for
@@ -2878,7 +2878,7 @@ output zeroes those bits/bytes and padding. Independent packed bytes exercise
 colors, row orientation, stride, truncation and malformed headers, with authored
 canonical output expectations rather than round-trip-only evidence.
 
-The BMP decoder uses standard row padding whenever the declared file contains
+The BMP decoder uses standard row padding whenever the input contains
 enough pixel data. For 4-bit widths of 9, 17, 25, and so on, it also accepts
 an exact payload of `floor(width / 2) * height` bytes, as found in
 `RADIOBUT.BMP` and `RADIOBUT.BMH`. In this layout the rightmost pixel shares

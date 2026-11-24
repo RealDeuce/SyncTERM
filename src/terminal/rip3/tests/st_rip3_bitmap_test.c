@@ -64,20 +64,22 @@ test_four_bit_stride(void)
 	struct st_rip3_bitmap *result = NULL;
 	size_t size = fixture(bytes, 4, 16, standard_rows, sizeof(standard_rows));
 	put32(bytes + 18, 9);
+	/* A stale bfSize describes short rows, but complete standard rows exist. */
+	put32(bytes + 2, 118 + sizeof(short_rows));
 	CHECK(st_rip3_bitmap_decode(&result, bytes, size) == 0);
 	CHECK(memcmp(result->pixels->primary, standard_pixels, sizeof(standard_pixels)) == 0);
 	st_rip3_bitmap_destroy(result);
 
 	size = fixture(bytes, 4, 16, short_rows, sizeof(short_rows));
 	put32(bytes + 18, 9);
-	bytes[size] = 0xff; /* Outside bfSize, even when present in the buffer. */
-	CHECK(st_rip3_bitmap_decode(&result, bytes, size + 1) == 0);
+	put32(bytes + 2, UINT32_MAX);
+	CHECK(st_rip3_bitmap_decode(&result, bytes, size) == 0);
 	CHECK(memcmp(result->pixels->primary, short_pixels, sizeof(short_pixels)) == 0);
 	st_rip3_bitmap_destroy(result);
 	result = NULL;
-	put32(bytes + 2, (uint32_t)size - 1);
-	CHECK(st_rip3_bitmap_decode(&result, bytes, size) == IO_ERROR_INVALID_FORMAT);
-	put32(bytes + 2, (uint32_t)size + 1);
+	put32(bytes + 2, (uint32_t)size);
+	CHECK(st_rip3_bitmap_decode(&result, bytes, size - 1) == IO_ERROR_INVALID_FORMAT);
+	bytes[size] = 0xff;
 	CHECK(st_rip3_bitmap_decode(&result, bytes, size + 1) == IO_ERROR_INVALID_FORMAT);
 	put32(bytes + 18, 1);
 	put32(bytes + 2, 118);
@@ -183,8 +185,7 @@ main(void)
 	CHECK(st_rip3_bitmap_decode(&result, NULL, size) == IO_ERROR_INVALID_ARGUMENT);
 	{
 		static const struct { unsigned offset; uint32_t value; int status; } broken[] = {
-			{0,0,IO_ERROR_INVALID_FORMAT}, {2,0,IO_ERROR_INVALID_FORMAT},
-			{2,UINT32_MAX,IO_ERROR_INVALID_FORMAT}, {10,0,IO_ERROR_INVALID_FORMAT},
+			{0,0,IO_ERROR_INVALID_FORMAT}, {10,0,IO_ERROR_INVALID_FORMAT},
 			{10,UINT32_MAX,IO_ERROR_INVALID_FORMAT}, {14,12,IO_ERROR_NOT_SUPPORTED},
 			{14,124,IO_ERROR_NOT_SUPPORTED}, {18,0,IO_ERROR_INVALID_FORMAT},
 			{22,0,IO_ERROR_INVALID_FORMAT}, {22,UINT32_MAX,IO_ERROR_NOT_SUPPORTED},
