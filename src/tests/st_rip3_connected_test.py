@@ -250,6 +250,18 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(query(b"$COLORS$:$SHIFT$:$CTRL$"), b"256:0:0")
         if width == 640:
             datetime_queries(t)
+            t.case("rip3-connected-variable-values-and-scope-exclusions")
+            frame = t.exchange(query(b"$TERMINFO$:$TERMINFO(vendor)$:$TERMINFO(LIST)$:$TERMINFO(unknown)$",
+                                     at_cursor=True), b"SyncTERM:Stephen Hurd:LIST,NAME,VENDOR,VERSION:NONE")
+            assert frame.application["connected"] == 1
+            t.exchange(query(b"A$NULL$B<<NULL>>C$NULL(1)$D", at_cursor=True), b"ABCD")
+            t.exchange(query(b"$RAND(9,3,2)$:$RAND()$:$RAND(0)$:alive", at_cursor=True),
+                       re.compile(rb"(00[2-9]|010):::alive"))
+            t.exchange(query(b"$APP(0,example)$$APP0$$APP9$$GOTOURL(example)$"
+                             b"$VT102ON$alive", at_cursor=True)
+                       + b"\x1b[4;5H\x1b[6n", b"alive\x1b[4;5R")
+            t.exchange(query(b"$VT102OFF$alive", at_cursor=True)
+                       + b"\x1b[5;4H\x1b[6n", b"alive\x1b[5;4R")
             t.case("rip3-fixed-character-set-and-language-replies")
             frame = t.exchange(query(b"$CDCS$:$LANG$:$LANG(THREECHAR)$:$LANG(twochar)$:$LANG(VERBOSE)$",
                                      at_cursor=True), b"USASCII:eng:eng:en:English")

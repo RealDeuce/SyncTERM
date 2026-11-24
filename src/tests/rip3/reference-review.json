@@ -955,7 +955,8 @@
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume."
+    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume.",
+    "B277 needs the portable contract for bookmark-provided user variables and approval."
   ],
   "derivations": [
     {
@@ -26385,6 +26386,48 @@
         "version/3.0/ripscrip/5.1-text-variables.md:3605",
         "version/3.0/ripscrip/9.0-command-reference.md:69",
         "version/3.0/ripscrip/9.0-command-reference.md:70"
+      ]
+    },
+    {
+      "after_commit": "3f54d9adc730f4cc989123cd8fdda640db622fc2",
+      "revision": "65968b292f71b323f70a097c6f32b33cb714a369",
+      "scope": "Verify NULL, RAND and TERMINFO through connected sessions, confirm the requested launch and VT-102 exclusions, and track the bookmark-variable clarification.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/277"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:725",
+        "version/3.0/ripscrip/5.1-text-variables.md:727",
+        "version/3.0/ripscrip/5.1-text-variables.md:729",
+        "version/3.0/ripscrip/5.1-text-variables.md:749",
+        "version/3.0/ripscrip/5.1-text-variables.md:751",
+        "version/3.0/ripscrip/5.1-text-variables.md:753",
+        "version/3.0/ripscrip/5.1-text-variables.md:755",
+        "version/3.0/ripscrip/5.1-text-variables.md:759",
+        "version/3.0/ripscrip/5.1-text-variables.md:761",
+        "version/3.0/ripscrip/5.1-text-variables.md:763",
+        "version/3.0/ripscrip/5.1-text-variables.md:787",
+        "version/3.0/ripscrip/5.1-text-variables.md:789",
+        "version/3.0/ripscrip/5.1-text-variables.md:791",
+        "version/3.0/ripscrip/5.1-text-variables.md:802",
+        "version/3.0/ripscrip/5.1-text-variables.md:804",
+        "version/3.0/ripscrip/5.1-text-variables.md:806",
+        "version/3.0/ripscrip/5.1-text-variables.md:808",
+        "version/3.0/ripscrip/5.1-text-variables.md:809",
+        "version/3.0/ripscrip/5.1-text-variables.md:810",
+        "version/3.0/ripscrip/5.1-text-variables.md:811",
+        "version/3.0/ripscrip/5.1-text-variables.md:813",
+        "version/3.0/ripscrip/5.1-text-variables.md:815",
+        "version/3.0/ripscrip/5.1-text-variables.md:819",
+        "version/3.0/ripscrip/5.1-text-variables.md:821",
+        "version/3.0/ripscrip/5.1-text-variables.md:823",
+        "version/3.0/ripscrip/5.1-text-variables.md:825",
+        "version/3.0/ripscrip/5.1-text-variables.md:827",
+        "version/3.0/ripscrip/5.1-text-variables.md:829",
+        "version/3.0/ripscrip/5.1-text-variables.md:831",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:20",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:22",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:24"
       ]
     }
   ],

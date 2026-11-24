@@ -10528,3 +10528,15 @@ Native and connected CP437 and UTF-8 tests cover malformed fields, late
 range errors, high entries, protection, and full and partial publication.
 The connected tests also verify that processing continues after a rejected
 command. [PR #276](https://github.com/bbs-land/remote-imaging-protocol/pull/276)
+
+## Connected identity and value queries
+
+CP437 and UTF-8 connections exercise `TERMINFO`, the empty `NULL`
+placeholder, and `RAND` in host expressions. The same fixture sends the
+excluded application, URL and VT-102 requests and verifies that ordinary
+ANSI cursor reports still follow.
+
+RIPtel 3.1 defines bookmark identity names as live variables with record-level
+confirmation metadata. Their portable lifetime, visibility and approval rules
+remain open. SyncTERM's RIP queries currently have no provider for stored
+bookmark credentials. [Issue #277](https://github.com/bbs-land/remote-imaging-protocol/issues/277)

@@ -236,6 +236,10 @@ main(void)
 	CHECK(run(&host, "$IFS(,ALL)$", 0, "0") == 0);
 	CHECK(run(&host, "$IFS(,LIST,,ALL,)$", 0, "BMP,JPEG") == 0);
 	const struct st_rip3_terminal_identity identity={"Client","Vendor","1"};host.identity=&identity;
+	CHECK(run(&host, "$TERMINFO()$", 0, "Client") == 0);
+	CHECK(run(&host, "$TERMINFO(VERSION)$", 0, "1") == 0);
+	CHECK(run(&host, "$TERMINFO(LIST)$", 0, "LIST,NAME,VENDOR,VERSION") == 0);
+	CHECK(run(&host, "$TERMINFO(NAME,VENDOR)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
 	CHECK(run(&host,"$TERMINFO(ABCDEFGHIJKLMNOPQRST)$",0,"NONE")==0);
 	CHECK(run(&host, "$APP(program)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$GOTOURL(url)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
