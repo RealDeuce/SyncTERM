@@ -133,6 +133,29 @@ def run(args):
         assert all(pixel(frame, x, 100) == 0 for x in (250, 290, 330))
         assert pixel(frame, 356, 100) == 0xff5555
 
+        t.case('Affine ellipse commands share geometry and choose the correct closure')
+        def affine(opcode, x, *, fill=b''):
+            center = (x, 200)
+            right, top = (x + 20, 200), (x, 188)
+            points = (center, right, top)
+            if opcode in (b',', b':', b'`'):
+                points += (right, top)
+            return opcode + b''.join(number(2*px, 4) + number(py, 4) for px, py in points) + fill
+
+        frame = t.exchange(b'\x01|' + b'|'.join((affine(b',', 70), affine(b'.', 130),
+                            affine(b':', 190, fill=b'1'), affine(b'`', 250, fill=b'Z'),
+                            affine(b'{', 310), affine(b':', 370, fill=b'0'))) + b'\r\n')
+        assert pixel(frame, 90, 200) == 0xff5555 and pixel(frame, 50, 200) == 0
+        assert pixel(frame, 110, 200) == 0xff5555 and pixel(frame, 130, 200) == 0
+        assert pixel(frame, 195, 195) == 0x00aa00 and pixel(frame, 185, 204) == 0
+        assert pixel(frame, 263, 194) == 0x00aa00 and pixel(frame, 255, 195) == 0
+        assert pixel(frame, 310, 200) == 0x00aa00
+        assert pixel(frame, 380, 200) == 0xff5555 and pixel(frame, 375, 195) == 0
+        before = frame
+        frame = t.exchange(b'\x01|' + affine(b'`', 450, fill=b'?') + b'|' + affine(b'.', 510)[:-2]
+                           + b'\r\n' + query(b'alive', at_cursor=True), b'alive')
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

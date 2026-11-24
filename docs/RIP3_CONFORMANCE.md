@@ -9865,3 +9865,27 @@ Native tests check all 36 contour counts and selected projected vertices.
 The command fixtures exercise all three reference canvases. Connected CP437
 and UTF-8 cases check all presentation flags, unequal WORLD scaling,
 rotation, split input, and recovery from rejected parameters.
+
+## Connected affine ellipses
+
+The five original level-zero affine commands use a center and two
+conjugate-radius endpoints. Comma strokes an arc, period strokes a whole
+ellipse, colon closes an arc through the center, backtick closes it
+directly, and opening brace fills a whole ellipse. Colon and backtick
+select fill with a nonzero final digit. All coordinate pairs use the
+active coordinate width and are projected through WORLD first.
+
+The contour reproduces RIPtel's five-degree sampling, axis order, integer
+ray intersections and closure or missed-ray rules. Filled contours use
+the current fill, with the patterned COPY border selected by `N`. The
+portable composition wording remains open. [Issue #213](https://github.com/bbs-land/remote-imaging-protocol/issues/213)
+
+Native tests compare point counts, closure and ordered coordinate hashes
+against 52 RIPtel vectors captured by RIPlib's x86 geometry probe.
+Connected CP437 and UTF-8 tests exercise each opcode, nondefault WORLD and
+coordinate width, outline and fill selectors, and malformed-command recovery.
+
+The bounded-text handler at RVA `0x1a0da` fits a complete outline string
+to the projected rectangle by changing the point size. The pinned chapter
+describes wrapped text. The fit and resulting state are tracked separately.
+[Issue #214](https://github.com/bbs-land/remote-imaging-protocol/issues/214)

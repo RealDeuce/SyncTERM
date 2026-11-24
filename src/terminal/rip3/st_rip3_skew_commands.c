@@ -67,6 +67,64 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 }
 
 int
+st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
+    const uint8_t *command, size_t length, bool *operation)
+{
+	struct st_rip3_environment environment;
+	unsigned current;
+	int status = st_rip3_command_environment(host, &current, &environment);
+	if (status != 0)
+		return status;
+	bool whole = command[0] == '.' || command[0] == '{';
+	bool fill_digit = command[0] == ':' || command[0] == '`';
+	size_t pairs = whole ? 3 : 5;
+	size_t xy = environment.coordinate_size;
+	size_t fields_length = 2 * pairs * xy;
+	if (length != 1 + fields_length + (fill_digit ? 1 : 0))
+		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_frame frame;
+	status = st_rip3_command_frame(host, current, &frame);
+	if (status != 0)
+		return status;
+	struct st_rip3_vector control[5];
+	const uint8_t *field = command + 1;
+	for (size_t i = 0; i < pairs; ++i, field += 2 * xy) {
+		uint64_t x, y;
+		status = st_rip3_command_field(&x, field, xy, environment.base_math);
+		if (status == 0)
+			status = st_rip3_command_field(&y, field + xy, xy, environment.base_math);
+		if (status != 0)
+			return status;
+		control[i] = (struct st_rip3_vector){
+		    (double)(x * frame.device_width / frame.world_width),
+		    (double)(y * frame.device_height / frame.world_height),
+		};
+	}
+	uint64_t flags = 0;
+	if (fill_digit)
+		status = st_rip3_command_field(&flags, field, 1, environment.base_math);
+	if (status == 0)
+		status = st_rip3_ports_current(host->ports, &current);
+	struct st_rip3_port_info port;
+	if (status == 0)
+		status = st_rip3_ports_info(host->ports, current, &port);
+	if (status != 0 || !port.viewport_active)
+		return status;
+
+	enum st_rip3_skew_kind kind = whole ? ST_RIP3_SKEW_OVAL
+	    : command[0] == ',' ? ST_RIP3_SKEW_ARC
+	    : command[0] == ':' ? ST_RIP3_SKEW_PIE : ST_RIP3_SKEW_CHORD;
+	struct st_rip3_skew_path path = {0};
+	bool closed;
+	status = st_rip3_affine_build(&path, &closed, control, kind);
+	if (status == 0)
+		status = paint(host, &environment, &port, &path, closed,
+		    closed && (command[0] == '{' || flags != 0), BORDER_FROM_STYLE, operation);
+	st_rip3_skew_free(&path);
+	return status;
+}
+
+int
 st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation)
 {

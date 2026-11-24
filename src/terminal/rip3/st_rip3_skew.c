@@ -2,7 +2,9 @@
 #include "st_rip3_skew.h"
 #include "io_error.h"
 
+#include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "st_rip3_marker_data.inc"
 
@@ -145,5 +147,169 @@ st_rip3_marker_build(struct st_rip3_skew_path *result, unsigned marker,
 		};
 	}
 	*result = path;
+	return 0;
+}
+
+enum { AFFINE_SAMPLES = 72 };
+
+struct affine_point {
+	int64_t x, y;
+};
+
+static struct affine_point
+relative_to(struct affine_point point, struct affine_point origin)
+{
+	return (struct affine_point){point.x - origin.x, point.y - origin.y};
+}
+
+static bool
+zero_vector(struct affine_point point)
+{
+	return point.x == 0 && point.y == 0;
+}
+
+static int
+affine_angle(struct affine_point direction)
+{
+	if (direction.x == 0)
+		return direction.y < 0 ? 90 : 270;
+	double degrees = atan(-(double)direction.y / (double)direction.x)
+	    * (180.0 / 3.14159265358979323846);
+	return (int)degrees + (direction.x < 0 ? 180 : degrees < 0 ? 360 : 0);
+}
+
+static bool
+between(int64_t value, int64_t first, int64_t last)
+{
+	return first <= last ? first <= value && value <= last : last <= value && value <= first;
+}
+
+/* Native ray selection uses the first segment that contains the integer
+ * intersection, after truncating the two coordinates toward zero. */
+static int
+affine_ray(const struct affine_point ring[AFFINE_SAMPLES], struct affine_point center,
+    struct affine_point ray, struct affine_point *hit)
+{
+	for (int i = 0; i < AFFINE_SAMPLES; ++i) {
+		struct affine_point first = ring[i], last = ring[(i + 1) % AFFINE_SAMPLES];
+		struct affine_point span = relative_to(last, first);
+		double denominator = (double)span.x * ray.y - (double)span.y * ray.x;
+		if (denominator == 0)
+			continue;
+		struct affine_point from_segment = relative_to(center, first);
+		double fraction = ((double)from_segment.x * ray.y - (double)from_segment.y * ray.x) / denominator;
+		double x = first.x + fraction * span.x, y = first.y + fraction * span.y;
+		/* The padded segment bounds also exclude nonfinite or unrepresentable
+		 * coordinates before conversion. */
+		if (!(x > fmin(first.x, last.x) - 1 && x < fmax(first.x, last.x) + 1
+		    && y > fmin(first.y, last.y) - 1 && y < fmax(first.y, last.y) + 1))
+			continue;
+		struct affine_point point = {(int64_t)x, (int64_t)y};
+		if (!between(point.x, first.x, last.x) || !between(point.y, first.y, last.y)
+		    || (ray.x >= 0 ? point.x < center.x : point.x > center.x)
+		    || (ray.y >= 0 ? point.y < center.y : point.y > center.y))
+			continue;
+		*hit = point;
+		return i;
+	}
+	return -1;
+}
+
+static size_t
+affine_contour(struct affine_point output[AFFINE_SAMPLES + 4], bool *closed,
+    const struct affine_point control[5], enum st_rip3_skew_kind kind)
+{
+	struct affine_point center = control[0];
+	struct affine_point a = relative_to(control[1], center), b = relative_to(control[2], center);
+	if (zero_vector(a) && zero_vector(b)) {
+		output[0] = center;
+		*closed = false;
+		return 1;
+	}
+	if (affine_angle(b) < affine_angle(a)) {
+		struct affine_point swap = a;
+		a = b;
+		b = swap;
+	}
+	struct affine_point ring[AFFINE_SAMPLES];
+	for (unsigned i = 0; i < AFFINE_SAMPLES; ++i) {
+		unsigned angle = i * 5;
+		int64_t c = cosine(angle), s = sine(angle);
+		ring[i] = (struct affine_point){
+		    center.x + floor14(a.x * c + b.x * s),
+		    center.y + floor14(a.y * c + b.y * s),
+		};
+	}
+	*closed = true;
+	if (kind == ST_RIP3_SKEW_OVAL) {
+		memcpy(output, ring, sizeof(ring));
+		return AFFINE_SAMPLES;
+	}
+	struct affine_point start = ring[0], end = ring[AFFINE_SAMPLES - 1];
+	struct affine_point start_ray = relative_to(control[3], center);
+	struct affine_point end_ray = relative_to(control[4], center);
+	int first = affine_ray(ring, center, zero_vector(start_ray) ? a : start_ray, &start);
+	int last = affine_ray(ring, center, zero_vector(end_ray) ? b : end_ray, &end);
+	if (first < 0)
+		first = 0;
+	/* RIPtel's missed end ray changes the start segment as well. */
+	if (last < 0)
+		first = AFFINE_SAMPLES - 1;
+	if (start.x == end.x && start.y == end.y) {
+		memcpy(output, ring, sizeof(ring));
+		return AFFINE_SAMPLES;
+	}
+	size_t count = 0;
+	output[count++] = start;
+	int next = (first + 1) % AFFINE_SAMPLES;
+	struct affine_point edge = relative_to(ring[next], ring[first]);
+	struct affine_point between_hits = relative_to(end, start);
+	bool reverse = edge.x != 0
+	    ? (edge.x < 0 ? between_hits.x > 0 : between_hits.x < 0)
+	    : (edge.y < 0 ? between_hits.y > 0 : edge.y > 0 && between_hits.y < 0);
+	if (last >= 0 && (first != last || reverse)) {
+		for (int i = next; ; i = (i + 1) % AFFINE_SAMPLES) {
+			output[count++] = ring[i];
+			if (i == last)
+				break;
+		}
+	}
+	output[count++] = end;
+	if (kind == ST_RIP3_SKEW_PIE)
+		output[count++] = center;
+	if (kind != ST_RIP3_SKEW_ARC)
+		output[count++] = start;
+	else
+		*closed = false;
+	return count;
+}
+
+int
+st_rip3_affine_build(struct st_rip3_skew_path *result, bool *closed,
+    const struct st_rip3_vector control[5], enum st_rip3_skew_kind kind)
+{
+	const double limit = 512.0 * INT32_MAX;
+	if (result == NULL || closed == NULL || control == NULL
+	    || kind < ST_RIP3_SKEW_ARC || kind > ST_RIP3_SKEW_OVAL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct affine_point coordinates[5] = {0};
+	size_t pairs = kind == ST_RIP3_SKEW_OVAL ? 3 : 5;
+	for (size_t i = 0; i < pairs; ++i) {
+		double x = control[i].x, y = control[i].y;
+		if (!isfinite(x) || !isfinite(y) || fabs(x) > limit || fabs(y) > limit
+		    || trunc(x) != x || trunc(y) != y)
+			return IO_ERROR_OUT_OF_RANGE;
+		coordinates[i] = (struct affine_point){(int64_t)x, (int64_t)y};
+	}
+	struct affine_point contour[AFFINE_SAMPLES + 4];
+	bool closed_path;
+	size_t count = affine_contour(contour, &closed_path, coordinates, kind);
+	struct st_rip3_vector *points = malloc(count * sizeof(*points));
+	if (points == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	for (size_t i = 0; i < count; ++i)
+		points[i] = (struct st_rip3_vector){(double)contour[i].x, (double)contour[i].y};
+	*result = (struct st_rip3_skew_path){.points = points, .count = count};
+	*closed = closed_path;
 	return 0;
 }

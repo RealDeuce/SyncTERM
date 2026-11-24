@@ -7,9 +7,76 @@
 
 #define CHECK(e) do { if (!(e)) { fprintf(stderr,"line %d: %s\n",__LINE__,#e);return 1; } } while (0)
 
+
+static int
+check_affine(void)
+{
+	/* These counts, closure bits and coordinate hashes come from the
+	 * RIPlib x86 probe of RIPtel's geometry function at RVA 0x0fa70,
+	 * driver MD5 bade8b1f4e467ac7ad4edb2639738d4c. */
+	static const struct {
+		int xy[10];
+		unsigned closed, counts[4];
+		uint32_t hash[4];
+	} vectors[] = {
+		{{100,100,150,100,100,60,150,100,100,60}, 13, {72,19,21,20},
+		    {0x2204b668u,0x0f678c4du,0x739940cfu,0x2a4ef7bfu}},
+		{{100,100,150,100,100,60,150,100,150,100}, 15, {72,72,72,72},
+		    {0x2204b668u,0x2204b668u,0x2204b668u,0x2204b668u}},
+		{{100,100,150,100,100,60,100,100,100,100}, 13, {72,19,21,20},
+		    {0x2204b668u,0x0f678c4du,0x739940cfu,0x2a4ef7bfu}},
+		{{100,100,150,100,100,60,149,99,147,90}, 13, {72,4,6,5},
+		    {0x2204b668u,0x8ee6541eu,0xfa8a6109u,0x8dd8bbc9u}},
+		{{100,100,150,100,100,60,147,90,149,99}, 13, {72,72,74,73},
+		    {0x2204b668u,0x37b0bcd3u,0x197de8e4u,0xeac4ce94u}},
+		{{100,100,100,60,150,100,70,120,140,90}, 13, {72,34,36,35},
+		    {0x2204b668u,0x8a8068f3u,0xe70666a5u,0x53390a95u}},
+		{{100,100,140,80,110,60,140,80,110,60}, 13, {72,19,21,20},
+		    {0x451c3a1du,0xb158b7beu,0x1ff57152u,0x0f154312u}},
+		{{100,100,100,100,100,100,110,100,100,110}, 0, {1,1,1,1},
+		    {0x5d1cd035u,0x5d1cd035u,0x5d1cd035u,0x5d1cd035u}},
+		{{251,593,314,413,238,244,619,145,553,327}, 13, {72,2,4,3},
+		    {0x84cc4257u,0x74e1408bu,0xe8055698u,0x10176ce0u}},
+		{{100,100,150,100,200,100,150,100,100,120}, 13, {72,32,34,33},
+		    {0xa8524c71u,0xa3b0038cu,0x228d23a6u,0x82df0c3eu}},
+		{{100,100,100,100,100,150,110,90,90,110}, 15, {72,72,72,72},
+		    {0xba98a121u,0xba98a121u,0xba98a121u,0xba98a121u}},
+		{{100,100,200,99,250,98,150,100,100,120}, 13, {72,73,75,74},
+		    {0xc0c203dfu,0xd07c2c93u,0xabb855c0u,0x8e56b770u}},
+		{{100,100,150,100,200,100,100,120,150,100}, 13, {72,2,4,3},
+		    {0xa8524c71u,0x01b98424u,0xaae72374u,0x8a9d922cu}},
+	};
+	static const enum st_rip3_skew_kind operations[] = {
+		ST_RIP3_SKEW_OVAL, ST_RIP3_SKEW_ARC, ST_RIP3_SKEW_PIE, ST_RIP3_SKEW_CHORD
+	};
+	for (size_t i = 0; i < sizeof(vectors) / sizeof(vectors[0]); ++i) {
+		struct st_rip3_vector points[5];
+		for (size_t p = 0; p < 5; ++p)
+			points[p] = (struct st_rip3_vector){vectors[i].xy[2*p], vectors[i].xy[2*p + 1]};
+		for (unsigned mode = 0; mode < 4; ++mode) {
+			struct st_rip3_skew_path path = {0};
+			bool closed;
+			CHECK(st_rip3_affine_build(&path, &closed, points, operations[mode]) == 0);
+			CHECK(path.count == vectors[i].counts[mode] && closed == ((vectors[i].closed >> mode) & 1));
+			uint32_t digest = UINT32_C(2166136261);
+			for (size_t p = 0; p < path.count; ++p) {
+				digest = (digest ^ (uint16_t)(int64_t)path.points[p].x) * UINT32_C(16777619);
+				digest = (digest ^ (uint16_t)(int64_t)path.points[p].y) * UINT32_C(16777619);
+			}
+			if (digest != vectors[i].hash[mode])
+				fprintf(stderr, "Affine vector %zu mode %u: %08x expected %08x\n",
+				    i, (unsigned)mode, (unsigned)digest, (unsigned)vectors[i].hash[mode]);
+			CHECK(digest == vectors[i].hash[mode]);
+			st_rip3_skew_free(&path);
+		}
+	}
+	return 0;
+}
+
 int
 main(void)
 {
+	CHECK(check_affine() == 0);
 	static const struct { unsigned s,e,start,end; } cases[]={
 		{0,0,0,0},{90,90,90,90},{270,90,270,450},{0,360,0,360},
 		{360,0,360,360},{450,810,90,450},{0,720,0,360},

@@ -77,6 +77,8 @@ int st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
+int st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
+	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_bezier_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,

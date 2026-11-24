@@ -581,6 +581,8 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == '&' || command[0] == '-' || command[0] == ']' || command[0] == '+' || command[0] == '['
 	    || command[0] == ';')
 		return st_rip3_skew_commands_execute(host,command,length,operation);
+	if (command[0] == ',' || command[0] == '.' || command[0] == ':' || command[0] == '`' || command[0] == '{')
+		return st_rip3_affine_command_execute(host, command, length, operation);
 	if (command[0] == 'Z' || command[0] == 'z' || command[0] == 't' || command[0] == 'x')
 		return st_rip3_bezier_commands_execute(host,command,length,operation);
 	if (command[0] == 'U' || command[0] == 'u')

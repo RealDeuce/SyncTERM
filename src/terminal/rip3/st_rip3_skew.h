@@ -4,6 +4,7 @@
 
 #include "st_rip3_draw_internal.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -36,5 +37,8 @@ void st_rip3_skew_free(struct st_rip3_skew_path *path);
 int st_rip3_marker_build(struct st_rip3_skew_path *result,
 	unsigned marker, int64_t x, int64_t y, uint64_t width, uint64_t height,
 	unsigned rotation);
+/* Device center, two conjugate-radius endpoints, then two arc ray points. */
+int st_rip3_affine_build(struct st_rip3_skew_path *result, bool *closed,
+	const struct st_rip3_vector control[5], enum st_rip3_skew_kind kind);
 
 #endif
