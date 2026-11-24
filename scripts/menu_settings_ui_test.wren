@@ -272,7 +272,10 @@ class SettingsMenuTest {
       check_(row[0] != 2 && row[0] != 8, "connected settings restrictions")
     }
     var app = SettingsTestApp.new([Fn.new {|pane|
-      for (label in list_(pane).items) {
+      var list = list_(pane)
+      check_(list.selected == 0 && list.items[0].startsWith("Main Interface"),
+          "Program Settings must open on Main Interface")
+      for (label in list.items) {
         check_(!label.startsWith("Custom Screen Mode"),
             "connected program settings must omit custom geometry")
       }

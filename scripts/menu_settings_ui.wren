@@ -856,7 +856,7 @@ class SettingsMenu {
   static program_(app, connected) {
     var s = Menu.settings
     var changed = false
-    var selected = 1
+    var selected = null
     var view = ChoiceViewState.new()
     while (true) {
       var rows = []
