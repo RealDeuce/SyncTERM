@@ -122,7 +122,7 @@ values(void)
 static int
 recovery(void)
 {
-	static const char *invalid[] = {"Y", "Y000001", "Y000001000", "Y0000010?",
+	static const char *invalid[] = {"Y", "Y000001", "Y0000010 comment", "Y0000010?",
 	    "Y0B000100", "Y00020100", "Y00000000", "Y00000B00", "Y00000103",
 	    "Y00000107", "Y0000010O", "Y0000011C", "Y0000012O"};
 	struct st_rip3_command_host host = {0}, missing = {0};
@@ -136,7 +136,6 @@ recovery(void)
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&before, &after, true));
 	}
-	CHECK(process(&host, "Y00000100 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&missing, "Y00000100", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.styles = host.styles;
 	CHECK(process(&missing, "Y00000100", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
@@ -168,7 +167,7 @@ recovery(void)
 	CHECK(process(&host, "Y00000100", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 2, &after) == 0 && same(&before, &after, true));
 	CHECK(st_rip3_styles_switch(host.styles, 0) == 0);
-	CHECK(process(&host, "Y00000100", -1) == 0);
+	CHECK(process(&host, "Y..0100 comment", -1) == 0);
 	st_rip3_styles_destroy(host.styles);
 	st_rip3_environments_destroy(host.environments);
 	return 0;

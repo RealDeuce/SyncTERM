@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-1504b9597a766acde14b463864cecf8e21e84293](https://github.com/RealDeuce/remote-imaging-protocol/tree/1504b9597a766acde14b463864cecf8e21e84293/version/3.0)
+ab204abcc0295eb93996fa48911d89bbc8f5cb78](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab204abcc0295eb93996fa48911d89bbc8f5cb78/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -1497,8 +1497,9 @@ Two further documentation conflicts are recorded upstream: the resulting mode
 after [`W` period termination](https://github.com/bbs-land/remote-imaging-protocol/issues/7#issuecomment-6922755531)
 is unspecified, and the default white colour row
 [uses `@` instead of the documented UltraNum digit `&`](https://github.com/bbs-land/remote-imaging-protocol/issues/9#issuecomment-6922756001).
-Period forms remain unsupported; strict UltraNum decoding retains its established
-alphabet. The native CMake build and all 67 selected RIP3/preservation/shared-audio
+At this milestone, period forms were still unsupported. The later numeric
+field update below adopts the clarified zero-field rule. UltraNum decoding
+retains its established alphabet. The native CMake build and all 67 selected RIP3/preservation/shared-audio
 tests pass. Native Valgrind reports no errors or leaked allocations/descriptors
 in the new fixture. The original 93 frozen files and 41 legacy helper definitions
 still match the preservation baseline. Active terminal routing, unresolved
@@ -10202,5 +10203,25 @@ spaced text, attached text or surplus digits. It recorded no dispatch
 before the following pipe or CR. Native fixtures check field widths,
 short radius fields and recovery from malformed input. Live CP437 and UTF-8
 fixtures verify the WORLD reply and the pixels drawn by a chain of commands
-with surplus text. Remaining command families and the timing wording are
-tracked in the ledger. [Issue #237](https://github.com/bbs-land/remote-imaging-protocol/issues/237)
+with surplus text. [PR #238](https://github.com/bbs-land/remote-imaging-protocol/pull/238)
+
+## Drawing state field widths and zero arguments
+
+Drawing and background colors and both fill styles use a two-digit palette
+index in the active base or a four-digit UltraNum in active RGB modes 1–8.
+The numeric command reader ignores surplus after complete fields for these
+commands, classic font and pen selection, borders, write mode, desktop
+palette updates, color mode, coordinate size, base selection and playback
+delay. Existing WORLD and basic geometry commands use the same reader.
+
+A period at the start of a field supplies zero and advances to the next
+field. A period inside an unfinished field discards the command. A period
+after a complete command is surplus. The connected CP437 and UTF-8 tests
+verify both palette and RGB drawing, short zero coordinates, write modes
+and continued parsing after malformed fields. Native tests check the
+four-digit color fields across every RGB precision and verify that a
+complete command waits for the delimiter across split input.
+
+Numeric decoders outside the listed command families still require review.
+[PR #241](https://github.com/bbs-land/remote-imaging-protocol/pull/241),
+[PR #242](https://github.com/bbs-land/remote-imaging-protocol/pull/242)

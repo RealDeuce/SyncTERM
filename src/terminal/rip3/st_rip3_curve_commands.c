@@ -33,8 +33,9 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	bool circle = arc || command[0] == 'I' || command[0] == 'C' || command[0] == 'G';
 	bool filled = pie || chord || command[0] == 'G' || command[0] == 'o';
 	bool borders = false;
-	size_t count = length-1, fields = angles ? (circle ? 5 : 6) : circle ? 3 : 4;
-	size_t width, total, position = 0;
+	size_t fields = angles ? (circle ? 5 : 6) : circle ? 3 : 4;
+	struct st_rip3_fields arguments = {command + 1, length - 1};
+	size_t width;
 	uint8_t drawing = 0, foreground = 0, background = 0;
 	double x, y, rx, ry;
 	int status;
@@ -43,18 +44,13 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0)
 		return status;
 	width = environment.coordinate_size;
-	total = angles ? (circle ? 3 : 4)*width+4 : fields*width;
-	if (count > total) count = total;
-	if (count <= total-width)
-		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < fields; i++) {
 		size_t field_width = angles && (i == 2 || i == 3) ? 2 : width;
 
-		status = st_rip3_command_field(values+i, command+1+position,
-		    i == fields-1 ? count-position : field_width, environment.base_math);
+		status = st_rip3_command_next_field(&arguments, values+i, field_width, environment.base_math,
+		    i + 1 == fields);
 		if (status != 0)
 			return status;
-		position += field_width;
 	}
 	if (host->styles == NULL || host->ports == NULL)
 		return IO_ERROR_NOT_SUPPORTED;

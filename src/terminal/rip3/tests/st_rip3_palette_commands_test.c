@@ -142,9 +142,9 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 static int
 validation(enum st_rip3_canvas canvas)
 {
-	const char *invalid[] = {"Q", "a", "a0", "a00", "a00000", "a0G01", "a001S",
+	const char *invalid[] = {"Q", "a", "a0", "a00", "a000 comment", "a0G01", "a001S",
 	    "a0F?", "a?001", "Q000000000000000000000000000000", /* 15 values */
-	    "Q000000000000000000000000000000000", /* excess byte */
+	    "Q0000000000000000000000000000000 comment", /* unfinished field */
 	    "Q0101010101010101010101010101011S", /* late range error */
 	    "Q0101010101010101010101010101010?"};
 	struct st_rip3_environments *env = NULL;
@@ -162,15 +162,13 @@ validation(enum st_rip3_canvas canvas)
 		CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0);
 		CHECK(memcmp(&before, &after, sizeof(before)) == 0);
 	}
-	CHECK(process(&host, "a0001 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "Q00000000000000000000000000000000 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.environments = env;
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.environments = NULL; missing.palettes = palettes;
 	CHECK(process(&missing, "a0001", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "Q000102030405060708090A0B0C0D0E0F", -1) == 0);
-	CHECK(process(&host, "a0202", -1) == 0);
+	CHECK(process(&host, "Q000102030405060708090A0B0C0D0E0F tail", -1) == 0);
+	CHECK(process(&host, "a0202 tail", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[2] == 0x00aa00);
 	CHECK(process(&host, "a--W", -1) == 0);
 	CHECK(st_rip3_palettes_get(palettes, 0, &after) == 0 && after.rgb[0] == 0x550000);

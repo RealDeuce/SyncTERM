@@ -43,6 +43,14 @@ int st_rip3_button_commands_execute(const struct st_rip3_command_host *host,
  * public void processing boundary; none is a terminal/session return status. */
 int st_rip3_command_field(uint64_t *result, const uint8_t *bytes,
 	size_t length, unsigned radix);
+struct st_rip3_fields {
+	const uint8_t *bytes;
+	size_t remaining;
+};
+/* Read one ordinary wire field. A leading period consumes one byte;
+ * otherwise only a final field can use fewer digits than its width. */
+int st_rip3_command_next_field(struct st_rip3_fields *fields, uint64_t *result,
+	size_t width, unsigned radix, bool final);
 int st_rip3_command_environment(const struct st_rip3_command_host *host,
 	unsigned *number, struct st_rip3_environment *value);
 int st_rip3_command_frame(const struct st_rip3_command_host *host,

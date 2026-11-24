@@ -1461,3 +1461,22 @@ The bitmap chapter retains its unchanged source units, moves 70 to new
 line ranges, and replaces two retired units with thirteen new units.
 Issue #235 is resolved by preserving the logical wallpaper period and
 skipping writes where physical storage has no source sample.
+
+## Fixed numeric dispatch, CM width and zero-field shorthand
+
+The reference advances from `1504b9597a766acde14b463864cecf8e21e84293` to
+`ab204abcc0295eb93996fa48911d89bbc8f5cb78`. The three stable integration trees match the
+reviewed heads for PRs #238, #241 and #242. Their changes cover delimiter-time
+dispatch, the CM width in each active color mode, and a leading period
+that supplies one zero-valued field.
+
+The in-memory Git tar archive has SHA-256 `fe40877d531e6f49cc2bba8067f7e3cfe16ab3cd5c76b9abf7237d53681ccbc0`.
+The ledger records the five changed contract documents, three new source
+traces, and carried and replaced requirements. Documentation issues #237,
+#239 and #240 are resolved in the pin. Numeric decoder coverage remains
+tracked by command family.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab204abcc0295eb93996fa48911d89bbc8f5cb78),
+[PR #238](https://github.com/bbs-land/remote-imaging-protocol/pull/238),
+[PR #241](https://github.com/bbs-land/remote-imaging-protocol/pull/241),
+[PR #242](https://github.com/bbs-land/remote-imaging-protocol/pull/242)

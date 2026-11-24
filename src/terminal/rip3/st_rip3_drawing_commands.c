@@ -15,18 +15,18 @@
 
 static int
 color_field(const struct st_rip3_environment *environment,
-    const uint8_t *arguments, size_t count, uint32_t *result)
+    struct st_rip3_fields *fields, uint32_t *result)
 {
 	uint64_t value;
 	int status;
 
-	if (count == 0 || count > 4)
-		return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&value, arguments, count,
-	    environment->rgb_bits != 0 ? 64 : environment->base_math);
+	bool rgb = environment->rgb_bits != 0;
+
+	status = st_rip3_command_next_field(fields, &value, rgb ? 4 : 2,
+	    rgb ? 64 : environment->base_math, true);
 	if (status != 0)
 		return status;
-	uint64_t maximum=environment->rgb_bits==0 ? 255 : UINT64_C(0xffffff);
+	uint64_t maximum=rgb ? UINT64_C(0xffffff) : 255;
 	if (value > maximum)
 		return IO_ERROR_OUT_OF_RANGE;
 	*result = (uint32_t)value;
@@ -37,27 +37,25 @@ static int
 fill_style(struct st_rip3_style *style, const struct st_rip3_environment *environment,
     const uint8_t *arguments, size_t count, bool custom)
 {
-	size_t prefix = custom ? 16 : 2;
+	struct st_rip3_fields fields = {arguments, count};
 	uint32_t color;
 	uint64_t value;
 	int status;
 
-	if (count <= prefix || count > prefix+4)
-		return IO_ERROR_INVALID_FORMAT;
-	status = color_field(environment, arguments+prefix, count-prefix, &color);
-	if (status != 0)
-		return status;
 	if (custom) {
 		unsigned rows[8];
 
 		for (size_t i = 0; i < 8; i++) {
-			status = st_rip3_command_field(&value, arguments+2*i, 2, environment->base_math);
+			status = st_rip3_command_next_field(&fields, &value, 2, environment->base_math, false);
 			if (status != 0)
 				return status;
 			if (value > 255)
 				return IO_ERROR_OUT_OF_RANGE;
 			rows[i] = (unsigned)value;
 		}
+		status = color_field(environment, &fields, &color);
+		if (status != 0)
+			return status;
 		status = st_rip3_fill_custom(&style->fill, rows, &style->fill.origin);
 	}
 	else {
@@ -77,11 +75,14 @@ fill_style(struct st_rip3_style *style, const struct st_rip3_environment *enviro
 		    [11] = {0x88,0,0x22,0,0x88,0,0x22,0},
 		};
 
-		status = st_rip3_command_field(&value, arguments, 2, environment->base_math);
+		status = st_rip3_command_next_field(&fields, &value, 2, environment->base_math, false);
 		if (status != 0)
 			return status;
 		if (value > 11)
 			return IO_ERROR_OUT_OF_RANGE;
+		status = color_field(environment, &fields, &color);
+		if (status != 0)
+			return status;
 		/* S/s replace mask and ink. Wire phase is resolved from the selected
 		 * drawing context at paint time, not stored in a STYLE entry. */
 		memcpy(style->fill.rows, masks[value], sizeof(style->fill.rows));
@@ -101,11 +102,11 @@ line_style(const struct st_rip3_command_host *host, unsigned environment_number,
 
 	/* These field widths are fixed, independent of XY coordinate size.
 	 * Only the final thickness field can shorten. */
-	if (count < 7 || count > 8) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&flags,arguments,1,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&kind,arguments+1,1,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&pattern,arguments+2,4,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&thickness,arguments+6,count-6,environment->base_math);
+	struct st_rip3_fields fields = {arguments, count};
+	status = st_rip3_command_next_field(&fields, &flags, 1, environment->base_math, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &kind, 1, environment->base_math, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &pattern, 4, environment->base_math, false);
+	if (status == 0) status = st_rip3_command_next_field(&fields, &thickness, 2, environment->base_math, true);
 	if (status != 0) return status;
 	if (flags > 3 || kind > 4 || (kind == 4 && pattern > UINT16_MAX)) return IO_ERROR_OUT_OF_RANGE;
 	if (thickness == 0) thickness = 1;
@@ -133,11 +134,9 @@ font_style(struct st_rip3_style *style, const uint8_t *arguments,
 	uint64_t values[4];
 	int status;
 
-	if (count < 7 || count > 8)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {arguments, count};
 	for (size_t i = 0; i < 4; i++) {
-		status = st_rip3_command_field(values+i, arguments+2*i,
-		    i == 3 ? count-6 : 2, radix);
+		status = st_rip3_command_next_field(&fields, values+i, 2, radix, i == 3);
 		if (status != 0)
 			return status;
 	}
@@ -184,10 +183,10 @@ point(const struct st_rip3_command_host *host, unsigned environment_number,
 	uint8_t ink = 0;
 	int status;
 
-	if (count > 2*width) count = 2*width;
-	if (count <= width) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&world_x,arguments,width,environment->base_math);
-	if (status == 0) status = st_rip3_command_field(&world_y,arguments+width,count-width,environment->base_math);
+	struct st_rip3_fields fields = {arguments, count};
+	status = st_rip3_command_next_field(&fields, &world_x, width, environment->base_math, false);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, &world_y, width, environment->base_math, true);
 	if (status != 0) return status;
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_frame(host,environment_number,&frame);
@@ -284,12 +283,10 @@ shape(const struct st_rip3_command_host *host,
 
 	/* A fixed numeric command stops collecting at its complete field width.
 	 * A shorter last field still has to reach the delimiter without a space. */
-	if (count > 4*width) count = 4*width;
-	if (count <= 3*width)
-		return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {arguments, count};
 	for (size_t i = 0; i < 4; i++) {
-		status = st_rip3_command_field(values+i, arguments+i*width,
-		    i == 3 ? count-3*width : width, environment->base_math);
+		status = st_rip3_command_next_field(&fields, values+i, width,
+		    environment->base_math, i == 3);
 		if (status != 0)
 			return status;
 	}
@@ -377,10 +374,6 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	bool pixel_or_point = command[0] == 'X' || command[0] == 'j';
 	int status;
 
-	if (command[0] != 'E' && !shape_command && !pixel_or_point && memchr(arguments, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED;
-	if (command[0] == 'W' && memchr(arguments, '.', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED; /* Termination/default value is unresolved. */
 	if (host->styles == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_environment(host, &environment_number, &environment);
@@ -436,26 +429,23 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 		*operation = true;
 		return st_rip3_styles_set(host->styles,number,&style);
 	}
-	if (command[0] == 'N') {
-		if (count == 0 || count > 2) return IO_ERROR_INVALID_FORMAT;
-		status = st_rip3_command_field(&value,arguments,count,environment.base_math);
-		if (status != 0) return status;
-		style.borders = value != 0;
-	}
-	else if (command[0] == 'W') {
-		if (count == 0 || count > 2)
-			return IO_ERROR_INVALID_FORMAT;
-		status = st_rip3_command_field(&value, arguments, count, environment.base_math);
+	struct st_rip3_fields fields = {arguments, count};
+	if (command[0] == 'N' || command[0] == 'W') {
+		status = st_rip3_command_next_field(&fields, &value, 2, environment.base_math, true);
 		if (status != 0)
 			return status;
-		if (value > 4)
-			return IO_ERROR_OUT_OF_RANGE;
-		style.write_mode = (enum st_rip3_write_mode)value;
+		if (command[0] == 'N')
+			style.borders = value != 0;
+		else {
+			if (value > 4)
+				return IO_ERROR_OUT_OF_RANGE;
+			style.write_mode = (enum st_rip3_write_mode)value;
+		}
 	}
 	else {
 		uint32_t color;
 
-		status = color_field(&environment, arguments, count, &color);
+		status = color_field(&environment, &fields, &color);
 		if (status != 0)
 			return status;
 		if (command[0] == 'c') style.drawing_color = color;

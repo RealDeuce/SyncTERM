@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/236",
-  "revision": "1504b9597a766acde14b463864cecf8e21e84293",
-  "previous_revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/242",
+  "revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
+  "previous_revision": "1504b9597a766acde14b463864cecf8e21e84293",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PR #236 was open upstream. Its tree matches the pinned fork stable integration.",
-  "archive_sha256": "e3dea675cdcc462d350a3e4f85afdbb383f345a5ef68c4246f800784c3f41e18",
+  "upstream_state_at_adoption": "The reviewed upstream PR heads match the three fork stable integration trees.",
+  "archive_sha256": "fe40877d531e6f49cc2bba8067f7e3cfe16ab3cd5c76b9abf7237d53681ccbc0",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,34 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1",
-      "sha256": "19b515d9319bd0fc20465b7cf9fe77eec563b2d11497ed7b88febb2941b79564"
+      "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+      "previous_sha256": "ae4744266ea84306630ce8b8918e28ffdb3eabafd97fccc6a3999807f7548a91",
+      "sha256": "37f6ca1cdb9c9891be08dd4ef762355decbd7f549e666bb1c8919e7c1c458c52"
+    },
+    {
+      "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+      "previous_sha256": "68d09624d6c0c35f772b561dd43d06105ea106029ff30ceb9a81ac6733fe459f",
+      "sha256": "23ea3555ed9d7c6840ec1393414af573859e989ca3dc79a850dd83f52f692f43"
+    },
+    {
+      "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+      "previous_sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2",
+      "sha256": "e8a368dcc16587a47d03bb90810243e7c701f097c9be818b873984b5bb34f678"
+    },
+    {
+      "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+      "previous_sha256": "31ff9ee4d72339e03c438be93c9155542385b0a3fd9fd8e594ad1db9dd3b311b",
+      "sha256": "ee25e749746c87e5fa93bfb840fa68f5a103d234de90a09e6470960bee89bf9e"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.0-command-reference.md",
+      "previous_sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3",
+      "sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9358,
+  "matched_source_blocks": 9335,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -958,7 +978,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 91,
+  "upstream_issue_resolutions": 119,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1649,6 +1669,24 @@
       "sha256": "0cbfcecf4d976d99d59335f27d86ffd26c25cf782bd186ac0e3241f16cc2bfde",
       "title": "Issue #235 — Wallpaper seed outside physical backing",
       "role": "Original wallpaper COPY and rectangle traces, the physical sampling rule, and example grids."
+    },
+    {
+      "path": "version/3.0/research/issue-237-fixed-numeric-dispatch.md",
+      "sha256": "bfce56962fb61809000bd8e7195f7d01069910eb6c2ae5d0f9f4ee1bde0b8eab",
+      "title": "Issue #237 — Fixed-width numeric collection and dispatch",
+      "role": "Original collector trace and split-dispatch captures."
+    },
+    {
+      "path": "version/3.0/research/issue-239-rgb-numeric-width.md",
+      "sha256": "c66b92effcc3e79ae8723d1af36a61dfacfb904f2f015b3a39818546e8614432",
+      "title": "Issue #239 — Color-mode field width",
+      "role": "Original CM descriptor and radix trace across all active precisions."
+    },
+    {
+      "path": "version/3.0/research/issue-240-period-zero-field.md",
+      "sha256": "d71994191491df4fbbf493748247bee9f5d9e24fbe7fa28a0c33476bed4df567",
+      "title": "Issue #240 — Period as a zero numeric field",
+      "role": "Original collector trace and zero-field arguments."
     }
   ],
   "documents": [
@@ -1742,11 +1780,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "ae4744266ea84306630ce8b8918e28ffdb3eabafd97fccc6a3999807f7548a91"
+      "sha256": "37f6ca1cdb9c9891be08dd4ef762355decbd7f549e666bb1c8919e7c1c458c52"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "sha256": "68d09624d6c0c35f772b561dd43d06105ea106029ff30ceb9a81ac6733fe459f"
+      "sha256": "23ea3555ed9d7c6840ec1393414af573859e989ca3dc79a850dd83f52f692f43"
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
@@ -1758,7 +1796,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2"
+      "sha256": "e8a368dcc16587a47d03bb90810243e7c701f097c9be818b873984b5bb34f678"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
@@ -1770,7 +1808,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-      "sha256": "31ff9ee4d72339e03c438be93c9155542385b0a3fd9fd8e594ad1db9dd3b311b"
+      "sha256": "ee25e749746c87e5fa93bfb840fa68f5a103d234de90a09e6470960bee89bf9e"
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
@@ -1854,7 +1892,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3"
+      "sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1925,7 +1963,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "08d759ba87354f6cd2c0189a4d47067f800461e9",
+  "previous_ledger_commit": "957f9a945b5ed417e716f057b5ce5f95e04bc3ef",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18519,6 +18557,177 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "1504b9597a766acde14b463864cecf8e21e84293",
+      "revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
+      "archive_sha256": "fe40877d531e6f49cc2bba8067f7e3cfe16ab3cd5c76b9abf7237d53681ccbc0",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/237",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/238",
+          "reviewed_head": "76f0674546bd16cfc94fa4fe7c8ed7d74ef7a326",
+          "integration": "f08ac10b7ff93256d71fb40deae343bc98ef0be0"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/239",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/241",
+          "reviewed_head": "0f3e08f876e631fa61e9deee9c855ff4ea27c50b",
+          "integration": "607d4d3800cab1a2db3f57b6dfea3ad11659ed77"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/240",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/242",
+          "reviewed_head": "783f6889358b927cb989f972b39cc093ddab88ca",
+          "integration": "ab204abcc0295eb93996fa48911d89bbc8f5cb78"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "ae4744266ea84306630ce8b8918e28ffdb3eabafd97fccc6a3999807f7548a91",
+          "sha256": "37f6ca1cdb9c9891be08dd4ef762355decbd7f549e666bb1c8919e7c1c458c52"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+          "previous_sha256": "68d09624d6c0c35f772b561dd43d06105ea106029ff30ceb9a81ac6733fe459f",
+          "sha256": "23ea3555ed9d7c6840ec1393414af573859e989ca3dc79a850dd83f52f692f43"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+          "previous_sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2",
+          "sha256": "e8a368dcc16587a47d03bb90810243e7c701f097c9be818b873984b5bb34f678"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+          "previous_sha256": "31ff9ee4d72339e03c438be93c9155542385b0a3fd9fd8e594ad1db9dd3b311b",
+          "sha256": "ee25e749746c87e5fa93bfb840fa68f5a103d234de90a09e6470960bee89bf9e"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3",
+          "sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-237-fixed-numeric-dispatch.md",
+          "sha256": "bfce56962fb61809000bd8e7195f7d01069910eb6c2ae5d0f9f4ee1bde0b8eab",
+          "title": "Issue #237 — Fixed-width numeric collection and dispatch",
+          "role": "Original collector trace and split-dispatch captures."
+        },
+        {
+          "path": "version/3.0/research/issue-239-rgb-numeric-width.md",
+          "sha256": "c66b92effcc3e79ae8723d1af36a61dfacfb904f2f015b3a39818546e8614432",
+          "title": "Issue #239 — Color-mode field width",
+          "role": "Original CM descriptor and radix trace across all active precisions."
+        },
+        {
+          "path": "version/3.0/research/issue-240-period-zero-field.md",
+          "sha256": "d71994191491df4fbbf493748247bee9f5d9e24fbe7fa28a0c33476bed4df567",
+          "title": "Issue #240 — Period as a zero numeric field",
+          "role": "Original collector trace and zero-field arguments."
+        }
+      ],
+      "moved_source_blocks": 616,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:153",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:203",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:207",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:209",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:211",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:213",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:215",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:216",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:217",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:218",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:219",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:220",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:221",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:222",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:223",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:224",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:228",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:230",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:232",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:234",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:235",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:236",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:237",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:238",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:239",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:240",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:241",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:242",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:243",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:244",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:246",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:410",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:729",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:126",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:281",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:285",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:287",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:288",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:289",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:290",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:292",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:294",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:296",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:298",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:577",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:420",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:585",
+        "version/3.0/ripscrip/9.0-command-reference.md:9",
+        "version/3.0/ripscrip/9.0-command-reference.md:67"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:153",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:203",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:367",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:369",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:126",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:281",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:283",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:285",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:287",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:288",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:289",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:290",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:291",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:292",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:293",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:294",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:295",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:296",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:298",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:300",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:302",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:306",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:308",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:314",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:316",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:320",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:322",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:601",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:420",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:422",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:424",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:589",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:591",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:593",
+        "version/3.0/ripscrip/9.0-command-reference.md:9",
+        "version/3.0/ripscrip/9.0-command-reference.md:67"
+      ],
+      "states_after_update": {
+        "unreviewed": 2149,
+        "context": 1918,
+        "pending": 1431,
+        "implemented": 3795,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -24074,6 +24283,54 @@
         "blocked": 21,
         "excluded": 71
       }
+    },
+    {
+      "after_commit": "957f9a945b5ed417e716f057b5ce5f95e04bc3ef",
+      "revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
+      "scope": "Apply adopted numeric completion, period zero fields and CM widths to level-zero drawing state, desktop palettes, WORLD and basic geometry, and to 3D delay.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/237",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/239",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/240"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:215",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:216",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:217",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:218",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:219",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:220",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:221",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:222",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:223",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:224",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:236",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:237",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:238",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:239",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:240",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:241",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:242",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:243",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:244",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:285",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:289",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:290",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:292",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:294",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:296",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:298",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:577",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:420",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:585",
+        "version/3.0/ripscrip/9.0-command-reference.md:67",
+        "version/3.0/ripscrip/9.0-command-reference.md:75",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:559",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:560",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:561",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:563",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:565"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

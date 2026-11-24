@@ -278,6 +278,28 @@ def run(args):
             assert pixel(frame, x, y) == 0x00AA00, (x, y, pixel(frame, x, y))
         assert pixel(frame, 5, 5) == pixel(frame, 80, 0) == 0
 
+        t.case("rip3-fixed-width-drawing-state-and-zero-fields")
+        frame = t.exchange(line(
+            b"*", b"J10 base", b"n2000 size", b"M08 palette", b"fHSDC",
+            b"a0C10 custom red", b"k00 background", b"c0C123", b"W01 XOR",
+            geometry(b"X", 10, 10), b"W0.", geometry(b"X", 10, 10),
+            geometry(b"X", 11, 10), b"W.2", geometry(b"X", 11, 10),
+            b"=00.01 pen", b"Y... sizes", b"Y..0109 font",
+            b"N. no border", b"S0102 solid", geometry(b"K", 20, 20, 24, 24),
+            b"3D0000 no delay", b"L0A.0E. line at y=0",
+            b"c.", geometry(b"X", 12, 10),
+        ) + query(b"$BASEMATH$:$COORDSIZE$:$COLORMODE$:alive", at_cursor=True), b"36:2:0:alive")
+        assert pixel(frame, 10, 10) == pixel(frame, 12, 10) == 0
+        assert pixel(frame, 11, 10) == pixel(frame, 12, 0) == 0xff0000
+        assert pixel(frame, 22, 22) == 0x00aa00
+        assert pixel(frame, 13, 10) == 0
+
+        frame = t.exchange(query(b"$COLORMODE(CUR,RGB,1)$", at_cursor=True)
+                           + line(b"c0002 color", geometry(b"X", 12, 10),
+                                  b"c2 incomplete", geometry(b"X", 13, 10), b"M1.")
+                           + query(b"$COLORMODE$:alive", at_cursor=True), b"1:alive")
+        assert pixel(frame, 12, 10) == pixel(frame, 13, 10) == 0x00ff00
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

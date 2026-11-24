@@ -115,8 +115,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	static const char *input =
 	    "!|c03|W00|R02020A08 outline|c04|R0K0S0C0K|c05|L020G0G0GEXTRA\r\n"
 	    "!|c0F|W0|L0S020Y02|W1|L0S040Y04|W2|L0Y060S06|W3|L0S080Y08|W4|L0S0A0Y0A\r"
-	    "!|W0|W05|c07|c03 comment|L00102S10|W1|c08|R040K040O|R0M0K0Q0O|c09|L0101011\r"
-	    "!|L0000000?|W0|c000A|k0000|R020A08C\r";
+	    "!|W0|W05|c07|c3 comment|L00102S10|W1|c08|R040K040O|R0M0K0Q0O|c09|L0101011\r"
+	    "!|L0000000?|W0|c0Aattached|k00|R020A08C\r";
 	struct st_rip3_command_host host = {0};
 	struct stream_scene scene = {&host,0};
 	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
@@ -250,8 +250,7 @@ static int
 validation(void)
 {
 	const char *invalid[] = {"L", "L000000", "L0000010 comment", "L0000000?", "R0000000?",
-	    "W", "W000", "W05", "c", "c00000", "c074", "k074", "c0?"};
-	const char *unsupported[] = {"W.", "W0.", "c01 comment", "k01 comment", "W0 comment"};
+	    "W", "W0 comment", "W0.", "W2.", "W05", "c", "c4 comment", "c74", "k74", "c0?", "c0."};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_style style;
 	const struct st_rip3_rect area = {0,0,7,7};
@@ -265,11 +264,13 @@ validation(void)
 		for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
 			CHECK(pixel(host.ports, 0, x,y, 0x55) == 0);
 	}
-	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
-		CHECK(process(&host, unsupported[i], ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-		CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0 && style.drawing_color == 3
-		    && style.background_color == 1 && style.write_mode == ST_RIP3_COPY);
-	}
+	CHECK(process(&host, "c074", -1) == 0 && process(&host, "k0007", -1) == 0);
+	CHECK(process(&host, "W04.", -1) == 0);
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0 && style.drawing_color == 7
+	    && style.background_color == 0 && style.write_mode == ST_RIP3_NOT);
+	CHECK(process(&host, "W.2", -1) == 0);
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0 && style.write_mode == ST_RIP3_COPY);
+	CHECK(process(&host, "c03", -1) == 0 && process(&host, "k01", -1) == 0);
 	CHECK(process(&missing, "W0", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	missing.environments = host.environments;
 	CHECK(process(&missing, "c01", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
@@ -313,6 +314,21 @@ validation(void)
 		CHECK(pixel(wrong.ports, 0, 0,0, 0) == 0);
 		st_rip3_ports_destroy(wrong.ports);
 	}
+	struct stream_scene scene = {&host, 0};
+	const struct st_rip3_stream_sink sink = {.context=&scene, .command=scene_command};
+	struct st_rip3_stream *stream = NULL;
+	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	wire(stream, "!|L0A.0E. surplus");
+	CHECK(pixel(host.ports, 0, 12,0, 0) == 0);
+	wire(stream, "|L0A010E010123");
+	CHECK(pixel(host.ports, 0, 12,0, 3) == 0);
+	CHECK(pixel(host.ports, 0, 12,1, 0) == 0);
+	wire(stream, "\r");
+	CHECK(pixel(host.ports, 0, 12,1, 3) == 0 && scene.errors == 0);
+	wire(stream, "!|L0A020E0. invalid|L0A030E3\n");
+	CHECK(pixel(host.ports, 0, 12,2, 0) == 0);
+	CHECK(pixel(host.ports, 0, 12,3, 3) == 0 && scene.errors == 1);
+	st_rip3_stream_destroy(stream);
 	destroy(&host);
 	return 0;
 }
@@ -343,7 +359,7 @@ line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	};
 	static const uint16_t patterns[] = {0xffff,0x3333,0x1e3f,0x1f1f,0xaaaa};
 	static const char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#&";
-	static const char *const invalid[] = {"=", "=000000", "=000000000", "=40000003", "=05000003", "=04000003", "=0400000?", "=04ZZZZ03"};
+	static const char *const invalid[] = {"=", "=000000", "=0000000 trailing", "=40000003", "=05000003", "=04000003", "=0400000?", "=04ZZZZ03"};
 	struct st_rip3_command_host host = {0}, missing;
 	struct st_rip3_style style;
 	struct st_rip3_environment env;
@@ -383,7 +399,7 @@ line_styles(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		CHECK(st_rip3_styles_get(host.styles,0,&style) == 0 && style.pen.pattern == 0xffff
 		    && style.pen.thickness == 3 && !style.pen.draw_background);
 	}
-	CHECK(process(&host,"=00000003 comment",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host,"=00000003 comment",-1) == 0);
 	missing = host; missing.ports = NULL; /* Attribute edits need no PORT binding. */
 	CHECK(process(&missing,"=20000003",-1) == 0);
 	missing.environments = NULL;
@@ -420,14 +436,16 @@ widths(void)
 		CHECK(pixel(host.ports, 0, 2,3, 3) == 0 && pixel(host.ports, 0, 3,3, 0) == 0 && pixel(host.ports, 0, 4,3, 3) == 0);
 	}
 	CHECK(process(&host, "n2", -1) == 0 && process(&host, "J1S", -1) == 0);
-	CHECK(process(&host, "c000&", -1) == 0 && process(&host, "k0a", -1) == 0);
+	CHECK(process(&host, "c0&extra", -1) == 0 && process(&host, "k0a", -1) == 0);
 	CHECK(process(&host, "L0a010#01", -1) == 0);
 	for (int32_t x = 36; x <= 62; x++) CHECK(pixel(host.ports, 0, x,1, 63) == 0);
 	CHECK(process(&host, "R0&040a02", -1) == 0);
 	CHECK(pixel(host.ports, 0, 36,3, 63) == 0 && pixel(host.ports, 0, 63,3, 63) == 0 && pixel(host.ports, 0, 37,3, 0) == 0);
-	CHECK(process(&host, "c003&", -1) == 0 && process(&host, "c040", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "c3&extra", -1) == 0 && process(&host, "c40", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "c0@", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(process(&host, "c-", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "c.2", -1) == 0 && process(&host, "c0.", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, "X0b01", -1) == 0 && pixel(host.ports, 0, 37,1, 0) == 0);
 	CHECK(process(&host, "J10", -1) == 0 && process(&host, "c-", -1) == 0 && process(&host, "W--", -1) == 0);
 	CHECK(process(&host, "c03", -1) == 0);
 	CHECK(process(&host, "=00000003", -1) == 0);
@@ -623,7 +641,7 @@ rgb_precisions(void)
 {
 	/* Independent packed codes and full-range channel normalization. The
 	 * lowercase UltraNum digits distinguish RGB from the global MegaNum base. */
-	static const char *const codes[]={"5","R","1T","9z","rL","4KC","LbR","11GC"};
+	static const char *const codes[]={"0005","000R","001T","009z","00rL","04KC","0LbR","11GC"};
 	static const uint32_t colors[]={0xff00ff,0x55aaff,0x246db6,0x2277dd,0x1952ad,0x105131,0x0a64b7,0x04140c};
 	struct st_rip3_command_host host={0};
 	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
@@ -634,13 +652,13 @@ rgb_precisions(void)
 		environment.base_math=radix;environment.rgb_bits=bits;
 		CHECK(st_rip3_environments_set(host.environments,0,&environment)==0);
 		char command[20];
-		(void)snprintf(command,sizeof(command),"c%s",codes[bits-1]);
+		(void)snprintf(command,sizeof(command),"c%s trailing",codes[bits-1]);
 		CHECK(process(&host,command,-1)==0 && process(&host,"X0000",-1)==0);
 		CHECK(pixel(host.ports,0,0,0,(uint8_t)(39+bits))==0);
-		(void)snprintf(command,sizeof(command),"S01%s",codes[bits-1]);
+		(void)snprintf(command,sizeof(command),"S01%s trailing",codes[bits-1]);
 		CHECK(process(&host,command,-1)==0 && process(&host,"K01010303",-1)==0);
 		CHECK(pixel(host.ports,0,2,2,(uint8_t)(39+bits))==0);
-		(void)snprintf(command,sizeof(command),"k%s",codes[bits-1]);
+		(void)snprintf(command,sizeof(command),"k%s trailing",codes[bits-1]);
 		CHECK(process(&host,command,-1)==0 && process(&host,"E",-1)==0);
 		CHECK(pixel(host.ports,0,500,400,(uint8_t)(39+bits))==0);
 		uint8_t index=17;

@@ -119,12 +119,12 @@ state(void)
 			    && after.pen.draw_background==before.pen.draw_background && after.write_mode==before.write_mode
 			    && memcmp(after.fill.rows,before.fill.rows,8)==0);
 		}
-		const char *const invalid[]={"N","N000","N?","N0?"};
+		const char *const invalid[]={"N","N0 comment","N?","N0?"};
 		for (unsigned i=0; i<4; i++) {
 			CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
 			CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.borders);
 		}
-		CHECK(process(&host,"N01 comment",ST_RIP3_COMMAND_UNSUPPORTED)==0);
+		CHECK(process(&host,"N01 comment",-1)==0);
 	}
 	/* Style ownership is independent of ENV/PORT activity and protection. */
 	CHECK(st_rip3_environments_define(host.environments,1,&environment)==0);

@@ -27,16 +27,14 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 	bool filled = command[0] == 'u', borders = !filled;
 	bool foreground_used = false, background_used = false;
 	uint8_t foreground = 0, background = 0, drawing = 0;
-	size_t count = length-1;
+	struct st_rip3_fields arguments = {command + 1, length - 1};
 	int status;
 	status = st_rip3_command_environment(host,&number,&environment);
 	if (status != 0) return status;
 	size_t width = environment.coordinate_size;
-	if (count > 5*width) count = 5*width;
-	if (count <= 4*width) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < 5; i++) {
-		status = st_rip3_command_field(values+i,command+1+i*width,
-		    i == 4 ? count-4*width : width,environment.base_math);
+		status = st_rip3_command_next_field(&arguments, values+i, width, environment.base_math,
+		    i == 4);
 		if (status != 0) return status;
 	}
 	if (host->ports == NULL || host->styles == NULL) return IO_ERROR_NOT_SUPPORTED;

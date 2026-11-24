@@ -35,6 +35,31 @@ st_rip3_command_field(uint64_t *result, const uint8_t *bytes, size_t length, uns
 }
 
 int
+st_rip3_command_next_field(struct st_rip3_fields *fields, uint64_t *result,
+    size_t width, unsigned radix, bool final)
+{
+	if (fields->remaining == 0)
+		return IO_ERROR_INVALID_FORMAT;
+	if (fields->bytes[0] == '.') {
+		*result = 0;
+		width = 1;
+	}
+	else {
+		if (fields->remaining < width) {
+			if (!final)
+				return IO_ERROR_INVALID_FORMAT;
+			width = fields->remaining;
+		}
+		int status = st_rip3_command_field(result, fields->bytes, width, radix);
+		if (status != 0)
+			return status;
+	}
+	fields->bytes += width;
+	fields->remaining -= width;
+	return 0;
+}
+
+int
 st_rip3_command_environment(const struct st_rip3_command_host *host, unsigned *number,
     struct st_rip3_environment *value)
 {
@@ -75,43 +100,32 @@ desktop_palette(const struct st_rip3_command_host *host,
 	struct st_rip3_environment environment;
 	unsigned number, colors[16];
 	uint64_t value;
-	size_t count = length - 1, start = 0, entries = 16, offset = 0;
-	const uint8_t *arguments = command + 1;
+	size_t start = 0, entries = 16;
+	struct st_rip3_fields fields = {command + 1, length - 1};
 	int status;
 
-	/* General comment boundaries remain unresolved under #7. Do not treat
-	 * trailing text as a partially valid palette update. */
-	if (memchr(arguments, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED;
 	if (host->palettes == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_environment(host, &number, &environment);
 	if (status != 0)
 		return status;
 	if (command[0] == 'a') {
-		if (count < 3 || count > 4)
-			return IO_ERROR_INVALID_FORMAT;
-		status = st_rip3_command_field(&value, arguments, 2, environment.base_math);
+		status = st_rip3_command_next_field(&fields, &value, 2, environment.base_math, false);
 		if (status != 0)
 			return status;
 		if (value > 15)
 			return IO_ERROR_OUT_OF_RANGE;
 		start = (size_t)value;
 		entries = 1;
-		offset = 2;
 	}
-	else if (count < 31 || count > 32)
-		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < entries; i++) {
-		size_t width = i + 1 == entries ? count - offset : 2;
-
-		status = st_rip3_command_field(&value, arguments + offset, width, environment.base_math);
+		status = st_rip3_command_next_field(&fields, &value, 2, environment.base_math,
+		    i + 1 == entries);
 		if (status != 0)
 			return status;
 		if (value > 63)
 			return IO_ERROR_OUT_OF_RANGE;
 		colors[i] = (unsigned)value;
-		offset += width;
 	}
 	/* No state changes before every field passes. ENV supplies only the
 	 * radix; the bound palette's current entry and protection own the edit. */
@@ -450,10 +464,10 @@ color_mode(const struct st_rip3_command_host *host,
 	struct st_rip3_environment value;
 	unsigned number;
 	uint64_t mode,bits;
-	if (length!=3) return IO_ERROR_INVALID_FORMAT;
+	struct st_rip3_fields fields = {command + 1, length - 1};
 	int status=st_rip3_command_environment(host,&number,&value);
-	if (status==0) status=st_rip3_command_field(&mode,command+1,1,value.base_math);
-	if (status==0) status=st_rip3_command_field(&bits,command+2,1,value.base_math);
+	if (status==0) status=st_rip3_command_next_field(&fields, &mode, 1, value.base_math, false);
+	if (status==0) status=st_rip3_command_next_field(&fields, &bits, 1, value.base_math, true);
 	if (status!=0) return status;
 	if (mode>1) return IO_ERROR_OUT_OF_RANGE;
 	/* The wire setter's RGB gate differs from the COLORMODE variable:
@@ -472,8 +486,6 @@ execute(const struct st_rip3_command_host *host,
 	struct st_rip3_environment value;
 	unsigned number;
 	uint64_t first, second;
-	const uint8_t *arguments;
-	size_t count;
 	bool delay;
 	int status;
 
@@ -600,15 +612,10 @@ execute(const struct st_rip3_command_host *host,
 		return drawing_palette(host, command, length, operation);
 	if (command[0] != 'J' && command[0] != 'n' && command[0] != 'f' && !delay)
 		return IO_ERROR_NOT_SUPPORTED;
-	arguments = command + (delay ? 2 : 1); count = length - (delay ? 2 : 1);
-	if (command[0] != 'f' && memchr(arguments, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED;
-	if (count == 0)
-		return IO_ERROR_INVALID_FORMAT;
+	size_t prefix = delay ? 2 : 1;
+	struct st_rip3_fields fields = {command + prefix, length - prefix};
 	if (command[0] == 'J') {
-		if (count > 2)
-			return IO_ERROR_INVALID_FORMAT;
-		status = st_rip3_command_field(&first, arguments, count, 36);
+		status = st_rip3_command_next_field(&fields, &first, 2, 36, true);
 		if (status != 0)
 			return status;
 		status = st_rip3_command_environment(host, &number, &value);
@@ -621,9 +628,7 @@ execute(const struct st_rip3_command_host *host,
 		if (status != 0)
 			return status;
 		if (delay) {
-			if (count > 4)
-				return IO_ERROR_INVALID_FORMAT;
-			status = st_rip3_command_field(&first, arguments, count, value.base_math);
+			status = st_rip3_command_next_field(&fields, &first, 4, value.base_math, true);
 			if (status != 0)
 				return status;
 			if (host->input == NULL)
@@ -633,11 +638,9 @@ execute(const struct st_rip3_command_host *host,
 			return 0;
 		}
 		else if (command[0] == 'n') {
-			if (count > 4)
-				return IO_ERROR_INVALID_FORMAT;
-			status = st_rip3_command_field(&first, arguments, 1, value.base_math);
-			if (status == 0 && count > 1) {
-				status = st_rip3_command_field(&second, arguments + 1, count - 1, value.base_math);
+			status = st_rip3_command_next_field(&fields, &first, 1, value.base_math, false);
+			if (status == 0 && fields.remaining != 0) {
+				status = st_rip3_command_next_field(&fields, &second, 3, value.base_math, true);
 				if (status == 0 && second != 0)
 					return IO_ERROR_NOT_SUPPORTED;
 			}
@@ -648,13 +651,9 @@ execute(const struct st_rip3_command_host *host,
 		else {
 			size_t width = value.coordinate_size;
 
-			if (count > 2*width)
-				count = 2*width;
-			if (count <= width)
-				return IO_ERROR_INVALID_FORMAT;
-			status = st_rip3_command_field(&first, arguments, width, value.base_math);
+			status = st_rip3_command_next_field(&fields, &first, width, value.base_math, false);
 			if (status == 0)
-				status = st_rip3_command_field(&second, arguments + width, count - width, value.base_math);
+				status = st_rip3_command_next_field(&fields, &second, width, value.base_math, true);
 			if (status != 0)
 				return status;
 			if (first > 65535 || second > 65535)

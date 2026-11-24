@@ -102,8 +102,8 @@ attributes(void)
 	struct st_rip3_style initial, before, after;
 	struct st_rip3_environment environment;
 	char command[] = "s000000000000000003";
-	static const char *invalid[] = {"S", "S01", "S0100000", "S0C03", "S010?", "S01074",
-	    "s0000000000000000", "s000000000000000003000", "s000000000000007403", "s00000000000000000?",
+	static const char *invalid[] = {"S", "S01", "S010 comment", "S0C03", "S010?", "S0174",
+	    "s0000000000000000", "s00000000000000003 comment", "s000000000000007403", "s00000000000000000?",
 	    "B", "B000000", "B0000010 comment", "B0000000?"};
 	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(st_rip3_styles_get(host.styles, 0, &initial) == 0);
@@ -122,8 +122,8 @@ attributes(void)
 		CHECK(st_rip3_styles_get(host.styles, 0, &before) == 0);
 		CHECK(process(&host, command, ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&before,&after,true));
-		CHECK(process(&host, "S01003&", base == 64 ? -1 : ST_RIP3_COMMAND_INVALID) == 0);
-		CHECK(process(&host, "S000", -1) == 0);
+		CHECK(process(&host, "S013&more", base == 64 ? -1 : ST_RIP3_COMMAND_INVALID) == 0);
+		CHECK(process(&host, "S00. suffix", -1) == 0);
 		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.fill_color == 0
 		    && same(&initial,&after,false));
 		for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 0);
@@ -150,8 +150,8 @@ attributes(void)
 		CHECK(process(&host, stock, -1) == 0);
 		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&before,&after,false));
 	}
-	CHECK(process(&host, "S0103 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "s000000000000000003 comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host, "S0103 comment", -1) == 0);
+	CHECK(process(&host, "s000000000000000003 comment", -1) == 0);
 	CHECK(process(&host, "s----------------3", -1) == 0); /* Local MegaNum zero spelling. */
 	CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.fill_color == 3);
 	for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 0);

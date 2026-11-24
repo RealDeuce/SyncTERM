@@ -151,9 +151,9 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "J--", -1) == 0); /* MegaNum wire '-' means zero. */
 	CHECK(expect(env, 0, 36,2,1280,960) == 0);
-	CHECK(process(&host, "J1S comment", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&host, "J10 comment", -1) == 0);
 	CHECK(expect(env, 0, 36,2,1280,960) == 0);
-	CHECK(process(&host, "n4000", -1) == 0);
+	CHECK(process(&host, "n4000 more", -1) == 0);
 	CHECK(process(&host, "f00ZK00QO", -1) == 0);
 	CHECK(expect(env, 0, 36,4,1280,960) == 0);
 	CHECK(process(&host, "n5", -1) == 0); /* Omitted reserved field. */
@@ -176,7 +176,7 @@ geometry(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(expect(env, 0, 36,3,32768,32767) == 0);
 	CHECK(query(env, "$WORLD$", "32768:32767") == 0);
 	CHECK(process(&host, "n2", -1) == 0);
-	static const char *const invalid[] = {"J","J?","J100","n","n?000","n20000",
+	static const char *const invalid[] = {"J","J?","J1 comment","n","n?000","n200 comment",
 	    "f","fZK","fZKQ tail","fZK?0"};
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
 		CHECK(process(&host, "fZKQO", -1) == 0);
@@ -260,7 +260,7 @@ color_modes(void)
 			CHECK(query(host.environments,"$COLORMODE$","0")==0);
 		}
 	}
-	const char *invalid[]={"M","M0","M080","M?8","M0?","M28"};
+	const char *invalid[]={"M","M0","M0 comment","M?8","M0?","M28"};
 	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
 		CHECK(process(&host,"M18",-1)==0);
 		CHECK(process(&host,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
@@ -272,7 +272,7 @@ color_modes(void)
 	    && st_rip3_environments_select(host.environments,1)==0);
 	CHECK(st_rip3_environments_protect(host.environments,1,true)==0);
 	CHECK(process(&host,"M08",ST_RIP3_COMMAND_OPERATION_FAILED)==0);
-	CHECK(process(&host,"M17",-1)==0 && query(host.environments,"$COLORMODE$","8")==0);
+	CHECK(process(&host,"M1.",-1)==0 && query(host.environments,"$COLORMODE$","8")==0);
 	CHECK(st_rip3_environments_protect(host.environments,1,false)==0);
 	CHECK(process(&host,"M08",-1)==0 && query(host.environments,"$COLORMODE$","0")==0);
 	CHECK(query(host.environments,"$COLORMODE(0)$","8")==0);
