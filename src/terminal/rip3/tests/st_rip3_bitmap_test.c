@@ -48,6 +48,44 @@ fixture(uint8_t *data, unsigned depth, unsigned colours, const uint8_t *rows,
 	return size;
 }
 
+static int
+test_four_bit_stride(void)
+{
+	/* Both images are 9x2. Short rows share the last pixel's high
+	 * nibble with the next stored row; the top right pixel is absent. */
+	static const uint8_t standard_rows[] = {
+		0x12,0x34,0x56,0x78,0x9f,0xee,0xee,0xee,
+		0xab,0xcd,0xef,0x01,0x2f,0xee,0xee,0xee,
+	};
+	static const uint32_t standard_pixels[] = {10,11,12,13,14,15,0,1,2, 1,2,3,4,5,6,7,8,9};
+	static const uint8_t short_rows[] = {0x12,0x34,0x56,0x78, 0xab,0xcd,0xef,0x01};
+	static const uint32_t short_pixels[] = {10,11,12,13,14,15,0,1,0, 1,2,3,4,5,6,7,8,10};
+	uint8_t bytes[118 + sizeof(standard_rows)];
+	struct st_rip3_bitmap *result = NULL;
+	size_t size = fixture(bytes, 4, 16, standard_rows, sizeof(standard_rows));
+	put32(bytes + 18, 9);
+	CHECK(st_rip3_bitmap_decode(&result, bytes, size) == 0);
+	CHECK(memcmp(result->pixels->primary, standard_pixels, sizeof(standard_pixels)) == 0);
+	st_rip3_bitmap_destroy(result);
+
+	size = fixture(bytes, 4, 16, short_rows, sizeof(short_rows));
+	put32(bytes + 18, 9);
+	bytes[size] = 0xff; /* Outside bfSize, even when present in the buffer. */
+	CHECK(st_rip3_bitmap_decode(&result, bytes, size + 1) == 0);
+	CHECK(memcmp(result->pixels->primary, short_pixels, sizeof(short_pixels)) == 0);
+	st_rip3_bitmap_destroy(result);
+	result = NULL;
+	put32(bytes + 2, (uint32_t)size - 1);
+	CHECK(st_rip3_bitmap_decode(&result, bytes, size) == IO_ERROR_INVALID_FORMAT);
+	put32(bytes + 2, (uint32_t)size + 1);
+	CHECK(st_rip3_bitmap_decode(&result, bytes, size + 1) == IO_ERROR_INVALID_FORMAT);
+	put32(bytes + 18, 1);
+	put32(bytes + 2, 118);
+	CHECK(st_rip3_bitmap_decode(&result, bytes, 118) == IO_ERROR_INVALID_FORMAT);
+	CHECK(result == NULL);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -110,6 +148,7 @@ main(void)
 	struct st_rip3_bitmap sentinel = {0}, *result = &sentinel;
 	size_t size = 0;
 
+	CHECK(test_four_bit_stride() == 0);
 	for (size_t c = 0; c < sizeof(cases) / sizeof(*cases); ++c) {
 		size = fixture(bytes, cases[c].depth, cases[c].colours, cases[c].rows, cases[c].row_size);
 		CHECK(st_rip3_bitmap_decode(&result, bytes, size) == 0);

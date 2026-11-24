@@ -3,6 +3,7 @@
 #include "io_error.h"
 #include "st_pixels.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 static unsigned
@@ -94,6 +95,7 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	uint32_t width, height, offset, length, colours = 0;
 	unsigned depth;
 	size_t stride;
+	bool short_rows = false;
 	int status;
 
 	if (result == NULL || data == NULL) return IO_ERROR_INVALID_ARGUMENT;
@@ -116,8 +118,15 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 		return IO_ERROR_NOT_SUPPORTED;
 	if (width > (SIZE_MAX - 31) / depth) return IO_ERROR_OUT_OF_RANGE;
 	stride = (((size_t)width * depth + 31) / 32) * 4;
-	if (height > (length - offset) / stride)
-		return IO_ERROR_INVALID_FORMAT;
+	if (height > (length - offset) / stride) {
+		/* RADIOBUT.BMP and .BMH use RIPtel's rounded-down 4-bit rows.
+		 * Require an exact fit and at least one stored byte per row. */
+		if (depth != 4 || width == 1 || width % 8 != 1
+		    || (uint64_t)(width / 2) * height != length - offset)
+			return IO_ERROR_INVALID_FORMAT;
+		stride = width / 2;
+		short_rows = true;
+	}
 	if (depth <= 8) {
 		colours = dword(data + 46);
 		if (colours == 0) colours = 1U << depth;
@@ -137,7 +146,14 @@ st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
 	if (status != 0) { st_rip3_bitmap_destroy(bitmap); return status; }
 	for (uint32_t y = 0; y < height; ++y) {
 		const uint8_t *row = data + offset + (size_t)(height - 1 - y) * stride;
-		for (uint32_t x = 0; x < width; ++x) {
+		/* The last pixel of a short row comes from the high nibble of
+		 * the next stored row's first byte. The top row has no such byte. */
+		uint32_t stored_width = width;
+		if (short_rows && y == 0) {
+			stored_width--;
+			bitmap->pixels->primary[stored_width] = 0;
+		}
+		for (uint32_t x = 0; x < stored_width; ++x) {
 			uint32_t pixel;
 			if (depth == 16) {
 				unsigned value = word(row+(size_t)x*2);
