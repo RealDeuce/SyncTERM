@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/234",
-  "revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
-  "previous_revision": "1859b08987dddff557233533ace1bba664c608ec",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/236",
+  "revision": "1504b9597a766acde14b463864cecf8e21e84293",
+  "previous_revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PR #234 was open upstream. Its tree matches the pinned fork stable integration.",
-  "archive_sha256": "c3ea16f60fea4d0ea257abda7e82606fc917dc97f946f10384b0922616891a89",
+  "upstream_state_at_adoption": "PR #236 was open upstream. Its tree matches the pinned fork stable integration.",
+  "archive_sha256": "e3dea675cdcc462d350a3e4f85afdbb383f345a5ef68c4246f800784c3f41e18",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "previous_sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af",
-      "sha256": "3419abcfc80f448f4a86e49a858dea0bd393b62c4a2319a18b64d891bc9724a9"
+      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+      "previous_sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1",
+      "sha256": "19b515d9319bd0fc20465b7cf9fe77eec563b2d11497ed7b88febb2941b79564"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9343,
+  "matched_source_blocks": 9358,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -958,7 +958,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 90,
+  "upstream_issue_resolutions": 91,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1643,6 +1643,12 @@
       "sha256": "d5ff05698dbc4f73d8f24dde5b18a1025627187ce687dd698d4d226950682838",
       "title": "Issue #233 — PORT_COPY logical color domains",
       "role": "Native matched and fit ROP traces and the portable indexed and RGB operation rules."
+    },
+    {
+      "path": "version/3.0/research/issue-235-wallpaper-physical-backing.md",
+      "sha256": "0cbfcecf4d976d99d59335f27d86ffd26c25cf782bd186ac0e3241f16cc2bfde",
+      "title": "Issue #235 — Wallpaper seed outside physical backing",
+      "role": "Original wallpaper COPY and rectangle traces, the physical sampling rule, and example grids."
     }
   ],
   "documents": [
@@ -1776,7 +1782,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1"
+      "sha256": "19b515d9319bd0fc20465b7cf9fe77eec563b2d11497ed7b88febb2941b79564"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1919,7 +1925,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "b0360c25cc4366e7c267d328f7221f1157a398f7",
+  "previous_ledger_commit": "08d759ba87354f6cd2c0189a4d47067f800461e9",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18456,6 +18462,63 @@
         "excluded": 71,
         "blocked": 21
       }
+    },
+    {
+      "previous_revision": "fecb3bdb5481f3a84b9d229d6201ff68e4ce4840",
+      "revision": "1504b9597a766acde14b463864cecf8e21e84293",
+      "archive_sha256": "e3dea675cdcc462d350a3e4f85afdbb383f345a5ef68c4246f800784c3f41e18",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/235",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/236",
+          "reviewed_head": "56eb56e814158dafaf4a0302e736db29e1094a03",
+          "integration": "1504b9597a766acde14b463864cecf8e21e84293"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "208b3396021a497c2a4b22ea34d32ab8887228933c6cd62462753406a0df34c1",
+          "sha256": "19b515d9319bd0fc20465b7cf9fe77eec563b2d11497ed7b88febb2941b79564"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-235-wallpaper-physical-backing.md",
+          "sha256": "0cbfcecf4d976d99d59335f27d86ffd26c25cf782bd186ac0e3241f16cc2bfde",
+          "title": "Issue #235 — Wallpaper seed outside physical backing",
+          "role": "Original wallpaper COPY and rectangle traces, the physical sampling rule, and example grids."
+        }
+      ],
+      "moved_source_blocks": 70,
+      "new_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:318",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:320",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:351",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:353",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:355",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:362",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:364",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:366",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:367",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:368",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:369",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:370",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:372"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:318",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:320"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1923,
+        "pending": 1436,
+        "implemented": 3758,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -23858,6 +23921,44 @@
         "implemented": 3749,
         "excluded": 71,
         "blocked": 21
+      }
+    },
+    {
+      "after_commit": "08d759ba87354f6cd2c0189a4d47067f800461e9",
+      "revision": "1504b9597a766acde14b463864cecf8e21e84293",
+      "scope": "Tile backed samples of oversized wallpaper seeds with the full logical periods and publish only covered pixels.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/235"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:318",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:320",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:351",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:353",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:355",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:362",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:368",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:369",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:370",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:372"
+      ],
+      "tests": [
+        "rip3_wallpaper",
+        "rip3_bitmap_load_commands",
+        "syncterm_rip3_media_CP437",
+        "syncterm_rip3_media_UTF-8",
+        "rip3_image_wallpaper",
+        "rip3_surface_copy",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1923,
+        "pending": 1436,
+        "implemented": 3758,
+        "excluded": 71,
+        "blocked": 20
       }
     }
   ],

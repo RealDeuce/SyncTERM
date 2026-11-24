@@ -34,7 +34,8 @@ struct st_rip3_ports {
 	void *screen_reader_context;
 	int (*screen_reader)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *);
 	void *screen_writer_context;
-	int (*screen_writer)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,const struct st_rip3_palette *);
+	int (*screen_writer)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,
+	    const struct st_pixel_mask *,const struct st_rip3_palette *);
 	struct port entries[36];
 	struct st_rip3_resident_query floating_query;
 };
@@ -183,7 +184,8 @@ st_rip3_ports_bind_screen_reader(struct st_rip3_ports *ports,void *context,
 
 void
 st_rip3_ports_bind_screen_writer(struct st_rip3_ports *ports,void *context,
-    int (*write)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,const struct st_rip3_palette *))
+    int (*write)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,
+        const struct st_pixel_mask *,const struct st_rip3_palette *))
 {
 	if (ports!=NULL) {ports->screen_writer_context=context;ports->screen_writer=write;}
 }
@@ -710,12 +712,12 @@ blit_capture(const struct st_rip3_ports *ports,const struct st_rip3_surface *sur
 static int
 store_pixels(struct st_rip3_ports *ports, struct st_rip3_surface *surface,
     const struct st_rip3_rect *area, bool screen, struct st_pixel_buffer *pixels,
-    const struct st_rip3_palette *palette)
+    const struct st_pixel_mask *mask, const struct st_rip3_palette *palette)
 {
-	int status = st_rip3_surface_restore_area_raw(surface, pixels,
+	int status = st_rip3_surface_restore_area_raw(surface, pixels, mask,
 	    (uint32_t)area->x0, (uint32_t)area->y0);
 	if (status == 0 && screen && ports->screen_writer != NULL && palette != NULL)
-		status = ports->screen_writer(ports->screen_writer_context, area, pixels, palette);
+		status = ports->screen_writer(ports->screen_writer_context, area, pixels, mask, palette);
 	return status;
 }
 
@@ -823,7 +825,7 @@ st_rip3_ports_blit_surface(struct st_rip3_ports *ports,const struct st_rip3_surf
 	 * write, including a corner that will itself be replaced. */
 	for (size_t i=0;status==0 && i<count;i++) {
 		struct blit_patch *patch=&patches[i];
-		status = store_pixels(ports, surface, &patch->area, screen, patch->pixels, palette);
+		status = store_pixels(ports, surface, &patch->area, screen, patch->pixels, NULL, palette);
 	}
 	for (size_t i=0;i<count;i++) st_pixel_buffer_destroy(patches[i].pixels);
 	return status;
@@ -885,7 +887,7 @@ compose_screen_transfer(struct st_rip3_ports *ports, unsigned source,
 		status = st_rip3_surface_copy_snapshots(destination_pixels, &logical_target,
 		    source_pixels, &logical_source, mode, palette);
 		if (status == 0)
-			status = store_pixels(ports, ports->screen, &to, true, destination_pixels, palette);
+			status = store_pixels(ports, ports->screen, &to, true, destination_pixels, NULL, palette);
 	}
 	st_pixel_buffer_destroy(source_pixels);
 	st_pixel_buffer_destroy(destination_pixels);
@@ -1230,7 +1232,8 @@ st_rip3_ports_capture_pixels(const struct st_rip3_ports *ports, unsigned number,
 
 int
 st_rip3_ports_write_viewport_pixels(struct st_rip3_ports *ports, unsigned number,
-    int32_t x, int32_t y, struct st_pixel_buffer *pixels, const struct st_rip3_palette *palette)
+    int32_t x, int32_t y, struct st_pixel_buffer *pixels, const struct st_pixel_mask *mask,
+    const struct st_rip3_palette *palette)
 {
 	if (pixels == NULL || pixels->width == 0 || pixels->height == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -1244,7 +1247,7 @@ st_rip3_ports_write_viewport_pixels(struct st_rip3_ports *ports, unsigned number
 	const struct st_rip3_rect view = viewport_absolute(&ports->entries[number]);
 	const struct st_rip3_rect area = {view.x0+x, view.y0+y,
 	    view.x0+(int32_t)right, view.y0+(int32_t)bottom};
-	return store_pixels(ports, port_surface(ports, number), &area, !info.offscreen, pixels, palette);
+	return store_pixels(ports, port_surface(ports, number), &area, !info.offscreen, pixels, mask, palette);
 }
 
 int

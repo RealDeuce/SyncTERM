@@ -1042,23 +1042,34 @@ screen_read(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer
 
 static int
 screen_write(void *context,const struct st_rip3_rect *area,struct st_pixel_buffer *pixels,
-    const struct st_rip3_palette *palette)
+    const struct st_pixel_mask *mask,const struct st_rip3_palette *palette)
 {
 	struct st_term_rip3 *rip=context;
 	for (size_t i=0;i<(size_t)pixels->width*pixels->height;i++) {
 		pixels->primary[i]=native_rgb(pixels->primary[i],palette->rgb);
 		if (pixels->alternate!=NULL) pixels->alternate[i]=native_rgb(pixels->alternate[i],palette->rgb);
 	}
-	int status=st_console_restore_pixel_region(rip->config.console,pixels,(uint32_t)area->x0,(uint32_t)area->y0);
+	int status=st_console_restore_masked_pixel_region(rip->config.console,pixels,mask,
+	    (uint32_t)area->x0,(uint32_t)area->y0);
 	if (status!=0) return status;
 	/* The native region already holds both phases. Update the existing
 	 * primary comparison baseline so the batch presenter does not replace
 	 * its prepared alternate pixels with the primary plane. */
 	for (uint32_t y=0;y<pixels->height;y++) {
 		size_t to=((size_t)area->y0+y)*rip->previous->width+(uint32_t)area->x0;
-		memcpy(rip->previous->primary+to,pixels->primary+(size_t)y*pixels->width,
-		    (size_t)pixels->width*sizeof(*pixels->primary));
-		memset(rip->damage+to,0,pixels->width);
+		const uint32_t *from=pixels->primary+(size_t)y*pixels->width;
+		if (mask==NULL) {
+			memcpy(rip->previous->primary+to,from,(size_t)pixels->width*sizeof(*from));
+			memset(rip->damage+to,0,pixels->width);
+		} else {
+			for (uint32_t x=0;x<pixels->width;x++) {
+				bool selected=false;
+				(void)st_pixel_mask_get(mask,x,y,&selected);
+				if (!selected) continue;
+				rip->previous->primary[to+x]=from[x];
+				rip->damage[to+x]=0;
+			}
+		}
 	}
 	return 0;
 }

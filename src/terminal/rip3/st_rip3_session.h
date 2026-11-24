@@ -19,6 +19,7 @@ struct st_rip3_rff;
 struct st_rip3_variable_reference;
 struct st_rip3_variable_value;
 struct st_pixel_buffer;
+struct st_pixel_mask;
 struct st_rip3_text_window_layout;
 struct st_rip3_text_window_snapshot;
 struct st_rip3_text_cursor_position;
@@ -108,7 +109,7 @@ struct st_rip3_session_sink {
 	 * Primary is already stored. Resolve the owned scratch pixels in place
 	 * if needed to present both planes without repainting unrelated pixels. */
 	int (*screen_write)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *,
-	    const struct st_rip3_palette *);
+	    const struct st_pixel_mask *,const struct st_rip3_palette *);
 	/* Apply geometry to an eligible target and home it without painting,
 	 * changing selection or replacing other window state. */
 	int (*text_maximize)(void *context, unsigned number, const struct st_rip3_text_window_layout *layout);

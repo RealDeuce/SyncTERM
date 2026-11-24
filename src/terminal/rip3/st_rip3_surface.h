@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 struct st_pixel_buffer;
+struct st_pixel_mask;
 struct st_rip3_surface;
 
 /* Palette values are untagged 0xRRGGBB. Surfaces normally store indexes, so
@@ -83,7 +84,7 @@ int st_rip3_surface_copy_from_raw(struct st_rip3_surface *,const struct st_rip3_
 int st_rip3_surface_restore_raw(struct st_rip3_surface *,const struct st_pixel_buffer *);
 /* Copy a prepared, fully contained raw region and mark its primary pixels. */
 int st_rip3_surface_restore_area_raw(struct st_rip3_surface *,const struct st_pixel_buffer *,
-	uint32_t x,uint32_t y);
+	const struct st_pixel_mask *,uint32_t x,uint32_t y);
 int st_rip3_surface_size(const struct st_rip3_surface *surface,
 	uint32_t *width, uint32_t *height);
 int st_rip3_surface_get(const struct st_rip3_surface *surface,

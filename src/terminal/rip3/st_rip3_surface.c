@@ -597,7 +597,7 @@ st_rip3_surface_capture_raw(const struct st_rip3_surface *surface,struct st_pixe
 }
 static int
 restore_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source,
-    uint32_t x,uint32_t y,uint32_t width,uint32_t height)
+    const struct st_pixel_mask *mask,uint32_t x,uint32_t y,uint32_t width,uint32_t height)
 {
 	if (source->height>SIZE_MAX/sizeof(*source->primary)/source->width) return IO_ERROR_OUT_OF_RANGE;
 	for (uint32_t row=0;row<height;row++) for (uint32_t col=0;col<width;col++) {
@@ -606,8 +606,19 @@ restore_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source
 	}
 	for (uint32_t row=0;row<height;row++) {
 		size_t to=(size_t)(y+row)*surface->width+x;
-		memcpy(surface->pixels+to,source->primary+(size_t)row*source->width,(size_t)width*sizeof(*source->primary));
-		if (surface->damage!=NULL) memset(surface->damage+to,1,width);
+		const uint32_t *from=source->primary+(size_t)row*source->width;
+		if (mask==NULL) {
+			memcpy(surface->pixels+to,from,(size_t)width*sizeof(*from));
+			if (surface->damage!=NULL) memset(surface->damage+to,1,width);
+		} else {
+			for (uint32_t col=0;col<width;col++) {
+				bool selected=false;
+				(void)st_pixel_mask_get(mask,col,row,&selected);
+				if (!selected) continue;
+				surface->pixels[to+col]=from[col];
+				if (surface->damage!=NULL) surface->damage[to+col]=1;
+			}
+		}
 	}
 	return 0;
 }
@@ -619,18 +630,20 @@ st_rip3_surface_restore_raw(struct st_rip3_surface *surface,const struct st_pixe
 		return IO_ERROR_INVALID_ARGUMENT;
 	uint32_t width=source->width<surface->width ? source->width : surface->width;
 	uint32_t height=source->height<surface->height ? source->height : surface->height;
-	return restore_raw(surface,source,0,0,width,height);
+	return restore_raw(surface,source,NULL,0,0,width,height);
 }
 
 int
 st_rip3_surface_restore_area_raw(struct st_rip3_surface *surface,const struct st_pixel_buffer *source,
-    uint32_t x,uint32_t y)
+    const struct st_pixel_mask *mask,uint32_t x,uint32_t y)
 {
 	if (surface==NULL || source==NULL || source->primary==NULL || source->width==0 || source->height==0)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (mask!=NULL && (mask->bits==NULL || mask->width!=source->width || mask->height!=source->height))
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (x>=surface->width || y>=surface->height || source->width>surface->width-x
 	    || source->height>surface->height-y) return IO_ERROR_OUT_OF_RANGE;
-	return restore_raw(surface,source,x,y,source->width,source->height);
+	return restore_raw(surface,source,mask,x,y,source->width,source->height);
 }
 
 int

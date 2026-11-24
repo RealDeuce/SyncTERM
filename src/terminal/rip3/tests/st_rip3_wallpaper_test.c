@@ -48,6 +48,60 @@ scene(bool stagger)
 }
 
 static int
+physical_backing(void)
+{
+	const struct {
+		uint32_t width, height;
+		struct st_rip3_rect viewport;
+		struct st_rip3_bitmap_destination seed;
+		bool stagger, offscreen;
+		const char *expected;
+	} cases[] = {
+		{6,1,{0,0,7,0},{4,0,7,0},false,false,"ABGGAB"},
+		{6,3,{0,0,7,2},{4,1,7,1},true,true,"GGABGGABGGABGGABGG"},
+		{6,1,{0,0,7,0},{6,0,7,0},false,false,"GGGGGG"},
+		{4,3,{0,0,3,3},{2,2,3,3},false,true,"ABABGGGGABAB"},
+	};
+	for (size_t i = 0; i < sizeof(cases)/sizeof(*cases); i++) {
+		struct st_rip3_ports *ports = NULL;
+		CHECK(st_rip3_ports_create_device(&ports,cases[i].width,cases[i].height) == 0);
+		unsigned port = cases[i].offscreen ? 1 : 0;
+		if (port != 0) {
+			const struct st_rip3_rect bounds = {0,0,(int32_t)cases[i].width-1,(int32_t)cases[i].height-1};
+			CHECK(st_rip3_ports_define(ports,port,&bounds,true) == 0);
+			CHECK(st_rip3_ports_switch(ports,port) == 0);
+		}
+		CHECK(st_rip3_ports_viewport_device(ports,&cases[i].viewport) == 0);
+		CHECK(st_rip3_ports_erase(ports,'G') == 0);
+		const struct st_rip3_rect from = {0,0,0,0}, to = {1,0,1,0};
+		struct st_rip3_port_copy_pair before, after;
+		CHECK(st_rip3_ports_copy(ports,port,&from,port,&to,ST_RIP3_TRANSFER_COPY) == 0);
+		CHECK(st_rip3_ports_copy_pair(ports,port,&before) == 0 && before.set);
+		int32_t left = (int32_t)cases[i].seed.x0, top = (int32_t)cases[i].seed.y0;
+		bool backed = (uint32_t)left < cases[i].width;
+		if (backed) {
+			CHECK(st_rip3_ports_plot(ports,left,top,'A',ST_RIP3_COPY) == 0);
+			CHECK(st_rip3_ports_plot(ports,left+1,top,'B',ST_RIP3_COPY) == 0);
+		}
+		/* An entirely unbacked seed succeeds without allocating a patch. */
+		st_rip3_wallpaper_test_fail_allocate = !backed;
+		CHECK(st_rip3_wallpaper(ports,&cases[i].seed,cases[i].stagger,NULL) == 0);
+		CHECK(st_rip3_wallpaper_test_fail_allocate == !backed);
+		st_rip3_wallpaper_test_fail_allocate = false;
+		CHECK(st_rip3_ports_copy_pair(ports,port,&after) == 0 && after.set);
+		CHECK(memcmp(&before.source,&after.source,sizeof(before.source)) == 0);
+		CHECK(memcmp(&before.destination,&after.destination,sizeof(before.destination)) == 0);
+		for (uint32_t y = 0; y < cases[i].height; y++) for (uint32_t x = 0; x < cases[i].width; x++) {
+			uint8_t actual;
+			CHECK(st_rip3_ports_read(ports,port,(int32_t)x,(int32_t)y,&actual) == 0);
+			CHECK(actual == (uint8_t)cases[i].expected[y*cases[i].width+x]);
+		}
+		st_rip3_ports_destroy(ports);
+	}
+	return 0;
+}
+
+static int
 edges(void)
 {
 	struct st_rip3_ports *ports = NULL;
@@ -85,7 +139,7 @@ edges(void)
 int
 main(void)
 {
-	if (scene(false) || scene(true) || edges()) return 1;
+	if (scene(false) || scene(true) || edges() || physical_backing()) return 1;
 	struct st_rip3_ports *ports = NULL;
 	const struct st_rip3_rect viewport = {0,0,5,4};
 	const struct st_rip3_bitmap_destination even = {1,1,4,2}, single = {2,3,2,3};

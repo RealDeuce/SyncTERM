@@ -15,10 +15,10 @@ from st_terminal_conformance_test import Terminal, cell_at
 from syncterm_control import SHIFT
 
 
-def bitmap_row(depth, row, palette=b""):
+def bitmap_row(depth, row, palette=b"", *, width=2):
     offset = 54 + len(palette)
     file_header = struct.pack("<2sIHHI", b"BM", offset + len(row), 0, 0, offset)
-    info_header = struct.pack("<IiiHHIIiiII", 40, 2, 1, 1, depth, 0, len(row), 0, 0, 0, 0)
+    info_header = struct.pack("<IiiHHIIiiII", 40, width, 1, 1, depth, 0, len(row), 0, 0, 0, 0)
     return file_header + info_header + palette + row
 
 
@@ -147,6 +147,21 @@ def check_bitmap(t, assets, values, encoding):
             actual = [plane_pixel(frame, x, y, phase) for x in range(10)]
             assert actual == [blue, rgb] * 5, (phase, y, actual)
         assert plane_pixel(frame, 10, 1, phase) == 0
+
+    t.case("Wallpaper skips samples outside the screen backing in both blink phases")
+    reset()
+    # The first two samples are red and blue. The other two lie beyond X=639.
+    (assets / "Edge.BMP").write_bytes(bitmap_row(1, b"\x50" + bytes(3), local_palette, width=4))
+    before = t.exchange(b"\x1b[?25l\x1b[5;38;2;17;34;51;48;2;170;187;204m" + glyph)
+    frame = wire(b"v" + coords(0, 0, 641, 3) + b"|1b" + coords(638, 1, 641, 1)
+                 + b"00" + number(16 | 32, 2) + b"000000Edge.BMP")
+    for phase in phases:
+        for y in range(4):
+            old = [plane_pixel(before, x, y, phase) for x in range(640)]
+            expected = [red, blue, None, None] if y % 2 == 0 else [None, None, red, blue]
+            actual = [plane_pixel(frame, x, y, phase) for x in range(640)]
+            assert actual == [old[x] if p is None else p for x, p in enumerate(expected * 160)], (phase, y)
+        assert plane_pixel(frame, 0, 4, phase) == plane_pixel(before, 0, 4, phase)
 
     t.case("WRITE_ICON normalizes the basename and selects scaled or backing clipboard pixels")
     reset()

@@ -1227,9 +1227,11 @@ st_console_invert_pixels(st_console_t *console, const struct st_console_rect *ar
 
 static int
 restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
-    uint32_t x, uint32_t y, bool graphics)
+    const struct st_pixel_mask *mask, uint32_t x, uint32_t y, bool graphics)
 {
 	if (console==NULL || source==NULL || source->primary==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (mask!=NULL && (mask->bits==NULL || mask->width!=source->width || mask->height!=source->height))
+		return IO_ERROR_INVALID_ARGUMENT;
 	if (console->raster_parent!=NULL) return IO_ERROR_NOT_SUPPORTED;
 	if (st_rwlock_write_lock(st_console_state_lock(console))!=ST_THREAD_SUCCESS) return IO_ERROR_IO;
 	int status=0;
@@ -1246,6 +1248,21 @@ restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source
 			for (uint32_t row=y;row<bottom;row++) {
 				for (uint32_t left=x;left<right;) {
 					uint32_t end=left<text_width && text_width<right ? text_width : (uint32_t)right;
+					if (mask!=NULL) {
+						uint32_t limit=end;
+						bool selected=false;
+						while (left<limit) {
+							(void)st_pixel_mask_get(mask,left-x,row-y,&selected);
+							if (selected) break;
+							left++;
+						}
+						if (left==limit) continue;
+						for (end=left+1;end<limit;end++) {
+							(void)st_pixel_mask_get(mask,end-x,row-y,&selected);
+							if (!selected) break;
+						}
+						damage_pixel_cells(console,left,row,end,(int64_t)row+1,graphics);
+					}
 					size_t to=st_console_pixel_position_locked(console,left,row);
 					size_t from=(size_t)(row-y)*source->width+left-x;
 					size_t bytes=(size_t)(end-left)*sizeof(*source->primary);
@@ -1255,7 +1272,8 @@ restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source
 					left=end;
 				}
 			}
-			damage_pixel_cells(console,x,y,(int64_t)right,(int64_t)bottom,graphics);
+			if (mask==NULL)
+				damage_pixel_cells(console,x,y,(int64_t)right,(int64_t)bottom,graphics);
 			status=st_console_finish_change_locked(console);
 		}
 	}
@@ -1266,7 +1284,14 @@ int
 st_console_restore_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
     uint32_t x, uint32_t y)
 {
-	return restore_pixel_region(console,source,x,y,true);
+	return restore_pixel_region(console,source,NULL,x,y,true);
+}
+
+int
+st_console_restore_masked_pixel_region(st_console_t *console, const struct st_pixel_buffer *source,
+    const struct st_pixel_mask *mask, uint32_t x, uint32_t y)
+{
+	return restore_pixel_region(console,source,mask,x,y,true);
 }
 
 int
@@ -1276,7 +1301,7 @@ st_console_raster_view_restore_transient(st_console_t *console, const struct st_
 	    || console->raster_x>UINT32_MAX || console->raster_y>UINT32_MAX
 	    || source->width!=console->pixels->width || source->height!=console->pixels->height)
 		return IO_ERROR_INVALID_ARGUMENT;
-	return restore_pixel_region(console->raster_parent,source,
+	return restore_pixel_region(console->raster_parent,source,NULL,
 	    (uint32_t)console->raster_x,(uint32_t)console->raster_y,false);
 }
 

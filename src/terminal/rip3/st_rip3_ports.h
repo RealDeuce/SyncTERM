@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 struct st_pixel_buffer;
+struct st_pixel_mask;
 struct st_rip3_ports;
 struct st_rip3_backup;
 struct st_rip3_surface;
@@ -80,7 +81,8 @@ void st_rip3_ports_bind_screen_reader(struct st_rip3_ports *,void *context,
 /* Publish a prepared, clipped raw patch after its primary is stored. The
  * frontend may resolve the scratch pixels in place for native presentation. */
 void st_rip3_ports_bind_screen_writer(struct st_rip3_ports *,void *context,
-	int (*write)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,const struct st_rip3_palette *));
+	int (*write)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,
+	    const struct st_pixel_mask *,const struct st_rip3_palette *));
 
 struct st_rip3_surface_blit_area {
 	int64_t x0,y0,x1,y1,destination_x,destination_y;
@@ -259,7 +261,8 @@ int st_rip3_ports_capture_pixels(const struct st_rip3_ports *, unsigned number,
 /* Write a prepared region inside the active viewport's physical backing.
  * A native writer may resolve the provided pixels through the active palette. */
 int st_rip3_ports_write_viewport_pixels(struct st_rip3_ports *, unsigned number,
-	int32_t x, int32_t y, struct st_pixel_buffer *, const struct st_rip3_palette *);
+	int32_t x, int32_t y, struct st_pixel_buffer *, const struct st_pixel_mask *,
+	const struct st_rip3_palette *);
 int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);
 /* Physical screen backup transport, independent of PORT selection, protection

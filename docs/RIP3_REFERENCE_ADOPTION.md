@@ -1448,3 +1448,16 @@ new line ranges and adds 17. Issue #233 is resolved by extending the
 portable Boolean rules to unscaled and fitted PORT_COPY. Indexed source
 inversion takes the destination's logical width. SyncTERM's RIPv3
 destination uses eight index bits.
+
+## PR #236 wallpaper backing
+
+The reference advances to fork stable integration `1504b9597a766acde14b463864cecf8e21e84293`.
+Its tree matches PR #236 head `56eb56e814158dafaf4a0302e736db29e1094a03`.
+The uncompressed Git archive has SHA-256
+`e3dea675cdcc462d350a3e4f85afdbb383f345a5ef68c4246f800784c3f41e18`.
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/1504b9597a766acde14b463864cecf8e21e84293), [PR #236](https://github.com/bbs-land/remote-imaging-protocol/pull/236)
+
+The bitmap chapter retains its unchanged source units, moves 70 to new
+line ranges, and replaces two retired units with thirteen new units.
+Issue #235 is resolved by preserving the logical wallpaper period and
+skipping writes where physical storage has no source sample.

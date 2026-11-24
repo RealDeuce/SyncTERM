@@ -52,11 +52,15 @@ st_rip3_wallpaper(struct st_rip3_ports *ports,
 	int32_t right = seed->x1 > xmax ? xmax : (int32_t)seed->x1;
 	int32_t bottom = seed->y1 > ymax ? ymax : (int32_t)seed->y1;
 	if (left == 0 && top == 0 && right == xmax && bottom == ymax) return 0;
-	if (info.clip.x1 < 0 || info.clip.y1 < 0) return 0;
-	/* A seed crossing the physical bitmap still needs original-client pixel
-	 * policy reconciliation. Do not shrink its period or invent padding. */
-	if (right > info.clip.x1 || bottom > info.clip.y1) return IO_ERROR_NOT_SUPPORTED;
-	const struct st_rip3_rect rectangle = {left, top, right, bottom};
+	const struct st_rip3_rect rectangle = {
+	    left < info.clip.x0 ? info.clip.x0 : left,
+	    top < info.clip.y0 ? info.clip.y0 : top,
+	    right > info.clip.x1 ? info.clip.x1 : right,
+	    bottom > info.clip.y1 ? info.clip.y1 : bottom,
+	};
+	if (rectangle.x0 > rectangle.x1 || rectangle.y0 > rectangle.y1) return 0;
+	uint32_t period_x = (uint32_t)(right-left)+1;
+	uint32_t period_y = (uint32_t)(bottom-top)+1;
 	struct st_pixel_buffer *tile = NULL;
 	status = st_rip3_ports_capture_pixels(ports, current, &rectangle, true, true, &tile);
 	if (status != 0)
@@ -69,30 +73,56 @@ st_rip3_wallpaper(struct st_rip3_ports *ports,
 	uint32_t rows = info.offscreen ? 1 : height;
 	size_t planes = tile->alternate == NULL ? 1 : 2;
 	uint32_t *pixels = NULL;
+	struct st_pixel_mask *mask = NULL;
 	if (rows > SIZE_MAX / sizeof(*pixels) / planes / width)
 		status = IO_ERROR_OUT_OF_RANGE;
 	else if ((pixels = malloc((size_t)width * rows * planes * sizeof(*pixels))) == NULL)
 		status = IO_ERROR_OUT_OF_MEMORY;
-	else {
+	else if (tile->width != period_x || tile->height != period_y) {
+		status = st_pixel_mask_create(&mask, width, rows);
+		if (status == 0)
+			memset(pixels, 0, (size_t)width * rows * planes * sizeof(*pixels));
+	}
+	if (status == 0) {
 		struct st_pixel_buffer band = {.width=width, .height=rows, .primary=pixels,
 		    .alternate=planes == 2 ? pixels + (size_t)width * rows : NULL};
 		for (uint32_t offset = 0; status == 0 && offset < height; offset += rows) {
 			int32_t y = info.clip.y0 + (int32_t)offset;
+			if (mask != NULL)
+				memset(mask->bits, 0, ((size_t)width * rows + 7) / 8);
 			for (uint32_t row = 0; row < rows; row++) {
-				int64_t dy = (int64_t)y + row - top, tile_row_number = dy / tile->height;
-				if (dy < 0 && dy % tile->height != 0)
+				int64_t dy = (int64_t)y + row - top, tile_row_number = dy / period_y;
+				if (dy < 0 && dy % period_y != 0)
 					tile_row_number--;
-				int64_t shift = stagger && tile_row_number % 2 != 0 ? tile->width / 2 : 0;
-				uint32_t sx = phase((int64_t)info.clip.x0 - left + shift, tile->width);
-				size_t from = (size_t)phase(dy, tile->height) * tile->width;
+				int64_t shift = stagger && tile_row_number % 2 != 0 ? period_x / 2 : 0;
+				uint32_t sx = phase((int64_t)info.clip.x0 - left + shift, period_x);
+				int64_t sy = (int64_t)top + phase(dy, period_y);
 				size_t to = (size_t)row * width;
-				tile_row(band.primary + to, width, tile->primary + from, tile->width, sx);
-				if (band.alternate != NULL)
-					tile_row(band.alternate + to, width, tile->alternate + from, tile->width, sx);
+				if (sy < rectangle.y0 || sy > rectangle.y1) continue;
+				size_t from = (size_t)(sy - rectangle.y0) * tile->width;
+				if (mask == NULL) {
+					tile_row(band.primary + to, width, tile->primary + from, period_x, sx);
+					if (band.alternate != NULL)
+						tile_row(band.alternate + to, width, tile->alternate + from, period_x, sx);
+				} else {
+					/* The clipped snapshot retains its position within the
+					 * full logical period, including where it has no pixels. */
+					for (uint32_t x = 0; x < width; x++) {
+						int64_t sample = (int64_t)left + sx;
+						if (++sx == period_x) sx = 0;
+						if (sample < rectangle.x0 || sample > rectangle.x1) continue;
+						size_t at = from + (size_t)(sample - rectangle.x0);
+						band.primary[to+x] = tile->primary[at];
+						if (band.alternate != NULL)
+							band.alternate[to+x] = tile->alternate[at];
+						(void)st_pixel_mask_set(mask, x, row, true);
+					}
+				}
 			}
-			status = st_rip3_ports_write_viewport_pixels(ports, current, info.clip.x0, y, &band, palette);
+			status = st_rip3_ports_write_viewport_pixels(ports, current, info.clip.x0, y, &band, mask, palette);
 		}
 	}
+	st_pixel_mask_destroy(mask);
 	free(pixels);
 	st_pixel_buffer_destroy(tile);
 	return status;
