@@ -24,5 +24,11 @@ int st_rip3_polygon_fill(struct st_rip3_ports *ports,
 	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
 	const struct st_rip3_pen *border, uint8_t border_color,
 	enum st_rip3_write_mode mode);
+/* Flag-1 marker. Current W applies to both contributions. An opaque pen
+ * takes precedence over fill in overlapping coverage. */
+int st_rip3_polygon_marker_fill(struct st_rip3_ports *ports,
+	const struct st_rip3_vector *points, size_t count,
+	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+	const struct st_rip3_pen *pen, uint8_t draw_color, enum st_rip3_write_mode mode);
 
 #endif

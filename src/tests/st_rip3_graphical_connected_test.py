@@ -133,6 +133,14 @@ def run(args):
         assert all(pixel(frame, x, 100) == 0 for x in (250, 290, 330))
         assert pixel(frame, 356, 100) == 0xff5555
 
+        t.case('PolyMarker composes the pen and brush with XOR on a connected port')
+        frame = t.exchange(b'\x01|W1|N00|=00000003|' + marker(430, 21, 0, 1)
+                           + b'|N01|=10000003|' + marker(470, 21, 0, 1) + b'\r\n')
+        assert [pixel(frame, x, 100) for x in (430, 470)] == [0x00aa00, 0x00aa00]
+        assert [pixel(frame, x, 85) for x in (430, 470)] == [0xff5555, 0xff5555]
+        assert [pixel(frame, x, 87) for x in (430, 470)] == [0xffff55, 0xff5555]
+        t.exchange(b'\x01|W0|N00|=00000001\r\n')
+
         t.case('Affine ellipse commands share geometry and choose the correct closure')
         def affine(opcode, x, *, fill=b''):
             center = (x, 200)
@@ -155,6 +163,12 @@ def run(args):
         frame = t.exchange(b'\x01|' + affine(b'`', 450, fill=b'?') + b'|' + affine(b'.', 510)[:-2]
                            + b'\r\n' + query(b'alive', at_cursor=True), b'alive')
         assert frame.primary == before.primary and frame.alternate == before.alternate
+
+        t.case('Affine ellipse coordinates stay in port space under viewport clipping')
+        view = b'v' + b''.join(number(value, 4) for value in (1100, 170, 1200, 240))
+        frame = t.exchange(b'\x01|' + view + b'|' + affine(b'.', 560) + b'\r\n')
+        assert pixel(frame, 580, 200) == 0xff5555
+        assert pixel(frame, 540, 200) == 0
 
 
 if __name__=='__main__':

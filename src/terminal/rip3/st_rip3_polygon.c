@@ -125,12 +125,39 @@ boundary_compare(const void *first, const void *second)
 	return (a > b)-(a < b);
 }
 
-int
-st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
+static int
+fill_span(struct st_rip3_ports *ports, struct st_rip3_rect span,
+    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    enum st_rip3_write_mode mode, const struct st_rip3_stroke_mask *omit)
+{
+	if (omit != NULL && omit->coverage != NULL && span.y0 >= omit->bounds.y0
+	    && span.y0 <= omit->bounds.y1) {
+		const uint8_t *row = omit->coverage + (size_t)(span.y0 - omit->bounds.y0) * omit->width;
+		int32_t first = span.x0 > omit->bounds.x0 ? span.x0 : omit->bounds.x0;
+		int32_t last = span.x1 < omit->bounds.x1 ? span.x1 : omit->bounds.x1;
+		for (int32_t x = first; x <= last; x++) {
+			if (row[x - omit->bounds.x0] == 0)
+				continue;
+			if (x > span.x0) {
+				struct st_rip3_rect run = {span.x0, span.y0, x - 1, span.y1};
+				int status = st_rip3_draw_bar(ports, &run, fill, foreground, background, mode);
+				if (status != 0)
+					return status;
+			}
+			span.x0 = x + 1;
+		}
+	}
+	if (span.x0 > span.x1)
+		return 0;
+	return st_rip3_draw_bar(ports, &span, fill, foreground, background, mode);
+}
+
+static int
+fill_contours(struct st_rip3_ports *ports,
     const struct st_rip3_vector_contour *contours, size_t count,
     const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
     const struct st_rip3_pen *border, uint8_t border_color,
-    enum st_rip3_write_mode mode)
+    enum st_rip3_write_mode mode, bool marker)
 {
 	struct st_rip3_port_info info;
 	struct st_rip3_stroke_mask outline = {0};
@@ -193,6 +220,10 @@ st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
 		status = st_rip3_stroke_vector_contours(ports,contours,count,true,&checked_border,&outline);
 		if (status != 0) goto done;
 	}
+	/* An opaque marker pen owns its covered pixels, including line gaps.
+	 * The pen and brush each apply W once to their respective destination. */
+	const struct st_rip3_stroke_mask *omit = marker && border->draw_background && mode != ST_RIP3_COPY
+	    ? &outline : NULL;
 	/* All fallible preparation is complete before any interior pixel changes. */
 	if (edges != NULL) {
 		int32_t limit = info.clip.x1+1;
@@ -206,16 +237,38 @@ st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
 			for (size_t i = 0; i+1 < found; i += 2) {
 				if (boundaries[i] == boundaries[i+1]) continue;
 				struct st_rip3_rect span = {boundaries[i],y,boundaries[i+1]-1,y};
-				status = st_rip3_draw_bar(ports,&span,fill,foreground,background,mode);
+				status = fill_span(ports,span,fill,foreground,background,mode,omit);
 				if (status != 0) goto done;
 			}
 		}
 	}
-	status = st_rip3_stroke_apply(ports,&outline,border_color,background,ST_RIP3_COPY);
+	status = st_rip3_stroke_apply(ports,&outline,border_color,background,marker ? mode : ST_RIP3_COPY);
 done:
 	st_rip3_stroke_free(&outline);
 	free(boundaries); free(edges);
 	return status;
+}
+
+int
+st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
+    const struct st_rip3_vector_contour *contours, size_t count,
+    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *border, uint8_t border_color,
+    enum st_rip3_write_mode mode)
+{
+	return fill_contours(ports,contours,count,fill,foreground,background,border,border_color,mode,false);
+}
+
+int
+st_rip3_polygon_marker_fill(struct st_rip3_ports *ports,
+    const struct st_rip3_vector *points, size_t count,
+    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *pen, uint8_t draw_color, enum st_rip3_write_mode mode)
+{
+	if (pen == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const struct st_rip3_vector_contour contour = {points,count};
+	return fill_contours(ports,&contour,1,fill,foreground,background,pen,draw_color,mode,true);
 }
 
 int

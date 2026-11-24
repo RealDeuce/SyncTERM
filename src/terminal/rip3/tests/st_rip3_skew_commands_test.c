@@ -354,6 +354,44 @@ boundaries(void)
 }
 
 static int
+marker_composition(void)
+{
+	struct st_rip3_command_host host = {0};
+	struct st_rip3_style style;
+	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640, 480) == 0);
+	CHECK(st_rip3_styles_get(host.styles, 0, &style) == 0);
+	CHECK(st_rip3_fill_solid(&style.fill, true) == 0);
+	style.drawing_color = 0x0f;
+	style.background_color = 0xaa;
+	style.fill_color = 0x55;
+	style.pen.pattern = 0xff00;
+	style.pen.thickness = 3;
+	/* The square's leading edge runs left to right from (40,40). At
+	 * thickness three, sample the middle of a mark and gap on either side. */
+	const struct st_rip3_point points[] = {{60,60}, {44,41}, {52,41}, {44,39}, {52,39}};
+	const uint8_t expected[][5] = {{0x55,0x0f,0x55,0x0f,0x33},
+	    {0x66,0x69,0x66,0x3c,0x33}, {0x66,0x3c,0x99,0x3c,0x99}};
+	for (size_t variant = 0; variant < sizeof(expected) / sizeof(*expected); ++variant) {
+		style.write_mode = variant == 0 ? ST_RIP3_COPY : ST_RIP3_XOR;
+		style.pen.draw_background = variant == 2;
+		for (unsigned borders = 0; borders < 2; ++borders) {
+			style.borders = borders != 0;
+			CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
+			CHECK(st_rip3_ports_erase(host.ports, 0x33) == 0);
+			CHECK(process(&host, ";1O1O0L14140001", -1) == 0);
+			for (size_t i = 0; i < sizeof(points) / sizeof(*points); ++i) {
+				uint8_t value;
+				CHECK(st_rip3_ports_read(host.ports, 0, points[i].x, points[i].y, &value) == 0);
+				CHECK(value == expected[variant][i]);
+			}
+		}
+	}
+	CHECK(process(&host, ";1O1O0L1414001", ST_RIP3_COMMAND_INVALID) == 0);
+	destroy(&host);
+	return 0;
+}
+
+static int
 marker_canvas(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct st_rip3_command_host host = {0};
@@ -384,5 +422,6 @@ main(void)
 	CHECK(marker_canvas(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
 	CHECK(marker_canvas(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(marker_canvas(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
+	CHECK(marker_composition() == 0);
 	return 0;
 }

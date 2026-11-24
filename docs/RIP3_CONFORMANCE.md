@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-449196a6bd6fb25b54d7631b349665c13256f3a3](https://github.com/RealDeuce/remote-imaging-protocol/tree/449196a6bd6fb25b54d7631b349665c13256f3a3/version/3.0)
+13439551837a9fa140a19b5ad03ba9b73a56b8c2](https://github.com/RealDeuce/remote-imaging-protocol/tree/13439551837a9fa140a19b5ad03ba9b73a56b8c2/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -9890,15 +9890,18 @@ The renderer projects both axes before rotating the contour and clips to
 the active viewport.
 
 Flags 0 and 2 stroke the contour, 1 fills and strokes it, and 3 fills it.
-Those flags select the pen independently of `N`. SyncTERM currently uses
-its filled-polygon COPY rule for the flag-1 stroke. Whether that stroke
-should use the current write mode is open in the portable contract.
-[Issue #212](https://github.com/bbs-land/remote-imaging-protocol/issues/212)
+Those flags select the pen independently of `N`. Both contributions use
+current W. A transparent-gap pen draws over the filled result. With an
+opaque-gap pen the covered stroke selects the source before W applies,
+including Back Color in opaque line gaps.
+[PR #223](https://github.com/bbs-land/remote-imaging-protocol/pull/223)
 
 Native tests check all 36 contour counts and selected projected vertices.
 The command fixtures exercise all three reference canvases. Connected CP437
 and UTF-8 cases check all presentation flags, unequal WORLD scaling,
-rotation, split input, and recovery from rejected parameters.
+rotation, split input, recovery after invalid operands and XOR overlap.
+Native composition samples check COPY and XOR with transparent and opaque
+gaps under both N values.
 
 ## Connected affine ellipses
 
@@ -9907,22 +9910,23 @@ conjugate-radius endpoints. Comma strokes an arc, period strokes a whole
 ellipse, colon closes an arc through the center, backtick closes it
 directly, and opening brace fills a whole ellipse. Colon and backtick
 select fill with a nonzero final digit. All coordinate pairs use the
-active coordinate width and are projected through WORLD first.
+active coordinate width and are projected through WORLD first. The
+viewport clips the port-space contour at its actual position.
 
 The contour reproduces RIPtel's five-degree sampling, axis order, integer
 ray intersections and closure or missed-ray rules. Filled contours use
-the current fill, with the patterned COPY border selected by `N`. The
-portable composition wording remains open. [Issue #213](https://github.com/bbs-land/remote-imaging-protocol/issues/213)
+the current fill, with the patterned COPY border selected by `N`.
+[PR #224](https://github.com/bbs-land/remote-imaging-protocol/pull/224)
 
 Native tests compare point counts, closure and ordered coordinate hashes
 against 52 RIPtel vectors captured by RIPlib's x86 geometry probe.
 Connected CP437 and UTF-8 tests exercise each opcode, nondefault WORLD and
 coordinate width, outline and fill selectors, and malformed-command recovery.
 
-The bounded-text handler at RVA `0x1a0da` fits a complete outline string
-to the projected rectangle by changing the point size. The pinned chapter
-describes wrapped text. The fit and resulting state are tracked separately.
-[Issue #214](https://github.com/bbs-land/remote-imaging-protocol/issues/214)
+The adopted bounded-text contract specifies whole-string outline fitting,
+including point sizing, spacing and the resulting drawing state. The
+connected renderer remains pending.
+[PR #225](https://github.com/bbs-land/remote-imaging-protocol/pull/225)
 
 ## Connected WRITE_ICON export modes
 
@@ -9942,5 +9946,5 @@ Absent or undefined clipboard assignments produce no file.
 Connected CP437 and UTF-8 cases compare a 7×7 capture with its 7×5 export,
 check all three suffix translations and the default suffix, and reject a
 path outside the BBS cache. Native tests check write failures and both
-clipboard source types. Bit 0's temporary registration lifetime remains
-open. [Issue #215](https://github.com/bbs-land/remote-imaging-protocol/issues/215)
+clipboard source types. Bit 0's session-owned temporary registration is
+pending implementation. [PR #226](https://github.com/bbs-land/remote-imaging-protocol/pull/226)

@@ -12,7 +12,7 @@
 
 enum border_policy {
 	BORDER_FROM_STYLE,
-	BORDER_FORCED,
+	BORDER_FROM_MARKER,
 	BORDER_OMITTED,
 };
 
@@ -26,6 +26,7 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	unsigned current;
 	uint8_t foreground=0,background=0,drawing=0;
 	bool borders=false;
+	bool marker_pen = border == BORDER_FROM_MARKER;
 	int status;
 	if (path->count<2) return 0; /* Both Polyline and Polygon require two points. */
 	if (host->styles==NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -35,16 +36,17 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	*operation=true;
 	if (filled) {
 		bool uses_foreground=false,uses_background=false;
-		borders = border == BORDER_FORCED || (border == BORDER_FROM_STYLE && style.borders);
+		borders = marker_pen || (border == BORDER_FROM_STYLE && style.borders);
+		bool resolve_stroke = borders && (!marker_pen || style.write_mode != ST_RIP3_NOT);
 		for (size_t i=0; i<8; i++) {
 			uses_foreground |= style.fill.rows[i]!=0;
 			uses_background |= style.fill.rows[i]!=255;
 		}
-		if (borders) status=st_rip3_command_ink(host,env->rgb_bits,style.drawing_color,&drawing);
+		if (resolve_stroke) status=st_rip3_command_ink(host,env->rgb_bits,style.drawing_color,&drawing);
 		if (status==0 && style.write_mode!=ST_RIP3_NOT && uses_foreground)
 			status=st_rip3_command_ink(host,env->rgb_bits,style.fill_color,&foreground);
 		if (status==0 && ((style.write_mode!=ST_RIP3_NOT && uses_background)
-		    || (borders && style.pen.draw_background && style.pen.pattern!=0xffff)))
+		    || (resolve_stroke && style.pen.draw_background && style.pen.pattern!=0xffff)))
 			status=st_rip3_command_ink(host,env->rgb_bits,style.background_color,&background);
 	}
 	else if (style.write_mode!=ST_RIP3_NOT) {
@@ -56,6 +58,9 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	if (filled) {
 		struct st_rip3_fill fill;
 		st_rip3_command_fill(port,&style.fill,&fill);
+		if (marker_pen)
+			return st_rip3_polygon_marker_fill(host->ports,points,path->count,&fill,foreground,background,
+			    &style.pen,drawing,style.write_mode);
 		status=st_rip3_polygon_fill(host->ports,points,path->count,&fill,foreground,background,
 		    borders ? &style.pen : NULL,drawing,style.write_mode);
 	}
@@ -117,9 +122,16 @@ st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_skew_path path = {0};
 	bool closed;
 	status = st_rip3_affine_build(&path, &closed, control, kind);
-	if (status == 0)
+	if (status == 0) {
+		/* Affine contours are constructed in port coordinates. The painter
+		 * takes viewport-relative points, so adjust only after ray fitting. */
+		for (size_t i = 0; i < path.count; ++i) {
+			path.points[i].x -= port.viewport.x0;
+			path.points[i].y -= port.viewport.y0;
+		}
 		status = paint(host, &environment, &port, &path, closed,
 		    closed && (command[0] == '{' || flags != 0), BORDER_FROM_STYLE, operation);
+	}
 	st_rip3_skew_free(&path);
 	return status;
 }
@@ -143,7 +155,7 @@ st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 	status=st_rip3_command_environment(host,&environment,&env);
 	if (status!=0) return status;
 	total=(command[0]=='&' ? 2*env.coordinate_size+6 : whole ? 4*env.coordinate_size+2 : 4*env.coordinate_size+6);
-	if (body<=total-2 || body>total) return IO_ERROR_INVALID_FORMAT;
+	if (body<=total-2 || body>total || (marker && body!=total)) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i=0; i<fields; i++) {
 		bool coordinate = i < 2 || (marker ? i == 3 || i == 4 : i < 4 && command[0] != '&');
 		size_t width = coordinate ? env.coordinate_size : 2;
@@ -166,7 +178,7 @@ st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 		    values[3] * frame.device_width / frame.world_width,
 		    values[4] * frame.device_height / frame.world_height, (unsigned)values[5]);
 		filled = (values[6] & 1) != 0;
-		border = values[6] == 1 ? BORDER_FORCED : BORDER_OMITTED;
+		border = values[6] == 1 ? BORDER_FROM_MARKER : BORDER_OMITTED;
 	}
 	else {
 		enum st_rip3_skew_kind kind=whole ? ST_RIP3_SKEW_OVAL

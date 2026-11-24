@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/222",
-  "revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
-  "previous_revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/226",
+  "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+  "previous_revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PRs #216–#222 match successive integration trees on fork stable.",
-  "archive_sha256": "cc56c966e8b270b486e3330baf18e52954620262da03d904f203a43a8db1cb1d",
+  "upstream_state_at_adoption": "PRs #223–#226 match successive integration trees on fork stable.",
+  "archive_sha256": "b8210c83993739ab6ac4e7c8e395961c1c0a0a01cb68ceec0bf0b48bbf1ebb22",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,84 +17,74 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "previous_sha256": "1bdd96ef2e3af28d433a1329b4949aa14b7b19d1ac3ad9b1e657e0b676291c2a",
-      "sha256": "ae4744266ea84306630ce8b8918e28ffdb3eabafd97fccc6a3999807f7548a91"
+      "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+      "previous_sha256": "99ddee230e7eb4e77cbd7bc83295263194d200dfdf69f35099779b7b58a8cbad",
+      "sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2"
     },
     {
-      "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "previous_sha256": "a3a07835b0c5cf5360b4bf3d4bdd6a1a7bcb00fb2d480e723c8126cbec301f7b",
-      "sha256": "b068963e464fd3496e29bcd6bb1d20f3f2b64c2ba339cf0f8ef2069e2d1df609"
+      "path": "version/3.0/ripscrip/2.1-lines.md",
+      "previous_sha256": "93920713e4a0dfb81affec46ed6ef6124edde97b704859db2600d892656d34c1",
+      "sha256": "1ce8a66a05eb94657bb95b05cdaf24e47c782a82f394b5f5b40a1f5512cb6e31"
     },
     {
-      "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "previous_sha256": "4039d8e0333b987dad76351bf373774767ffa390a7580912aad24cdddfdca24e",
-      "sha256": "8009a137cccab826b54f75938f45f90407d6440111a65c59ba390cd0c37bcaef"
+      "path": "version/3.0/ripscrip/2.2-curves.md",
+      "previous_sha256": "f0b6368847adf70cbc75d4387d587a7137892ceae19eda91f73cacc8ecb15d45",
+      "sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9"
+    },
+    {
+      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+      "previous_sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86",
+      "sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081"
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "ff1f97068b856f8619183b5b51c2792fe1b141faf7f034fa3144e08a7a58dfb3",
-      "sha256": "2c8c8a66c8c1b863faed1c7c523bc535d0bf61318f9f6eb170a47c2d50c0ba1e"
+      "previous_sha256": "2c8c8a66c8c1b863faed1c7c523bc535d0bf61318f9f6eb170a47c2d50c0ba1e",
+      "sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1"
     },
     {
-      "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "previous_sha256": "c1efa44b1ec74b0fbdd8abc7c809e5b01d2ba7745c61579a75d29398162f76e6",
-      "sha256": "7b56264386768f036d3954b6dfb547cc4024bd3ac2ede7839e283709ed3c82f1"
+      "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
+      "previous_sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c",
+      "sha256": "3b9dc5bebfd6dcc6f8cdefaed3648eae54d7922e4356071ab6d569957b4b4a0a"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "previous_sha256": "fabbe51fe9f225ba05b562c829fad576c7ca154c0119065d3bbc4d7e73b9d8ca",
-      "sha256": "8bc8f6f4594e205987f246838da8af5ed79bdef6bbb3278ef7eb39e3aa1071c7"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "previous_sha256": "365c812c12b3aaeff175aceb402cb330ee06740fdad8c311f7f421a53bd0ea3b",
-      "sha256": "623893f53d359a7651bb133793c71a563b1ad40ddb9041cd003d40d42a3c6f09"
+      "previous_sha256": "8bc8f6f4594e205987f246838da8af5ed79bdef6bbb3278ef7eb39e3aa1071c7",
+      "sha256": "1c5badff17418600629dc3cb8b2efe785511be5fea007e4adf58b778f303ace0"
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "previous_sha256": "4fe693d935e9bda03a2a5c667a71917762f0a1a90ca2b8e716aab55b27bab8be",
-      "sha256": "bf79ae21144b156fcd8d0b0da59c46417d2586e05206eca097d8a02e46b0b30c"
-    },
-    {
-      "path": "version/3.0/ripscrip/6.1-content-file-roles.md",
-      "previous_sha256": "362c84bc2a45461dc41405667c2c899de737da915dbbdce6f9b317ef78ed8943",
-      "sha256": "66e857510a7e4e34778532d254a4b4e51db8c1f7bae180eafc2391e0cde9450b"
+      "previous_sha256": "bf79ae21144b156fcd8d0b0da59c46417d2586e05206eca097d8a02e46b0b30c",
+      "sha256": "a93ca9e491b1defeda1454bad78aabf4f137f82e86454c5e529558a026ab50ae"
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "previous_sha256": "aa99944ebfd20ca8d7fabe1616287f92ebc5178c2489c4f73a7dfb1fea2c8c07",
-      "sha256": "cda60cc50054811e7ecd1917ee648539756ed83f6e5b6c1efe4c7d04eb5b9538"
-    },
-    {
-      "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "previous_sha256": "4dd987f44c437f1203e55fca1b478cc49d5f919747b5b96b2eb336c2ffe1c7e4",
-      "sha256": "d45655c9c2a811f1a74aeb8e258b24941e59aeec0ab3d3734e1d61fa4c3aadc3"
-    },
-    {
-      "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
-      "previous_sha256": "095a01a51389071d85793b922c29f108e7f80c2dbd33320b9bba0426d821f409",
-      "sha256": "442fbb9c13f9670f33e8090273d78c428e77fac63276b89d94411282af779e77"
+      "previous_sha256": "cda60cc50054811e7ecd1917ee648539756ed83f6e5b6c1efe4c7d04eb5b9538",
+      "sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "ccc6e68b78958a21086e2e8422f58c265a2ff565dfd9f31f90d92aaacb18980e",
-      "sha256": "7f4f66dd0f79da8d8712f022c08c76816f6f3d7fe995fe2eda9b63a863c2a970"
+      "previous_sha256": "7f4f66dd0f79da8d8712f022c08c76816f6f3d7fe995fe2eda9b63a863c2a970",
+      "sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3"
     },
     {
-      "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "previous_sha256": "39ba7711ca3fdc9f938b548205d7643b94d1408c071325537c48001e775a8c62",
-      "sha256": "e1fe512188a716d67da6e74c64a4a01a159b05d52e991802928737112df18974"
+      "path": "version/3.0/techspecs/2.1-arc-consumer-contract.md",
+      "previous_sha256": "995195d4f365c9afc336e53f1258561d7049a2e9637ab928bdc150363e84192d",
+      "sha256": "a6f0c665d66dabca24b1377f35a0b72ea452f58b08e89c12053c768b253d649e"
     },
     {
-      "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
-      "previous_sha256": "ba2dc7a1d185b8f1881eb0ff1444a143abc26d764c3a5f754311cc99b820a1e8",
-      "sha256": "419796261c8268dcbe8629a1b133493d4aed1bdd4416e0c5356115690b388ef9"
+      "path": "version/3.0/techspecs/2.3-drawing-composition.md",
+      "previous_sha256": "6e166b0c540fa08f3a8c1177a94d64832df4e5c3d8c912e54af96d2d40a011a4",
+      "sha256": "9665c15655af5e7b27268e5feb70426dac4deef33a5ba3d0d011edb160db0b23"
+    },
+    {
+      "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+      "previous_sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91",
+      "sha256": "a37fcf08711be411b1c71895877a59f97ebd78c24413d25e59890290ea60605b"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9049,
+  "matched_source_blocks": 9162,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -1028,12 +1018,13 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 82,
+  "upstream_issue_resolutions": 86,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 completion-only resource publication and temporary registration remain pending. Existing worker resume and cache paths are preserved."
+    "Adopted #205 completion-only resource publication and temporary registration remain pending. Existing worker resume and cache paths are preserved.",
+    "Adopted #214 bounded outline-text fitting and #215 session-owned temporary resource cleanup are pending."
   ],
   "derivations": [
     {
@@ -1662,8 +1653,32 @@
     },
     {
       "path": "version/3.0/research/issue-211-mstat-presence.md",
-      "sha256": "0ddd827f6a6be7aa95c7d459311016bf73e16885adbb24c9b6b6d92be305675d",
+      "sha256": "c839e84bc3e87a15353900d704d362c471c67b81ab961bbd92bac6cc8e218354",
       "title": "Issue #211 — Portable MSTAT pointer presence",
+      "role": "Native derivation and portable policy for the adopted specification."
+    },
+    {
+      "path": "version/3.0/research/issue-212-polymarker.md",
+      "sha256": "c4f5c6b87af9e18e4582070da885808a176663162649d74e2c90122deb4079fb",
+      "title": "Issue #212 — PolyMarker projection and composition",
+      "role": "Native derivation and portable policy for the adopted specification."
+    },
+    {
+      "path": "version/3.0/research/issue-213-affine-ellipses.md",
+      "sha256": "e458f4f2937874ba5f32dd338796ba90e9199445f5a29aaa2c848a4620f3d5c7",
+      "title": "Issue #213 — Affine ellipse wire and contour rules",
+      "role": "Native derivation and portable policy for the adopted specification."
+    },
+    {
+      "path": "version/3.0/research/issue-214-bounded-text.md",
+      "sha256": "24088002629a0d50467a6da3136f7562ad1f404195b61946b1ae87559a95696f",
+      "title": "Issue #214 — Bounded single-string outline fitting",
+      "role": "Native derivation and portable policy for the adopted specification."
+    },
+    {
+      "path": "version/3.0/research/issue-215-write-icon-export.md",
+      "sha256": "e9714f1aa7d4d9478fd2dc0ec1aec0a9a8cd1ee9c2c9bd699ea24d85ea314eac",
+      "title": "Issue #215 — WRITE_ICON export flags and temporary assets",
       "role": "Native derivation and portable policy for the adopted specification."
     }
   ],
@@ -1774,15 +1789,15 @@
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "99ddee230e7eb4e77cbd7bc83295263194d200dfdf69f35099779b7b58a8cbad"
+      "sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
-      "sha256": "93920713e4a0dfb81affec46ed6ef6124edde97b704859db2600d892656d34c1"
+      "sha256": "1ce8a66a05eb94657bb95b05cdaf24e47c782a82f394b5f5b40a1f5512cb6e31"
     },
     {
       "path": "version/3.0/ripscrip/2.2-curves.md",
-      "sha256": "f0b6368847adf70cbc75d4387d587a7137892ceae19eda91f73cacc8ecb15d45"
+      "sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9"
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
@@ -1790,7 +1805,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86"
+      "sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1798,11 +1813,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "2c8c8a66c8c1b863faed1c7c523bc535d0bf61318f9f6eb170a47c2d50c0ba1e"
+      "sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c"
+      "sha256": "3b9dc5bebfd6dcc6f8cdefaed3648eae54d7922e4356071ab6d569957b4b4a0a"
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
@@ -1830,7 +1845,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "8bc8f6f4594e205987f246838da8af5ed79bdef6bbb3278ef7eb39e3aa1071c7"
+      "sha256": "1c5badff17418600629dc3cb8b2efe785511be5fea007e4adf58b778f303ace0"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -1842,7 +1857,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "bf79ae21144b156fcd8d0b0da59c46417d2586e05206eca097d8a02e46b0b30c"
+      "sha256": "a93ca9e491b1defeda1454bad78aabf4f137f82e86454c5e529558a026ab50ae"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1854,7 +1869,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "sha256": "cda60cc50054811e7ecd1917ee648539756ed83f6e5b6c1efe4c7d04eb5b9538"
+      "sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e"
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
@@ -1870,7 +1885,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "7f4f66dd0f79da8d8712f022c08c76816f6f3d7fe995fe2eda9b63a863c2a970"
+      "sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1894,7 +1909,7 @@
     },
     {
       "path": "version/3.0/techspecs/2.1-arc-consumer-contract.md",
-      "sha256": "995195d4f365c9afc336e53f1258561d7049a2e9637ab928bdc150363e84192d"
+      "sha256": "a6f0c665d66dabca24b1377f35a0b72ea452f58b08e89c12053c768b253d649e"
     },
     {
       "path": "version/3.0/techspecs/2.2-bezier-consumer-contract.md",
@@ -1902,11 +1917,11 @@
     },
     {
       "path": "version/3.0/techspecs/2.3-drawing-composition.md",
-      "sha256": "6e166b0c540fa08f3a8c1177a94d64832df4e5c3d8c912e54af96d2d40a011a4"
+      "sha256": "9665c15655af5e7b27268e5feb70426dac4deef33a5ba3d0d011edb160db0b23"
     },
     {
       "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
-      "sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91"
+      "sha256": "a37fcf08711be411b1c71895877a59f97ebd78c24413d25e59890290ea60605b"
     },
     {
       "path": "version/3.0/techspecs/3.0-bitmap-mask-delta.md",
@@ -1941,7 +1956,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "c4d30b3e",
+  "previous_ledger_commit": "1500c96d",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -17824,6 +17839,144 @@
         "retired": 69,
         "moved": 2137
       }
+    },
+    {
+      "previous_revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "archive_sha256": "b8210c83993739ab6ac4e7c8e395961c1c0a0a01cb68ceec0bf0b48bbf1ebb22",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/212",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/223",
+          "reviewed_head": "829579e54c3b7fdacc92083f0cbab82234532158",
+          "integration": "02cb4a844b815f1b98e39baa2fea03b2e34a09ef"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/213",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/224",
+          "reviewed_head": "09559f3976f0783104d9413c070fa157a5674ba9",
+          "integration": "790255d09338051fa533931a87c5aa1216b80177"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/214",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/225",
+          "reviewed_head": "e115d1efb5dd7fd3c6f99f0ba787c42bfb689f81",
+          "integration": "c8386710b046ddb9d922e479480d85b16a15de2e"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/215",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/226",
+          "reviewed_head": "5beb65baa8b4fceb41fa16969602504dba4ee056",
+          "integration": "13439551837a9fa140a19b5ad03ba9b73a56b8c2"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+          "previous_sha256": "99ddee230e7eb4e77cbd7bc83295263194d200dfdf69f35099779b7b58a8cbad",
+          "sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.1-lines.md",
+          "previous_sha256": "93920713e4a0dfb81affec46ed6ef6124edde97b704859db2600d892656d34c1",
+          "sha256": "1ce8a66a05eb94657bb95b05cdaf24e47c782a82f394b5f5b40a1f5512cb6e31"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.2-curves.md",
+          "previous_sha256": "f0b6368847adf70cbc75d4387d587a7137892ceae19eda91f73cacc8ecb15d45",
+          "sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9"
+        },
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86",
+          "sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "2c8c8a66c8c1b863faed1c7c523bc535d0bf61318f9f6eb170a47c2d50c0ba1e",
+          "sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
+          "previous_sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c",
+          "sha256": "3b9dc5bebfd6dcc6f8cdefaed3648eae54d7922e4356071ab6d569957b4b4a0a"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "8bc8f6f4594e205987f246838da8af5ed79bdef6bbb3278ef7eb39e3aa1071c7",
+          "sha256": "1c5badff17418600629dc3cb8b2efe785511be5fea007e4adf58b778f303ace0"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "bf79ae21144b156fcd8d0b0da59c46417d2586e05206eca097d8a02e46b0b30c",
+          "sha256": "a93ca9e491b1defeda1454bad78aabf4f137f82e86454c5e529558a026ab50ae"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+          "previous_sha256": "cda60cc50054811e7ecd1917ee648539756ed83f6e5b6c1efe4c7d04eb5b9538",
+          "sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "7f4f66dd0f79da8d8712f022c08c76816f6f3d7fe995fe2eda9b63a863c2a970",
+          "sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3"
+        },
+        {
+          "path": "version/3.0/techspecs/2.1-arc-consumer-contract.md",
+          "previous_sha256": "995195d4f365c9afc336e53f1258561d7049a2e9637ab928bdc150363e84192d",
+          "sha256": "a6f0c665d66dabca24b1377f35a0b72ea452f58b08e89c12053c768b253d649e"
+        },
+        {
+          "path": "version/3.0/techspecs/2.3-drawing-composition.md",
+          "previous_sha256": "6e166b0c540fa08f3a8c1177a94d64832df4e5c3d8c912e54af96d2d40a011a4",
+          "sha256": "9665c15655af5e7b27268e5feb70426dac4deef33a5ba3d0d011edb160db0b23"
+        },
+        {
+          "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
+          "previous_sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91",
+          "sha256": "a37fcf08711be411b1c71895877a59f97ebd78c24413d25e59890290ea60605b"
+        }
+      ],
+      "derivations": [
+        {
+          "path": "version/3.0/research/issue-212-polymarker.md",
+          "sha256": "c4f5c6b87af9e18e4582070da885808a176663162649d74e2c90122deb4079fb",
+          "title": "Issue #212 — PolyMarker projection and composition",
+          "role": "Native derivation and portable policy for the adopted specification."
+        },
+        {
+          "path": "version/3.0/research/issue-213-affine-ellipses.md",
+          "sha256": "e458f4f2937874ba5f32dd338796ba90e9199445f5a29aaa2c848a4620f3d5c7",
+          "title": "Issue #213 — Affine ellipse wire and contour rules",
+          "role": "Native derivation and portable policy for the adopted specification."
+        },
+        {
+          "path": "version/3.0/research/issue-214-bounded-text.md",
+          "sha256": "24088002629a0d50467a6da3136f7562ad1f404195b61946b1ae87559a95696f",
+          "title": "Issue #214 — Bounded single-string outline fitting",
+          "role": "Native derivation and portable policy for the adopted specification."
+        },
+        {
+          "path": "version/3.0/research/issue-215-write-icon-export.md",
+          "sha256": "e9714f1aa7d4d9478fd2dc0ec1aec0a9a8cd1ee9c2c9bd699ea24d85ea314eac",
+          "title": "Issue #215 — WRITE_ICON export flags and temporary assets",
+          "role": "Native derivation and portable policy for the adopted specification."
+        }
+      ],
+      "data_artifacts": [
+        {
+          "path": "version/3.0/techspecs/data/polymarker-contours.json",
+          "sha256": "2027a2cfb278cf4dd53c5600aa8df57384e8d90a0548c3b71e66bc670f652ac1",
+          "implementation": "src/terminal/rip3/st_rip3_marker_data.inc",
+          "verification": "All 36 contour slices and 462 signed coordinate pairs compared directly."
+        }
+      ],
+      "source_blocks": {
+        "matched": 9162,
+        "added": 149,
+        "retired": 42,
+        "moved": 668
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -22513,6 +22666,109 @@
         "implemented": 3552,
         "excluded": 71,
         "blocked": 38
+      }
+    },
+    {
+      "after_commit": "1500c96d",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Connect portable PolyMarker overlap and affine viewport clipping.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:603",
+        "version/3.0/ripscrip/2.1-lines.md:192",
+        "version/3.0/ripscrip/2.1-lines.md:193",
+        "version/3.0/ripscrip/2.1-lines.md:194",
+        "version/3.0/ripscrip/2.1-lines.md:196",
+        "version/3.0/ripscrip/2.1-lines.md:198",
+        "version/3.0/ripscrip/2.1-lines.md:200",
+        "version/3.0/ripscrip/2.1-lines.md:204",
+        "version/3.0/ripscrip/2.1-lines.md:208",
+        "version/3.0/ripscrip/2.1-lines.md:210",
+        "version/3.0/ripscrip/2.1-lines.md:219",
+        "version/3.0/ripscrip/2.1-lines.md:225",
+        "version/3.0/ripscrip/2.1-lines.md:226",
+        "version/3.0/ripscrip/2.1-lines.md:227",
+        "version/3.0/ripscrip/2.1-lines.md:228",
+        "version/3.0/ripscrip/2.1-lines.md:230",
+        "version/3.0/ripscrip/2.1-lines.md:232",
+        "version/3.0/ripscrip/2.2-curves.md:301",
+        "version/3.0/ripscrip/2.2-curves.md:305",
+        "version/3.0/ripscrip/2.2-curves.md:306",
+        "version/3.0/ripscrip/2.2-curves.md:307",
+        "version/3.0/ripscrip/2.2-curves.md:308",
+        "version/3.0/ripscrip/2.2-curves.md:309",
+        "version/3.0/ripscrip/2.2-curves.md:311",
+        "version/3.0/ripscrip/2.2-curves.md:313",
+        "version/3.0/ripscrip/2.2-curves.md:315",
+        "version/3.0/ripscrip/2.2-curves.md:317",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:108",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:109",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:111",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:117",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:119",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:126",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:128",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:134",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:135",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:136",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:138",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:140",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:145",
+        "version/3.0/ripscrip/9.0-command-reference.md:86",
+        "version/3.0/ripscrip/9.0-command-reference.md:94",
+        "version/3.0/ripscrip/9.0-command-reference.md:95",
+        "version/3.0/ripscrip/9.0-command-reference.md:96",
+        "version/3.0/ripscrip/9.0-command-reference.md:97",
+        "version/3.0/ripscrip/9.0-command-reference.md:98",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:113",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:117",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:119",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:121",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:125",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:131",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:133",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:135",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:137",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:143",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:151",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:152",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:153",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:154",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:155",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:156",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:157",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:158",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:159",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:161",
+        "version/3.0/techspecs/2.3-drawing-composition.md:22",
+        "version/3.0/techspecs/2.3-drawing-composition.md:23",
+        "version/3.0/techspecs/2.3-drawing-composition.md:31",
+        "version/3.0/techspecs/2.3-drawing-composition.md:33",
+        "version/3.0/techspecs/2.3-drawing-composition.md:35",
+        "version/3.0/techspecs/2.3-drawing-composition.md:39",
+        "version/3.0/techspecs/2.3-drawing-composition.md:40",
+        "version/3.0/techspecs/2.3-drawing-composition.md:41",
+        "version/3.0/techspecs/2.3-drawing-composition.md:42",
+        "version/3.0/techspecs/2.3-drawing-composition.md:43",
+        "version/3.0/techspecs/2.3-drawing-composition.md:45",
+        "version/3.0/techspecs/2.3-drawing-composition.md:49",
+        "version/3.0/techspecs/2.3-drawing-composition.md:51",
+        "version/3.0/techspecs/2.3-drawing-composition.md:53"
+      ],
+      "tests": [
+        "rip3_skew",
+        "rip3_skew_commands",
+        "rip3_polygon_wide",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8",
+        "rip3_contract"
+      ],
+      "states_after_update": {
+        "unreviewed": 2168,
+        "context": 1900,
+        "pending": 1529,
+        "implemented": 3623,
+        "excluded": 71,
+        "blocked": 20
       }
     }
   ]

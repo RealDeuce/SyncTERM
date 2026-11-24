@@ -1368,3 +1368,23 @@ ten-slot predicates and the frontend's enabled pointer capability when
 there is no direct presence signal. Transfer lifecycle, Backspace and the
 remaining character-set metadata behaviors are pending in the
 implementation ledger.
+
+## PRs #223–#226 drawing and asset contracts
+
+Fork stable contains integration commit
+[`13439551837a9fa140a19b5ad03ba9b73a56b8c2`](https://github.com/RealDeuce/remote-imaging-protocol/tree/13439551837a9fa140a19b5ad03ba9b73a56b8c2).
+Its tree matches PR #226 head `5beb65baa8b4fceb41fa16969602504dba4ee056`.
+The preceding three integration trees match the corresponding reviewed heads.
+The pinned archive has SHA-256
+`b8210c83993739ab6ac4e7c8e395961c1c0a0a01cb68ceec0bf0b48bbf1ebb22`.
+[PR #223](https://github.com/bbs-land/remote-imaging-protocol/pull/223),
+[PR #224](https://github.com/bbs-land/remote-imaging-protocol/pull/224),
+[PR #225](https://github.com/bbs-land/remote-imaging-protocol/pull/225),
+[PR #226](https://github.com/bbs-land/remote-imaging-protocol/pull/226)
+
+Thirteen normative documents change. The inventory retains 9,162 units,
+moves 668 line ranges, adds 149 units and retires 42, for 9,311 units.
+The reference contour data matches all 36 SyncTERM marker slices and
+462 stored points. SyncTERM implements the adopted marker overlap rules
+and affine viewport clipping. Bounded outline fitting and temporary
+resource cleanup remain pending.
