@@ -240,6 +240,16 @@ def run(args):
         reference = glyph(frame, 30)
         assert reference and glyph(frame, 75) == reference and glyph(frame, 120) == reference
 
+        t.case('Bookmark variables remain unavailable in queries, text and font names')
+        frame = t.exchange(line(b'1D00500Password:foreign', b'1D00000USERNAME:?Enter credentials',
+                                font(b'Marin', 90), font(b'Dix$USERNAME$on'),
+                                b'@' + number(145, 2) + b'2SF<<PASSWORD>>')
+                           + query(b'$-+=USERNAME=foreign$$RESET(TV,Password)$'
+                                   b'$INUSE(TV,username)$:$INUSE(TV,PASSWORD)$:'
+                                   b'$&Password=fallback$:alive:$TEXTXY$', at_cursor=True),
+                           b'0:0::alive:158:100')
+        assert glyph(frame, 145) == reference and frame.application['connected'] == 1
+
         t.case('Invalid and protected font commands skip evaluation and preserve the selected face')
         setter = b'$COORDSIZE(CUR,5)$Marin'
         t.exchange(line(font(setter, spacing=0), font(b'', short=True),

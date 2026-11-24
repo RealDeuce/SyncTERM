@@ -1,6 +1,7 @@
 /* User-variable prompt/effect matrix, separate from macro scanning and UI. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_user_variables.h"
+#include "st_rip3_builtin_reference.h"
 #include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
 
@@ -85,6 +86,8 @@ static int
 lookup(const struct st_rip3_user_variables *variables, const char *name, size_t length,
     struct st_rip3_variable_entry *entry, struct st_rip3_variables **owner)
 {
+	if (st_rip3_bookmark_name(name, length))
+		return IO_ERROR_NOT_FOUND;
 	struct st_rip3_variables *store = variables->host.session;
 	int status = st_rip3_variables_get_entry(store, name, length, entry);
 	if (status == IO_ERROR_NOT_FOUND) {
@@ -160,6 +163,12 @@ st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 	if (!valid_reference(reference==NULL ? NULL : &copy, 100)) {
 		diagnose(variables,ST_RIP3_USER_VARIABLE_INVALID);return;
 	}
+	if (st_rip3_bookmark_name(copy.name, strlen(copy.name))) {
+		/* A reserved name expands to zero bytes, even with a supplied default
+		 * or a directive that would otherwise open an editor or write a value. */
+		variables->state = ST_RIP3_USER_VARIABLE_COMPLETE;
+		return;
+	}
 	if (variables->host.format==NULL && (copy.mode!=ST_RIP3_VARIABLE_ANY
 	    || copy.conversion!=ST_RIP3_VARIABLE_UNCONVERTED)) {
 		failed(variables,IO_ERROR_NOT_SUPPORTED);return;
@@ -212,6 +221,10 @@ st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
 		diagnose(variables, ST_RIP3_USER_VARIABLE_INVALID);
 		return;
 	}
+	if (st_rip3_bookmark_name(reference->name, strlen(reference->name))) {
+		failed(variables, IO_ERROR_PERMISSION_DENIED);
+		return;
+	}
 	variables->reference = *reference;
 	variables->definition = true;
 	struct st_rip3_variable_entry existing = {0};
@@ -255,6 +268,8 @@ st_rip3_user_variables_delete(struct st_rip3_user_variables *variables,
 {
 	if (length == 0 || length >= 20)
 		return IO_ERROR_INVALID_FORMAT;
+	if (st_rip3_bookmark_name(name, length))
+		return IO_ERROR_PERMISSION_DENIED;
 	if (variables == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (variables->state == ST_RIP3_USER_VARIABLE_PROMPT)

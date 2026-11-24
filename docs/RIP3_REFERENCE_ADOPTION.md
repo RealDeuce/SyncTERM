@@ -1629,3 +1629,17 @@ stored prefix after a `Q` range error, and the RGB publication mapping.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/65968b292f71b323f70a097c6f32b33cb714a369),
 [PR #276](https://github.com/bbs-land/remote-imaging-protocol/pull/276)
+
+
+## Bookmark credential profile
+
+The reference advances to `0413ddc5cc6f673afae513e1d7ccdae2f33622eb`.
+The stable tree matches the reviewed PR #278 head
+`da0c729cf66a6c61d6d3399bcda9ee5dd33f8da4`. The Git archive has SHA-256
+`32ed380565b84a7f012de1ff4a901ae8171e1e03284ec473080f1b67db5188c6`.
+The three changed chapters specify reserved names, zero-byte expansion,
+and local ownership of bookmark credentials. The reference permits a
+client to leave both fields unavailable to RIP and omit local submission.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/0413ddc5cc6f673afae513e1d7ccdae2f33622eb),
+[PR #278](https://github.com/bbs-land/remote-imaging-protocol/pull/278)

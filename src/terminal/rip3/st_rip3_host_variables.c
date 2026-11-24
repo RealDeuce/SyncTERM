@@ -267,8 +267,9 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 			return IO_ERROR_INVALID_FORMAT;
 		if (capacity < 2)
 			return IO_ERROR_OUT_OF_RANGE;
-		bool defined = st_rip3_builtin_known(name->text, name->length);
-		if (!defined) {
+		bool reserved = st_rip3_bookmark_name(name->text, name->length);
+		bool defined = !reserved && st_rip3_builtin_known(name->text, name->length);
+		if (!reserved && !defined) {
 			int status = st_rip3_user_variables_inuse(host->user_variables, name->text,
 			    name->length, &defined);
 			if (status != 0)
@@ -310,8 +311,9 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		memcpy(result, ST_RIP3_IDENTIFICATION, sizeof(ST_RIP3_IDENTIFICATION));
 		return 0;
 	}
-	if (strcmp(reference->name, "NULL") == 0) {
-		if (reference->count != 0)
+	bool bookmark = st_rip3_bookmark_name(reference->name, strlen(reference->name));
+	if (bookmark || strcmp(reference->name, "NULL") == 0) {
+		if (!bookmark && reference->count != 0)
 			return IO_ERROR_INVALID_FORMAT;
 		if (capacity == 0)
 			return IO_ERROR_OUT_OF_RANGE;

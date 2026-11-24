@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-65968b292f71b323f70a097c6f32b33cb714a369](https://github.com/RealDeuce/remote-imaging-protocol/tree/65968b292f71b323f70a097c6f32b33cb714a369/version/3.0)
+0413ddc5cc6f673afae513e1d7ccdae2f33622eb](https://github.com/RealDeuce/remote-imaging-protocol/tree/0413ddc5cc6f673afae513e1d7ccdae2f33622eb/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10536,7 +10536,10 @@ placeholder, and `RAND` in host expressions. The same fixture sends the
 excluded application, URL and VT-102 requests and verifies that ordinary
 ANSI cursor reports still follow.
 
-RIPtel 3.1 defines bookmark identity names as live variables with record-level
-confirmation metadata. Their portable lifetime, visibility and approval rules
-remain open. SyncTERM's RIP queries currently have no provider for stored
-bookmark credentials. [Issue #277](https://github.com/bbs-land/remote-imaging-protocol/issues/277)
+The adopted bookmark profile reserves `USERNAME` and `PASSWORD` in all RIP
+expansion contexts. SyncTERM uses the permitted always-unavailable profile.
+These references expand to zero bytes, `INUSE(TV,...)` returns `0`, and wire
+definition, deletion and inline directives cannot mutate either name. Old
+same-name records are hidden from RIP lookups and do not trigger prompts.
+Tests cover queries, drawing, expanded font names and resident mouse actions.
+[PR #278](https://github.com/bbs-land/remote-imaging-protocol/pull/278)

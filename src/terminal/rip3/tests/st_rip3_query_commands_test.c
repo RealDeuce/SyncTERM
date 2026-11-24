@@ -501,6 +501,32 @@ reset_text_variables(void)
 }
 
 static int
+bookmark_variables(void)
+{
+	struct fixture f = {0};
+	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
+	CHECK(st_rip3_variables_set(f.session,"USERNAME",8,(const uint8_t *)"legacy-live",11)==0);
+	CHECK(st_rip3_variables_define(f.persistent,NULL,"PASSWORD",8,
+	    (const uint8_t *)"legacy-saved",12,true)==0);
+	CHECK(process(&f,"1\0330000A$userName$B<<PASSWORD>>C$&USERNAME=fallback$D"
+	    "$-+=PASSWORD=foreign$$RESET(TV,userName)$$RESET(TV,password)$"
+	    "$INUSE(TV,username)$$INUSE(TV,PASSWORD)$tail",-1)==0);
+	CHECK(!st_rip3_query_pending(f.host.query) && !st_rip3_query_prompt_pending(f.host.query));
+	CHECK(f.reply_length==10 && memcmp(f.reply,"ABCD00tail",10)==0);
+	f.reply_length = 0;
+	CHECK(process(&f,"1\0330000<<IF PASSWORD=\"\">>unavailable<<ELSE>>exposed<<ENDIF>>",-1)==0);
+	CHECK(f.reply_length==11 && memcmp(f.reply,"unavailable",11)==0);
+	struct st_rip3_variable_reference definition = {.name="PaSsWoRd"};
+	st_rip3_user_variables_define(f.variables.user_variables,&definition,true,false,false);
+	CHECK(st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE);
+	CHECK(user_value(f.session,"USERNAME","legacy-live")==0);
+	CHECK(user_value(f.session,"PASSWORD",NULL)==0);
+	CHECK(user_value(f.persistent,"PASSWORD","legacy-saved")==0);
+	destroy(&f);
+	return 0;
+}
+
+static int
 user_queries(enum st_rip3_canvas canvas, const char *width)
 {
 	struct fixture f={0};
@@ -1346,6 +1372,7 @@ main(void)
 	CHECK(user_queries(ST_RIP3_CANVAS_800_600,"800")==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);
 	CHECK(reset_text_variables()==0);
+	CHECK(bookmark_variables()==0);
 	CHECK(user_recovery()==0);
 	CHECK(two_passes()==0);
 	CHECK(ordinary_pick_lists()==0);

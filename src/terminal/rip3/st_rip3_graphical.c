@@ -183,7 +183,9 @@ reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool
 	if (st_rip3_builtin_reference_parse(&builtin,bytes,length)==0
 	    && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
 		struct value value={0};
-		if (!st_rip3_builtin_graphical(builtin.name,strlen(builtin.name))) value.status=IO_ERROR_NOT_SUPPORTED;
+		size_t name_length = strlen(builtin.name);
+		if (!st_rip3_bookmark_name(builtin.name, name_length)
+		    && !st_rip3_builtin_graphical(builtin.name, name_length)) value.status=IO_ERROR_NOT_SUPPORTED;
 		else {
 			const struct st_rip3_host_sink sink={&value,reply,rejected};
 			st_rip3_host_variables_process(w->variables,&sink,bytes,length);
@@ -202,13 +204,15 @@ reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool
 		}
 		return;
 	}
-	if (known(bytes,length) || (!angle && w->consumer==ST_RIP3_GRAPHICAL_METRIC)) {
+	struct st_rip3_variable_reference user;
+	bool parsed = st_rip3_variable_reference_parse(&user, source, source_length) == 0;
+	bool bookmark = parsed && st_rip3_bookmark_name(user.name, strlen(user.name));
+	if (!bookmark && (known(bytes,length) || (!angle && w->consumer==ST_RIP3_GRAPHICAL_METRIC))) {
 		if (angle) st_rip3_angle_supply(w->angle,NULL,IO_ERROR_NOT_SUPPORTED);
 		else w->cursor+=w->consumed;
 		return;
 	}
-	struct st_rip3_variable_reference user;
-	if (w->variables->user_variables==NULL || st_rip3_variable_reference_parse(&user,source,source_length)!=0
+	if (w->variables->user_variables==NULL || !parsed
 	    || st_rip3_user_variables_state(w->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT) {
 		failed(w,ST_RIP3_HOST_INVALID_REFERENCE);return;
 	}

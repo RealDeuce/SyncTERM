@@ -44,6 +44,8 @@ struct st_rip3_builtin_reference {
  * identifiers and names absent from the inventory return false. No expansion,
  * user lookup or prompt occurs. Prefix forms must be handled before lookup. */
 bool st_rip3_builtin_known(const char *name, size_t length);
+/* The portable profile reserves these names even on connections without a bookmark. */
+bool st_rip3_bookmark_name(const char *name, size_t length);
 
 /* Complete graphical registration-class gate; not an implementation claim. */
 bool st_rip3_builtin_graphical(const char *name, size_t length);

@@ -46,6 +46,11 @@ def run(args,width,height):
         mouse(30,30,move=True);t.input(b'E7;');click(30,30,b'field:7')
         mouse(80,80,move=True);t.input(b'X7;')
         values(b'$&EFFECT$',b'cold')
+        t.case('rip3-bookmark-names-expand-empty-in-resident-and-field-actions')
+        t.exchange(resident(5,b'E$PASSWORD$:$&Username=fallback$;')
+                   +field((70,10,110,50),b'ID=9:field:<<PASSWORD>>:$INUSE(TV,Username)$'))
+        mouse(90,30,move=True);t.input(b'E:;');click(90,30,b'field::0')
+        mouse(130,80,move=True);t.input(b'X9;')
         # Stored strings are still inert over matching numbered definitions
         # after first-use cloning/selection, protected writes and backup restore.
         t.case('rip3-stored-query-port-backup-and-window-lifetimes')

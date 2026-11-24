@@ -1,22 +1,22 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/276",
-  "revision": "65968b292f71b323f70a097c6f32b33cb714a369",
-  "previous_revision": "643ca5be60e8669cb45218c5cc172ed27c34cf41",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/278",
+  "revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
+  "previous_revision": "65968b292f71b323f70a097c6f32b33cb714a369",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #276 matches its fork stable integration tree.",
-  "archive_sha256": "a711e84790da189fcff296a38e26694f13e1de6e97573152a359dad74a1b33ad",
+  "upstream_state_at_adoption": "The open PR #278 matches its fork stable integration tree.",
+  "archive_sha256": "32ed380565b84a7f012de1ff4a901ae8171e1e03284ec473080f1b67db5188c6",
   "normative_scope": [
-    "Live master-color palette writes use all 256 indices for a, preserve a failed Q stored prefix, and distinguish stored RGB from published RGB."
+    "Reserve USERNAME and PASSWORD throughout host-controlled expansion, existence checks and mutations. Use the documented always-unavailable portable profile."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+    "version/3.0/ripscrip/5.0-host-commands.md",
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/9.0-command-reference.md"
+    "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9505,
+  "matched_source_blocks": 9523,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -950,13 +950,12 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 136,
+  "upstream_issue_resolutions": 137,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume.",
-    "B277 needs the portable contract for bookmark-provided user variables and approval."
+    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume."
   ],
   "derivations": [
     {
@@ -1762,6 +1761,12 @@
       "sha256": "1de213d59fb67d7776dd65d378f370ea6c981af2ed27157afe298dbeac6fc892",
       "title": "Issue #275 — Master palette range, storage and publication",
       "role": "Original master-color conversion, palette writes, deferred Q upload and single-entry GDI cutoff."
+    },
+    {
+      "path": "version/3.0/research/issue-277-bookmark-variable-policy.md",
+      "sha256": "9330849bdcb95a6a62fed29d5469e3162c88bfb0022cbe925fbf820e998f8a66",
+      "title": "Issue #277 — Bookmark variable policy",
+      "role": "Client-side variable installation, registration evidence, confirmation flag and portable credential rule."
     }
   ],
   "documents": [
@@ -1919,11 +1924,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "bf867da024a6cd8c84ca58bff8bed27165ec2df0c5126bf75a6b87c02cd9c9bc"
+      "sha256": "60f0f3ba90d5330877a14e3af399420bac4dd35101d8beac41dc94e0ac224fbc"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "4970538aa7320708685f582cb509efce184a5244344e2248215027e665c66147"
+      "sha256": "f32c8a668789ffdac7bd31064d8302b2b5e62a51014fc231be8e211109d9df78"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1971,7 +1976,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "1eaa5301e91e3ebc397fce41f47eba0ba9bca657f6ca43014bda4eed52e4cdd8"
+      "sha256": "4f59fe239cb7acf0cf5f37dbeb45c79f70fa9dc456a33e36262cb055649e9427"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2038,7 +2043,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "693363da0007df68d9d0dcbe0b3cd92f73d4c396",
+  "previous_ledger_commit": "f6976d15ab882a64e466daa9aeb2147c993a54d0",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20100,6 +20105,81 @@
         "excluded": 71,
         "blocked": 10
       }
+    },
+    {
+      "previous_revision": "65968b292f71b323f70a097c6f32b33cb714a369",
+      "revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
+      "archive_sha256": "32ed380565b84a7f012de1ff4a901ae8171e1e03284ec473080f1b67db5188c6",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/277",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/278",
+          "reviewed_head": "da0c729cf66a6c61d6d3399bcda9ee5dd33f8da4",
+          "integration": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.0-host-commands.md",
+          "previous_sha256": "bf867da024a6cd8c84ca58bff8bed27165ec2df0c5126bf75a6b87c02cd9c9bc",
+          "sha256": "60f0f3ba90d5330877a14e3af399420bac4dd35101d8beac41dc94e0ac224fbc"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "4970538aa7320708685f582cb509efce184a5244344e2248215027e665c66147",
+          "sha256": "f32c8a668789ffdac7bd31064d8302b2b5e62a51014fc231be8e211109d9df78"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "1eaa5301e91e3ebc397fce41f47eba0ba9bca657f6ca43014bda4eed52e4cdd8",
+          "sha256": "4f59fe239cb7acf0cf5f37dbeb45c79f70fa9dc456a33e36262cb055649e9427"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-277-bookmark-variable-policy.md",
+          "sha256": "9330849bdcb95a6a62fed29d5469e3162c88bfb0022cbe925fbf820e998f8a66",
+          "title": "Issue #277 — Bookmark variable policy",
+          "role": "Client-side variable installation, registration evidence, confirmation flag and portable credential rule."
+        }
+      ],
+      "moved_source_blocks": 1872,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:253",
+        "version/3.0/ripscrip/5.1-text-variables.md:381",
+        "version/3.0/ripscrip/5.1-text-variables.md:608",
+        "version/3.0/ripscrip/5.1-text-variables.md:743",
+        "version/3.0/ripscrip/5.1-text-variables.md:747",
+        "version/3.0/ripscrip/5.1-text-variables.md:749",
+        "version/3.0/ripscrip/5.1-text-variables.md:751",
+        "version/3.0/ripscrip/5.1-text-variables.md:752",
+        "version/3.0/ripscrip/5.1-text-variables.md:753",
+        "version/3.0/ripscrip/5.1-text-variables.md:754",
+        "version/3.0/ripscrip/5.1-text-variables.md:755",
+        "version/3.0/ripscrip/5.1-text-variables.md:756",
+        "version/3.0/ripscrip/5.1-text-variables.md:758",
+        "version/3.0/ripscrip/5.1-text-variables.md:858",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:21",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:25"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:606",
+        "version/3.0/ripscrip/5.1-text-variables.md:741",
+        "version/3.0/ripscrip/5.1-text-variables.md:743",
+        "version/3.0/ripscrip/5.1-text-variables.md:843",
+        "version/3.0/ripscrip/5.1-text-variables.md:845",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:21",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:25"
+      ],
+      "states_after_update": {
+        "unreviewed": 2113,
+        "context": 1973,
+        "pending": 1324,
+        "implemented": 4043,
+        "excluded": 76,
+        "blocked": 10
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -26428,6 +26508,27 @@
         "version/3.0/ripscrip/9.1-text-variable-reference.md:20",
         "version/3.0/ripscrip/9.1-text-variable-reference.md:22",
         "version/3.0/ripscrip/9.1-text-variable-reference.md:24"
+      ]
+    },
+    {
+      "after_commit": "f6976d15ab882a64e466daa9aeb2147c993a54d0",
+      "revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
+      "scope": "Reserve USERNAME and PASSWORD throughout host-controlled expansion, existence checks and mutations. Use the documented always-unavailable portable profile.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/277"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:253",
+        "version/3.0/ripscrip/5.1-text-variables.md:381",
+        "version/3.0/ripscrip/5.1-text-variables.md:741",
+        "version/3.0/ripscrip/5.1-text-variables.md:743",
+        "version/3.0/ripscrip/5.1-text-variables.md:753",
+        "version/3.0/ripscrip/5.1-text-variables.md:754",
+        "version/3.0/ripscrip/5.1-text-variables.md:758",
+        "version/3.0/ripscrip/5.1-text-variables.md:856",
+        "version/3.0/ripscrip/5.1-text-variables.md:858",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:21",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:25"
       ]
     }
   ],

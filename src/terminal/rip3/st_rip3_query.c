@@ -85,8 +85,11 @@ reference(const uint8_t *bytes, size_t length, bool users, struct token *result)
 		result->kind=REFERENCE;return true;
 	}
 	struct st_rip3_variable_reference user;
-	if (!users || st_rip3_variable_reference_parse(&user,bytes,length)!=0
-	    || st_rip3_builtin_known(user.name,strlen(user.name))) return false;
+	if (!users || st_rip3_variable_reference_parse(&user,bytes,length)!=0)
+		return false;
+	size_t name_length = strlen(user.name);
+	if (!st_rip3_bookmark_name(user.name, name_length) && st_rip3_builtin_known(user.name, name_length))
+		return false;
 	result->kind=USER_REFERENCE;return true;
 }
 
@@ -589,7 +592,9 @@ angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_byte
 		free(value.bytes);
 	}
 	else if (st_rip3_variable_reference_parse(&user,reference->bytes,reference->length)!=0
-	    || st_rip3_builtin_known(user.name,strlen(user.name))) st_rip3_angle_supply(query->angle,NULL,IO_ERROR_NOT_SUPPORTED);
+	    || (!st_rip3_bookmark_name(user.name, strlen(user.name))
+	        && st_rip3_builtin_known(user.name,strlen(user.name))))
+		st_rip3_angle_supply(query->angle,NULL,IO_ERROR_NOT_SUPPORTED);
 	else if (query->variables->user_variables==NULL) st_rip3_angle_supply(query->angle,NULL,IO_ERROR_NOT_SUPPORTED);
 	else if (st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
 		st_rip3_angle_supply(query->angle,NULL,IO_ERROR_BUSY);

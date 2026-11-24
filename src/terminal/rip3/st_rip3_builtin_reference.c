@@ -208,6 +208,18 @@ letter(uint8_t ch)
 	return upper(ch) >= 'A' && upper(ch) <= 'Z';
 }
 
+bool
+st_rip3_bookmark_name(const char *name, size_t length)
+{
+	if (name == NULL || length != 8)
+		return false;
+	char canonical[8];
+	for (size_t i = 0; i < sizeof(canonical); i++)
+		canonical[i] = (char)upper((uint8_t)name[i]);
+	return memcmp(canonical, "USERNAME", sizeof(canonical)) == 0
+	    || memcmp(canonical, "PASSWORD", sizeof(canonical)) == 0;
+}
+
 static bool
 argument_byte(uint8_t ch)
 {

@@ -94,6 +94,11 @@ int main(void)
 		    "$CDCS(1)$/$LANG(OTHER)$/<<IF LANG=eng>>yes<<ELSE>>no<<ENDIF>>",
 		    "$CDCS(1)$/$LANG(OTHER)$/yes")==0);
 	}
+	CHECK(set(&f,"PASSWORD",(const uint8_t *)"stored",6)==0);
+	for (int consumer=ST_RIP3_GRAPHICAL_FILENAME;consumer<=ST_RIP3_GRAPHICAL_WAVE;consumer++) {
+		CHECK(run(&f,(enum st_rip3_graphical_consumer)consumer,
+		    "A$PASSWORD$B<<USERNAME>>C$&password=fallback$D$INUSE(TV,password)$", "ABCD0")==0);
+	}
 	CHECK(run(&f,ST_RIP3_GRAPHICAL_TEXT,"$&V$","$RESX$")==0);
 	CHECK(run(&f,ST_RIP3_GRAPHICAL_IMAGE,"$&V$","$RESX$")==0);
 	CHECK(st_rip3_variables_set(f.persistent,"SAVED",5,(const uint8_t *)"",0)==0);
