@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/242",
-  "revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
-  "previous_revision": "1504b9597a766acde14b463864cecf8e21e84293",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/246",
+  "revision": "03b2e042e9c187327daae5c7a2568c9285513391",
+  "previous_revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The reviewed upstream PR heads match the three fork stable integration trees.",
-  "archive_sha256": "fe40877d531e6f49cc2bba8067f7e3cfe16ab3cd5c76b9abf7237d53681ccbc0",
+  "upstream_state_at_adoption": "The reviewed PR #246 head matches the fork stable integration tree.",
+  "archive_sha256": "225d5ae3f13bdd2383e8aab03c48227993e20e38a82b711530fd8ea160a1b758",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,34 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "previous_sha256": "ae4744266ea84306630ce8b8918e28ffdb3eabafd97fccc6a3999807f7548a91",
-      "sha256": "37f6ca1cdb9c9891be08dd4ef762355decbd7f549e666bb1c8919e7c1c458c52"
-    },
-    {
-      "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "previous_sha256": "68d09624d6c0c35f772b561dd43d06105ea106029ff30ceb9a81ac6733fe459f",
-      "sha256": "23ea3555ed9d7c6840ec1393414af573859e989ca3dc79a850dd83f52f692f43"
-    },
-    {
-      "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "previous_sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2",
-      "sha256": "e8a368dcc16587a47d03bb90810243e7c701f097c9be818b873984b5bb34f678"
-    },
-    {
-      "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-      "previous_sha256": "31ff9ee4d72339e03c438be93c9155542385b0a3fd9fd8e594ad1db9dd3b311b",
-      "sha256": "ee25e749746c87e5fa93bfb840fa68f5a103d234de90a09e6470960bee89bf9e"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3",
-      "sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61"
+      "path": "version/3.0/ripscrip/2.2-curves.md",
+      "previous_sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9",
+      "sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9335,
+  "matched_source_blocks": 9382,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -978,7 +958,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 119,
+  "upstream_issue_resolutions": 120,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1687,6 +1667,12 @@
       "sha256": "d71994191491df4fbbf493748247bee9f5d9e24fbe7fa28a0c33476bed4df567",
       "title": "Issue #240 — Period as a zero numeric field",
       "role": "Original collector trace and zero-field arguments."
+    },
+    {
+      "path": "version/3.0/research/issue-243-bezier-numeric-shorthand.md",
+      "sha256": "ab773ca4113acdc7617d2d9d79bdfe51fa4cb7f1bc6c7573d789427eb959e14e",
+      "title": "Issue #243 — Numeric shorthand in Bézier commands",
+      "role": "Original collector branches and staged captures for standalone and typed Bézier arguments."
     }
   ],
   "documents": [
@@ -1804,7 +1790,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.2-curves.md",
-      "sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9"
+      "sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a"
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
@@ -1963,7 +1949,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "957f9a945b5ed417e716f057b5ce5f95e04bc3ef",
+  "previous_ledger_commit": "33bad9cfb18cb5a4766458b7e69645f6d2aa562e",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18728,6 +18714,65 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
+      "revision": "03b2e042e9c187327daae5c7a2568c9285513391",
+      "archive_sha256": "225d5ae3f13bdd2383e8aab03c48227993e20e38a82b711530fd8ea160a1b758",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/243",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/246",
+          "reviewed_head": "f457bb91158ba46395a2025c11dd0e46d3a554c4",
+          "integration": "03b2e042e9c187327daae5c7a2568c9285513391"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/2.2-curves.md",
+          "previous_sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9",
+          "sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-243-bezier-numeric-shorthand.md",
+          "sha256": "ab773ca4113acdc7617d2d9d79bdfe51fa4cb7f1bc6c7573d789427eb959e14e",
+          "title": "Issue #243 — Numeric shorthand in Bézier commands",
+          "role": "Original collector branches and staged captures for standalone and typed Bézier arguments."
+        }
+      ],
+      "moved_source_blocks": 32,
+      "new_source_units": [
+        "version/3.0/ripscrip/2.2-curves.md:343",
+        "version/3.0/ripscrip/2.2-curves.md:363",
+        "version/3.0/ripscrip/2.2-curves.md:380",
+        "version/3.0/ripscrip/2.2-curves.md:382",
+        "version/3.0/ripscrip/2.2-curves.md:384",
+        "version/3.0/ripscrip/2.2-curves.md:386",
+        "version/3.0/ripscrip/2.2-curves.md:387",
+        "version/3.0/ripscrip/2.2-curves.md:388",
+        "version/3.0/ripscrip/2.2-curves.md:389",
+        "version/3.0/ripscrip/2.2-curves.md:390",
+        "version/3.0/ripscrip/2.2-curves.md:391",
+        "version/3.0/ripscrip/2.2-curves.md:392",
+        "version/3.0/ripscrip/2.2-curves.md:393",
+        "version/3.0/ripscrip/2.2-curves.md:394",
+        "version/3.0/ripscrip/2.2-curves.md:395"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/2.2-curves.md:343",
+        "version/3.0/ripscrip/2.2-curves.md:363"
+      ],
+      "states_after_update": {
+        "unreviewed": 2149,
+        "context": 1921,
+        "pending": 1431,
+        "implemented": 3804,
+        "excluded": 71,
+        "blocked": 21
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -24369,6 +24414,28 @@
         "version/3.0/ripscrip/7.0-drawing-ports.md:349",
         "version/3.0/ripscrip/7.0-drawing-ports.md:451",
         "version/3.0/ripscrip/7.0-drawing-ports.md:505"
+      ]
+    },
+    {
+      "after_commit": "33bad9cfb18cb5a4766458b7e69645f6d2aa562e",
+      "revision": "03b2e042e9c187327daae5c7a2568c9285513391",
+      "scope": "Reconcile the verified Bézier numeric collector and record the adopted typed parser boundaries.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/243"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/2.2-curves.md:343",
+        "version/3.0/ripscrip/2.2-curves.md:363",
+        "version/3.0/ripscrip/2.2-curves.md:380",
+        "version/3.0/ripscrip/2.2-curves.md:382",
+        "version/3.0/ripscrip/2.2-curves.md:388",
+        "version/3.0/ripscrip/2.2-curves.md:389",
+        "version/3.0/ripscrip/2.2-curves.md:390",
+        "version/3.0/ripscrip/2.2-curves.md:391",
+        "version/3.0/ripscrip/2.2-curves.md:392",
+        "version/3.0/ripscrip/2.2-curves.md:393",
+        "version/3.0/ripscrip/2.2-curves.md:394",
+        "version/3.0/ripscrip/2.2-curves.md:395"
       ]
     }
   ],

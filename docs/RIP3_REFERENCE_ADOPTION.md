@@ -1480,3 +1480,16 @@ tracked by command family.
 [PR #238](https://github.com/bbs-land/remote-imaging-protocol/pull/238),
 [PR #241](https://github.com/bbs-land/remote-imaging-protocol/pull/241),
 [PR #242](https://github.com/bbs-land/remote-imaging-protocol/pull/242)
+
+## Bézier numeric shorthand
+
+The reference advances to `03b2e042e9c187327daae5c7a2568c9285513391`, whose tree
+`9b83925004aefec131eacb5cc637f0f58dd2a655` matches the reviewed PR #246 head
+`f457bb91158ba46395a2025c11dd0e46d3a554c4`. The in-memory Git tar archive has
+SHA-256 `225d5ae3f13bdd2383e8aab03c48227993e20e38a82b711530fd8ea160a1b758`. The adopted curve chapter
+specifies shortened final counts, the period shortcut in typed numeric
+fields, literal record selectors and rejection of surplus typed records.
+The existing native and connected cases cover these rules.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/03b2e042e9c187327daae5c7a2568c9285513391),
+[PR #246](https://github.com/bbs-land/remote-imaging-protocol/pull/246)

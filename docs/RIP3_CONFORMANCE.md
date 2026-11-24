@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-ab204abcc0295eb93996fa48911d89bbc8f5cb78](https://github.com/RealDeuce/remote-imaging-protocol/tree/ab204abcc0295eb93996fa48911d89bbc8f5cb78/version/3.0)
+03b2e042e9c187327daae5c7a2568c9285513391](https://github.com/RealDeuce/remote-imaging-protocol/tree/03b2e042e9c187327daae5c7a2568c9285513391/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10239,8 +10239,8 @@ Typed Bézier selectors use literal digits 0 through 6. The original
 driver's argument captures in both radices confirm the difference.
 Connected CP437 and UTF-8 cases check visible geometry, rejected surplus
 and continued parsing. The native command tests exercise declared counts,
-clipping, and malformed fields before allocation. The remaining Bézier
-wording discrepancy is tracked upstream. [Issue #243](https://github.com/bbs-land/remote-imaging-protocol/issues/243)
+clipping, and malformed fields before allocation. The matching Bézier rules are
+pinned from [PR #246](https://github.com/bbs-land/remote-imaging-protocol/pull/246).
 
 ## Port and viewport numeric collection
 
