@@ -116,7 +116,7 @@ endif()
 if(BUILD_TESTING)
 	add_executable(st_rip3_file_query_test tests/st_rip3_file_query_test.c tests/st_rip3_file_query_fault_impl.c)
 	target_link_libraries(st_rip3_file_query_test PRIVATE st_rip3_storage syncterm_filesystem
-		st_unicode_compare syncterm_value_convert)
+		syncterm_string_compat st_unicode_compare syncterm_value_convert)
 	syncterm_target_atomics(st_rip3_file_query_test)
 	set_target_properties(st_rip3_file_query_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)
