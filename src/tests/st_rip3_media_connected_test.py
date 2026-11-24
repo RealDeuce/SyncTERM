@@ -156,6 +156,49 @@ def check_bitmap(t, assets, values):
     assert not (assets.parent / "Escape.BMP").exists()
     values(b"alive", b"alive")
 
+    t.case("PORT_WRITE uses raw device crops for screen ports and all backing pixels for bitmaps")
+    reset()
+    values(b"$UNPROT(PORT,1)$")
+    wire(b"2P100002S2S0|2s100|v0A0A0H0D")
+    labels = [[1 + 8*y + x for x in range(8)] for y in range(4)]
+    wire(b"|".join(b"c" + number(index, 2) + b"|X" + coords(10+x, 10+y)
+                   for y, row in enumerate(labels) for x, index in enumerate(row)))
+    wire(b"2P200000A0600030000|S0104|B00000905|S0102|B01010804|v01010804")
+    values(b"$DVP(1,2)$$PROT(PORT,1,2)$$WORLD(CUR,1280,960)$$COORDSIZE(CUR,3)$")
+
+    def export(port, area, name):
+        return b"2W" + number(port, 1) + b"".join(number(p, 3) for p in area) + b"0000" + name.encode("ascii")
+
+    def bmp_pixels(name, expected):
+        data = (assets / name).read_bytes()
+        height, width = len(expected), len(expected[0])
+        assert data[:2] == b"BM"
+        header = struct.unpack_from("<iiHH", data, 18)
+        assert header == (width, height, 1, 8), (name, header)
+        offset, = struct.unpack_from("<I", data, 10)
+        padded = (width + 3) // 4 * 4
+        raster = b"".join(bytes(row) + bytes(padded-width) for row in reversed(expected))
+        assert data[offset:] == raster, (name, data[offset:].hex(), raster.hex())
+
+    before = values(b"$CUR(PORT)$:$ISPROT(PORT,1)$:$ISPROT(PORT,2)$", b"2:1:1")
+    crops = (
+        ((0, 0, 0, 0), "FullView.bmp", labels),
+        ((1, 1, 0, 0), "Remainder.bmp", [row[1:] for row in labels[1:]]),
+        ((1, 1, 9, 2), "ClipRight.bmp", [labels[1][1:]]),
+        ((1, 1, 2, 9), "ClipBottom.bmp", [[row[1]] for row in labels[1:]]),
+    )
+    (assets / "Prior.bmp").write_bytes(b"prior")
+    frame = wire(b"|".join([export(1, area, name) for area, name, _ in crops]
+                           + [export(9, (0, 0, 0, 0), "Prior.bmp"),
+                              export(1, (9, 1, 0, 0), "Prior.bmp"),
+                              export(2, (1, 1, 2, 2), "Backing.bmp")]))
+    assert (frame.primary, frame.alternate) == (before.primary, before.alternate)
+    for _, name, expected in crops:
+        bmp_pixels(name, expected)
+    bmp_pixels("Backing.bmp", [[4]*10] + [[4] + [2]*8 + [4]]*4 + [[4]*10])
+    assert (assets / "Prior.bmp").read_bytes() == b"prior"
+    values(b"$CUR(PORT)$:$ISPROT(PORT,1)$:$ISPROT(PORT,2)$", b"2:1:1")
+
 
 def check_host_directory(t, root, rip, values, encoding):
     def wire(commands):

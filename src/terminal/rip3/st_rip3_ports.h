@@ -243,6 +243,11 @@ int st_rip3_ports_read_viewport(const struct st_rip3_ports *ports, unsigned numb
  * relative unless viewport is true, with the same physical clipping rules as
  * the corresponding indexed read. No palette mapping or state mutation. */
 int st_rip3_ports_read_color(const struct st_rip3_ports *,unsigned number,int32_t x,int32_t y,bool viewport,uint32_t *);
+/* Capture the full requested port-relative or viewport-relative rectangle.
+ * The caller owns the primary pixels, including native screen ink when bound.
+ * A rectangle outside physical storage fails without trimming the result. */
+int st_rip3_ports_capture_pixels(const struct st_rip3_ports *, unsigned number,
+	const struct st_rip3_rect *area, bool viewport, struct st_pixel_buffer **result);
 int st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
 	const struct st_rip3_palette *palette, struct st_pixel_buffer **result);
 /* Physical screen backup transport, independent of PORT selection, protection

@@ -48,30 +48,24 @@ capture(struct st_rip3_bitmap **result,
 	if (bitmap == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	bitmap->bit_depth = 8; bitmap->palette_size = 256;
 	for (unsigned i = 0; i < 256; i++) bitmap->palette[i] = palette->rgb[i];
-	status = st_pixel_buffer_create(&bitmap->pixels,(uint32_t)(visible.x1-visible.x0)+1,
-	    (uint32_t)(visible.y1-visible.y0)+1,false);
+	status = st_rip3_ports_capture_pixels(ports, number, &visible, viewport, &bitmap->pixels);
 	if (status != 0) goto failed;
 	/* A screen restore can include native RGB ink. Resolve it under this
 	 * export's explicit palette; retain ordinary indexed pixels verbatim.
 	 * One local repeated-color cache avoids rematching long literal-black runs. */
 	bool matched=false;uint32_t previous=0;uint8_t previous_index=0;
-	for (uint32_t y = 0; y < bitmap->pixels->height; y++) {
-		for (uint32_t x = 0; x < bitmap->pixels->width; x++) {
-			uint8_t index;uint32_t color;
-			status=st_rip3_ports_read_color(ports,number,visible.x0+(int32_t)x,visible.y0+(int32_t)y,viewport,&color);
-			if (status==0) {
-				if (ST_PIXEL_COLOR_IS_RGB(color)) {
-					if (!matched || color!=previous) {
-						status=st_rip3_palette_color(palette,true,color&0xffffff,&previous_index);
-						matched=status==0;previous=color;
-					}
-					index=previous_index;
-				}
-				else index=(uint8_t)color;
-			}
+	size_t count = (size_t)bitmap->pixels->width * bitmap->pixels->height;
+	for (size_t i = 0; i < count; ++i) {
+		uint32_t color = bitmap->pixels->primary[i];
+		if (!ST_PIXEL_COLOR_IS_RGB(color))
+			continue;
+		if (!matched || color != previous) {
+			status = st_rip3_palette_color(palette, true, color & 0xffffff, &previous_index);
 			if (status != 0) goto failed;
-			bitmap->pixels->primary[(size_t)y*bitmap->pixels->width+x] = index;
+			matched = true;
+			previous = color;
 		}
+		bitmap->pixels->primary[i] = previous_index;
 	}
 	*result = bitmap;
 	return 0;

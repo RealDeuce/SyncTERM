@@ -71,6 +71,13 @@ def run(args,width,height):
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()
         t.exchange(b'\x01|a0F04|c0F|B1E1E1Y1Y\r\n'
                    +b'\x1b[H\x1b[41m \x1b[5;32;44mX'+accented+b'\x1b[0m')
+        t.case('rip3-port-write-exports-live-ansi-and-rip-pixels')
+        t.exchange(b'\x01|c02|X0100|2W0000002010000Live.bmp\r\n')
+        live, = root.rglob('Live.bmp')
+        data = live.read_bytes()
+        assert struct.unpack_from('<iiHH',data,18)==(2,1,1,8)
+        offset, = struct.unpack_from('<I',data,10)
+        assert data[offset:]==bytes((4,2,0,0)), data[offset:]
         # Save from an inactive/protected offscreen current port, with PORT0
         # viewport excluding both the native text and graphics source pixels.
         t.exchange(b'\x01|v0A0A0K0K|2P6000002021|2s600|v00000000\r\n')

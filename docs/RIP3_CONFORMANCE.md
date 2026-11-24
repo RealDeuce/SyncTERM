@@ -9990,3 +9990,18 @@ check both flags, local playback, reset and directory changes, a later
 replacement, cancellation, and cleanup after a peer closes mid-batch.
 Same-named files in the shared directory and another HOSTDIR survive.
 [PR #226](https://github.com/bbs-land/remote-imaging-protocol/pull/226)
+
+## Screen-backed bitmap exports
+
+`2W` and screen-backed `1W` read the requested rectangle through the
+console's region capture. One snapshot combines live ANSI pixels and
+RIPv3 graphics, including a pixel drawn earlier on the export command's
+line. The indexed BMP keeps RIPv3 palette indices and matches native RGB
+pixels against the current RIP palette. A crop extending outside physical
+storage still declines and leaves an existing file in place.
+
+Connected CP437 and UTF-8 tests check live ANSI and RIP pixels in the same
+BMP and validate the stored viewport, zero-ending remainder and independent
+right and bottom clipping at a changed WORLD scale. They also read the
+entire backing bitmap of a protected, inactive offscreen port and verify
+output preservation after invalid requests.

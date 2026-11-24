@@ -1095,6 +1095,37 @@ st_rip3_ports_read_color(const struct st_rip3_ports *ports,unsigned number,int32
 }
 
 int
+st_rip3_ports_capture_pixels(const struct st_rip3_ports *ports, unsigned number,
+    const struct st_rip3_rect *area, bool viewport, struct st_pixel_buffer **result)
+{
+	if (!rect_valid(area) || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_port_info info;
+	int status = st_rip3_ports_info(ports, number, &info);
+	if (status != 0) return status;
+	if (!info.defined) return IO_ERROR_NOT_FOUND;
+	const struct port *port = &ports->entries[number];
+	struct st_rip3_rect bounds = viewport ? info.clip : port_bounds(port);
+	if (area->x0 < bounds.x0 || area->y0 < bounds.y0 || area->x1 > bounds.x1 || area->y1 > bounds.y1)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_rect origin = viewport ? viewport_absolute(port) : info.bounds;
+	struct st_rip3_rect absolute = {origin.x0 + area->x0, origin.y0 + area->y0,
+	    origin.x0 + area->x1, origin.y0 + area->y1};
+	struct st_pixel_buffer *pixels = NULL;
+	status = st_rip3_surface_capture_area_raw(port_surface(ports, number), &absolute, &pixels);
+	if (status != 0) return status;
+	if (pixels == NULL) return IO_ERROR_OUT_OF_RANGE;
+	if (!info.offscreen && ports->screen_reader != NULL)
+		status = ports->screen_reader(ports->screen_reader_context, &absolute, pixels);
+	if (status != 0) {
+		st_pixel_buffer_destroy(pixels);
+		return status;
+	}
+	*result = pixels;
+	return 0;
+}
+
+int
 st_rip3_ports_snapshot(const struct st_rip3_ports *ports,
     const struct st_rip3_palette *palette, struct st_pixel_buffer **result)
 {

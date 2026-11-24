@@ -22873,6 +22873,32 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "070f541d",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Complete live PORT_WRITE acceptance and capture native screen pixels in shared BMP exports.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/9.0-command-reference.md:235"
+      ],
+      "tests": [
+        "rip3_ports",
+        "rip3_bitmap_write_commands",
+        "syncterm_rip3_media_CP437",
+        "syncterm_rip3_media_UTF-8",
+        "syncterm_rip3_screen_CP437",
+        "syncterm_rip3_screen_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2168,
+        "context": 1900,
+        "pending": 1478,
+        "implemented": 3674,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ]
 }
