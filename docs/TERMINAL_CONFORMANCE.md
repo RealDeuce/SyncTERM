@@ -1756,7 +1756,7 @@ bytes, case trace, coherent snapshot and PPM under the build's
 | `VPB` | 940 | movement | Expected cursor coordinates; defaults, clamping and tab stops |
 | `BCRST` | 953 | extensions | Leaving doorway mode restores cursor sequence parsing |
 | `DECRST` | 959 | margins | Expected cursor/cells or exact mode replies across margin/wrap transitions |
-| `SGR` | 970 | attributes | Logical RGB cell colours and rendered planes |
+| `SGR` | 970 | attributes | Logical RGB cell colours and rendered planes. Connected RIP3 tests also check indexed foreground and background colours on entry in Custom screen mode. |
 | `DSR` | 992 | queries | Exact reply; version and optional capability formats validated |
 | `BCDSR` | 1004 | queries | Exact reply; version and optional capability formats validated |
 | `CTSMRR` | 1018 | queries | Font selection, cell dimensions and exact enabled-mode report; both mode-80 states |

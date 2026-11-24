@@ -104,7 +104,7 @@
     {"id": "VPB", "source_line": 940, "suite": "movement", "scope": "Expected cursor coordinates; defaults, clamping and tab stops"},
     {"id": "BCRST", "source_line": 953, "suite": "extensions", "scope": "Leaving doorway mode restores cursor sequence parsing"},
     {"id": "DECRST", "source_line": 959, "suite": "margins", "scope": "Expected cursor/cells or exact mode replies across margin/wrap transitions"},
-    {"id": "SGR", "source_line": 970, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
+    {"id": "SGR", "source_line": 970, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes. Connected RIP3 tests also check indexed foreground and background colours on entry in Custom screen mode."},
     {"id": "DSR", "source_line": 992, "suite": "queries", "scope": "Exact reply; version and optional capability formats validated"},
     {"id": "BCDSR", "source_line": 1004, "suite": "queries", "scope": "Exact reply; version and optional capability formats validated"},
     {"id": "CTSMRR", "source_line": 1018, "suite": "queries", "scope": "Font selection, cell dimensions and exact enabled-mode report; both mode-80 states"},

@@ -151,6 +151,11 @@ Hook.onKey(Key.f9) {|event|
             send(probe)
             receive(peer, b"RIPSCRIP030001", root / "replies.bin")
 
+        t.case("rip3-custom-mode-ansi-colours-on-entry")
+        frame = t.exchange(b"\x1b[H\x1b[0;31;44mX\x1b[6n", b"\x1b[1;2R")
+        assert {pixel(frame, x, y) for y in range(8) for x in range(8)} == {0xa80000, 0x0000a8}
+        t.exchange(b"\x1b[0m\x1b[2J\x1b[H")
+
         t.case("rip3-bare-lf-and-form-feed-end-commands-on-the-wire")
         frame = t.exchange(
             b"\x1b[2;1H" + query(b"LF", at_cursor=True)[:-2] + b"\nraw\x1b[6n"

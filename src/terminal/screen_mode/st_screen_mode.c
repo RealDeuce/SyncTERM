@@ -181,9 +181,8 @@ static const struct st_screen_mode_descriptor modes[] = {
 	    MODE_CONFIG(80, 25, 0, 15, 8, 16, 640, 400, 4, 3,
 		ST_CONSOLE_BLINK_ATARI, 0),
 	    ST_SCREEN_PALETTE_GREYSCALE, 4, 7, 0),
-	[ST_SCREEN_MODE_CUSTOM] = {
-		.mode = ST_SCREEN_MODE_CUSTOM, .name = "Custom", .ini_name = "Custom",
-	},
+	MODE(ST_SCREEN_MODE_CUSTOM, "Custom", "Custom", {0},
+	    ST_SCREEN_PALETTE_COLOUR, 16, 7, 0),
 	MODE(ST_SCREEN_MODE_CGA_80X25, "CGA 80x25", "CGA80x25",
 	    PC_CONFIG(80, 25, 6, 7, 8, 640, 200, 4, 3),
 	    ST_SCREEN_PALETTE_COLOUR, 16, 7, 0),

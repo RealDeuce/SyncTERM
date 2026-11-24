@@ -46,6 +46,7 @@ main(void)
 		CHECK(mode != NULL);
 		CHECK(mode->mode == (enum st_screen_mode)i);
 		CHECK(mode->name != NULL && mode->ini_name != NULL);
+		CHECK(mode->palette_rgb != NULL && mode->palette_count > 0 && mode->palette_count <= 16);
 		st_screen_mode_profile_palette(mode, palette, 3, console_palette);
 		for (size_t colour = 0; colour < 16; ++colour) {
 			size_t index = colour;
@@ -121,6 +122,9 @@ main(void)
 
 	CHECK(st_screen_mode_custom(&custom, 100, 40, 14, 4, 3) == 0);
 	CHECK(custom.mode == ST_SCREEN_MODE_CUSTOM);
+	mode = st_screen_mode_get(ST_SCREEN_MODE_CUSTOM);
+	CHECK(mode->palette == ST_SCREEN_PALETTE_COLOUR && mode->palette == custom.palette);
+	CHECK(mode->palette_rgb == custom.palette_rgb && mode->palette_count == custom.palette_count);
 	CHECK(custom.console.columns == 100 && custom.console.rows == 40);
 	CHECK(custom.console.cell_width == 8 && custom.console.cell_height == 14);
 	CHECK(custom.console.pixel_width == 0 && custom.console.pixel_height == 0);
