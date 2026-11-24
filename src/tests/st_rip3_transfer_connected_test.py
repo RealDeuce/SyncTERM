@@ -4,6 +4,8 @@
 import argparse
 from binascii import crc_hqx
 from pathlib import Path
+from socket import SHUT_RDWR
+import struct
 
 from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
@@ -39,6 +41,7 @@ def run(args):
                                 at_cursor=True),
                           b"1:XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM:1/1/1:0/0/0")
         terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
+        cache, = (root / "cache").glob("*/RIP/HOST-ART")
 
         def packet(number, data):
             return bytes((1, number, 255 - number)) + data + crc_hqx(data, 0).to_bytes(2, "big")
@@ -101,6 +104,31 @@ def run(args):
         batch_file("other.dat", b"data")
         end_batch()
         stored("other.dat", b"data")
+
+        # Top row 1,4. Bottom row 8,2. Each source row has four separate
+        # one-byte planes, from most significant to least significant.
+        icon = bytes.fromhex("01000100 00400080 80004000")
+        ega = (0x000000, 0x0000aa, 0x00aa00, 0x00aaaa, 0xaa0000, 0xaa00aa, 0xaa5500, 0xaaaaaa,
+               0x555555, 0x5555ff, 0x55ff55, 0x55ffff, 0xff5555, 0xff55ff, 0xffff55, 0xffffff)
+        bmp = (struct.pack("<2sIHHI", b"BM", 126, 0, 0, 118) +
+               struct.pack("<IiiHHIIiiII", 40, 2, 2, 1, 4, 0, 0, 2, 2, 16, 0) +
+               b"".join(rgb.to_bytes(4, "little") for rgb in ega) +
+               bytes.fromhex("82000000 14000000"))
+        terminal.case("rip3-completed-icon-uses-the-fixed-palette-and-preserves-the-bmp-tail")
+        terminal.exchange(b"!|a0104\r\n" + query(b"$PALENTRY(CUR,1)$", at_cursor=True), b"6;42:0:0")
+        before = b"X" * len(bmp) + b"previous tail"
+        (cache / "ICON.BMP").write_bytes(before)
+        send(b"!|9\x1b01020000Icon.iCn<>\r\n")
+        reply(b"C")
+        send_file(icon)
+        stored("ICON.BMP", before)
+        end_file()
+        # Confirm the host can immediately load the alias after transfer.
+        frame = terminal.exchange(query(b"$WORLD(CUR,640,480)$$RESET(PAL,0)$", at_cursor=True)
+                                  + b"!|1I0A0K00000icon.icn\r\n")
+        assert [pixel(frame, x, y) for y in (20, 21) for x in (10, 11)] == [ega[i] for i in (1, 4, 8, 2)]
+        stored("ICON.BMP", bmp + b"previous tail")
+        assert not (cache / "Icon.iCn").exists()
 
         terminal.case("rip3-cached-upload-requires-user-confirmation")
         send(b"!|1\x1b0000$XFER(SEND,XMODEMCRC,NONE,macro.bin)$\r\n")
@@ -167,23 +195,44 @@ def run(args):
         terminal.case("rip3-active-batch-uses-receive-order-and-the-transfer-cache")
         first = (b"!|1\x1b0000$HOSTDIR(OTHER)$$IMGSTYLE(CUR,40,50,59,69)$\r\n"
                  b"!|c0C|X0B0B\r\n")
-        second = b"!|c0A|X0B0B\r\n"
+        second = (b"!|1\x1b0000$IMGSTYLE(CUR,70,50,89,69)$\r\n"
+                  b"!|c0A|X0B0B\r\n")
         send(b"!|9\x1b05050000batch.dat<>\r\n")
         reply(b"C")
         batch_file("one.RIP", first)
         batch_file("picture2.JPG", jpeg)
         batch_file("two.rip", second)
         batch_file("ordinary.dat", b"!|c0F|X0C0C\r\n")
+        batch_file("hot.HIC", icon)
+        batch_file("mask.msk", icon)
+        batch_file("jpeg.icn", jpeg)
+        (cache / "BAD.BMP").write_bytes(b"previous bitmap")
+        batch_file("bad.icn", b"not a legacy icon")
+        (cache / "BLOCKED.BMP").mkdir()
+        batch_file("blocked.icn", icon)
         assert pixel(client.capture(), 11, 11) == 0
+        stored("hot.HIC", icon)
+        assert not (cache / "HOT.BMP").exists()
         end_batch()
         frame = terminal.exchange(query(b"$HOSTDIR$", at_cursor=True), b"OTHER")
         assert pixel(frame, 11, 11) == 0x55ff55
         assert pixel(frame, 12, 12) == 0
         assert pixel(frame, 40, 50) == (0x454545 if supported == b"1" else 0)
+        assert pixel(frame, 70, 50) == (0x454545 if supported == b"1" else 0)
         stored("one.RIP", first)
         stored("two.rip", second)
         stored("picture2.JPG", jpeg)
         stored("ordinary.dat", b"!|c0F|X0C0C\r\n")
+        stored("HOT.BMP", bmp)
+        stored("MASK.BMP", bmp)
+        assert not (cache / "hot.HIC").exists() and not (cache / "mask.msk").exists()
+        stored("jpeg.icn", jpeg)
+        assert not (cache / "JPEG.BMP").exists()
+        stored("bad.icn", b"not a legacy icon")
+        stored("BAD.BMP", b"previous bitmap")
+        stored("blocked.icn", icon)
+        assert (cache / "BLOCKED.BMP").is_dir()
+        assert not list(cache.parent.rglob("*.part"))
 
         terminal.case("rip3-cancelled-download-does-not-play-its-partial-scene")
         send(b"!|9\x1b01000000interrupted.rip<>\r\n")
@@ -195,6 +244,22 @@ def run(args):
         client.key("escape")
         frame = terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
         assert pixel(frame, 13, 13) == 0
+
+        terminal.case("rip3-completed-icon-survives-disconnect-before-the-batch-ends")
+        terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
+        send(b"!|9\x1b05040000batch.dat<>\r\n")
+        reply(b"C")
+        batch_file("disconnected.icn", icon)
+        stored("disconnected.icn", icon)
+        assert not (cache / "DISCONNECTED.BMP").exists()
+        peer.shutdown(SHUT_RDWR)
+        frame = client.wait_for(lambda snap: snap.application.get("session_active") == 0
+                                or any("Transfer completion failed" in line for line in snap.lines))
+        if frame.application.get("session_active") != 0:
+            client.key("escape")
+            client.wait_for(lambda snap: snap.application.get("session_active") == 0)
+        stored("DISCONNECTED.BMP", bmp)
+        assert not (cache / "disconnected.icn").exists()
 
     check_transfer_unavailable(args, reason="safe-mode", extra=("-s",))
     check_transfer_unavailable(args, reason="bridge-startup",

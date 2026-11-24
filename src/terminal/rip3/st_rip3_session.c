@@ -29,6 +29,7 @@
 #include "st_rip3_audio.h"
 #include "st_rip3_file_query.h"
 #include "st_rip3_resources.h"
+#include "st_rip3_bitmap_file.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_maf.h"
@@ -67,11 +68,13 @@ struct local_scene {
 	bool normalized;
 };
 
+enum received_asset_kind { RECEIVED_SCENE, RECEIVED_JPEG, RECEIVED_ICON, RECEIVED_JPEG_OR_ICON };
+
 struct received_asset {
 	struct received_asset *next;
 	char *directory;
 	char *cache_root;
-	bool jpeg;
+	enum received_asset_kind kind;
 	char name[];
 };
 
@@ -969,22 +972,41 @@ remove_received_asset(struct st_rip3_session *session)
 	free(asset);
 }
 
+static bool
+received_jpeg_signature(const struct st_rip3_resource_paths *paths, const char *name)
+{
+	struct st_rip3_resource file = {0};
+	bool matched;
+	if (st_rip3_resource_open_first(&file, &matched, paths, name) != 0)
+		return false;
+	uint8_t header[3];
+	bool jpeg = fread(header, 1, sizeof(header), file.stream) == sizeof(header)
+	    && header[0] == 0xff && header[1] == 0xd8 && header[2] == 0xff;
+	st_rip3_resource_dispose(&file);
+	return jpeg;
+}
+
 static void
-display_received_asset(struct st_rip3_session *session)
+process_received_asset(struct st_rip3_session *session, bool present)
 {
 	const struct received_asset *asset = session->received_head;
 	const struct st_rip3_resource_paths paths = {
 		.host = asset->directory, .named_host_root = asset->cache_root,
 	};
-	int status;
-	if (asset->jpeg) {
+	int status = 0;
+	enum received_asset_kind kind = asset->kind;
+	if (kind == RECEIVED_JPEG_OR_ICON)
+		kind = received_jpeg_signature(&paths, asset->name) ? RECEIVED_JPEG : RECEIVED_ICON;
+	if (kind == RECEIVED_ICON)
+		status = st_rip3_bitmap_convert_download(&paths, asset->name);
+	else if (present && kind == RECEIVED_JPEG) {
 		struct st_rip3_command_host host = session->commands;
 		host.resources = &paths;
 		if (session->sink.before_command != NULL)
 			session->sink.before_command(session->sink.context);
 		status = st_rip3_command_received_jpeg(&host, asset->name);
 	}
-	else {
+	else if (present) {
 		struct local_scene scene = {0};
 		bool matched;
 		status = st_rip3_resource_open_first(&scene.file, &matched, &paths, asset->name);
@@ -994,7 +1016,8 @@ display_received_asset(struct st_rip3_session *session)
 	remove_received_asset(session);
 	if (status != 0 && status != IO_ERROR_IN_PROGRESS)
 		table_operation_failed(session, status);
-	++session->revision;
+	if (present)
+		++session->revision;
 }
 
 static bool
@@ -1167,7 +1190,7 @@ prepare(void *context)
 	if (session->defining_variable)
 		return false;
 	if (session->scene_count == 0 && session->received_head != NULL) {
-		display_received_asset(session);
+		process_received_asset(session, true);
 		return activate_scene_queries(session);
 	}
 	(void)activate_scene_queries(session);
@@ -1802,8 +1825,10 @@ st_rip3_session_cancel(struct st_rip3_session *session)
 	st_rip3_mouse_abort(session->commands.mouse);
 	while (session->scene_count != 0)
 		close_scene(session);
+	/* Completed cache downloads outlive the connection, including when
+	 * the peer closes before the completed-file queue can be presented. */
 	while (session->received_head != NULL)
-		remove_received_asset(session);
+		process_received_asset(session, false);
 	st_rip3_query_cancel(session->commands.query);
 	st_rip3_query_cancel(session->refresh.query);
 	st_rip3_session_abort_definition(session);
@@ -2220,16 +2245,26 @@ st_rip3_session_pending(const struct st_rip3_session *session)
 
 int
 st_rip3_session_receive_asset(struct st_rip3_session *session, const char *directory,
-    const char *cache_root, const char *name, bool jpeg)
+    const char *cache_root, const char *name, unsigned file_type)
 {
 	if (session == NULL || directory == NULL || cache_root == NULL
 	    || !st_rip3_resource_name_valid(name))
 		return IO_ERROR_INVALID_ARGUMENT;
+	const char *extension = strrchr(name, '.');
+	enum received_asset_kind kind;
+	if (file_type == 0 || (file_type == 5 && extension != NULL && ascii_case_compare(extension, ".RIP") == 0))
+		kind = RECEIVED_SCENE;
+	else if (st_rip3_bitmap_legacy_extension(extension) != NULL)
+		kind = file_type == 3 || file_type == 5 ? RECEIVED_JPEG_OR_ICON : RECEIVED_ICON;
+	else if (file_type == 3 || (file_type == 5 && extension != NULL && ascii_case_compare(extension, ".JPG") == 0))
+		kind = RECEIVED_JPEG;
+	else
+		return 0;
 	size_t length = strlen(name) + 1;
 	struct received_asset *asset = malloc(sizeof(*asset) + length);
 	if (asset == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	*asset = (struct received_asset){.jpeg = jpeg};
+	*asset = (struct received_asset){.kind = kind};
 	asset->directory = malloc(strlen(directory) + 1);
 	if (strcmp(cache_root, directory) != 0)
 		asset->cache_root = malloc(strlen(cache_root) + 1);

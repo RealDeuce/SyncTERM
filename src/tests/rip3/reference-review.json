@@ -21868,6 +21868,42 @@
         "unreviewed": 2198
       },
       "verification": "Connected CP437 and UTF-8 tests place differently colored images at literal and translated filenames and check all three suffixes in both commands. An unpaired literal name exercises missing-resource recovery. Native bitmap command tests and RIP 1.54 source preservation pass. Original normalization evidence is at DLL RVA 0xc6eb through 0xc740 and in the PR #49 routing matrix."
+    },
+    {
+      "after_commit": "2263969e",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected conversion of completed RIPv3 ICN, HIC and MSK downloads in the selected BBS cache.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/6.1-content-file-roles.md:32",
+        "version/3.0/ripscrip/6.1-content-file-roles.md:34",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:91",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:93",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:97",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:98",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:99",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:100",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:101",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:102",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:103",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:104",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:106"
+      ],
+      "partially_covered_source_units": [
+        "version/3.0/ripscrip/6.1-content-file-roles.md:36",
+        "version/3.0/techspecs/3.0-bitmap-mask-delta.md:108"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:179"
+      ],
+      "states_after_update": {
+        "blocked": 42,
+        "context": 1869,
+        "excluded": 71,
+        "implemented": 3465,
+        "pending": 1493,
+        "unreviewed": 2178
+      },
+      "verification": "Connected CP437 and UTF-8 transfers compare complete BMP bytes and the retained old destination tail. They verify immediate wire consumption, mixed scene/JPEG/icon batches, invalid or blocked destinations, and persistence of a completed icon after peer disconnect. Native codec and bitmap load tests and the RIP 1.54 source preservation check pass. Original post-transfer call is EXE RVA 0x206cf; fixed palette is DLL RVA 0x7f2e0."
     }
   ]
 }

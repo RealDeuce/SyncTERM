@@ -308,7 +308,7 @@ static int start_rip(struct st_wren_context *context, bool upload)
 		.destination = rip_destination, .destination_context = s,
 		.overwrite = true, .discard = !rip3 && !upload && s->rip_file_type == 0,
 		.receive_events = !rip3 && display,
-		.receive_completion_events = rip3 && display,
+		.receive_completion_events = rip3 && !upload,
 	};
 	char **sources = NULL;
 	size_t count = 0;
@@ -654,16 +654,11 @@ void st_wren_transfer_pump(struct st_wren_context *context)
 		if (s->rip_cache_root != NULL) {
 			if (event.kind != ST_TRANSFER_RECEIVE_END || !event.success)
 				continue;
-			bool jpeg = s->rip_file_type == 3 || (s->rip_file_type == 5
-			    && rip_extension(event.filename, ".jpg"));
-			bool scene = s->rip_file_type == 0 || (s->rip_file_type == 5
-			    && rip_extension(event.filename, ".rip"));
-			if (jpeg || scene)
-				status = st_term_session_rip3_receive_asset(context->session, s->rip_directory,
-				    s->rip_cache_root, event.filename, jpeg);
+			status = st_term_session_rip3_receive_asset(context->session, s->rip_directory,
+			    s->rip_cache_root, event.filename, s->rip_file_type);
 			if (status != 0) {
 				struct st_transfer_log log = {.level = ST_CTERM_LOG_WARNING};
-				snprintf(log.text, sizeof(log.text), "RIP3 asset playback request failed (%d)", status);
+				snprintf(log.text, sizeof(log.text), "RIP3 received asset request failed (%d)", status);
 				log_entry(context, &log);
 				(void)st_transfer_request_abort(s->worker);
 			}

@@ -9783,8 +9783,7 @@ answers a direct query while the aggregate scan remains empty.
 `.MSK` to `.BMM` before resource lookup. The suffix match is
 case-insensitive. The loader uses the usual cache and shared-directory
 lookup for the translated name. A missing translated bitmap triggers
-the command's missing-resource behavior. Creation of a BMP from a
-completed legacy asset transfer is a separate pending operation.
+the command's missing-resource behavior.
 [PR #49](https://github.com/bbs-land/remote-imaging-protocol/pull/49)
 
 Connected cases in CP437 and UTF-8 give the legacy and translated
@@ -9793,3 +9792,27 @@ case supplies only the legacy name and checks the missing-bitmap result
 and subsequent query. The older verbatim-extension wording conflicts
 with the detailed file-role rule.
 [Issue #208](https://github.com/bbs-land/remote-imaging-protocol/issues/208)
+
+## Connected post-transfer legacy icon conversion
+
+Completed RIPv3 block downloads of ICN, HIC and MSK use the existing
+completed-file queue after transport releases the connection. The
+converter writes a 4-bit BMP with the fixed sixteen-color EGA palette,
+preserves the source indexes, and uses the `.BMP` extension for all three
+source types. It works in the BBS cache directory captured at transfer
+start. Receive type zero keeps its scene playback behavior. Image-capable
+batches recognize a JPEG signature even when the filename ends in a legacy
+icon suffix. [PR #49](https://github.com/bbs-land/remote-imaging-protocol/pull/49)
+
+An existing longer BMP keeps the bytes beyond the new embedded BMP length.
+SyncTERM stages the replacement atomically and deletes the source after a
+successful publish. Failed conversions retain both the source and any
+previous destination. A completed icon can still convert during cleanup
+when the peer drops the connection. Converted files use filesystem write
+timestamps.
+
+The CP437 and UTF-8 TCP fixtures exercise XMODEM and YMODEM, compare the
+converted header, palette and pixels to independently packed bytes, and
+load the icon through its wire alias immediately after transfer. They also
+check host-directory changes within a batch, conversion failures, and
+recovery of a completed icon after disconnect.

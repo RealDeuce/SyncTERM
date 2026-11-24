@@ -179,9 +179,9 @@ transfer_active(void *context)
 
 int
 st_term_rip3_receive_asset(struct st_term_rip3 *rip, const char *directory,
-    const char *cache_root, const char *name, bool jpeg)
+    const char *cache_root, const char *name, unsigned file_type)
 {
-	return st_rip3_session_receive_asset(rip->session, directory, cache_root, name, jpeg);
+	return st_rip3_session_receive_asset(rip->session, directory, cache_root, name, file_type);
 }
 
 st_cterm_t *

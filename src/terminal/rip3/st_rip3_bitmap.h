@@ -34,8 +34,8 @@ int st_rip3_bitmap_decode(struct st_rip3_bitmap **result,
  * The documented BGI buffer bound includes its six-byte overhead.
  *
  * Icons have no palette: the caller must provide sixteen untagged RGB values,
- * which are copied without changing the decoded indexes. Implicit conversion
- * palette choice and filesystem deletion/timestamp policy remain pending #19.
+ * which are copied without changing the decoded indexes. The completed
+ * download converter supplies the fixed EGA palette.
  * This routine does not call/change the frozen 1.54 decoder, infer BMM mask
  * compositing, access files or perform UI/error-popup actions. Status belongs
  * to the owning asset loader/parser; it is not a terminal session error.

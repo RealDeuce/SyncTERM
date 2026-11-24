@@ -64,7 +64,8 @@ int main(void) {
 	endif()
 	set(_rip3_resource_directory st_rip3_resource_directory_posix.c)
 endif()
-add_library(st_rip3_storage STATIC st_rip3_variables_file.c st_rip3_bitmap_file.c st_rip3_jpeg_file.c
+add_library(st_rip3_storage STATIC st_rip3_variables_file.c st_rip3_bitmap_file.c
+	st_rip3_legacy_icon_file.c st_rip3_jpeg_file.c
 	st_rip3_resources.c st_rip3_file_query.c st_rip3_overflow.c ${_rip3_resource_directory})
 target_include_directories(st_rip3_storage PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_rip3_storage PUBLIC st_rip3 PRIVATE st_pixel_image syncterm_filesystem

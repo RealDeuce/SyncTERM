@@ -31,7 +31,7 @@ bool st_term_session_transfer_active(const st_term_session_t *session);
 void st_term_session_set_rip3_transfer_protocols(st_term_session_t *session,
 	uint32_t protocols);
 int st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory,
-	const char *cache_root, const char *name, bool jpeg);
+	const char *cache_root, const char *name, unsigned file_type);
 
 enum st_term_disposition {
 	ST_TERM_RETURN_TO_PICKER,

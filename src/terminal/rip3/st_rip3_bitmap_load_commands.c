@@ -9,7 +9,6 @@
 #include "st_rip3_wallpaper.h"
 #include "st_pixels.h"
 #include "string_compat.h"
-#include "string_util.h"
 #include "io_error.h"
 
 #include <stdlib.h>
@@ -22,16 +21,9 @@ bitmap_name(const uint8_t *bytes, size_t length)
 	if (name == NULL)
 		return NULL;
 	char *extension = strrchr(name, '.');
-	if (extension != NULL) {
-		static const char legacy[][5] = {".ICN", ".HIC", ".MSK"};
-		static const char bitmap[][5] = {".BMP", ".BMH", ".BMM"};
-		for (size_t i = 0; i < sizeof(legacy) / sizeof(legacy[0]); ++i) {
-			if (ascii_case_compare(extension, legacy[i]) == 0) {
-				memcpy(extension, bitmap[i], sizeof(bitmap[i]));
-				break;
-			}
-		}
-	}
+	const char *translated = st_rip3_bitmap_legacy_extension(extension);
+	if (translated != NULL)
+		memcpy(extension, translated, sizeof(".BMP"));
 	return name;
 }
 

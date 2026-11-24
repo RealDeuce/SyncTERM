@@ -16,4 +16,11 @@ struct st_rip3_resource_paths;
 int st_rip3_bitmap_load(struct st_rip3_bitmap **result,
 	const struct st_rip3_resource_paths *paths, const char *name);
 
+/* The ordinary bitmap lookup spelling of a legacy suffix, or NULL. */
+const char *st_rip3_bitmap_legacy_extension(const char *extension);
+
+/* Convert a completed legacy download in the active BBS cache to .BMP. */
+int st_rip3_bitmap_convert_download(const struct st_rip3_resource_paths *paths,
+	const char *name);
+
 #endif

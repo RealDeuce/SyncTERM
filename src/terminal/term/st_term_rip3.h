@@ -15,7 +15,7 @@ bool st_term_rip3_text_view(struct st_term_rip3 *rip, struct st_term_text_view *
 void st_term_rip3_flush(struct st_term_rip3 *rip);
 void st_term_rip3_set_transfer_protocols(struct st_term_rip3 *rip, uint32_t protocols);
 int st_term_rip3_receive_asset(struct st_term_rip3 *rip, const char *directory,
-	const char *cache_root, const char *name, bool jpeg);
+	const char *cache_root, const char *name, unsigned file_type);
 void st_term_rip3_autosense(struct st_term_rip3 *rip, uint16_t selector);
 int st_term_rip3_begin_local_text(struct st_term_rip3 *rip);
 int st_term_rip3_end_local_text(struct st_term_rip3 *rip);

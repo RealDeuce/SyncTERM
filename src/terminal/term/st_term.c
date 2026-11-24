@@ -120,11 +120,11 @@ st_term_session_set_rip3_transfer_protocols(st_term_session_t *session, uint32_t
 
 int
 st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory,
-    const char *cache_root, const char *name, bool jpeg)
+    const char *cache_root, const char *name, unsigned file_type)
 {
 	if (session == NULL || session->rip3 == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	return st_term_rip3_receive_asset(session->rip3, directory, cache_root, name, jpeg);
+	return st_term_rip3_receive_asset(session->rip3, directory, cache_root, name, file_type);
 }
 
 static int write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
