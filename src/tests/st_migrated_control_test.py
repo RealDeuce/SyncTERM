@@ -93,14 +93,15 @@ Host.print("PICKER-PIXELS-PASS")
 
 
 @contextlib.contextmanager
-def connection(executable, reports, *, encoding="CP437", options="", settings="", script=None, menu_grid=None, prepare=None, hide_popups=True):
+def connection(executable, reports, *, encoding="CP437", options="", settings="", script=None,
+               menu_grid=None, prepare=None, hide_popups=True, extra=()):
     with listener() as server:
         entries = ("[Capture]\nConnectionType=Raw\nAddress=127.0.0.1\n"
                    f"Port={server.getsockname()[1]}\nScreenMode=80x25\n"
                    f"NoStatus=true\nHidePopups={str(hide_popups).lower()}\nForceLCF=true\nRIP=Off\n"
                    + (f"Encoding={encoding}\n" if encoding is not None else "") + options)
         with fixture(executable, entries=entries, settings=settings, script=script,
-                     reports=reports, prepare=prepare, quiet=hide_popups) as (client, root):
+                     reports=reports, prepare=prepare, quiet=hide_popups, extra=extra) as (client, root):
             client.wait_text("Capture")
             if menu_grid:
                 client.grid_resize(*menu_grid)

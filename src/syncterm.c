@@ -1118,6 +1118,9 @@ run_session(st_wren_host_t *host, st_console_display_t *display,
 			status = st_term_session_run(session, disposition);
 			goto finished;
 		}
+		if (profile->graphics_mode == ST_GRAPHICS_RIP_3)
+			st_term_session_set_rip3_transfer_protocols(session,
+			    st_wren_host_rip_transfer_protocols(host, profile));
 	}
 	if (status == 0) {
 		bool finished = false;

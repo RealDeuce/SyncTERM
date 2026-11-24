@@ -135,6 +135,25 @@ remove_host_resource(void *context, const char *name)
 	(void)st_rip3_resource_remove(&rip->resources, name);
 }
 
+void
+st_term_rip3_set_transfer_protocols(struct st_term_rip3 *rip, uint32_t protocols)
+{
+	static const enum st_rip3_feature features[] = {
+		ST_RIP3_FEATURE_XMODEM, ST_RIP3_FEATURE_XMODEMCRC,
+		ST_RIP3_FEATURE_XMODEM1K, ST_RIP3_FEATURE_XMODEM1KG,
+		ST_RIP3_FEATURE_KERMIT, ST_RIP3_FEATURE_YMODEM,
+		ST_RIP3_FEATURE_YMODEMG, ST_RIP3_FEATURE_ZMODEM,
+		ST_RIP3_FEATURE_ZMODEMCR
+	};
+	if (rip->config.rip_transfer == NULL || rip->config.rip_directory == NULL
+	    || *rip->config.rip_directory == '\0')
+		protocols = 0;
+	for (unsigned code = 0; code < sizeof(features) / sizeof(features[0]); ++code) {
+		bool supported = (protocols & (UINT32_C(1) << code)) != 0;
+		(void)st_rip3_features_set(&rip->features, features[code], supported);
+	}
+}
+
 static int
 start_transfer(void *context, bool upload, unsigned protocol, unsigned type,
     const char *filenames, bool skip_lf)

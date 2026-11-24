@@ -134,6 +134,13 @@ static void log_entry(struct st_wren_context *context, const struct st_transfer_
 	if (context->transfer_log != NULL && entry->level <= context->transfer_log_level)
 		context->transfer_log(context->transfer_log_context, entry->level, entry->text);
 }
+
+static bool in_band_transfer_allowed(const st_wren_host_t *host, const struct st_profile *profile)
+{
+	return host != NULL && !host->config.safe_mode && profile != NULL
+	    && profile->connection_type != ST_CONNECTION_MQTT;
+}
+
 static int start(struct st_wren_context *context, struct st_transfer_config *config, bool asset, bool inline_receive)
 {
 	if (st_term_session_wire_owned(context->session)) return IO_ERROR_BUSY;
@@ -142,8 +149,7 @@ static int start(struct st_wren_context *context, struct st_transfer_config *con
 	if (s->worker != NULL) return IO_ERROR_BUSY;
 	if (!asset && (s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0)) return IO_ERROR_BUSY;
 	if (config->protocol != ST_TRANSFER_FAKE) {
-		if (context->host->config.safe_mode || context->connection == NULL || context->session == NULL
-		    || context->profile == NULL || context->profile->connection_type == ST_CONNECTION_MQTT)
+		if (!st_wren_transfer_detect_enabled(context))
 			return IO_ERROR_PERMISSION_DENIED;
 		config->send = send_bytes; config->send_context = context->connection;
 		if (!asset) config->directory = download_root(context);
@@ -266,19 +272,38 @@ static int rip_upload_sources(struct st_wren_transfer *s, char ***paths, size_t 
 	return 0;
 }
 
+static const enum st_transfer_protocol rip_protocols[] = {
+	ST_TRANSFER_XMODEM_CHECKSUM, ST_TRANSFER_XMODEM_CRC, ST_TRANSFER_XMODEM_CRC,
+	ST_TRANSFER_XMODEM_G, ST_TRANSFER_FAKE, ST_TRANSFER_YMODEM,
+	ST_TRANSFER_YMODEM_G, ST_TRANSFER_ZMODEM
+};
+
+static bool rip_protocol_supported(unsigned protocol)
+{
+	return protocol < sizeof(rip_protocols) / sizeof(rip_protocols[0])
+	    && rip_protocols[protocol] != ST_TRANSFER_FAKE;
+}
+
+uint32_t st_wren_host_rip_transfer_protocols(const st_wren_host_t *host,
+	const struct st_profile *profile)
+{
+	uint32_t mask = 0;
+	if (in_band_transfer_allowed(host, profile)) {
+		for (unsigned code = 0; code < sizeof(rip_protocols) / sizeof(rip_protocols[0]); ++code)
+			if (rip_protocol_supported(code))
+				mask |= UINT32_C(1) << code;
+	}
+	return mask;
+}
+
 static int start_rip(struct st_wren_context *context, bool upload)
 {
 	struct st_wren_transfer *s = context->transfer;
-	static const enum st_transfer_protocol protocols[8] = {
-		ST_TRANSFER_XMODEM_CHECKSUM, ST_TRANSFER_XMODEM_CRC, ST_TRANSFER_XMODEM_CRC,
-		ST_TRANSFER_XMODEM_G, ST_TRANSFER_FAKE, ST_TRANSFER_YMODEM,
-		ST_TRANSFER_YMODEM_G, ST_TRANSFER_ZMODEM
-	};
 	bool rip3 = s->rip_cache_root != NULL;
 	bool display = !upload && (s->rip_file_type == 0 || s->rip_file_type == 5
 	    || (rip3 && s->rip_file_type == 3));
 	struct st_transfer_config config = {
-		.protocol = protocols[s->rip_protocol], .upload = upload,
+		.protocol = rip_protocols[s->rip_protocol], .upload = upload,
 		.directory = s->rip_directory, .filename = s->rip_filename,
 		.destination = rip_destination, .destination_context = s,
 		.overwrite = true, .discard = !rip3 && !upload && s->rip_file_type == 0,
@@ -507,8 +532,8 @@ int st_wren_transfer_rip_request(struct st_wren_context *context,
 {
 	if (st_term_session_wire_owned(context->session)) return IO_ERROR_BUSY;
 	if (!st_wren_transfer_detect_enabled(context) || request == NULL || request->directory == NULL
-	    || !*request->directory || request->filename == NULL || request->protocol > 7
-	    || request->protocol == 4 || (!request->upload && request->file_type > 5))
+	    || !*request->directory || request->filename == NULL || !rip_protocol_supported(request->protocol)
+	    || (!request->upload && request->file_type > 5))
 		return IO_ERROR_NOT_SUPPORTED;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
@@ -713,9 +738,8 @@ void st_wren_transfer_dispose(struct st_wren_context *context)
 }
 bool st_wren_transfer_detect_enabled(const struct st_wren_context *context)
 {
-	return context != NULL && !context->host->config.safe_mode && context->connection != NULL
-	    && context->session != NULL && context->profile != NULL
-	    && context->profile->connection_type != ST_CONNECTION_MQTT;
+	return context != NULL && context->connection != NULL && context->session != NULL
+	    && in_band_transfer_allowed(context->host, context->profile);
 }
 int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
 	bool *consumed, uint8_t *replacement, size_t capacity, size_t *size)

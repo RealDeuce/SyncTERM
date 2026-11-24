@@ -76,6 +76,9 @@ int st_wren_host_record_connection(st_wren_host_t *host,
 	struct st_profile *profile);
 void st_wren_connected_log_transfer(st_wren_connected_t *connected,
 	int level, const char *message);
+/* Bit positions are RIP block-mode protocol numbers. */
+uint32_t st_wren_host_rip_transfer_protocols(const st_wren_host_t *host,
+	const struct st_profile *profile);
 
 /* Refreshes configured web-list caches with the menu progress overlay. */
 int st_wren_host_refresh_web_lists(st_wren_host_t *host);

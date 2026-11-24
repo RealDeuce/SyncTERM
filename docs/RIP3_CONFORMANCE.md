@@ -9718,3 +9718,18 @@ independently authored JPEG colors and verify that eligible variable
 effects occur before presentation. The native expansion fixture
 checks the filename limit and proves that inserted text stays
 unexpanded for the remainder of the ordinary pass.
+
+## Connected transfer capability discovery
+
+`$IFS(_PROTOCOLS)$` and `$IFS(LIST,_PROTOCOLS)$` use the block-transfer
+worker's supported protocol numbers. An eligible connection with a BBS
+cache advertises `XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM`
+in sorted order. The category is absent in safe mode, for MQTT, and when the
+transfer bridge fails to start. Queries for unavailable protocols return
+zero. ZMODEM crash recovery is unavailable for RIP cache transfers.
+[Issue #205](https://github.com/bbs-land/remote-imaging-protocol/issues/205)
+
+The connected CP437 and UTF-8 fixtures query the list and individual
+features, exercise X/YMODEM on the same worker, and check that a refused
+transfer leaves the session available in safe mode and after a bridge startup
+failure.

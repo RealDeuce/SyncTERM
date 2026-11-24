@@ -17,6 +17,7 @@
 #include "st_transfer.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct st_term_session st_term_session_t;
 /* Owner-thread keep-alive for side-band work after terminal EOF. */
@@ -26,6 +27,9 @@ void st_term_session_set_auxiliary_active(st_term_session_t *session, bool activ
 bool st_term_session_inspect_transfer(st_term_session_t *session,
 	struct st_transfer_inspection *state, bool *reserved);
 bool st_term_session_transfer_active(const st_term_session_t *session);
+/* Protocol-number bits for IFS. Set after the transfer bridge is ready. */
+void st_term_session_set_rip3_transfer_protocols(st_term_session_t *session,
+	uint32_t protocols);
 int st_term_session_rip3_receive_asset(st_term_session_t *session, const char *directory,
 	const char *cache_root, const char *name, bool jpeg);
 

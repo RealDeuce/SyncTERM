@@ -11,6 +11,21 @@ from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
 
 
+def check_transfer_unavailable(args, *, reason, extra=(), script=None):
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options="RIP=RIPv3\n", extra=extra, script=script) as (client, root, peer, send):
+        terminal = Terminal(client, root, peer, send)
+        terminal.case(f"rip3-transfer-unavailable-{reason}")
+        terminal.exchange(b"\x1b[!", b"RIPSCRIP030001")
+        terminal.exchange(query(b"$IFS(_PROTOCOLS)$:$IFS(LIST,_PROTOCOLS)$:$IFS(XMODEMCRC)$"
+                                b":$IFS(YMODEMG)$:$IFS(ZMODEM)$", at_cursor=True), b"0::0:0:0")
+        terminal.exchange(b"!|9\x1b01010000blocked.bin<>\r\n" + query(b"alive", at_cursor=True),
+                          b"\x18" * 10 + b"alive")
+        assert not list(root.rglob("blocked.bin"))
+        if script is not None:
+            assert b"connected Wren initialization failed" in client.stderr
+
+
 def run(args):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -18,6 +33,11 @@ def run(args):
                              "CustomAspectWidth=4\nCustomAspectHeight=3\n") as (client, root, peer, send):
         terminal = Terminal(client, root, peer, send)
         terminal.exchange(b"\x1b[!", b"RIPSCRIP030001")
+        terminal.case("rip3-transfer-capabilities-match-the-connected-worker")
+        terminal.exchange(query(b"$IFS(_protocols)$:$IFS(LIST,_PROTOCOLS)$:$IFS(XMODEMCRC)$/$IFS(YMODEMG)$"
+                                b"/$IFS(ZMODEM)$:$IFS(KERMIT)$/$IFS(ZMODEMCR)$/$IFS(CISQUICKB)$",
+                                at_cursor=True),
+                          b"1:XMODEM,XMODEM1K,XMODEM1KG,XMODEMCRC,YMODEM,YMODEMG,ZMODEM:1/1/1:0/0/0")
         terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
 
         def packet(number, data):
@@ -175,6 +195,10 @@ def run(args):
         client.key("escape")
         frame = terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
         assert pixel(frame, 13, 13) == 0
+
+    check_transfer_unavailable(args, reason="safe-mode", extra=("-s",))
+    check_transfer_unavailable(args, reason="bridge-startup",
+                               script='Fiber.abort("transfer bridge test")\n')
 
 
 if __name__ == "__main__":

@@ -21723,6 +21723,45 @@
         "unreviewed": 2231
       },
       "verification": "Connected CP437 and UTF-8 media, native graphical expansion and JPEG command tests, and the RIP 1.54 source-preservation gate. Original IMAGE uses flags 0x83 and limit 0x400 at DLL RVA 0xc323; the separate INUSE text-variable case is at 0x13037."
+    },
+    {
+      "after_commit": "a5c22c46",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected IFS protocol queries and sorted listings from the RIP block-transfer worker.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:616",
+        "version/3.0/ripscrip/5.1-text-variables.md:648",
+        "version/3.0/ripscrip/5.1-text-variables.md:650",
+        "version/3.0/ripscrip/5.1-text-variables.md:656",
+        "version/3.0/ripscrip/5.1-text-variables.md:667",
+        "version/3.0/ripscrip/5.1-text-variables.md:668",
+        "version/3.0/ripscrip/5.1-text-variables.md:669",
+        "version/3.0/ripscrip/5.1-text-variables.md:670",
+        "version/3.0/ripscrip/5.1-text-variables.md:671",
+        "version/3.0/ripscrip/5.1-text-variables.md:672",
+        "version/3.0/ripscrip/5.1-text-variables.md:673",
+        "version/3.0/ripscrip/5.1-text-variables.md:674",
+        "version/3.0/ripscrip/5.1-text-variables.md:675",
+        "version/3.0/ripscrip/5.1-text-variables.md:676",
+        "version/3.0/ripscrip/5.1-text-variables.md:677",
+        "version/3.0/ripscrip/5.1-text-variables.md:678",
+        "version/3.0/ripscrip/5.1-text-variables.md:689",
+        "version/3.0/ripscrip/5.1-text-variables.md:693",
+        "version/3.0/ripscrip/5.1-text-variables.md:697",
+        "version/3.0/ripscrip/5.1-text-variables.md:711",
+        "version/3.0/ripscrip/5.1-text-variables.md:713",
+        "version/3.0/ripscrip/5.1-text-variables.md:715",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:19"
+      ],
+      "states_after_update": {
+        "blocked": 30,
+        "context": 1856,
+        "excluded": 71,
+        "implemented": 3420,
+        "pending": 1510,
+        "unreviewed": 2231
+      },
+      "verification": "Connected CP437 and UTF-8 queries verify the supported protocol list, affirmative and negative replies, refusal and recovery in safe mode and after bridge startup failure. Native IFS tests verify the list grammar and ordering. Existing JPEG tests correlate the advertised bit with image rendering."
     }
   ]
 }
