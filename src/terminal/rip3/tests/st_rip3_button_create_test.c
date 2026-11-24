@@ -106,7 +106,7 @@ static int mouse_pointers(void)
 	st_rip3_host_variables_process(&variables,&sink,(const uint8_t *)"$MCURSOR$",9);
 	CHECK(errors==2 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==0);
 	CHECK(st_rip3_environments_protect(host.environments,35,false)==0);
-	command(&host,&errors,"1c08");command(&host,&errors,"1c060001");command(&host,&errors,"1c0");
+	command(&host,&errors,"1c08");command(&host,&errors,"1c060.");command(&host,&errors,"1c06?");
 	CHECK(errors==5 && st_rip3_environments_get(host.environments,35,&env)==0 && env.mouse_pointer==0);
 	st_rip3_environments_destroy(host.environments);return 0;
 }

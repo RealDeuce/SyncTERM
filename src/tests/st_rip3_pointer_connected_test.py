@@ -34,8 +34,14 @@ def run(args):
         for number,shape in enumerate(expected):
             frame=values(f'$MCURSOR({number})$'.encode())
             assert frame.metadata['pointer_shape']==shape
-        frame=t.exchange(b'\x01|1c08|1cZZ|1c060001|1c0\r\n'+query(b'$MCURSOR(8)$',at_cursor=True))
+        frame=t.exchange(b'\x01|1c08|1cZZ|1c060.|1c06?\r\n'+query(b'$MCURSOR(8)$',at_cursor=True))
         assert frame.metadata['pointer_shape']==7 and frame.application['connected']==1
+        frame=t.exchange(b'\x01|1c6|1c020001 comment\r\n')
+        assert frame.metadata['pointer_shape']==4
+        frame=t.exchange(b'\x01|1c06. comment\r\n')
+        assert frame.metadata['pointer_shape']==6
+        frame=t.exchange(b'\x01|1c.\r\n')
+        assert frame.metadata['pointer_shape']==0
         frame=values(b'$MCURSOR(7)$')
         assert frame.metadata['pointer_shape']==7
         frame=values(b'$MCURSOR$')

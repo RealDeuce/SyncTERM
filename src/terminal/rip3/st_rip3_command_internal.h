@@ -37,7 +37,8 @@ int st_rip3_button_create_execute(const struct st_rip3_command_host *host,
 int st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 	const uint8_t *command, size_t length, bool *operation);
 int st_rip3_button_commands_execute(const struct st_rip3_command_host *host,
-	const uint8_t *command, size_t length, bool *operation);
+	const uint8_t *command, size_t length, bool *operation,
+	const struct st_rip3_command_sink *sink);
 
 /* Private wire-field and execution helpers. Every status is consumed by the
  * public void processing boundary; none is a terminal/session return status. */

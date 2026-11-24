@@ -569,15 +569,16 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 	if (host->button_styles==NULL || host->styles==NULL || host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_environment env;unsigned env_number,number;
 	int status=st_rip3_command_environment(host,&env_number,&env);if (status!=0) return status;
-	size_t fixed=2+4*env.coordinate_size+4;
-	if (length<fixed) return IO_ERROR_INVALID_FORMAT;
-	uint64_t values[7];size_t at=2;
-	for (unsigned i=0;i<7;i++) {
+	struct st_rip3_fields fields = {command+2,length-2};
+	uint64_t values[6];
+	for (unsigned i=0;i<6;i++) {
 		size_t width=i<4 ? env.coordinate_size : i==4 ? 2 : 1;
-		status=st_rip3_command_field(values+i,command+at,width,env.base_math);if (status!=0) return status;at+=width;
+		status=st_rip3_command_next_field(&fields,values+i,width,env.base_math,false);
+		if (status!=0) return status;
 	}
+	status=st_rip3_command_next_field(&fields,NULL,1,env.base_math,false);
+	if (status!=0) return status;
 	if (values[4]>255) return IO_ERROR_OUT_OF_RANGE;
-	if (values[6]!=0) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_button_style style;status=st_rip3_button_styles_current_value(host->button_styles,&style);if (status!=0) return status;
 	bool mouse=(style.flags&1024)!=0,is_icon=(style.flags&128)!=0,clipboard=!is_icon && (style.flags&1)!=0;
 	bool radio=(style.flags&16384)!=0,checkbox=(style.flags2&1)!=0;
@@ -599,7 +600,7 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 		    || source.clip.x1<source.clip.x0 || source.clip.y1<source.clip.y0) return IO_ERROR_NOT_FOUND;
 	}
 	struct st_rip3_button_payload payload;
-	status=st_rip3_button_payload_parse_encoded(&payload,command+at,length-at,converted);if (status!=0) return status;
+	status=st_rip3_button_payload_parse_encoded(&payload,fields.bytes,fields.remaining,converted);if (status!=0) return status;
 	if (is_icon && payload.icon.length==0) return IO_ERROR_INVALID_FORMAT;
 	if (!is_icon && !clipboard && !mouse && payload.label.length==0 && !(style.width!=0 && style.height!=0) && values[2]==0 && values[3]==0) return 0;
 	struct st_rip3_frame frame;status=st_rip3_environments_frame(host->environments,env_number,&frame);if (status!=0) return status;

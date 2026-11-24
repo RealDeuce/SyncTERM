@@ -13,7 +13,13 @@ struct st_rip3_mouse;
 struct st_rip3_backup;
 enum st_rip3_mouse_kind { ST_RIP3_MOUSE_SIMPLE, ST_RIP3_MOUSE_BUTTON };
 enum st_rip3_mouse_reset { ST_RIP3_MOUSE_RESET_NONE, ST_RIP3_MOUSE_RESET_BEFORE, ST_RIP3_MOUSE_RESET_AFTER };
-struct st_rip3_mouse_binding {uint8_t hotkey;bool default_enter;unsigned group;enum st_rip3_group_kind group_kind;bool selected;};
+struct st_rip3_mouse_binding {
+	uint8_t hotkey;
+	bool default_enter, default_escape;
+	unsigned group;
+	enum st_rip3_group_kind group_kind;
+	bool selected;
+};
 struct st_rip3_mouse_visual {
 	void *context;
 	/* May schedule owned asynchronous redraw, reported by sink.busy.

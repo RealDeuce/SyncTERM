@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96](https://github.com/RealDeuce/remote-imaging-protocol/tree/c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96/version/3.0)
+90c23d75cc76ffb8d7b1f1e02da75bcf56053002](https://github.com/RealDeuce/remote-imaging-protocol/tree/90c23d75cc76ffb8d7b1f1e02da75bcf56053002/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -2877,6 +2877,13 @@ and the high byte in 32-bit files are unused, with no alpha semantics. Canonical
 output zeroes those bits/bytes and padding. Independent packed bytes exercise
 colors, row orientation, stride, truncation and malformed headers, with authored
 canonical output expectations rather than round-trip-only evidence.
+
+The BMP decoder uses standard row padding whenever the declared file contains
+enough pixel data. For 4-bit widths of 9, 17, 25, and so on, it also accepts
+an exact payload of `floor(width / 2) * height` bytes, as found in
+`RADIOBUT.BMP` and `RADIOBUT.BMH`. In this layout the rightmost pixel shares
+the high nibble of the next stored row's first byte. The top-right pixel has
+no source byte and uses palette index zero.
 
 Wire key values remain limited to 0..255 when flag 8 is set. Translation uses
 the drawing palette before image-palette adoption: below the initialized direct
@@ -10361,4 +10368,26 @@ period for its ignored field. Extra periods beyond the completed field
 belong to the text. Invalid prefixes leave retained text and the live
 session intact. The `q` attribute command accepts a shortened final
 value and ignores surplus after its complete field.
-[Issue #255](https://github.com/bbs-land/remote-imaging-protocol/issues/255)
+[PR #256](https://github.com/bbs-land/remote-imaging-protocol/pull/256)
+
+
+## Mouse field and button wire formats
+
+`1M` reads a two-digit hotkey and a required three-digit reserve before
+the host text. Simple fields join buttons in ordinary hotkey lookup.
+Their `clk` bits select temporary inversion and defaults for Enter and
+Escape. A committed simple action retains its FIELDID and applies
+`clr` after success. `1K` and `1k` skip surplus after their complete
+fields. `1c` validates and ignores an optional reserve.
+
+`2B` reads a one-digit slot and required two-digit flags. Source
+protection changes precede selection and destination changes follow
+it. Within each pair unprotect wins. `1B` requires its ignored
+other-port digit and accepts an optional reserve. `1U` starts its
+payload after the required digit or a period supplying zero.
+
+Connected CP437 and UTF-8 tests check click payloads, keyboard
+priority and reset, pointer shape, style protection and label
+rendering. Native fixtures also cover both radices and XY widths.
+[PR #259](https://github.com/bbs-land/remote-imaging-protocol/pull/259),
+[PR #260](https://github.com/bbs-land/remote-imaging-protocol/pull/260)

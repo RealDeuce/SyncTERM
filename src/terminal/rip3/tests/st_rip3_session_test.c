@@ -924,12 +924,12 @@ static int mouse_pointer(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
-	const char *wire="!|1c070000\r";
+	const char *wire="!|1c07000Z comment\r";
 	for (size_t i=0;i<strlen(wire);i++) {
 		char byte[2]={wire[i],0};CHECK(append(&f,byte)==0);st_rip3_session_process(f.session,1);
 	}
 	unsigned pointer;CHECK(f.errors==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==7);
-	CHECK(append(&f,"!|1c00\r")==0 && pump(&f)==0 && f.errors==0
+	CHECK(append(&f,"!|1c.\r")==0 && pump(&f)==0 && f.errors==0
 	    && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==0);
 	CHECK(query(&f,"$MCURSOR(3)$","")==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==3);
 	CHECK(query(&f,"$MCURSOR$","")==0 && st_rip3_session_mouse_pointer(f.session,&pointer) && pointer==0);

@@ -532,7 +532,7 @@ execute(const struct st_rip3_command_host *host,
 	if (length>=2 && command[0]=='1' && (command[1]=='M' || command[1]=='K' || command[1]=='k' || command[1]=='c'))
 		return st_rip3_mouse_commands_execute(host,command,length,operation);
 	if (length>=2 && (command[0]=='1' || command[0]=='2') && command[1]=='B')
-		return st_rip3_button_commands_execute(host,command,length,operation);
+		return st_rip3_button_commands_execute(host,command,length,operation,sink);
 	if (command[0]=='g' || command[0]=='H') return text_cursor(host,command,length,operation);
 	if (command[0]=='e' || command[0]=='>') {
 		if (length!=1) return IO_ERROR_INVALID_FORMAT;

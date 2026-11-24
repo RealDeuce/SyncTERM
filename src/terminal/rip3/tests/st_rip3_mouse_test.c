@@ -178,6 +178,13 @@ static int keyboard(void)
 	CHECK(!st_rip3_mouse_event(f.mouse,15,15,false) && f.calls==1);
 	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&other,true,false,2,NULL,0,NULL)==0);
 	CHECK(st_rip3_mouse_key(f.mouse,'B') && f.flips==6 && f.calls==2);
+	const struct st_rip3_mouse_binding simple={.hotkey='b',.default_escape=true};
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,&simple,&area,false,true,3,
+	    (const uint8_t *)"s",1,NULL)==0);
+	CHECK(st_rip3_mouse_key(f.mouse,'B') && f.calls==3 && f.identity==3 && f.result=='s');
+	CHECK(st_rip3_mouse_define(f.mouse,ST_RIP3_MOUSE_SIMPLE,&simple,&area,false,false,3,
+	    (const uint8_t *)"s",1,NULL)==0);
+	CHECK(st_rip3_mouse_key(f.mouse,27) && f.calls==4 && f.identity==3 && f.result=='s');
 	st_rip3_mouse_destroy(f.mouse);return 0;
 }
 

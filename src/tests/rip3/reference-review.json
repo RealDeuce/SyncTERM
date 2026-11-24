@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/254",
-  "revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
-  "previous_revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/260",
+  "revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
+  "previous_revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The reviewed PR #254 head matches the fork stable integration tree.",
-  "archive_sha256": "8a006f77a4e68914608416afa6d9d72928d6826eba9f1900a3c1ad176d68144a",
+  "upstream_state_at_adoption": "Reviewed heads of PRs #256, #259 and #260 match their stable integration trees.",
+  "archive_sha256": "7c3f138cf353df341aecd260f3765712db5db5db94ffbffbdfa3fe5e0ad5885b",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,24 +17,34 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "previous_sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00",
-      "sha256": "91783db83a041754321b908fe173e78724d151ec41cc2f954321bb26c780be06"
+      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+      "previous_sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081",
+      "sha256": "30c29c23e9b2d310f0da6ee4b87db3e64dacbd40c5cfafdf707c5312e61aea26"
     },
     {
-      "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "previous_sha256": "8009a137cccab826b54f75938f45f90407d6440111a65c59ba390cd0c37bcaef",
-      "sha256": "d0f2eadae6ece0e92dc9bcbda7d1cd3cc4bd21656822eab8446883684872aabe"
+      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+      "previous_sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac",
+      "sha256": "a5685c5441840a44544cc51381a2de7ccb4308b5a5a6845f75bf5c3a8215ee1f"
+    },
+    {
+      "path": "version/3.0/ripscrip/4.3-buttons.md",
+      "previous_sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be",
+      "sha256": "cffb0237262c71593b4f58ccc7514bda5ebb67e21fb62ead93c0cadf5a2c7029"
+    },
+    {
+      "path": "version/3.0/ripscrip/5.1-text-variables.md",
+      "previous_sha256": "7b56264386768f036d3954b6dfb547cc4024bd3ac2ede7839e283709ed3c82f1",
+      "sha256": "02f1f943d1983329f1fda00b96e285d136e741fcad0ac7662b653166b8ee2670"
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4",
-      "sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3"
+      "previous_sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3",
+      "sha256": "a6b82eb360df5454dda7d6e57d3914e828af7ff7ab622d9544af734bd26c1b39"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9435,
+  "matched_source_blocks": 9410,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -968,7 +978,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 125,
+  "upstream_issue_resolutions": 128,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1713,6 +1723,24 @@
       "sha256": "98e0324f4ebced7190eeb8ef284daa79e3b3467780a9b1928d2b8b881b59ddd8",
       "title": "Issue #253 — GOTOXY and TEXT_WINDOW wire widths",
       "role": "Original text-window descriptors and two-radix staged captures."
+    },
+    {
+      "path": "version/3.0/research/issue-255-font-text-boundaries.md",
+      "sha256": "e3ad829159ed7f5b95e6f1701143ab061b1a6a8b62e44769569c4dc615658ca5",
+      "title": "Issue #255 — Outline font and metric text boundaries",
+      "role": "Original numeric descriptors, forced radix and staged text-boundary vectors."
+    },
+    {
+      "path": "version/3.0/research/issue-257-button-wire-widths.md",
+      "sha256": "dd0bc502b4d5b809aaf68fb9367af177fba478f8632f21422c68b5302bdcbf91",
+      "title": "Issue #257 — Button wire widths and protection order",
+      "role": "Original descriptors, prefix completion and ordered source/destination protection trace."
+    },
+    {
+      "path": "version/3.0/research/issue-258-mouse-field-suffix.md",
+      "sha256": "e23089a58cc09a5d0d5953ba75945cec28836a92920d8221c7a519cf44a6ad95",
+      "title": "Issue #258 — Mouse field suffix and cursor reserve",
+      "role": "Original parser slots, simple-field hotkeys, default bits and optional pointer reserve."
     }
   ],
   "documents": [
@@ -1838,7 +1866,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081"
+      "sha256": "30c29c23e9b2d310f0da6ee4b87db3e64dacbd40c5cfafdf707c5312e61aea26"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -1854,11 +1882,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac"
+      "sha256": "a5685c5441840a44544cc51381a2de7ccb4308b5a5a6845f75bf5c3a8215ee1f"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be"
+      "sha256": "cffb0237262c71593b4f58ccc7514bda5ebb67e21fb62ead93c0cadf5a2c7029"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1874,7 +1902,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "7b56264386768f036d3954b6dfb547cc4024bd3ac2ede7839e283709ed3c82f1"
+      "sha256": "02f1f943d1983329f1fda00b96e285d136e741fcad0ac7662b653166b8ee2670"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1918,7 +1946,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3"
+      "sha256": "a6b82eb360df5454dda7d6e57d3914e828af7ff7ab622d9544af734bd26c1b39"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1989,7 +2017,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "3eb7963f53866f039074704d756623b2b1295b8f",
+  "previous_ledger_commit": "0471b7347685226aa1a276ed2c50232397c9b600",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19205,6 +19233,197 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96",
+      "revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
+      "archive_sha256": "7c3f138cf353df341aecd260f3765712db5db5db94ffbffbdfa3fe5e0ad5885b",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/255",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/256",
+          "reviewed_head": "5a48519c2687bb3f2d93967062b90610248b2182",
+          "integration": "7577594e9ce81e9bb00e7ab07117e65333a38510"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/257",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/259",
+          "reviewed_head": "792cb52dd8b3fc55aa62cb220bdf60ba3ae76d95",
+          "integration": "9de2dba4498820f50fc732ef95998e155cb62fe3"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/258",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/260",
+          "reviewed_head": "d99af67c2f4e050f1dc19326fc75325075090a37",
+          "integration": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081",
+          "sha256": "30c29c23e9b2d310f0da6ee4b87db3e64dacbd40c5cfafdf707c5312e61aea26"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac",
+          "sha256": "a5685c5441840a44544cc51381a2de7ccb4308b5a5a6845f75bf5c3a8215ee1f"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "35a3966cdd797de1205f2677950b20f97531a65588533c3e979095243824d2be",
+          "sha256": "cffb0237262c71593b4f58ccc7514bda5ebb67e21fb62ead93c0cadf5a2c7029"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "7b56264386768f036d3954b6dfb547cc4024bd3ac2ede7839e283709ed3c82f1",
+          "sha256": "02f1f943d1983329f1fda00b96e285d136e741fcad0ac7662b653166b8ee2670"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "88404f16f7bb0902a4721b0ded07186212277b14fa475eadf9a31a141e635cb3",
+          "sha256": "a6b82eb360df5454dda7d6e57d3914e828af7ff7ab622d9544af734bd26c1b39"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-255-font-text-boundaries.md",
+          "sha256": "e3ad829159ed7f5b95e6f1701143ab061b1a6a8b62e44769569c4dc615658ca5",
+          "title": "Issue #255 — Outline font and metric text boundaries",
+          "role": "Original numeric descriptors, forced radix and staged text-boundary vectors."
+        },
+        {
+          "path": "version/3.0/research/issue-257-button-wire-widths.md",
+          "sha256": "dd0bc502b4d5b809aaf68fb9367af177fba478f8632f21422c68b5302bdcbf91",
+          "title": "Issue #257 — Button wire widths and protection order",
+          "role": "Original descriptors, prefix completion and ordered source/destination protection trace."
+        },
+        {
+          "path": "version/3.0/research/issue-258-mouse-field-suffix.md",
+          "sha256": "e23089a58cc09a5d0d5953ba75945cec28836a92920d8221c7a519cf44a6ad95",
+          "title": "Issue #258 — Mouse field suffix and cursor reserve",
+          "role": "Original parser slots, simple-field hotkeys, default bits and optional pointer reserve."
+        }
+      ],
+      "moved_source_blocks": 783,
+      "new_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:540",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:546",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:559",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:560",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:563",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:565",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:641",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:671",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:673",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:675",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:133",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:178",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:179",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:180",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:181",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:184",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:198",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:200",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:201",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:202",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:203",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:204",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:206",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:208",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:224",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:400",
+        "version/3.0/ripscrip/4.3-buttons.md:33",
+        "version/3.0/ripscrip/4.3-buttons.md:35",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:633",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:642",
+        "version/3.0/ripscrip/4.3-buttons.md:644",
+        "version/3.0/ripscrip/4.3-buttons.md:646",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/4.3-buttons.md:652",
+        "version/3.0/ripscrip/4.3-buttons.md:888",
+        "version/3.0/ripscrip/4.3-buttons.md:889",
+        "version/3.0/ripscrip/4.3-buttons.md:890",
+        "version/3.0/ripscrip/4.3-buttons.md:891",
+        "version/3.0/ripscrip/4.3-buttons.md:892",
+        "version/3.0/ripscrip/4.3-buttons.md:894",
+        "version/3.0/ripscrip/4.3-buttons.md:896",
+        "version/3.0/ripscrip/4.3-buttons.md:898",
+        "version/3.0/ripscrip/4.3-buttons.md:900",
+        "version/3.0/ripscrip/4.3-buttons.md:902",
+        "version/3.0/ripscrip/4.3-buttons.md:903",
+        "version/3.0/ripscrip/4.3-buttons.md:904",
+        "version/3.0/ripscrip/4.3-buttons.md:905",
+        "version/3.0/ripscrip/4.3-buttons.md:906",
+        "version/3.0/ripscrip/4.3-buttons.md:907",
+        "version/3.0/ripscrip/4.3-buttons.md:908",
+        "version/3.0/ripscrip/4.3-buttons.md:910",
+        "version/3.0/ripscrip/5.1-text-variables.md:2511",
+        "version/3.0/ripscrip/5.1-text-variables.md:2517",
+        "version/3.0/ripscrip/5.1-text-variables.md:2524",
+        "version/3.0/ripscrip/5.1-text-variables.md:2530",
+        "version/3.0/ripscrip/5.1-text-variables.md:2561",
+        "version/3.0/ripscrip/9.0-command-reference.md:183",
+        "version/3.0/ripscrip/9.0-command-reference.md:194",
+        "version/3.0/ripscrip/9.0-command-reference.md:255"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:540",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:546",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:559",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:560",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:563",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:639",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:669",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:671",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:133",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:178",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:179",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:180",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:181",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:184",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:198",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:214",
+        "version/3.0/ripscrip/4.3-buttons.md:33",
+        "version/3.0/ripscrip/4.3-buttons.md:575",
+        "version/3.0/ripscrip/4.3-buttons.md:629",
+        "version/3.0/ripscrip/4.3-buttons.md:637",
+        "version/3.0/ripscrip/4.3-buttons.md:639",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:643",
+        "version/3.0/ripscrip/4.3-buttons.md:647",
+        "version/3.0/ripscrip/4.3-buttons.md:883",
+        "version/3.0/ripscrip/4.3-buttons.md:884",
+        "version/3.0/ripscrip/4.3-buttons.md:885",
+        "version/3.0/ripscrip/4.3-buttons.md:886",
+        "version/3.0/ripscrip/4.3-buttons.md:887",
+        "version/3.0/ripscrip/4.3-buttons.md:889",
+        "version/3.0/ripscrip/4.3-buttons.md:891",
+        "version/3.0/ripscrip/4.3-buttons.md:893",
+        "version/3.0/ripscrip/4.3-buttons.md:895",
+        "version/3.0/ripscrip/5.1-text-variables.md:2511",
+        "version/3.0/ripscrip/5.1-text-variables.md:2517",
+        "version/3.0/ripscrip/5.1-text-variables.md:2524",
+        "version/3.0/ripscrip/5.1-text-variables.md:2530",
+        "version/3.0/ripscrip/5.1-text-variables.md:2561",
+        "version/3.0/ripscrip/9.0-command-reference.md:183",
+        "version/3.0/ripscrip/9.0-command-reference.md:194",
+        "version/3.0/ripscrip/9.0-command-reference.md:255"
+      ],
+      "states_after_update": {
+        "unreviewed": 2129,
+        "context": 1968,
+        "pending": 1412,
+        "implemented": 3874,
+        "excluded": 71,
+        "blocked": 19
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -25061,6 +25280,71 @@
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:667",
         "version/3.0/ripscrip/3.0-text-output-and-fonts.md:669",
         "version/3.0/ripscrip/9.0-command-reference.md:148"
+      ]
+    },
+    {
+      "after_commit": "0471b7347685226aa1a276ed2c50232397c9b600",
+      "revision": "90c23d75cc76ffb8d7b1f1e02da75bcf56053002",
+      "scope": "Adopt font boundaries and connect mouse and button wire fields, simple-field hotkeys and button style protection.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/255",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/257",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/258"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:540",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:559",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:560",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:563",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:565",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:641",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:671",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:673",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:675",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:133",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:180",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:181",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:182",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:184",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:198",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:202",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:203",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:204",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:206",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:208",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:224",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:400",
+        "version/3.0/ripscrip/4.3-buttons.md:33",
+        "version/3.0/ripscrip/4.3-buttons.md:35",
+        "version/3.0/ripscrip/4.3-buttons.md:577",
+        "version/3.0/ripscrip/4.3-buttons.md:579",
+        "version/3.0/ripscrip/4.3-buttons.md:633",
+        "version/3.0/ripscrip/4.3-buttons.md:641",
+        "version/3.0/ripscrip/4.3-buttons.md:642",
+        "version/3.0/ripscrip/4.3-buttons.md:644",
+        "version/3.0/ripscrip/4.3-buttons.md:646",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/4.3-buttons.md:652",
+        "version/3.0/ripscrip/4.3-buttons.md:890",
+        "version/3.0/ripscrip/4.3-buttons.md:891",
+        "version/3.0/ripscrip/4.3-buttons.md:892",
+        "version/3.0/ripscrip/4.3-buttons.md:894",
+        "version/3.0/ripscrip/4.3-buttons.md:896",
+        "version/3.0/ripscrip/4.3-buttons.md:898",
+        "version/3.0/ripscrip/4.3-buttons.md:900",
+        "version/3.0/ripscrip/4.3-buttons.md:904",
+        "version/3.0/ripscrip/4.3-buttons.md:905",
+        "version/3.0/ripscrip/4.3-buttons.md:906",
+        "version/3.0/ripscrip/4.3-buttons.md:907",
+        "version/3.0/ripscrip/4.3-buttons.md:908",
+        "version/3.0/ripscrip/4.3-buttons.md:910",
+        "version/3.0/ripscrip/5.1-text-variables.md:2511",
+        "version/3.0/ripscrip/5.1-text-variables.md:2517",
+        "version/3.0/ripscrip/5.1-text-variables.md:2524",
+        "version/3.0/ripscrip/5.1-text-variables.md:2561",
+        "version/3.0/ripscrip/9.0-command-reference.md:183",
+        "version/3.0/ripscrip/9.0-command-reference.md:194",
+        "version/3.0/ripscrip/9.0-command-reference.md:255"
       ]
     }
   ],

@@ -1536,3 +1536,19 @@ resolved in the pin.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/c99e3ff145adf55fa4ddd919b4dca4c3e2f6cd96),
 [PR #254](https://github.com/bbs-land/remote-imaging-protocol/pull/254)
+
+
+## Font, button and mouse wire rules
+
+The reference advances to `90c23d75cc76ffb8d7b1f1e02da75bcf56053002`. The stable integration
+trees match the reviewed heads of PRs #256, #259 and #260.
+The Git archive has SHA-256
+`7c3f138cf353df341aecd260f3765712db5db5db94ffbffbdfa3fe5e0ad5885b`.
+The five changed chapters specify outline and metric string boundaries,
+button-style selection flags, the mouse-field hotkey and reserved
+fields, and shared keyboard activation.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/90c23d75cc76ffb8d7b1f1e02da75bcf56053002),
+[PR #256](https://github.com/bbs-land/remote-imaging-protocol/pull/256),
+[PR #259](https://github.com/bbs-land/remote-imaging-protocol/pull/259),
+[PR #260](https://github.com/bbs-land/remote-imaging-protocol/pull/260)

@@ -47,8 +47,12 @@ def run(args, width, height):
         after=t.exchange(b"\x01|J36|n2\r\n")
         assert after.primary==before.primary and after.alternate==before.alternate
         for i in range(1,36):
-            t.exchange(b"\x01|2B"+number(i,2)+b"\r\n")
+            t.exchange(b"\x01|2B"+number(i,1)+b".\r\n")
             values(f"$CUR(BUT)$:$INUSE(BUT,{i})$:$ISPROT(BUT,{i})$".encode(),f"{i}:1:0".encode())
+        t.exchange(b"\x01|2B5D|2B7\r\n")
+        values(b"$CUR(BUT)$:$ISPROT(BUT,35)$:$ISPROT(BUT,5)$",b"5:0:1")
+        t.exchange(b"\x01|2B5F|2B500 comment\r\n")
+        values(b"$CUR(BUT)$:$ISPROT(BUT,5)$",b"5:0")
 
         t.case(f"rip3-button-style-backups-{width}x{height}")
         values(b"$CUR(BUT,5)$$PROT(BUT,5)$$SBS$$SBS(0)$$SBS(PUSH)$")
@@ -85,7 +89,7 @@ def run(args, width, height):
         defined={2,5,6,8,12,14,16,22,24,*range(26,36)}
         values(expression,b"".join(b"1" if i in defined else b"0" for i in range(1,36)))
         # Malformed wire fields and backup selectors are consumed internally.
-        t.exchange(b"\x01|1Bbad|2BZZ|2B01\r\n")
+        t.exchange(b"\x01|1Bbad|2BZ?|2B10\r\n")
         values(b"$RESET(BUT,S10)$")
         frame=values(b"$CUR(BUT)$:alive",b"1:alive")
         assert frame.application["connected"]==1
@@ -96,9 +100,9 @@ def run(args, width, height):
         # Literal style B from PR114; a failed definition leaves it unused.
         t.exchange(b"\x01|1Bbad\r\n")
         values(b"$INUSE(BUT,5)$",b"0")
-        t.exchange(b"\x01|1B0000020074000C000F080200000F07000000\r\n")
+        t.exchange(b"\x01|1B..020074.0C.0F0802..0F07.Z9\r\n")
         values(b"$CUR(BUT,5)$$CUR(BUT)$:$INUSE(BUT,5)$:$ISPROT(BUT,5)$:$ISPROT(BUT,CUR)$",b"5:1:0:0")
-        frame=t.exchange(b"\x01|1U0A0A2I140000<>Style B\r\n")
+        frame=t.exchange(b"\x01|1U0A0A2I14..Z<>Style B\r\n")
         assert any(pixel(frame,x,y)==0xff5555
                    for y in range(10*height//350,40*height//350)
                    for x in range(10*width//640,90*width//640))

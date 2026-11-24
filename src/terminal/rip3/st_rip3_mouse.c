@@ -195,7 +195,9 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	struct field *field=malloc(sizeof(*field)+length);
 	if (field==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	field->hovered=false;field->area=*area;field->kind=kind;field->invert=invert;field->reset=reset;field->identity=identity;field->length=length;
-	field->binding=kind==ST_RIP3_MOUSE_BUTTON && binding!=NULL ? *binding : (struct st_rip3_mouse_binding){0};
+	field->binding=binding!=NULL ? *binding : (struct st_rip3_mouse_binding){0};
+	if (kind==ST_RIP3_MOUSE_SIMPLE)
+		field->binding.group_kind=ST_RIP3_GROUP_NONE;
 	field->visual=visual!=NULL ? *visual : (struct st_rip3_mouse_visual){0};
 	field->instance=++mouse->sequence;
 	if (length!=0) memcpy(field->program,program,length);
@@ -575,10 +577,10 @@ st_rip3_mouse_key(struct st_rip3_mouse *mouse, uint8_t byte)
 	struct field *winner=NULL;unsigned best=3;
 	for (size_t i=mouse->count;i>0;i--) {
 		struct field *field=mouse->fields[i-1];
-		if (field->kind!=ST_RIP3_MOUSE_BUTTON) continue;
 		unsigned rank=3;uint8_t key=field->binding.hotkey;
 		if (key!=0 && key!=255 && fold(key)==fold(byte)) rank=0;
-		else if (byte==13 && field->binding.default_enter) rank=1;
+		else if ((byte==13 && field->binding.default_enter)
+		    || (byte==27 && field->binding.default_escape)) rank=1;
 		else if (key==255) rank=2;
 		if (rank<best) {winner=field;best=rank;}
 		if (best==0) break;

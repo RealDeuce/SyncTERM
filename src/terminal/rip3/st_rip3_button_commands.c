@@ -5,44 +5,54 @@
 #include "st_rip3_environments.h"
 #include "io_error.h"
 
+static void
+apply_protection(struct st_rip3_button_styles *styles, unsigned number, uint64_t flags,
+    const struct st_rip3_command_sink *sink)
+{
+	if ((flags&1) != 0)
+		st_rip3_command_result(sink,st_rip3_button_styles_protect(styles,number,true),true);
+	if ((flags&2) != 0 && number != 0)
+		st_rip3_command_result(sink,st_rip3_button_styles_protect(styles,number,false),true);
+}
+
 int
 st_rip3_button_commands_execute(const struct st_rip3_command_host *host,
-    const uint8_t *command, size_t length, bool *operation)
+    const uint8_t *command, size_t length, bool *operation,
+    const struct st_rip3_command_sink *sink)
 {
 	struct st_rip3_environment environment;unsigned number;
 	int status=st_rip3_command_environment(host,&number,&environment);
 	if (status!=0) return status;
 	if (host->button_styles==NULL) return IO_ERROR_NOT_SUPPORTED;
-	size_t count=length-2;
+	struct st_rip3_fields fields = {command+2,length-2};
 	if (command[0]=='2') {
-		if (count==0 || count>2) return IO_ERROR_INVALID_FORMAT;
-		uint64_t target;
-		status=st_rip3_command_field(&target,command+2,count,environment.base_math);
+		uint64_t target, flags;
+		status=st_rip3_command_next_field(&fields,&target,1,environment.base_math,false);
+		if (status==0)
+			status=st_rip3_command_next_field(&fields,&flags,2,environment.base_math,true);
 		if (status!=0) return status;
 		if (target>=36) return IO_ERROR_OUT_OF_RANGE;
-		*operation=true;return st_rip3_button_styles_select(host->button_styles,(unsigned)target);
+		status=st_rip3_button_styles_current(host->button_styles,&number);
+		if (status!=0) return status;
+		/* Source flags apply before selection. A protection error still
+		 * permits the switch and its remaining flags. */
+		*operation=true;
+		apply_protection(host->button_styles,number,flags>>2,sink);
+		status=st_rip3_button_styles_select(host->button_styles,(unsigned)target);
+		if (status==0) apply_protection(host->button_styles,(unsigned)target,flags,sink);
+		return status;
 	}
-	size_t required=2*environment.coordinate_size+26;
-	if (count<required-1 || count>required+6) return IO_ERROR_INVALID_FORMAT;
-	uint64_t values[14];size_t at=2;
+	uint64_t values[14];
 	for (unsigned i=0;i<14;i++) {
 		size_t width=i<2 ? environment.coordinate_size : i==3 ? 4 : 2;
-		if (i==13 && count==required-1) width=1;
-		status=st_rip3_command_field(values+i,command+at,width,environment.base_math);
+		status=st_rip3_command_next_field(&fields,values+i,width,environment.base_math,false);
 		if (status!=0) return status;
-		at+=width;
 	}
-	if (count>required) {
-		uint64_t ignored;
-		status=st_rip3_command_field(&ignored,command+at,1,environment.base_math);
-		if (status!=0) return status;
-		++at; /* other_port is ignored, including on the clipboard path. */
-		if (count>required+1) {
-			status=st_rip3_command_field(&ignored,command+at,count-required-1,environment.base_math);
-			if (status!=0) return status;
-			if (ignored!=0) return IO_ERROR_NOT_SUPPORTED;
-		}
-	}
+	/* The ignored other_port is required, even on the clipboard path. */
+	status=st_rip3_command_next_field(&fields,NULL,1,environment.base_math,false);
+	if (status==0 && fields.remaining!=0)
+		status=st_rip3_command_next_field(&fields,NULL,5,environment.base_math,true);
+	if (status!=0) return status;
 	if (values[2]>4 || values[10]>=36 || values[11]>255) return IO_ERROR_OUT_OF_RANGE;
 	for (unsigned i=5;i<=9;i++) if (values[i]>255) return IO_ERROR_OUT_OF_RANGE;
 	if (values[12]>255 || values[13]>255) return IO_ERROR_OUT_OF_RANGE;

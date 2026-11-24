@@ -61,8 +61,7 @@ main(void)
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	env.base_math=36;env.coordinate_size=2;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
-	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B05",4);
-	CHECK(errors==0 && st_rip3_button_styles_protect(host.button_styles,5,true)==0);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B51",4);
 	uint64_t values[16]={64,32,2,768,16,15,0,15,8,7,0,0,15,7,35,0};
 	uint8_t bytes[128];size_t size=definition(bytes,36,2,values);
 	st_rip3_commands_process(&host,&sink,bytes,size);
@@ -76,20 +75,31 @@ main(void)
 		size=definition(bytes,36,2,invalid);st_rip3_commands_process(&host,&sink,bytes,size);
 		CHECK(errors==i+2);
 	}
-	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2BZZ",4);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2BZ?",4);
 	CHECK(errors==6);
-	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B07",4);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B7.",4);
 	unsigned current;
 	CHECK(errors==6 && st_rip3_button_styles_current(host.button_styles,&current)==0 && current==7);
 	size=definition(bytes,36,2,values);
-	st_rip3_commands_process(&host,&sink,bytes,size-6); /* Ignore omitted other_port/reserved. */
+	st_rip3_commands_process(&host,&sink,bytes,size-5); /* Only the reserve is optional. */
 	CHECK(errors==6 && st_rip3_button_styles_get(host.button_styles,7,&value)==0
 	    && value.width==64 && value.height==32 && value.bevel==16);
 	env.world_width=0;
 	CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
 	st_rip3_commands_process(&host,&sink,bytes,size);
 	CHECK(errors==7 && st_rip3_button_styles_get(host.button_styles,7,&value)==0 && value.width==64);
-	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B08",4);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B80",4);
 	CHECK(errors==7 && st_rip3_button_styles_current(host.button_styles,&current)==0 && current==8);
+	struct st_rip3_button_style_info source, target;
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B75",4);
+	CHECK(errors==7 && st_rip3_button_styles_current(host.button_styles,&current)==0 && current==7);
+	CHECK(st_rip3_button_styles_info(host.button_styles,8,&source)==0 && source.protected
+	    && st_rip3_button_styles_info(host.button_styles,7,&target)==0 && target.protected);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B7F",4);
+	CHECK(errors==7 && st_rip3_button_styles_info(host.button_styles,7,&target)==0 && !target.protected);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B0.",4);
+	st_rip3_commands_process(&host,&sink,(const uint8_t *)"2B84",4);
+	CHECK(errors==8 && st_rip3_button_styles_current(host.button_styles,&current)==0 && current==8
+	    && st_rip3_button_styles_info(host.button_styles,0,&source)==0 && !source.protected);
 	st_rip3_button_styles_destroy(host.button_styles);st_rip3_environments_destroy(host.environments);return 0;
 }

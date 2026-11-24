@@ -14,9 +14,9 @@ from st_rip3_connected_test import pixel, query
 from st_terminal_conformance_test import Terminal
 
 
-def field(area, program, invert=False, clear=False, radix=36, xy=2):
+def field(area, program, invert=False, clear=False, radix=36, xy=2, *, hotkey=0):
     return (b"\x01|1M00"+b"".join(number(v,xy,radix) for v in area)
-            +number(invert,1,radix)+number(clear,1,radix)+b"00000"+program+b"\r\n")
+            +number(invert,1,radix)+number(clear,1,radix)+number(hotkey,2,radix)+b"000"+program+b"\r\n")
 
 
 def run(args):
@@ -165,8 +165,37 @@ def run(args):
         click(10,20,b"")
         values(b"$WORLD(CUR,640,480)$")
         t.exchange(field((10,20,20,30),b"valid")
-                   +b"\x01|1Mbad|1Kbad\r\n")
+                   +b"\x01|1Mbad\r\n")
         click(15,25,b"valid")
+        t.exchange(b"\x01|1K comment|1M...0K0U...00Zshort\r\n")
+        click(15,25,b"short")
+        t.exchange(b"\x01|1k..0K0U0001 comment\r\n")
+        click(15,25,b"")
+        values(b"alive",b"alive")
+
+        t.case("rip3-simple-field-hotkeys-and-defaults")
+        area = (40,40,60,60)
+        t.exchange(field(area,b"ID=7:exact:$FIELDID$",hotkey=ord("A"))
+                   +field(area,b"wild",hotkey=255)
+                   +field(area,b"defaults",invert=6))
+        client.text("a")
+        t.input(b"exact:7")
+        client.key("escape")
+        t.input(b"defaults")
+        client.key("enter")
+        t.input(b"defaults")
+        client.text("z")
+        t.input(b"wild")
+        values(b"$HKEYOFF$")
+        client.text("a")
+        t.input(b"a")
+        values(b"$HKEYON$$CUR(TW,2)$")
+        t.exchange(field(area,b"before:$CUR(TW)$",clear=True,hotkey=ord("R")))
+        client.text("r")
+        t.input(b"before:2")
+        values(b"$CUR(TW)$",b"0")
+        click(50,50,b"")
+        values(b"$WORLD(CUR,640,480)$")
 
         t.case("rip3-field-clear-runs-after-successful-host-action")
         t.exchange(b"\x01|2T20|w0A050C0710|c0C|X2S2S\r\n"
