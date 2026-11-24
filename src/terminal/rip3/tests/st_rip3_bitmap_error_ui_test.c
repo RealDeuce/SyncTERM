@@ -145,12 +145,12 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(f.errors == 2 && capture(&f,width,height,1) == 0);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	const struct st_rip3_bitmap_destination clipped = {-2,4,27,16};
-	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&clipped);
+	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&clipped,false);
 	CHECK(capture(&f,width,height,2) == 0);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	const int64_t limit = INT64_C(1024)*INT32_MAX;
 	const struct st_rip3_bitmap_destination wide = {-limit,0,limit,10};
-	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&wide);
+	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&wide,false);
 	CHECK(capture(&f,width,height,3) == 0);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
 	st_rip3_bitmap_error_ui_test_fail_allocate = true;
@@ -159,22 +159,22 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    && capture(&f,width,height,-1) == 0);
 	st_rip3_commands_process(&f.host,&diagnostics,(const uint8_t *)"3e02",4);
 	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && st_rip3_environments_playback_rate(f.host.environments) == 2 && f.errors == 3);
-	st_rip3_bitmap_error_show(&f.ui,"\xff",1,NULL);
-	f.font.glyph_size = 4; st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,NULL); f.font.glyph_size = 3;
-	st_rip3_bitmap_error_show(&f.ui,"X.BMP",2,NULL);
+	st_rip3_bitmap_error_show(&f.ui,"\xff",1,NULL,false);
+	f.font.glyph_size = 4; st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,NULL,false); f.font.glyph_size = 3;
+	st_rip3_bitmap_error_show(&f.ui,"X.BMP",2,NULL,false);
 	const struct st_rip3_bitmap_destination invalid = {5,0,4,1};
-	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&invalid);
+	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&invalid,false);
 	CHECK(capture(&f,width,height,-1) == 0);
 	/* A UTF-8 scalar consumes one fallback glyph, rather than four bytes. */
-	st_rip3_bitmap_error_show(&f.ui,"X\xf0\x9f\x99\x82",1,NULL);
+	st_rip3_bitmap_error_show(&f.ui,"X\xf0\x9f\x99\x82",1,NULL,false);
 	uint8_t pixel;
 	CHECK(st_rip3_ports_read(f.host.ports,1,10,8,&pixel) == 0 && pixel == 255);
 	CHECK(st_rip3_ports_read(f.host.ports,1,11,8,&pixel) == 0 && pixel == 0);
-	st_rip3_bitmap_error_show(&f.ui,"\xc3\xa9",1,NULL);
+	st_rip3_bitmap_error_show(&f.ui,"\xc3\xa9",1,NULL,false);
 	CHECK(st_rip3_ports_read(f.host.ports,1,5,8,&pixel) == 0 && pixel == 0);
 	CHECK(st_rip3_ports_read(f.host.ports,1,6,8,&pixel) == 0 && pixel == 255);
 	CHECK(st_rip3_ports_erase(f.host.ports,85) == 0);
-	f.ui.font = NULL; st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,NULL);
+	f.ui.font = NULL; st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,NULL,false);
 	unsigned native_height = width == 640 ? 11 : width == 800 ? 13 : 17;
 	/* The native default box extends beyond this short viewport. Its top
 	 * border paints; no invented bottom edge appears at the clipping edge. */
@@ -190,13 +190,13 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0
 	    && st_rip3_palettes_rgb(f.host.palettes,0,8,colors,256) == 0 && st_rip3_palettes_protect(f.host.palettes,1,true) == 0);
 	const struct st_rip3_bitmap_destination small = {1,1,30,13};
-	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&small);
+	st_rip3_bitmap_error_show(&f.ui,"X.BMP",1,&small,false);
 	CHECK(st_rip3_ports_read(f.host.ports,1,3,2,&pixel) == 0 && pixel == 9);
 	CHECK(st_rip3_ports_read(f.host.ports,1,4,3,&pixel) == 0 && pixel == 7);
 	struct st_rip3_palette retained;
 	CHECK(st_rip3_palettes_get(f.host.palettes,1,&retained) == 0 && memcmp(retained.rgb,colors,sizeof(colors)) == 0);
 	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
-	f.ui.palettes = NULL; st_rip3_bitmap_error_show(&f.ui,NULL,1,NULL);
+	f.ui.palettes = NULL; st_rip3_bitmap_error_show(&f.ui,NULL,1,NULL,false);
 	st_rip3_environments_destroy(f.host.environments); st_rip3_palettes_destroy(f.host.palettes); st_rip3_ports_destroy(f.host.ports);
 	return 0;
 }

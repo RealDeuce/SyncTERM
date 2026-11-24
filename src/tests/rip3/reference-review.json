@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/248",
-  "revision": "6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d",
-  "previous_revision": "03b2e042e9c187327daae5c7a2568c9285513391",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/252",
+  "revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
+  "previous_revision": "6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The reviewed PR #247 and #248 heads match their respective fork stable integration trees.",
-  "archive_sha256": "45f2f4d632cd5409c5ae16973267286075f2f5de9de5c87c22e620c500c9b7e2",
+  "upstream_state_at_adoption": "The reviewed PR #251 and #252 heads match their respective fork stable integration trees.",
+  "archive_sha256": "60afc43a197f103c4c413a1a9093dcd9a633ba2ee5aed7a701154940c62ad91d",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -18,33 +18,48 @@
   "changed_documents": [
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "previous_sha256": "37f6ca1cdb9c9891be08dd4ef762355decbd7f549e666bb1c8919e7c1c458c52",
-      "sha256": "1585578264447c019c5d849b27d7be6f83c888ae3227d65f5bc01612e59bfa62"
+      "previous_sha256": "1585578264447c019c5d849b27d7be6f83c888ae3227d65f5bc01612e59bfa62",
+      "sha256": "4354223f655cdf57bff0cbe15aba092e2a98f2b7a66b1ff8fe3688b7b3694228"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "previous_sha256": "23ea3555ed9d7c6840ec1393414af573859e989ca3dc79a850dd83f52f692f43",
-      "sha256": "b378d842d7355f8bde1708b80e38c7357d40d8c123e37a6cb47116ef53480e84"
+      "previous_sha256": "b378d842d7355f8bde1708b80e38c7357d40d8c123e37a6cb47116ef53480e84",
+      "sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00"
+    },
+    {
+      "path": "version/3.0/ripscrip/2.2-curves.md",
+      "previous_sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a",
+      "sha256": "e7d963779ee39a12dac02ecd15f3025f3962ae56d7bcfb26ab687023e7667f53"
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "19b515d9319bd0fc20465b7cf9fe77eec563b2d11497ed7b88febb2941b79564",
-      "sha256": "a6bdef70aa80ab20125226d31cecbbdcd96c4d0921561305d4e42d617d087339"
+      "previous_sha256": "a6bdef70aa80ab20125226d31cecbbdcd96c4d0921561305d4e42d617d087339",
+      "sha256": "0e358ea61176f91c627d26a2a047003414b047105ddbb370ebad86d865a3233d"
     },
     {
-      "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "previous_sha256": "3b9dc5bebfd6dcc6f8cdefaed3648eae54d7922e4356071ab6d569957b4b4a0a",
-      "sha256": "48a151d432b232c3b864c879764d042475ddfc1106b3966643c0bbf49ce5f126"
+      "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
+      "previous_sha256": "d7108625fd84153a9231207abf1ca89178ffbf29a42118c19adea48bb283f767",
+      "sha256": "1317460dc05ad700bc7fbc193796c6be7b4dd17ba3125d0bf1e80930adc17991"
+    },
+    {
+      "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+      "previous_sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e",
+      "sha256": "90237db73b55c394c3928b81748767414df2d4ef07119d21b7f3ee8caee4c68e"
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "previous_sha256": "3419abcfc80f448f4a86e49a858dea0bd393b62c4a2319a18b64d891bc9724a9",
-      "sha256": "f70bfe740392a82b071b5ee39d045ffa47e1a5ef8ad3d8a57aa49ea4c394f4a9"
+      "previous_sha256": "f70bfe740392a82b071b5ee39d045ffa47e1a5ef8ad3d8a57aa49ea4c394f4a9",
+      "sha256": "5b98623399759b9fd063e7a2531e2a103a0156d30a049892828591e98824ba02"
+    },
+    {
+      "path": "version/3.0/ripscrip/9.0-command-reference.md",
+      "previous_sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61",
+      "sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9381,
+  "matched_source_blocks": 9393,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -978,7 +993,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 122,
+  "upstream_issue_resolutions": 124,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1705,6 +1720,18 @@
       "sha256": "06e81409767a7939a061a225ebeac3aea48ed1a105a279a6501796f73c7e32d7",
       "title": "Issue #245 — Image reserved-field collection",
       "role": "Original descriptor flags, GET_IMAGE argument reads and staged JPEG filename captures."
+    },
+    {
+      "path": "version/3.0/research/issue-249-bitmap-prefixes-port-write.md",
+      "sha256": "413ce5df9e3e0ba63c97f511e65c17e3757f0442799bb6963a93324ae8a86fd3",
+      "title": "Issue #249 — Bitmap numeric prefixes and PORT_WRITE cleanup",
+      "role": "Original numeric descriptors, filename boundaries, marker anchoring and export registry trace."
+    },
+    {
+      "path": "version/3.0/research/issue-250-meganum-receive-alphabet.md",
+      "sha256": "8ef06a1a7022e592f03306dd6b17d8b09046f26ba414cc1b20e967eaa28d152e",
+      "title": "Issue #250 — MegaNum receive alphabet",
+      "role": "Original numeric byte validation, case and dispatch on staged input."
     }
   ],
   "documents": [
@@ -1798,11 +1825,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "1585578264447c019c5d849b27d7be6f83c888ae3227d65f5bc01612e59bfa62"
+      "sha256": "4354223f655cdf57bff0cbe15aba092e2a98f2b7a66b1ff8fe3688b7b3694228"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "sha256": "b378d842d7355f8bde1708b80e38c7357d40d8c123e37a6cb47116ef53480e84"
+      "sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00"
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
@@ -1822,7 +1849,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.2-curves.md",
-      "sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a"
+      "sha256": "e7d963779ee39a12dac02ecd15f3025f3962ae56d7bcfb26ab687023e7667f53"
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
@@ -1838,7 +1865,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "a6bdef70aa80ab20125226d31cecbbdcd96c4d0921561305d4e42d617d087339"
+      "sha256": "0e358ea61176f91c627d26a2a047003414b047105ddbb370ebad86d865a3233d"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1886,7 +1913,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
-      "sha256": "d7108625fd84153a9231207abf1ca89178ffbf29a42118c19adea48bb283f767"
+      "sha256": "1317460dc05ad700bc7fbc193796c6be7b4dd17ba3125d0bf1e80930adc17991"
     },
     {
       "path": "version/3.0/ripscrip/6.1-content-file-roles.md",
@@ -1894,11 +1921,11 @@
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e"
+      "sha256": "90237db73b55c394c3928b81748767414df2d4ef07119d21b7f3ee8caee4c68e"
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "f70bfe740392a82b071b5ee39d045ffa47e1a5ef8ad3d8a57aa49ea4c394f4a9"
+      "sha256": "5b98623399759b9fd063e7a2531e2a103a0156d30a049892828591e98824ba02"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -1910,7 +1937,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61"
+      "sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1981,7 +2008,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "858dfb186525d52702d89bb41ba2c1f109d92020",
+  "previous_ledger_commit": "cd91e3bdc5d64f1c751aa3710e27abe0fcf74237",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18937,6 +18964,182 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d",
+      "revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
+      "archive_sha256": "60afc43a197f103c4c413a1a9093dcd9a633ba2ee5aed7a701154940c62ad91d",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/249",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/251",
+          "reviewed_head": "70dbfac47aff42060f4a45a5fdbdafa31fd2cf7f",
+          "integration": "105382e000995c25280ac83114712127feedb32d"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/250",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/252",
+          "reviewed_head": "70492116cf2793dd230a7ea218f8c7642d8e5ca6",
+          "integration": "504f87f2894fbc303102dbdde8ad9177307c90ec"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "1585578264447c019c5d849b27d7be6f83c888ae3227d65f5bc01612e59bfa62",
+          "sha256": "4354223f655cdf57bff0cbe15aba092e2a98f2b7a66b1ff8fe3688b7b3694228"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+          "previous_sha256": "b378d842d7355f8bde1708b80e38c7357d40d8c123e37a6cb47116ef53480e84",
+          "sha256": "5f8324a2bbde75709bba5293c4e487a70cd96f23d0b301b7d503d2cb7ccb2c00"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.2-curves.md",
+          "previous_sha256": "7aec8367c5bf2f47ab8ac570e2f594468c7ce742603cedf87a8cbe091c01430a",
+          "sha256": "e7d963779ee39a12dac02ecd15f3025f3962ae56d7bcfb26ab687023e7667f53"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "a6bdef70aa80ab20125226d31cecbbdcd96c4d0921561305d4e42d617d087339",
+          "sha256": "0e358ea61176f91c627d26a2a047003414b047105ddbb370ebad86d865a3233d"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
+          "previous_sha256": "d7108625fd84153a9231207abf1ca89178ffbf29a42118c19adea48bb283f767",
+          "sha256": "1317460dc05ad700bc7fbc193796c6be7b4dd17ba3125d0bf1e80930adc17991"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+          "previous_sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e",
+          "sha256": "90237db73b55c394c3928b81748767414df2d4ef07119d21b7f3ee8caee4c68e"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "f70bfe740392a82b071b5ee39d045ffa47e1a5ef8ad3d8a57aa49ea4c394f4a9",
+          "sha256": "5b98623399759b9fd063e7a2531e2a103a0156d30a049892828591e98824ba02"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "c79a71df32b3e55e872b782ce08d610f6434bd815adc3ede912bf87366c38a61",
+          "sha256": "15696a24652ca2e61f265c043a7de4802676848bdfb7aece728d2939422e8cc4"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-249-bitmap-prefixes-port-write.md",
+          "sha256": "413ce5df9e3e0ba63c97f511e65c17e3757f0442799bb6963a93324ae8a86fd3",
+          "title": "Issue #249 — Bitmap numeric prefixes and PORT_WRITE cleanup",
+          "role": "Original numeric descriptors, filename boundaries, marker anchoring and export registry trace."
+        },
+        {
+          "path": "version/3.0/research/issue-250-meganum-receive-alphabet.md",
+          "sha256": "8ef06a1a7022e592f03306dd6b17d8b09046f26ba414cc1b20e967eaa28d152e",
+          "title": "Issue #250 — MegaNum receive alphabet",
+          "role": "Original numeric byte validation, case and dispatch on staged input."
+        }
+      ],
+      "moved_source_blocks": 530,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:207",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:213",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:215",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:216",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:217",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:218",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:219",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:220",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:221",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:222",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:223",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:224",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:225",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:226",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:227",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:324",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:119",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:122",
+        "version/3.0/ripscrip/2.2-curves.md:217",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:199",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:200",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:201",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:202",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:203",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:205",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:209",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:219",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:220",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:221",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:222",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:223",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:245",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:332",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:380",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:382",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:383",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:384",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:385",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:386",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:387",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:388",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:390",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:145",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:66",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:702",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:703",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:704",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:705",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:706",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:708",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:729",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:735",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:737",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:739",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:741",
+        "version/3.0/ripscrip/9.0-command-reference.md:167",
+        "version/3.0/ripscrip/9.0-command-reference.md:235"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:306",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:115",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:121",
+        "version/3.0/ripscrip/2.2-curves.md:217",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:199",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:200",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:201",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:202",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:203",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:205",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:217",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:218",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:219",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:220",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:221",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:243",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:330",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:145",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:66",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:702",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:703",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:704",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:705",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:706",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:708",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:729",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:733",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:735",
+        "version/3.0/ripscrip/9.0-command-reference.md:167",
+        "version/3.0/ripscrip/9.0-command-reference.md:235"
+      ],
+      "states_after_update": {
+        "unreviewed": 2144,
+        "context": 1955,
+        "pending": 1417,
+        "implemented": 3843,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -24692,6 +24895,42 @@
       "verified_source_units": [
         "version/3.0/ripscrip/1.2-math-and-coordinates.md:121",
         "version/3.0/ripscrip/7.0-drawing-ports.md:444"
+      ]
+    },
+    {
+      "after_commit": "cd91e3bdc5d64f1c751aa3710e27abe0fcf74237",
+      "revision": "504f87f2894fbc303102dbdde8ad9177307c90ec",
+      "scope": "Adopt the bitmap prefix, marker-anchor and PORT_WRITE rules and the original wire digit alphabets.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/249",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/250"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:207",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:119",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:122",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:201",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:202",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:203",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:205",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:209",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:219",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:220",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:221",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:222",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:223",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:245",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:332",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:66",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:704",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:705",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:706",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:708",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:729",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:735",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:737",
+        "version/3.0/ripscrip/9.0-command-reference.md:167",
+        "version/3.0/ripscrip/9.0-command-reference.md:235"
       ]
     }
   ],

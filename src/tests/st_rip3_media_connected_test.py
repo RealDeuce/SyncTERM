@@ -128,9 +128,21 @@ def check_bitmap(t, assets, values, encoding):
     (assets / "Raw.icn").write_bytes(solid)
     frame = wire(b"1I" + coords(250, 30) + b"00000Raw.icn"
                  + b"|1b" + coords(250, 31, 251, 31) + b"0000000000Raw.icn")
-    assert tint(frame, 250, 30, 2, 2) == [[0, 0], [0xffffff, 0xffffff]]
+    assert tint(frame, 250, 30, 2, 2) == [[0xffffff, 0xffffff]] * 2
     assert (assets / "Raw.icn").read_bytes() == solid
     assert not (assets / "Raw.BMP").exists()
+    values(b"alive", b"alive")
+
+    t.case("A missing wire icon places its marker at the projected, clipped anchor")
+    reset()
+    wire(b"v" + coords(400, 100, 420, 115) + b"|S0104|B" + coords(0, 0, 20, 15))
+    values(b"$WORLD(CUR,320,240)$")
+    frame = wire(b"1I" + coords(3, 2) + b"1400.Missing.bmp")
+    for phase in ("primary", "alternate"):
+        assert [plane_pixel(frame, x, 104, phase) for x in (400, 405, 406, 420, 421)] == [
+            red, red, 0xffffff, 0xffffff, 0]
+        assert [plane_pixel(frame, 407, y, phase) for y in (103, 104, 105, 115, 116)] == [
+            red, 0xffffff, 0, 0, 0]
     values(b"alive", b"alive")
 
     t.case("Wire bitmap wallpaper repeats the live composited seed in both blink phases")

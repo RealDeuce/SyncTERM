@@ -57,7 +57,7 @@ contrasting(const struct st_rip3_palette *palette, uint8_t background)
 
 void
 st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
-    const struct st_rip3_bitmap_destination *requested)
+    const struct st_rip3_bitmap_destination *requested, bool natural_size)
 {
 	static const uint8_t title[] = "Cannot load bitmap";
 	struct st_rip3_bitmap_error_ui *ui = context;
@@ -83,10 +83,13 @@ st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
 		font = &builtin.data.bitmap;
 	}
 	if (st_rip3_bitmap_text_measure(font,&style,1,&metrics) != 0) return;
-	if (requested != NULL) area = *requested;
-	else {
+	area = requested != NULL ? *requested : (struct st_rip3_bitmap_destination){0};
+	if (natural_size || requested == NULL) {
+		if (area.x0 < -limit || area.x0 > limit || area.y0 < -limit || area.y0 > limit)
+			return;
 		size_t columns = length < 18 ? 18 : length > 32 ? 32 : length;
-		area = (struct st_rip3_bitmap_destination){0,0,(int64_t)columns*font->width+5,(int64_t)font->height*2+6};
+		area.x1 = area.x0+(int64_t)columns*font->width+5;
+		area.y1 = area.y0+(int64_t)font->height*2+6;
 	}
 	if (area.x0 > area.x1 || area.y0 > area.y1 || area.x0 < -limit || area.x1 > limit
 	    || area.y0 < -limit || area.y1 > limit) return;

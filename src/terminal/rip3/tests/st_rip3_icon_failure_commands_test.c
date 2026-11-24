@@ -67,11 +67,12 @@ process(struct fixture *f, const char *body, int error)
 }
 
 static void
-show(void *context, const char *name, unsigned port, const struct st_rip3_bitmap_destination *area)
+show(void *context, const char *name, unsigned port, const struct st_rip3_bitmap_destination *area,
+    bool natural_size)
 {
 	struct fixture *f = context; unsigned current;
 	f->placeholders++;
-	if (name == NULL || name[0] == 0 || area != NULL || port != 1
+	if (name == NULL || name[0] == 0 || area == NULL || !natural_size || port != 1
 	    || st_rip3_ports_current(f->host.ports,&current) != 0 || current != 1
 	    || f->selection.set != f->original_selection.set || f->selection.port != f->original_selection.port)
 		f->bad_callback = true;

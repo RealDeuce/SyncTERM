@@ -69,8 +69,10 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 	    || host->bitmap_errors->show == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_command_frame(host,environment_number,&frame);
 	if (status != 0) return status;
-	area.x0 = (int64_t)(x*frame.device_width/frame.world_width);
-	area.y0 = (int64_t)(y*frame.device_height/frame.world_height);
+	area = (struct st_rip3_bitmap_destination){
+		.x0 = (int64_t)(x*frame.device_width/frame.world_width),
+		.y0 = (int64_t)(y*frame.device_height/frame.world_height),
+	};
 	char *name = bitmap_name(fields.bytes, fields.remaining);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	*operation = true;
@@ -81,7 +83,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 		 * leaves selection, pointer and port resources intact. Resource
 		 * failure may prevent the UI from drawing, but still requests it. */
 		if (status != IO_ERROR_INVALID_ARGUMENT && status != IO_ERROR_INVALID_ENCODING)
-			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
+			host->bitmap_errors->show(host->bitmap_errors->context,name,port,&area,true);
 		goto done;
 	}
 	/* Failure handling above is independent of capture bindings. A valid
@@ -105,7 +107,7 @@ load_icon(const struct st_rip3_command_host *host, unsigned environment_number,
 		status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,
 		    ST_RIP3_BITMAP_MATCH,(enum st_rip3_transfer_mode)mode,NULL);
 		if (status != 0)
-			host->bitmap_errors->show(host->bitmap_errors->context,name,port,NULL);
+			host->bitmap_errors->show(host->bitmap_errors->context,name,port,&area,true);
 		else if (clipboard != 0) {
 			/* The renderer's requested rectangle is not reduced to visible
 			 * pixels. Capture owns its extra allocation unit and its separate
@@ -180,7 +182,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0) {
 		/* Invalid names have not passed the UTF-8 namespace contract. */
 		if (file_failure(status))
-			host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area);
+			host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area,false);
 		goto done;
 	}
 	bool adopt = (flags&2) != 0 && bitmap->palette_size != 0;
@@ -206,7 +208,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,colors,
 	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL);
 	if (status != 0) {
-		if (file_failure(status)) host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area);
+		if (file_failure(status)) host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area,false);
 		goto done;
 	}
 	/* No callbacks run between palette preflight, staging/painting and this

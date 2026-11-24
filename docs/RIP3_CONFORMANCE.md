@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d](https://github.com/RealDeuce/remote-imaging-protocol/tree/6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d/version/3.0)
+504f87f2894fbc303102dbdde8ad9177307c90ec](https://github.com/RealDeuce/remote-imaging-protocol/tree/504f87f2894fbc303102dbdde8ad9177307c90ec/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10313,3 +10313,14 @@ dispatched commands. Connected CP437 and UTF-8 tests verify color and
 geometry across both radices, switch and base-math state after malformed
 fields, and subsequent commands on the same connection.
 [Issue #250](https://github.com/bbs-land/remote-imaging-protocol/issues/250)
+
+
+## Missing wire icon marker
+
+A failed `1I` places the local marker at the projected icon anchor. The
+marker uses its own device dimensions and COPY, with regular viewport
+and backing clipping. The pad digit and selected bitmap raster operation
+leave the marker unchanged. Lookup and raster failure keep the current
+port and clipboard selection. Both connected encodings check a nonzero
+viewport origin, a scaled WORLD and the next reply on the same connection.
+[PR #251](https://github.com/bbs-land/remote-imaging-protocol/pull/251)

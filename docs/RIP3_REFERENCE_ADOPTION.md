@@ -1507,3 +1507,18 @@ the documentation resolutions.
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d),
 [PR #247](https://github.com/bbs-land/remote-imaging-protocol/pull/247),
 [PR #248](https://github.com/bbs-land/remote-imaging-protocol/pull/248)
+
+
+## Bitmap filename prefixes and numeric receive alphabets
+
+The reference advances to `504f87f2894fbc303102dbdde8ad9177307c90ec`. The fork stable
+integration trees match the reviewed heads of PRs #251 and #252.
+The Git archive has SHA-256
+`60afc43a197f103c4c413a1a9093dcd9a633ba2ee5aed7a701154940c62ad91d`.
+The adopted chapters define bitmap filename boundaries, missing-icon
+marker placement, PORT_WRITE cleanup flags and the original MegaNum and
+UltraNum receive alphabets. Issues #249 and #250 are resolved in the pin.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/504f87f2894fbc303102dbdde8ad9177307c90ec),
+[PR #251](https://github.com/bbs-land/remote-imaging-protocol/pull/251),
+[PR #252](https://github.com/bbs-land/remote-imaging-protocol/pull/252)

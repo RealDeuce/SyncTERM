@@ -434,7 +434,7 @@ load_icon(struct button *button,struct st_rip3_bitmap **bitmap)
 		if (status==0) return 0;
 	}
 	status=st_rip3_bitmap_load(bitmap,button->host.resources,button->name);
-	if (status!=0) button->host.bitmap_errors->show(button->host.bitmap_errors->context,button->name,button->target,NULL);
+	if (status!=0) button->host.bitmap_errors->show(button->host.bitmap_errors->context,button->name,button->target,NULL,false);
 	else if (button->selected && (button->style.flags&4096)!=0) button->style.flags=(button->style.flags&~4096u)|2u;
 	return status;
 }

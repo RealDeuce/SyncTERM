@@ -44,13 +44,13 @@ struct st_rip3_text_window_host {
 
 /* Borrowed UI request, made on the session thread for file/decode failures.
  * name and area live only during show(). Explicit areas are viewport-relative
- * inclusive device coordinates; NULL asks the UI to choose a suitable box for
- * a file whose source dimensions are unavailable. This callback must
- * not reenter command processing or mutate its bindings. */
+ * inclusive device coordinates. With natural_size, the UI uses only the near
+ * corner and sizes the box itself. NULL selects a natural box at the origin.
+ * This callback must not reenter command processing or mutate its bindings. */
 struct st_rip3_bitmap_error_sink {
 	void *context;
 	void (*show)(void *context, const char *name, unsigned port,
-		const struct st_rip3_bitmap_destination *area);
+		const struct st_rip3_bitmap_destination *area, bool natural_size);
 };
 
 /* Borrowed session-owned bindings. Missing services are unsupported. One

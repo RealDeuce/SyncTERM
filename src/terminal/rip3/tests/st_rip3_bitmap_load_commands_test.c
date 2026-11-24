@@ -40,7 +40,7 @@ struct fixture {
 	struct st_rip3_bitmap_destination last_area;
 	unsigned errors, prompts, last_port;
 	enum st_rip3_command_diagnostic kind;
-	bool area_present, overflow;
+	bool area_present, natural_size, overflow;
 	char last_name[80];
 };
 
@@ -53,10 +53,11 @@ diagnostic(void *context, enum st_rip3_command_diagnostic kind)
 
 static void
 show_error(void *context, const char *name, unsigned port,
-    const struct st_rip3_bitmap_destination *area)
+    const struct st_rip3_bitmap_destination *area, bool natural_size)
 {
 	struct fixture *f = context;
 	f->prompts++; f->last_port = port; f->area_present = area != NULL;
+	f->natural_size = natural_size;
 	if (area != NULL) f->last_area = *area;
 	if (strlen(name) >= sizeof(f->last_name)) { f->overflow = true; return; }
 	memcpy(f->last_name,name,strlen(name)+1);
@@ -597,9 +598,10 @@ icon_failures(const char *directory)
 	struct fixture f = {0}; char body[160];
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480,directory) == 0);
 	f.selection = (struct st_rip3_clipboard_selection){true,9}; f.host.clipboard = &f.selection;
-	icon(body,"0000",0,0,0,"Missing"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	icon(body,"0403",0,0,0,"Missing"); CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	CHECK(f.prompts == 1 && f.selection.set && f.selection.port == 9
-	    && !f.area_present && f.last_port == 1 && strcmp(f.last_name,"Missing") == 0);
+	    && f.area_present && f.natural_size && f.last_area.x0 == 4 && f.last_area.y0 == 3
+	    && f.last_port == 1 && strcmp(f.last_name,"Missing") == 0);
 	icon(body,"0000",0,0,1,"Compressed.BMP"); CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(f.prompts == 2);
 	f.selection = (struct st_rip3_clipboard_selection){true,9};
@@ -613,7 +615,7 @@ icon_failures(const char *directory)
 	icon(body,"0000",0,0,2,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	icon(body,"0000",0,0,0,"Tile"); body[10] = '?'; CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	icon(body,"0000",0,1,0,"Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	icon(body,"0000",0,0,0,"Tile.BMP");
+	icon(body,"0403",0,0,0,"Tile.BMP");
 	st_rip3_bitmap_file_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_file_test_fail_allocate);
 	st_rip3_bitmap_file_test_fail_decode = true;
@@ -621,6 +623,7 @@ icon_failures(const char *directory)
 	st_rip3_bitmap_stamp_test_fail_allocate = true;
 	CHECK(process(&f,body,ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_bitmap_stamp_test_fail_allocate);
 	CHECK(f.prompts == 5 && f.selection.set && f.selection.port == 9);
+	CHECK(f.area_present && f.natural_size && f.last_area.x0 == 4 && f.last_area.y0 == 3);
 	uint8_t actual;
 	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 85);
 	const struct st_rip3_bitmap_error_sink *feedback = f.host.bitmap_errors;
