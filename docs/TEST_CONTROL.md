@@ -99,6 +99,20 @@ values. Resolve an indexed pixel through the captured palette; a pixel with
 complete drawable after composition, scaling, cursor selection, and black
 letterboxing, with each pixel encoded as `0x00RRGGBB`.
 
+For a visual regression checksum, call `client.art_checksums()` after the art
+has finished drawing and while the page is idle. It returns `blink_on` and
+`blink_off`. Each is a hex SHA-256 of the corresponding row-major native
+plane followed by the full palette from the same snapshot, both serialized as
+little-endian 32-bit words. This works independently of scaling, cursor
+visibility and presentation time. Record the native dimensions with the test
+profile. A previously captured frame also exposes this pair through
+`frame.blink_checksums()`.
+
+For BBC Mode 7 and Prestel, `art_checksums()` returns a pair under each of
+`concealed` and `revealed`. It uses the local F3 toggle in the terminal,
+waits for the captured `cterm.prestel_reveal` value, and restores the initial
+setting. All four entries are retained even when some hashes match.
+
 Application fields report `session_active`, owner-observed connection state, CTerm state
 (including margins, modes and LCF), and transfer ownership/progress. Offline
 captures have `session_active=0`. URL opens are recorded as the latest URL and

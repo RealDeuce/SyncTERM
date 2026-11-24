@@ -3,9 +3,11 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import contextlib
+import hashlib
 import json
 import re
 import socket
+import struct
 import subprocess
 import tempfile
 import threading
@@ -258,6 +260,11 @@ def rendering(executable, encoding, reports):
             else:
                 assert first.cells == phase.cells and first.primary == phase.primary
                 assert first.alternate == phase.alternate and first.rgb != phase.rgb
+        art = client.art_checksums()
+        assert set(art) == {"blink_on", "blink_off"} and art["blink_on"] != art["blink_off"]
+        client.presentation_time(1000)
+        client.resize(777, 611)
+        assert client.art_checksums() == art
         # Rectangular checksum distinguishes BlinkBG and returns to its baseline.
         replies = []
         for mode in (b"", b"\x1b[?33h", b"\x1b[?33l"):
@@ -267,13 +274,46 @@ def rendering(executable, encoding, reports):
         assert replies[0] != replies[1] and replies[0] == replies[2]
         client.presentation_time()
         # Exact black letterboxing and drawable geometry use composed RGB.
-        client.resize(777, 611)
         frame = client.capture()
         m = frame.metadata
         assert (m["output_width"], m["output_height"]) == (777, 611)
         for y in range(m["output_height"]):
             if y < m["destination_y"] or y >= m["destination_y"] + m["destination_height"]:
                 assert not any(frame.rgb[y * 777:(y + 1) * 777])
+
+
+def art_checksums(executable, reports):
+    def expected(frame):
+        def pack(words):
+            return struct.pack(f"<{len(words)}I", *words)
+
+        palette = pack(frame.palette)
+        return {"blink_on": hashlib.sha256(pack(frame.primary) + palette).hexdigest(),
+                "blink_off": hashlib.sha256(pack(frame.alternate) + palette).hexdigest()}
+
+    for mode in ("Prestel", "BBCMicro7"):
+        with connection(executable, reports, options=f"ScreenMode={mode}\n",
+                        encoding=None) as (client, root, peer, send):
+            field = "cterm.prestel_reveal"
+            send(b"\x0cPLAIN")
+            plain = expected(client.wait_text("PLAIN"))
+            assert plain["blink_on"] == plain["blink_off"]
+            assert client.art_checksums() == {"concealed": plain, "revealed": plain}
+
+            # Flash B, then draw a steady concealed S. The two effects are independent.
+            send(b"\x0c\x88B\x89\x98S\r\nDONE")
+            concealed = client.wait_text("DONE")
+            assert concealed.application[field] == 0
+            client.key("f3")
+            revealed = client.wait_for(lambda s: s.application.get(field) == 1)
+            want = {"concealed": expected(concealed), "revealed": expected(revealed)}
+            assert len({h for pair in want.values() for h in pair.values()}) == 4
+            for initial in (1, 0):
+                if initial == 0:
+                    client.key("f3")
+                    client.wait_for(lambda s: s.application.get(field) == 0)
+                assert client.art_checksums() == want
+                assert client.capture().application[field] == initial
 
 
 def profile(executable, reports):
@@ -1065,6 +1105,7 @@ CASES = {"cterm_reset_cp437": lambda e, r: cterm_reset(e, "CP437", r),
          "terminal_utf8": lambda e, r: terminal(e, "UTF-8", r),
          "status_cp437": lambda e, r: status(e, "CP437", r),
          "status_utf8": lambda e, r: status(e, "UTF-8", r),
+         "art_checksums": art_checksums,
          "rendering_cp437": lambda e, r: rendering(e, "CP437", r),
          "rendering_utf8": lambda e, r: rendering(e, "UTF-8", r),
          "scrollback_cp437": lambda e, r: scrollback(e, "CP437", r),

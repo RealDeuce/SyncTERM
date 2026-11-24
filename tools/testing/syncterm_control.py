@@ -10,6 +10,7 @@ can be skipped; cells retain the documented st_console_cell field meanings.
 import argparse
 import array
 import dataclasses
+import hashlib
 import json
 import pathlib
 import queue
@@ -143,6 +144,23 @@ class Snapshot:
     def text(self):
         return "\n".join(self.lines)
 
+    def blink_checksums(self):
+        """Hash each native blink plane followed by this capture's full palette."""
+        def little_endian(values):
+            if sys.byteorder == "little":
+                return values
+            swapped = values[:]
+            swapped.byteswap()
+            return swapped
+
+        palette = little_endian(self.palette)
+        checksums = {}
+        for phase, plane in (("blink_on", self.primary), ("blink_off", self.alternate)):
+            digest = hashlib.sha256(little_endian(plane))
+            digest.update(palette)
+            checksums[phase] = digest.hexdigest()
+        return checksums
+
     def save_image(self, path):
         """Write a portable PPM of the exact composed drawable."""
         m = self.metadata
@@ -258,6 +276,23 @@ class Client:
     def capture(self, *, timeout=None):
         self.last_snapshot = Snapshot(self.request(2, timeout=timeout))
         return self.last_snapshot
+
+    def art_checksums(self):
+        """Capture a settled page, including both local reveal states in teletext."""
+        first = self.capture()
+        hashes = first.blink_checksums()
+        field = "cterm.prestel_reveal"
+        initial = first.application.get(field)
+        if initial is None:
+            return hashes
+
+        self.key("f3")
+        second = self.wait_for(lambda s: s.application.get(field) == 1 - initial)
+        self.key("f3")
+        self.wait_for(lambda s: s.application.get(field) == initial)
+        other = second.blink_checksums()
+        return {"concealed": other if initial else hashes,
+                "revealed": hashes if initial else other}
 
     def wait_for(self, predicate, *, timeout=None):
         deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
