@@ -9845,3 +9845,23 @@ of focus, pointer visibility, position and held buttons.
 The backends that accept pointer input without reporting its presence
 still leave this query unsupported while the portable policy is open.
 [Issue #211](https://github.com/bbs-land/remote-imaging-protocol/issues/211)
+
+## Connected PolyMarker
+
+`|;` decodes the center and full extents at the current coordinate
+width, and the marker number, rotation and flags as two-digit fields.
+The 35 stored contours contain 462 points from the RIPtel 3.1 PC Micro DLL
+table at RVA `0x7ca48`. Marker zero uses the shared ellipse sampler.
+The renderer projects both axes before rotating the contour and clips to
+the active viewport.
+
+Flags 0 and 2 stroke the contour, 1 fills and strokes it, and 3 fills it.
+Those flags select the pen independently of `N`. SyncTERM currently uses
+its filled-polygon COPY rule for the flag-1 stroke. Whether that stroke
+should use the current write mode is open in the portable contract.
+[Issue #212](https://github.com/bbs-land/remote-imaging-protocol/issues/212)
+
+Native tests check all 36 contour counts and selected projected vertices.
+The command fixtures exercise all three reference canvases. Connected CP437
+and UTF-8 cases check all presentation flags, unequal WORLD scaling,
+rotation, split input, and recovery from rejected parameters.

@@ -578,7 +578,8 @@ execute(const struct st_rip3_command_host *host,
 	    || command[0] == 'O' || command[0] == 'V' || command[0] == 'I'
 	    || command[0] == 'i' || command[0] == '_')
 		return st_rip3_curve_commands_execute(host, command, length, operation);
-	if (command[0] == '&' || command[0] == '-' || command[0] == ']' || command[0] == '+' || command[0] == '[')
+	if (command[0] == '&' || command[0] == '-' || command[0] == ']' || command[0] == '+' || command[0] == '['
+	    || command[0] == ';')
 		return st_rip3_skew_commands_execute(host,command,length,operation);
 	if (command[0] == 'Z' || command[0] == 'z' || command[0] == 't' || command[0] == 'x')
 		return st_rip3_bezier_commands_execute(host,command,length,operation);

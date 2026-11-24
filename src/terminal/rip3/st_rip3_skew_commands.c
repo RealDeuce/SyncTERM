@@ -10,10 +10,16 @@
 #include <stdint.h>
 #include <string.h>
 
+enum border_policy {
+	BORDER_FROM_STYLE,
+	BORDER_FORCED,
+	BORDER_OMITTED,
+};
+
 static int
 paint(const struct st_rip3_command_host *host, const struct st_rip3_environment *env,
     const struct st_rip3_port_info *port, const struct st_rip3_skew_path *path,
-    bool closed, bool filled, bool *operation)
+    bool closed, bool filled, enum border_policy border, bool *operation)
 {
 	struct st_rip3_style style;
 	const struct st_rip3_vector *points=path->points;
@@ -29,7 +35,7 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	*operation=true;
 	if (filled) {
 		bool uses_foreground=false,uses_background=false;
-		borders = style.borders;
+		borders = border == BORDER_FORCED || (border == BORDER_FROM_STYLE && style.borders);
 		for (size_t i=0; i<8; i++) {
 			uses_foreground |= style.fill.rows[i]!=0;
 			uses_background |= style.fill.rows[i]!=255;
@@ -70,6 +76,7 @@ st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_skew_path path={0};
 	uint64_t values[7];
 	unsigned environment,current;
+	bool marker=command[0]==';';
 	bool whole=command[0]=='&' || command[0]=='-';
 	bool filled=command[0]!='&' && command[0]!=']';
 	size_t fields=whole ? 5 : 7,position=0,body=length-1,total;
@@ -80,23 +87,36 @@ st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 	total=(command[0]=='&' ? 2*env.coordinate_size+6 : whole ? 4*env.coordinate_size+2 : 4*env.coordinate_size+6);
 	if (body<=total-2 || body>total) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i=0; i<fields; i++) {
-		size_t width=i<2 || (i<4 && command[0]!='&') ? env.coordinate_size : 2;
+		bool coordinate = i < 2 || (marker ? i == 3 || i == 4 : i < 4 && command[0] != '&');
+		size_t width = coordinate ? env.coordinate_size : 2;
 		status=st_rip3_command_field(values+i,command+1+position,i+1==fields ? body-position : width,env.base_math);
 		if (status!=0) return status;
 		position+=width;
 	}
+	if (marker && (values[2] >= 36 || values[5] >= 360 || values[6] > 3))
+		return IO_ERROR_OUT_OF_RANGE;
 	if (host->ports==NULL) return IO_ERROR_NOT_SUPPORTED;
 	status=st_rip3_command_frame(host,environment,&frame);
 	if (status==0) status=st_rip3_ports_current(host->ports,&current);
 	if (status==0) status=st_rip3_ports_info(host->ports,current,&port);
 	if (status!=0 || !port.viewport_active) return status;
-	enum st_rip3_skew_kind kind=whole ? ST_RIP3_SKEW_OVAL
-	    : command[0]==']' ? ST_RIP3_SKEW_ARC : command[0]=='+' ? ST_RIP3_SKEW_CHORD : ST_RIP3_SKEW_PIE;
-	status=st_rip3_skew_build(&path,
-	    (int64_t)(values[0]*frame.device_width/frame.world_width),
-	    (int64_t)(values[1]*frame.device_height/frame.world_height),
-	    values[2]*frame.device_width/frame.world_width,values[3]*frame.device_height/frame.world_height,
-	    (unsigned)values[whole ? 4 : 6],whole ? 0 : (unsigned)values[4],whole ? 360 : (unsigned)values[5],kind);
-	if (status==0) status=paint(host,&env,&port,&path,command[0]!=']',filled,operation);
+	int64_t x = (int64_t)(values[0] * frame.device_width / frame.world_width);
+	int64_t y = (int64_t)(values[1] * frame.device_height / frame.world_height);
+	enum border_policy border = BORDER_FROM_STYLE;
+	if (marker) {
+		status = st_rip3_marker_build(&path, (unsigned)values[2], x, y,
+		    values[3] * frame.device_width / frame.world_width,
+		    values[4] * frame.device_height / frame.world_height, (unsigned)values[5]);
+		filled = (values[6] & 1) != 0;
+		border = values[6] == 1 ? BORDER_FORCED : BORDER_OMITTED;
+	}
+	else {
+		enum st_rip3_skew_kind kind=whole ? ST_RIP3_SKEW_OVAL
+		    : command[0]==']' ? ST_RIP3_SKEW_ARC : command[0]=='+' ? ST_RIP3_SKEW_CHORD : ST_RIP3_SKEW_PIE;
+		status=st_rip3_skew_build(&path,x,y,
+		    values[2]*frame.device_width/frame.world_width,values[3]*frame.device_height/frame.world_height,
+		    (unsigned)values[whole ? 4 : 6],whole ? 0 : (unsigned)values[4],whole ? 360 : (unsigned)values[5],kind);
+	}
+	if (status==0) status=paint(host,&env,&port,&path,command[0]!=']',filled,border,operation);
 	st_rip3_skew_free(&path);return status;
 }

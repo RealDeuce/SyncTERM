@@ -53,5 +53,25 @@ main(void)
 	CHECK(st_rip3_skew_span(&s,&e)==IO_ERROR_OUT_OF_RANGE && s==4096 && e==0);
 	CHECK(st_rip3_skew_span(NULL,&e)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_skew_build(NULL,0,0,0,0,0,0,0,ST_RIP3_SKEW_ARC)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_marker_build(&path,36,0,0,10,10,0)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_marker_build(&path,1,0,0,10,10,360)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(path.points==&sentinel && path.count==99);
+	static const unsigned counts[] = {
+		360,12,15,12,12,20,3,4,4,4,4,16,16,24,7,13,4,10,24,48,
+		3,4,5,6,7,8,9,10,10,12,16,20,24,28,32,16,
+	};
+	for (unsigned marker = 0; marker < sizeof(counts) / sizeof(counts[0]); ++marker) {
+		CHECK(st_rip3_marker_build(&path, marker, 100, 100, 100, 60, 90) == 0);
+		CHECK(path.count == counts[marker]);
+		if (marker == 0)
+			CHECK(path.points[0].x == 100 && path.points[0].y == 50);
+		if (marker == 14)
+			CHECK(path.points[0].x == 70 && path.points[0].y == 100);
+		st_rip3_skew_free(&path);
+	}
+	CHECK(st_rip3_marker_build(&path, 21, 100, 100, 0, 0, 0) == 0);
+	CHECK(path.points[0].x == 99 && path.points[0].y == 99
+	    && path.points[2].x == 100 && path.points[2].y == 100);
+	st_rip3_skew_free(&path);
 	return 0;
 }

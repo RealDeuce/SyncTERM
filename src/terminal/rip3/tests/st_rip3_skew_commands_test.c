@@ -353,6 +353,24 @@ boundaries(void)
 	destroy(&host);return 0;
 }
 
+static int
+marker_canvas(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
+{
+	struct st_rip3_command_host host = {0};
+	CHECK(create(&host, canvas, width * 2, height * 2) == 0);
+	CHECK(process(&host, "J1S", -1) == 0);
+	CHECK(process(&host, "n3000", -1) == 0);
+	CHECK(process(&host, ";00e00e0L00O00O0003", -1) == 0);
+	/* WORLD 40,40 projects to (20,20). At 12x12 the square starts
+	 * at (14,14). The fill pattern starts at the port's origin. */
+	uint8_t value;
+	CHECK(st_rip3_ports_read(host.ports, 0, 20, 20, &value) == 0 && value == 7);
+	CHECK(st_rip3_ports_read(host.ports, 0, 14, 14, &value) == 0 && value == 7);
+	CHECK(st_rip3_ports_read(host.ports, 0, 20, 13, &value) == 0 && value == 0);
+	destroy(&host);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -363,5 +381,8 @@ main(void)
 	CHECK(matrix(ST_RIP3_CANVAS_800_600,800,600,true)==0);
 	CHECK(matrix(ST_RIP3_CANVAS_1024_768,1024,768,false)==0);
 	CHECK(matrix(ST_RIP3_CANVAS_1024_768,1024,768,true)==0);
+	CHECK(marker_canvas(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
+	CHECK(marker_canvas(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
+	CHECK(marker_canvas(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);
 	return 0;
 }

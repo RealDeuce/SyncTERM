@@ -21947,6 +21947,31 @@
         "unreviewed": 2178
       },
       "verification": "The DLL callback at RVA 0x34970 imports USER32.GetSystemMetrics at IAT RVA 0x966e8. The CP437 and UTF-8 TCP fixtures query before any pointer event and after focus loss. The native fixtures check query-time state, Wayland seat capability loss and reacquisition, and present/absent virtual and headless console paths."
+    },
+    {
+      "after_commit": "ab81f69f",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected PolyMarker geometry and presentation flags.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/2.1-lines.md:192",
+        "version/3.0/ripscrip/2.1-lines.md:193"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/2.1-lines.md:194",
+        "version/3.0/ripscrip/2.1-lines.md:196",
+        "version/3.0/ripscrip/2.1-lines.md:198",
+        "version/3.0/ripscrip/2.1-lines.md:200",
+        "version/3.0/ripscrip/9.0-command-reference.md:86"
+      ],
+      "states_after_update": {
+        "blocked": 45,
+        "context": 1869,
+        "excluded": 71,
+        "implemented": 3466,
+        "pending": 1489,
+        "unreviewed": 2178
+      },
+      "verification": "RIPtel DLL slot 12 and handlers at RVAs 0x1e4ff and 0x0f3c6 fix field widths, viewport projection, Q14 rotations and fill and outline selection. The table at RVA 0x7ca48 was extracted from DLL SHA-256 83d71b358492b15bcfd3773c30a52784881a3a49a5b6e9029d986b3cba1fd5e8. Native tests cover all marker counts and all three canvases; connected CP437 and UTF-8 fixtures cover all four flags, unequal WORLD scaling and recovery."
     }
   ]
 }

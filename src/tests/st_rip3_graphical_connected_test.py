@@ -6,6 +6,7 @@ from pathlib import Path
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
+from st_rip3_button_styles_connected_test import number
 from st_rip3_mouse_connected_test import field
 
 
@@ -111,6 +112,26 @@ def run(args):
         assert default_glyph() == glyph
         values(b'$RESET(HARD)$')
         assert default_glyph() == glyph
+
+        t.case('PolyMarker projects full dimensions and selects the flag-defined pen and brush')
+        # Marker 21 is a square spanning signed 50% of each full extent.
+        # At a 2:1 X scale, WORLD width 40 becomes device width 20. The
+        # device height is 28, so the top edge projects to y=86.
+        def marker(x, glyph, rotation, flags):
+            fields = ((2*x, 4), (100, 4), (glyph, 2), (40, 4), (28, 4), (rotation, 2), (flags, 2))
+            return b';' + b''.join(number(value, width) for value, width in fields)
+
+        t.exchange(b'\x01|*|n4000|f00ZK00DC|c0C|S0102|N00\r\n')
+        scene = b'\x01|' + b'|'.join(marker(70 + i*40, 21, 0, i) for i in range(4)) + b'\r\n'
+        t.send(scene[:18])
+        frame = t.exchange(scene[18:])
+        assert [pixel(frame, x, 100) for x in (70, 110, 150, 190)] == [0, 0x00aa00, 0, 0x00aa00]
+        assert [pixel(frame, x, 86) for x in (70, 110, 150, 190)] == [0xff5555]*3 + [0x00aa00]
+        frame = t.exchange(b'\x01|' + b'|'.join((marker(250, 36, 0, 1), marker(290, 21, 360, 1),
+                            marker(330, 21, 0, 4), marker(370, 14, 90, 0))) + b'\r\n'
+                            + query(b'alive', at_cursor=True), b'alive')
+        assert all(pixel(frame, x, 100) == 0 for x in (250, 290, 330))
+        assert pixel(frame, 356, 100) == 0xff5555
 
 
 if __name__=='__main__':

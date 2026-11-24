@@ -33,5 +33,8 @@ int st_rip3_skew_build(struct st_rip3_skew_path *result,
 	unsigned rotation, unsigned start, unsigned end,
 	enum st_rip3_skew_kind kind);
 void st_rip3_skew_free(struct st_rip3_skew_path *path);
+int st_rip3_marker_build(struct st_rip3_skew_path *result,
+	unsigned marker, int64_t x, int64_t y, uint64_t width, uint64_t height,
+	unsigned rotation);
 
 #endif

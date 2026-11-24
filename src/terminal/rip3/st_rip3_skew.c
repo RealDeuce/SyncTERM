@@ -4,6 +4,8 @@
 
 #include <stdlib.h>
 
+#include "st_rip3_marker_data.inc"
+
 int
 st_rip3_skew_span(unsigned *start, unsigned *end)
 {
@@ -103,4 +105,45 @@ st_rip3_skew_free(struct st_rip3_skew_path *path)
 {
 	if (path==NULL) return;
 	free(path->points);*path=(struct st_rip3_skew_path){0};
+}
+
+int
+st_rip3_marker_build(struct st_rip3_skew_path *result, unsigned marker,
+    int64_t x, int64_t y, uint64_t width, uint64_t height, unsigned rotation)
+{
+	const int64_t limit = INT64_C(512) * INT32_MAX;
+	if (result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (marker >= sizeof(marker_contours) / sizeof(marker_contours[0]) || rotation >= 360
+	    || x < -limit || x > limit || y < -limit || y > limit
+	    || width > (uint64_t)limit || height > (uint64_t)limit)
+		return IO_ERROR_OUT_OF_RANGE;
+	if (width == 0)
+		width = 1;
+	if (height == 0)
+		height = 1;
+	if (marker == 0)
+		return st_rip3_skew_build(result, x, y, width / 2, height / 2,
+		    rotation, 0, 360, ST_RIP3_SKEW_OVAL);
+
+	struct st_rip3_skew_path path = {.count = marker_contours[marker].count};
+	path.points = malloc(path.count * sizeof(*path.points));
+	if (path.points == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	const int8_t (*source)[2] = marker_vertices + marker_contours[marker].offset;
+	int64_t sx = (int64_t)width * 16384 / 100;
+	int64_t sy = (int64_t)height * 16384 / 100;
+	/* Table ordinates are already screen-space Y. Rotate counterclockwise
+	 * after scaling, using the original two distinct Q14 floors. */
+	int64_t cr = cosine(360 - rotation), sr = sine(360 - rotation);
+	for (size_t i = 0; i < path.count; ++i) {
+		int64_t dx = floor14(source[i][0] * sx);
+		int64_t dy = floor14(source[i][1] * sy);
+		path.points[i] = (struct st_rip3_vector){
+		    (double)(x + floor14(cr * dx - sr * dy)),
+		    (double)(y + floor14(sr * dx + cr * dy)),
+		};
+	}
+	*result = path;
+	return 0;
 }
