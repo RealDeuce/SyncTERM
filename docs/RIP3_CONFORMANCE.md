@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-03b2e042e9c187327daae5c7a2568c9285513391](https://github.com/RealDeuce/remote-imaging-protocol/tree/03b2e042e9c187327daae5c7a2568c9285513391/version/3.0)
+6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d](https://github.com/RealDeuce/remote-imaging-protocol/tree/6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10255,8 +10255,9 @@ When the reserved field of `2P`, `2p`, `2C`, or `1P` is present,
 the receiver validates its encoding and ignores its numeric value.
 The recommended sender value stays zero. Native tests and connected
 CP437 and UTF-8 sessions verify port state, viewport clipping, copy
-and paste pixels, and recovery after invalid input. The remaining
-wording is tracked upstream. [Issue #244](https://github.com/bbs-land/remote-imaging-protocol/issues/244)
+and paste pixels, and recovery after invalid input. The adopted SWITCH_PORT examples also document rejection of lowercase
+in base 36. SyncTERM still accepts those spellings.
+[PR #247](https://github.com/bbs-land/remote-imaging-protocol/pull/247)
 
 ## Image and bitmap movement numeric fields
 
@@ -10274,5 +10275,5 @@ A period can complete that field before surplus. For IMAGE, a period
 can replace the four-digit prefix, and filename expansion begins at
 the next byte. Native and CP437 and UTF-8 connected cases check
 capture, scroll/blit pixels, JPEG placement and filename expansion.
-The descriptor-specific reserved rules are tracked upstream.
-[Issue #245](https://github.com/bbs-land/remote-imaging-protocol/issues/245)
+The descriptor-specific rules are in the pinned reference.
+[PR #248](https://github.com/bbs-land/remote-imaging-protocol/pull/248)

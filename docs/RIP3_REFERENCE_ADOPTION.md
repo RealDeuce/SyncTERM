@@ -1493,3 +1493,17 @@ The existing native and connected cases cover these rules.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/03b2e042e9c187327daae5c7a2568c9285513391),
 [PR #246](https://github.com/bbs-land/remote-imaging-protocol/pull/246)
+
+## Port and image reserved-field collection
+
+The reference advances to `6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d`. The integration
+trees for PRs #247 and #248 match their reviewed heads. The in-memory Git
+tar archive has SHA-256 `45f2f4d632cd5409c5ae16973267286075f2f5de9de5c87c22e620c500c9b7e2`.
+The updated chapters distinguish optional port and IMAGE_STYLE fields,
+the required GET_IMAGE digit, and the IMAGE filename boundary. The ledger
+records the outstanding MegaNum lowercase validation separately from
+the documentation resolutions.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/6f1131d99b69b7494b0c7de3af15b52ab3ee9b9d),
+[PR #247](https://github.com/bbs-land/remote-imaging-protocol/pull/247),
+[PR #248](https://github.com/bbs-land/remote-imaging-protocol/pull/248)
