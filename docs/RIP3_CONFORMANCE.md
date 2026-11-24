@@ -10543,3 +10543,17 @@ definition, deletion and inline directives cannot mutate either name. Old
 same-name records are hidden from RIP lookups and do not trigger prompts.
 Tests cover queries, drawing, expanded font names and resident mouse actions.
 [PR #278](https://github.com/bbs-land/remote-imaging-protocol/pull/278)
+
+## Level-0 fill framing
+
+The original RIPtel 3.1 collector dispatches `F` with zero arguments and
+an empty text tail. Its handler returns immediately. The RIPv3 stream
+discards the unused suffix, including any legacy coordinates, and accepts
+the next command at a pipe even when the pipe follows a backslash. A
+trailing backslash can skip up to two line terminators. The native split
+tests and connected CP437 and UTF-8 fixtures check framing, absence of
+fill ink and continued drawing after `F`.
+
+The pinned fill chapter still attributes a live flood to this descriptor.
+The ledger retains this documentation discrepancy under the focused
+follow-up to issue #2. [Issue #279](https://github.com/bbs-land/remote-imaging-protocol/issues/279)

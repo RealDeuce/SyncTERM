@@ -498,9 +498,9 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_environments_set_playback_rate(host->environments, (uint32_t)first);
 	}
 	delay = length >= 2 && command[0] == '3' && command[1] == 'D';
-	/* Comments bypass every expansion/service, and terminal-only grouping
-	 * commands carry no state, including when nested or unmatched. */
-	if (command[0] == '!' || command[0] == '(' || command[0] == ')')
+	/* Comments and the inert F descriptor bypass every expansion/service.
+	 * Grouping commands carry no terminal state, even when unmatched. */
+	if (command[0] == '!' || command[0] == '(' || command[0] == ')' || command[0] == 'F')
 		return 0;
 	if (command[0]=='*') {
 		if (host->soft_reset==NULL) return IO_ERROR_NOT_SUPPORTED;

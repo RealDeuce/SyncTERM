@@ -48,7 +48,16 @@ def run(args):
         assert erased.application['connected'] == 1
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$WORLD(CUR,640,480)$')
-        t.exchange(b'\x01|Y00000100|c0F\r\n')
+        t.case('rip3-legacy-fill-descriptor-discards-suffix-without-drawing')
+        before = t.exchange(b'\x01|c0F|R0A0A1E1E|S010C\r\n')
+        frame = t.exchange(b'\x01|F0K0K0F|F|Ffree form?\x1b[!\r\n')
+        assert frame.primary == before.primary and frame.alternate == before.alternate
+        frame = t.exchange(b'\x01|F\\|c02|X0K0K|F\\\\\r\nignored|c04|X0L0L\r\n'
+                           + query(b'alive', at_cursor=True), b'alive')
+        assert pixel(frame, 20, 20) == 0x00aa00 and pixel(frame, 21, 21) == 0xaa0000
+        assert pixel(frame, 22, 22) == 0 and pixel(frame, 10, 10) == 0xffffff
+        assert frame.application['connected'] == 1
+        t.exchange(b'\x01|E|Y00000100|c0F\r\n')
         t.case('rip3-graphical-builtins-and-ink')
         frame=t.exchange(b'\x01|m0A1E|T$RESX$\r\n'+query(b'$TEXTXY$',at_cursor=True),b'34:50')
         assert any(pixel(frame,x,y) for y in range(35,75) for x in range(10,34))

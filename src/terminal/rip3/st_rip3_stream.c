@@ -9,7 +9,7 @@ struct st_rip3_stream {
 	uint8_t *command;
 	size_t length, capacity;
 	uint8_t introducer, previous_text;
-	bool active, line_start, quoted, comment, continued, dropping, skip_lf;
+	bool active, line_start, quoted, comment, discard_tail, continued, dropping, skip_lf;
 };
 
 static bool
@@ -40,6 +40,7 @@ clear_command(struct st_rip3_stream *stream)
 	stream->length = 0;
 	stream->quoted = false;
 	stream->comment = false;
+	stream->discard_tail = false;
 	stream->continued = false;
 	stream->dropping = false;
 }
@@ -148,12 +149,17 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 
 		if (stream->active) {
 			if (line_end(byte)) {
-				if (stream->continued)
+				if (stream->continued) {
+					/* The inactive F descriptor skips only the first two
+					 * consecutive line-ending bytes after a backslash. */
+					if (stream->discard_tail)
+						stream->continued = false;
 					continue;
+				}
 				if (stream->quoted) {
 					/* Only the continuation slash is removed. The
 					 * remaining even run stays quoted for later stages. */
-					if (!stream->dropping)
+					if (!stream->dropping && !stream->discard_tail)
 						stream->length--;
 					stream->quoted = false;
 					stream->continued = true;
@@ -168,14 +174,21 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				continue;
 			}
 			stream->continued = false;
-			/* Comments use any pipe as the next-command boundary;
-			 * their contents never undergo text-variable expansion. */
-			if (byte == '|' && (!stream->quoted || stream->comment)) {
+			/* Comments and the discarded F suffix end at any pipe. */
+			if (byte == '|' && (!stream->quoted || stream->comment || stream->discard_tail)) {
 				dispatch(stream);
 				continue;
 			}
-			if (stream->length == 0 && !stream->dropping)
+			if (stream->discard_tail) {
+				/* F retains only its opcode. The last suffix byte can
+				 * introduce a continuation regardless of slash parity. */
+				stream->quoted = byte == '\\';
+				continue;
+			}
+			if (stream->length == 0 && !stream->dropping) {
 				stream->comment = byte == '!';
+				stream->discard_tail = byte == 'F';
+			}
 			if (stream->quoted && !stream->comment && (byte == '|' || byte == 1 || byte == 2)) {
 				/* These bytes were quoted for framing. Replace the stored
 				 * slash with the literal byte before passing the command on. */

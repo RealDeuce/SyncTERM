@@ -137,6 +137,11 @@ boundaries(void)
 	/* Levels, ESC command characters and host quoting stay opaque here. */
 	EXAMPLE("!|15Largs|1\x1b" "0000\\$Name\\$|123456789X0\r", "", "15Largs\0" "1\x1b" "0000\\$Name\\$\0" "123456789X0\0", 3);
 	EXAMPLE("!|Tbefore\x1b[!after\r\n", "", "Tbefore\x1b[!after\0", 1);
+	EXAMPLE("!|F|c01\r\n!|F1E180F|c02\n!|Ffree form?\x1b[!|c03\fOK",
+	    "OK", "F\0c01\0F\0c02\0F\0c03\0", 6);
+	EXAMPLE("!|F\\|c02|c01\r\n!|F\\\\\r\nignored|c03\r!|F\\\r\n\fOK",
+	    "OK", "F\0c02\0c01\0F\0c03\0F\0", 6);
+	EXAMPLE("!|F\0ignored|c01\r\n!|F", "", "F\0c01\0", 2);
 	EXAMPLE("\x1b[31m\xc4\xb3\r!|@0000\xc4\xb3\r", "\x1b[31m\xc4\xb3\r", "@0000\xc4\xb3\0", 1);
 	EXAMPLE("\xc3\xa9\xe2\x94\x82\r!|@0000\xc3\xa9\xe2\x94\x82\r", "\xc3\xa9\xe2\x94\x82\r", "@0000\xc3\xa9\xe2\x94\x82\0", 1);
 	EXAMPLE("!|G\\\n00\f\n!|Z00\n!|unfinished", "\n", "G00\0Z00\0", 2);
@@ -275,7 +280,8 @@ static int
 noops(void)
 {
 	struct scene scene = {0};
-	const char *commands[] = {"!", "!$Name$\\[literal\\]", "(", ")", ")", "(", "(extra", ")extra"};
+	const char *commands[] = {"!", "!$Name$\\[literal\\]", "(", ")", ")", "(", "(extra", ")extra",
+	    "F", "F1E180F", "F$-=SIDE=changed$"};
 
 	for (size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++)
 		scene_command(&scene, (const uint8_t *)commands[i], strlen(commands[i]));
@@ -313,7 +319,7 @@ integration(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	for (uint32_t y = 0; y < height; y++) {
 		for (uint32_t x = 0; x < width; x++) {
 			uint32_t rgb = y == 0 && x == 1 ? 0xffffff
-			    : y == 0 && x == 2 ? 0xffff55 : y == 0 && x == 3 ? 0xaa0000 : 0;
+			    : y == 0 && x == 2 ? 0xffff54 : y == 0 && x == 3 ? 0xa80000 : 0;
 			CHECK(capture->primary[(size_t)y * width + x] == (ST_PIXEL_COLOR_RGB_TAG | rgb));
 		}
 	}
