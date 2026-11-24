@@ -173,7 +173,8 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(b"\x1b[?25h")
         t.case("rip3-wire-color-mode-and-corpus-prologue")
         # The actual corpus prologue must restore palette mode after RGB.
-        t.exchange(b"\x01|M18\r\n" + query(b"$COLORMODE$"), b"8")
+        t.exchange(query(b"$ISPALETTE()$:$ISPALETTE(0)$alive"), b"1:alive")
+        t.exchange(b"\x01|M18\r\n" + query(b"$COLORMODE$:$ISPALETTE$"), b"8:1")
         t.exchange(b"!|J10|n2000|M08|fZKQO\r\n"
                    + query(b"$COLORMODE$:$WORLD$"), b"0:1280:960")
         t.exchange(b"\x01|M17\r\n" + query(b"$COLORMODE$"), b"0")

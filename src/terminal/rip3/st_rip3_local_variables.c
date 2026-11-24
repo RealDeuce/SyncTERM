@@ -162,6 +162,14 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		memcpy(result, value, size);
 		return 0;
 	}
+	if (strcmp(name, "ISPALETTE") == 0) {
+		if (reference->count != 0)
+			return IO_ERROR_INVALID_FORMAT;
+		if (capacity < sizeof("1"))
+			return IO_ERROR_OUT_OF_RANGE;
+		memcpy(result, "1", sizeof("1"));
+		return 0;
+	}
 	if (strcmp(name, "CDCS") == 0 || strcmp(name, "LANG") == 0) {
 		bool language = name[0] == 'L';
 		if (reference->count > (language ? 1u : 0u))

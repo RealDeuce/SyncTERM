@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-a1b5f789c316a996d7baad3116d776ca7c4bca91](https://github.com/RealDeuce/remote-imaging-protocol/tree/a1b5f789c316a996d7baad3116d776ca7c4bca91/version/3.0)
+449196a6bd6fb25b54d7631b349665c13256f3a3](https://github.com/RealDeuce/remote-imaging-protocol/tree/449196a6bd6fb25b54d7631b349665c13256f3a3/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -9663,9 +9663,11 @@ continues through the same parser.
 The CP437 and UTF-8 fixtures send actual XMODEM and YMODEM frames, check
 cached bytes and split CRLF handoff, decline and approve an upload, and verify recovery
 after unsupported protocols and malformed paths and commands. The native
-macro fixture checks both directions across the full documented keyword
-matrix. The original DLL's filename gate and protocol/file-type
-limits differ from the published table. [Issue #205](https://github.com/bbs-land/remote-imaging-protocol/issues/205)
+macro fixture checks both directions across the documented keyword
+matrix. The adopted transfer contract now describes the original DLL's
+filename gate and protocol and file-type limits. The remaining transfer
+work includes those validation rules, JFIF routing, and temporary-file
+registration. [PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
 
 ## Connected block-mode scene and image playback
 
@@ -9753,9 +9755,11 @@ scaled and direct coordinates, independent button changes, field
 activation with the middle button still held and recovery after invalid
 arguments. The native formatter test checks the text-cell context.
 
-The shipped `ISPALETTE` callback returns a fixed `1` for every valid call.
-The pinned description makes the result depend on the video device.
-[Issue #206](https://github.com/bbs-land/remote-imaging-protocol/issues/206)
+## Connected ISPALETTE
+
+`$ISPALETTE$` returns `1` on indexed and direct-RGB drawing modes. Connected
+CP437 and UTF-8 queries cover both modes, empty parentheses and recovery
+after an invalid argument. [PR #217](https://github.com/bbs-land/remote-imaging-protocol/pull/217)
 
 ## Connected aggregate backup and protection queries
 
@@ -9764,18 +9768,16 @@ and protected. `ANY` requires at least one defined, protected entry. Both
 return digits `0` or `1`. A direct query of an undefined entry still
 returns `-1`.
 
-The shipped `INUSE` and `ISPROT` slot aggregates scan S0 through S7.
+The portable `INUSE` and `ISPROT` slot aggregates scan S0 through S9.
 An undefined slot makes either ALLSLOTS query false and contributes
 nothing to ANYSLOTS. `INUSE(object,BACKUP)` returns `1` for a populated
-base, nonempty stack, or populated slot within that same scan. Direct
-queries of S8 and S9 remain available. The original query branches at
-RVAs `0x13037` and `0x2db24` establish the results. The reference describes
-ten directly addressable slots and leaves the distinct aggregate range
-to be clarified. [Issue #207](https://github.com/bbs-land/remote-imaging-protocol/issues/207)
+base, nonempty stack, or populated numbered slot. The original query
+branches at RVAs `0x13037` and `0x2db24` scan S0 through S7.
+[PR #218](https://github.com/bbs-land/remote-imaging-protocol/pull/218)
 
 Connected CP437 and UTF-8 cases check undefined and fully protected live
-tables, independent base and stack presence, and a populated S8 that
-answers a direct query while the aggregate scan remains empty.
+tables, independent base and stack presence, a populated S8 with no
+other slots, and how S9 affects ALLSLOTS when empty or unprotected.
 
 ## Connected legacy extensions for wire bitmap loads
 
@@ -9789,9 +9791,7 @@ the command's missing-resource behavior.
 Connected cases in CP437 and UTF-8 give the legacy and translated
 names different bitmap colors and check both wire commands. A second
 case supplies only the legacy name and checks the missing-bitmap result
-and subsequent query. The older verbatim-extension wording conflicts
-with the detailed file-role rule.
-[Issue #208](https://github.com/bbs-land/remote-imaging-protocol/issues/208)
+and subsequent query. [PR #219](https://github.com/bbs-land/remote-imaging-protocol/pull/219)
 
 ## Connected post-transfer legacy icon conversion
 
@@ -9826,14 +9826,13 @@ and `0x2be34`. The CP437 and UTF-8 TCP fixtures exercise each result
 and rejection recovery. The graphical tests exercise the same providers
 in ordinary and angle expansion and conditional operands.
 
-The reference lists those providers and the related `CHARSET`, `DCS`
-and `SDCS` callbacks. The latter three still need a contract for their
-defaults, window ownership and rendering effects. The distinct `BSMODE`
-and `BSXMIT` callbacks also need a contract for their client-side key and
-terminal effects. [Issue #210](https://github.com/bbs-land/remote-imaging-protocol/issues/210) ·
-[Issue #209](https://github.com/bbs-land/remote-imaging-protocol/issues/209)
+The adopted reference specifies the `CHARSET`, `DCS` and `SDCS` metadata
+lifetimes and the `BSMODE` and `BSXMIT` key and ANSI effects. Those five
+providers are pending implementation.
+[PR #221](https://github.com/bbs-land/remote-imaging-protocol/pull/221) ·
+[PR #220](https://github.com/bbs-land/remote-imaging-protocol/pull/220)
 
-## Connected mouse presence on reporting backends
+## Connected mouse presence
 
 `$MSTAT$` reads mouse presence when the query executes. Windows GDI uses
 the same `GetSystemMetrics(SM_MOUSEPRESENT)` call as the original DLL at
@@ -9842,9 +9841,10 @@ the pointer listener is attached. The control backend supplies a virtual
 mouse and the headless backend has no mouse. The result is independent
 of focus, pointer visibility, position and held buttons.
 
-The backends that accept pointer input without reporting its presence
-still leave this query unsupported while the portable policy is open.
-[Issue #211](https://github.com/bbs-land/remote-imaging-protocol/issues/211)
+SDL, X11, Quartz and libretro report `YES` based on their mouse-equivalent
+event paths. The SDL fixture queries presence before sending input events.
+The Wayland and bitmap-console fixtures cover reported absence and virtual input.
+[PR #222](https://github.com/bbs-land/remote-imaging-protocol/pull/222)
 
 ## Connected PolyMarker
 

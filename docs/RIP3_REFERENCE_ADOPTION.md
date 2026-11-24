@@ -1342,3 +1342,29 @@ Three normative documents change. The inventory retains 9,052 source
 units, adds 66 and retires 31, for 9,118 total. The three new derivations
 cover the portable status display, the original physical-screen black
 fill and portable half-open mouse-field removal.
+
+## PRs #216–#222 transfer rules and terminal queries
+
+Fork stable contains integration commit
+[`449196a6bd6fb25b54d7631b349665c13256f3a3`](https://github.com/RealDeuce/remote-imaging-protocol/tree/449196a6bd6fb25b54d7631b349665c13256f3a3).
+Its tree matches PR #222 head `f51d425b44603d0f0579e6e489d73dd14930409a`.
+The preceding six integration trees match the corresponding reviewed heads.
+The pinned archive has SHA-256
+`cc56c966e8b270b486e3330baf18e52954620262da03d904f203a43a8db1cb1d`.
+[PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216),
+[PR #217](https://github.com/bbs-land/remote-imaging-protocol/pull/217),
+[PR #218](https://github.com/bbs-land/remote-imaging-protocol/pull/218),
+[PR #219](https://github.com/bbs-land/remote-imaging-protocol/pull/219),
+[PR #220](https://github.com/bbs-land/remote-imaging-protocol/pull/220),
+[PR #221](https://github.com/bbs-land/remote-imaging-protocol/pull/221),
+[PR #222](https://github.com/bbs-land/remote-imaging-protocol/pull/222)
+
+Fifteen normative documents change. The inventory retains 9,049 units,
+moves 2,137 line ranges, adds 155 units and retires 69, for 9,204 units.
+The new derivations cover connected transfer requests and completion,
+palette replies, backup predicates, legacy image suffixes, Backspace,
+character-set metadata and mouse presence. SyncTERM uses the portable
+ten-slot predicates and the frontend's enabled pointer capability when
+there is no direct presence signal. Transfer lifecycle, Backspace and the
+remaining character-set metadata behaviors are pending in the
+implementation ledger.

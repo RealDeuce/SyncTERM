@@ -98,6 +98,8 @@ main(int argc, char **argv)
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;
 	CHECK(status == 0);
+	bool mouse = false;
+	CHECK(st_console_mouse_present(first, &mouse) == 0 && mouse);
 	CHECK(st_console_display_get_scaling(first_display, &scaling) == 0);
 	CHECK(scaling == 1.0);
 	automatic_display.backend = ST_CONSOLE_BACKEND_AUTO;

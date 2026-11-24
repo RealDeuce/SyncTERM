@@ -115,18 +115,20 @@ def run(args, width, height):
         values(b"$CUR(BUT,35)$$PROT(BUT,35)$$ISPROT(BUT,ALL)$", b"1")
         values(b"$UNPROT(BUT,ALL)$$ISPROT(BUT,ANY)$", b"0")
 
-        # The shipped query loops see S0-S7. S8 and S9 are individually
-        # addressable, so exercise each form with one of those slots populated.
-        values(b"$SBS(8)$$PROT(BUT,S8)$$INUSE(BUT,S8)$:$ISPROT(BUT,S8)$", b"1:1")
-        values(b"$INUSE(BUT,ANYSLOTS)$:$ISPROT(BUT,ANYSLOTS)$:$INUSE(BUT,BACKUP)$", b"0:0:0")
-        values(b"$SBS(PUSH)$$INUSE(BUT,BACKUP)$", b"1")
+        # Check BASE and STACK independently with all numbered slots empty.
+        values(b"$SBS(PUSH)$$INUSE(BUT,BACKUP)$$INUSE(BUT,ANYSLOTS)$", b"10")
         values(b"$RBS(POP)$$INUSE(BUT,BACKUP)$", b"0")
-        values(b"$SBS$$INUSE(BUT,BACKUP)$", b"1")
+        values(b"$SBS$$INUSE(BUT,BACKUP)$$INUSE(BUT,ANYSLOTS)$", b"10")
         values(b"$RESET(BUT,BASE)$$INUSE(BUT,BACKUP)$", b"0")
+
+        # The portable aggregate predicates cover all ten numbered slots.
+        values(b"$SBS(8)$$PROT(BUT,S8)$$INUSE(BUT,S8)$:$ISPROT(BUT,S8)$", b"1:1")
+        values(b"$INUSE(BUT,ANYSLOTS)$:$ISPROT(BUT,ANYSLOTS)$:$INUSE(BUT,BACKUP)$", b"1:1:1")
+        values(b"$INUSE(BUT,S9)$:$ISPROT(BUT,S9)$", b"0:-1")
         values(b"".join(f"$SBS({i})$".encode() for i in range(8))
-               + b"$PROT(BUT,ALLSLOTS)$$UNPROT(BUT,S8)$$INUSE(BUT,ALLSLOTS)$:"
-                 b"$ISPROT(BUT,ALLSLOTS)$:$ISPROT(BUT,ANYSLOTS)$:$INUSE(BUT,BACKUP)$", b"1:1:1:1")
-        values(b"$UNPROT(BUT,S7)$$ISPROT(BUT,ALLSLOTS)$", b"0")
+               + b"$PROT(BUT,ALLSLOTS)$$INUSE(BUT,ALLSLOTS)$:$ISPROT(BUT,ALLSLOTS)$", b"0:0")
+        values(b"$SBS(9)$$INUSE(BUT,ALLSLOTS)$:$ISPROT(BUT,ALLSLOTS)$", b"1:0")
+        values(b"$PROT(BUT,S9)$$ISPROT(BUT,ALLSLOTS)$", b"1")
         values(b"$UNPROT(BUT,ALLSLOTS)$$RESET(BUT,SLOTS)$$INUSE(BUT,BACKUP)$", b"0")
 
 

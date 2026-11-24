@@ -356,12 +356,9 @@ objects(const struct st_rip3_table_host *host,
 				uses_slots = true;
 				if (kind == SLOT)
 					slots[index] = true;
-				else {
-					/* RIPtel's aggregate queries scan S0 through S7,
-					 * though individual selectors also accept S8/S9. */
-					unsigned limit = active ? 10 : 8;
-					for (unsigned j = 0; j < limit; j++) slots[j] = true;
-				}
+				else
+					for (unsigned j = 0; j < sizeof(slots) / sizeof(slots[0]); j++)
+						slots[j] = true;
 			}
 			else if (!inuse)
 				return IO_ERROR_INVALID_FORMAT;

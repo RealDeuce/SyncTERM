@@ -4156,14 +4156,14 @@ st_console_mouse_present(st_console_t *console, bool *present)
 	if (console == NULL || present == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	const st_console_display_t *display = console->display;
-	if (display->backend == ST_CONSOLE_BACKEND_TEST)
-		*present = true; /* Test control supplies a virtual mouse. */
-	else if (display->backend == ST_CONSOLE_BACKEND_HEADLESS)
-		*present = false;
-	else if (display->backend_ops != NULL && display->backend_ops->mouse_present != NULL)
+	if (display->backend_ops != NULL && display->backend_ops->mouse_present != NULL)
 		*present = display->backend_ops->mouse_present(display);
 	else
-		return IO_ERROR_NOT_SUPPORTED;
+		*present = display->backend == ST_CONSOLE_BACKEND_TEST
+		    || display->backend == ST_CONSOLE_BACKEND_X11
+		    || display->backend == ST_CONSOLE_BACKEND_SDL
+		    || display->backend == ST_CONSOLE_BACKEND_QUARTZ
+		    || display->backend == ST_CONSOLE_BACKEND_LIBRETRO;
 	return 0;
 }
 
