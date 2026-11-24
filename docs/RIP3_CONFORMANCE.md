@@ -10131,5 +10131,5 @@ Connected CP437 and UTF-8 tests load a two-pixel keyed bitmap over a
 blinking ANSI glyph, then verify the exact alternating colors in each
 phase throughout the viewport and check the outside edge. Native tests
 cover staggered phase, viewport clipping, and allocation failure. Seed
-rectangles that extend beyond physical backing require separate coverage.
-[Pinned wallpaper contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1859b08987dddff557233533ace1bba664c608ec/version/3.0/ripscrip/4.0-icons-and-bitmaps.md#bitmap-flags)
+rectangles that extend beyond physical backing await a repetition rule.
+[Pinned wallpaper contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1859b08987dddff557233533ace1bba664c608ec/version/3.0/ripscrip/4.0-icons-and-bitmaps.md#bitmap-flags), [Issue #235](https://github.com/bbs-land/remote-imaging-protocol/issues/235)
