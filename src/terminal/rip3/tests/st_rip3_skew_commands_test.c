@@ -378,7 +378,7 @@ marker_composition(void)
 			style.borders = borders != 0;
 			CHECK(st_rip3_styles_set(host.styles, 0, &style) == 0);
 			CHECK(st_rip3_ports_erase(host.ports, 0x33) == 0);
-			CHECK(process(&host, ";1O1O0L14140001", -1) == 0);
+			CHECK(process(&host, borders ? ";1O1O0L1414001" : ";1O1O0L14140001", -1) == 0);
 			for (size_t i = 0; i < sizeof(points) / sizeof(*points); ++i) {
 				uint8_t value;
 				CHECK(st_rip3_ports_read(host.ports, 0, points[i].x, points[i].y, &value) == 0);
@@ -386,7 +386,7 @@ marker_composition(void)
 			}
 		}
 	}
-	CHECK(process(&host, ";1O1O0L1414001", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(process(&host, ";1O1O0L141400", ST_RIP3_COMMAND_INVALID) == 0);
 	destroy(&host);
 	return 0;
 }

@@ -84,20 +84,22 @@ st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
 	bool fill_digit = command[0] == ':' || command[0] == '`';
 	size_t pairs = whole ? 3 : 5;
 	size_t xy = environment.coordinate_size;
-	size_t fields_length = 2 * pairs * xy;
-	if (length != 1 + fields_length + (fill_digit ? 1 : 0))
+	size_t full_length = 1 + 2 * pairs * xy + (fill_digit ? 1 : 0);
+	size_t minimum = fill_digit ? full_length : full_length - xy + 1;
+	if (length < minimum || length > full_length)
 		return IO_ERROR_INVALID_FORMAT;
 	struct st_rip3_frame frame;
 	status = st_rip3_command_frame(host, current, &frame);
 	if (status != 0)
 		return status;
 	struct st_rip3_vector control[5];
-	const uint8_t *field = command + 1;
-	for (size_t i = 0; i < pairs; ++i, field += 2 * xy) {
+	for (size_t i = 0; i < pairs; ++i) {
+		size_t offset = 1 + 2 * i * xy;
+		size_t y_width = !fill_digit && i + 1 == pairs ? length - offset - xy : xy;
 		uint64_t x, y;
-		status = st_rip3_command_field(&x, field, xy, environment.base_math);
+		status = st_rip3_command_field(&x, command + offset, xy, environment.base_math);
 		if (status == 0)
-			status = st_rip3_command_field(&y, field + xy, xy, environment.base_math);
+			status = st_rip3_command_field(&y, command + offset + xy, y_width, environment.base_math);
 		if (status != 0)
 			return status;
 		control[i] = (struct st_rip3_vector){
@@ -107,7 +109,7 @@ st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
 	}
 	uint64_t flags = 0;
 	if (fill_digit)
-		status = st_rip3_command_field(&flags, field, 1, environment.base_math);
+		status = st_rip3_command_field(&flags, command + length - 1, 1, environment.base_math);
 	if (status == 0)
 		status = st_rip3_ports_current(host->ports, &current);
 	struct st_rip3_port_info port;
@@ -123,11 +125,13 @@ st_rip3_affine_command_execute(const struct st_rip3_command_host *host,
 	bool closed;
 	status = st_rip3_affine_build(&path, &closed, control, kind);
 	if (status == 0) {
-		/* Affine contours are constructed in port coordinates. The painter
-		 * takes viewport-relative points, so adjust only after ray fitting. */
+		/* The contour already addresses the screen or bitmap directly.
+		 * Convert to viewport-relative coordinates for the painter. */
+		double viewport_x = (double)port.bounds.x0 + port.viewport.x0;
+		double viewport_y = (double)port.bounds.y0 + port.viewport.y0;
 		for (size_t i = 0; i < path.count; ++i) {
-			path.points[i].x -= port.viewport.x0;
-			path.points[i].y -= port.viewport.y0;
+			path.points[i].x -= viewport_x;
+			path.points[i].y -= viewport_y;
 		}
 		status = paint(host, &environment, &port, &path, closed,
 		    closed && (command[0] == '{' || flags != 0), BORDER_FROM_STYLE, operation);
@@ -155,7 +159,7 @@ st_rip3_skew_commands_execute(const struct st_rip3_command_host *host,
 	status=st_rip3_command_environment(host,&environment,&env);
 	if (status!=0) return status;
 	total=(command[0]=='&' ? 2*env.coordinate_size+6 : whole ? 4*env.coordinate_size+2 : 4*env.coordinate_size+6);
-	if (body<=total-2 || body>total || (marker && body!=total)) return IO_ERROR_INVALID_FORMAT;
+	if (body<=total-2 || body>total) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i=0; i<fields; i++) {
 		bool coordinate = i < 2 || (marker ? i == 3 || i == 4 : i < 4 && command[0] != '&');
 		size_t width = coordinate ? env.coordinate_size : 2;

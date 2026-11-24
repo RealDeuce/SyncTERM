@@ -23008,6 +23008,34 @@
         "excluded": 71,
         "blocked": 21
       }
+    },
+    {
+      "after_commit": "3850b457",
+      "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "scope": "Correct positioned screen-port geometry for affine ellipses and accept shortened final affine coordinates and PolyMarker flags.",
+      "updated_source_units": [
+        "version/3.0/ripscrip/2.1-lines.md:194",
+        "version/3.0/ripscrip/2.1-lines.md:200",
+        "version/3.0/ripscrip/2.2-curves.md:311",
+        "version/3.0/techspecs/2.1-arc-consumer-contract.md:113",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:62"
+      ],
+      "tests": [
+        "rip3_skew",
+        "rip3_skew_commands",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1900,
+        "pending": 1466,
+        "implemented": 3690,
+        "excluded": 71,
+        "blocked": 21
+      }
     }
   ]
 }

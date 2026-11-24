@@ -9915,9 +9915,15 @@ The five original level-zero affine commands use a center and two
 conjugate-radius endpoints. Comma strokes an arc, period strokes a whole
 ellipse, colon closes an arc through the center, backtick closes it
 directly, and opening brace fills a whole ellipse. Colon and backtick
-select fill with a nonzero final digit. All coordinate pairs use the
-active coordinate width and are projected through WORLD first. The
-viewport clips the port-space contour at its actual position.
+select fill with a nonzero final digit. Coordinates use the active XY
+width and are projected through WORLD first. Comma, period and brace
+allow leading zeroes to be omitted from the final Y. PolyMarker (`;`)
+allows the same shortening for its final flags.
+
+The projected affine contour is already in shared-screen coordinates on
+screen ports and bitmap coordinates on offscreen ports. The selected
+viewport clips the contour at that position, including on positioned
+screen ports with their own origins.
 
 The contour reproduces RIPtel's five-degree sampling, axis order, integer
 ray intersections and closure or missed-ray rules. Filled contours use
@@ -9927,7 +9933,8 @@ the current fill, with the patterned COPY border selected by `N`.
 Native tests compare point counts, closure and ordered coordinate hashes
 against 52 RIPtel vectors captured by RIPlib's x86 geometry probe.
 Connected CP437 and UTF-8 tests exercise each opcode, nondefault WORLD and
-coordinate width, outline and fill selectors, and malformed-command recovery.
+coordinate width, shortened fields, fill selectors, clipping on a positioned
+port, and malformed-command recovery.
 
 ## Connected BOUNDED_TEXT outline fitting
 

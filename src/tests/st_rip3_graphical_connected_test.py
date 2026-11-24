@@ -117,12 +117,12 @@ def run(args):
         # Marker 21 is a square spanning signed 50% of each full extent.
         # At a 2:1 X scale, WORLD width 40 becomes device width 20. The
         # device height is 28, so the top edge projects to y=86.
-        def marker(x, glyph, rotation, flags):
-            fields = ((2*x, 4), (100, 4), (glyph, 2), (40, 4), (28, 4), (rotation, 2), (flags, 2))
+        def marker(x, glyph, rotation, flags, *, flag_width=2):
+            fields = ((2*x, 4), (100, 4), (glyph, 2), (40, 4), (28, 4), (rotation, 2), (flags, flag_width))
             return b';' + b''.join(number(value, width) for value, width in fields)
 
         t.exchange(b'\x01|*|n4000|f00ZK00DC|c0C|S0102|N00\r\n')
-        scene = b'\x01|' + b'|'.join(marker(70 + i*40, 21, 0, i) for i in range(4)) + b'\r\n'
+        scene = b'\x01|' + b'|'.join(marker(70 + i*40, 21, 0, i, flag_width=1) for i in range(4)) + b'\r\n'
         t.send(scene[:18])
         frame = t.exchange(scene[18:])
         assert [pixel(frame, x, 100) for x in (70, 110, 150, 190)] == [0, 0x00aa00, 0, 0x00aa00]
@@ -142,17 +142,20 @@ def run(args):
         t.exchange(b'\x01|W0|N00|=00000001\r\n')
 
         t.case('Affine ellipse commands share geometry and choose the correct closure')
-        def affine(opcode, x, *, fill=b''):
+        def affine(opcode, x, *, fill=b'', short=False):
             center = (x, 200)
             right, top = (x + 20, 200), (x, 188)
             points = (center, right, top)
             if opcode in (b',', b':', b'`'):
                 points += (right, top)
-            return opcode + b''.join(number(2*px, 4) + number(py, 4) for px, py in points) + fill
+            fields = [number(value, 4) for px, py in points for value in (2*px, py)]
+            if short:
+                fields[-1] = fields[-1].lstrip(b'0') or b'0'
+            return opcode + b''.join(fields) + fill
 
-        frame = t.exchange(b'\x01|' + b'|'.join((affine(b',', 70), affine(b'.', 130),
+        frame = t.exchange(b'\x01|' + b'|'.join((affine(b',', 70, short=True), affine(b'.', 130),
                             affine(b':', 190, fill=b'1'), affine(b'`', 250, fill=b'Z'),
-                            affine(b'{', 310), affine(b':', 370, fill=b'0'))) + b'\r\n')
+                            affine(b'{', 310, short=True), affine(b':', 370, fill=b'0'))) + b'\r\n')
         assert pixel(frame, 90, 200) == 0xff5555 and pixel(frame, 50, 200) == 0
         assert pixel(frame, 110, 200) == 0xff5555 and pixel(frame, 130, 200) == 0
         assert pixel(frame, 195, 195) == 0x00aa00 and pixel(frame, 185, 204) == 0
@@ -160,15 +163,27 @@ def run(args):
         assert pixel(frame, 310, 200) == 0x00aa00
         assert pixel(frame, 380, 200) == 0xff5555 and pixel(frame, 375, 195) == 0
         before = frame
-        frame = t.exchange(b'\x01|' + affine(b'`', 450, fill=b'?') + b'|' + affine(b'.', 510)[:-2]
+        frame = t.exchange(b'\x01|' + affine(b'`', 450, fill=b'?') + b'|' + affine(b'.', 510)[:-4]
                            + b'\r\n' + query(b'alive', at_cursor=True), b'alive')
         assert frame.primary == before.primary and frame.alternate == before.alternate
 
         t.case('Affine ellipse coordinates stay in port space under viewport clipping')
         view = b'v' + b''.join(number(value, 4) for value in (1100, 170, 1200, 240))
-        frame = t.exchange(b'\x01|' + view + b'|' + affine(b'.', 560) + b'\r\n')
+        frame = t.exchange(b'\x01|' + view + b'|' + affine(b'.', 560, short=True) + b'\r\n')
         assert pixel(frame, 580, 200) == 0xff5555
         assert pixel(frame, 540, 200) == 0
+
+        t.case('Affine ellipses use screen coordinates on positioned screen ports')
+        values(b'$CLS$')
+        bounds = b''.join(number(value, 4) for value in (600, 120, 1240, 330))
+        smaller_view = b''.join(number(value, 4) for value in (640, 155, 1220, 315))
+        frame = t.exchange(b'\x01|2P1' + bounds + b'0|2s100|'
+                           + affine(b'.', 520) + b'|v' + smaller_view + b'|'
+                           + affine(b'{', 330) + b'\r\n')
+        values(b'$CUR(PORT)$', b'1')
+        assert pixel(frame, 500, 200) == pixel(frame, 540, 200) == 0xff5555
+        assert pixel(frame, 330, 200) == 0x00aa00
+        assert pixel(frame, 315, 200) == 0 and pixel(frame, 520, 200) == 0
 
         t.case('Extended font names expand before the selected face is drawn')
         t.exchange(b'\x01|*|c0F\r\n\x1b[?25l')
