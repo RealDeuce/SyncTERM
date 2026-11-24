@@ -1576,3 +1576,16 @@ begin collecting text.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/b06c20c1e056e6f6432f958672bff8b5ecf6a2a7),
 [PR #265](https://github.com/bbs-land/remote-imaging-protocol/pull/265)
+
+
+## Table switch flags and drawing palette counts
+
+The reference advances to `205a3871170ac0b29d25e0db2059fe39a01a3138`. The stable
+integrations match the reviewed heads of PRs #267 and #268. The Git archive
+has SHA-256 `aced87cb7299e343a8f86dd8cbc40414d45716233c0f6a7490601c0f8c267fd0`. Five chapters now
+specify the ordered protection actions, the corrected switch spellings and
+the count of decoded colors in bulk palette commands.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/205a3871170ac0b29d25e0db2059fe39a01a3138),
+[PR #267](https://github.com/bbs-land/remote-imaging-protocol/pull/267),
+[PR #268](https://github.com/bbs-land/remote-imaging-protocol/pull/268)

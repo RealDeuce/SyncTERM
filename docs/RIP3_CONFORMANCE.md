@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-b06c20c1e056e6f6432f958672bff8b5ecf6a2a7](https://github.com/RealDeuce/remote-imaging-protocol/tree/b06c20c1e056e6f6432f958672bff8b5ecf6a2a7/version/3.0)
+205a3871170ac0b29d25e0db2059fe39a01a3138](https://github.com/RealDeuce/remote-imaging-protocol/tree/205a3871170ac0b29d25e0db2059fe39a01a3138/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -9049,7 +9049,9 @@ leaves ordinary scanning active. [Pinned pick-list profile](https://github.com/R
 
 The modal supports keyboard navigation, highlighted hotkeys, mouse selection
 and scrolling through 64 choices. An optional list accepts Escape. A required
-list keeps focus until the user makes a choice. Modal keys and clicks can
+list keeps focus until the user makes a choice. A left-button press and release
+must target the same choice. Other button transitions leave that press intact.
+Modal keys and clicks can
 answer a pick list during a scene input lock. Each axis uses the current
 WORLD extent and selected device raster, with the final rectangle fitted to
 the client surface. The portable layout uses an 8×16 font with up to 18 visible
@@ -10441,8 +10443,8 @@ Connected CP437 and UTF-8 tests check the table selections, protection
 changes, first-use cloning and palette publication to existing pixels.
 `2R` also accepts a period in its four-digit reserve before the refresh
 expression, and `3e` accepts a period to clear local playback pacing.
-The pinned palette, environment and text-window wire diagrams still
-require correction. [Issue #264](https://github.com/bbs-land/remote-imaging-protocol/issues/264)
+The pinned reference includes the corrected palette, environment and
+text-window wire diagrams. [PR #267](https://github.com/bbs-land/remote-imaging-protocol/pull/267)
 
 
 ## Drawing palette field collection
@@ -10455,6 +10457,6 @@ The decoder validates each bulk update before publishing any entry.
 
 Connected CP437 and UTF-8 tests check exact `PALENTRY` replies and the
 effect of publication on existing indexed pixels. Native cases include a
-256-entry packet using one period per color. The pinned header radix and
-input-precision descriptions still require correction.
-[Issue #266](https://github.com/bbs-land/remote-imaging-protocol/issues/266)
+256-entry packet using one period per color. The pinned reference includes
+the corrected radix, precision and decoded count rules.
+[PR #268](https://github.com/bbs-land/remote-imaging-protocol/pull/268)

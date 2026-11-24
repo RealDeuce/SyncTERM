@@ -1,24 +1,25 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/265",
-  "revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
-  "previous_revision": "72648bc8a09eb8edfbb313b8f1355c675dd43253",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/268",
+  "revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
+  "previous_revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #265 reviewed head matches its fork stable integration tree.",
-  "archive_sha256": "7d315f89261c3dc9f41646778f6840ab53294f475ec572237a2e1d6f1492c963",
+  "upstream_state_at_adoption": "The open PRs #267 and #268 match their respective fork stable integration trees.",
+  "archive_sha256": "aced87cb7299e343a8f86dd8cbc40414d45716233c0f6a7490601c0f8c267fd0",
   "normative_scope": [
-    "Scene filename boundary after two unused/reserved numeric fields.",
-    "Period spellings, ignored reserves and text boundaries for host queries, variable definition, file queries and directory selection."
+    "Table switch target widths, required flags, protection order and first-use text-window rules.",
+    "Drawing palette forced UltraNum fields, eight-bit precision, period zero and fixed versus repeated color collection."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.0-host-commands.md",
+    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
     "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+    "version/3.0/ripscrip/7.1-data-tables.md",
     "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9470,
+  "matched_source_blocks": 9450,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -952,7 +953,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 130,
+  "upstream_issue_resolutions": 132,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1727,6 +1728,18 @@
       "sha256": "0ddc3c06de6da25ae85ea592d957c4dd6d54173bf3019d2dceb05c0008b29535",
       "title": "Issue #263 — Resource and query text boundaries",
       "role": "Original resource and query command descriptors, read-scene handler and staged numeric-prefix captures."
+    },
+    {
+      "path": "version/3.0/research/issue-264-table-switch-flags.md",
+      "sha256": "ec5aa0dd14041cf59269ef6b5e0ddf2da84fcdf438ead006dbd42ea1c9c2fff6",
+      "title": "Issue #264 — Palette, environment and text-window switch flags",
+      "role": "Original table-switch field collection and ordered protection actions."
+    },
+    {
+      "path": "version/3.0/research/issue-266-palette-color-count.md",
+      "sha256": "deb84121b61ca8f5bea798147fb0030c633f79c2a05008ccf9566ee7ae7a9f43",
+      "title": "Issue #266 — Drawing-palette fields and decoded color count",
+      "role": "Original palette command descriptors, precision checks and decoded color counts."
     }
   ],
   "documents": [
@@ -1832,11 +1845,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "d0f2eadae6ece0e92dc9bcbda7d1cd3cc4bd21656822eab8446883684872aabe"
+      "sha256": "0c26f2996292aafe91065df22b7b46d13b15d06fe273bb5d39b8a0e8f1610e62"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "e8a368dcc16587a47d03bb90810243e7c701f097c9be818b873984b5bb34f678"
+      "sha256": "329a1c82f0f749740f2d610e80cb55b4027319f97614b965fbc0f8bec3fa9d61"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
@@ -1904,7 +1917,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "d0b56f60aad88740df93482841527b6fffe8a2f3d6ebcd33c847510ff24b41d0"
+      "sha256": "3547999cc15adc1d0ca742b46ad4386d41d901f69e3cdfbe56c1f6add364b14f"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1924,7 +1937,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "d45655c9c2a811f1a74aeb8e258b24941e59aeec0ab3d3734e1d61fa4c3aadc3"
+      "sha256": "789b90d9524781fce6652e483c5378a2ffa83a2501b28b1fdb9896dfb14583b1"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -1932,7 +1945,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "77077405a2e8f4b192c5ea873b93a5b4ef57bf8a821ce3367f5d9cd36b064d71"
+      "sha256": "7bf42b804df1c8a71eee42877f15fc26b38296a17dfb14f3e510d6878002a810"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2003,7 +2016,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "03ea876f3de0571177a277ce51eeeed289da2097",
+  "previous_ledger_commit": "d53bc6acaca98c3f7a369ff4e97333f80acb311b",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19571,6 +19584,181 @@
         "excluded": 71,
         "blocked": 24
       }
+    },
+    {
+      "previous_revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
+      "revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
+      "archive_sha256": "aced87cb7299e343a8f86dd8cbc40414d45716233c0f6a7490601c0f8c267fd0",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/264",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/267",
+          "reviewed_head": "a36b8c33547b707f16a8d8ee6035917a536ff3ce",
+          "integration": "15fb79294d760bd2f798ea2552d9e5831ddfd2af"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/266",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/268",
+          "reviewed_head": "8974b6e4a2d34c88b74fc3f6d5014205ff57b98b",
+          "integration": "205a3871170ac0b29d25e0db2059fe39a01a3138"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "d0f2eadae6ece0e92dc9bcbda7d1cd3cc4bd21656822eab8446883684872aabe",
+          "sha256": "0c26f2996292aafe91065df22b7b46d13b15d06fe273bb5d39b8a0e8f1610e62"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+          "previous_sha256": "e8a368dcc16587a47d03bb90810243e7c701f097c9be818b873984b5bb34f678",
+          "sha256": "329a1c82f0f749740f2d610e80cb55b4027319f97614b965fbc0f8bec3fa9d61"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "d0b56f60aad88740df93482841527b6fffe8a2f3d6ebcd33c847510ff24b41d0",
+          "sha256": "3547999cc15adc1d0ca742b46ad4386d41d901f69e3cdfbe56c1f6add364b14f"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.1-data-tables.md",
+          "previous_sha256": "d45655c9c2a811f1a74aeb8e258b24941e59aeec0ab3d3734e1d61fa4c3aadc3",
+          "sha256": "789b90d9524781fce6652e483c5378a2ffa83a2501b28b1fdb9896dfb14583b1"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "77077405a2e8f4b192c5ea873b93a5b4ef57bf8a821ce3367f5d9cd36b064d71",
+          "sha256": "7bf42b804df1c8a71eee42877f15fc26b38296a17dfb14f3e510d6878002a810"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-264-table-switch-flags.md",
+          "sha256": "ec5aa0dd14041cf59269ef6b5e0ddf2da84fcdf438ead006dbd42ea1c9c2fff6",
+          "title": "Issue #264 — Palette, environment and text-window switch flags",
+          "role": "Original table-switch field collection and ordered protection actions."
+        },
+        {
+          "path": "version/3.0/research/issue-266-palette-color-count.md",
+          "sha256": "deb84121b61ca8f5bea798147fb0030c633f79c2a05008ccf9566ee7ae7a9f43",
+          "title": "Issue #266 — Drawing-palette fields and decoded color count",
+          "role": "Original palette command descriptors, precision checks and decoded color counts."
+        }
+      ],
+      "moved_source_blocks": 232,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:422",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:423",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:424",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:425",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:426",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:428",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:432",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:446",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:450",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:465",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:486",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:432",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:436",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:438",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:446",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:448",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:449",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:450",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:451",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:452",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:453",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:454",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:455",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:456",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:490",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:496",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:543",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:544",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:545",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:546",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:547",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:549",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:553",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:374",
+        "version/3.0/ripscrip/7.1-data-tables.md:213",
+        "version/3.0/ripscrip/7.1-data-tables.md:215",
+        "version/3.0/ripscrip/7.1-data-tables.md:216",
+        "version/3.0/ripscrip/7.1-data-tables.md:217",
+        "version/3.0/ripscrip/7.1-data-tables.md:218",
+        "version/3.0/ripscrip/7.1-data-tables.md:219",
+        "version/3.0/ripscrip/7.1-data-tables.md:220",
+        "version/3.0/ripscrip/7.1-data-tables.md:221",
+        "version/3.0/ripscrip/7.1-data-tables.md:223",
+        "version/3.0/ripscrip/7.1-data-tables.md:225",
+        "version/3.0/ripscrip/7.1-data-tables.md:227",
+        "version/3.0/ripscrip/7.1-data-tables.md:229",
+        "version/3.0/ripscrip/7.1-data-tables.md:230",
+        "version/3.0/ripscrip/7.1-data-tables.md:231",
+        "version/3.0/ripscrip/7.1-data-tables.md:232",
+        "version/3.0/ripscrip/7.1-data-tables.md:233",
+        "version/3.0/ripscrip/7.1-data-tables.md:234",
+        "version/3.0/ripscrip/7.1-data-tables.md:235",
+        "version/3.0/ripscrip/7.1-data-tables.md:236",
+        "version/3.0/ripscrip/7.1-data-tables.md:237",
+        "version/3.0/ripscrip/7.1-data-tables.md:305",
+        "version/3.0/ripscrip/7.1-data-tables.md:306",
+        "version/3.0/ripscrip/7.1-data-tables.md:307",
+        "version/3.0/ripscrip/7.1-data-tables.md:308",
+        "version/3.0/ripscrip/7.1-data-tables.md:309",
+        "version/3.0/ripscrip/7.1-data-tables.md:311",
+        "version/3.0/ripscrip/7.1-data-tables.md:313",
+        "version/3.0/ripscrip/7.1-data-tables.md:315",
+        "version/3.0/ripscrip/7.1-data-tables.md:317",
+        "version/3.0/ripscrip/9.0-command-reference.md:57",
+        "version/3.0/ripscrip/9.0-command-reference.md:74",
+        "version/3.0/ripscrip/9.0-command-reference.md:237"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:422",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:423",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:424",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:425",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:426",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:428",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:444",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:448",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:463",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:484",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:432",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:436",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:438",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:440",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:480",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:486",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:488",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:535",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:536",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:537",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:538",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:539",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:541",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:374",
+        "version/3.0/ripscrip/7.1-data-tables.md:277",
+        "version/3.0/ripscrip/7.1-data-tables.md:278",
+        "version/3.0/ripscrip/7.1-data-tables.md:279",
+        "version/3.0/ripscrip/7.1-data-tables.md:280",
+        "version/3.0/ripscrip/7.1-data-tables.md:281",
+        "version/3.0/ripscrip/7.1-data-tables.md:283",
+        "version/3.0/ripscrip/7.1-data-tables.md:285",
+        "version/3.0/ripscrip/7.1-data-tables.md:287",
+        "version/3.0/ripscrip/9.0-command-reference.md:57",
+        "version/3.0/ripscrip/9.0-command-reference.md:74",
+        "version/3.0/ripscrip/9.0-command-reference.md:237"
+      ],
+      "states_after_update": {
+        "unreviewed": 2127,
+        "context": 1977,
+        "pending": 1411,
+        "implemented": 3920,
+        "excluded": 71,
+        "blocked": 10
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -25620,6 +25808,70 @@
         "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:33",
         "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:98",
         "version/3.0/ripscrip/9.0-command-reference.md:210"
+      ]
+    },
+    {
+      "after_commit": "d53bc6acaca98c3f7a369ff4e97333f80acb311b",
+      "revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
+      "scope": "Adopt table switch and palette wire rules. Preserve pending pick-list selection across unrelated pointer-button transitions.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/264",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/266"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:424",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:425",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:426",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:428",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:432",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:450",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:465",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:486",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:432",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:436",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:438",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:450",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:451",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:452",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:453",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:454",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:455",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:456",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:490",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:496",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:545",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:546",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:547",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:549",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:553",
+        "version/3.0/ripscrip/5.4-popup-lists.md:60",
+        "version/3.0/ripscrip/5.4-popup-lists.md:62",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:374",
+        "version/3.0/ripscrip/7.1-data-tables.md:213",
+        "version/3.0/ripscrip/7.1-data-tables.md:217",
+        "version/3.0/ripscrip/7.1-data-tables.md:218",
+        "version/3.0/ripscrip/7.1-data-tables.md:219",
+        "version/3.0/ripscrip/7.1-data-tables.md:220",
+        "version/3.0/ripscrip/7.1-data-tables.md:221",
+        "version/3.0/ripscrip/7.1-data-tables.md:223",
+        "version/3.0/ripscrip/7.1-data-tables.md:225",
+        "version/3.0/ripscrip/7.1-data-tables.md:231",
+        "version/3.0/ripscrip/7.1-data-tables.md:232",
+        "version/3.0/ripscrip/7.1-data-tables.md:233",
+        "version/3.0/ripscrip/7.1-data-tables.md:234",
+        "version/3.0/ripscrip/7.1-data-tables.md:235",
+        "version/3.0/ripscrip/7.1-data-tables.md:236",
+        "version/3.0/ripscrip/7.1-data-tables.md:237",
+        "version/3.0/ripscrip/7.1-data-tables.md:307",
+        "version/3.0/ripscrip/7.1-data-tables.md:308",
+        "version/3.0/ripscrip/7.1-data-tables.md:309",
+        "version/3.0/ripscrip/7.1-data-tables.md:311",
+        "version/3.0/ripscrip/7.1-data-tables.md:313",
+        "version/3.0/ripscrip/7.1-data-tables.md:315",
+        "version/3.0/ripscrip/7.1-data-tables.md:317",
+        "version/3.0/ripscrip/9.0-command-reference.md:237",
+        "version/3.0/ripscrip/9.0-command-reference.md:57",
+        "version/3.0/ripscrip/9.0-command-reference.md:74"
       ]
     }
   ],

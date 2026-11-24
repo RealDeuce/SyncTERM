@@ -1671,8 +1671,14 @@ bool
 st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip==NULL || event->type!=ST_CONSOLE_EVENT_MOUSE) return false;
+	bool previous_left = rip->mouse_buttons.left;
 	mouse_button_state(rip,event->data.mouse.buttons);
-	if (rip->pick_list!=NULL) { pick_list_input(rip,event);return true; }
+	if (rip->pick_list!=NULL) {
+		/* Button events carry the whole held mask, including unchanged buttons. */
+		if (event->data.mouse.action != ST_CONSOLE_MOUSE_BUTTON || previous_left != rip->mouse_buttons.left)
+			pick_list_input(rip,event);
+		return true;
+	}
 	if (st_rip3_session_input_locked(rip->session)) return true;
 	mouse_capture(rip,event->data.mouse.pixel_x,event->data.mouse.pixel_y);
 	if (event->data.mouse.action==ST_CONSOLE_MOUSE_WHEEL) return false;

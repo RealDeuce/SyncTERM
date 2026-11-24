@@ -33,10 +33,10 @@ def run(args, width, height):
         def modal(x, y, color=QUESTION):
             return client.wait_for(lambda frame: pixel(frame, x, y) == color)
 
-        def button(x, y, down):
+        def button(x, y, buttons):
             px = m["destination_x"] + (2*x + 1)*m["destination_width"] // (2*m["plane_width"])
             py = m["destination_y"] + (2*y + 1)*m["destination_height"] // (2*m["plane_height"])
-            event(lambda: client.mouse(px, py, action=1, buttons=int(down)))
+            event(lambda: client.mouse(px, py, action=1, buttons=int(buttons)))
 
         def event(post):
             before = client.capture().metadata["events_dequeued"]
@@ -69,6 +69,19 @@ def run(args, width, height):
 
         if width != 640:
             return
+
+        t.case("rip3-pick-list-button-chords-preserve-the-original-press")
+        send(packet(b"pre((0,0:Q::A,B))post"))
+        modal(0, 0)
+        button(3, 20, 1)  # Left press on A.
+        button(3, 35, 5)  # Right press on B while left is held.
+        button(3, 35, 1)  # Release right, leaving left held.
+        button(3, 35, 0)  # Release left over a different choice.
+        quiet()
+        modal(0, 16, FOCUS)
+        button(3, 35, 1)
+        button(3, 35, 0)
+        t.input(b"preBpost")
 
         t.case("rip3-pick-list-required-and-optional-during-scene-lock")
         send(b"\x01|h01000400\r\n" + packet(b"pre((*0,0:Q::A,B@_S_))post")
