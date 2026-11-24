@@ -239,21 +239,26 @@ static int z_receive(st_transfer_t *t, zmodem_t *zm)
 		int64_t offset = 0;
 		struct fs_info info;
 		status = fs_get_info(&info, path);
-		if (status == 0 && !t->config.overwrite && !t->config.discard) {
+		bool overwrite = t->config.overwrite;
+		if (status == 0 && !t->config.discard && (!overwrite || t->config.resume_on_overwrite)) {
 			bool matching = false;
-			if (info.size <= (uint64_t)zm->current_file_size && info.size != 0) {
+			uint64_t incoming_size = (uint64_t)zm->current_file_size;
+			/* Asset refresh can reuse a partial prefix. Full-size assets still
+			 * go through the receive and completion path. */
+			if (info.size != 0 && (info.size < incoming_size || (!overwrite && info.size == incoming_size))) {
 				status = fs_open(&file, path, "rb");
 				if (status != 0) { free(path); return status; }
 				uint32_t crc = st_transfer_file_crc32(file, (size_t)info.size), remote;
 				if (ferror(file)) { fclose(file); free(path); return IO_ERROR_IO; }
 				fclose(file); file = NULL;
 				matching = zmodem_get_crc(zm, (int32_t)(uint32_t)info.size, &remote) && crc == remote;
+				if (overwrite && !st_transfer_connected(t)) { free(path); return IO_ERROR_NOT_CONNECTED; }
 			}
-			if (matching && info.size == (uint64_t)zm->current_file_size) {
+			if (matching && info.size == incoming_size) {
 				free(path); zmodem_send_zskip(zm); continue;
 			}
 			if (matching) { offset = (int64_t)info.size; st_transfer_log_message(t, LOG_INFO, "Resuming %s at %" PRId64, t->current_name, offset); }
-			else {
+			else if (!overwrite) {
 				free(path); path = NULL;
 				status = st_transfer_destination(t, t->current_name, &path, false);
 				if (status > 0) { zmodem_send_zskip(zm); continue; }

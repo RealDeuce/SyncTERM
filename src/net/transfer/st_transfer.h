@@ -27,10 +27,11 @@ struct st_transfer_config {
 	 * an allocated destination or an IO_ERROR. Borrowed until join. */
 	int (*destination)(void *context, const char *directory, const char *name, char **path);
 	void *destination_context;
-	bool overwrite; /* Explicit asset-refresh policy; disables ZMODEM resume. */
+	bool overwrite; /* Replace existing files without a collision prompt. */
+	bool resume_on_overwrite; /* Check for a resumable ZMODEM prefix before replacing a file. */
 	bool discard; /* Receive into a temporary stream instead of the destination. */
-	/* Owner must drain the bounded event mailbox. ZMODEM event consumers
-	 * select overwrite or discard, so playback always starts at offset zero. */
+	/* Owner must drain the bounded event mailbox. ZMODEM event consumers use
+	 * discard or overwrite with resume disabled, so playback starts at offset zero. */
 	bool receive_events;
 	/* Queue only file completion events. The owner drains the same mailbox. */
 	bool receive_completion_events;

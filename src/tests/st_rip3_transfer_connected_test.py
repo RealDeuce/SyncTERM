@@ -6,6 +6,7 @@ from binascii import crc_hqx
 from pathlib import Path
 from socket import SHUT_RDWR
 import struct
+from zlib import crc32
 
 from st_migrated_control_test import connection
 from st_rip3_connected_test import pixel, query
@@ -102,20 +103,70 @@ def run(args):
         download(b"!|9\x1b01060000extra.bin<>\r", "extra.bin")
 
         terminal.case("rip3-both-receive-codes-reach-the-zmodem-worker")
-        zfin = b"\x08\x00\x00\x00\x00"
-        finish_frame = b"**\x18B" + (zfin + crc_hqx(zfin, 0).to_bytes(2, "big")).hex().encode() + b"\r\n"
-        for request in (b"!|9\x1b07010000<>\r\n", b"!|9\x1b08060000display-name<>\r\n"):
-            send(request)
+        def z_header(kind, position=0):
+            body = bytes((kind,)) + position.to_bytes(4, "little")
+            return b"**\x18B" + (body + crc_hqx(body, 0).to_bytes(2, "big")).hex().encode() + b"\r\n"
+
+        def z_subpacket(data, end):
+            def escaped(raw):
+                return b"".join(bytes((0x18, byte ^ 0x40)) if byte & 0x60 == 0 else bytes((byte,))
+                                for byte in raw)
+
+            return escaped(data) + b"\x18" + end + escaped(crc_hqx(data + end, 0).to_bytes(2, "big"))
+
+        def z_receive_init():
             zrinit = receive(peer, b"\r\n\x11", root / "replies.bin")
             assert zrinit[:6] == b"**\x18B01" and len(zrinit) == 21, zrinit
             header = bytes.fromhex(zrinit[4:18].decode("ascii"))
             assert crc_hqx(header[:5], 0) == int.from_bytes(header[5:], "big")
+
+        def z_finish():
+            finish_frame = z_header(8)  # ZFIN
             send(finish_frame)
             reply(finish_frame)
             send(b"OO")
             client.wait_for(lambda frame: not frame.application.get("transfer.active"))
             terminal.exchange(query(b"live", at_cursor=True), b"live")
+
+        for request in (b"!|9\x1b07010000<>\r\n", b"!|9\x1b08060000display-name<>\r\n"):
+            send(request)
+            z_receive_init()
+            z_finish()
         assert not (cache / "display-name").exists()
+
+        terminal.case("rip3-zmodem-reuses-a-verified-partial-file-in-the-bbs-cache")
+        contents = b"partial data with a completed suffix"
+        prefix = contents[:12]
+        destination = cache / "Resume.BIN"
+
+        def offer_resume_file(cached_prefix):
+            destination.write_bytes(cached_prefix)
+            send(b"!|9\x1b07010000<>\r\n")
+            z_receive_init()
+            info = b"resume.bin\x00" + str(len(contents)).encode("ascii") + b"\x00"
+            send(z_header(4) + z_subpacket(info, b"k"))  # ZFILE, ZCRCW
+            request = receive(peer, b"\r\n\x11", root / "replies.bin")
+            assert request == z_header(13, len(prefix)) + b"\x11", request  # ZCRC
+
+        for cached_prefix, offset in ((prefix, len(prefix)), (b"x" * len(prefix), 0)):
+            offer_resume_file(cached_prefix)
+            send(z_header(13, crc32(prefix)))
+            reply(z_header(9, offset) + b"\x11")  # ZRPOS
+            send(z_header(10, offset) + z_subpacket(contents[offset:], b"h") +
+                 z_header(11, len(contents)))  # ZDATA, ZCRCE, ZEOF
+            z_receive_init()
+            z_finish()
+            stored("Resume.BIN", contents)
+            assert [path.name for path in cache.iterdir() if path.name.casefold() == "resume.bin"] == ["Resume.BIN"]
+
+        terminal.case("rip3-zmodem-abort-during-prefix-check-keeps-the-partial-file")
+        offer_resume_file(prefix)
+        client.wait_text("RIP Asset Download")
+        client.key("escape")
+        reply(b"\x18" * 8 + b"\x08" * 8)
+        client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+        terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
+        stored("Resume.BIN", prefix)
 
         terminal.case("rip3-composite-batch-stores-an-unlisted-extension")
         send(b"!|9\x1b05040000batch.dat<>\r\n")

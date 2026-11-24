@@ -38,7 +38,8 @@ Kermit requests are rejected with a diagnostic and cancellation.
 Downloads use the BBS asset cache, independent of the normal download directory.
 Names follow the same confined, DOS case-insensitive lookup as icon and scene
 reads; paths, reserved device names, links and non-file destinations are rejected.
-Existing cache assets are refreshed without collision prompts or partial resume.
+Existing cache assets are refreshed without collision prompts. RIPv3 ZMODEM
+downloads resume from a CRC-verified prefix at the cache destination.
 The normal manual/automatic download policy is unchanged.
 
 File type 0 displays received scenes using temporary storage, without retaining

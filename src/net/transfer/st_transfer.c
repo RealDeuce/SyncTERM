@@ -281,7 +281,8 @@ int st_transfer_create(st_transfer_t **result, const struct st_transfer_config *
 	if (config->path_count > 65536
 	    || (config->upload && (config->discard || config->receive_events
 	    || config->receive_completion_events))
-	    || (config->receive_events && config->protocol == ST_TRANSFER_ZMODEM && !config->overwrite && !config->discard)
+	    || (config->receive_events && config->protocol == ST_TRANSFER_ZMODEM && !config->discard
+	    && (!config->overwrite || config->resume_on_overwrite))
 	    || config->last_ch < 0 || config->last_ch > 255
 	    || (config->upload && config->path_count != 1 && config->protocol != ST_TRANSFER_ZMODEM
 	    && config->protocol != ST_TRANSFER_YMODEM && config->protocol != ST_TRANSFER_YMODEM_G)

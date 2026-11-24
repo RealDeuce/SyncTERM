@@ -306,7 +306,8 @@ static int start_rip(struct st_wren_context *context, bool upload)
 		.protocol = rip_protocols[s->rip_protocol], .upload = upload,
 		.directory = s->rip_directory, .filename = s->rip_filename,
 		.destination = rip_destination, .destination_context = s,
-		.overwrite = true, .discard = !rip3 && !upload && s->rip_file_type == 0,
+		.overwrite = true, .resume_on_overwrite = rip3 && !upload,
+		.discard = !rip3 && !upload && s->rip_file_type == 0,
 		.receive_events = !rip3 && display,
 		.receive_completion_events = rip3 && !upload,
 	};
