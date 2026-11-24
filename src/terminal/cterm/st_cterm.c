@@ -3059,6 +3059,29 @@ st_cterm_start_text(st_cterm_t *terminal)
 	cterm_start(terminal);return cterm_render_take_error(terminal);
 }
 
+void
+st_cterm_set_rip3_destructive_backspace(st_cterm_t *terminal, bool destructive)
+{
+	terminal->rip3_destructive_backspace = destructive;
+}
+
+int
+st_cterm_echo_rip3_backspace(st_cterm_t *terminal, bool destructive)
+{
+	if (terminal == NULL || !terminal->rip3_session_owner)
+		return IO_ERROR_INVALID_ARGUMENT;
+	cterm_start(terminal);
+	int status = cterm_text_boundary(terminal);
+	if (status != 0)
+		return status;
+	cterm_apply_window(terminal);
+	int x = terminal->xpos, y = terminal->ypos;
+	cterm_coord_conv_xy(terminal, CTERM_COORD_ABSTERM, CTERM_COORD_CURR, &x, &y);
+	cterm_render_set_position(terminal, x, y);
+	cterm_rip3_backspace(terminal, destructive);
+	return cterm_render_take_error(terminal);
+}
+
 int
 st_cterm_position_text(st_cterm_t *terminal, uint32_t column, uint32_t row)
 {

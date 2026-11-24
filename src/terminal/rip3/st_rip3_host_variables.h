@@ -14,6 +14,7 @@ struct st_rip3_input;
 struct st_rip3_user_variables;
 struct st_rip3_template_host;
 struct st_rip3_local_queries;
+struct st_rip3_backspace;
 struct st_rip3_text_window_operations;
 struct st_rip3_mouse;
 struct st_rip3_field_context;
@@ -101,6 +102,7 @@ struct st_rip3_host_variables {
 	 * Missing values are unsupported, never invented from palette size or a
 	 * default keyboard/mouse state. The client owns their platform mechanism. */
 	const struct st_rip3_local_queries *local;
+	struct st_rip3_backspace *backspace;
 	/* Session setting, independent of screen saves and renderer availability. */
 	bool *status_bar;
 	void *status_bar_context;

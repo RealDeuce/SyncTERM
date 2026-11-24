@@ -111,6 +111,8 @@ check_complete_profile_roundtrip(void)
 			source.ssh_allow_aes128_cbc = source.ssh_accept_early_data = true;
 			source.telnet_no_binary = source.defer_telnet_negotiation = true;
 			source.expand_lf = true;
+			source.rip3_nondestructive_backspace = source.rip3_backspace_sends_del = true;
+			source.rip3_half_duplex = true;
 			source.append_log = source.tls_trust_web_pki = false;
 		}
 		CHECK(ini_document_create(&document) == 0);
@@ -127,6 +129,7 @@ check_complete_profile_roundtrip(void)
 		NUMBER(force_lcf); NUMBER(yellow_is_yellow); NUMBER(sftp_public_key); NUMBER(ssh_allow_aes128_cbc);
 		NUMBER(ssh_accept_early_data); NUMBER(telnet_no_binary); NUMBER(defer_telnet_negotiation);
 		NUMBER(tls_trust_web_pki); NUMBER(expand_lf);
+		NUMBER(rip3_nondestructive_backspace); NUMBER(rip3_backspace_sends_del); NUMBER(rip3_half_duplex);
 #undef NUMBER
 #define STRING(member) CHECK(strcmp(result.member, source.member) == 0)
 		STRING(name); STRING(address); STRING(username); STRING(password); STRING(system_password);

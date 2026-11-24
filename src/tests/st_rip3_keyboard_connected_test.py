@@ -8,9 +8,9 @@ from st_migrated_control_test import connection
 from st_rip3_buttons_connected_test import button,style,remove_fields
 from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
-from st_terminal_conformance_test import Terminal
+from st_terminal_conformance_test import Terminal, colour
 from syncterm_control import CONTROL, SHIFT
-from syncterm_fixture import receive
+from syncterm_fixture import cell_at, receive
 
 
 def check_autosense(t):
@@ -209,6 +209,99 @@ def check_tab_navigation(t):
     values(b"$WORLD(CUR,640,480)$")
 
 
+def check_backspace(t, half_duplex):
+    def values(source, expected=b""):
+        return t.exchange(query(source, at_cursor=True), expected)
+
+    def key(expected, modifiers=0):
+        t.client.key("backspace", modifiers)
+        return t.input(expected)
+
+    def cell(frame):
+        return cell_at(frame, 1, 0)
+
+    def cursor(frame):
+        return frame.application["cterm.x"], frame.application["cterm.y"]
+
+    def private_cell(frame):
+        # Reset's MicroANSI view at 640x480 has an 8x11 device cell.
+        return tuple(pixel(frame, x, y) for y in range(11) for x in range(8, 16))
+
+    def blank(frame):
+        assert cursor(frame) == (2, 1)
+        if half_duplex:
+            assert set(private_cell(frame)) == {0x0000a8}
+        else:
+            assert frame.lines[0].startswith("A "), frame.lines[0]
+            assert colour(frame, cell(frame)) == 0xa8a8a8
+            assert colour(frame, cell(frame), background=True) == 0x0000a8
+
+    # Custom's root ANSI map is monochrome. Use direct colors there to
+    # distinguish both attributes, and indexed SGR in the reset text view.
+    colors = b"\x1b[37;44m" if half_duplex else b"\x1b[38;2;168;168;168;48;2;0;0;168m"
+    sample = b"\x1b[H\x1b[31;40mAB" + colors
+    if half_duplex:
+        t.case("rip3-backspace-half-duplex-and-profile-defaults")
+        values(b"$BSMODE$:$BSXMIT$", b"0:0")
+        before = t.exchange(sample)
+        after = key(b"\x7f")
+        assert cursor(after) == (2, 1) and private_cell(after) == private_cell(before)
+        values(b"$BSMODE(DEST)$")
+        t.exchange(sample)
+        blank(key(b"\x08", CONTROL))
+        values(b"$BSXMIT(BS)$")
+        for modifiers, expected in ((0, b"\x08"), (CONTROL, b"\x7f")):
+            t.exchange(sample)
+            blank(key(expected, modifiers))
+        # Echo is local even with a partial remote SGR pending.
+        t.send(sample + b"\x1b[32;")
+        t.client.wait_for(lambda frame: cursor(frame) == (3, 1))
+        t.client.key("backspace")
+        receive(t.peer, b"\x08", t.root / "replies.bin")
+        frame = t.exchange(b"40m")
+        blank(frame)
+        assert frame.application["cterm.attr"] == 2
+        return
+
+    t.case("rip3-backspace-receive-colours-and-boundary")
+    values(b"$BSMODE()$:$BSXMIT(QUERY)$", b"1:1")
+    blank(t.exchange(sample + b"\x08"))
+    frame = t.exchange(b"\x1b[H\x08")
+    assert frame.lines[0].startswith("A ") and cursor(frame) == (1, 1)
+    t.exchange(b"\x01|T$BSMODE(nondest)$\r\n")
+    values(b"$BSMODE$", b"0")
+    before = t.exchange(sample)
+    after = t.exchange(b"\x08")
+    assert cursor(after) == (2, 1) and cell(after) == cell(before)
+
+    t.case("rip3-backspace-full-duplex-and-generated-output")
+    values(b"$BSXMIT(del)$[$BSMODE(BS)$][$BSXMIT(BS,DEL)$]$BSMODE$:$BSXMIT$", b"[][]0:0")
+    before = t.exchange(sample)
+    for modifiers, expected in ((0, b"\x7f"), (CONTROL, b"\x08")):
+        after = key(expected, modifiers)
+        assert cursor(after) == (3, 1) and cell(after) == cell(before)
+    values(b"^h", b"\x08")
+    t.exchange(style(flags=256 | 1024) + button((32, 40, 80, 60), b"<><>bound", hotkey=8))
+    key(b"bound")
+
+    t.case("rip3-backspace-local-scene-modes-and-ansi-text")
+    owner, = (p for p in (t.root / "cache").glob("*/syncterm-cache-name.txt")
+              if p.read_text(encoding="utf-8").strip() == "Capture")
+    assets = owner.parent / "RIP"
+    assets.mkdir(exist_ok=True)
+    (assets / "Backspace.RIP").write_bytes(
+        query(b"$BSMODE(DEST)$$BSXMIT(BS)$", at_cursor=True) + sample + b"\x08")
+    blank(values(b"$>Backspace$$BSMODE$:$BSXMIT$", b"1:1"))
+    values(b"$BSMODE(NONDEST)$$BSXMIT(DEL)$")
+
+    t.exchange(b"\x01|*\r\n")
+    values(b"$BSMODE$:$BSXMIT$", b"0:0")
+    values(b"$RESET(HARD)$$BSMODE$:$BSXMIT$", b"0:0")
+    values(b"$BSMODE(DEST)$$BSXMIT(BS)$")
+    key(b"\x08")
+    key(b"\x08", CONTROL)
+
+
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -225,7 +318,8 @@ def run(args):
             return t.input(expected) if expected else t.exchange()
         t.exchange(b"\x1b[!",b"RIPSCRIP030001")
         check_autosense(t)
-        t.exchange(b"\x01|*\r\n\x1b[?25l")
+        check_backspace(t, False)
+        t.exchange(b"\x01|*\r\n\x1b[0m\x1b[?25l")
         t.case("rip3-keyboard-capability-and-engine-identity")
         values(b"A$RIPVER$B$RIPVER()$C$RIPVER(1)$D", b"ARIPSCRIP030001BRIPSCRIP030001CD")
         values(b"$IFS(DOORWAY)$:$IFS(ENG)$:$IFS(VT102)$:$IFS(EXTAPPS)$", b"1:1:0:0")
@@ -343,6 +437,15 @@ def run(args):
         check_tab_navigation(t)
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
+
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options="ScreenMode=Custom\nRIP=RIPv3\nRIP3HalfDuplex=true\n"
+                            "RIP3NonDestructiveBackspace=true\nRIP3BackspaceSendsDEL=true\n",
+                    settings="CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\n") as (client, root, peer, send):
+        t = Terminal(client, root, peer, send)
+        t.exchange(b"\x1b[!", b"RIPSCRIP030001")
+        t.exchange(b"\x01|*\r\n\x1b[?25l")
+        check_backspace(t, True)
 
 
 if __name__=="__main__":

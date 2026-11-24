@@ -142,12 +142,48 @@ terminal_option(const struct st_rip3_host_variables *host,
 	return 0;
 }
 
+static int
+backspace_mode(struct st_rip3_backspace *settings,
+    const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
+{
+	if (reference->count > 1)
+		return IO_ERROR_INVALID_FORMAT;
+	if (settings == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (capacity == 0)
+		return IO_ERROR_OUT_OF_RANGE;
+	bool transmit = strcmp(reference->name, "BSXMIT") == 0;
+	bool *option = transmit ? &settings->send_del : &settings->nondestructive;
+	struct st_rip3_builtin_reference words;
+	int status = st_rip3_builtin_reference_words(&words, reference);
+	if (status != 0)
+		return status;
+	const char *selector = words.parameters[0].text;
+	if (words.count == 0 || word_equal(selector, "QUERY")) {
+		if (capacity < 2)
+			return IO_ERROR_OUT_OF_RANGE;
+		result[0] = *option ? '0' : '1';
+		result[1] = 0;
+		return 0;
+	}
+	if (word_equal(selector, transmit ? "DEL" : "NONDEST"))
+		*option = true;
+	else if (word_equal(selector, transmit ? "BS" : "DEST"))
+		*option = false;
+	else
+		return IO_ERROR_INVALID_FORMAT;
+	result[0] = 0;
+	return 0;
+}
+
 int
 st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
     const struct st_rip3_builtin_reference *reference, char *result, size_t capacity)
 {
 	if (host==NULL || reference==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	const char *name = reference->name;
+	if (strcmp(name, "BSMODE") == 0 || strcmp(name, "BSXMIT") == 0)
+		return backspace_mode(host->backspace, reference, result, capacity);
 	if (strcmp(name, "OPTION") == 0 || strcmp(name, "DWAYON") == 0 || strcmp(name, "DWAYOFF") == 0
 	    || strcmp(name, "HKEYON") == 0 || strcmp(name, "HKEYOFF") == 0
 	    || strcmp(name, "TABON") == 0 || strcmp(name, "TABOFF") == 0

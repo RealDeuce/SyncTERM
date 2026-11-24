@@ -21,6 +21,11 @@ struct st_rip3_pointer_buttons {
 	bool left, middle, right;
 };
 
+struct st_rip3_backspace {
+	bool nondestructive;
+	bool send_del;
+};
+
 /* One interpreter thread borrows these bindings and their backing values.
  * Keep binding pointers stable while an enclosing query is pending; values
  * may change between processing calls. Read each reference when reached,

@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_session.h"
 #include "st_rip3_host_variables.h"
+#include "st_rip3_local_variables.h"
 #include "st_rip3_host_internal.h"
 #include "st_rip3_header.h"
 #include "st_rip3_environments.h"
@@ -123,6 +124,7 @@ struct st_rip3_session {
 	bool ready;
 	bool text_active, input_locked;
 	unsigned scene_revision;
+	struct st_rip3_backspace backspace;
 	unsigned current_window;
 	unsigned default_text_font;
 	bool default_text_wrap;
@@ -2090,6 +2092,8 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->graphical_codepage_converted=config->graphical_codepage_converted;
 	session->commands.codepage_converted=config->graphical_codepage_converted;
 	if (config->services!=NULL) session->variables=*config->services;
+	if (session->variables.backspace == NULL)
+		session->variables.backspace = &session->backspace;
 	session->status_bar = true;
 	session->variables.status_bar = &session->status_bar;
 	session->variables.status_bar_context = config->sink.context;

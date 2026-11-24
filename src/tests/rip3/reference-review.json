@@ -1033,7 +1033,7 @@
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 transfer validation/completion and #209 Backspace behavior still require connected implementation."
+    "Adopted #205 transfer validation and completion still require connected implementation."
   ],
   "derivations": [
     {
@@ -22430,6 +22430,45 @@
         "context": 1874,
         "pending": 1529,
         "implemented": 3521,
+        "excluded": 71,
+        "blocked": 38
+      }
+    },
+    {
+      "after_commit": "a578c5d2",
+      "revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
+      "scope": "Connect BSMODE and BSXMIT to ANSI receive, local playback and the ordinary Backspace input route with saved RIPv3 profile defaults.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:25",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:27",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:29",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:33",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:34",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:36",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:38",
+        "version/3.0/ripscrip/5.1-text-variables.md:2343",
+        "version/3.0/ripscrip/5.1-text-variables.md:2345",
+        "version/3.0/ripscrip/5.1-text-variables.md:2351",
+        "version/3.0/ripscrip/5.1-text-variables.md:2353",
+        "version/3.0/ripscrip/5.1-text-variables.md:2355",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:133",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:134"
+      ],
+      "tests": [
+        "syncterm_rip3_keyboard_CP437",
+        "syncterm_rip3_keyboard_UTF-8",
+        "bbs_list",
+        "rip3_session",
+        "rip3_contract",
+        "syncterm_conformance_movement_CP437",
+        "syncterm_conformance_keyboard_CP437",
+        "syncterm_rip154_interaction_CP437"
+      ],
+      "states_after_update": {
+        "unreviewed": 2171,
+        "context": 1879,
+        "pending": 1510,
+        "implemented": 3535,
         "excluded": 71,
         "blocked": 38
       }

@@ -107,6 +107,7 @@ struct cterminal {
 	uint64_t cursor_position_changes;
 	enum st_cterm_graphics_mode graphics_mode;
 	bool rip3_session_owner;
+	bool rip3_destructive_backspace;
 	void (*rip3_autosense)(void *context, uint16_t selector);
 	void *rip3_autosense_context;
 	int rip3_visible_cursor;

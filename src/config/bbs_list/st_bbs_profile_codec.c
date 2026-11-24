@@ -151,6 +151,9 @@ st_bbs_decode_profile(struct st_profile *profile,
 	profile->yellow_is_yellow = ini_section_get_bool(section,
 	    "YellowIsYellow", false);
 	profile->expand_lf = ini_section_get_bool(section, "LFExpand", false);
+	profile->rip3_nondestructive_backspace = ini_section_get_bool(section, "RIP3NonDestructiveBackspace", false);
+	profile->rip3_backspace_sends_del = ini_section_get_bool(section, "RIP3BackspaceSendsDEL", false);
+	profile->rip3_half_duplex = ini_section_get_bool(section, "RIP3HalfDuplex", false);
 	profile->sftp_public_key = ini_section_get_bool(section, "SFTPPublicKey",
 	    false);
 	profile->ssh_allow_aes128_cbc = ini_section_get_bool(section,
@@ -308,6 +311,14 @@ st_bbs_encode_profile(ini_section_t *section,
 	    profile->terminal_name, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "LFExpand", profile->expand_lf,
 	    &ini_default_style));
+	if (profile->graphics_mode == ST_GRAPHICS_RIP_3) {
+		ENCODE(ini_section_set_bool(section, "RIP3NonDestructiveBackspace",
+		    profile->rip3_nondestructive_backspace, &ini_default_style));
+		ENCODE(ini_section_set_bool(section, "RIP3BackspaceSendsDEL",
+		    profile->rip3_backspace_sends_del, &ini_default_style));
+		ENCODE(ini_section_set_bool(section, "RIP3HalfDuplex",
+		    profile->rip3_half_duplex, &ini_default_style));
+	}
 	ENCODE(ini_section_set_bool(section, "TelnetBrokenTextmode",
 	    profile->telnet_no_binary, &ini_default_style));
 	ENCODE(ini_section_set_bool(section, "TelnetDeferNegotiate",

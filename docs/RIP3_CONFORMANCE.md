@@ -9838,8 +9838,29 @@ The connected CP437 and UTF-8 fixtures check reply bytes, rejection
 recovery, a setter inside graphics text, copy and restore, protected
 overrides, soft and hard resets, and the same ANSI glyphs before and after
 changing the fallback to KANJI. The native session test checks the two
-HEADER framing forms. `BSMODE` and `BSXMIT` remain pending.
+HEADER framing forms.
+
+## Connected ANSI Backspace
+
+`$BSMODE$` selects destructive or nondestructive Backspace in the ANSI
+text window. The destructive form paints a space using the current ANSI
+face and colors and leaves the cursor at the erased cell. At the left edge
+the screen and cursor stay put. `$BSXMIT$` controls the ordinary key's
+wire byte after local editing and RIP bindings have had their turn.
+Generated RIP responses retain their original bytes. Both settings start
+at DEST and BS, follow the active profile, and survive RIP resets.
 [PR #220](https://github.com/bbs-land/remote-imaging-protocol/pull/220)
+
+The RIPv3 dialing entry accepts `RIP3NonDestructiveBackspace` and
+`RIP3BackspaceSendsDEL` to override those defaults. `RIP3HalfDuplex`
+enables Backspace local echo and the associated Ctrl+Backspace byte
+selection. RIP setters affect the live session. The saved entry is
+edited independently through its INI values.
+
+Connected CP437 and UTF-8 fixtures verify the exact replies and key
+bytes in both duplex modes, the cell erase and its colors, hotkey
+precedence, generated output, local scene playback and reset lifetime.
+Half-duplex echo preserves a partially received ANSI sequence.
 
 ## Connected mouse presence
 
