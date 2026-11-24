@@ -432,7 +432,16 @@ finish_program(struct st_rip3_query *query)
 {
 	void (*complete)(void *)=query->complete;
 	st_rip3_query_cancel(query);
-	if (complete!=NULL) complete(query->sink->context);
+	query->complete=complete;
+}
+
+void
+st_rip3_query_run_completion(struct st_rip3_query *query)
+{
+	if (query==NULL || st_rip3_query_pending(query) || query->complete==NULL) return;
+	void (*complete)(void *)=query->complete;
+	query->complete=NULL;
+	complete(query->sink->context);
 }
 
 static void

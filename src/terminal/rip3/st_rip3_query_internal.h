@@ -20,9 +20,11 @@ int st_rip3_query_start(struct st_rip3_query *query, const uint8_t *bytes, size_
 
 /* Grouped callbacks carry the original stable owner through every stage;
  * zero uses ordinary definitions. Deleting an owner never retargets writes.
- * The optional completion runs with the sink context after normal completion
- * and the last reply. Cancellation clears it. It must not reenter this query. */
+ * Normal completion retains the optional callback for the owner. */
 int st_rip3_query_start_owned(struct st_rip3_query *,const uint8_t *,size_t,uint64_t owner,
 	void (*complete)(void *context));
+/* Run a completed program's callback once with the sink context. Call after
+ * unwinding the host action scope. Pending and cancelled programs are ignored. */
+void st_rip3_query_run_completion(struct st_rip3_query *query);
 
 #endif

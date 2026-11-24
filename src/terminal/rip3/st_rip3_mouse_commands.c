@@ -100,7 +100,7 @@ st_rip3_mouse_commands_execute(const struct st_rip3_command_host *host,
 		if (status!=0) return status;
 		at+=width;
 	}
-	if (values[5]>1 || values[6]>1) return IO_ERROR_OUT_OF_RANGE;
+	if (values[5]>1) return IO_ERROR_OUT_OF_RANGE;
 	if (values[7]!=0) return IO_ERROR_NOT_SUPPORTED;
 	if (values[1]>values[3] || values[2]>values[4]) return IO_ERROR_OUT_OF_RANGE;
 	struct st_rip3_frame frame;

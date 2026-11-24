@@ -16,7 +16,7 @@ from st_terminal_conformance_test import Terminal
 
 def field(area, program, invert=False, clear=False, radix=36, xy=2):
     return (b"\x01|1M00"+b"".join(number(v,xy,radix) for v in area)
-            +bytes((48+invert,48+clear))+b"00000"+program+b"\r\n")
+            +number(invert,1,radix)+number(clear,1,radix)+b"00000"+program+b"\r\n")
 
 
 def run(args):
@@ -171,7 +171,7 @@ def run(args):
         t.case("rip3-field-clear-runs-after-successful-host-action")
         t.exchange(b"\x01|2T20|w0A050C0710|c0C|X2S2S\r\n"
                    +field((90,90,110,110),b"$CUR(TW)$unclosed$",clear=True)
-                   +field((120,90,140,110),b"ID=7:$D(3)$old:$CUR(TW)$:$FIELDID$",invert=True,clear=True))
+                   +field((120,90,140,110),b"ID=7:$D(3)$old:$CUR(TW)$:$FIELDID$",invert=True,clear=2))
         before=values(b"$CUR(TW)$",b"2")
         assert pixel(before,100,100)==0xff5555
         rejected=click(100,100,b"")
@@ -189,6 +189,29 @@ def run(args):
         t.exchange(b"\x1b[20;40H\x1b[6n",b"\x1b[20;40R")
         click(130,100,b"")
         click(15,25,b"")
+
+        t.case("rip3-field-clear-belongs-to-the-original-action-across-playback")
+        shared = root / "RIP"
+        shared.mkdir(exist_ok=True)
+        for clear, replacement_clear in ((35,0), (0,35)):
+            values(b"$WORLD(CUR,640,480)$")
+            t.exchange(b"\x01|2T20|w0A050C0710\r\n")
+            area = (120,90,140,110)
+            replacement = field(area,b"ID=7:replacement:$FIELDID$",clear=replacement_clear)
+            (shared / "Replace.rip").write_bytes(b"!|1K\r\n!"+replacement[1:])
+            t.exchange(field(area,b"ID=7:$>Replace.rip$$D(3)$old:$CUR(TW)$:$FIELDID$",clear=clear))
+            click(130,100,b"old:2:7")
+            values(b"$CUR(TW)$",b"0" if clear else b"2")
+            click(130,100,b"" if clear else b"replacement:7")
+            values(b"$CUR(TW)$",b"0")
+
+        t.case("rip3-field-clear-applies-on-focused-enter-after-local-action")
+        values(b"$WORLD(CUR,640,480)$$TABON$")
+        t.exchange(b"\x01|2T20|w0A050C0710|J1S\r\n"
+                   +field((120,90,140,110),b"ID=7:$-=CLICKED=local$",clear=63,radix=64))
+        client.key("tab")
+        client.key("enter")
+        values(b"$&CLICKED$:$CUR(TW)$:$FIELDID$",b"local:0:")
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
 

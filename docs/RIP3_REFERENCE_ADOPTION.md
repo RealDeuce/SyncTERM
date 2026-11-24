@@ -1389,3 +1389,17 @@ The reference contour data matches all 36 SyncTERM marker slices and
 and affine viewport clipping. The connected bounded outline renderer
 implements the adopted fitting and snapshot rules. Completed temporary
 exports and downloads use session-owned cache cleanup.
+
+## PR #228 simple mouse-field reset
+
+The reference advances to fork stable integration `1b59fa1963701c895e791f071c557e347fc21ce1`.
+Its tree matches PR #228 head `2949e485498f31247b25c2b63764f3d93493f96a`.
+The uncompressed Git archive has SHA-256
+`726173ac42f2bdd23302421ba6f8011650f7d10fd1954d06648eefca87e538d0`.
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/1b59fa1963701c895e791f071c557e347fc21ce1), [PR #228](https://github.com/bbs-land/remote-imaging-protocol/pull/228)
+
+One normative chapter changes. The reindex preserves 9,310 source units,
+moves 109 of those to their new line ranges, and replaces one retired unit
+with eleven reviewed units. Issue #227 is resolved in the adopted text.
+The connected implementation normalizes the clear digit and consumes it
+after successful host completion and FIELDID scope unwinding.

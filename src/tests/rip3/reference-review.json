@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/226",
-  "revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
-  "previous_revision": "449196a6bd6fb25b54d7631b349665c13256f3a3",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/228",
+  "revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
+  "previous_revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PRs #223–#226 match successive integration trees on fork stable.",
-  "archive_sha256": "b8210c83993739ab6ac4e7c8e395961c1c0a0a01cb68ceec0bf0b48bbf1ebb22",
+  "upstream_state_at_adoption": "PR #228 was open upstream. Its tree matches the pinned fork stable integration.",
+  "archive_sha256": "726173ac42f2bdd23302421ba6f8011650f7d10fd1954d06648eefca87e538d0",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,74 +17,14 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "previous_sha256": "99ddee230e7eb4e77cbd7bc83295263194d200dfdf69f35099779b7b58a8cbad",
-      "sha256": "bb9996e5a13c1cbc043a7a320d0ee6917af3a1be15d6e25caa5523492a1a82e2"
-    },
-    {
-      "path": "version/3.0/ripscrip/2.1-lines.md",
-      "previous_sha256": "93920713e4a0dfb81affec46ed6ef6124edde97b704859db2600d892656d34c1",
-      "sha256": "1ce8a66a05eb94657bb95b05cdaf24e47c782a82f394b5f5b40a1f5512cb6e31"
-    },
-    {
-      "path": "version/3.0/ripscrip/2.2-curves.md",
-      "previous_sha256": "f0b6368847adf70cbc75d4387d587a7137892ceae19eda91f73cacc8ecb15d45",
-      "sha256": "a881963f170c3a44916e5816f835d942e76edd87b9ce69c5dca5ae3774aa27a9"
-    },
-    {
-      "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "previous_sha256": "d0f3633349b389bb0f9ae2e21a9b2d87e0e28be0fde31b745c20735d9e8c9b86",
-      "sha256": "35020c46dc90887ce92387c6f50ce652bea90dadd55824eb0dd3330a7ed69081"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "previous_sha256": "2c8c8a66c8c1b863faed1c7c523bc535d0bf61318f9f6eb170a47c2d50c0ba1e",
-      "sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1"
-    },
-    {
-      "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
-      "previous_sha256": "30f2b614e3b8b3d6153aa9686b2302edd6725d6637d62ccb00484836aa7b660c",
-      "sha256": "3b9dc5bebfd6dcc6f8cdefaed3648eae54d7922e4356071ab6d569957b4b4a0a"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "previous_sha256": "8bc8f6f4594e205987f246838da8af5ed79bdef6bbb3278ef7eb39e3aa1071c7",
-      "sha256": "1c5badff17418600629dc3cb8b2efe785511be5fea007e4adf58b778f303ace0"
-    },
-    {
-      "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "previous_sha256": "bf79ae21144b156fcd8d0b0da59c46417d2586e05206eca097d8a02e46b0b30c",
-      "sha256": "a93ca9e491b1defeda1454bad78aabf4f137f82e86454c5e529558a026ab50ae"
-    },
-    {
-      "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "previous_sha256": "cda60cc50054811e7ecd1917ee648539756ed83f6e5b6c1efe4c7d04eb5b9538",
-      "sha256": "55de85c361a2de1b2b49e48887f570ba11b77816a013fe7930c269e10e6eef9e"
-    },
-    {
-      "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "previous_sha256": "7f4f66dd0f79da8d8712f022c08c76816f6f3d7fe995fe2eda9b63a863c2a970",
-      "sha256": "a6f8052545838f309baffee95370bf258c605cfee278b661ed199d8205aa5ee3"
-    },
-    {
-      "path": "version/3.0/techspecs/2.1-arc-consumer-contract.md",
-      "previous_sha256": "995195d4f365c9afc336e53f1258561d7049a2e9637ab928bdc150363e84192d",
-      "sha256": "a6f0c665d66dabca24b1377f35a0b72ea452f58b08e89c12053c768b253d649e"
-    },
-    {
-      "path": "version/3.0/techspecs/2.3-drawing-composition.md",
-      "previous_sha256": "6e166b0c540fa08f3a8c1177a94d64832df4e5c3d8c912e54af96d2d40a011a4",
-      "sha256": "9665c15655af5e7b27268e5feb70426dac4deef33a5ba3d0d011edb160db0b23"
-    },
-    {
-      "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
-      "previous_sha256": "4ee1297f9a030f5b522b6871008b61d382d7cd13aebc41db1399b296af915b91",
-      "sha256": "a37fcf08711be411b1c71895877a59f97ebd78c24413d25e59890290ea60605b"
+      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+      "previous_sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e",
+      "sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9162,
+  "matched_source_blocks": 9310,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -1018,7 +958,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 86,
+  "upstream_issue_resolutions": 87,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1676,9 +1616,15 @@
     },
     {
       "path": "version/3.0/research/issue-215-write-icon-export.md",
-      "sha256": "e9714f1aa7d4d9478fd2dc0ec1aec0a9a8cd1ee9c2c9bd699ea24d85ea314eac",
+      "sha256": "14b28a812afab93ba09427fbb715a42b358c4bd83596be01ed00561099deae48",
       "title": "Issue #215 — WRITE_ICON export flags and temporary assets",
       "role": "Native derivation and portable policy for the adopted specification."
+    },
+    {
+      "path": "version/3.0/research/issue-227-mouse-post-action-reset.md",
+      "sha256": "6d3404b11b29bffa2b1caf4928040a906d35dcae9ea7f0beed0886c4170bffd7",
+      "title": "Issue #227 — Simple mouse field post-action reset",
+      "role": "RIPtel instruction trace and portable ownership and completion rules."
     }
   ],
   "documents": [
@@ -1820,7 +1766,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e"
+      "sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
@@ -1955,7 +1901,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "1500c96d",
+  "previous_ledger_commit": "eeeebc8a",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -17976,6 +17922,93 @@
         "retired": 42,
         "moved": 668
       }
+    },
+    {
+      "previous_revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+      "revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
+      "archive_sha256": "726173ac42f2bdd23302421ba6f8011650f7d10fd1954d06648eefca87e538d0",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/227",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/228",
+          "reviewed_head": "2949e485498f31247b25c2b63764f3d93493f96a",
+          "integration": "1b59fa1963701c895e791f071c557e347fc21ce1"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e",
+          "sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac"
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-215-write-icon-export.md",
+          "previous_sha256": "e9714f1aa7d4d9478fd2dc0ec1aec0a9a8cd1ee9c2c9bd699ea24d85ea314eac",
+          "sha256": "14b28a812afab93ba09427fbb715a42b358c4bd83596be01ed00561099deae48"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-227-mouse-post-action-reset.md",
+          "sha256": "6d3404b11b29bffa2b1caf4928040a906d35dcae9ea7f0beed0886c4170bffd7",
+          "title": "Issue #227 — Simple mouse field post-action reset",
+          "role": "RIPtel instruction trace and portable ownership and completion rules."
+        }
+      ],
+      "moved_source_blocks": 109,
+      "new_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:200",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:214",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:216",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:217",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:218",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:219",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:220",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:222",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:224",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:226",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:231"
+      ],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:200",
+          "heading": "RIP_MOUSE",
+          "source": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "lines": [
+            200,
+            200
+          ],
+          "text": "The `<clr>` parameter, if 1, will physically zoom the text window to full screen size and clear the screen. This is useful if the `<text>` parameter instructs the host to enter an area of the System that doesn't support RIPscrip graphics.\n",
+          "sha256": "6b0a7a75bac19bcf607315c89c1e41d8d587cdaf4fe2f0b48ec89cf9a24b1e94",
+          "status": "blocked",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_mouse.c",
+            "src/terminal/rip3/st_rip3_mouse_commands.c",
+            "src/terminal/rip3/st_rip3_query.c",
+            "src/terminal/rip3/st_rip3_session.c"
+          ],
+          "tests": [
+            "syncterm_rip3_mouse_CP437",
+            "syncterm_rip3_mouse_UTF-8"
+          ],
+          "note": "Simple fields with clr=0, shared 128-entry owner, newest-first hit testing and common owned host evaluator are connected. clr=1, identity/hover, button creation and remaining host facilities stay incomplete. The detailed common host processor rule in 5.2 supersedes the inherited template restriction.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/227"
+          ],
+          "reason": "Inside release with clr=1 applies SOFT after normal host completion. Malformed actions and cancelled gestures keep the scene. The portable flag range and behavior when the action replaces or deletes its source await clarification."
+        }
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1905,
+        "pending": 1455,
+        "implemented": 3707,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -23077,6 +23110,41 @@
         "excluded": 71,
         "blocked": 21
       }
+    },
+    {
+      "after_commit": "eeeebc8a",
+      "revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
+      "scope": "Accept every nonzero clear digit and apply the committed reset after the host action scope unwinds.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/227"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:200",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:214",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:218",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:219",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:220",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:222"
+      ],
+      "tests": [
+        "syncterm_rip3_mouse_CP437",
+        "syncterm_rip3_mouse_UTF-8",
+        "rip3_session",
+        "rip3_query_commands",
+        "syncterm_rip3_keyboard_CP437",
+        "syncterm_rip3_keyboard_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1905,
+        "pending": 1455,
+        "implemented": 3707,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
-  ]
+  ],
+  "archive_format": "git archive --format=tar"
 }

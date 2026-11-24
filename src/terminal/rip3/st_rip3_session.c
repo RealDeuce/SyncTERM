@@ -1215,6 +1215,7 @@ prepare(void *context)
 	}
 	st_rip3_query_process(session->commands.query,64);
 	session->field_context=previous;
+	st_rip3_query_run_completion(session->commands.query);
 	if (activate_scene_queries(session)) {
 		++session->revision;
 		return true;
@@ -1973,6 +1974,7 @@ mouse_activate(void *context, const uint8_t *program, size_t length, enum st_rip
 	int status=st_rip3_query_start_owned(session->commands.query,program,length,st_rip3_mouse_callback_owner(session->commands.mouse),
 	    reset==ST_RIP3_MOUSE_RESET_AFTER ? mouse_reset_after_action : NULL);
 	session->field_context=previous;
+	st_rip3_query_run_completion(session->commands.query);
 	session->field_program=status==0 && st_rip3_query_pending(session->commands.query);
 	session->field_program_id=identity;
 	if (status!=0) diagnose(session,status==IO_ERROR_OUT_OF_MEMORY
