@@ -107,6 +107,28 @@ def run(args, width, height):
         values(b"$INUSE(BUT,7)$:$ISPROT(BUT,7)$:$ISPROT(BUT,CUR)$",b"0:-1:0")
         values(b"$CUR(BUT,7)$$CUR(BUT)$:$INUSE(BUT,7)$:$ISPROT(BUT,7)$:$ISPROT(BUT,CUR)$",b"7:1:0:0")
 
+        t.case(f"rip3-button-style-aggregate-queries-{width}x{height}")
+        values(b"$RESET(HARD)$")
+        values(b"$ISPROT(BUT,ALL)$:$ISPROT(BUT,ANY)$:$INUSE(BUT,BACKUP)$", b"0:0:0")
+        values(b"".join(f"$CUR(BUT,{i})$".encode() for i in range(1,35)) + b"$PROT(BUT,ALL)$")
+        values(b"$ISPROT(BUT,ALL)$:$ISPROT(BUT,ANY)$:$ISPROT(BUT,35)$", b"0:1:-1")
+        values(b"$CUR(BUT,35)$$PROT(BUT,35)$$ISPROT(BUT,ALL)$", b"1")
+        values(b"$UNPROT(BUT,ALL)$$ISPROT(BUT,ANY)$", b"0")
+
+        # The shipped query loops see S0-S7. S8 and S9 are individually
+        # addressable, so exercise each form with one of those slots populated.
+        values(b"$SBS(8)$$PROT(BUT,S8)$$INUSE(BUT,S8)$:$ISPROT(BUT,S8)$", b"1:1")
+        values(b"$INUSE(BUT,ANYSLOTS)$:$ISPROT(BUT,ANYSLOTS)$:$INUSE(BUT,BACKUP)$", b"0:0:0")
+        values(b"$SBS(PUSH)$$INUSE(BUT,BACKUP)$", b"1")
+        values(b"$RBS(POP)$$INUSE(BUT,BACKUP)$", b"0")
+        values(b"$SBS$$INUSE(BUT,BACKUP)$", b"1")
+        values(b"$RESET(BUT,BASE)$$INUSE(BUT,BACKUP)$", b"0")
+        values(b"".join(f"$SBS({i})$".encode() for i in range(8))
+               + b"$PROT(BUT,ALLSLOTS)$$UNPROT(BUT,S8)$$INUSE(BUT,ALLSLOTS)$:"
+                 b"$ISPROT(BUT,ALLSLOTS)$:$ISPROT(BUT,ANYSLOTS)$:$INUSE(BUT,BACKUP)$", b"1:1:1:1")
+        values(b"$UNPROT(BUT,S7)$$ISPROT(BUT,ALLSLOTS)$", b"0")
+        values(b"$UNPROT(BUT,ALLSLOTS)$$RESET(BUT,SLOTS)$$INUSE(BUT,BACKUP)$", b"0")
+
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)

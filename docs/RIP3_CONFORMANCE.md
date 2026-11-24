@@ -9756,3 +9756,23 @@ arguments. The native formatter test checks the text-cell context.
 The shipped `ISPALETTE` callback returns a fixed `1` for every valid call.
 The pinned description makes the result depend on the video device.
 [Issue #206](https://github.com/bbs-land/remote-imaging-protocol/issues/206)
+
+## Connected aggregate backup and protection queries
+
+`ISPROT(object,ALL)` requires all live entries 1 through 35 to be defined
+and protected. `ANY` requires at least one defined, protected entry. Both
+return digits `0` or `1`. A direct query of an undefined entry still
+returns `-1`.
+
+The shipped `INUSE` and `ISPROT` slot aggregates scan S0 through S7.
+An undefined slot makes either ALLSLOTS query false and contributes
+nothing to ANYSLOTS. `INUSE(object,BACKUP)` returns `1` for a populated
+base, nonempty stack, or populated slot within that same scan. Direct
+queries of S8 and S9 remain available. The original query branches at
+RVAs `0x13037` and `0x2db24` establish the results. The reference describes
+ten directly addressable slots and leaves the distinct aggregate range
+to be clarified. [Issue #207](https://github.com/bbs-land/remote-imaging-protocol/issues/207)
+
+Connected CP437 and UTF-8 cases check undefined and fully protected live
+tables, independent base and stack presence, and a populated S8 that
+answers a direct query while the aggregate scan remains empty.

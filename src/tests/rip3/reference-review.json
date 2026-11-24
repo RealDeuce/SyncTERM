@@ -21814,6 +21814,37 @@
         "unreviewed": 2200
       },
       "verification": "Original DLL callbacks 0x346d1, 0x34b65, 0x34d2d and 0x34eac supply independent formatting and button-order evidence. CP437 and UTF-8 connected mouse fixtures check scaled and direct coordinates, individual button transitions, focus loss, activation and recovery. Native tests cover the text-cell context. The RIP 1.54 preservation gate passes. Original ISPALETTE at 0x182fc returns the literal 1 at 0x7970c."
+    },
+    {
+      "after_commit": "3b4263af",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected aggregate protection, slot occupancy and BACKUP queries, with the reference discrepancy recorded as B207.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4434",
+        "version/3.0/ripscrip/5.1-text-variables.md:4435",
+        "version/3.0/ripscrip/5.1-text-variables.md:4438",
+        "version/3.0/ripscrip/5.1-text-variables.md:4440",
+        "version/3.0/ripscrip/5.1-text-variables.md:4490",
+        "version/3.0/ripscrip/5.1-text-variables.md:4491",
+        "version/3.0/ripscrip/5.1-text-variables.md:4492"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:4400",
+        "version/3.0/ripscrip/5.1-text-variables.md:4436",
+        "version/3.0/ripscrip/5.1-text-variables.md:4437",
+        "version/3.0/ripscrip/5.1-text-variables.md:4442",
+        "version/3.0/ripscrip/5.1-text-variables.md:4493",
+        "version/3.0/ripscrip/5.1-text-variables.md:4494"
+      ],
+      "states_after_update": {
+        "blocked": 38,
+        "context": 1863,
+        "excluded": 71,
+        "implemented": 3452,
+        "pending": 1494,
+        "unreviewed": 2200
+      },
+      "verification": "Original handlers at RVAs 0x13037 and 0x2db24 establish aggregate presence and protection, boolean replies and the eight-slot scan. The native table tests and live CP437 and UTF-8 button-style sessions cover full and partial tables, base and stack, and direct S8 versus the aggregate scan."
     }
   ]
 }

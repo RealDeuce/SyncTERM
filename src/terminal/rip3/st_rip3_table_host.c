@@ -350,19 +350,21 @@ objects(const struct st_rip3_table_host *host,
 				else
 					for (unsigned j = 1; j < 36; j++) entries[j] = true;
 			}
-			else if (kind == SLOT || kind == ALLSLOTS || kind == ANYSLOTS) {
+			else if (kind == SLOT || kind == ALLSLOTS || kind == ANYSLOTS || (inuse && kind == BACKUP)) {
 				if (active && kind == ANYSLOTS)
 					return IO_ERROR_INVALID_FORMAT;
 				uses_slots = true;
 				if (kind == SLOT)
 					slots[index] = true;
-				else
-					for (unsigned j = 0; j < 10; j++) slots[j] = true;
+				else {
+					/* RIPtel's aggregate queries scan S0 through S7,
+					 * though individual selectors also accept S8/S9. */
+					unsigned limit = active ? 10 : 8;
+					for (unsigned j = 0; j < limit; j++) slots[j] = true;
+				}
 			}
 			else if (!inuse)
 				return IO_ERROR_INVALID_FORMAT;
-			else if (kind == BACKUP)
-				return IO_ERROR_NOT_SUPPORTED; /* Missing definition, #16. */
 		}
 		if (uses_entries && (binding->live == NULL
 		    || (type != ST_RIP3_TABLE_PAL && type != ST_RIP3_TABLE_PORT
@@ -371,8 +373,6 @@ objects(const struct st_rip3_table_host *host,
 			return IO_ERROR_NOT_SUPPORTED;
 		if ((uses_slots || selected == BASE || selected == STACK) && binding->backup == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
-		if (isprot && (selected == ALL || selected == ANY || selected == ALLSLOTS || selected == ANYSLOTS))
-			return IO_ERROR_NOT_SUPPORTED; /* Aggregate undefined results, #16. */
 		if (active) {
 			/* The complete selector list and required bindings are validated.
 			 * These bounded protection setters allocate nothing and cannot fail
@@ -404,7 +404,7 @@ objects(const struct st_rip3_table_host *host,
 			return 0;
 		}
 		{
-			unsigned total = 0, used = 0;
+			unsigned total = 0, matched = 0;
 			bool single_defined = false, single_protected = false;
 
 			if (uses_entries) {
@@ -413,7 +413,7 @@ objects(const struct st_rip3_table_host *host,
 					if (!entries[i]) continue;
 					status = entry_info(type, binding->live, i, &defined, &protection);
 					if (status != 0) return status;
-					total++; used += defined;
+					total++; matched += defined && (!isprot || protection);
 					single_defined = defined; single_protected = protection;
 				}
 			}
@@ -424,16 +424,19 @@ objects(const struct st_rip3_table_host *host,
 				if (status != 0) return status;
 				if (selected == BASE || selected == STACK)
 					return reply_number(result, capacity, selected == BASE ? info.base : info.stack != 0);
+				if (selected == BACKUP && (info.base || info.stack != 0))
+					return reply_number(result, capacity, 1);
 				for (unsigned i = 0; i < 10; i++) {
 					if (!slots[i]) continue;
-					total++; used += info.slot_used[i];
+					total++; matched += info.slot_used[i] && (!isprot || info.slot_protected[i]);
 					single_defined = info.slot_used[i]; single_protected = info.slot_protected[i];
 				}
 			}
-			if (isprot)
+			if (isprot && (selected == ENTRY || selected == CURRENT || selected == SLOT))
 				return reply_number(result, capacity, !single_defined && !((type==ST_RIP3_TABLE_PAL || type==ST_RIP3_TABLE_BUT) && selected==CURRENT)
 				    ? -1 : single_protected);
-			return reply_number(result, capacity, (selected == ALL || selected == ALLSLOTS) ? used == total : used != 0);
+			return reply_number(result, capacity, (selected == ALL || selected == ALLSLOTS)
+			    ? matched == total : matched != 0);
 		}
 	}
 }

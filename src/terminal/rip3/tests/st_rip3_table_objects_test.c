@@ -55,6 +55,9 @@ palette_objects(void)
 	CHECK(run(&host, "$ISPROT(PAL,CUR)$", 0, "0") == 0);
 	CHECK(run(&host, "$INUSE(PAL,ANY)$", 0, "0") == 0);
 	CHECK(run(&host, "$INUSE(PAL,ALL)$", 0, "0") == 0);
+	CHECK(run(&host, "$INUSE(PAL,BACKUP)$", 0, "0") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ANY)$", 0, "0") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ALL)$", 0, "0") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,4)$", 0, "-1") == 0);
 	{
 		const char *const query = "$ISPROT(PAL,4)$";
@@ -65,6 +68,8 @@ palette_objects(void)
 		CHECK(st_rip3_palettes_info(palettes, 4, &info) == 0 && !info.defined);
 	}
 	CHECK(run(&host, "$PROT(PAL,4,ALL,ALLSLOTS,CUR)$", 0, "") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ANY)$", 0, "0") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ANYSLOTS)$", 0, "0") == 0);
 	CHECK(run(&host, "$INUSE(PAL,4)$", 0, "0") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,S0)$", 0, "-1") == 0);
 	CHECK(run(&host, "$CUR(PAL,04)$", 0, "") == 0);
@@ -74,6 +79,8 @@ palette_objects(void)
 	CHECK(st_rip3_palettes_get(palettes, 4, &palette) == 0 && palette.rgb[15] == 0xffffff);
 	CHECK(run(&host, "$PROT(PAL,CUR)$", 0, "") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,CUR)$", 0, "1") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ANY)$", 0, "1") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ALL)$", 0, "0") == 0);
 	CHECK(run(&host, "$unprot(pal,4)$", 0, "") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,4)$", 0, "0") == 0);
 	CHECK(run(&host, "$INUSE(PAL,BASE)$", 0, "0") == 0);
@@ -82,6 +89,7 @@ palette_objects(void)
 	CHECK(run(&host, "$SCP$", 0, "") == 0);
 	CHECK(run(&host, "$SCP(PUSH)$", 0, "") == 0);
 	CHECK(run(&host, "$INUSE(PAL,BASE)$", 0, "1") == 0);
+	CHECK(run(&host, "$INUSE(PAL,BACKUP)$", 0, "1") == 0);
 	CHECK(run(&host, "$INUSE(PAL,STACK)$", 0, "1") == 0);
 	CHECK(run(&host, "$RCP(POP)$", 0, "") == 0);
 	CHECK(run(&host, "$INUSE(PAL,STACK)$", 0, "0") == 0);
@@ -127,15 +135,17 @@ palette_objects(void)
 	}
 	CHECK(run(&host, "$INUSE(PAL,ALL)$", 0, "1") == 0);
 	CHECK(run(&host, "$PROT(PAL,ALL)$", 0, "") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ALL)$", 0, "1") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ALLSLOTS)$", 0, "1") == 0);
 	CHECK(st_rip3_palettes_info(palettes, 0, &info) == 0 && !info.protected);
 	for (unsigned i = 1; i < 36; i++)
 		CHECK(st_rip3_palettes_info(palettes, i, &info) == 0 && info.protected);
 	CHECK(run(&host, "$UNPROT(PAL,CUR,ALLSLOTS)$", 0, "") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,35)$", 0, "0") == 0);
 	CHECK(run(&host, "$ISPROT(PAL,1)$", 0, "1") == 0);
-	CHECK(run(&host, "$ISPROT(PAL,ALL)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
-	CHECK(run(&host, "$ISPROT(PAL,ANYSLOTS)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
-	CHECK(run(&host, "$INUSE(PAL,BACKUP)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ALL)$", 0, "0") == 0);
+	CHECK(run(&host, "$ISPROT(PAL,ANYSLOTS)$", 0, "0") == 0);
+	CHECK(run(&host, "$INUSE(PAL,BACKUP)$", 0, "1") == 0);
 	CHECK(run(&host, "$INUSE(TV,NEXT_IMG)$", IO_ERROR_NOT_SUPPORTED, NULL) == 0);
 	CHECK(run(&host, "$INUSE(PAL,CUR)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
 	CHECK(run(&host, "$ISPROT(PAL,0)$", IO_ERROR_INVALID_FORMAT, NULL) == 0);
