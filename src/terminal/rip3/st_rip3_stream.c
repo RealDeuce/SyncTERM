@@ -9,8 +9,14 @@ struct st_rip3_stream {
 	uint8_t *command;
 	size_t length, capacity;
 	uint8_t introducer, previous_text;
-	bool active, line_start, quoted, comment, scene, dropping, skip_lf;
+	bool active, line_start, quoted, comment, continued, dropping, skip_lf;
 };
+
+static bool
+line_end(uint8_t byte)
+{
+	return byte == '\r' || byte == '\n' || byte == '\f';
+}
 
 static void
 report(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
@@ -25,7 +31,7 @@ raw(struct st_rip3_stream *stream, uint8_t byte)
 	if (stream->sink.text != NULL)
 		stream->sink.text(stream->sink.context, &byte, 1);
 	stream->previous_text = byte;
-	stream->line_start = byte == 0 || byte == '\r' || byte == '\n' || byte == '\v';
+	stream->line_start = line_end(byte) || byte == 0 || byte == '\v';
 }
 
 static void
@@ -34,7 +40,7 @@ clear_command(struct st_rip3_stream *stream)
 	stream->length = 0;
 	stream->quoted = false;
 	stream->comment = false;
-	stream->scene = false;
+	stream->continued = false;
 	stream->dropping = false;
 }
 
@@ -141,38 +147,35 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 		}
 
 		if (stream->active) {
-			const bool scene_end = (byte == '\n' || byte == '\f')
-			    && (stream->scene || stream->sink.local_playback);
-			if (byte == '\n' && !scene_end)
-				continue;
-			if (byte == '\r' || scene_end) {
+			if (line_end(byte)) {
+				if (stream->continued)
+					continue;
 				if (stream->quoted) {
 					/* Only the continuation slash is removed. The
 					 * remaining even run stays quoted for later stages. */
 					if (!stream->dropping)
 						stream->length--;
 					stream->quoted = false;
-					stream->skip_lf = byte == '\r' && !stream->sink.local_playback;
+					stream->continued = true;
 				}
 				else {
-					stream->skip_lf = byte == '\r' && !stream->sink.local_playback;
+					stream->skip_lf = byte == '\r';
 					dispatch(stream);
 					stream->active = false;
 					stream->line_start = true;
-					stream->previous_text = '\r';
+					stream->previous_text = byte;
 				}
 				continue;
 			}
+			stream->continued = false;
 			/* Comments use any pipe as the next-command boundary;
 			 * their contents never undergo text-variable expansion. */
 			if (byte == '|' && (!stream->quoted || stream->comment)) {
 				dispatch(stream);
 				continue;
 			}
-			if (stream->length == 0 && !stream->dropping) {
+			if (stream->length == 0 && !stream->dropping)
 				stream->comment = byte == '!';
-				stream->scene = byte == 'h' || byte == '#';
-			}
 			append(stream, byte);
 			/* Preserve parity even after allocation failure, so an
 			 * escaped pipe/continued CR cannot resume in corrupt data. */

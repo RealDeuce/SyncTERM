@@ -866,7 +866,7 @@ static int
 create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, bool playback_file)
 {
 	const struct st_rip3_stream_sink sink={.context=session,.text=playback_file ? scene_text : text,.command=command,
-	    .at_line_start=line_start,.diagnostic=stream_diagnostic,.local_playback=playback_file,
+	    .at_line_start=line_start,.diagnostic=stream_diagnostic,
 	    .ansi_owns_bang=ansi_owns_bang,.framing_enabled=session->sink.framing_enabled};
 	return st_rip3_stream_create(result, &sink);
 }

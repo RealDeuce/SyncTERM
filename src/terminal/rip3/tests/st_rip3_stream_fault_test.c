@@ -76,8 +76,9 @@ main(void)
 	fail_realloc = true;
 	st_rip3_stream_process(stream, (const uint8_t *)"!|x", 3);
 	/* One error for the whole discarded command. Neither quoted pipes nor
-	 * continued CR may resume dispatch inside its discarded bytes. */
-	st_rip3_stream_process(stream, (const uint8_t *)"\\|bad\\\r\nmore|J10\r", sizeof("\\|bad\\\r\nmore|J10\r")-1);
+	 * continued line endings may resume dispatch inside discarded bytes. */
+	static const uint8_t recover[] = "\\|bad\\\r\n\fmore|J10\n";
+	st_rip3_stream_process(stream, recover, sizeof(recover)-1);
 	CHECK(seen.errors == 1 && seen.commands == 1 && !seen.mismatch);
 	st_rip3_stream_reset(stream);
 	memset(block, 'x', sizeof(block));

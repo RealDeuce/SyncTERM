@@ -150,6 +150,17 @@ Hook.onKey(Key.f9) {|event|
         for probe in (b"\x1b[!", b"\x1b[0!"):
             send(probe)
             receive(peer, b"RIPSCRIP030001", root / "replies.bin")
+
+        t.case("rip3-bare-lf-and-form-feed-end-commands-on-the-wire")
+        frame = t.exchange(
+            b"\x1b[2;1H" + query(b"LF", at_cursor=True)[:-2] + b"\nraw\x1b[6n"
+            + b"\x1b[3;1H" + query(b"FF", at_cursor=True)[:-2] + b"\fend\x1b[6n",
+            b"LF\x1b[2;4RFF\x1b[3;4R")
+        assert frame.lines[1][:3] == "raw" and frame.lines[2][:3] == "end", frame.lines[:4]
+
+        t.case("rip3-quoted-line-endings-continue-the-same-wire-command")
+        t.exchange(query(b"cont\\\n\f\r\ninued", at_cursor=True) + b"\x1b[2J", b"continued")
+
         t.case("rip3-text-cursor-on-entry-grid")
         t.exchange(b"\x01|g0509\r\n\x1b[6n", b"\x1b[10;6R")
         t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")

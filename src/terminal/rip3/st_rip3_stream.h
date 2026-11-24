@@ -21,8 +21,8 @@ struct st_rip3_stream_sink {
 	void *context;
 	void (*text)(void *context, const uint8_t *bytes, size_t length);
 	/* Complete command ID and arguments, without introducer, delimiter or
-	 * physical line endings. A terminating CR also consumes its optional LF,
-	 * including across input calls; ordinary text retains CR/LF unchanged.
+	 * physical line endings. CR, LF and FF each terminate commands. A CR also
+	 * consumes its optional LF across input calls; ordinary text is unchanged.
 	 * Backslash quoting remains intact for the later
 	 * expansion/argument stages; only continuation backslashes are removed.
 	 * Comments are delivered too and MUST bypass variable expansion. No level
@@ -33,8 +33,6 @@ struct st_rip3_stream_sink {
 	 * Physical line starts and SOH/STX need no client cursor information. */
 	bool (*at_line_start)(void *context);
 	void (*diagnostic)(void *context, enum st_rip3_stream_diagnostic kind);
-	/* With normalized file input, LF and FF also delimit ordinary commands. */
-	bool local_playback;
 	/* The host ANSI decoder can claim a bang before RIP checks for !|.
 	 * Read the live framing flag ahead of each byte. Disabled input bypasses
 	 * framing and preserves any unfinished RIP command for re-enable. */
@@ -52,7 +50,7 @@ void st_rip3_stream_destroy(struct st_rip3_stream *stream);
 void st_rip3_stream_reset(struct st_rip3_stream *stream);
 /* Arbitrarily split incoming bytes. Errors stay inside the parser, with an
  * optional nonfatal diagnostic. A failed allocation discards only that command
- * and resynchronizes at its next unquoted | or terminating CR. Quoting parity
+ * and resynchronizes at its next unquoted | or line ending. Quoting parity
  * and continuation are tracked even while discarding. No fixed line limit.
  * NULL bytes with zero length is a no-op; invalid spans preserve parser state.
  * ANSI decoding, expansion, binary transfer modes and terminal routing are

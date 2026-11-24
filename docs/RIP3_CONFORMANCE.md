@@ -37,8 +37,9 @@ through the existing mixer when audio is available. Persistent variables use
 Device geometry comes from the entry's selected raster; WORLD remains independent.
 The three 4:3 presets remain supported without overriding other entry modes.
 Unlisted bitmap-font resolutions use the original 640x480 MAF bank; vector and
-outline scaling use the actual device dimensions. Command CRLF is suppressed,
-including split CR/LF; ordinary text keeps its own line endings. Processing
+outline scaling use the actual device dimensions. CR, LF and form feed
+terminate RIP commands. A command's CRLF is consumed even when split across
+reads, while ordinary text keeps its own line endings. Processing
 failures are diagnosed and discarded inside RIP3, never returned as connection
 errors. Constructor/accessor and transport failures remain distinct.
 
@@ -10159,3 +10160,17 @@ destination, and fallback to port zero when the requested destination is
 deleted. The tests verify clipboard release, offscreen memory usage, and
 pixel preservation on the screen and in a protected bitmap.
 [Pinned port contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/fecb3bdb5481f3a84b9d229d6201ff68e4ce4840/version/3.0/ripscrip/7.0-drawing-ports.md#rip_switch_port)
+
+## RIPv3 command line endings
+
+Bare LF and form feed finish commands during a connection and during local
+scene playback. Bytes after the delimiter return to the ordinary text or
+article path. A trailing continuation backslash removes itself and the
+following run of CR, LF and form-feed bytes before buffering resumes. An
+even run of trailing backslashes still allows the command to end.
+
+The split-input tests distinguish command delimiters from ordinary text
+and verify recovery after a buffer allocation failure. Connected CP437 and
+UTF-8 tests verify the exact replies and ANSI text following bare delimiters
+and the reply from a command continued across mixed line endings.
+[Pinned framing contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1504b9597a766acde14b463864cecf8e21e84293/version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md#chaining-continuation-and-line-endings)

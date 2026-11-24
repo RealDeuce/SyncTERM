@@ -23960,6 +23960,38 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "c952d56480e7df611b117194e11bf803e48fdf49",
+      "revision": "1504b9597a766acde14b463864cecf8e21e84293",
+      "scope": "Use the same bare command line endings and continuation state in live and local RIPv3 streams.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:159",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:161",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:191",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:192"
+      ],
+      "tests": [
+        "rip3_stream",
+        "rip3_stream_fault",
+        "syncterm_rip3_connected_CP437",
+        "syncterm_rip3_connected_UTF-8",
+        "rip3_session",
+        "syncterm_rip3_transfer_CP437",
+        "syncterm_rip3_transfer_UTF-8",
+        "syncterm_rip3_columns_CP437",
+        "syncterm_rip3_columns_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2159,
+        "context": 1923,
+        "pending": 1436,
+        "implemented": 3762,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "archive_format": "git archive --format=tar"
