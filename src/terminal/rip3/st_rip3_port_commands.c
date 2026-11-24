@@ -368,8 +368,9 @@ paste_clipboard(const struct st_rip3_command_host *host,
 	status = st_rip3_ports_current(host->ports,&destination);
 	if (status != 0 || destination == host->clipboard->port) return status;
 	status = st_rip3_ports_info(host->ports,host->clipboard->port,&info);
-	if (status != 0) return status;
-	if (!info.defined) return IO_ERROR_NOT_SUPPORTED;
+	if (status != 0 || !info.defined) return status;
+	status = st_rip3_ports_info(host->ports,destination,&info);
+	if (status != 0 || !info.defined || !info.viewport_active) return status;
 	world = (struct st_rip3_rect){(int32_t)x,(int32_t)y,(int32_t)x,(int32_t)y};
 	status = translate(host,environment_number,&world,&device);
 	if (status != 0) return status;

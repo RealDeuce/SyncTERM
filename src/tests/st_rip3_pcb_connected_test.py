@@ -139,18 +139,24 @@ def run(args,width,height):
         values(b'$CUR(PORT)$',b'0')
 
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')
-        wire(b'2s100')
-        bar(4,(0,0,0,0));bar(2,(1,0,1,0));bar(1,(1,1,1,1))
-        wire(b'v'+coords((1,0,1,1))+b'|2s000')
-        values(b'$DVP(1)$')
-        frame=wire(b'1P'+coords((450,280))+b'0')
-        assert pixel(frame,450,280)==0x00aa00 and pixel(frame,450,281)==0x0000aa
-        assert pixel(frame,451,280)==0 and pixel(frame,449,280)==0
+        wire(b'1C010103030|2s100')
+        # Put the known samples in the captured tile independently of capture scaling.
+        bar(7,(0,0,3,3))
+        bar(4,(1,1,1,1));bar(2,(2,1,2,1));bar(1,(1,2,1,2));bar(3,(2,2,2,2))
+        wire(b'v01010202|v00000000|2s000')
+        frame=wire(b'1P0A0K00Z')
+        colors=[0xaa0000,0x00aa00,0x0000aa,0x00aaaa]
+        samples=[pixel(frame,x,y) for y in (20,21) for x in (10,11)]
+        assert samples==colors,samples
+        assert all(pixel(frame,x,y)==0 for x,y in ((9,20),(12,20),(10,19),(10,22)))
         same(frame,values(b'$PCB(1)$'))
-        values(b'$DVP(0)$')
-        frame=wire(b'1P'+coords((460,280))+b'0')
-        assert pixel(frame,460,280)==0
+        wire(b'v00000000')
+        values(b'$WORLD(CUR,0,0)$')
+        same(frame,wire(b'1P0U0K000'))
         values(b'$AVP(0)$')
+        frame=values(b'$PCB(CUR)$')
+        assert [pixel(frame,x,y) for y in (0,1) for x in (0,1)]==colors
+        values(b'$CUR(PORT)$',b'0')
         values(b'after-pcb',b'after-pcb')
         assert client.capture().application['connected']==1
 

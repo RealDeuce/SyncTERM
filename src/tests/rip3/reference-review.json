@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/228",
-  "revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
-  "previous_revision": "13439551837a9fa140a19b5ad03ba9b73a56b8c2",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/230",
+  "revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+  "previous_revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "PR #228 was open upstream. Its tree matches the pinned fork stable integration.",
-  "archive_sha256": "726173ac42f2bdd23302421ba6f8011650f7d10fd1954d06648eefca87e538d0",
+  "upstream_state_at_adoption": "PR #230 was open upstream. Its tree matches the pinned fork stable integration.",
+  "archive_sha256": "b1cc7fdd9fe6e0afe1a3e4d2a111665d07cba77b9e1fec5dcfb255c329900cb1",
   "normative_scope": [
     "version/3.0/ripscrip",
     "version/3.0/techspecs",
@@ -17,14 +17,24 @@
   ],
   "changed_documents": [
     {
-      "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "previous_sha256": "5c8e296b3e61f09917893e05dd348cb4f4bb337757a05fd9c6472444a493c34e",
-      "sha256": "4b4e9b33d7b59e9c021fdd06ab2f00dd11650a89f2f08021732aee21234819ac"
+      "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+      "previous_sha256": "b068963e464fd3496e29bcd6bb1d20f3f2b64c2ba339cf0f8ef2069e2d1df609",
+      "sha256": "dd318b39bb441818cda4dd71d193fb1e168b20885942403ae081efb4c46ed57f"
+    },
+    {
+      "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+      "previous_sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1",
+      "sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a"
+    },
+    {
+      "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+      "previous_sha256": "bb4b9cb71da592d89def383efbbce2f096b43556e0a366f1bc04bab2c538db1a",
+      "sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af"
     }
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9310,
+  "matched_source_blocks": 9311,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -958,7 +968,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 87,
+  "upstream_issue_resolutions": 88,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1625,6 +1635,12 @@
       "sha256": "6d3404b11b29bffa2b1caf4928040a906d35dcae9ea7f0beed0886c4170bffd7",
       "title": "Issue #227 — Simple mouse field post-action reset",
       "role": "RIPtel instruction trace and portable ownership and completion rules."
+    },
+    {
+      "path": "version/3.0/research/issue-229-put-image-viewport.md",
+      "sha256": "eff3a5d719d96832613671abf7f2489d912cfc0a933939e9b57244ba9615b1a7",
+      "title": "Issue #229 — PUT_IMAGE source viewport and reserved digit",
+      "role": "Handler, viewport and compositor instruction traces and a portable wire example."
     }
   ],
   "documents": [
@@ -1726,7 +1742,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "b068963e464fd3496e29bcd6bb1d20f3f2b64c2ba339cf0f8ef2069e2d1df609"
+      "sha256": "dd318b39bb441818cda4dd71d193fb1e168b20885942403ae081efb4c46ed57f"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1758,7 +1774,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1"
+      "sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -1818,7 +1834,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "bb4b9cb71da592d89def383efbbce2f096b43556e0a366f1bc04bab2c538db1a"
+      "sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
@@ -1901,7 +1917,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "eeeebc8a",
+  "previous_ledger_commit": "8727ca4f4421b57877e645dc35e19d50b58e69bd",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -18009,6 +18025,318 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "previous_revision": "1b59fa1963701c895e791f071c557e347fc21ce1",
+      "revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+      "archive_sha256": "b1cc7fdd9fe6e0afe1a3e4d2a111665d07cba77b9e1fec5dcfb255c329900cb1",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/229",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/230",
+          "reviewed_head": "40dc5e852d41e2b7ce92eb1115a69a83a263af82",
+          "integration": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "b068963e464fd3496e29bcd6bb1d20f3f2b64c2ba339cf0f8ef2069e2d1df609",
+          "sha256": "dd318b39bb441818cda4dd71d193fb1e168b20885942403ae081efb4c46ed57f"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "7a1eac81d8af29281faf9dc0717f19dea9cf84b3759634e98f87c5fec51b07d1",
+          "sha256": "80c30b12a6e7c5a93544d0e7e6512050df4456e7bca5c41782e53c620ceb9e6a"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "bb4b9cb71da592d89def383efbbce2f096b43556e0a366f1bc04bab2c538db1a",
+          "sha256": "9dbb3c4cd4819bb0ad9980bc7e11bff81525c58fde76bfd2bf159241879c98af"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-229-put-image-viewport.md",
+          "sha256": "eff3a5d719d96832613671abf7f2489d912cfc0a933939e9b57244ba9615b1a7",
+          "title": "Issue #229 — PUT_IMAGE source viewport and reserved digit",
+          "role": "Handler, viewport and compositor instruction traces and a portable wire example."
+        }
+      ],
+      "moved_source_blocks": 311,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:163",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:75",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:77",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:79",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:81",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:93",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:97",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:101",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:103",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:110",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:114",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:545",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:576",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:584"
+      ],
+      "retired_source_units": [
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:75",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            75,
+            75
+          ],
+          "text": "This command takes the contents of the port identified by the clipboard pointer (see the [RIP_GET_IMAGE](#rip_get_image) command above) and copies it to a position (x,y) in the currently active drawing port. If the two ports refer to the same port number, then this command is ignored. If the clipboard pointer is clear (ie, no clipboard port is in use), then this command is also ignored. _(v2.A3)_\n",
+          "sha256": "b9585178e1ebf2cc40455ef5c756c1006e96eab2d7855edfc53875f18c1f5c0e",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "rip3_paste_commands",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "A real clipboard capture supplies the unscaled copy. Absent and same-port selections are no-ops. Current destination geometry controls placement and clipping.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/42"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:77",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            77,
+            77
+          ],
+          "text": "The area in the active drawing port that is overwritten with the graphics data is determined by the dimensions of the clipboard port previously established with a RIP*GET_IMAGE function. *(v2.A3)\\_\n",
+          "sha256": "6f232595c8016ca3c260a16d7dd665b24acf089091a44f7f015e169f86edd3df",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "rip3_paste_commands",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "A real clipboard capture supplies the unscaled copy. Absent and same-port selections are no-ops. Current destination geometry controls placement and clipping."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:79",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            79,
+            79
+          ],
+          "text": "**Mode distinction:** PUT/LOAD image modes are the operation for that image command; global W is not applied afterward. Image mode 04 inverts source image bits, whereas drawing W04 inverts destination bits. For 8-bit S=0x3C, D=0xA5, these give 0xC3 and 0x5A. See the [operation equations](../../2.0/techspecs/2.3-drawing-composition.md#operations-and-operands).\n",
+          "sha256": "22e9c5ccf625f97cffe451ffc2d1c36d6033e62a3fe2698b1ed73b0d44e1c772",
+          "status": "pending",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_surface.c"
+          ],
+          "tests": [
+            "rip3_paste_commands",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8",
+            "rip3_surface_copy"
+          ],
+          "reason": "Connected 1P mode 04 complements the source, including tagged RGB clipboard pixels. The bitmap file loaders and the full RGB operation contract still require separate acceptance."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:81",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            81,
+            81
+          ],
+          "text": "The position on the active drawing port that is to receive the image is specified by the (x,y) parameters. These define the upper left corner that will be the rectangle to receive the image data. If any part of the image would go off the edge of the viewport (or the screen) then it is truncated appropriately. _(v2.A3)_\n",
+          "sha256": "4f38e30d5b370938cc23b02bb0b7facf676de36a52ea54fe28e30fd684819eee",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "rip3_paste_commands",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "A real clipboard capture supplies the unscaled copy. Absent and same-port selections are no-ops. Current destination geometry controls placement and clipping."
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:83",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            83,
+            83
+          ],
+          "text": "The image that is retrieved from the clipboard port does so based on the port's viewport (the entire contents of the viewport are copied to the active drawing port). If the clipboard port is only used with the RIP*GET_IMAGE command, then the viewport will be the full size of the port. If however, some port related commands are used on this clipboard port, then it is possible to alter the viewport inside this port. This gives you the ability to paste sub-areas of the port's actual image onto the destination drawing port. *(v2.A3)\\_\n",
+          "sha256": "7a7293d10ee34f968856a827f68ef6b063808497e37ac1682593897a731e77a9",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_ports.c"
+          ],
+          "tests": [
+            "rip3_paste_commands",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "The stored clipboard viewport is the source rectangle even when deactivated. The wire handler tests activation only on its destination. Connected tests use a narrowed, inactive source.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/42",
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/229"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:95",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            95,
+            95
+          ],
+          "text": "NOTE: The 1-byte `<res>` parameter is RESERVED FOR FUTURE USE and should be set to zero.\n",
+          "sha256": "65a6c6b91c6fcd4d7f6722e30729b642bf2afb131b1f9b296a5f6bf0792ed212",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_port_commands.c"
+          ],
+          "tests": [
+            "rip3_paste_commands",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "Senders use zero. RIPtel discards the received fourth operand. SyncTERM validates the optional digit in current Base Math and ignores its value.",
+          "issues": [
+            "https://github.com/bbs-land/remote-imaging-protocol/issues/229"
+          ]
+        },
+        {
+          "id": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:99",
+          "heading": "RIP_PUT_IMAGE",
+          "source": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "lines": [
+            99,
+            99
+          ],
+          "text": "**Remembered-pair completion:** a successful nonempty PUT_IMAGE is a named port transfer and [publishes its final pair on the current destination](7.0-drawing-ports.md#producers-and-publication). It uses the source's current logical viewport and its normal anchor/clipping/mode, without requiring a remembered pair on that source. Its documented same-port/absent-pointer no-op leaves all pairs unchanged. Source pair metadata remains independent of the clipboard image data.\n",
+          "sha256": "9811e33dfbcdec1dc74e9dfc66c904a4300a4e01e2c8dde9fa328920c0bf3f77",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_clipboard.c",
+            "src/terminal/rip3/st_rip3_viewport_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_pcb",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "Destination-owned optional DEVICE pairs are published by successful logical copy/blit stages only, with original coupled/fit classification and physical mapping retained. Capture/duplicate/auto-stamp/PUT_IMAGE already reach these shared producers on connections; drawing, image renderers and button redraw use separate paths. PCB selects the assigned clipboard by default or explicit decimal/CUR, reverses offsets under COPY without changing global state, snapshots overlap, and keeps all failures below the void parser. Native independent geometry/failure/lifecycle vectors and actual CP437/UTF8 TCP captures cover runtime use. PORT snapshots deep-own pair values/absence alongside their previously accepted definition/query/bitmap/pointer fields."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:545",
+          "heading": "Physical Storage and Sample Coverage",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            545,
+            545
+          ],
+          "text": "| Undefined/inactive operand, empty logical viewport, wholly logically clipped/empty transfer, or another command-defined no-op | Retain old pair, even if a service returns success for that no-op |\n",
+          "sha256": "caf542eebc2e0820a30918a658fe6ced1b53b6ebe010ef3159b68b6db38916cb",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_clipboard.c",
+            "src/terminal/rip3/st_rip3_viewport_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_pcb",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "Destination-owned optional DEVICE pairs are published by successful logical copy/blit stages only, with original coupled/fit classification and physical mapping retained. Capture/duplicate/auto-stamp/PUT_IMAGE already reach these shared producers on connections; drawing, image renderers and button redraw use separate paths. PCB selects the assigned clipboard by default or explicit decimal/CUR, reverses offsets under COPY without changing global state, snapshots overlap, and keeps all failures below the void parser. Native independent geometry/failure/lifecycle vectors and actual CP437/UTF8 TCP captures cover runtime use. PORT snapshots deep-own pair values/absence alongside their previously accepted definition/query/bitmap/pointer fields."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:576",
+          "heading": "Producers and Publication",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            576,
+            576
+          ],
+          "text": "| PUT_IMAGE | On a successful nonempty transfer, publish on the current destination from the assigned source's full logical viewport to its DEVICE-projected anchor, after normal clipping. Its existing same-port no-op publishes nothing; its own mode still controls the pixels. The source needs no remembered pair |\n",
+          "sha256": "5b1dca05f0fdb2ca8911305281d99b06d0de1c487d0b4f298eca9056e6a6a58a",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_clipboard.c",
+            "src/terminal/rip3/st_rip3_viewport_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_pcb",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "Destination-owned optional DEVICE pairs are published by successful logical copy/blit stages only, with original coupled/fit classification and physical mapping retained. Capture/duplicate/auto-stamp/PUT_IMAGE already reach these shared producers on connections; drawing, image renderers and button redraw use separate paths. PCB selects the assigned clipboard by default or explicit decimal/CUR, reverses offsets under COPY without changing global state, snapshots overlap, and keeps all failures below the void parser. Native independent geometry/failure/lifecycle vectors and actual CP437/UTF8 TCP captures cover runtime use. PORT snapshots deep-own pair values/absence alongside their previously accepted definition/query/bitmap/pointer fields."
+        },
+        {
+          "id": "version/3.0/ripscrip/7.0-drawing-ports.md:584",
+          "heading": "Success, Failure, Protection and Overlap",
+          "source": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "lines": [
+            584,
+            584
+          ],
+          "text": "For an existing destination definition, a command-defined no-op, wholly **logically** clipped rectangle, invalid/inactive/undefined operand, rejected request or failed transfer leaves its previous pair unchanged. A logically nonempty successful copy publishes even when pixels remain identical or physical clipping/sample rejection writes nothing, as defined above. Snapshot source pixels before overlapping writes, including distinct screen ports sharing one backing surface; this reads the source before writing the destination without choosing a scaling filter. If preparing that snapshot fails, there is no transfer/pair publication. A later rendering failure does not imply pixel rollback.\n",
+          "sha256": "c4f09c186eacaad6bdd64fd19f9e69866be2681c14d6e21bd4b5f677e40c4a66",
+          "status": "implemented",
+          "implementation": [
+            "src/terminal/rip3/st_rip3_ports.c",
+            "src/terminal/rip3/st_rip3_port_commands.c",
+            "src/terminal/rip3/st_rip3_clipboard.c",
+            "src/terminal/rip3/st_rip3_viewport_host.c",
+            "src/terminal/rip3/st_rip3_session.c",
+            "src/terminal/term/st_term_rip3.c"
+          ],
+          "tests": [
+            "rip3_pcb",
+            "syncterm_rip3_pcb_CP437",
+            "syncterm_rip3_pcb_UTF-8"
+          ],
+          "reason": "Destination-owned optional DEVICE pairs are published by successful logical copy/blit stages only, with original coupled/fit classification and physical mapping retained. Capture/duplicate/auto-stamp/PUT_IMAGE already reach these shared producers on connections; drawing, image renderers and button redraw use separate paths. PCB selects the assigned clipboard by default or explicit decimal/CUR, reverses offsets under COPY without changing global state, snapshots overlap, and keeps all failures below the void parser. Native independent geometry/failure/lifecycle vectors and actual CP437/UTF8 TCP captures cover runtime use. PORT snapshots deep-own pair values/absence alongside their previously accepted definition/query/bitmap/pointer fields."
+        }
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1907,
+        "pending": 1455,
+        "implemented": 3709,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -23141,6 +23469,43 @@
         "context": 1905,
         "pending": 1455,
         "implemented": 3707,
+        "excluded": 71,
+        "blocked": 20
+      }
+    },
+    {
+      "after_commit": "8727ca4f4421b57877e645dc35e19d50b58e69bd",
+      "revision": "ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20",
+      "scope": "Skip undefined clipboard sources and ineligible destinations before projection. Exercise the inactive-source viewport example and retained destination copy pair.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/229"
+      ],
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:163",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:75",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:77",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:79",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:93",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:97",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:110",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:114",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:545",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:576",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:584"
+      ],
+      "tests": [
+        "rip3_pcb",
+        "rip3_paste_commands",
+        "syncterm_rip3_pcb_CP437",
+        "syncterm_rip3_pcb_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2163,
+        "context": 1907,
+        "pending": 1455,
+        "implemented": 3709,
         "excluded": 71,
         "blocked": 20
       }

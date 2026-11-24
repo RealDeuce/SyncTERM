@@ -10068,15 +10068,18 @@ local playback, and a successful local-only action triggered with Enter.
 ## Clipboard paste source and invert mode
 
 `1P` reads the stored clipboard viewport even when that viewport is
-deactivated. The destination viewport must be active. The optional reserved
-digit is decoded in the current Base Math and has no effect. RIPtel's
-wire handler at RVA `0x0d32f` discards the reserved value and checks the
-current destination's activation. The clipboard helper at `0x02a00` reads
-the defined source's stored rectangle. [Issue #229](https://github.com/bbs-land/remote-imaging-protocol/issues/229)
+deactivated. An undefined source or an inactive destination leaves the
+pixels, selection and remembered copy pair intact. The optional reserved
+digit is decoded in the current Base Math and has no effect. RIPtel's wire
+handler at RVA `0x0d32f` checks the destination's activation, and its
+clipboard helper at `0x02a00` reads the defined source's stored rectangle.
+The portable receiver ignores the reserved digit after validating it.
+[PR #230](https://github.com/bbs-land/remote-imaging-protocol/pull/230)
 
 Mode `04` complements the source pixel's eight index bits or all 24 RGB
 bits. Connected CP437 and UTF-8 tests capture an ANSI pixel of `#112233`
-and paste it as `#eeddcc`. They also use a narrowed, inactive clipboard
-viewport, check that `PCB` skips it, and verify that `1P` skips an inactive
-destination. The native tests check source inversion in both surface copy
-paths and retain the existing indexed mode vectors.
+and paste it as `#eeddcc`. They also paste the four interior samples from
+the reference's inactive viewport example, then use `PCB` to read back the
+pair after a skipped paste. Native tests check the undefined clipboard
+slot, source inversion in both surface copy paths and the indexed mode
+vectors. RGB XOR, OR and AND remain pending.

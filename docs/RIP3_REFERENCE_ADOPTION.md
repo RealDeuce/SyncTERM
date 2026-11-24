@@ -1403,3 +1403,19 @@ moves 109 of those to their new line ranges, and replaces one retired unit
 with eleven reviewed units. Issue #227 is resolved in the adopted text.
 The connected implementation normalizes the clear digit and consumes it
 after successful host completion and FIELDID scope unwinding.
+
+## PR #230 clipboard paste eligibility
+
+The reference advances to fork stable integration `ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20`.
+Its tree matches PR #230 head `40dc5e852d41e2b7ce92eb1115a69a83a263af82`.
+The uncompressed Git archive has SHA-256
+`b1cc7fdd9fe6e0afe1a3e4d2a111665d07cba77b9e1fec5dcfb255c329900cb1`.
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/ddd6517bb3e95c8b6d8f021fc43ef7d6e7e48b20), [PR #230](https://github.com/bbs-land/remote-imaging-protocol/pull/230)
+
+Three normative chapters change. The inventory retains 9,311 source units,
+moves 311 of them to new line ranges, and replaces ten retired units with
+fourteen new units. Issue #229 is resolved in the adopted text. A defined
+clipboard port supplies its stored viewport even after deactivation.
+An undefined source or inactive destination skips the paste and retains the
+previous pair. Senders emit zero in the reserved digit, and portable
+receivers ignore its value.

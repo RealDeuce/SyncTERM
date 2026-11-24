@@ -172,8 +172,6 @@ validation(void)
 	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	f.clipboard.port = 0;
 	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	f.clipboard.port = 2; /* Undefined pointer semantics need #42, without editing it. */
-	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.clipboard.port == 2);
 	f.clipboard.port = 1;
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0);
 	st_rip3_copy_test_fail_malloc = true;
@@ -182,6 +180,16 @@ validation(void)
 	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_copy_test_fail_malloc);
 	CHECK(row(&f,0,0,0,original,8) == 0 && f.clipboard.port == 1);
 	CHECK(process(&f,"1P0200001",-1) == 0 && row(&f,0,0,0,copied,10) == 0);
+	f.clipboard.port = 2;
+	CHECK(process(&f,"1P0301000",-1) == 0 && f.clipboard.set && f.clipboard.port == 2);
+	const uint8_t untouched[] = {0};
+	CHECK(row(&f,0,3,1,untouched,1) == 0);
+	struct st_rip3_port_copy_pair pair;
+	CHECK(st_rip3_ports_copy_pair(f.host.ports,0,&pair) == 0 && pair.set);
+	CHECK(pair.source.x0 == 0 && pair.source.y0 == 0 && pair.source.x1 == 8 && pair.source.y1 == 1);
+	CHECK(pair.destination.x0 == 2 && pair.destination.y0 == 0 &&
+	    pair.destination.x1 == 10 && pair.destination.y1 == 1);
+	f.clipboard.port = 1;
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0);
 	CHECK(process(&f,"1P0001000",-1) == 0 && row(&f,0,0,1,copied,8) == 0);
