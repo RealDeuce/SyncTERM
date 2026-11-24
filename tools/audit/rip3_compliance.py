@@ -15,7 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "src/tests/rip3"
-REFERENCE = "205a3871170ac0b29d25e0db2059fe39a01a3138"
+REFERENCE = "e7534a26c8e893a1390153f151171f62ff7d4f6f"
 BASELINE = "e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a"
 UPSTREAM = "https://github.com/RealDeuce/remote-imaging-protocol"
 REFERENCE_BRANCH = "stable"

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-205a3871170ac0b29d25e0db2059fe39a01a3138](https://github.com/RealDeuce/remote-imaging-protocol/tree/205a3871170ac0b29d25e0db2059fe39a01a3138/version/3.0)
+e7534a26c8e893a1390153f151171f62ff7d4f6f](https://github.com/RealDeuce/remote-imaging-protocol/tree/e7534a26c8e893a1390153f151171f62ff7d4f6f/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10475,8 +10475,8 @@ Connected CP437 and UTF-8 sessions verify that wire filename expansion can
 open the editor, accept its value, and resume the following command. The
 device-free PCM test verifies repeat across successive pulls, one-shot
 replacement, stopping and recovery after missing or malformed requests.
-The pinned command entry still describes a single reserve.
-[Issue #269](https://github.com/bbs-land/remote-imaging-protocol/issues/269)
+The pinned command entry now specifies these fields and playback rules.
+[PR #271](https://github.com/bbs-land/remote-imaging-protocol/pull/271)
 
 
 ## Coordinate width and zero-argument commands
@@ -10491,6 +10491,20 @@ The zero-argument commands `#`, `(`, `)`, `*`, `e` and `>` ignore surplus
 bytes and run at the delimiter. Split-input tests verify that SOFT reset
 and scene-end input release wait for the delimiter. Connected CP437 and
 UTF-8 tests verify coordinate state, input release, reset and text erase.
-The pinned reference's coordinate fallback and encoded-stream command
-index still need correction.
-[Issue #270](https://github.com/bbs-land/remote-imaging-protocol/issues/270)
+The pinned reference now specifies the coordinate fallback and
+encoded-stream command syntax.
+[PR #272](https://github.com/bbs-land/remote-imaging-protocol/pull/272)
+
+
+## Graphics erase with zero WORLD
+
+Wire `E` erases using the port's stored DEVICE geometry even when WORLD
+has a zero dimension. Inactive viewports still skip the erase.
+Connected CP437 and UTF-8 tests check the stored extent, inactive gate
+and continued command processing with WORLD set to 0:0.
+
+This revision still specifies the current graphics background and stored
+viewport for `E`. The original wire handler and `$EGW$` call the
+full-port black-fill routine already specified for HEADER type 2. The
+portable scope and color of both operations are tracked upstream.
+[Issue #273](https://github.com/bbs-land/remote-imaging-protocol/issues/273)

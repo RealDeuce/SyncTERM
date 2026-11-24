@@ -525,7 +525,7 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 	CHECK(st_rip3_styles_protect(host.styles, 1, true) == 0);
 	CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
 	environment.base_math = 64; environment.coordinate_size = 5;
-	environment.world_width = environment.world_height = 1;
+	environment.world_width = environment.world_height = 0;
 	environment.graphics_style = 7; environment.port = 9; environment.palette = 11;
 	environment.rgb_bits = direct ? 8 : 0;
 	CHECK(st_rip3_environments_define(host.environments, 1, &environment) == 0);
@@ -570,7 +570,8 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 	    && style.drawing_color == 0xffffff && style.fill_color == 0xffffff);
 	CHECK(st_rip3_environments_get(host.environments, 1, &environment) == 0
 	    && environment.graphics_style == 7 && environment.port == 9 && environment.palette == 11
-	    && environment.base_math == 64 && environment.coordinate_size == 5 && environment.world_width == 1);
+	    && environment.base_math == 64 && environment.coordinate_size == 5
+	    && environment.world_width == 0 && environment.world_height == 0);
 	CHECK(st_rip3_ports_current(host.ports, &current) == 0 && current == 1);
 	CHECK(st_rip3_styles_current(host.styles, &current) == 0 && current == 1);
 	CHECK(st_rip3_ports_info(host.ports, 1, &after) == 0 && after.protected && after.viewport_active
@@ -594,7 +595,9 @@ erase_boundaries(void)
 	CHECK(process(&missing, "E", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(st_rip3_ports_create(&other, ST_RIP3_CANVAS_800_600) == 0);
 	missing = host; missing.ports = other;
-	CHECK(process(&missing, "E", ST_RIP3_COMMAND_INVALID) == 0);
+	CHECK(st_rip3_ports_erase(other, 0x55) == 0);
+	CHECK(process(&missing, "E", -1) == 0);
+	CHECK(pixel(other, 0, 799,599,1) == 0);
 	st_rip3_ports_destroy(other);
 	CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0);
 	CHECK(st_rip3_ports_define(host.ports, 1, &bounds, true) == 0);

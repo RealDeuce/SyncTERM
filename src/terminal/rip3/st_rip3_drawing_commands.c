@@ -384,15 +384,12 @@ st_rip3_drawing_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0)
 		return status;
 	if (command[0] == 'E') {
-		struct st_rip3_frame frame;
 		struct st_rip3_port_info port;
 		uint8_t background;
 
 		if (host->ports == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
-		status = st_rip3_command_frame(host, environment_number, &frame);
-		if (status == 0)
-			status = st_rip3_ports_current(host->ports, &number);
+		status = st_rip3_ports_current(host->ports, &number);
 		if (status == 0)
 			status = st_rip3_ports_info(host->ports, number, &port);
 		if (status != 0 || !port.viewport_active)

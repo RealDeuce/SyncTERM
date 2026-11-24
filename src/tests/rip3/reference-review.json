@@ -1,25 +1,26 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/268",
-  "revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
-  "previous_revision": "b06c20c1e056e6f6432f958672bff8b5ecf6a2a7",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/272",
+  "revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
+  "previous_revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PRs #267 and #268 match their respective fork stable integration trees.",
-  "archive_sha256": "aced87cb7299e343a8f86dd8cbc40414d45716233c0f6a7490601c0f8c267fd0",
+  "upstream_state_at_adoption": "The open PRs #271 and #272 match their respective fork stable integration trees.",
+  "archive_sha256": "2d6323e13c1ea240c6d168cdf5709b8feed9207ed9c97532c37c908da9573c42",
   "normative_scope": [
-    "Table switch target widths, required flags, protection order and first-use text-window rules.",
-    "Drawing palette forced UltraNum fields, eight-bit precision, period zero and fixed versus repeated color collection."
+    "Wire WAV flags, filename expansion, early stop and single-channel replacement.",
+    "Coordinate width fallback and optional reserves, zero-argument commands and accepted encoded-stream syntax."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+    "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+    "version/3.0/ripscrip/4.5-audio-files.md",
+    "version/3.0/ripscrip/5.3-local-playback.md",
     "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/7.1-data-tables.md",
     "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9450,
+  "matched_source_blocks": 9496,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -953,7 +954,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 132,
+  "upstream_issue_resolutions": 134,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1740,6 +1741,18 @@
       "sha256": "deb84121b61ca8f5bea798147fb0030c633f79c2a05008ccf9566ee7ae7a9f43",
       "title": "Issue #266 — Drawing-palette fields and decoded color count",
       "role": "Original palette command descriptors, precision checks and decoded color counts."
+    },
+    {
+      "path": "version/3.0/research/issue-269-play-audio-repeat.md",
+      "sha256": "b80f58738e672af3f63e298606e60c9cfbe77d6f1576fc3e79e77dff5860321e",
+      "title": "Issue #269 — PLAY_AUDIO flags and filename expansion",
+      "role": "Original waveform descriptor, text expansion order and repeat flags."
+    },
+    {
+      "path": "version/3.0/research/issue-270-coordinate-and-fixed-field-edges.md",
+      "sha256": "8dc3046b4a55b4621813e4dfd17ef9b35e28ee5e4d30549be08eb6fc2f212d6f",
+      "title": "Issue #270 — Coordinate width and fixed-field edge cases",
+      "role": "Original optional reserves, coordinate effect and zero-argument dispatch."
     }
   ],
   "documents": [
@@ -1833,11 +1846,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "4354223f655cdf57bff0cbe15aba092e2a98f2b7a66b1ff8fe3688b7b3694228"
+      "sha256": "d9b16e7c07e73a4169fd8f0bb2f573c9d974b846735d32ccc4e297c3bdd3b02a"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "sha256": "91783db83a041754321b908fe173e78724d151ec41cc2f954321bb26c780be06"
+      "sha256": "c012660108ca9431906816f0bf576688d378fd29314726e54f3f7d753b0910c5"
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
@@ -1893,7 +1906,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.5-audio-files.md",
-      "sha256": "949072bb6bf5f0c95b82c7a65fa497a6b8276de399379da9dc7bbbe4887500dc"
+      "sha256": "98920cbb60c98b241e782ce2c5481e4516e860e9ec00a514bfada1d49a7c1a6b"
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
@@ -1909,7 +1922,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
-      "sha256": "623893f53d359a7651bb133793c71a563b1ad40ddb9041cd003d40d42a3c6f09"
+      "sha256": "41ed59578f14f791d2428317a8d05b1f13992215f3830bfdad8480ef02d7b8f5"
     },
     {
       "path": "version/3.0/ripscrip/5.4-popup-lists.md",
@@ -1917,7 +1930,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "3547999cc15adc1d0ca742b46ad4386d41d901f69e3cdfbe56c1f6add364b14f"
+      "sha256": "36a0e0b0ee62087b04be93e7ef41bac30f524793f21b0e0e43f7595fe0c204c3"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1945,7 +1958,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "7bf42b804df1c8a71eee42877f15fc26b38296a17dfb14f3e510d6878002a810"
+      "sha256": "7a31ef894af6691210ea0acc1cab53dfd603c7fed242badea8eabef8bc542223"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2016,7 +2029,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "d53bc6acaca98c3f7a369ff4e97333f80acb311b",
+  "previous_ledger_commit": "91386830b86180bc23fc9e34a1f6b12f3559ba9f",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -19759,6 +19772,132 @@
         "excluded": 71,
         "blocked": 10
       }
+    },
+    {
+      "previous_revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
+      "revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
+      "archive_sha256": "2d6323e13c1ea240c6d168cdf5709b8feed9207ed9c97532c37c908da9573c42",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/269",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/271",
+          "reviewed_head": "94560904e4990258bb14ca3135a12bdb4bd20624",
+          "integration": "6f7371368fca146da5b1db9a0267d0bc059795ed"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/270",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/272",
+          "reviewed_head": "f2d4dabbbd832dcebcff73dcc000507d3ec20685",
+          "integration": "e7534a26c8e893a1390153f151171f62ff7d4f6f"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "4354223f655cdf57bff0cbe15aba092e2a98f2b7a66b1ff8fe3688b7b3694228",
+          "sha256": "d9b16e7c07e73a4169fd8f0bb2f573c9d974b846735d32ccc4e297c3bdd3b02a"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+          "previous_sha256": "91783db83a041754321b908fe173e78724d151ec41cc2f954321bb26c780be06",
+          "sha256": "c012660108ca9431906816f0bf576688d378fd29314726e54f3f7d753b0910c5"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.5-audio-files.md",
+          "previous_sha256": "949072bb6bf5f0c95b82c7a65fa497a6b8276de399379da9dc7bbbe4887500dc",
+          "sha256": "98920cbb60c98b241e782ce2c5481e4516e860e9ec00a514bfada1d49a7c1a6b"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.3-local-playback.md",
+          "previous_sha256": "623893f53d359a7651bb133793c71a563b1ad40ddb9041cd003d40d42a3c6f09",
+          "sha256": "41ed59578f14f791d2428317a8d05b1f13992215f3830bfdad8480ef02d7b8f5"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "3547999cc15adc1d0ca742b46ad4386d41d901f69e3cdfbe56c1f6add364b14f",
+          "sha256": "36a0e0b0ee62087b04be93e7ef41bac30f524793f21b0e0e43f7595fe0c204c3"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "7bf42b804df1c8a71eee42877f15fc26b38296a17dfb14f3e510d6878002a810",
+          "sha256": "7a31ef894af6691210ea0acc1cab53dfd603c7fed242badea8eabef8bc542223"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-269-play-audio-repeat.md",
+          "sha256": "b80f58738e672af3f63e298606e60c9cfbe77d6f1576fc3e79e77dff5860321e",
+          "title": "Issue #269 — PLAY_AUDIO flags and filename expansion",
+          "role": "Original waveform descriptor, text expansion order and repeat flags."
+        },
+        {
+          "path": "version/3.0/research/issue-270-coordinate-and-fixed-field-edges.md",
+          "sha256": "8dc3046b4a55b4621813e4dfd17ef9b35e28ee5e4d30549be08eb6fc2f212d6f",
+          "title": "Issue #270 — Coordinate width and fixed-field edge cases",
+          "role": "Original optional reserves, coordinate effect and zero-argument dispatch."
+        }
+      ],
+      "moved_source_blocks": 394,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:211",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:531",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:535",
+        "version/3.0/ripscrip/4.5-audio-files.md:35",
+        "version/3.0/ripscrip/4.5-audio-files.md:36",
+        "version/3.0/ripscrip/4.5-audio-files.md:37",
+        "version/3.0/ripscrip/4.5-audio-files.md:38",
+        "version/3.0/ripscrip/4.5-audio-files.md:39",
+        "version/3.0/ripscrip/4.5-audio-files.md:41",
+        "version/3.0/ripscrip/4.5-audio-files.md:43",
+        "version/3.0/ripscrip/4.5-audio-files.md:45",
+        "version/3.0/ripscrip/4.5-audio-files.md:47",
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/4.5-audio-files.md:51",
+        "version/3.0/ripscrip/4.5-audio-files.md:52",
+        "version/3.0/ripscrip/4.5-audio-files.md:53",
+        "version/3.0/ripscrip/4.5-audio-files.md:54",
+        "version/3.0/ripscrip/4.5-audio-files.md:55",
+        "version/3.0/ripscrip/4.5-audio-files.md:56",
+        "version/3.0/ripscrip/4.5-audio-files.md:58",
+        "version/3.0/ripscrip/5.3-local-playback.md:134",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:464",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:466",
+        "version/3.0/ripscrip/9.0-command-reference.md:40",
+        "version/3.0/ripscrip/9.0-command-reference.md:200",
+        "version/3.0/ripscrip/9.0-command-reference.md:225",
+        "version/3.0/ripscrip/9.0-command-reference.md:255"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:531",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:535",
+        "version/3.0/ripscrip/4.5-audio-files.md:35",
+        "version/3.0/ripscrip/4.5-audio-files.md:36",
+        "version/3.0/ripscrip/4.5-audio-files.md:37",
+        "version/3.0/ripscrip/4.5-audio-files.md:38",
+        "version/3.0/ripscrip/4.5-audio-files.md:39",
+        "version/3.0/ripscrip/4.5-audio-files.md:41",
+        "version/3.0/ripscrip/4.5-audio-files.md:43",
+        "version/3.0/ripscrip/4.5-audio-files.md:45",
+        "version/3.0/ripscrip/4.5-audio-files.md:47",
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/4.5-audio-files.md:51",
+        "version/3.0/ripscrip/4.5-audio-files.md:53",
+        "version/3.0/ripscrip/5.3-local-playback.md:134",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:464",
+        "version/3.0/ripscrip/9.0-command-reference.md:40",
+        "version/3.0/ripscrip/9.0-command-reference.md:200",
+        "version/3.0/ripscrip/9.0-command-reference.md:225",
+        "version/3.0/ripscrip/9.0-command-reference.md:255"
+      ],
+      "states_after_update": {
+        "unreviewed": 2123,
+        "context": 1978,
+        "pending": 1375,
+        "implemented": 3961,
+        "blocked": 15,
+        "excluded": 71
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -25942,6 +26081,39 @@
         "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:462",
         "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:464",
         "version/3.0/ripscrip/9.0-command-reference.md:40",
+        "version/3.0/ripscrip/9.0-command-reference.md:225"
+      ]
+    },
+    {
+      "after_commit": "91386830b86180bc23fc9e34a1f6b12f3559ba9f",
+      "revision": "e7534a26c8e893a1390153f151171f62ff7d4f6f",
+      "scope": "Match the adopted waveform and fixed-field rules to the connected implementation. Fix E for a zero WORLD and record the pending full-port black erase discrepancy.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/269",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/270",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/273"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:211",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:531",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:535",
+        "version/3.0/ripscrip/4.5-audio-files.md:37",
+        "version/3.0/ripscrip/4.5-audio-files.md:38",
+        "version/3.0/ripscrip/4.5-audio-files.md:39",
+        "version/3.0/ripscrip/4.5-audio-files.md:41",
+        "version/3.0/ripscrip/4.5-audio-files.md:45",
+        "version/3.0/ripscrip/4.5-audio-files.md:47",
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/4.5-audio-files.md:53",
+        "version/3.0/ripscrip/4.5-audio-files.md:54",
+        "version/3.0/ripscrip/4.5-audio-files.md:55",
+        "version/3.0/ripscrip/4.5-audio-files.md:56",
+        "version/3.0/ripscrip/4.5-audio-files.md:58",
+        "version/3.0/ripscrip/5.3-local-playback.md:134",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:464",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:466",
+        "version/3.0/ripscrip/9.0-command-reference.md:40",
+        "version/3.0/ripscrip/9.0-command-reference.md:200",
         "version/3.0/ripscrip/9.0-command-reference.md:225"
       ]
     }

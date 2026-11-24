@@ -1589,3 +1589,18 @@ the count of decoded colors in bulk palette commands.
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/205a3871170ac0b29d25e0db2059fe39a01a3138),
 [PR #267](https://github.com/bbs-land/remote-imaging-protocol/pull/267),
 [PR #268](https://github.com/bbs-land/remote-imaging-protocol/pull/268)
+
+
+## Waveform and fixed-field command rules
+
+The reference advances to `e7534a26c8e893a1390153f151171f62ff7d4f6f`.
+The stable integrations match the reviewed heads of PRs #271 and #272.
+The Git archive has SHA-256
+`2d6323e13c1ea240c6d168cdf5709b8feed9207ed9c97532c37c908da9573c42`.
+The six changed chapters specify the waveform flags and filename
+expansion, coordinate width fallback, optional reserves, and zero-argument
+dispatch.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/e7534a26c8e893a1390153f151171f62ff7d4f6f),
+[PR #271](https://github.com/bbs-land/remote-imaging-protocol/pull/271),
+[PR #272](https://github.com/bbs-land/remote-imaging-protocol/pull/272)
