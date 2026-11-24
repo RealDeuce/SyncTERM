@@ -23992,6 +23992,37 @@
         "excluded": 71,
         "blocked": 20
       }
+    },
+    {
+      "after_commit": "498b146ce02a31f10cd912b2a83c3da7c36b061f",
+      "revision": "1504b9597a766acde14b463864cecf8e21e84293",
+      "scope": "Consume quotes for literal pipe, SOH and STX in RIPv3 framing before evaluating text arguments.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:167",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:169",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:171"
+      ],
+      "tests": [
+        "rip3_stream",
+        "rip3_session",
+        "syncterm_rip3_graphical_CP437",
+        "syncterm_rip3_graphical_UTF-8",
+        "rip3_stream_fault",
+        "syncterm_rip3_columns_CP437",
+        "syncterm_rip3_columns_UTF-8",
+        "syncterm_rip3_buttons_CP437",
+        "syncterm_rip3_buttons_UTF-8",
+        "rip3_contract",
+        "rip154_source_freeze"
+      ],
+      "states_after_update": {
+        "unreviewed": 2155,
+        "context": 1924,
+        "pending": 1436,
+        "implemented": 3765,
+        "excluded": 71,
+        "blocked": 20
+      }
     }
   ],
   "archive_format": "git archive --format=tar"

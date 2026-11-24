@@ -123,7 +123,10 @@ boundaries(void)
 	EXAMPLE("x\0!|J10\r", "x\0", "J10\0", 1);
 	EXAMPLE("!|||\r!|\r!|n2||J10|\r", "", "n2\0J10\0", 2);
 	EXAMPLE("!|fZK\\\r\nQO|J1\\\r0\r", "", "fZKQO\0J10\0", 2);
-	EXAMPLE("!|@0000one\\|two\\!three\\\\\r", "", "@0000one\\|two\\!three\\\\\0", 1);
+	EXAMPLE("!|@0000one\\|two\\!three\\\\\r", "", "@0000one|two\\!three\\\\\0", 1);
+	EXAMPLE("!|T\\$SHIFT\\$-\\[-\\]-\\(-\\!-\\|-\\\\\r\n", "",
+	    "T\\$SHIFT\\$-\\[-\\]-\\(-\\!-|-\\\\\0", 1);
+	EXAMPLE("!|Ta\\\001b\\\002c\\\\\\|d|J10\r\n", "", "Ta\001b\002c\\\\|d\0J10\0", 2);
 	EXAMPLE("!|@0000end\\\\\\\r\ncontinued\r", "", "@0000end\\\\continued\0", 1);
 	EXAMPLE("!|@0000end\\\\|J10\r", "", "@0000end\\\\\0J10\0", 2);
 	EXAMPLE("!|J1\n0\r", "0\r", "J1\0", 1);

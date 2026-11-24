@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-13439551837a9fa140a19b5ad03ba9b73a56b8c2](https://github.com/RealDeuce/remote-imaging-protocol/tree/13439551837a9fa140a19b5ad03ba9b73a56b8c2/version/3.0)
+1504b9597a766acde14b463864cecf8e21e84293](https://github.com/RealDeuce/remote-imaging-protocol/tree/1504b9597a766acde14b463864cecf8e21e84293/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -1325,9 +1325,11 @@ follow the verified original wire behavior.
 It recognizes line-start ! and anywhere SOH/STX, uses an optional text-window
 cursor callback after raw output, preserves bogus/escaped introducers as text,
 and buffers complete opaque command spans across arbitrary packet splits.
-Unquoted pipes chain commands; CR dispatches, mid-command LF is swallowed, and
-an odd final backslash continues a command across physical lines. Backslash
-quoting otherwise stays intact for subsequent argument/expansion processing.
+Unquoted pipes chain commands. CR, LF and form feed terminate a command,
+and an odd final backslash continues it across physical lines. A backslash
+before SOH, STX or a pipe in a text parameter is consumed by the framer,
+which delivers the quoted byte as data. Other quotes pass through to the
+argument or expansion parser.
 The framer does not adjudicate the unresolved level-depth or ESC/query priority
 rules under #7. Comments use their documented any-pipe boundary and bypass
 variable expansion in the command adapter. Terminal grouping begin/end are
@@ -10174,3 +10176,15 @@ and verify recovery after a buffer allocation failure. Connected CP437 and
 UTF-8 tests verify the exact replies and ANSI text following bare delimiters
 and the reply from a command continued across mixed line endings.
 [Pinned framing contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1504b9597a766acde14b463864cecf8e21e84293/version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md#chaining-continuation-and-line-endings)
+
+## RIPv3 text quoting
+
+Quoted SOH, STX and pipe bytes reach the command consumer without their
+framing backslash. In a live host response, a quoted pipe therefore occupies
+one byte of the 4096-byte working prefix. Dollar quotes still reach the host
+evaluator. Quoting both delimiters of `$SHIFT$` transmits literal text.
+Quoting only the opening dollar allows expansion in pass one.
+Native split-input cases check exact command bytes, slash parity and command
+chaining. Connected CP437 and UTF-8 cases check the literal bytes, variable
+expansion and the end of a full-size host response.
+[Pinned quoting contract](https://github.com/RealDeuce/remote-imaging-protocol/blob/1504b9597a766acde14b463864cecf8e21e84293/version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md#escaping-in-text-parameters)

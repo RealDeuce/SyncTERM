@@ -176,7 +176,14 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 			}
 			if (stream->length == 0 && !stream->dropping)
 				stream->comment = byte == '!';
-			append(stream, byte);
+			if (stream->quoted && !stream->comment && (byte == '|' || byte == 1 || byte == 2)) {
+				/* These bytes were quoted for framing. Replace the stored
+				 * slash with the literal byte before passing the command on. */
+				if (!stream->dropping)
+					stream->command[stream->length-1] = byte;
+			}
+			else
+				append(stream, byte);
 			/* Preserve parity even after allocation failure, so an
 			 * escaped pipe/continued CR cannot resume in corrupt data. */
 			stream->quoted = byte == '\\' ? !stream->quoted : false;

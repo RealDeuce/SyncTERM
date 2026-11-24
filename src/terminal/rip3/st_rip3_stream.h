@@ -23,8 +23,8 @@ struct st_rip3_stream_sink {
 	/* Complete command ID and arguments, without introducer, delimiter or
 	 * physical line endings. CR, LF and FF each terminate commands. A CR also
 	 * consumes its optional LF across input calls; ordinary text is unchanged.
-	 * Backslash quoting remains intact for the later
-	 * expansion/argument stages; only continuation backslashes are removed.
+	 * Quotes for SOH, STX and pipe are consumed by framing. Other quotes are
+	 * passed to expansion/argument stages, except continuation backslashes.
 	 * Comments are delivered too and MUST bypass variable expansion. No level
 	 * digits or command arguments are interpreted by this framing layer. */
 	void (*command)(void *context, const uint8_t *bytes, size_t length);

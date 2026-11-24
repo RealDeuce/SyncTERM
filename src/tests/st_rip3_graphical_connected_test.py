@@ -45,6 +45,13 @@ def run(args):
             t.exchange(b'\x01|m0000|T'+source+b'\r\n'+query(b'$TEXTXY$',at_cursor=True),
                        f'{len(expected)*8}:0'.encode())
         values(b'$WORLD$',b'640:480')
+
+        t.case("rip3-wire-quote-decoding-precedes-host-expansion")
+        values(b"A\\|B\\\x01C\\\x02D\\$SHIFT\\$", b"A|B\x01C\x02D$SHIFT$")
+        values(b"\\$SHIFT$:after", b"0:after")
+        # The framing quote does not occupy one of the 4096 host bytes.
+        values(b"A" * 4094 + b"\\|Z", b"A" * 4094 + b"|Z")
+
         t.case('rip3-graphical-angle-template-and-single-ordinary-pass')
         values(b'[3:]$RESX$')
         values(b'[4:]$?3$')
