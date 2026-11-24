@@ -74,7 +74,7 @@ profile(struct st_rip3_audio *player, audio_engine_t *engine,
 	little(encoded + 34, bits, 2); little(encoded + 40, (uint32_t)bytes, 4);
 	memcpy(encoded + 44, samples, bytes);
 	CHECK(put(file, encoded, size) == 0);
-	CHECK(st_rip3_audio_play(player, paths, "bad.wav") == 0);
+	CHECK(st_rip3_audio_play(player, paths, "bad.wav", false) == 0);
 	CHECK(pull(engine, sounding + 2, sounding, left, right) == 0);
 	return 0;
 }
@@ -143,46 +143,46 @@ main(int argc, char **argv)
 	CHECK(st_rip3_audio_create(&player, NULL, 0, 0) == IO_ERROR_INVALID_ARGUMENT && player == NULL);
 	CHECK(st_rip3_audio_create(&player, engine, 97, 0) == IO_ERROR_INVALID_ARGUMENT && player == NULL);
 	CHECK(st_rip3_audio_create(&player, engine, 0, 0) == 0);
-	CHECK(st_rip3_audio_play(player, &paths, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_audio_play(player, &paths, NULL, false) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_audio_stop(NULL) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_audio_stop(player) == 0 && pull(engine, 5, 0, 0, 0) == 0);
 	/* Every short prefix fails before changing the stream. */
 	for (size_t size = 0; size < sizeof(wave); size++) {
 		CHECK(put(bad_file, wave, size) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "bad.wav") == IO_ERROR_INVALID_FORMAT);
+		CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == IO_ERROR_INVALID_FORMAT);
 	}
 	memcpy(malformed, wave, sizeof(wave)); malformed[20] = 3; /* IEEE float. */
 	CHECK(put(bad_file, malformed, sizeof(malformed)) == 0);
-	CHECK(st_rip3_audio_play(player, &paths, "bad.wav") == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == IO_ERROR_NOT_SUPPORTED);
 	memcpy(malformed, wave, sizeof(wave)); malformed[32] = 3; /* Bad block alignment. */
 	CHECK(put(bad_file, malformed, sizeof(malformed)) == 0);
-	CHECK(st_rip3_audio_play(player, &paths, "bad.wav") == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == IO_ERROR_INVALID_FORMAT);
 	memcpy(malformed, wave, sizeof(wave)); memset(malformed + 40, 0xff, 4);
 	CHECK(put(bad_file, malformed, sizeof(malformed)) == 0);
-	CHECK(st_rip3_audio_play(player, &paths, "bad.wav") == IO_ERROR_INVALID_FORMAT);
-	CHECK(st_rip3_audio_play(player, &paths, "missing.wav") == 0);
-	CHECK(st_rip3_audio_play(player, &paths, "../tone.wav") == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_audio_play(player, &paths, "missing.wav", false) == 0);
+	CHECK(st_rip3_audio_play(player, &paths, "../tone.wav", false) == IO_ERROR_INVALID_ARGUMENT);
 	if (st_audio_file_available()) {
-		CHECK(st_rip3_audio_play(player, &paths, "TONE.WAV") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "TONE.WAV", false) == 0);
 		/* Existing mixer Q15 scaling then tanh limiting gives literal pairs
 		 * 1000/-1000 -> 998/-999 and 2000/-2000 -> 1996/-1997. */
 		CHECK(pull(engine, 2, 2, 998, -999) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "missing.wav") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "missing.wav", false) == 0);
 		/* Valid container but empty PCM reaches the shared decoder's failure
 		 * path; the previous decoded tail remains owned by the player. */
 		uint8_t empty[44];
 		memcpy(empty, wave, sizeof(empty)); empty[4] = 36; memset(empty + 40, 0, 4);
 		CHECK(put(bad_file, empty, sizeof(empty)) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "bad.wav") == IO_ERROR_INVALID_FORMAT);
+		CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == IO_ERROR_INVALID_FORMAT);
 		CHECK(pull(engine, 5, 2, 998, -999) == 0); /* Failed lookup/load retained the tail. */
-		CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == 0);
 		CHECK(pull(engine, 1, 1, 998, -999) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "other.dat") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "other.dat", false) == 0);
 		CHECK(pull(engine, 6, 4, 1996, -1997) == 0); /* Replace, no queued old tail/mixing. */
-		CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == 0);
-		CHECK(st_rip3_audio_play(player, NULL, "$OFF$") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == 0);
+		CHECK(st_rip3_audio_play(player, NULL, "$OFF$", false) == 0);
 		CHECK(pull(engine, 8, 0, 0, 0) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == 0);
 		CHECK(st_rip3_audio_stop(player) == 0 && pull(engine, 8, 0, 0, 0) == 0);
 		/* Unknown chunks are walked with RIFF word padding. */
 		uint8_t padded[sizeof(wave) + 10];
@@ -190,7 +190,7 @@ main(int argc, char **argv)
 		memcpy(padded + 36, "JUNK\001\000\000\000\127\000", 10);
 		memcpy(padded + 46, wave + 36, sizeof(wave) - 36);
 		CHECK(put(bad_file, padded, sizeof(padded)) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "bad.wav") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "bad.wav", false) == 0);
 		CHECK(pull(engine, 6, 4, 998, -999) == 0);
 		static const uint8_t mono8[] = {132,132,132}; /* +1024, with RIFF padding. */
 		static const uint8_t mono16[] = {0xe8,3,0xe8,3,0xe8,3,0xe8,3};
@@ -222,7 +222,7 @@ main(int argc, char **argv)
 			CHECK(st_condition_wait(&consumer.condition, &consumer.mutex) == ST_THREAD_SUCCESS);
 		CHECK(st_mutex_unlock(&consumer.mutex) == ST_THREAD_SUCCESS);
 		for (unsigned i = 0; i < 50; i++) {
-			CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == 0);
+			CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == 0);
 			CHECK(st_rip3_audio_stop(player) == 0);
 		}
 		/* Destroy quiesces its callback while the engine consumer stays alive. */
@@ -232,14 +232,14 @@ main(int argc, char **argv)
 		CHECK(!consumer.failed && consumer.pulls != 0);
 		st_condition_destroy(&consumer.condition); st_mutex_destroy(&consumer.mutex);
 		CHECK(st_rip3_audio_create(&player, engine, 0, 0) == 0);
-		CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == 0);
+		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == 0);
 		audio_engine_stop(engine);
-		CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == IO_ERROR_CANCELLED);
+		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == IO_ERROR_CANCELLED);
 		CHECK(st_rip3_audio_stop(player) == 0);
 		puts("RIP3 WAV PCM and concurrent playback lifecycle verified");
 	}
 	else {
-		CHECK(st_rip3_audio_play(player, &paths, "tone.wav") == IO_ERROR_NOT_SUPPORTED);
+		CHECK(st_rip3_audio_play(player, &paths, "tone.wav", false) == IO_ERROR_NOT_SUPPORTED);
 		CHECK(pull(engine, 8, 0, 0, 0) == 0);
 		puts("RIP3 WAV decoder unavailable: rejection and format/lifecycle checks verified");
 	}

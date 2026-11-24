@@ -47,7 +47,7 @@
 
 enum graphical_job {
 	GRAPHICAL_NONE, GRAPHICAL_TEXT, GRAPHICAL_METRIC, GRAPHICAL_DIRECTORY, GRAPHICAL_SCENE,
-	GRAPHICAL_COLUMN_SEARCH, GRAPHICAL_IMAGE, GRAPHICAL_FONT,
+	GRAPHICAL_COLUMN_SEARCH, GRAPHICAL_IMAGE, GRAPHICAL_FONT, GRAPHICAL_WAVE,
 };
 
 enum { SCENE_LIMIT = 8 };
@@ -102,6 +102,7 @@ struct st_rip3_session {
 	struct st_rip3_text_argument text_argument;
 	struct st_rip3_outline_style font_argument;
 	enum graphical_job graphical_job;
+	bool wave_repeat;
 	struct st_rip3_metric_argument metric_argument;
 	struct st_rip3_metric_state metric;
 	bool text_retained;
@@ -1194,6 +1195,34 @@ consume(void *context, uint8_t byte)
 		st_rip3_stream_process(scene->stream, data, size);
 }
 
+static int
+play_wave(struct st_rip3_session *session, const struct st_rip3_condition_bytes *result)
+{
+	size_t start = st_rip3_filename_tail(result->bytes, result->length);
+	if (start == result->length)
+		return 0;
+	if (session->commands.audio == NULL || session->commands.resources == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	const char *name = (const char *)result->bytes + start;
+	size_t length = result->length - start;
+	if (!st_rip3_resource_name_valid(name))
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (memchr(name, '.', length) != NULL)
+		return st_rip3_audio_play(session->commands.audio, session->commands.resources,
+		    name, session->wave_repeat);
+	/* The stop spelling is recognized before expansion. Expanded $OFF$
+	 * therefore supplies an ordinary filename with the default extension. */
+	char *with_extension = malloc(length + sizeof(".wav"));
+	if (with_extension == NULL)
+		return IO_ERROR_OUT_OF_MEMORY;
+	memcpy(with_extension, name, length);
+	memcpy(with_extension + length, ".wav", sizeof(".wav"));
+	int status = st_rip3_audio_play(session->commands.audio, session->commands.resources,
+	    with_extension, session->wave_repeat);
+	free(with_extension);
+	return status;
+}
+
 static bool
 continuation_pending(const struct st_rip3_session *session)
 {
@@ -1267,6 +1296,10 @@ prepare(void *context)
 					operation = true;
 					status = st_rip3_font_commands_expanded(&session->commands,
 					    &session->font_argument, result->bytes, result->length);
+				}
+				else if (session->graphical_job == GRAPHICAL_WAVE) {
+					operation = true;
+					status = play_wave(session, result);
 				}
 				else status=st_rip3_text_commands_expanded(&session->commands,&session->text_argument,
 				    retained ? session->metric.bytes : result->bytes,retained ? session->metric.length : result->length,&operation);
@@ -1623,6 +1656,30 @@ read_scene(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 }
 
 static int
+wire_wave(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	struct st_rip3_fields fields = {bytes + 2, length - 2};
+	struct st_rip3_environment env;
+	unsigned current;
+	uint64_t flags;
+	int status = st_rip3_command_environment(&session->commands, &current, &env);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, &flags, 1, env.base_math, false);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, NULL, 3, env.base_math, false);
+	if (status != 0)
+		return status;
+	if (fields.remaining == 0 || memchr(fields.bytes, 0, fields.remaining) != NULL)
+		return IO_ERROR_INVALID_FORMAT;
+	if (ascii_case_span_equal((const char *)fields.bytes, fields.remaining, "$OFF$"))
+		return session->commands.audio == NULL ? IO_ERROR_NOT_SUPPORTED : st_rip3_audio_stop(session->commands.audio);
+	session->wave_repeat = (flags & 1) != 0;
+	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_WAVE, fields.bytes, fields.remaining);
+	session->graphical_job = GRAPHICAL_WAVE;
+	return 0;
+}
+
+static int
 define_column(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
 	size_t tail;
@@ -1791,6 +1848,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink, define_variable(session, bytes, length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'R')
 		read_scene(session,bytes,length);
+	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'w')
+		st_rip3_command_result(&sink, wire_wave(session, bytes, length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'p') {
 		size_t filename;
 		int status = st_rip3_image_argument_prepare(&session->commands, bytes, length, &filename);
@@ -2099,7 +2158,7 @@ playback(void *context, enum st_rip3_playback_kind kind, const char *filename)
 	if (kind==ST_RIP3_PLAYBACK_WAVE) {
 		if (session->commands.audio==NULL || session->commands.resources==NULL)
 			return IO_ERROR_NOT_SUPPORTED;
-		return st_rip3_audio_play(session->commands.audio,session->commands.resources,filename);
+		return st_rip3_audio_play(session->commands.audio,session->commands.resources,filename,false);
 	}
 	if (kind==ST_RIP3_PLAYBACK_BITMAP) return st_rip3_command_bitmap_playback(&session->commands,filename);
 	if (kind!=ST_RIP3_PLAYBACK_JPEG) return IO_ERROR_NOT_SUPPORTED;

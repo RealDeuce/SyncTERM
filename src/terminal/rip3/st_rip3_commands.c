@@ -1,7 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_command_internal.h"
 #include "st_rip3_refresh.h"
-#include "st_rip3_audio.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_input.h"
 #include "st_rip3_mouse.h"
@@ -12,7 +11,6 @@
 #include "st_rip3_styles.h"
 #include "st_rip3_text_window.h"
 #include "st_rip3_maf.h"
-#include "string_compat.h"
 #include "io_error.h"
 
 #include <stdbool.h>
@@ -556,25 +554,6 @@ execute(const struct st_rip3_command_host *host,
 		return st_rip3_bitmap_load_commands_execute(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && (command[1] == 'p' || command[1] == 'i'))
 		return st_rip3_image_commands_execute(host,command,length,operation);
-	if (length >= 2 && command[0] == '1' && command[1] == 'w') {
-		char *filename;
-		bool off;
-
-		if (length < 7)
-			return IO_ERROR_INVALID_FORMAT;
-		if (memcmp(command + 2, "0000", 4) != 0)
-			return IO_ERROR_NOT_SUPPORTED;
-		off = length == 11 && memcmp(command + 6, "$OFF$", 5) == 0;
-		if (host->audio == NULL || (host->resources == NULL && !off))
-			return IO_ERROR_NOT_SUPPORTED;
-		filename = strndup((const char *)command + 6, length - 6);
-		if (filename == NULL)
-			return IO_ERROR_OUT_OF_MEMORY;
-		*operation = true;
-		status = st_rip3_audio_play(host->audio, host->resources, filename);
-		free(filename);
-		return status;
-	}
 	if ((length >= 2 && command[0] == '1' && command[1] == 'P')
 	    || command[0] == 'v' || (length >= 2 && command[0] == '2'
 	    && (command[1] == 'P' || command[1] == 'p' || command[1] == 'C' || command[1] == 's')))

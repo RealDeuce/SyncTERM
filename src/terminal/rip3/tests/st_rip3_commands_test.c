@@ -289,7 +289,7 @@ baud(enum st_rip3_canvas canvas)
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_environment before, value, other;
 	unsigned current;
-	const char *invalid[] = {"3e","3e0","3e?0","3e0?00"};
+	const char *invalid[] = {"3e","3e0.","3e?0","3e0?00"};
 	CHECK(st_rip3_environments_create(&host.environments, canvas) == 0);
 	CHECK(process(&missing, "3e0000", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
@@ -316,7 +316,9 @@ baud(enum st_rip3_canvas canvas)
 	CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
 	CHECK(process(&host, "3e----", ST_RIP3_COMMAND_INVALID) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "10") == 0);
-	CHECK(process(&host, "3e0000", -1) == 0);
+	CHECK(process(&host, "3e2", -1) == 0);
+	CHECK(query(host.environments, "$BAUDEMUL$", "2") == 0);
+	CHECK(process(&host, "3e.", -1) == 0);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "3e&&&&", -1) == 0);
@@ -449,7 +451,31 @@ host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *reso
 	st_rip3_session_process(session,4096);
 	CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1);
 	CHECK(pcm(engine,0)==0);
+	input=(struct playback_input){"!|1w0000|1w.0.bad.wav|1w..bad.wav|1w..missing|1\0330000alive\r",
+	    {.expected="alive"},0};
+	st_rip3_session_process(session,4096);
+	CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==3);
+	CHECK(pcm(engine,0)==0);
 	if (st_audio_file_available()) {
+		input=(struct playback_input){"!|1\0330000$-=CLIP=tone name$|1w1.$&CLIP$|1\0330000repeat\r",
+		    {.expected="repeat"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
+		CHECK(pcm(engine,6)==0 && pcm(engine,6)==0);
+		input=(struct playback_input){"!|1w.0.bad.wav|1w1.missing|1\0330000still\r",{.expected="still"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1);
+		CHECK(pcm(engine,6)==0);
+		input=(struct playback_input){"!|1w277Ztone name|1\0330000once\r",{.expected="once"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
+		CHECK(pcm(engine,4)==0 && pcm(engine,0)==0);
+		input=(struct playback_input){"!|1w3000tone name.wav|1\0330000repeat\r",{.expected="repeat"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(engine,6)==0);
+		input=(struct playback_input){"!|1w..$oFf$|1\0330000off\r",{.expected="off"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(engine,0)==0);
 		input=(struct playback_input){"!|1\0330000$)tone name$$)\\$OFF\\$$live\r",{.expected="live"},0};
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
@@ -461,8 +487,16 @@ host_wave(struct st_rip3_audio *audio, const struct st_rip3_resource_paths *reso
 		st_rip3_session_process(session,4096);
 		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0);
 		CHECK(pcm(engine,4)==0);
+		input=(struct playback_input){"!|1w..\\$OFF\\$|1\0330000literal\r",{.expected="literal"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==0 && pcm(engine,4)==0);
 		CHECK(fs_remove_file(off_file)==0);
 		free(off_file);
+	}
+	else {
+		input=(struct playback_input){"!|1w1.tone name|1\0330000unavailable\r",{.expected="unavailable"},0};
+		st_rip3_session_process(session,4096);
+		CHECK(input.answer.replies==1 && !input.answer.mismatch && input.errors==1 && pcm(engine,0)==0);
 	}
 	st_rip3_session_destroy(session);
 	return 0;
@@ -500,33 +534,7 @@ main(int argc, char **argv)
 	CHECK(fs_replace_file(bad, "bad", 3) == 0);
 	CHECK(audio_engine_create_pull(&engine) == 0);
 	CHECK(st_rip3_audio_create(&audio, engine, 0,0) == 0);
-	resources.host = argv[1]; host.audio = audio; host.resources = &resources;
-	CHECK(process(&host, "1w0000", ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&host, "1w1234tone name.wav", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(process(&host, "1w0000bad.wav", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(process(&host, "1w0000missing.wav", -1) == 0);
-	host.resources = NULL;
-	CHECK(process(&host, "1w0000$OFF$", -1) == 0);
-	CHECK(pcm(engine, 0) == 0);
-	host.resources = &resources;
-	if (st_audio_file_available()) {
-		CHECK(process(&host, "1w0000tone name.wav", -1) == 0);
-		CHECK(pcm(engine, 4) == 0);
-		CHECK(process(&host, "1w0000tone name.wav", -1) == 0);
-		CHECK(process(&host, "1w0010tone name.wav", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-		CHECK(process(&host, "1w0000missing.wav", -1) == 0);
-		CHECK(process(&host, "1w0000bad.wav", ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-		CHECK(pcm(engine, 4) == 0);
-		st_rip3_commands_process(&host, NULL, (const uint8_t *)"1w0000tone name.wav", 19);
-		CHECK(pcm(engine, 4) == 0);
-		CHECK(process(&host, "1w0000tone name.wav", -1) == 0);
-		host.resources = NULL;
-		CHECK(process(&host, "1w0000$OFF$", -1) == 0);
-		CHECK(pcm(engine, 0) == 0);
-		host.resources = &resources;
-	}
-	else
-		CHECK(process(&host, "1w0000tone name.wav", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	resources.host = argv[1];
 	CHECK(host_wave(audio,&resources,engine,wave,sizeof(wave))==0);
 	st_rip3_audio_destroy(audio); audio_engine_destroy(engine);
 	CHECK(fs_remove_file(file) == 0 && fs_remove_file(bad) == 0);

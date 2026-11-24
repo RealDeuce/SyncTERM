@@ -25873,6 +25873,29 @@
         "version/3.0/ripscrip/9.0-command-reference.md:57",
         "version/3.0/ripscrip/9.0-command-reference.md:74"
       ]
+    },
+    {
+      "after_commit": "816a95aee3b639528255a4922445ab568fa52465",
+      "revision": "205a3871170ac0b29d25e0db2059fe39a01a3138",
+      "scope": "Implement wire WAV flags, filename continuation and repeat playback through the connected RIPv3 parser.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/269"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/4.5-audio-files.md:7",
+        "version/3.0/ripscrip/4.5-audio-files.md:17",
+        "version/3.0/ripscrip/4.5-audio-files.md:19",
+        "version/3.0/ripscrip/4.5-audio-files.md:37",
+        "version/3.0/ripscrip/4.5-audio-files.md:38",
+        "version/3.0/ripscrip/4.5-audio-files.md:39",
+        "version/3.0/ripscrip/4.5-audio-files.md:41",
+        "version/3.0/ripscrip/4.5-audio-files.md:43",
+        "version/3.0/ripscrip/4.5-audio-files.md:45",
+        "version/3.0/ripscrip/4.5-audio-files.md:47",
+        "version/3.0/ripscrip/4.5-audio-files.md:49",
+        "version/3.0/ripscrip/4.5-audio-files.md:51",
+        "version/3.0/ripscrip/9.0-command-reference.md:200"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

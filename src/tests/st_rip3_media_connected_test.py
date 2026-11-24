@@ -612,6 +612,13 @@ def run(args):
         assets = owner.parent / "RIP"
         assets.mkdir(exist_ok=True)
         check_read_scene(t, root, assets, args.encoding)
+        t.case("Wire WAV filenames expand through the connected editor")
+        t.send(b"\x01|1w1.$*=WAVENAME,24@Wave name$|1\x1b0000$&WAVENAME$:alive\r\n")
+        client.wait_text("Wave name")
+        client.text("local clip")
+        client.key("enter")
+        frame = t.input(b"local clip:alive")
+        assert frame.application["connected"] == 1
         fixture = Path(__file__).resolve().parents[1] / "media/pixel_image/tests/jpeg/gray.jpg"
         contents = fixture.read_bytes()
         (assets / "Gray.jpg").write_bytes(contents)

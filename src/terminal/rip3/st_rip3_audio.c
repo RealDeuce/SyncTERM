@@ -21,6 +21,7 @@ struct st_rip3_audio {
 	st_mutex_t mutex;
 	int16_t *frames;
 	size_t count, position;
+	bool repeat;
 	struct st_rip3_tones tones;
 	uint32_t tone_frames, phase, millisecond_remainder;
 	uint16_t frequency;
@@ -122,19 +123,23 @@ static size_t
 source(void *context, int16_t *output, size_t requested)
 {
 	struct st_rip3_audio *player = context;
-	size_t count;
+	size_t produced = 0;
 
 	if (st_mutex_lock(&player->mutex) != ST_THREAD_SUCCESS)
 		return 0;
-	count = player->count - player->position;
-	if (count > requested)
-		count = requested;
-	if (count != 0)
-		memcpy(output, player->frames + player->position * AUDIO_CHANNELS,
+	while (produced < requested && player->position < player->count) {
+		size_t count = player->count - player->position;
+		if (count > requested - produced)
+			count = requested - produced;
+		memcpy(output + produced * AUDIO_CHANNELS, player->frames + player->position * AUDIO_CHANNELS,
 		    count * AUDIO_FRAME_SIZE);
-	player->position += count;
+		produced += count;
+		player->position += count;
+		if (player->repeat && player->position == player->count)
+			player->position = 0;
+	}
 	(void)st_mutex_unlock(&player->mutex);
-	return count;
+	return produced;
 }
 
 int
@@ -192,13 +197,14 @@ st_rip3_audio_stop(struct st_rip3_audio *player)
 		return IO_ERROR_IO;
 	free(player->frames);
 	player->frames = NULL; player->count = player->position = 0;
+	player->repeat = false;
 	(void)st_mutex_unlock(&player->mutex);
 	return status;
 }
 
 int
 st_rip3_audio_play(struct st_rip3_audio *player,
-    const struct st_rip3_resource_paths *paths, const char *filename)
+    const struct st_rip3_resource_paths *paths, const char *filename, bool repeat)
 {
 	struct st_rip3_resource resource = {0};
 	int16_t *frames = NULL;
@@ -226,6 +232,7 @@ st_rip3_audio_play(struct st_rip3_audio *player,
 	}
 	free(player->frames);
 	player->frames = frames; player->count = count; player->position = 0;
+	player->repeat = repeat;
 	(void)st_mutex_unlock(&player->mutex);
 	return audio_stream_source_active(player->stream, true);
 }

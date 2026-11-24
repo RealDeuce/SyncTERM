@@ -84,7 +84,7 @@ st_rip3_graphical_start(struct st_rip3_graphical *w, enum st_rip3_graphical_cons
 		return;
 	}
 	st_rip3_graphical_cancel(w);
-	if ((bytes==NULL && length!=0) || consumer<ST_RIP3_GRAPHICAL_FILENAME || consumer>ST_RIP3_GRAPHICAL_SCENE) {
+	if ((bytes==NULL && length!=0) || consumer<ST_RIP3_GRAPHICAL_FILENAME || consumer>ST_RIP3_GRAPHICAL_WAVE) {
 		failed(w,ST_RIP3_HOST_INVALID_REFERENCE);return;
 	}
 	w->consumer=consumer;
@@ -102,6 +102,7 @@ st_rip3_graphical_start(struct st_rip3_graphical *w, enum st_rip3_graphical_cons
 		break;
 	case ST_RIP3_GRAPHICAL_FONT:
 	case ST_RIP3_GRAPHICAL_SCENE:
+	case ST_RIP3_GRAPHICAL_WAVE:
 		w->limit = 4095;
 		break;
 	}

@@ -10460,3 +10460,20 @@ effect of publication on existing indexed pixels. Native cases include a
 256-entry packet using one period per color. The pinned reference includes
 the corrected radix, precision and decoded count rules.
 [PR #268](https://github.com/bbs-land/remote-imaging-protocol/pull/268)
+
+
+## Wire waveform flags and filename expansion
+
+`1w` collects a one-digit flags field and a three-digit reserve using active
+Base Math. Either can use a period for zero. Bit 0 repeats the selected WAV
+until it is stopped or replaced. The literal case-insensitive `$OFF$` stops
+playback before expansion. Other names pass through the graphical expansion
+used for scene filenames, then resolve through the existing media cache with
+`.wav` as the default extension. A derived `$OFF$` resolves as `$OFF$.wav`.
+
+Connected CP437 and UTF-8 sessions verify that wire filename expansion can
+open the editor, accept its value, and resume the following command. The
+device-free PCM test verifies repeat across successive pulls, one-shot
+replacement, stopping and recovery after missing or malformed requests.
+The pinned command entry still describes a single reserve.
+[Issue #269](https://github.com/bbs-land/remote-imaging-protocol/issues/269)
