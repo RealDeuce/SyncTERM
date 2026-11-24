@@ -8,21 +8,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 static int
-coordinates(struct st_rip3_rect *result, const uint8_t *bytes,
-    size_t length, size_t width, unsigned radix, bool shortened)
+coordinates(struct st_rip3_rect *result, struct st_rip3_fields *fields,
+    size_t width, unsigned radix, bool final)
 {
 	uint64_t values[4];
 	int status;
 
-	if ((shortened && (length <= 3*width || length > 4*width))
-	    || (!shortened && length != 4*width))
-		return IO_ERROR_INVALID_FORMAT;
 	for (size_t i = 0; i < 4; i++) {
-		size_t count = i == 3 ? length - 3*width : width;
-		status = st_rip3_command_field(values+i, bytes+i*width, count, radix);
+		status = st_rip3_command_next_field(fields, values+i, width, radix, final && i == 3);
 		if (status != 0)
 			return status;
 		if (values[i] > INT32_MAX)
@@ -31,6 +26,18 @@ coordinates(struct st_rip3_rect *result, const uint8_t *bytes,
 	*result = (struct st_rip3_rect){(int32_t)values[0],(int32_t)values[1],
 	    (int32_t)values[2],(int32_t)values[3]};
 	return 0;
+}
+
+/* These trailing reserved fields take part in delimiter-time collection,
+ * but the original dispatcher supplies zero regardless of their value. */
+static int
+reserved_field(struct st_rip3_fields *fields, size_t width, unsigned radix)
+{
+	uint64_t ignored;
+
+	if (fields->remaining == 0)
+		return 0;
+	return st_rip3_command_next_field(fields, &ignored, width, radix, true);
 }
 
 static bool
@@ -92,19 +99,13 @@ static int
 delete_port(struct st_rip3_ports *ports, const uint8_t *bytes,
     size_t length, unsigned radix, bool *operation)
 {
-	uint64_t number, destination, reserved;
-	int status;
-
-	if (length < 2 || length > 4)
-		return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&number, bytes, 1, radix);
+	uint64_t number, destination;
+	struct st_rip3_fields fields = {bytes, length};
+	int status = st_rip3_command_next_field(&fields, &number, 1, radix, false);
 	if (status == 0)
-		status = st_rip3_command_field(&destination, bytes+1, 1, radix);
-	if (status == 0 && length > 2) {
-		status = st_rip3_command_field(&reserved, bytes+2, length-2, radix);
-		if (status == 0 && reserved != 0)
-			return IO_ERROR_NOT_SUPPORTED;
-	}
+		status = st_rip3_command_next_field(&fields, &destination, 1, radix, false);
+	if (status == 0)
+		status = reserved_field(&fields, 2, radix);
 	if (status != 0)
 		return status;
 	if (number > 35 || destination > 35)
@@ -127,29 +128,20 @@ define_port(const struct st_rip3_command_host *host,
 	struct st_rip3_rect world, device;
 	struct st_rip3_frame frame;
 	struct st_rip3_port_info target;
-	uint64_t number, flags, reserved;
-	size_t coordinate_bytes = 4*environment->coordinate_size;
-	size_t prefix = 1 + coordinate_bytes;
+	uint64_t number, flags;
+	struct st_rip3_fields fields = {bytes, length};
 	int status;
 
-	/* Flags are the last nonreserved parameter: they may shorten only when
-	 * the reserved parameter is wholly omitted. Full flags permit 0..4
-	 * transmitted reserved zero digits. Validate before any table mutation. */
-	if (length <= prefix || length > prefix+8)
-		return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&number, bytes, 1, environment->base_math);
+	/* A shortened flags field is only possible at the delimiter, when
+	 * the trailing reserved field is omitted. */
+	status = st_rip3_command_next_field(&fields, &number, 1, environment->base_math, false);
 	if (status == 0)
-		status = coordinates(&world, bytes+1, coordinate_bytes,
-		    environment->coordinate_size, environment->base_math, false);
+		status = coordinates(&world, &fields, environment->coordinate_size,
+		    environment->base_math, false);
 	if (status == 0)
-		status = st_rip3_command_field(&flags, bytes+prefix,
-		    length - prefix > 4 ? 4 : length - prefix, environment->base_math);
-	if (status == 0 && length > prefix+4) {
-		status = st_rip3_command_field(&reserved, bytes+prefix+4,
-		    length-prefix-4, environment->base_math);
-		if (status == 0 && reserved != 0)
-			return IO_ERROR_NOT_SUPPORTED;
-	}
+		status = st_rip3_command_next_field(&fields, &flags, 4, environment->base_math, true);
+	if (status == 0)
+		status = reserved_field(&fields, 4, environment->base_math);
 	if (status != 0)
 		return status;
 	if (number == 0 || number > 35)
@@ -251,31 +243,23 @@ copy_port(const struct st_rip3_command_host *host,
 	struct st_rip3_frame frame;
 	struct st_rip3_copy_extent from, to;
 	struct st_rip3_port_info source_info, destination_info;
-	uint64_t source_number, destination_number, mode, reserved;
-	size_t coordinate_bytes = 4*environment->coordinate_size;
-	size_t minimum = 2*coordinate_bytes+3, destination_offset = coordinate_bytes+1;
+	uint64_t source_number, destination_number, mode;
+	struct st_rip3_fields fields = {bytes, length};
+	size_t width = environment->coordinate_size;
+	unsigned radix = environment->base_math;
 	int status;
 
-	if (length < minimum || length > minimum+5)
-		return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&source_number, bytes, 1, environment->base_math);
+	status = st_rip3_command_next_field(&fields, &source_number, 1, radix, false);
 	if (status == 0)
-		status = coordinates(&source_world, bytes+1, coordinate_bytes,
-		    environment->coordinate_size, environment->base_math, false);
+		status = coordinates(&source_world, &fields, width, radix, false);
 	if (status == 0)
-		status = st_rip3_command_field(&destination_number, bytes+destination_offset,
-		    1, environment->base_math);
+		status = st_rip3_command_next_field(&fields, &destination_number, 1, radix, false);
 	if (status == 0)
-		status = coordinates(&destination_world, bytes+destination_offset+1,
-		    coordinate_bytes, environment->coordinate_size, environment->base_math, false);
+		status = coordinates(&destination_world, &fields, width, radix, false);
 	if (status == 0)
-		status = st_rip3_command_field(&mode, bytes+minimum-1, 1, environment->base_math);
-	if (status == 0 && length > minimum) {
-		status = st_rip3_command_field(&reserved, bytes+minimum,
-		    length-minimum, environment->base_math);
-		if (status == 0 && reserved != 0)
-			return IO_ERROR_NOT_SUPPORTED;
-	}
+		status = st_rip3_command_next_field(&fields, &mode, 1, radix, false);
+	if (status == 0)
+		status = reserved_field(&fields, 5, radix);
 	if (status != 0)
 		return status;
 	if (source_number > 35 || destination_number > 35 || mode > 4)
@@ -325,11 +309,11 @@ switch_port(struct st_rip3_ports *ports, const uint8_t *bytes,
 	unsigned current;
 	int status, selection_status;
 
-	/* Original slot 118 has exactly these two fields and no reserved field.
-	 * Higher flag bits are accepted but only the four low bits have effects. */
-	if (length != 3) return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&destination,bytes,1,radix);
-	if (status == 0) status = st_rip3_command_field(&flags,bytes+1,2,radix);
+	/* Only the four low flag bits have effects. */
+	struct st_rip3_fields fields = {bytes, length};
+	status = st_rip3_command_next_field(&fields, &destination, 1, radix, false);
+	if (status == 0)
+		status = st_rip3_command_next_field(&fields, &flags, 2, radix, true);
 	if (status != 0) return status;
 	if (destination > 35) return IO_ERROR_OUT_OF_RANGE;
 	*operation = true;
@@ -358,24 +342,21 @@ paste_clipboard(const struct st_rip3_command_host *host,
     unsigned environment_number, const struct st_rip3_environment *environment,
     const uint8_t *bytes, size_t length, bool *operation)
 {
-	uint64_t x, y, mode, reserved;
+	uint64_t x, y, mode;
 	struct st_rip3_port_info info;
 	struct st_rip3_rect world, device;
 	unsigned destination;
-	size_t width = environment->coordinate_size, prefix = 2*width;
-	int status;
+	struct st_rip3_fields fields = {bytes, length};
+	size_t width = environment->coordinate_size;
+	unsigned radix = environment->base_math;
+	int status = st_rip3_command_next_field(&fields, &x, width, radix, false);
 
-	if (length <= prefix || length > prefix+3)
-		return IO_ERROR_INVALID_FORMAT;
-	status = st_rip3_command_field(&x,bytes,width,environment->base_math);
 	if (status == 0)
-		status = st_rip3_command_field(&y,bytes+width,width,environment->base_math);
+		status = st_rip3_command_next_field(&fields, &y, width, radix, false);
 	if (status == 0)
-		status = st_rip3_command_field(&mode,bytes+prefix,
-		    length-prefix > 2 ? 2 : length-prefix,environment->base_math);
-	/* The receiver validates the wire digit but RIPtel ignores its value. */
-	if (status == 0 && length == prefix+3)
-		status = st_rip3_command_field(&reserved,bytes+prefix+2,1,environment->base_math);
+		status = st_rip3_command_next_field(&fields, &mode, 2, radix, true);
+	if (status == 0)
+		status = reserved_field(&fields, 1, radix);
 	if (status != 0) return status;
 	if (x > INT32_MAX || y > INT32_MAX || mode > 4) return IO_ERROR_OUT_OF_RANGE;
 	if (host->clipboard == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -418,8 +399,6 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 		return status;
 	arguments = command + (command[0] == 'v' ? 1 : 2);
 	count = length - (size_t)(arguments - command);
-	if (memchr(arguments, ' ', count) != NULL)
-		return IO_ERROR_NOT_SUPPORTED; /* General numeric comments: #7. */
 	if (command[0] == '2' && command[1] == 's')
 		return switch_port(host->ports, arguments, count, environment.base_math, operation);
 	if (command[0] == '1')
@@ -431,8 +410,8 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 			return delete_port(host->ports, arguments, count, environment.base_math, operation);
 		return define_port(host, number, &environment, arguments, count, operation);
 	}
-	status = coordinates(&world, arguments, count, environment.coordinate_size,
-	    environment.base_math, true);
+	struct st_rip3_fields fields = {arguments, count};
+	status = coordinates(&world, &fields, environment.coordinate_size, environment.base_math, true);
 	if (status != 0) return status;
 	if (world.x0 > world.x1) { int32_t swap = world.x0; world.x0 = world.x1; world.x1 = swap; }
 	if (world.y0 > world.y1) { int32_t swap = world.y0; world.y0 = world.y1; world.y1 = swap; }

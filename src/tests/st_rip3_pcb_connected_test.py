@@ -332,7 +332,7 @@ def run(args,width,height):
         wire(b'2s104')
         values(b'$CUR(PORT)$:$ISPROT(PORT,1)$:$ISPROT(PORT,7)$:$TEXTXY(7)$',b'1:1:1:-1')
         values(b'$BASEMATH(CUR,64)$')
-        wire(b'2sa08|2s7000')
+        wire(b'2sa08|2s70 malformed')
         values(b'$CUR(PORT)$:$ISPROT(PORT,1)$',b'1:1')
         values(b'$BASEMATH(CUR,36)$')
 
@@ -353,6 +353,24 @@ def run(args,width,height):
         values(b'$UNPROT(PORT,1)$')
         wire(b'2s100|2p110')
         values(b'$CUR(PORT)$:$INUSE(PORT,1)$:$OFFSCREEN(USED)$',b'0:0:0')
+
+        t.case('rip3-port-and-viewport-numeric-fields')
+        values(b'$RESET(HARD)$'+f'$WORLD(CUR,{width},{height})$'.encode())
+        wire(b'2P1..04030003000Z define|v.... deactivate|S0102|B..0302'
+             b'|v..0201 narrow|S0104|B..0302|2s.. select screen')
+        values(b'$CUR(PORT)$:$INUSE(PORT,1)$',b'0:1')
+        copy_prefix = b'2C1.....' + coords((15,15,18,17)) + b'.'
+        frame = wire(copy_prefix + b'. copy')
+        region(frame,(15,15,18,17),0xaa0000)
+        assert pixel(frame,18,15) == pixel(frame,15,17) == 0
+
+        malformed = b'2p1.0 partial reserved|2s10. malformed|2P1..05050003000 incomplete'
+        same(frame,wire(malformed + b'|' + copy_prefix + b' incomplete reserved'))
+        values(b'$CUR(PORT)$:$INUSE(PORT,1)$:$OFFSCREEN(USED)$',b'0:1:12')
+        frame = wire(b'1C' + coords((15,15,17,16)) + b'0|1P.' + number(21,2) + b'.Z paste')
+        region(frame,(0,21,3,23),0xaa0000)
+        wire(b'2p1.01 delete')
+        values(b'$CUR(PORT)$:$INUSE(PORT,1)$:alive',b'0:0:alive')
 
 
 if __name__=='__main__':

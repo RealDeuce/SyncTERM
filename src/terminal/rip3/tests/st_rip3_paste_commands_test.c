@@ -149,7 +149,7 @@ validation(void)
 	const struct st_rip3_rect area = {0,0,7,0};
 	const uint8_t original[] = {1,2,4,8,16,32,64,128};
 	const uint8_t copied[] = {1,2,1,2,4,8,16,32,64,128};
-	const char *const invalid[] = {"1P","1P0000","1P00000000","1P0?00000","1P00000?0","1P000000?","1P0000050"};
+	const char *const invalid[] = {"1P","1P0000","1P000000 comment","1P0?00000","1P00000?0","1P000000?","1P0000050"};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480) == 0);
 	CHECK(st_rip3_ports_define(f.host.ports,1,&area,false) == 0);
 	for (int32_t x = 0; x < 8; x++) CHECK(st_rip3_ports_plot(f.host.ports,x,0,original[x],ST_RIP3_COPY) == 0);
@@ -157,7 +157,7 @@ validation(void)
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
 		CHECK(row(&f,0,0,0,original,8) == 0);
 	}
-	CHECK(process(&f,"1P0000000 comment",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"1P..0. invalid",ST_RIP3_COMMAND_INVALID) == 0);
 	struct st_rip3_ports *ports = f.host.ports;
 	struct st_rip3_environments *environments = f.host.environments;
 	f.host.ports = NULL;
@@ -179,7 +179,7 @@ validation(void)
 	CHECK(st_rip3_ports_switch(f.host.ports,0) == 0);
 	CHECK(process(&f,"1P0200000",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_copy_test_fail_malloc);
 	CHECK(row(&f,0,0,0,original,8) == 0 && f.clipboard.port == 1);
-	CHECK(process(&f,"1P0200001",-1) == 0 && row(&f,0,0,0,copied,10) == 0);
+	CHECK(process(&f,"1P02..Z tail",-1) == 0 && row(&f,0,0,0,copied,10) == 0);
 	f.clipboard.port = 2;
 	CHECK(process(&f,"1P0301000",-1) == 0 && f.clipboard.set && f.clipboard.port == 2);
 	const uint8_t untouched[] = {0};

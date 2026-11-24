@@ -24348,6 +24348,28 @@
         "version/3.0/ripscrip/2.3-shapes-and-fills.md:265",
         "version/3.0/ripscrip/2.3-shapes-and-fills.md:333"
       ]
+    },
+    {
+      "after_commit": "2f7de1f972edd9e72026b6a46346d72c67076ff9",
+      "revision": "ab204abcc0295eb93996fa48911d89bbc8f5cb78",
+      "scope": "Decode RIPv3 viewport and port fields, accept completed-command surplus, and ignore the numeric values of transmitted reserved fields.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/237",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/240",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/244"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:141",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:143",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:145",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:147",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:71",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:73",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:95",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:349",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:451",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:505"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

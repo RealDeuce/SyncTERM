@@ -191,11 +191,11 @@ static int
 validation(void)
 {
 	const char *invalid[] = {"2P", "2P1", "2P100000202", "2P0000002020",
-	    "2P100000202000000000", "2P1000002020000000?", "2P1000100000",
-	    "v", "v000000", "v000000000", "v0000000?",
-	    "2p", "2p1", "2p10000", "2p1?00"};
-	const char *unsupported[] = {"2P100000202G", "2P10000020200000001",
-	    "2P1000002020 comment", "v00000202 comment", "2p1001", "2p10 comment"};
+	    "2P1" "00000202" "0000" "000 tail", "2P1000002020000000?", "2P1000100000",
+	    "v", "v000000", "v0000000 tail", "v0000000?",
+	    "2p", "2p1", "2p10 comment", "2p1?00",
+	    "2P1000002020 comment", "2p1.0 comment"};
+	const char *unsupported[] = {"2P100000202G"};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	struct st_rip3_port_info before[36];
 	struct st_rip3_environment environment;
@@ -222,7 +222,7 @@ validation(void)
 	missing.ports = NULL; missing.environments = host.environments;
 	CHECK(process(&missing, "2P1000002020", ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	CHECK(process(&host, "v0000000", -1) == 0); /* Shortened zero sentinel. */
-	CHECK(process(&host, "v00000202", -1) == 0);
+	CHECK(process(&host, "v..0202 comment", -1) == 0);
 	for (unsigned i = 0; i < 36; i++) CHECK(st_rip3_ports_info(host.ports, i, before+i) == 0);
 	CHECK(process(&host, "J1S", -1) == 0);
 	CHECK(process(&host, "2pa0", ST_RIP3_COMMAND_INVALID) == 0);
@@ -237,7 +237,9 @@ validation(void)
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
 	CHECK(process(&host, "v00000202", -1) == 0);
 	CHECK(st_rip3_environments_get(host.environments, 1, &environment) == 0 && environment.port == 7);
-	CHECK(process(&host, "2p1000", -1) == 0);
+	CHECK(process(&host, "2P1..04030002000Z define", -1) == 0);
+	CHECK(query(&host, "$CUR(PORT)$", "1") == 0);
+	CHECK(process(&host, "2p1.01 delete", -1) == 0);
 	CHECK(query(&host, "$CUR(PORT)$", "0") == 0);
 	st_rip3_ports_destroy(host.ports);
 	st_rip3_environments_destroy(host.environments);

@@ -299,18 +299,16 @@ static int
 validation(void)
 {
 	struct fixture f = {0};
-	const char *const invalid[] = {"2s","2s1","2s10","2s1?0","2s1000000","2s?00","2s1000","2s100000"};
-	const char *const unsupported[] = {"2s100 comment"};
+	const char *const invalid[] = {"2s","2s1","2s10 comment","2s1?0","2s?00","2s10."};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_protect(f.host.ports,1,true) == 0 && st_rip3_ports_switch(f.host.ports,1) == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0 && state(&f,1,true,false) == 0);
 	}
-	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
-		CHECK(process(&f,unsupported[i],ST_RIP3_COMMAND_UNSUPPORTED) == 0 && state(&f,1,true,false) == 0);
-	}
-	CHECK(process(&f,"2s700",-1) == 0 && state(&f,7,true,false) == 0);
-	CHECK(process(&f,"2s100",-1) == 0 && state(&f,1,true,false) == 0);
+	CHECK(process(&f,"2s70",-1) == 0 && state(&f,7,true,false) == 0);
+	CHECK(process(&f,"2s1. comment",-1) == 0 && state(&f,1,true,false) == 0);
+	CHECK(process(&f,"2s7000",-1) == 0 && state(&f,7,true,false) == 0);
+	CHECK(process(&f,"2s100 comment",-1) == 0 && state(&f,1,true,false) == 0);
 	struct st_rip3_ports *ports = f.host.ports;
 	f.host.ports = NULL;
 	CHECK(process(&f,"2s000",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.ports = ports;

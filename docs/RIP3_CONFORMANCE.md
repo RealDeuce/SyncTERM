@@ -10241,3 +10241,19 @@ Connected CP437 and UTF-8 cases check visible geometry, rejected surplus
 and continued parsing. The native command tests exercise declared counts,
 clipping, and malformed fields before allocation. The remaining Bézier
 wording discrepancy is tracked upstream. [Issue #243](https://github.com/bbs-land/remote-imaging-protocol/issues/243)
+
+## Port and viewport numeric collection
+
+`v`, `2P`, `2s`, `2p`, `2C`, and `1P` accept a field-start
+period as one zero-valued field. `2s` uses the active radix for its
+port and flags, and its final flags can be short. A complete fixed
+command ignores trailing bytes. A delimiter finalizes a short field
+or an omitted trailing reserved field. A space in an unfinished
+field discards the command.
+
+When the reserved field of `2P`, `2p`, `2C`, or `1P` is present,
+the receiver validates its encoding and ignores its numeric value.
+The recommended sender value stays zero. Native tests and connected
+CP437 and UTF-8 sessions verify port state, viewport clipping, copy
+and paste pixels, and recovery after invalid input. The remaining
+wording is tracked upstream. [Issue #244](https://github.com/bbs-land/remote-imaging-protocol/issues/244)

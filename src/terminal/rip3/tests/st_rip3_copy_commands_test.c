@@ -408,9 +408,8 @@ canonical(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, uint32_t 
 static int
 validation(void)
 {
-	const char *invalid[] = {"2C", "2C100000101000000101", "2C1000001010000001010000000",
-	    "2C100000101000000101?", "2C1000001010000001015", "2C10000010100000010100000?"};
-	const char *unsupported[] = {"2C100000101000000101000001",
+	const char *invalid[] = {"2C", "2C100000101000000101", "2C1" "00000101" "0" "00000101" "0" "0000 tail",
+	    "2C100000101000000101?", "2C1000001010000001015", "2C10000010100000010100000?",
 	    "2C1000001010000001010 comment"};
 	struct st_rip3_command_host host = {0}, missing = {0};
 	const struct st_rip3_rect bounds = {0,0,7,1};
@@ -423,10 +422,6 @@ validation(void)
 	for (int32_t x = 0; x < 8; x++) CHECK(st_rip3_ports_plot(host.ports, x,0, baseline[x], ST_RIP3_COPY) == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&host, invalid[i], ST_RIP3_COMMAND_INVALID) == 0);
-		CHECK(row(host.ports, 0, 0,0, baseline, 8) == 0);
-	}
-	for (size_t i = 0; i < sizeof(unsupported)/sizeof(unsupported[0]); i++) {
-		CHECK(process(&host, unsupported[i], ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 		CHECK(row(host.ports, 0, 0,0, baseline, 8) == 0);
 	}
 	for (unsigned reserved = 0; reserved <= 5; reserved++) {
@@ -461,7 +456,7 @@ validation(void)
 	st_rip3_copy_test_fail_malloc = true;
 	CHECK(process(&host, "2C0" "00000601" "0" "02000801" "0", ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
 	CHECK(!st_rip3_copy_test_fail_malloc && row(host.ports, 0, 0,0, baseline, 8) == 0);
-	CHECK(process(&host, "2C0" "00000601" "0" "02000801" "0", -1) == 0);
+	CHECK(process(&host, "2C." "..0601" "." "02.0801" "." "0000Z copied", -1) == 0);
 	CHECK(row(host.ports, 0, 0,0, copied, 8) == 0);
 	/* Fit-path snapshots obey the same failure transaction as unscaled ones. */
 	CHECK(st_rip3_ports_switch(host.ports,0) == 0);
