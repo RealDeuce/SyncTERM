@@ -9657,10 +9657,11 @@ RIP3 asset writes. The shared RIP directory is read-only. Uploads use
 the transfer confirmation and read files only from the active BBS cache.
 The worker still supports its existing X/Y/ZMODEM protocols. Receive codes
 7 and 8 select the same ZMODEM receiver, which uses the peer's filenames.
-The receiver writes directly to the cache destination and resumes a shorter
-existing file when the sender confirms its prefix CRC. If the CRC check fails,
-the transfer replaces that file from byte zero. Local cancellation during the
-CRC exchange preserves the partial file for a later attempt.
+The receiver opens the final filename in the active BBS cache at the start
+of the transfer. An interruption leaves received bytes at that filename,
+where a later ZMODEM request can resume after the sender confirms the prefix
+CRC. If the CRC check fails, the transfer replaces that file from byte zero.
+Local cancellation during the CRC exchange preserves the partial file.
 Code 8 upload and code 10 requests decline before taking the connection.
 
 `9U` validates the two numeric fields and accepts types 0 or 1 without
@@ -9668,11 +9669,11 @@ switching the connection into encoded transfer mode. Ordinary input
 continues through the same parser.
 
 The CP437 and UTF-8 fixtures exercise XMODEM and YMODEM files and both
-ZMODEM receive handshakes. They check cached bytes, matching and mismatched
-ZMODEM prefixes, cancellation during prefix verification and split CRLF
-handoff. They also decline and approve an upload and verify recovery after
-refused and malformed requests. The native macro fixture checks both
-directions across the documented keyword matrix.
+ZMODEM receive handshakes. They check the cache contents during a download,
+interrupt it, and resume from the saved bytes. They also check a mismatched
+prefix, cancellation during prefix verification, split CRLF handoff, upload
+approval and refusal, and recovery after malformed requests. The native macro
+fixture checks both directions across the documented keyword matrix.
 [PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
 
 ## Connected block-mode scene and image playback

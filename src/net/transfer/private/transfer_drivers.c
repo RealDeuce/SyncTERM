@@ -273,11 +273,14 @@ static int z_receive(st_transfer_t *t, zmodem_t *zm)
 		zm->received = t->config.receive_events ? z_received : NULL;
 		(void)zmodem_recv_file_data(zm, file, offset);
 		bool complete = zm->file_complete;
-		int64_t actual = fs_stream_size(file);
+		bool empty = fs_stream_size(file) == 0;
+		/* A resumable prefix can still be buffered until fclose. */
+		if (empty && t->config.resume_on_overwrite)
+			empty = fs_stream_position(file) == 0;
 		status = finish_file(&file);
 		if (status == 0 && !complete) status = IO_ERROR_PROTOCOL;
 		if (status == 0 && !t->config.discard && zm->current_file_time != 0) (void)fs_set_modified_time(path, zm->current_file_time);
-		if (status != 0 && actual == 0 && !t->config.discard) (void)fs_remove_file(path);
+		if (status != 0 && empty && !t->config.discard) (void)fs_remove_file(path);
 		int event_status = st_transfer_received(t, ST_TRANSFER_RECEIVE_END, NULL, 0, status == 0);
 		if (status == 0) status = event_status;
 		free(path);

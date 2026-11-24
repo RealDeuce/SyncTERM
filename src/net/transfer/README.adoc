@@ -38,18 +38,23 @@ Kermit requests are rejected with a diagnostic and cancellation.
 Downloads use the BBS asset cache, independent of the normal download directory.
 Names follow the same confined, DOS case-insensitive lookup as icon and scene
 reads; paths, reserved device names, links and non-file destinations are rejected.
-Existing cache assets are refreshed without collision prompts. RIPv3 ZMODEM
-downloads resume from a CRC-verified prefix at the cache destination.
+Existing cache assets are refreshed without collision prompts. RIPv3 downloads
+use the final filename in the active BBS cache for the entire transfer. ZMODEM
+can resume from a CRC-verified prefix left there by an interruption.
 The normal manual/automatic download policy is unchanged.
 
-File type 0 displays received scenes using temporary storage, without retaining
-files. Types 1, 2 and 3 store scenes, icons and help files. Type 4 stores a batch
-of `.RIP`/`.ICN` files; type 5 also displays RIP data as validated blocks arrive.
+In RIP 1.54, file type 0 displays received scenes using a temporary stream.
+Types 1, 2 and 3 store scenes, icons and help files. Type 4 stores a batch of
+`.RIP`/`.ICN` files. Type 5 also displays RIP data as validated blocks arrive.
 The existing renderer has no HLP viewer, so type 3 stores the file only.
 The owner drains a bounded receive mailbox and feeds a separate scene parser;
 workers never render. Failed files discard unfinished commands. Plain wire
 parsing resumes after the batch, and stored scenes cannot initiate transfers.
 Live display modes use status-row progress rather than a saved-screen modal.
+
+In RIPv3, the session handles scene playback and image presentation after the
+transfer worker releases the connection. Only completed files enter playback
+or presentation.
 
 Every host-requested upload requires confirmation and is confined to one
 regular file in that BBS's cache. Refusal sends ten CAN bytes at 100-ms intervals.

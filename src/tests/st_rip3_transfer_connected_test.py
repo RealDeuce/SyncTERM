@@ -134,22 +134,42 @@ def run(args):
             z_finish()
         assert not (cache / "display-name").exists()
 
-        terminal.case("rip3-zmodem-reuses-a-verified-partial-file-in-the-bbs-cache")
+        terminal.case("rip3-zmodem-interruption-keeps-the-original-cache-destination")
         contents = b"partial data with a completed suffix"
         prefix = contents[:12]
         destination = cache / "Resume.BIN"
+        cache_root = cache.parent.parent
+        cache_entries = set(cache_root.rglob("*")) | {destination}
 
-        def offer_resume_file(cached_prefix, *, temporary=False):
-            destination.write_bytes(cached_prefix)
+        def offer_resume_file(name, *, temporary=False):
             send(b"!|9\x1b0701" + (b"0100" if temporary else b"0000") + b"<>\r\n")
             z_receive_init()
-            info = b"resume.bin\x00" + str(len(contents)).encode("ascii") + b"\x00"
+            info = name + b"\x00" + str(len(contents)).encode("ascii") + b"\x00"
             send(z_header(4) + z_subpacket(info, b"k"))  # ZFILE, ZCRCW
+
+        offer_resume_file(b"Resume.BIN", temporary=True)
+        reply(z_header(9) + b"\x11")  # ZRPOS
+        assert destination.is_file() and set(cache_root.rglob("*")) == cache_entries
+        send(z_header(10) + z_subpacket(prefix, b"k"))  # ZDATA, ZCRCW
+        reply(z_header(3, len(prefix)))  # ZACK
+        client.wait_text("RIP Asset Download")
+        client.key("escape")
+        reply(b"\x18" * 8 + b"\x08" * 8)
+        client.wait_for(lambda frame: not frame.application.get("transfer.active"))
+        terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
+        stored("Resume.BIN", prefix)
+        assert set(cache_root.rglob("*")) == cache_entries
+
+        def check_resume_request(*, temporary=False):
+            offer_resume_file(b"resume.bin", temporary=temporary)
             request = receive(peer, b"\r\n\x11", root / "replies.bin")
             assert request == z_header(13, len(prefix)) + b"\x11", request  # ZCRC
 
-        for cached_prefix, offset in ((prefix, len(prefix)), (b"x" * len(prefix), 0)):
-            offer_resume_file(cached_prefix)
+        terminal.case("rip3-zmodem-reuses-a-verified-partial-file-in-the-bbs-cache")
+        for offset in (len(prefix), 0):
+            if offset == 0:
+                destination.write_bytes(b"x" * len(prefix))
+            check_resume_request()
             send(z_header(13, crc32(prefix)))
             reply(z_header(9, offset) + b"\x11")  # ZRPOS
             send(z_header(10, offset) + z_subpacket(contents[offset:], b"h") +
@@ -157,10 +177,11 @@ def run(args):
             z_receive_init()
             z_finish()
             stored("Resume.BIN", contents)
-            assert [path.name for path in cache.iterdir() if path.name.casefold() == "resume.bin"] == ["Resume.BIN"]
+            assert set(cache_root.rglob("*")) == cache_entries
 
         terminal.case("rip3-zmodem-abort-during-prefix-check-keeps-the-partial-file")
-        offer_resume_file(prefix, temporary=True)
+        destination.write_bytes(prefix)
+        check_resume_request(temporary=True)
         client.wait_text("RIP Asset Download")
         client.key("escape")
         reply(b"\x18" * 8 + b"\x08" * 8)
