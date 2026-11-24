@@ -389,14 +389,16 @@ st_console_set_video_flags(st_console_t *console, uint32_t flags)
 		uint32_t changed = flags ^ console->video_flags;
 
 		console->video_flags = flags;
-		if ((changed & presentation_flags) != 0) {
+		if ((changed & presentation_flags) != 0 && console->raster_parent != NULL)
+			st_console_invalidate_text_locked(console);
+		else if ((changed & presentation_flags) != 0) {
 			size_t count = (size_t)console->columns * console->rows;
 
 			st_console_mark_all_locked(console);
 			for (size_t i = 0; console->drawn_cells != NULL && i < count;
 			    ++i)
 				st_console_drawn_at(console, i)->flags
-				    |= ST_CONSOLE_CELL_DIRTY;
+				    |= ST_CONSOLE_RASTER_INVALID;
 		}
 	}
 	result = st_console_finish_change_locked(console);
@@ -675,7 +677,7 @@ fill_line_locked(st_console_t *console, uint32_t y, uint32_t codepoint)
 		/* The pixel ring can expose graphics even when this cell's
 		 * contents already equal the fill cell. */
 		if (console->drawn_cells != NULL)
-			st_console_drawn_at(console, index)->flags |= ST_CONSOLE_CELL_DIRTY;
+			st_console_drawn_at(console, index)->flags |= ST_CONSOLE_RASTER_INVALID;
 	}
 }
 
@@ -1157,6 +1159,10 @@ copy_row_storage_locked(st_console_t *console, uint32_t from, uint32_t to)
 	memmove(st_console_cell_at(console, (size_t)to * console->columns),
 	    st_console_cell_at(console, (size_t)from * console->columns), bytes);
 	if (console->drawn_cells != NULL) {
+		if (console->view_text_batch != NULL)
+			memmove(console->view_text_batch + (size_t)st_console_row_index(console, to) * console->columns,
+			    console->view_text_batch + (size_t)st_console_row_index(console, from) * console->columns,
+			    console->columns * sizeof(*console->view_text_batch));
 		memmove(st_console_drawn_at(console, (size_t)to * console->columns),
 		    st_console_drawn_at(console, (size_t)from * console->columns), bytes);
 		console->raster_rows[st_console_row_index(console, to)]
@@ -1247,7 +1253,7 @@ move_full_width_rows_locked(st_console_t *console,
 			st_console_set_cell_locked(console, index, fill);
 			if (console->drawn_cells != NULL)
 				st_console_drawn_at(console, index)->flags
-				    |= ST_CONSOLE_CELL_DIRTY;
+				    |= ST_CONSOLE_RASTER_INVALID;
 		}
 	}
 	if ((destination_y == 0 && source->y > 0
@@ -1313,7 +1319,7 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 	    destination_y);
 	for (uint32_t y = 0; y < source->height; ++y) {
 		for (uint32_t x = 0; x < source->width; ++x) {
-			st_console_set_cell_locked(console,
+			st_console_store_cell_locked(console,
 			    (size_t)(destination_y + y) * console->columns
 			    + destination_x + x,
 			    &saved[(size_t)y * source->width + x]);
@@ -1333,7 +1339,7 @@ move_cells(st_console_t *console, const struct st_console_rect *source,
 					st_console_set_cell_locked(console, index, fill);
 					if (console->drawn_cells != NULL)
 						st_console_drawn_at(console, index)->flags
-						    |= ST_CONSOLE_CELL_DIRTY;
+						    |= ST_CONSOLE_RASTER_INVALID;
 				}
 			}
 		}

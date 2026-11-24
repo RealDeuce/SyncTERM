@@ -1208,6 +1208,7 @@ free_console(st_console_t *console)
 	free(console->drawn_cells);
 	free(console->cells);
 	free(console->title);
+	free(console->view_text_batch);
 	free(console);
 }
 
@@ -1273,7 +1274,8 @@ set_cell_raw_locked(st_console_t *console, size_t index,
 	value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
 	if (cells_equal(st_console_cell_at(console, index), &value))
 		return;
-	value.flags |= ST_CONSOLE_CELL_DIRTY;
+	if (console->raster_parent == NULL)
+		value.flags |= ST_CONSOLE_CELL_DIRTY;
 	(*st_console_cell_at(console, index)) = value;
 	console->changed = true;
 	console->raster_current = false;
@@ -1454,7 +1456,7 @@ clear_boundary_pairs_locked(st_console_t *console, size_t first, size_t last)
 }
 
 void
-st_console_set_cell_locked(st_console_t *console, size_t index,
+st_console_store_cell_locked(st_console_t *console, size_t index,
 	const struct st_console_cell *source)
 {
 	struct st_console_cell value = *source;
@@ -1476,6 +1478,30 @@ st_console_set_cell_locked(st_console_t *console, size_t index,
 	}
 }
 
+/* A second writer may have changed the shared pixels even when the glyph
+ * and its attributes compare equal. Only an explicit write claims them. */
+static void
+rewrite_view_cell_locked(st_console_t *console, size_t index)
+{
+	st_console_drawn_at(console, index)->flags |= ST_CONSOLE_RASTER_INVALID;
+	console->changed = true;
+	console->raster_current = false;
+}
+
+void
+st_console_set_cell_locked(st_console_t *console, size_t index,
+	const struct st_console_cell *source)
+{
+	st_console_store_cell_locked(console, index, source);
+	if (console->raster_enabled && !(source->flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS)) {
+		rewrite_view_cell_locked(console, index);
+		if (!(source->flags & ST_CONSOLE_CELL_CONTINUATION)
+		    && index % console->columns + 1 < console->columns
+		    && (st_console_cell_at(console, index + 1)->flags & ST_CONSOLE_CELL_CONTINUATION))
+			rewrite_view_cell_locked(console, index + 1);
+	}
+}
+
 void
 st_console_mark_all_locked(st_console_t *console)
 {
@@ -1494,11 +1520,22 @@ st_console_invalidate_text_locked(st_console_t *console)
 {
 	size_t count = (size_t)console->columns * console->rows;
 
+	if (console->raster_parent != NULL) {
+		for (size_t i = 0; console->raster_enabled && i < count; ++i) {
+			if (console->view_text_batch[i] == console->view_batch
+			    && !(console->cells[i].flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS)) {
+				console->drawn_cells[i].flags |= ST_CONSOLE_RASTER_INVALID;
+				console->raster_current = false;
+				console->changed = true;
+			}
+		}
+		return;
+	}
 	if (console->drawn_cells != NULL)
 		for (size_t i = 0; i < count; ++i)
 			if ((st_console_cell_at(console, i)->flags
 			    & ST_CONSOLE_CELL_PIXEL_GRAPHICS) == 0)
-				st_console_drawn_at(console, i)->flags |= ST_CONSOLE_CELL_DIRTY;
+				st_console_drawn_at(console, i)->flags |= ST_CONSOLE_RASTER_INVALID;
 	st_console_mark_all_locked(console);
 }
 
@@ -1540,6 +1577,7 @@ present_locked(st_console_t *console, bool forced, bool backend_locked)
 	console->changed = false;
 	console->dirty_row_end = 0;
 	console->pixel_surface_dirty = false;
+	console->pixel_damage_valid = false;
 	console->palette_dirty = false;
 	return 0;
 }
@@ -2135,6 +2173,8 @@ st_console_write_complete_cells(st_console_t *console,
 
 			value.flags &= ST_CONSOLE_CELL_PUBLIC_FLAGS;
 			set_cell_raw_locked(console, first + x, &value);
+			if (console->raster_enabled && !(value.flags & ST_CONSOLE_CELL_PIXEL_GRAPHICS))
+				rewrite_view_cell_locked(console, first + x);
 		}
 	}
 	result = st_console_finish_change_locked(console);
@@ -2326,7 +2366,8 @@ st_console_set_palette(st_console_t *console, uint16_t first,
 	}
 	if (console->color_emoji || console->raster_parent!=NULL)
 		st_console_invalidate_text_locked(console);
-	st_console_mark_all_locked(console);
+	if (console->raster_parent == NULL)
+		st_console_mark_all_locked(console);
 	result = st_console_finish_change_locked(console);
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return result;
@@ -3397,8 +3438,10 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
 	snapshot->cells = malloc(count * sizeof(snapshot->cells[0]));
-	if (snapshot->cells == NULL) {
-		free(snapshot);
+	if (console->raster_parent != NULL)
+		snapshot->view_text = calloc(count, sizeof(*snapshot->view_text));
+	if (snapshot->cells == NULL || (console->raster_parent != NULL && snapshot->view_text == NULL)) {
+		st_console_snapshot_destroy(snapshot);
 		(void)st_rwlock_unlock(st_console_state_lock(console));
 		return IO_ERROR_OUT_OF_MEMORY;
 	}
@@ -3413,8 +3456,7 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 			}
 		}
 		if (status != 0) {
-			free(snapshot->cells);
-			free(snapshot);
+			st_console_snapshot_destroy(snapshot);
 			(void)st_rwlock_unlock(st_console_state_lock(console));
 			return status;
 		}
@@ -3443,8 +3485,12 @@ st_console_snapshot_create(st_console_snapshot_t **result,
 		memcpy(snapshot->cells + (size_t)y * console->columns,
 		    st_console_cell_at(console, (size_t)y * console->columns),
 		    (size_t)console->columns * sizeof(snapshot->cells[0]));
-	for (size_t i = 0; i < count; ++i)
+	for (size_t i = 0; i < count; ++i) {
 		snapshot->cells[i].flags &= ~ST_CONSOLE_CELL_DIRTY;
+		if (snapshot->view_text != NULL)
+			snapshot->view_text[i] = console->raster_enabled
+			    && console->view_text_batch[st_console_cell_index(console, i)] == console->view_batch;
+	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	*result = snapshot;
 	return 0;
@@ -3533,6 +3579,9 @@ st_console_snapshot_restore(st_console_t *console,
 				memcpy(console->pixels->primary+to,snapshot->pixels->primary+from,width*sizeof(*console->pixels->primary));
 				memcpy(console->pixels->alternate+to,snapshot->pixels->alternate+from,width*sizeof(*console->pixels->alternate));
 			}
+			st_console_view_pixels_written_locked(console, 0, 0, width, height);
+			for (size_t i = 0; i < count; ++i)
+				console->view_text_batch[i] = snapshot->view_text[i] ? console->view_batch : 0;
 		}
 		memcpy(console->drawn_cells, snapshot->cells,
 		    count * sizeof(console->drawn_cells[0]));
@@ -3556,6 +3605,7 @@ st_console_snapshot_destroy(st_console_snapshot_t *snapshot)
 	if (snapshot == NULL)
 		return;
 	st_pixel_buffer_destroy(snapshot->pixels);
+	free(snapshot->view_text);
 	free(snapshot->cells);
 	free(snapshot);
 }

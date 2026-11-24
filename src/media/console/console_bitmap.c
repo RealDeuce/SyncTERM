@@ -1118,6 +1118,9 @@ st_console_bitmap_presenter_frame(
 			accumulate_full_damage(presenter);
 		else {
 			(void)collect_cell_damage(presenter, console);
+			if (console->pixel_damage_valid)
+				st_console_rect_accumulate(&presenter->damage,
+				    &presenter->damage_valid, &console->pixel_damage);
 			if (cursor_changed) {
 				if (old_cursor.width != 0 && old_cursor.height != 0)
 					st_console_rect_accumulate(&presenter->damage,

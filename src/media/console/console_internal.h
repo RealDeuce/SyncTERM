@@ -15,6 +15,11 @@
 
 #include <stdatomic.h>
 
+/* Private to drawn_cells. Logical cell damage is consumed by presenters. */
+#define ST_CONSOLE_RASTER_INVALID (UINT32_C(1) << 31)
+_Static_assert((ST_CONSOLE_RASTER_INVALID & (ST_CONSOLE_CELL_PUBLIC_FLAGS | ST_CONSOLE_CELL_DIRTY)) == 0,
+    "Raster invalidation must be independent of logical cell flags");
+
 struct st_console_font_registration {
 	uint16_t identifier;
 	struct st_console_font font;
@@ -124,6 +129,7 @@ struct st_console_snapshot {
 	bool color_emoji;
 	uint32_t pixel_top;
 	bool full_surface_scroll;
+	bool *view_text;
 	struct st_console_cell *cells;
 	struct st_pixel_buffer *pixels;
 };
@@ -137,6 +143,10 @@ struct st_console {
 	size_t raster_children;
 	bool raster_enabled;
 	bool raster_transient;
+	bool view_pixels_written;
+	/* Only text painted since adoption can be recomposited on this shared surface. */
+	uint32_t view_batch;
+	uint32_t *view_text_batch;
 	st_mutex_t event_mutex;
 	st_condition_t event_ready;
 	st_event_t *activity_waiter; /* Borrowed under event_mutex during the owner wait. */
@@ -192,6 +202,8 @@ struct st_console {
 	uint32_t aspect_height;
 	bool changed;
 	bool pixel_surface_dirty;
+	bool pixel_damage_valid;
+	struct st_console_rect pixel_damage;
 	/* Text cells have been rasterized since the last cell/raster move. */
 	bool raster_current;
 	bool palette_dirty;
@@ -446,6 +458,10 @@ struct st_console_cell st_console_blank_locked(const st_console_t *console,
 	uint32_t codepoint);
 int st_console_finish_change_locked(st_console_t *console);
 int st_console_publish_raster_view_locked(st_console_t *console);
+void st_console_store_cell_locked(st_console_t *console, size_t index,
+	const struct st_console_cell *source);
+void st_console_view_pixels_written_locked(st_console_t *console, uint32_t x, uint32_t y,
+	uint32_t width, uint32_t height);
 void st_console_set_cell_locked(st_console_t *console, size_t index,
 	const struct st_console_cell *source);
 const struct st_console_font *st_console_font_locked(st_console_t *console,

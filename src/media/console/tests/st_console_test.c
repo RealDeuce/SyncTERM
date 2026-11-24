@@ -1384,7 +1384,7 @@ test_saa5050_double_height_raster(void)
 	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 	st_console_cell_at(console, 1)->flags &= ~ST_CONSOLE_CELL_DIRTY;
 	st_console_cell_at(console, 0)->flags &= ~ST_CONSOLE_CELL_DOUBLE_HEIGHT;
-	st_console_drawn_at(console, 0)->flags |= ST_CONSOLE_CELL_DIRTY;
+	st_console_drawn_at(console, 0)->flags |= ST_CONSOLE_RASTER_INVALID;
 	CHECK(st_console_rasterize_locked(console, false) == 0);
 	CHECK((st_console_cell_at(console, 0)->flags & ST_CONSOLE_CELL_DIRTY) != 0);
 	CHECK((st_console_cell_at(console, 1)->flags & ST_CONSOLE_CELL_DIRTY) != 0);

@@ -26,7 +26,8 @@ st_console_create_raster_view(st_console_t **result, st_console_t *parent,
 	struct st_pixel_buffer *pixels=calloc(1,sizeof(*pixels));
 	struct st_console_cell *drawn=calloc(count,sizeof(*drawn));
 	uint8_t *raster_rows=calloc(rows,sizeof(*raster_rows));
-	if (pixels==NULL || drawn==NULL || raster_rows==NULL) {
+	console->view_text_batch=calloc(count,sizeof(*console->view_text_batch));
+	if (pixels==NULL || drawn==NULL || raster_rows==NULL || console->view_text_batch==NULL) {
 		free(pixels);free(drawn);free(raster_rows);st_console_destroy(console);return IO_ERROR_OUT_OF_MEMORY;
 	}
 	if (st_rwlock_write_lock(st_console_state_lock(parent))!=ST_THREAD_SUCCESS) status=IO_ERROR_IO;
@@ -60,13 +61,18 @@ adopt(st_console_t *console, bool transient)
 	st_console_t *parent=console->raster_parent;
 	int status=parent->raster_current ? 0 : st_console_rasterize_locked(parent,false);
 	if (status!=0) {(void)st_rwlock_unlock(st_console_state_lock(console));return status;}
-	/* Every batch adopts the shared screen, without caching pixels or replaying
-	 * old text. The existing graphics flag makes even identical new text paint
-	 * again after another window or graphics has overwritten it. */
-	for (size_t i=0;i<(size_t)console->columns*console->rows;i++) {
-		struct st_console_cell *cell=st_console_cell_at(console,i);
-		cell->flags=(cell->flags|ST_CONSOLE_CELL_PIXEL_GRAPHICS)&~ST_CONSOLE_CELL_DIRTY;
-		*st_console_drawn_at(console,i)=*cell;
+	/* Initial setup and any unpresented text are hidden by adoption. */
+	if (!console->raster_enabled || !console->raster_current) {
+		size_t count = (size_t)console->columns * console->rows;
+		for (size_t i = 0; i < count; ++i) {
+			console->cells[i].flags &= ~ST_CONSOLE_CELL_DIRTY;
+			console->drawn_cells[i] = console->cells[i];
+		}
+	}
+	if (++console->view_batch == 0) {
+		memset(console->view_text_batch, 0, (size_t)console->columns * console->rows
+		    * sizeof(*console->view_text_batch));
+		console->view_batch = 1;
 	}
 	console->raster_current=true;console->raster_enabled=true;console->raster_transient=transient;
 	console->changed=false;console->dirty_row_end=0;console->pixel_surface_dirty=false;

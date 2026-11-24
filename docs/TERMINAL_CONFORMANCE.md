@@ -2574,6 +2574,11 @@ in new issue146 against PR145. The selected reference pin is
 preservation baseline. See the detailed RIP3 conformance/adoption inventories.
 
 
+The connected window-table test writes two MicroANSI blanks, paints graphics
+over them, and repeats both blanks. One capture checks both blink planes for
+the text background at each destination and the surviving artwork between
+them, in CP437 and UTF-8 at 640×480, 800×600, and 1024×768.
+
 `st_rip3_window_copy_connected_test.py` now covers TW entry COPY over actual
 RIP3 TCP connections in CP437 and UTF-8 at 640×480,800×600,1024×768 and custom
 720×400. It asserts literal numeric/CUR examples, source/destination protection,

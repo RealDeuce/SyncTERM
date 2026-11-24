@@ -169,6 +169,22 @@ def run(args, width, height):
         assert (frame.metadata["plane_width"], frame.metadata["plane_height"],
                 frame.metadata["columns"], frame.metadata["rows"]) == (width, height, width//8, height//8)
 
+        t.case(f"rip3-window-repeated-text-over-graphics-{width}x{height}")
+        variables(b"$CUR(TW,0)$$CUR(TW)$", b"0")
+        capture(b"\x01|w0000050200\r\n\x1b[48;2;18;52;86m \x1b[1;4H ")
+        # Replace the entire raster, then explicitly repeat the two blanks.
+        # Every pixel of the two intervening cells must retain the green art.
+        frame = capture(scene(width, height) + b"\x1b[H \x1b[1;4H ")
+        cw, ch = {640: (8, 11), 800: (10, 13), 1024: (12, 17)}[width]
+        for plane in (frame.primary, frame.alternate):
+            for y in range(ch):
+                offset = ((frame.metadata["pixel_top"] + y) % height) * width
+                for x in range(4 * cw):
+                    word = plane[offset + x]
+                    rgb = word if word & 0x80000000 else frame.palette[word]
+                    expected = 0x123456 if x // cw in (0, 3) else 0x00aa00
+                    assert rgb & 0xffffff == expected, (x, y, hex(rgb), hex(expected))
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

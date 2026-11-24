@@ -6572,9 +6572,11 @@ Positioned text windows now use the existing console rasterizer directly over
 the display's two pixel planes. They own their logical cells, fonts and ANSI
 state, without another pair of pixel buffers or a full-image import/export on
 each write. All raster access uses the parent's state lock and circular pixel-row
-mapping. The existing cell graphics/dirty flags and dirty-row range publish
-changed cells to the parent; there is no second damage accumulator or revision
-counter. Plain ANSI and RIP1 cell writes have no added damage-tracking hook.
+mapping. An explicit view text write invalidates its destination glyph even
+when it repeats the saved character. Raster writes report their pixel extent
+to the display and mark intersected parent cells as containing graphics.
+Disjoint writes can share an upload rectangle while the cells between them
+retain their ownership. Cursor movement leaves both raster planes untouched.
 Parent raster replacement is busy while a view borrows it; views are destroyed
 before the parent. Positioned scrolling clips both planes without changing the
 parent's existing full-screen/status-row scrolling optimizations.
@@ -6592,7 +6594,7 @@ inactive windows, selected PAL retention, old-current image style, surviving
 backups/templates/variables, clipboard deletion and split ANSI continuation.
 Connected selection captures include non-ASCII text, a literal pipe, reset from
 an entry grid, an arbitrary pixel origin, completion and cancellation. A native
-test checks existing dirty bits, clipped partial cells, offscreen 64-bit origins,
+test checks glyph invalidation, parent pixel damage, clipped cells, offscreen 64-bit origins,
 both planes across parent circular wrap, scrolling, snapshots and raster
 replacement rejection.
 
