@@ -9889,3 +9889,24 @@ The bounded-text handler at RVA `0x1a0da` fits a complete outline string
 to the projected rectangle by changing the point size. The pinned chapter
 describes wrapped text. The fit and resulting state are tracked separately.
 [Issue #214](https://github.com/bbs-land/remote-imaging-protocol/issues/214)
+
+## Connected WRITE_ICON export modes
+
+`1W` writes inside the active BBS cache. A basename without an extension
+gets `.BMP`. The suffix aliases are `.ICN` to `.BMP`, `.HIC` to `.BMH`,
+and `.MSK` to `.BMM`. SyncTERM preserves basename spelling and matches
+the final suffix case-insensitively.
+
+For an offscreen clipboard, flag bit 1 selects the full backing bitmap at
+device size. With that bit clear, SyncTERM scales the stored viewport by
+`640 / device_width` and `350 / device_height`, independently of WORLD.
+It uses centered nearest-neighbor sampling after truncating the output
+dimensions. An extent that truncates to zero produces no file. An onscreen
+clipboard exports the stored viewport at device size with either setting.
+Absent or undefined clipboard assignments produce no file.
+
+Connected CP437 and UTF-8 cases compare a 7×7 capture with its 7×5 export,
+check all three suffix translations and the default suffix, and reject a
+path outside the BBS cache. Native tests check write failures and both
+clipboard source types. Bit 0's temporary registration lifetime remains
+open. [Issue #215](https://github.com/bbs-land/remote-imaging-protocol/issues/215)

@@ -132,6 +132,30 @@ def check_bitmap(t, assets, values):
     assert not (assets / "Raw.BMP").exists()
     values(b"alive", b"alive")
 
+    t.case("WRITE_ICON normalizes the basename and selects scaled or backing clipboard pixels")
+    reset()
+    wire(b"S0104|B" + coords(100, 100, 105, 102)
+         + b"|S0102|B" + coords(100, 103, 105, 105)
+         + b"|1C" + coords(100, 100, 105, 105) + b"0")
+    values(b"$WORLD(CUR,1280,960)$")
+    wire(b"1W0Scaled.iCn|1W2Device.hIc|1W6Mask.mSk|1W2Extensionless")
+
+    def rows(name, height):
+        data = (assets / name).read_bytes()
+        assert data[:2] == b"BM"
+        assert struct.unpack_from("<iiHH", data, 18) == (7, height, 1, 8)
+        offset, = struct.unpack_from("<I", data, 10)
+        return [list(data[offset + 8*y:offset + 8*y + 7]) for y in reversed(range(height))]
+
+    assert rows("Device.BMH", 7) == [[4] * 7] * 3 + [[2] * 7] * 4
+    assert rows("Scaled.BMP", 5) == [[4] * 7] * 2 + [[2] * 7] * 3
+    assert rows("Mask.BMM", 7) == rows("Extensionless.BMP", 7) == rows("Device.BMH", 7)
+    assert not (assets / "Scaled.iCn").exists()
+    assert not (assets / "Extensionless").exists()
+    wire(b"1W2../Escape")
+    assert not (assets.parent / "Escape.BMP").exists()
+    values(b"alive", b"alive")
+
 
 def check_host_directory(t, root, rip, values, encoding):
     def wire(commands):

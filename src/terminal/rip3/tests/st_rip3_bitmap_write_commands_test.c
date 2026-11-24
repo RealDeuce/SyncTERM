@@ -115,6 +115,18 @@ expect(const char *directory, const char *name)
 }
 
 static int
+expect_backing(const char *directory, const char *name)
+{
+	const uint8_t pixels[] = {
+		238,238,238,238,238,
+		238,0,17,255,238,
+		238,128,3,200,238,
+		238,238,238,238,238,
+	};
+	return expect_area(directory, name, 5, 4, pixels);
+}
+
+static int
 missing(const char *directory, const char *name)
 {
 	char *path = NULL;
@@ -166,13 +178,14 @@ scene(enum st_rip3_canvas canvas, const char *directory)
 	struct fixture f = {0};
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	const uint8_t input[] = "!|1W0filename.icn|1W0Tile.BMP|1W1bad.bmp|1W0tile.bmp|J1S|1W0Space name.bmp|1W0\xce\xa9mega.BMP|1W0$OFF$\r";
+	const uint8_t input[] = "!|1W2ClipName.icn|1W2Tile.BMP|1W3temporary.hIc|1W2tile.bmp|J1S|1W6Space name.bmp|1W2\xce\xa9mega.BMP|1W2$OFF$\r";
 	CHECK(create(&f,canvas,directory) == 0 && st_rip3_stream_create(&stream,&sink) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
-	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_UNSUPPORTED);
-	CHECK(expect(directory,"filename.icn") == 0 && expect(directory,"Tile.BMP") == 0);
-	CHECK(expect(directory,"Space name.bmp") == 0 && expect(directory,"\xce\xa9mega.BMP") == 0);
-	CHECK(missing(directory,"bad.bmp") == 0 && expect(directory,"$OFF$") == 0);
+	CHECK(f.errors == 0);
+	CHECK(missing(directory,"ClipName.icn") == 0 && expect_backing(directory,"ClipName.BMP") == 0);
+	CHECK(expect_backing(directory,"Tile.BMP") == 0 && expect_backing(directory,"temporary.BMH") == 0);
+	CHECK(expect_backing(directory,"Space name.bmp") == 0 && expect_backing(directory,"\xce\xa9mega.BMP") == 0);
+	CHECK(expect_backing(directory,"$OFF$.BMP") == 0);
 	unsigned number;
 	struct st_rip3_port_info info;
 	struct st_rip3_palette_info palette;
@@ -187,7 +200,7 @@ scene(enum st_rip3_canvas canvas, const char *directory)
 	CHECK(f.clipboard.set && f.clipboard.port == 1);
 	/* A selected clipboard can also be current; export still writes it. */
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0);
-	CHECK(process(&f,"1W0same.bmp",-1) == 0 && expect(directory,"same.bmp") == 0);
+	CHECK(process(&f,"1W2same.bmp",-1) == 0 && expect_backing(directory,"same.bmp") == 0);
 	const struct st_rip3_rect screen = {10,20,14,23}, screen_view = {1,1,3,2};
 	const uint8_t pixels[] = {0,17,255,128,3,200};
 	CHECK(st_rip3_ports_define(f.host.ports,2,&screen,false) == 0);
@@ -210,53 +223,55 @@ recovery(const char *directory)
 {
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,directory) == 0);
-	CHECK(process(&f,"1W0Tile.BMP",-1) == 0 && expect(directory,"Tile.BMP") == 0);
+	CHECK(process(&f,"1W2Tile.BMP",-1) == 0 && expect_backing(directory,"Tile.BMP") == 0);
 	for (unsigned stage = 1; stage <= 2; stage++) {
 		st_rip3_bitmap_capture_test_failure = stage;
-		CHECK(process(&f,"1W0Tile.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
-		CHECK(st_rip3_bitmap_capture_test_failure == 0 && expect(directory,"Tile.BMP") == 0);
+		CHECK(process(&f,"1W2Tile.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
+		CHECK(st_rip3_bitmap_capture_test_failure == 0 && expect_backing(directory,"Tile.BMP") == 0);
 	}
 	st_rip3_bitmap_encode_test_fail_allocate = true;
-	CHECK(process(&f,"1W0Tile.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
-	CHECK(!st_rip3_bitmap_encode_test_fail_allocate && expect(directory,"Tile.BMP") == 0);
+	CHECK(process(&f,"1W2Tile.BMP",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0);
+	CHECK(!st_rip3_bitmap_encode_test_fail_allocate && expect_backing(directory,"Tile.BMP") == 0);
 	st_rip3_resource_test_fail_replace = true;
-	CHECK(process(&f,"1W0Tile.BMP",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(!st_rip3_resource_test_fail_replace && expect(directory,"Tile.BMP") == 0);
-	CHECK(process(&f,"1W0Tile.BMP",-1) == 0 && expect(directory,"Tile.BMP") == 0);
-	const char *const invalid[] = {"1W","1W0","1W?bad.bmp"};
+	CHECK(process(&f,"1W2Tile.BMP",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(!st_rip3_resource_test_fail_replace && expect_backing(directory,"Tile.BMP") == 0);
+	CHECK(process(&f,"1W2Tile.BMP",-1) == 0 && expect_backing(directory,"Tile.BMP") == 0);
+	const char *const invalid[] = {"1W","1W2","1W?bad.bmp"};
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++)
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
-	CHECK(process(&f,"1W0../escape.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(process(&f,"1W2../escape.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	f.clipboard.set = false;
-	CHECK(process(&f,"1W0Cleared.bmp",-1) == 0 && missing(directory,"Cleared.bmp") == 0);
+	CHECK(process(&f,"1W2Cleared.bmp",-1) == 0 && missing(directory,"Cleared.bmp") == 0);
 	f.clipboard.set = true; f.clipboard.port = 0;
-	CHECK(process(&f,"1W0Invalid.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(process(&f,"1W2Invalid.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	f.clipboard.port = 36;
-	CHECK(process(&f,"1W0Invalid.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
+	CHECK(process(&f,"1W2Invalid.bmp",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
 	f.clipboard.port = 7;
-	CHECK(process(&f,"1W0Dangling.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
+	CHECK(process(&f,"1W2Dangling.bmp",-1) == 0 && missing(directory,"Dangling.bmp") == 0);
 	f.clipboard.port = 1;
 	CHECK(st_rip3_ports_protect(f.host.ports,1,false) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
-	CHECK(process(&f,"1W0Inactive.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && missing(directory,"Inactive.bmp") == 0);
+	CHECK(process(&f,"1W2Inactive.bmp",-1) == 0 && expect_backing(directory,"Inactive.bmp") == 0);
 	CHECK(st_rip3_ports_activate(f.host.ports,true) == 0);
 	f.host.clipboard = NULL;
-	CHECK(process(&f,"1W0Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.clipboard = &f.clipboard;
+	CHECK(process(&f,"1W2Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.clipboard = &f.clipboard;
 	const struct st_rip3_resource_paths *paths = f.host.resources;
 	f.host.resources = NULL;
-	CHECK(process(&f,"1W0Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.resources = paths;
+	CHECK(process(&f,"1W2Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.resources = paths;
 	struct st_rip3_ports *ports = f.host.ports;
 	f.host.ports = NULL;
-	CHECK(process(&f,"1W0Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.ports = ports;
+	CHECK(process(&f,"1W2Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.ports = ports;
 	struct st_rip3_environments *environments = f.host.environments;
 	f.host.environments = NULL;
-	CHECK(process(&f,"1W0Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.environments = environments;
+	CHECK(process(&f,"1W2Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.environments = environments;
 	struct st_rip3_palettes *palettes = f.host.palettes;
 	f.host.palettes = NULL;
-	CHECK(process(&f,"1W0Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.palettes = palettes;
+	CHECK(process(&f,"1W2Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.palettes = palettes;
 	f.paths.host = NULL;
-	CHECK(process(&f,"1W0Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.paths.host = directory;
-	CHECK(process(&f,"1W0Recovered.bmp",-1) == 0 && expect(directory,"Recovered.bmp") == 0);
+	CHECK(process(&f,"1W2Missing.bmp",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.paths.host = directory;
+	CHECK(process(&f,"1W2Recovered.bmp",-1) == 0 && expect_backing(directory,"Recovered.bmp") == 0);
+	const uint8_t scaled[] = {128,3,200};
+	CHECK(process(&f,"1W0Scaled",-1) == 0 && expect_area(directory,"Scaled.BMP",3,1,scaled) == 0);
 	destroy(&f);
 	return 0;
 }

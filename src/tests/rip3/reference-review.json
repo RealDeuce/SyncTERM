@@ -21999,6 +21999,34 @@
         "unreviewed": 2171
       },
       "verification": "The five executable wire descriptors call geometry RVA 0x0fa70. The 52 observed point vectors from RIPlib tests verify sample counts, closure and coordinate order. Connected CP437 and UTF-8 tests verify all five opcodes, fill selectors, and invalid-argument recovery. RVA 0x1a0da supplies separate bounded-text fitting evidence for #214."
+    },
+    {
+      "after_commit": "65e02243",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected native 1W suffix preparation and clipboard capture modes.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:103",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:107",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:108",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:119"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:109",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:111",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:113",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:115",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:121",
+        "version/3.0/ripscrip/9.0-command-reference.md:161"
+      ],
+      "states_after_update": {
+        "blocked": 58,
+        "context": 1869,
+        "excluded": 71,
+        "implemented": 3470,
+        "pending": 1479,
+        "unreviewed": 2171
+      },
+      "verification": "DLL RVAs 0xdd67, 0x27930 and 0x27a90 establish the low flag bits, name aliases, source kinds and extents. Connected CP437 and UTF-8 cases compare exported dimensions and indexed rows. Native command tests check both source types and fault recovery; temporary registration remains under #215."
     }
   ]
 }
