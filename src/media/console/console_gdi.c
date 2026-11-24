@@ -1313,6 +1313,13 @@ gdi_attach(st_console_t *console)
 	return st_console_bitmap_validate_geometry(console, LONG_MAX);
 }
 
+static bool
+gdi_mouse_present(const st_console_display_t *display)
+{
+	(void)display;
+	return GetSystemMetrics(SM_MOUSEPRESENT) != 0;
+}
+
 static const struct st_console_backend_ops gdi_ops = {
 	.attach = gdi_attach,
 	.presents_pixels = true,
@@ -1324,6 +1331,7 @@ static const struct st_console_backend_ops gdi_ops = {
 	.set_clipboard_text = gdi_set_clipboard,
 	.get_clipboard_text = gdi_get_clipboard,
 	.open_url = gdi_open_url,
+	.mouse_present = gdi_mouse_present,
 	.set_pointer_visible = gdi_set_pointer,
 	.set_pointer_shape = gdi_set_pointer_shape,
 	.set_fullscreen = gdi_set_fullscreen,

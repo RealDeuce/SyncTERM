@@ -13,7 +13,7 @@
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1; } } while (0)
 
-struct modifiers {bool shift,ctrl;unsigned calls;int status;};
+struct modifiers {bool shift,ctrl,mouse;unsigned calls;int status;};
 static int
 modifiers(void *context, unsigned *down)
 {
@@ -63,6 +63,13 @@ set_doorway_mode(void *context, bool enabled)
 }
 
 static int
+mouse_present(void *context, bool *present)
+{
+	*present = ((const struct modifiers *)context)->mouse;
+	return 0;
+}
+
+static int
 options(void)
 {
 	bool enabled = false;
@@ -98,15 +105,15 @@ options(void)
 static int
 devices(void)
 {
-	struct modifiers state={0};bool mouse=true;unsigned colors=256;
-	struct st_rip3_local_queries local={.context=&state,.modifiers=modifiers,.mouse_installed=&mouse,.colors=&colors};
+	struct modifiers state={.mouse=true};unsigned colors=256;
+	struct st_rip3_local_queries local={.context=&state,.modifiers=modifiers,.mouse_present=mouse_present,.colors=&colors};
 	struct st_rip3_host_variables host={.local=&local};
 	for (unsigned bits=0; bits<4; bits++) {
 		state.shift=(bits&1)!=0;state.ctrl=(bits&2)!=0;
 		CHECK(query(&host,"$sHiFt$",state.shift ? "1" : "0",-1)==0);
 		CHECK(query(&host,"$CTRL()$",state.ctrl ? "1" : "0",-1)==0);
 	}
-	CHECK(state.calls==8 && query(&host,"$MSTAT$","YES",-1)==0);mouse=false;
+	CHECK(state.calls==8 && query(&host,"$MSTAT$","YES",-1)==0);state.mouse=false;
 	CHECK(query(&host,"$MSTAT()$","NO",-1)==0);
 	const unsigned counts[]={2,16,256,32768,65536,16777216,17};
 	const char *const values[]={"2","16","256","32768","65536","16777216","17"};
@@ -122,7 +129,7 @@ devices(void)
 	CHECK(query(&host,"$SHIFT$",NULL,ST_RIP3_HOST_OPERATION_FAILED)==0);
 	state.status=0;CHECK(query(&host,"$SHIFT$","1",-1)==0);
 	local.modifiers=NULL;CHECK(query(&host,"$CTRL$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
-	local.mouse_installed=NULL;CHECK(query(&host,"$MSTAT$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
+	local.mouse_present=NULL;CHECK(query(&host,"$MSTAT$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	local.colors=NULL;CHECK(query(&host,"$COLORS$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	host.local=NULL;CHECK(query(&host,"$SHIFT$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
 	CHECK(query(&host,"$COLORS(1)$",NULL,ST_RIP3_HOST_INVALID_REFERENCE)==0);

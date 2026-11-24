@@ -20,6 +20,9 @@ int main(void)
 	st_console_t *console = NULL, *peer = NULL;
 	CHECK(st_console_display_create(&display, &config) == 0);
 	CHECK(st_console_create_on_display(&console, display, &geometry) == 0);
+	bool mouse = false;
+	CHECK(st_console_set_pointer_visible(console, false) == 0);
+	CHECK(st_console_mouse_present(console, &mouse) == 0 && mouse);
 	CHECK(st_console_set_cursor(console, false, ST_CONSOLE_CURSOR_BLOCK) == 0);
 	uint8_t bitmap[] = {0xc0, 0x40};
 	const struct st_console_font_mapping mapping[] = {{0x1f579, 0}};
@@ -76,5 +79,9 @@ int main(void)
 	st_console_destroy(peer); st_console_destroy(console); st_console_display_destroy(display);
 	CHECK(first->rgb->pixels[0] == 0x123456 && first->cells[0].hyperlink == 42);
 	st_console_test_capture_destroy(first);
+	const struct st_console_display_config headless = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	CHECK(st_console_create(&console, &headless, &geometry) == 0);
+	CHECK(st_console_mouse_present(console, &mouse) == 0 && !mouse);
+	st_console_destroy(console);
 	return 0;
 }

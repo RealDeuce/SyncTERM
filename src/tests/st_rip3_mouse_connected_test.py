@@ -46,7 +46,7 @@ def run(args):
             return t.input(expected) if expected else t.exchange()
 
         t.case("rip3-mouse-coordinate-and-button-queries")
-        values(b"$M$", b"000")
+        values(b"$MSTAT$/$M$", b"YES/000")
         values(b"$WORLD(CUR,1280,960)$")
         mouse(297,321,buttons=2|4)
         values(b"$X$/$Y(device)$/$M$/$XYM$/$XYM(DEVICE)$",
@@ -59,7 +59,7 @@ def run(args):
         before = client.capture().metadata["events_dequeued"]
         client.focus(False)
         client.wait_for(lambda snapshot: snapshot.metadata["events_dequeued"] > before)
-        values(b"$M$/$XYM(DEVICE)$", b"000/0298:0322:000")
+        values(b"[$MSTAT(1)$]$MSTAT$/$M$/$XYM(DEVICE)$", b"[]YES/000/0298:0322:000")
         client.focus(True)
         mouse(298,322)
         values(b"$WORLD(CUR,640,480)$")

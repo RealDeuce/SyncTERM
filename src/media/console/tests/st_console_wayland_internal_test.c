@@ -36,6 +36,7 @@ static int test_munmap(void *, size_t);
 } while (0)
 
 enum marshal_mode {
+	MARSHAL_OK,
 	MARSHAL_POOL_FAIL,
 	MARSHAL_BUFFER_FAIL,
 	MARSHAL_LISTENER_FAIL,
@@ -132,6 +133,39 @@ install_buffer_fakes(struct st_wayland_api *saved, enum marshal_mode mode)
 	st_wayland_api.proxy_marshal_flags = fake_marshal;
 	st_wayland_api.proxy_add_listener = fake_add_listener;
 	st_wayland_api.proxy_get_version = fake_get_version;
+}
+
+static void
+fake_destroy_pointer(struct wl_proxy *proxy)
+{
+	(void)proxy;
+}
+
+static int
+test_mouse_presence(void)
+{
+	struct st_wayland_api saved;
+	struct state state = {0};
+	const st_console_display_t display = {.backend_state = &state};
+	struct wl_seat *seat = (struct wl_seat *)(uintptr_t)1;
+
+	atomic_init(&state.mouse_present, false);
+	install_buffer_fakes(&saved, MARSHAL_OK);
+	st_wayland_api.proxy_destroy = fake_destroy_pointer;
+	CHECK(!mouse_present(&display));
+	seat_capabilities(&state, seat, WL_SEAT_CAPABILITY_POINTER);
+	CHECK(mouse_present(&display) && marshal_count == 1);
+	seat_capabilities(&state, seat, 0);
+	CHECK(!mouse_present(&display) && state.pointer == NULL);
+	marshal_mode = MARSHAL_LISTENER_FAIL;
+	seat_capabilities(&state, seat, WL_SEAT_CAPABILITY_POINTER);
+	CHECK(!mouse_present(&display) && state.pointer == NULL && marshal_count == 2);
+	marshal_mode = MARSHAL_OK;
+	seat_capabilities(&state, seat, WL_SEAT_CAPABILITY_POINTER);
+	CHECK(mouse_present(&display) && marshal_count == 3);
+	seat_capabilities(&state, seat, 0);
+	st_wayland_api = saved;
+	return 0;
 }
 
 static int
@@ -908,6 +942,7 @@ main(void)
 	CHECK(test_decoration_lifecycle() == 0);
 #endif
 	CHECK(test_mapping_cleanup() == 0);
+	CHECK(test_mouse_presence() == 0);
 	CHECK(test_busy_buffers_skip() == 0);
 	CHECK(test_worker_failures() == 0);
 	CHECK(test_pointer_surface_coordinates() == 0);

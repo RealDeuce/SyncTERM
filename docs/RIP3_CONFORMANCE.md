@@ -9832,3 +9832,16 @@ defaults, window ownership and rendering effects. The distinct `BSMODE`
 and `BSXMIT` callbacks also need a contract for their client-side key and
 terminal effects. [Issue #210](https://github.com/bbs-land/remote-imaging-protocol/issues/210) ·
 [Issue #209](https://github.com/bbs-land/remote-imaging-protocol/issues/209)
+
+## Connected mouse presence on reporting backends
+
+`$MSTAT$` reads mouse presence when the query executes. Windows GDI uses
+the same `GetSystemMetrics(SM_MOUSEPRESENT)` call as the original DLL at
+RVA `0x34970`. Wayland uses its seat's current pointer capability after
+the pointer listener is attached. The control backend supplies a virtual
+mouse and the headless backend has no mouse. The result is independent
+of focus, pointer visibility, position and held buttons.
+
+The backends that accept pointer input without reporting its presence
+still leave this query unsupported while the portable policy is open.
+[Issue #211](https://github.com/bbs-land/remote-imaging-protocol/issues/211)

@@ -223,8 +223,11 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		text[1]=0;length=1;
 	}
 	else if (mouse) {
-		if (local->mouse_installed==NULL) return IO_ERROR_NOT_SUPPORTED;
-		const char *answer=*local->mouse_installed ? "YES" : "NO";
+		if (local->mouse_present == NULL) return IO_ERROR_NOT_SUPPORTED;
+		bool present;
+		int status = local->mouse_present(local->context, &present);
+		if (status != 0) return status;
+		const char *answer = present ? "YES" : "NO";
 		length=(int)strlen(answer);memcpy(text,answer,(size_t)length+1);
 	}
 	else if (colors) {

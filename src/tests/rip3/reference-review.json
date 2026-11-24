@@ -21925,6 +21925,28 @@
         "unreviewed": 2178
       },
       "verification": "RIPtel DLL callbacks at RVAs 0x2bb73 and 0x2be34 return the fixed CDCS and LANG values. Connected CP437 and UTF-8 cases check the wire replies and recovery from invalid arguments. Native graphical fixtures cover ordinary and angle expansion as well as conditional operands."
+    },
+    {
+      "after_commit": "3dc477b5",
+      "revision": "a1b5f789c316a996d7baad3116d776ca7c4bca91",
+      "scope": "Connected MSTAT queries on backends that provide a presence signal.",
+      "implemented_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1125",
+        "version/3.0/ripscrip/5.1-text-variables.md:1129"
+      ],
+      "blocked_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1127",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:75"
+      ],
+      "states_after_update": {
+        "blocked": 45,
+        "context": 1869,
+        "excluded": 71,
+        "implemented": 3464,
+        "pending": 1491,
+        "unreviewed": 2178
+      },
+      "verification": "The DLL callback at RVA 0x34970 imports USER32.GetSystemMetrics at IAT RVA 0x966e8. The CP437 and UTF-8 TCP fixtures query before any pointer event and after focus loss. The native fixtures check query-time state, Wayland seat capability loss and reacquisition, and present/absent virtual and headless console paths."
     }
   ]
 }

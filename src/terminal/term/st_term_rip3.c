@@ -1282,6 +1282,13 @@ modifiers(void *context, unsigned *down)
 	return status;
 }
 
+static int
+mouse_present(void *context, bool *present)
+{
+	struct st_term_rip3 *rip = context;
+	return st_console_mouse_present(rip->config.console, present);
+}
+
 static bool
 doorway_mode(void *context)
 {
@@ -1867,7 +1874,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	    config->application_version==NULL ? "" : config->application_version};
 	rip->colors=256;
 	rip->local=(struct st_rip3_local_queries){.context=rip,.modifiers=modifiers,.colors=&rip->colors,
-	    .mouse_buttons=&rip->mouse_buttons,
+	    .mouse_buttons=&rip->mouse_buttons,.mouse_present=mouse_present,
 	    .doorway_mode=doorway_mode,.set_doorway_mode=set_doorway_mode};
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_ANSI,true);
 	(void)st_rip3_features_set(&rip->features,ST_RIP3_FEATURE_DOORWAY,true);

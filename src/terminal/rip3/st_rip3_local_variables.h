@@ -38,7 +38,8 @@ struct st_rip3_local_queries {
 	 * request. A missing capture is unsupported, independently of MSTAT. */
 	const struct st_rip3_point *mouse_position;
 	const struct st_rip3_pointer_buttons *mouse_buttons;
-	const bool *mouse_installed;
+	/* Independent backend presence check, even before the first event. */
+	int (*mouse_present)(void *context, bool *present);
 	/* Destination device capacity, independently of current palette/ENV mode. */
 	const unsigned *colors;
 	bool text_window_query;

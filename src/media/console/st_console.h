@@ -842,6 +842,8 @@ int st_console_set_clipboard_text(st_console_t *console, const char *text);
 int st_console_get_clipboard_text(st_console_t *console, char **result);
 void st_console_free_text(char *text);
 int st_console_open_url(st_console_t *console, const char *url);
+/* Reports backend mouse presence. Unsupported frontends leave present intact. */
+int st_console_mouse_present(st_console_t *console, bool *present);
 int st_console_set_pointer_visible(st_console_t *console, bool visible);
 int st_console_get_pointer_visible(st_console_t *console, bool *visible);
 int st_console_set_pointer_shape(st_console_t *console,

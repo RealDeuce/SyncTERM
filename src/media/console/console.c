@@ -4151,6 +4151,23 @@ st_console_open_url(st_console_t *console, const char *url)
 }
 
 int
+st_console_mouse_present(st_console_t *console, bool *present)
+{
+	if (console == NULL || present == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const st_console_display_t *display = console->display;
+	if (display->backend == ST_CONSOLE_BACKEND_TEST)
+		*present = true; /* Test control supplies a virtual mouse. */
+	else if (display->backend == ST_CONSOLE_BACKEND_HEADLESS)
+		*present = false;
+	else if (display->backend_ops != NULL && display->backend_ops->mouse_present != NULL)
+		*present = display->backend_ops->mouse_present(display);
+	else
+		return IO_ERROR_NOT_SUPPORTED;
+	return 0;
+}
+
+int
 st_console_get_pointer_visible(st_console_t *console, bool *visible)
 {
 	if (console == NULL || visible == NULL) return IO_ERROR_INVALID_ARGUMENT;

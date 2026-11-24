@@ -922,7 +922,7 @@ embedding_limits(enum st_rip3_canvas canvas)
 
 extern unsigned st_rip3_query_test_allocation_countdown;
 
-struct local_modifiers {bool shift,ctrl;unsigned calls;};
+struct local_modifiers {bool shift,ctrl,mouse;unsigned calls;};
 static int
 local_modifiers(void *context, unsigned *down)
 {
@@ -932,18 +932,25 @@ local_modifiers(void *context, unsigned *down)
 }
 
 static int
+local_mouse_present(void *context, bool *present)
+{
+	*present = ((const struct local_modifiers *)context)->mouse;
+	return 0;
+}
+
+static int
 local_queries(void)
 {
 	struct fixture f={0};CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
-	struct local_modifiers keys={.shift=true};bool mouse=true;unsigned colors=256;
+	struct local_modifiers keys={.shift=true,.mouse=true};unsigned colors=256;
 	struct st_rip3_point position={0,0};
 	const struct st_rip3_local_queries local={.context=&keys,.modifiers=local_modifiers,.mouse_position=&position,
-	    .mouse_installed=&mouse,.colors=&colors};f.variables.local=&local;
+	    .mouse_present=local_mouse_present,.colors=&colors};f.variables.local=&local;
 	CHECK(st_rip3_frame_world(&f.frame,1280,960)==0);
 	CHECK(process(&f,"1\0330000$SHIFT$/$D(1)$$SHIFT$/$CTRL$/$MSTAT$/$COLORS$/$XY$",-1)==0
 	    && keys.calls==1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
 	CHECK(append(&f,"raw\r\n")==0);st_rip3_input_process(f.host.input,2048);CHECK(f.read==0);
-	keys.shift=false;keys.ctrl=true;mouse=false;colors=16777216;position=(struct st_rip3_point){297,321};
+	keys.shift=false;keys.ctrl=true;keys.mouse=false;colors=16777216;position=(struct st_rip3_point){297,321};
 	f.now=16666667;st_rip3_input_process(f.host.input,2048);
 	const char *expected="1/0/1/NO/16777216/0594:0642";
 	CHECK(keys.calls==3 && f.reply_length==strlen(expected) && memcmp(f.reply,expected,strlen(expected))==0

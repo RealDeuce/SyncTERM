@@ -169,6 +169,7 @@ struct state {
 	struct wl_data_source *selection_source;
 	struct wl_keyboard *keyboard;
 	struct wl_pointer *pointer;
+	atomic_bool mouse_present;
 	struct xdg_wm_base *wm_base;
 	struct wp_viewporter *viewporter;
 #if ST_CONSOLE_HAVE_WAYLAND_DECORATION
@@ -1405,6 +1406,18 @@ static int get_clipboard(struct state *state, char **result)
 	return 0;
 }
 
+static void
+drop_pointer(struct state *state)
+{
+	if (wl_pointer_get_version(state->pointer) >= WL_POINTER_RELEASE_SINCE_VERSION)
+		wl_pointer_release(state->pointer);
+	else
+		wl_pointer_destroy(state->pointer);
+	state->pointer = NULL;
+	state->pointer_serial = 0;
+	state->pointer_on_video = false;
+}
+
 static void seat_capabilities(void *data, struct wl_seat *seat, uint32_t caps)
 {
 	struct state *state = data;
@@ -1417,9 +1430,13 @@ static void seat_capabilities(void *data, struct wl_seat *seat, uint32_t caps)
 	if ((caps & WL_SEAT_CAPABILITY_POINTER) != 0 &&
 	    state->pointer == NULL) {
 		state->pointer = wl_seat_get_pointer(seat);
-		(void)wl_pointer_add_listener(
-		    state->pointer, &pointer_listener, state);
+		if (state->pointer != NULL && wl_pointer_add_listener(
+		    state->pointer, &pointer_listener, state) != 0)
+			drop_pointer(state);
 	}
+	if ((caps & WL_SEAT_CAPABILITY_POINTER) == 0 && state->pointer != NULL)
+		drop_pointer(state);
+	atomic_store_explicit(&state->mouse_present, state->pointer != NULL, memory_order_relaxed);
 }
 static void seat_name(void *d, struct wl_seat *s, const char *n)
 {
@@ -2123,6 +2140,13 @@ static int attach(st_console_t *console)
 	return st_console_bitmap_validate_geometry(console, INT32_MAX);
 }
 
+static bool
+mouse_present(const st_console_display_t *display)
+{
+	const struct state *state = display->backend_state;
+	return atomic_load_explicit(&state->mouse_present, memory_order_relaxed);
+}
+
 static const struct st_console_backend_ops ops = {
 #if ST_CONSOLE_HAVE_POSIX_URL
 	.open_url = st_console_posix_open_url,
@@ -2136,6 +2160,7 @@ static const struct st_console_backend_ops ops = {
     .set_title = title,
     .set_clipboard_text = clipboard_set,
     .get_clipboard_text = clipboard_get,
+	.mouse_present = mouse_present,
     .set_pointer_visible = pointer,
     .set_pointer_shape = pointer_shape,
     .set_fullscreen = fullscreen,
@@ -2156,6 +2181,7 @@ int st_console_wayland_init(st_console_t *c)
 	s = calloc(1, sizeof(*s));
 	if (!s)
 		return IO_ERROR_OUT_OF_MEMORY;
+	atomic_init(&s->mouse_present, false);
 	s->console = c;
 	s->window_geometry = (struct st_console_bitmap_geometry){
 		c->pixels->width, c->pixels->height,

@@ -42,6 +42,8 @@ struct st_console_backend_ops {
 	int (*set_clipboard_text)(st_console_display_t *display, const char *text);
 	int (*get_clipboard_text)(st_console_display_t *display, char **result);
 	int (*open_url)(st_console_display_t *display, const char *url);
+	/* Read an available native mouse-presence signal without an input event. */
+	bool (*mouse_present)(const st_console_display_t *display);
 	int (*set_pointer_visible)(st_console_display_t *display, bool visible);
 	int (*set_pointer_shape)(st_console_display_t *display,
 	    enum st_console_pointer_shape shape);
