@@ -119,6 +119,33 @@ def run(args,width,height):
             assert {x for x in range(430,510) if pixel(frame,x,278) == 0xffff55} == set(range(454,469))
             t.exchange(b"\x01|1K|Y00000100\r\n")
 
+            t.case("classic DEFAULT EX button justification and chisel margins")
+            # A 40x40 WORLD face becomes 80x40 DEVICE. The size-1 A has
+            # advance 15 plus one spacing pixel at 144 DPI horizontally,
+            # with an 8-pixel baseline height at 72 DPI vertically.
+            values(b"$WORLD(CUR,512,768)$")
+            variants = ((0, 8, 20), (0, 16, 46), (0, 24, 20),
+                        (8, 8, 40), (8, 16, 26), (8, 24, 40))
+            commands = []
+            underlines = []
+            for orientation, dy in enumerate((-2, 27, 27, 27, 56)):
+                y = 330 + 75*orientation
+                for column, (chisel, flags, dx) in enumerate(variants):
+                    x = 64 + 160*column
+                    commands.append(style(flags=256|1024|2048|chisel, flags2=flags,
+                                          width=40, height=40, orientation=orientation, underline=14)
+                                    + button((x//2, y, 0, 0), b"<>A<>", hotkey=ord("A")))
+                    if orientation == 1:
+                        dx = -32  # label advance and eight WORLD units left of the face
+                    elif orientation == 3:
+                        dx = 96  # eight WORLD units past the far edge
+                    underlines.append((x, y + dy, x + dx))
+            frame = t.exchange(b"".join(commands))
+            for x, y, start in underlines:
+                marks = {px for px in range(x-48, x+112) if pixel(frame,px,y) == 0xffff55}
+                assert marks == set(range(start, start+15)), (x, y, sorted(marks))
+            values(b"$MKILL$$WORLD(CUR,1024,768)$")
+
         t.case(f"rip3-button-pointer-and-host-{width}x{height}")
         # Preflight must not execute MKILL while creating a button.
         t.exchange(field((150,20,180,50),b"old")+style(flags=256|512|16|1024|2|2048,flags2=2,underline=14)

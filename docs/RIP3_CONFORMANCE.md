@@ -9544,7 +9544,10 @@ The first case-insensitive hotkey match uses its measured run position for
 highlight and underline. The underline uses the glyph's unspaced width at
 baseline plus three device pixels. Native and connected tests exercise the
 centered `ACC.RIP` label, first-match decoration, WORLD side offsets,
-descender fit and activation redraw after a STYLE and WORLD change.
+descender fit and activation redraw after a STYLE and WORLD change. Live
+underline spans verify label anchors across all five orientations at 2:1 X
+and 1:1 Y scaling, including the chisel insets, LEFT precedence over RIGHT
+and the side orientations' fixed margins.
 
 ## Connected prewrapped column text
 
