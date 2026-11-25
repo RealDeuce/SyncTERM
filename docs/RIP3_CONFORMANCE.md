@@ -3494,11 +3494,12 @@ existing issue was modified and no changes were pushed.
 ## Port query grammar and numeric correction
 
 PORTW/PORTH and PORTX0/Y0/X1/Y1 consistently accept the shared decimal selector,
-PORT/VIEW type and WORLD/DEVICE domain grammar. Only trailing fields are optional;
-a domain in the second position rejects as invalid rather than remaining an
-unresolved shorthand. Leading zeroes and case-insensitive keywords work under
-base64 too; numeric selectors remain decimal. Syntax errors remain inside the
-void reference processor and do not latch a session failure.
+PORT/VIEW type and WORLD/DEVICE domain grammar. The macro parser discards
+empty comma fields. The resulting argument list takes optional fields from
+the end, so `(CUR,,DEVICE)` fails because DEVICE occupies the type position.
+Leading zeroes and case-insensitive keywords work under Base Math 64, and
+numeric selectors remain decimal. The RIP parser handles invalid references
+locally and processes the next reference on the same connection.
 
 These queries deliberately implement the documented intended numeric semantics,
 correcting RIPtel 3.1's all-six inverted-success callbacks. The stable reference's
@@ -3516,8 +3517,10 @@ every decimal slot, CUR/cur and leading-zero selectors. Existing all-canvas
 captures verify unchanged pixels/state alongside replies, live ENV/frame
 precedence and nonfatal malformed CP437/UTF-8 references. Additional literals
 cover full 2^31 dimensions, large world results and negative fractional origins.
-Ordinary macro expansion and empty-comma collapse remain pending in their
-combined requirement; this API accepts already expanded references.
+Live CP437 and UTF-8 tests send all six variables through RIP_QUERY with
+leading, intervening, trailing and all-empty fields. They check exact port
+and viewport replies in both coordinate domains, inactive port sentinels,
+and a valid reply following a malformed reference in the same expansion.
 
 Native FreeBSD Release CMake configure/build with `/usr/bin/cc` passes without
 compiler warnings. All 101 selected RIP3/preservation/JPEG/shared-audio/codepage

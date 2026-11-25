@@ -9,6 +9,28 @@ from st_rip3_connected_test import query,pixel
 from st_rip3_button_styles_connected_test import number
 
 
+def port_query_arguments(t, values, width, height):
+    t.case('rip3-live-port-query-argument-omission')
+    names = (b'PORTW', b'PORTH', b'PORTX0', b'PORTY0', b'PORTX1', b'PORTY1')
+
+    def fields(arguments):
+        return b':'.join(b'$' + name + arguments + b'$' for name in names)
+
+    values(f'$WORLD(CUR,{2 * width},{2 * height})$$BASEMATH(CUR,64)$'.encode())
+    # The screen port is [100,80,140,110) and its viewport is
+    # [10,10,21,21) relative to that port's origin.
+    for arguments in (b'', b'(,,,)', b'(cUr)', b'(,0001,,pOrT,,)'):
+        values(fields(arguments), b'80:60:200:160:280:220')
+    values(fields(b'(,cUr,,vIeW,,)'), b'22:22:20:20:42:42')
+    values(fields(b'(,0001,,vIeW,,dEvIcE,)'), b'11:11:10:10:21:21')
+    for arguments in (b'(CUR,,DEVICE)', b'(1,WORLD)', b'(,VIEW,DEVICE)',
+                      b'(CUR,PORT,DEVICE,1)'):
+        values(b'begin:' + fields(arguments) + b':next:' + fields(b'(1,PORT,DEVICE)'),
+               b'begin:::::::next:40:30:100:80:140:110')
+    values(b'$DVP(1)$' + fields(b'(0001,,VIEW,DEVICE)'), b'0:0:-1:-1:-1:-1')
+    values(b'$AVP(1)$$BASEMATH(CUR,36)$' + f'$WORLD(CUR,{width},{height})$'.encode())
+
+
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -75,8 +97,9 @@ def run(args,width,height):
         values(b'$CUR(PORT)$:after-view-reset',b'1:after-view-reset')
         assert frame.application['connected']==1
 
-        t.case(f'rip3-live-view-maximize-uses-canvas-{width}x{height}')
         wire(b'v'+coords((110,90,120,100))+b'|m0V0W')
+        port_query_arguments(t, values, width, height)
+        t.case(f'rip3-live-view-maximize-uses-canvas-{width}x{height}')
         values(b'$PROT(PORT,1)$$DVP(aLL)$')
         before=client.capture()
         frame=values(b'$MVP(ALL)$$AVP(2,36)$$TEXTXY(1)$:$TEXTXY(2)$:$PORTW(1,VIEW,DEVICE)$',
