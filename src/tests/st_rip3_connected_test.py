@@ -326,6 +326,24 @@ Hook.onKey(Key.f9) {|event|
         assert time.monotonic() - start >= 0.045
         assert pixel(frame, width * 6 // 10, height * 6 // 10) == 0x55ff55
 
+        if width == 640:
+            t.case("rip3-wire-delay-holds-drawing-and-raw-text-in-order")
+            block = b"\xdb" if args.encoding == "CP437" else "█".encode()
+            # Lowercase 'a' is 36 ticks in Base Math 64. Reject the invalid
+            # field first, then delay before switching back to Base Math 36.
+            start = time.monotonic()
+            frame = t.exchange(
+                b"\x01|J1S|3D00?1|3D000a|J10|c04|X0707\r\n"
+                + b"\x1b[H\x1b[31;44m" + block + b" \x1b[m\x1b[6n"
+                + query(b"$BASEMATH$:alive", at_cursor=True),
+                b"\x1b[1;3R36:alive",
+            )
+            assert time.monotonic() - start >= 0.55
+            assert pixel(frame, width * 7 // 10, height * 7 // 10) == 0xaa0000
+            assert all(pixel(frame, x, y) == 0xa80000 for y in range(8) for x in range(8))
+            assert all(pixel(frame, x, y) == 0x0000a8 for y in range(8) for x in range(8, 16))
+            assert frame.application["connected"] == 1
+
         t.case("rip3-connected-ansi-and-repeated-graphics-paint")
         # Restore one-to-one geometry and paint a small black rectangle over
         # later ANSI ink. Repeating COPY black must still publish damage even

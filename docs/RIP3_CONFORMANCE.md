@@ -10691,3 +10691,15 @@ fields, hotkeys, normal key forwarding and recovery after invalid operands.
 The separate per-window ANSI keyboard mode still needs a portable rule for
 which input it suppresses and how it combines with the scene keyboard gate.
 [Issue #289](https://github.com/bbs-land/remote-imaging-protocol/issues/289)
+
+## Live wire delay
+
+The RIP3 input gate queues drawing commands and raw terminal bytes behind
+`3D` and resumes them in order. Native mock-clock tests cover sixtieths,
+both active radices, and malformed fields. The connected CP437 and UTF-8
+tests verify a nonzero Base Math 64 delay followed by a plot, ANSI text,
+and replies on the same connection.
+
+The original RIPtel 3.1 handler remains present and uses sixtieths of a
+second. The command chapter and index still imply it was superseded.
+[Issue #290](https://github.com/bbs-land/remote-imaging-protocol/issues/290)
