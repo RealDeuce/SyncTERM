@@ -539,6 +539,61 @@ check_provisional_presentation(void)
 	return 0;
 }
 
+struct commit_expectation {
+	const uint8_t *bytes;
+	size_t size;
+	size_t commits;
+	bool reject;
+};
+
+static int
+check_commit(void *context, const struct st_unicode_presentation_event *event)
+{
+	struct commit_expectation *expected = context;
+	if (event->kind != ST_UNICODE_PRESENTATION_COMMIT)
+		return 0;
+	CHECK(event->size == expected->size);
+	CHECK(memcmp(event->bytes, expected->bytes, event->size) == 0);
+	if (expected->reject)
+		return IO_ERROR_CONFLICT;
+	++expected->commits;
+	return 0;
+}
+
+static int
+check_large_presentation(void)
+{
+	/* A + ring composes to Å. Repeated acute accents after a blocking
+	 * overline (same combining class) must all survive growth and commit. */
+	static const uint8_t start[] = {'A', 0xcc, 0x8a, 0xcc, 0x85};
+	static const uint8_t acute[] = {0xcc, 0x81};
+	uint8_t normalized[4 + 2 * 1100] = {0xc3, 0x85, 0xcc, 0x85};
+	struct commit_expectation expected = {.bytes = normalized, .size = sizeof(normalized)};
+	st_unicode_presentation_t *presentation = NULL;
+	size_t consumed;
+
+	CHECK(st_unicode_presentation_create(&presentation, check_commit, &expected) == 0);
+	CHECK(st_unicode_presentation_feed(presentation, start, sizeof(start), &consumed) == 0
+	    && consumed == sizeof(start));
+	for (size_t i = 4; i < sizeof(normalized); i += sizeof(acute)) {
+		memcpy(normalized + i, acute, sizeof(acute));
+		CHECK(st_unicode_presentation_feed(presentation, acute, sizeof(acute), &consumed) == 0
+		    && consumed == sizeof(acute));
+	}
+	expected.reject = true;
+	CHECK(st_unicode_presentation_commit(presentation) == IO_ERROR_CONFLICT);
+	expected.reject = false;
+	CHECK(st_unicode_presentation_commit(presentation) == 0 && expected.commits == 1);
+	CHECK(st_unicode_presentation_feed(presentation, "X", 1, &consumed) == 0);
+	st_unicode_presentation_reset(presentation);
+	expected.bytes = (const uint8_t *)"Y";
+	expected.size = 1;
+	CHECK(st_unicode_presentation_feed(presentation, "Y", 1, &consumed) == 0);
+	CHECK(st_unicode_presentation_boundary(presentation) == 0 && expected.commits == 2);
+	st_unicode_presentation_destroy(&presentation);
+	return 0;
+}
+
 int
 main(void)
 {
@@ -546,6 +601,7 @@ main(void)
 	CHECK(check_graphemes() == 0);
 	CHECK(check_errors() == 0);
 	CHECK(check_provisional_presentation() == 0);
+	CHECK(check_large_presentation() == 0);
 	CHECK(check_zero_width() == 0);
 	CHECK(check_normalization_conformance() == 0);
 	CHECK(check_grapheme_conformance() == 0);

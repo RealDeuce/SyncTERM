@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_unicode_text.h"
+#include "unicode_text_internal.h"
 #include "cluster_columns.h"
 
 #include "io_error.h"
@@ -307,50 +307,41 @@ accept_normalized(st_unicode_text_t *text, uint32_t scalar)
 static int
 flush_segment(st_unicode_text_t *text)
 {
-	struct scalar_buffer normalized = {0};
+	uint32_t *values = text->segment.values;
+	size_t count = 0;
 	size_t starter = SIZE_MAX;
 	uint8_t last_class = 0;
-	int status = 0;
 
 	if (text->segment.count == 0)
 		return 0;
+	/* Composition can only shorten the ordered segment. */
 	for (size_t i = 0; i < text->segment.count; ++i) {
-		uint32_t scalar = text->segment.values[i];
+		uint32_t scalar = values[i];
 		uint8_t combining = st_unicode_canonical_combining_class(scalar);
 		uint32_t composition;
 
-		if (starter != SIZE_MAX
-		    && st_unicode_canonical_compose(normalized.values[starter],
-		    scalar, &composition)
-		    && (last_class == 0 || last_class < combining)) {
-			normalized.values[starter] = composition;
+		if (starter != SIZE_MAX && (last_class == 0 || last_class < combining)
+		    && st_unicode_canonical_compose(values[starter], scalar, &composition)) {
+			values[starter] = composition;
 			continue;
 		}
-		if (!scalar_append(&normalized, scalar)) {
-			status = IO_ERROR_OUT_OF_MEMORY;
-			goto finished;
-		}
-		if (combining == 0) {
-			starter = normalized.count - 1;
-			last_class = 0;
-		}
-		else
-			last_class = combining;
+		if (combining == 0)
+			starter = count;
+		last_class = combining;
+		values[count++] = scalar;
 	}
-	if (normalized.count != text->original.count
-	    || memcmp(normalized.values, text->original.values,
-	    normalized.count * sizeof(normalized.values[0])) != 0)
+	text->segment.count = count;
+	if (count != text->original.count
+	    || memcmp(values, text->original.values, count * sizeof(*values)) != 0)
 		text->state |= ST_UNICODE_TEXT_CHANGED;
-	for (size_t i = 0; i < normalized.count; ++i) {
-		status = accept_normalized(text, normalized.values[i]);
+	for (size_t i = 0; i < count; ++i) {
+		int status = accept_normalized(text, values[i]);
 		if (status != 0)
-			goto finished;
+			return status;
 	}
 	text->segment.count = 0;
 	text->original.count = 0;
-finished:
-	free(normalized.values);
-	return status;
+	return 0;
 }
 
 static bool
@@ -414,15 +405,15 @@ accept_scalar(st_unicode_text_t *text, uint32_t scalar)
 
 	if (!st_unicode_scalar_valid(scalar))
 		return IO_ERROR_INVALID_ARGUMENT;
-	count = st_unicode_canonical_decompose(scalar, NULL, 0);
+	count = st_unicode_canonical_decompose(scalar, local, sizeof(local) / sizeof(local[0]));
 	if (count > sizeof(local) / sizeof(local[0])) {
 		if (count > SIZE_MAX / sizeof(*decomposition))
 			return IO_ERROR_OUT_OF_MEMORY;
 		decomposition = malloc(count * sizeof(*decomposition));
 		if (decomposition == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
+		(void)st_unicode_canonical_decompose(scalar, decomposition, count);
 	}
-	(void)st_unicode_canonical_decompose(scalar, decomposition, count);
 	if (count != 0
 	    && st_unicode_canonical_combining_class(decomposition[0]) == 0
 	    && text->segment.count != 0
@@ -503,10 +494,8 @@ st_unicode_text_destroy(st_unicode_text_t **text)
 }
 
 void
-st_unicode_text_reset(st_unicode_text_t *text)
+st_unicode_text_rewind(st_unicode_text_t *text)
 {
-	if (text == NULL)
-		return;
 	text->state = 0;
 	st_utf8_decoder_reset(&text->decoder);
 	text->segment.count = 0;
@@ -515,6 +504,24 @@ st_unicode_text_reset(st_unicode_text_t *text)
 	text->output.count = 0;
 	text->items.count = 0;
 	text->item_head = 0;
+}
+
+void
+st_unicode_text_reset(st_unicode_text_t *text)
+{
+	if (text == NULL)
+		return;
+	st_unicode_text_rewind(text);
+	text->segment.values = trim_empty_buffer(text->segment.values, &text->segment.capacity,
+	    sizeof(*text->segment.values));
+	text->original.values = trim_empty_buffer(text->original.values, &text->original.capacity,
+	    sizeof(*text->original.values));
+	text->cluster.values = trim_empty_buffer(text->cluster.values, &text->cluster.capacity,
+	    sizeof(*text->cluster.values));
+	text->output.values = trim_empty_buffer(text->output.values, &text->output.capacity,
+	    sizeof(*text->output.values));
+	text->items.values = trim_empty_buffer(text->items.values, &text->items.capacity,
+	    sizeof(*text->items.values));
 }
 
 int

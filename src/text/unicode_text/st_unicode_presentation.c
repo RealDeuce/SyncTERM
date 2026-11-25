@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "st_unicode_text.h"
+#include "unicode_text_internal.h"
 #include "cluster_columns.h"
 
 #include "io_error.h"
@@ -14,15 +14,14 @@
 #include "st_utf8.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 struct st_unicode_presentation {
 	struct st_utf8_decoder decoder;
 	uint32_t *cluster;
 	size_t count;
 	size_t capacity;
-	uint8_t *normalized;
-	size_t normalized_size;
+	st_unicode_text_t *normalizer;
+	struct st_unicode_presentation_event event;
 	st_unicode_presentation_callback_t callback;
 	void *context;
 	st_unicode_presentation_scalar_filter_t scalar_filter;
@@ -145,50 +144,41 @@ static int
 publish(st_unicode_presentation_t *presentation,
 	enum st_unicode_presentation_event_kind kind)
 {
-	struct st_unicode_presentation_event event = {.kind = kind};
-	char *source;
-	size_t source_size = 0;
-	bool changed;
-	uint8_t columns;
-	bool rgi;
-	int status;
+	if (presentation->event.bytes == NULL) {
+		st_unicode_text_t *normalizer = presentation->normalizer;
+		struct st_unicode_text_item item;
+		size_t consumed;
+		st_unicode_text_rewind(normalizer);
+		int status = st_unicode_text_feed_scalars(normalizer, presentation->cluster,
+		    presentation->count, &consumed);
+		if (status == 0)
+			status = st_unicode_text_finish(normalizer);
+		if (status == 0)
+			status = st_unicode_text_peek(normalizer, &item);
+		if (status != 0)
+			return status;
 
-	if (presentation->count == 0)
-		return 0;
-	if (presentation->count > SIZE_MAX / 4)
-		return IO_ERROR_OUT_OF_MEMORY;
-	source = malloc(presentation->count * 4);
-	if (source == NULL)
-		return IO_ERROR_OUT_OF_MEMORY;
-	for (size_t i = 0; i < presentation->count; ++i) {
-		ptrdiff_t encoded = st_utf8_encode_one(source + source_size,
-		    presentation->count * 4 - source_size,
-		    presentation->cluster[i]);
-		if (encoded < 0) {
-			free(source);
-			return IO_ERROR_INVALID_ENCODING;
-		}
-		source_size += (size_t)encoded;
+		bool rgi = st_unicode_rgi_emoji_prefix(presentation->cluster,
+		    presentation->count) == presentation->count;
+		presentation->event = (struct st_unicode_presentation_event){
+			.bytes = item.bytes, .size = item.size, .rgi_emoji = rgi,
+			.columns = rgi ? 2 : cluster_columns(item.bytes, item.size),
+		};
 	}
-	free(presentation->normalized);
-	presentation->normalized = NULL;
-	status = st_unicode_text_normalize((char **)&presentation->normalized,
-	    &presentation->normalized_size, source, source_size, &changed);
-	free(source);
-	if (status != 0)
-		return status;
-	rgi = st_unicode_rgi_emoji_prefix(presentation->cluster,
-	    presentation->count) == presentation->count;
-	if (rgi)
-		columns = 2;
-	else
-		columns = cluster_columns(presentation->normalized,
-		    presentation->normalized_size);
-	event.bytes = presentation->normalized;
-	event.size = presentation->normalized_size;
-	event.rgi_emoji = rgi;
-	event.columns = columns;
+	/* COMMIT can borrow the same NFC output as the last BEGIN or REVISE. */
+	struct st_unicode_presentation_event event = presentation->event;
+	event.kind = kind;
 	return presentation->callback(presentation->context, &event);
+}
+
+static void
+discard_cluster(st_unicode_presentation_t *presentation)
+{
+	presentation->count = 0;
+	presentation->event.bytes = NULL;
+	presentation->cluster = trim_empty_buffer(presentation->cluster, &presentation->capacity,
+	    sizeof(*presentation->cluster));
+	st_unicode_text_reset(presentation->normalizer);
 }
 
 static int
@@ -200,7 +190,7 @@ commit(st_unicode_presentation_t *presentation)
 		return 0;
 	status = publish(presentation, ST_UNICODE_PRESENTATION_COMMIT);
 	if (status == 0)
-		presentation->count = 0;
+		discard_cluster(presentation);
 	return status;
 }
 
@@ -218,6 +208,7 @@ accept(st_unicode_presentation_t *presentation, uint32_t scalar)
 	}
 	if (!append_scalar(presentation, scalar))
 		return IO_ERROR_OUT_OF_MEMORY;
+	presentation->event.bytes = NULL;
 	return publish(presentation, revise ? ST_UNICODE_PRESENTATION_REVISE
 	    : ST_UNICODE_PRESENTATION_BEGIN);
 }
@@ -249,6 +240,11 @@ st_unicode_presentation_create(st_unicode_presentation_t **result,
 	presentation = calloc(1, sizeof(*presentation));
 	if (presentation == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
+	int status = st_unicode_text_create(&presentation->normalizer, ST_UNICODE_TEXT_NORMALIZE);
+	if (status != 0) {
+		free(presentation);
+		return status;
+	}
 	presentation->callback = callback;
 	presentation->context = context;
 	*result = presentation;
@@ -272,7 +268,7 @@ st_unicode_presentation_destroy(st_unicode_presentation_t **presentation)
 	if (presentation == NULL || *presentation == NULL)
 		return;
 	free((*presentation)->cluster);
-	free((*presentation)->normalized);
+	st_unicode_text_destroy(&(*presentation)->normalizer);
 	free(*presentation);
 	*presentation = NULL;
 }
@@ -283,7 +279,7 @@ st_unicode_presentation_reset(st_unicode_presentation_t *presentation)
 	if (presentation == NULL)
 		return;
 	st_utf8_decoder_reset(&presentation->decoder);
-	presentation->count = 0;
+	discard_cluster(presentation);
 }
 
 int

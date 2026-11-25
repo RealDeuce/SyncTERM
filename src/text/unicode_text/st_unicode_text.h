@@ -96,6 +96,7 @@ int st_unicode_presentation_commit(st_unicode_presentation_t *presentation);
 int st_unicode_text_create(st_unicode_text_t **result,
 	enum st_unicode_text_mode mode);
 void st_unicode_text_destroy(st_unicode_text_t **text);
+/* Discard queued and incomplete input, retaining small buffers for reuse. */
 void st_unicode_text_reset(st_unicode_text_t *text);
 
 int st_unicode_text_feed_byte(st_unicode_text_t *text, uint8_t byte);
