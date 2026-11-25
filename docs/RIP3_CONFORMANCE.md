@@ -9305,6 +9305,21 @@ Connected CP437 and UTF-8 fixtures cover restricted typing and paste,
 masking, unchanged prefills, conversions, exact replies and recovery
 after an invalid format.
 
+## Connected user-variable storage lifetime
+
+Connected fixtures use the same directory entry across successive calls.
+They verify the session-first lookup, the persistent destination when both
+flags occur, and copying a converted value between the two stores. A saved
+empty field still returns `NULL` after reconnecting. The session-only value
+disappears at hang-up. Invalid `%` prefixes and cancelled edits preserve
+the stored values, and the connection continues processing queries.
+
+The question, default and value limits still need to account for encoding.
+A connected CP437 query supplied 100 copies of byte `82` hex in a default
+and received 50. The parser counted the two-byte UTF-8 representation of
+each character against the wire limit. The value cap also counts normalized
+bytes, which reduces the number of characters a CP437 value can hold.
+
 ## Connected variable prompt placement
 
 The `x,y:` prefix places the prompt's top-left corner in the active ENV's

@@ -356,6 +356,13 @@ Hook.onKey(Key.f9) {|event|
             receive(peer, b"ab-12\x1b[0n", root / "replies.bin")
             t.exchange(query(b"$-=FORMAT(TONAME,ANY)=bad$$&FORMAT$", at_cursor=True))
             t.exchange(query(b"$&FORMAT$:alive", at_cursor=True), b"Tom Mcdonald:alive")
+            t.case("rip3-variable-macro-question-default-and-width")
+            send(query(b"$ShortName,3=AB$", at_cursor=True) + b"\x1b[5n")
+            client.wait_text("SHORTNAME")
+            client.wait_text("AB")
+            client.text("ABCX")
+            client.key("enter")
+            receive(peer, b"ABC\x1b[0n", root / "replies.bin")
             t.case("rip3-wire-variable-definition")
             accented = b"\x82AB" if args.encoding == "CP437" else "éAB".encode()
             frame = t.exchange(b"\x01|1D0047ZLength,4:" + accented + b"|1D004.Empty:?Title"
@@ -778,7 +785,7 @@ def font_switch_with_status(args, width, height):
         values(b"$SBARON$$STATBAR$/$OPTION(STATBAR)$", b"YES/1")
 
 
-def check_definition_persistence(args):
+def check_variable_persistence(args):
     with listener() as server:
         entry = ("[Capture]\nConnectionType=Raw\nAddress=127.0.0.1\n"
                  f"Port={server.getsockname()[1]}\nEncoding={args.encoding}\n"
@@ -806,12 +813,38 @@ def check_definition_persistence(args):
                         client.key("enter")
 
                     if visit == 0:
+                        terminal.case("rip3-variable-macro-storage-destinations")
+                        terminal.exchange(query(b"$-+SHADOW=backing$$-=SHADOW=overlay$"
+                                                b"$-=PROMOTED=live$$&+=PROMOTED(TOUPPER)$:$&promoted$",
+                                                at_cursor=True), b"LIVE:live")
+                        terminal.exchange(query(b"$-SHADOW=discarded$$-TEMP=discarded$"
+                                                b"$-+=EMPTY=$$-=VISITONLY=first$"
+                                                b"$&SHADOW$:$&EMPTY=fallback$:$INUSE(TV,TEMP)$",
+                                                at_cursor=True), b"overlay:NULL:0")
+                        terminal.case("rip3-variable-macro-invalid-prefix-recovery")
+                        for expression in (b"$-%SHADOW=invalid$", b"$+%SHADOW=invalid$", b"$+%=SHADOW=invalid$"):
+                            terminal.exchange(query(expression, at_cursor=True))
+                        terminal.exchange(query(b"$&SHADOW$", at_cursor=True), b"overlay")
+                        terminal.case("rip3-variable-macro-cancellation-preserves-both-stores")
+                        peer.sendall(query(b"$+shadow,16@Cancel shadow=unused$:$&SHADOW$",
+                                           at_cursor=True) + b"\x1b[5n")
+                        client.wait_text("Cancel shadow")
+                        client.wait_text("overlay")
+                        client.text("discarded")
+                        client.key("escape")
+                        receive(peer, b"NONE:overlay\x1b[0n", root / "replies.bin")
                         terminal.case("rip3-definition-saves-confirmation-with-value")
                         prompt(b"1D00100Guarded:?Save policy?original", "Save policy")
                         toggle()
                         accept()
                         receive(peer, b"original\x1b[0n", root / "replies.bin")
                     elif visit == 1:
+                        terminal.case("rip3-variable-macro-lifetime-after-reconnect")
+                        terminal.exchange(query(b"$&SHADOW$:$&PROMOTED$:$&EMPTY=fallback$:$&VISITONLY=missing$",
+                                                at_cursor=True), b"backing:LIVE:NULL:missing")
+                        terminal.exchange(query(b"$=&SHADOW(TOUPPER)$:$&SHADOW$"
+                                                b"$-+SHADOW=updated$:$&SHADOW$",
+                                                at_cursor=True), b"BACKING:BACKING:BACKING")
                         terminal.case("rip3-definition-reloads-policy-and-discards-cancelled-edits")
                         prompt(b"1D00500Guarded:?Forced edit?network", "Forced edit")
                         toggle()
@@ -824,6 +857,8 @@ def check_definition_persistence(args):
                         terminal.exchange(b"\x01|1D00400Guarded:local\r\n"
                                           + query(b"$&GUARDED$", at_cursor=True), b"local")
                     elif visit == 2:
+                        terminal.case("rip3-variable-macro-persistent-update-keeps-the-live-shadow")
+                        terminal.exchange(query(b"$&SHADOW$", at_cursor=True), b"updated")
                         terminal.case("rip3-definition-restores-saved-value-after-live-override")
                         prompt(b"1D00400Guarded:?Saved policy?another", "Saved policy")
                         client.key("escape")
@@ -856,7 +891,7 @@ def main():
     parser.add_argument("encoding", choices=("CP437", "UTF-8"))
     parser.add_argument("--reports", type=Path, default=Path("reports/test-control"))
     args = parser.parse_args()
-    check_definition_persistence(args)
+    check_variable_persistence(args)
     for canvas in ((640, 480, 13), (800, 600, 16), (1024, 768, 21), (1280, 800, 26), (720, 400, 15)):
         run(args, *canvas)
         font_switch_with_status(args, *canvas[:2])
