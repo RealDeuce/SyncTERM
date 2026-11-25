@@ -54,7 +54,8 @@ struct st_rip3_columns {
 int st_rip3_columns_decode(struct st_rip3_column_definition *, const struct st_rip3_command_host *,
 	const uint8_t *command, size_t length, size_t *tail);
 int st_rip3_columns_define(struct st_rip3_columns *, const struct st_rip3_command_host *,
-	const struct st_rip3_column_definition *, const uint8_t *words, size_t length, bool converted_codepage);
+	const struct st_rip3_column_definition *, const uint8_t *words, size_t length,
+	bool converted_codepage, bool *too_many_words);
 int st_rip3_columns_select(struct st_rip3_columns *, const struct st_rip3_command_host *, unsigned article);
 int st_rip3_columns_line(struct st_rip3_columns *, const struct st_rip3_command_host *,
 	const uint8_t *text, size_t length, bool justify);

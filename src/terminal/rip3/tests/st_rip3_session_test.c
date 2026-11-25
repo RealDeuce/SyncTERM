@@ -2445,6 +2445,28 @@ paging_notice(void *context, const char *title, const char *message)
 }
 
 static int
+column_search_limit(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	options.random_seed = 7;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+
+	CHECK(append(&f, "!|1e..0A0A.1000204.A B C D E F G H|1E\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 0);
+	CHECK(append(&f, "!|1e..0A0A.2000304.A B C D E F G H I|1E\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_TOO_MANY_SEARCH_WORDS);
+	CHECK(query(&f, "$OVERFLOW()$", "00720000.OVR") == 0);
+
+	CHECK(append(&f, "!|1e..0A0A.3000304.ABCDEFGHIJKLMNOPQ|1E\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 2 && f.kind == ST_RIP3_COMMAND_INVALID);
+	CHECK(query(&f, "$OVERFLOW()$", "00720000.OVR") == 0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live == 0);
+	return 0;
+}
+
+static int
 overflow_navigation(void)
 {
 	struct fixture f = {0};
@@ -2475,6 +2497,7 @@ int
 main(void)
 {
 	CHECK(scene_pacing()==0 && scene_query_scope()==0 && overflow_navigation()==0 && tone_actions()==0);
+	CHECK(column_search_limit() == 0);
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
 	CHECK(sound_reset() == 0);

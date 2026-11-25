@@ -1332,9 +1332,13 @@ prepare(void *context)
 					operation=true;
 					status=open_scene(session,(const char *)result->bytes,false);
 				}
-				else if (session->graphical_job==GRAPHICAL_COLUMN_SEARCH)
+				else if (session->graphical_job==GRAPHICAL_COLUMN_SEARCH) {
+					bool too_many_words;
 					status=st_rip3_columns_define(&session->columns,&session->commands,&session->column_definition,
-					    result->bytes,result->length,session->graphical_codepage_converted);
+					    result->bytes,result->length,session->graphical_codepage_converted,&too_many_words);
+					if (too_many_words)
+						diagnose(session,ST_RIP3_COMMAND_TOO_MANY_SEARCH_WORDS);
+				}
 				else if (session->graphical_job == GRAPHICAL_IMAGE)
 					status = result->length == 0 ? 0 : st_rip3_command_jpeg(&session->commands,
 					    result->bytes, result->length, &operation);
@@ -1737,7 +1741,7 @@ define_column(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 	if (status != 0 || definition->suppressed)
 		return status;
 	if ((definition->flags & 2) == 0)
-		return st_rip3_columns_define(&session->columns, &session->commands, definition, NULL, 0, false);
+		return st_rip3_columns_define(&session->columns, &session->commands, definition, NULL, 0, false, NULL);
 	st_rip3_graphical_start(session->graphical, ST_RIP3_GRAPHICAL_TEXT, bytes + tail, length - tail);
 	session->graphical_job = GRAPHICAL_COLUMN_SEARCH;
 	return 0;

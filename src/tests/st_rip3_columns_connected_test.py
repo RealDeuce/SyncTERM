@@ -111,6 +111,34 @@ def check_default_outline_columns(args):
                                   + b"A\r\n\r\nA\r\n" + commands(b"1E"))
         check_pixels(frame, (98, 98, 164, 123), [(100, 100, CAPITAL_A, GREEN), (140, 100, CAPITAL_A, GREEN)])
 
+        terminal.case("Extended columns retain eight search words and reject invalid replacements")
+        words = b" AAAAAAAAAAAAAAAA B C D E F G a V "
+        column = extended((100, 100, 260, 180), 0, 1, 2, 4, words)
+        other = (270, 100, 430, 180)
+        replacements = (
+            extended(other, 0, 2, 4),
+            extended(other, 0, 2, 2, 256, b"A"),
+            extended(other, 0, 2, 2, 4),
+            extended(other, 0, 2, 2, 4, b"  "),
+            extended(other, 0, 2, 2, 4, b"A" * 17),
+        )
+        frame = terminal.exchange(setup + commands(column, b"1t0" + b"A" * 16, b"1t0A", b"1t0V",
+                                  *replacements, b"1t0A", b"1E"))
+        check_pixels(frame, (98, 98, 432, 143),
+                     [(100 + 7 * i, 100, CAPITAL_A, RED) for i in range(16)]
+                     + [(100, 110, CAPITAL_A, RED), (100, 120, CAPITAL_V, GREEN),
+                        (100, 130, CAPITAL_A, RED)])
+
+        terminal.case("Extended column protection and ignored highlight operands")
+        port = b"2P10000" + number(1023, 2) + number(767, 2) + b"0"
+        frame = terminal.exchange(setup + commands(column, port, b"2s100")
+                                  + query(b"$PROT(PORT,1)$", at_cursor=True)
+                                  + commands(extended(other, 0, 2, 0, 256, b"A"), b"2s000",
+                                             b"1t0A", b"1E"))
+        check_pixels(frame, (98, 98, 432, 111), [(100, 100, CAPITAL_A, RED)])
+        frame = terminal.exchange(commands(extended(other, 0, 2, 0, 256, b"A"), b"1t0A", b"1E"))
+        check_pixels(frame, (268, 98, 432, 111), [(270, 100, CAPITAL_A, GREEN)])
+
 
 def check_overflow(terminal, root, accent):
     owner, = (root / "cache").glob("*/syncterm-cache-name.txt")

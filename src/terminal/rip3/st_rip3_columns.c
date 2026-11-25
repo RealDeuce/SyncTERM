@@ -881,10 +881,13 @@ st_rip3_columns_select(struct st_rip3_columns *columns, const struct st_rip3_com
 
 int
 st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_command_host *host,
-    const struct st_rip3_column_definition *definition, const uint8_t *words, size_t length, bool converted)
+    const struct st_rip3_column_definition *definition, const uint8_t *words, size_t length,
+    bool converted, bool *too_many_words)
 {
 	struct st_rip3_column_search search = {.color = definition->color};
 	bool truncated = false;
+	if (too_many_words != NULL)
+		*too_many_words = false;
 	if ((definition->flags & 2) != 0) {
 		size_t at = 0;
 		while (at < length) {
@@ -927,10 +930,9 @@ st_rip3_columns_define(struct st_rip3_columns *columns, const struct st_rip3_com
 		columns->overflow.articles[definition->article].enabled = (definition->flags & 1) != 0;
 	}
 	int selection_status = st_rip3_columns_select(columns, host, article);
-	if (status == 0)
-		status = selection_status;
-	/* Original reports excess words after installing the first eight. */
-	return status == 0 && truncated ? IO_ERROR_OUT_OF_RANGE : status;
+	if (too_many_words != NULL)
+		*too_many_words = truncated;
+	return status != 0 ? status : selection_status;
 }
 
 static int

@@ -207,7 +207,8 @@ diagnostic(void *context, enum st_rip3_command_diagnostic kind)
 	struct st_term_rip3 *rip=context;
 	static const char *const messages[]={"RIP3: invalid command discarded",
 	    "RIP3: unsupported operation discarded", "RIP3: operation failed; continuing",
-	    "RIP3: resource failure; continuing", "RIP3: text-window coordinates clamped; continuing"};
+	    "RIP3: resource failure; continuing", "RIP3: text-window coordinates clamped; continuing",
+	    "RIP3: Too many search words (8 max)"};
 	if (rip->config.cterm_diagnostic!=NULL && rip->config.cterm_log_level>=ST_CTERM_LOG_WARNING)
 		rip->config.cterm_diagnostic(rip->config.cterm_diagnostic_context,
 		    ST_CTERM_LOG_WARNING,messages[kind]);

@@ -9595,6 +9595,14 @@ commands execute and only ordinary text renders as article glyphs. They also
 exercise wrapping, original glyph masks and colors in both planes, paragraph
 breaks, redefinition, malformed search input and cache lookup.
 
+An extended column can keep eight search words of up to sixteen bytes each.
+A ninth word produces the CTerm warning `Too many search words (8 max)` and
+the column uses the first eight. The native session test checks the diagnostic
+and a subsequent reply. Connected CP437 and UTF-8 captures check the sixteenth
+byte, the eighth match and the ninth word's ordinary ink. They also verify that
+invalid replacements and definitions on a protected port leave the current
+column selected, and that highlight operands are ignored with highlighting off.
+
 ## Connected article selection
 
 `1A` takes a two-digit article number and four reserved digits in the current
