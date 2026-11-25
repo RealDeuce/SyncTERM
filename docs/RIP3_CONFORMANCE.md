@@ -7,7 +7,9 @@ The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
 requirements. Rendering is judged by protocol behavior on the agreed
 canvases. RIPlib extensions, future proposals, external application and URL
-launching, and exact RIPtel raster reproduction are outside this goal.
+launching, and exact RIPtel raster reproduction are outside this goal. The
+level-9 `G` descriptor at RVA `0x81bd0` invokes `ripWebBrowser` from
+`0x252aa` in the catalogued 3.0.7 DLL and falls under the URL-launch exclusion.
 
 ## Acceptance scope
 
@@ -10649,7 +10651,10 @@ continuation rule applies as for `F`.
 The original collector produced the same delimiter behavior in 66 wire
 cases. Native split-input tests cover all eleven descriptors, and the
 connected CP437 and UTF-8 tests verify that `E` and `H` run before the
-commands that follow them on the same line.
+commands that follow them on the same line. Grouping markers bypass the
+session's display boundary. The connected UTF-8 case places nested markers
+between a base letter and its combining mark and verifies that they use one
+cell.
 
 ## Delimiters after fixed numeric fields
 

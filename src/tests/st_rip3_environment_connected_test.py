@@ -3,10 +3,12 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
+from unicodedata import normalize
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
 from st_rip3_button_styles_connected_test import number
+from syncterm_fixture import cell_at
 
 
 def charset_metadata(t, encoding):
@@ -61,6 +63,12 @@ def run(args,width,height):
             values(b'$CUR(STYLE)$:$CUR(BUT)$:$CUR(PORT)$:$CUR(TW)$:$CUR(PAL)$',b'7:6:4:3:17')
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
         if width == 640:
+            if args.encoding == 'UTF-8':
+                frame = t.check('rip3-group-markers-preserve-a-pending-grapheme',
+                                b'\x1b[He\x01|(|(|)|)\r\n' + '\u0301!'.encode(),
+                                xy=(3, 1), reset=False)
+                assert normalize('NFC', frame.cell_text(cell_at(frame, 0, 0))) == 'é'
+                assert frame.cell_text(cell_at(frame, 1, 0)) == '!'
             charset_metadata(t, args.encoding)
             t.case('rip3-coordinate-width-reserve-and-invalid-size')
             width_query = b'$BASEMATH$:$COORDSIZE$'
