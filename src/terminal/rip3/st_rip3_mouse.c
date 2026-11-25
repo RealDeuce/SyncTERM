@@ -120,7 +120,9 @@ st_rip3_mouse_button_inversion(struct st_rip3_mouse *mouse, const void *owner,
 	if (mouse == NULL || mouse->sink.invert == NULL || owner == NULL || area == NULL)
 		return false;
 	if (enabled && mouse->button_feedback == NULL && mouse->pressed != NULL
-	    && mouse->pressed->visual.context == owner) {
+	    && mouse->pressed->visual.context == owner
+	    && (mouse->pressed->binding.group_kind == ST_RIP3_GROUP_NONE
+	        || !st_rip3_templates_button_selected(mouse->templates, mouse->pressed->instance))) {
 		mouse->button_feedback = owner;
 		mouse->sink.invert(mouse->sink.context, area);
 	}
@@ -128,6 +130,7 @@ st_rip3_mouse_button_inversion(struct st_rip3_mouse *mouse, const void *owner,
 		mouse->button_feedback = NULL;
 		mouse->sink.invert(mouse->sink.context, area);
 	}
+	else return false;
 	return true;
 }
 
@@ -647,7 +650,12 @@ st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left
 	struct field *field=mouse->pressed;
 	if (field==NULL || !mouse->pointer_capture) return false;
 	bool hit=inside(field,x,y);
-	if (!left && hit && field->binding.group_kind!=ST_RIP3_GROUP_NONE) mouse->inverted=false;
+	if (!left && hit && field->binding.group_kind!=ST_RIP3_GROUP_NONE) {
+		/* Release the preview even if the committed redraw later fails. */
+		if (mouse->button_feedback != NULL && mouse->button_feedback == field->visual.context)
+			feedback(mouse,false);
+		mouse->inverted=false;
+	}
 	else if (!left && hit && mouse->inverted && field->visual.select!=NULL) {
 		/* A committed ordinary release requests its actual unselected redraw.
 		 * Outside/focus cancellation below only removes temporary feedback. */

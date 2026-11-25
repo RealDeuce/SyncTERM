@@ -58,7 +58,6 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Mouse input and button effects | Pointer state, button feedback, decorations and hit geometry |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
@@ -103,6 +102,13 @@ connected mouse fixtures read field 7 in two nested files after deleting
 the original field. The native session fixture dispatches field 8 while
 field 7 is suspended in playback and checks both replies and the end of
 the outer handler's scope.
+
+The mouse and button review covers scaled face effects, descenders on
+stroke and outline labels, and suspended labels on the clipboard port.
+Custom-palette checkbox tests check dragging out, returning, committing once
+and restoring the displayed selection. Two coordinate-query entries await
+the wire response before the first pointer sample.
+[Upstream issue #317](https://github.com/bbs-land/remote-imaging-protocol/issues/317)
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
@@ -7216,8 +7222,9 @@ simple mouse fields. The captured button owns that effect until release,
 cancellation or deletion. The live tests verify exact restoration with a
 custom palette, including palette updates and new RIP pixels during a held
 press. Ordinary button redraws keep their filename and label preparation.
-Grouped selection feedback still uses nearest RGB complement on the indexed
-drawing surface. Its round trip with a custom palette remains pending.
+A held grouped button can preview selection with the same temporary console
+effect. Committed selected artwork uses the nearest RGB complement on the
+indexed drawing surface. Canceling a preview restores the committed state.
 An already selected radio stays visually unchanged during a press or outside
 release and skips label expansion. The held gesture still tracks changes in
 committed selection when a new radio is admitted. A committed click requests

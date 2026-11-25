@@ -389,7 +389,7 @@ button_screen_bounds(const struct button *button)
 static bool
 temporary_inversion(struct button *button, bool enabled)
 {
-	if (!button->mouse || (button->style.flags & 16384) != 0 || (button->style.flags2 & 1) != 0)
+	if (!button->mouse)
 		return false;
 	const struct st_rip3_rect area = button_screen_bounds(button);
 	return st_rip3_mouse_button_inversion(button->host.mouse, button, &area, enabled);

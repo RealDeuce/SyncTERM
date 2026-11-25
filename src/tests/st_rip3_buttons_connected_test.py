@@ -52,6 +52,55 @@ def run(args,width,height):
             return t.input(expected) if expected else t.exchange()
 
         if width==640:
+            t.case("rip3-combined-button-effects-in-device-coordinates")
+            values(b"$WORLD(CUR,1280,480)$")
+            # X scales by one half, Y by one. A six-unit bevel is three
+            # pixels on all sides. The 40-pixel face selects chisel inset 6.
+            frame = t.exchange(style(flags=256|512|16|8|32768|32|1024, bevel=6,
+                                     surface=3, foreground=12)
+                               + button((160,100,320,140), b"<>H<>hit"))
+            assert [pixel(frame,x,120) for x in range(74,88)] == [
+                0,0x555555,0,0xffffff,0xffffff,0xffffff,0x00aaaa,0x555555,
+                0x00aaaa,0x00aaaa,0x00aaaa,0x00aaaa,0x555555,0x00aaaa]
+            assert [pixel(frame,105,y) for y in range(135,145)] == [
+                0x00aaaa,0x00aaaa,0x00aaaa,0xffffff,0x00aaaa,
+                0x555555,0x555555,0x555555,0,0xffffff]
+            ink = {(x,y) for x in range(88,152) for y in range(108,132)
+                   if pixel(frame,x,y)==0xff5555}
+            shadow = {(x,y) for x in range(88,152) for y in range(108,132)
+                      if pixel(frame,x,y)==0}
+            assert ink and shadow == {(x+1,y+1) for x,y in ink} - ink
+            click(76,120)
+            click(77,120,b"hit")
+            values(b"$MKILL$$WORLD(CUR,640,480)$")
+
+            t.case("rip3-selected-font-hotkey-descenders")
+            for font in (b"Y01000309", b"y00000W0M000000001a1a000000Dixon"):
+                # Four copies of Hgg separate the highlight from its underline
+                # on the first matching glyph. Each face has identical layout.
+                commands = bytearray(b"\x01|"+font+b"\r\n")
+                for column, key in enumerate(b"HHGG"):
+                    x = 5+155*column
+                    commands += style(flags=256|1024|(2048 if column%2 else 0),
+                                      flags2=2, surface=3, foreground=12, underline=14)
+                    commands += button((x,180,x+150,260), b"<>Hgg<>", hotkey=key)
+                frame = t.exchange(bytes(commands))
+                def marks(column, color):
+                    return {(x,y) for x in range(150) for y in range(180,260)
+                            if pixel(frame,5+155*column+x,y)==color}
+                h, g = marks(0,0xffff55), marks(2,0xffff55)
+                assert h and g and max(x for x,y in h) < min(x for x,y in g)
+                assert any(x>max(g)[0] for x,y in marks(2,0xff5555))
+                rows = []
+                for column, glyph in ((1,h),(3,g)):
+                    underline = marks(column,0xffff55) - glyph
+                    assert underline and len({y for x,y in underline})==1
+                    rows.append(next(iter(underline))[1])
+                assert rows[1]>rows[0], (font,rows)
+                values(b"$MKILL$")
+            t.exchange(b"\x01|*\r\n")
+            values(b"$WORLD(CUR,640,480)$")
+
             t.case("rip3-computed-field-playback-and-continued-button-slideshow")
             shared=root/"RIP"
             shared.mkdir(exist_ok=True)
@@ -279,6 +328,32 @@ def run(args,width,height):
             mouse(255,80)
             outside = values(b'$MKILL$alive', b'alive')
             assert pixel(outside,220,80) == 0x443420 and pixel(outside,221,81) == 0x00aa00
+
+            t.case("rip3-checkbox-feedback-on-a-custom-palette")
+            frame = t.exchange(style(flags=256|1024|2, flags2=1, group=3, surface=137)
+                               + button((200,110,250,140), b"<><>checked"))
+            assert pixel(frame,220,120)==0x443420
+            mouse(220,120,True)
+            assert pixel(t.exchange(),220,120)==0xbbcbdf
+            mouse(255,120,True,move=True)
+            frame = t.exchange()
+            assert pixel(frame,220,120)==0x443420
+            mouse(255,120)
+            t.exchange()  # Releasing outside sent no command.
+            mouse(220,120,True)
+            mouse(255,120,True,move=True)
+            mouse(220,120,True,move=True)
+            mouse(220,120)
+            # The closest indexed color to RGB bb,cb,df is the default
+            # gray with DAC value 50, which expands to ca,ca,ca.
+            selected = 0xcacaca
+            assert pixel(t.input(b"checked"),220,120)==selected
+            mouse(220,120,True)
+            assert pixel(t.exchange(),220,120)==0x443420
+            mouse(255,120)
+            assert pixel(t.exchange(),220,120)==selected
+            assert pixel(click(220,120,b"checked"),220,120)==0x443420
+            values(b"$MKILL$")
 
         t.case(f"rip3-button-reset-before-host-{width}x{height}")
         t.exchange(style(flags=256|1024|4)+button((10,20,60,40),b"ID=9:<><>reset:$FIELDID$:$CUR(BUT)$"))
@@ -514,7 +589,11 @@ def run(args,width,height):
         values(b"$MKILL$$UNPROT(BUT,5)$")
         t.exchange(style(flags=256|64,foreground=12)+b"\x01|S0103|B00000V0V\r\n")
         values(b"$CUR(PORT,1)$")
-        frame=t.exchange(button((0,0,20,16),b"<>A<>")+b"\x01|1W2Alias.bmp\r\n")
+        send(button((0,0,20,16),b"<>$&ALIAS_LABEL$<>"))
+        client.wait_text("ALIAS_LABEL")
+        client.text("A")
+        client.key("enter")
+        frame=t.exchange(b"\x01|1W2Alias.bmp\r\n")
         values(b"$CUR(PORT)$",b"1")
         assert all(pixel(frame,x,y)==0x00aaaa for y in range(16) for x in range(20))
         files=list(root.rglob("Alias.bmp"));assert len(files)==1,files
