@@ -7144,12 +7144,14 @@ field, its host source or release cleanup. The session revision advances for
 visual redraws so the existing presenter actually publishes them.
 
 Successful hot fallback clears HOT and sets INVERT only in that field. A later
-hot file does not re-enable it; new fields still read the unchanged style. RGB
-complement is nearest-matched into the existing indexed palette, with first-index
-ties, as client rendering policy. It is separate from the indexed drawing NOT
-operator. This preserves indexed capture/export and uses the existing surface and
-damage planes, without adding a persistent raster, damage tracker or alternate
-ANSI path. Plain/simple native feedback keeps its existing implementation.
+hot file does not re-enable it; new fields still read the unchanged style.
+Ungrouped buttons with INVERT use the temporary console effect shared with
+simple mouse fields. The captured button owns that effect until release,
+cancellation or deletion. The live tests verify exact restoration with a
+custom palette, including palette updates and new RIP pixels during a held
+press. Ordinary button redraws keep their filename and label preparation.
+Grouped selection feedback still uses nearest RGB complement on the indexed
+drawing surface. Its round trip with a custom palette remains pending.
 
 HOT affects feedback only on mouse-active ICON faces. The style table retains
 the requested bit for any face type. PLAIN and CLIPBOARD buttons follow their

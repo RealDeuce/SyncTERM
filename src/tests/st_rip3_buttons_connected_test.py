@@ -176,6 +176,31 @@ def run(args,width,height):
             assert pixel(released,155,75) == 0x00aaaa
             values(b'$MKILL$')
 
+            t.case('rip3-ordinary-button-cancellation-restores-custom-palette')
+            # This palette has no exact complement for entry 137. Repeating
+            # a nearest-color inversion cannot recover the original index.
+            t.exchange(b'\x01|d' + number(137,2,64) + b'8' + number(0x103454,4,64) + b'\r\n')
+            before = t.exchange(style(flags=256|1024|2, surface=137)
+                                + button((200,70,250,100), b'<><>committed'))
+            assert pixel(before,220,80) == 0x103454
+            mouse(220,80,True)
+            pressed = t.exchange()
+            assert pixel(pressed,220,80) == 0xefcbab
+            mouse(255,80,True,move=True)
+            outside = t.exchange()
+            assert outside.primary == before.primary and outside.alternate == before.alternate
+
+            # Scene writes and palette updates during a held press become
+            # visible in the restored scene, including at the edited pixel.
+            mouse(220,80,True,move=True)
+            plot = b'X' + number(221,2) + number(81,2)
+            frame = t.exchange(b'\x01|d' + number(137,2,64) + b'8' + number(0x443420,4,64)
+                               + b'|c02|' + plot + b'\r\n')
+            assert pixel(frame,220,80) == 0xbbcbdf and pixel(frame,221,81) == 0xff55ff
+            mouse(255,80)
+            outside = values(b'$MKILL$alive', b'alive')
+            assert pixel(outside,220,80) == 0x443420 and pixel(outside,221,81) == 0x00aa00
+
         t.case(f"rip3-button-reset-before-host-{width}x{height}")
         t.exchange(style(flags=256|1024|4)+button((10,20,60,40),b"ID=9:<><>reset:$FIELDID$:$CUR(BUT)$"))
         frame=click(20,30,b"reset:9:0")

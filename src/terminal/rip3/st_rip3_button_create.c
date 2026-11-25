@@ -377,6 +377,24 @@ release_button(struct button *button)
 
 static void clear_inversion(struct button *button);
 
+static struct st_rip3_rect
+button_screen_bounds(const struct button *button)
+{
+	int64_t x = (int64_t)button->port.bounds.x0 + button->port.viewport.x0;
+	int64_t y = (int64_t)button->port.bounds.y0 + button->port.viewport.y0;
+	return (struct st_rip3_rect){(int32_t)(x + button->hit.x0), (int32_t)(y + button->hit.y0),
+	    (int32_t)(x + button->hit.x1), (int32_t)(y + button->hit.y1)};
+}
+
+static bool
+temporary_inversion(struct button *button, bool enabled)
+{
+	if (!button->mouse || (button->style.flags & 16384) != 0 || (button->style.flags2 & 1) != 0)
+		return false;
+	const struct st_rip3_rect area = button_screen_bounds(button);
+	return st_rip3_mouse_button_inversion(button->host.mouse, button, &area, enabled);
+}
+
 static void
 remove_button(void *context)
 {
@@ -384,6 +402,7 @@ remove_button(void *context)
 	if (button->alive) {
 		/* Capture cancellation has already removed temporary feedback. Deleting
 		 * a definition must not erase persistently selected button pixels. */
+		(void)temporary_inversion(button, false);
 		button->alive=false;
 		struct st_rip3_button_renderer *renderer=button->host.buttons;
 		if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==button)
@@ -460,6 +479,7 @@ static int
 invert_button(void *context)
 {
 	struct button *button=context;
+	if (temporary_inversion(button, !button->inversion_applied)) return 0;
 	struct box area=button->hit;
 	if (area.x0<button->port.clip.x0) area.x0=button->port.clip.x0;
 	if (area.y0<button->port.clip.y0) area.y0=button->port.clip.y0;
@@ -475,7 +495,8 @@ static void
 clear_inversion(struct button *button)
 {
 	if (!button->inversion_applied) return;
-	if (button->alive && st_rip3_ports_generation(button->host.ports,button->target)==button->generation)
+	if (!temporary_inversion(button, false) && button->alive
+	    && st_rip3_ports_generation(button->host.ports,button->target)==button->generation)
 		(void)st_rip3_ports_button_context(button->host.ports,button->target,button->generation,&button->port,invert_button,button);
 	button->inversion_applied=false;
 }
@@ -660,8 +681,7 @@ finish_button(struct render_job *job)
 	}
 	if (!job->creation || !b->mouse) return 0;
 	if (st_rip3_mouse_full(b->host.mouse)) return IO_ERROR_OUT_OF_RANGE;
-	int64_t ox=(int64_t)b->port.bounds.x0+b->port.viewport.x0,oy=(int64_t)b->port.bounds.y0+b->port.viewport.y0;
-	const struct st_rip3_rect area={(int32_t)(ox+b->hit.x0),(int32_t)(oy+b->hit.y0),(int32_t)(ox+b->hit.x1),(int32_t)(oy+b->hit.y1)};
+	const struct st_rip3_rect area = button_screen_bounds(b);
 	const struct st_rip3_mouse_binding binding={.hotkey=b->hotkey,.default_enter=b->default_enter,.group=b->style.group,
 	    .group_kind=(b->style.flags&16384)!=0 ? ST_RIP3_GROUP_RADIO : (b->style.flags2&1)!=0 ? ST_RIP3_GROUP_CHECKBOX : ST_RIP3_GROUP_NONE,
 	    .selected=b->selected};
@@ -794,7 +814,10 @@ restore_button(void *context,bool selected)
 {
 	struct button *b=context;struct st_rip3_button_renderer *renderer=b->host.buttons;
 	if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==b) st_rip3_button_renderer_cancel(renderer);
-	if (!b->alive || st_rip3_ports_generation(b->host.ports,b->target)!=b->generation) return 0;
+	if (!b->alive || st_rip3_ports_generation(b->host.ports,b->target)!=b->generation) {
+		clear_inversion(b);
+		return 0;
+	}
 	b->selected=selected;
 	if (!uses_hot_icon(b)) {
 		/* Plain/clipboard and ICON fallback feedback is only the existing

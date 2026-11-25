@@ -35,6 +35,7 @@ struct st_rip3_mouse {
 	size_t count;
 	struct field *pressed;
 	struct field *tab_focus;
+	const void *button_feedback;
 	uint64_t sequence,scene,gesture;
 	struct activation *activation;
 	struct st_rip3_templates *templates;
@@ -110,6 +111,24 @@ uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *mouse)
 static void enqueue(struct st_rip3_mouse *mouse,struct activation *action)
 {
 	struct activation **tail=&mouse->activation;while (*tail!=NULL) tail=&(*tail)->next;*tail=action;
+}
+
+bool
+st_rip3_mouse_button_inversion(struct st_rip3_mouse *mouse, const void *owner,
+    const struct st_rip3_rect *area, bool enabled)
+{
+	if (mouse == NULL || mouse->sink.invert == NULL || owner == NULL || area == NULL)
+		return false;
+	if (enabled && mouse->button_feedback == NULL && mouse->pressed != NULL
+	    && mouse->pressed->visual.context == owner) {
+		mouse->button_feedback = owner;
+		mouse->sink.invert(mouse->sink.context, area);
+	}
+	else if (!enabled && mouse->button_feedback == owner) {
+		mouse->button_feedback = NULL;
+		mouse->sink.invert(mouse->sink.context, area);
+	}
+	return true;
 }
 
 static void

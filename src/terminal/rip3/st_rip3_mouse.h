@@ -58,6 +58,11 @@ struct st_rip3_mouse_sink {
 };
 int st_rip3_mouse_create(struct st_rip3_mouse **result, const struct st_rip3_mouse_sink *sink);
 void st_rip3_mouse_destroy(struct st_rip3_mouse *mouse);
+/* Use the sink's temporary screen effect for a button visual. Only the
+ * captured visual can enable it, and only its owner can remove it. Returns
+ * false when the host has no screen effect sink. */
+bool st_rip3_mouse_button_inversion(struct st_rip3_mouse *mouse, const void *owner,
+	const struct st_rip3_rect *area, bool enabled);
 /* Definition-only snapshots include shared entry/exit handlers. Saving does
  * not change capture/membership; applying restores cancels them, even on later
  * allocation failure. No pixels, providers or input gestures are restored.
