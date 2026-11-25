@@ -58,7 +58,6 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Drawing geometry and composition | Fills, borders and repeated strokes across color domains, wide projections and degenerate geometry |
 | Font effects and retained text | Synthetic decorations, glyph measurement and cache lifetime across drawing and reset |
 | Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
 | Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
@@ -71,6 +70,15 @@ Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask
 palette, palette adoption during XOR, and readback from a duplicated port.
 The clipboard fixtures cover low-word capture extents.
+
+The drawing geometry and composition review closed 29 blocks. Connected
+captures exercise XOR on truecolor text beneath affine ellipses, pie and
+chord closures, rounded rectangles, retraced strokes and polygons with holes.
+They also distinguish solid COPY borders from patterned polygon borders.
+One viewport block awaits the portable rule for a WORLD endpoint whose
+DEVICE projection exceeds signed 32-bit coordinates. SyncTERM currently
+keeps the previous viewport and continues parsing.
+[Upstream issue #313](https://github.com/bbs-land/remote-imaging-protocol/issues/313)
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.

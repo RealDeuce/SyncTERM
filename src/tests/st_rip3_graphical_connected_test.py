@@ -82,10 +82,63 @@ def skewed_curves(t):
     assert pixel(frame, 55, 77) == 0x00aa00 and pixel(frame, 55, 67) == 0
 
 
+def mixed_shape_composition(t):
+    t.case('rip3-shape-fills-borders-and-retraced-strokes-over-truecolor')
+
+    def shape(opcode, *fields):
+        return opcode + b''.join(number(value, 2) for value in fields)
+
+    # Draw into truecolor text cells. Palette indices 4 and 2 resolve
+    # to red and green before the Boolean operation with the visible RGB.
+    background = 0x112233
+    fill = background ^ 0xaa0000
+    stroke = background ^ 0x00aa00
+    border = 0x00aa00
+    t.exchange(b'\x01|*|fHSDC\r\n\x1b[?25l\x1b[0;48;2;17;34;51m'
+               + b''.join(f'\x1b[{row};1H'.encode() + b' ' * 40 for row in (1, 2, 3)))
+    commands = [
+        b'W1', b'c02', b'S0104', b'N1',
+        shape(b'{', 12, 11, 18, 11, 12, 6), shape(b'.', 30, 11, 36, 11, 30, 6),
+        shape(b'I', 45, 11, 0, 360, 3), shape(b'i', 55, 11, 0, 1, 3, 3),
+        shape(b'_', 65, 17, 0, 90, 10, 10),
+        shape(b'K', 80, 6, 90, 16), shape(b'u', 94, 6, 104, 16, 2),
+        shape(b'U', 110, 6, 120, 16, 2), shape(b'G', 130, 11, 5),
+        shape(b'o', 145, 11, 6, 4),
+        shape(b'P03', 155, 6, 165, 6, 165, 16),
+        shape(b'l03', 170, 11, 180, 11, 170, 11),
+        b'N0', shape(b'I', 190, 11, 0, 360, 3), shape(b'i', 200, 11, 0, 1, 3, 3),
+        shape(b'<0204', 210, 4, 230, 4, 230, 18, 210, 18)
+        + shape(b'04', 215, 8, 225, 8, 225, 14, 215, 14),
+        # Only the last bit of this opaque pen is set. The first ten
+        # pixels of each polygon's top edge therefore copy Back Color.
+        b'N1', b'k01', b'=14000101',
+        shape(b'p04', 235, 6, 245, 6, 245, 16, 235, 16),
+        b'x0400' + b''.join(shape(b'0', x, y) for x, y in
+                             ((250, 6), (260, 6), (260, 16), (250, 16))),
+        shape(b'K', 265, 6, 275, 16),
+    ]
+    frame = t.exchange(b'\x01|' + b'|'.join(commands) + b'\r\n'
+                       + query(b'alive', at_cursor=True), b'alive')
+    samples = {
+        fill: [(12, 11), (54, 10), (71, 11), (85, 11), (99, 11), (130, 11),
+               (145, 11), (201, 11), (212, 11), (240, 11), (255, 11), (270, 11)],
+        border: [(47, 11), (56, 11), (70, 12), (85, 6), (99, 6), (130, 6),
+                 (145, 7), (270, 6)],
+        stroke: [(36, 11), (115, 6), (160, 6)],
+        background: [(42, 11), (45, 10), (65, 17), (160, 8), (175, 11),
+                     (192, 11), (220, 11)],
+        0x0000aa: [(240, 6), (255, 6)],
+    }
+    for expected, points in samples.items():
+        for x, y in points:
+            actual = pixel(frame, x, y)
+            assert actual == expected, (x, y, hex(actual), hex(expected))
+
+
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
-                    settings='CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\n') as (client,root,peer,send):
+                    settings='CustomColumns=80\nCustomRows=60\nCustomFontHeight=8\nAudioModes=0\n') as (client,root,peer,send):
         t=Terminal(client,root,peer,send)
         def values(source,expected=b''):
             return t.exchange(query(source,at_cursor=True),expected)
@@ -258,6 +311,7 @@ def run(args):
         values(b'$RESET(HARD)$')
         assert default_glyph() == glyph
 
+        mixed_shape_composition(t)
         bold_scan(t)
         skewed_curves(t)
         t.case('PolyMarker projects full dimensions and selects the flag-defined pen and brush')

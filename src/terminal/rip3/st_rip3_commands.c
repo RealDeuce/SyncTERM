@@ -590,7 +590,7 @@ execute(const struct st_rip3_command_host *host,
 	    || command[0] == ';')
 		return execute_drawing(host, command, length, operation, st_rip3_skew_commands_execute);
 	if (command[0] == ',' || command[0] == '.' || command[0] == ':' || command[0] == '`' || command[0] == '{')
-		return st_rip3_affine_command_execute(host, command, length, operation);
+		return execute_drawing(host, command, length, operation, st_rip3_affine_command_execute);
 	if (command[0] == 'Z' || command[0] == 'z' || command[0] == 't' || command[0] == 'x')
 		return execute_drawing(host, command, length, operation, st_rip3_bezier_commands_execute);
 	if (command[0] == 'U' || command[0] == 'u')
