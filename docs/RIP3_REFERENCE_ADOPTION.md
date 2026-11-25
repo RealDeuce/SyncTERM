@@ -1801,3 +1801,12 @@ archive SHA-256 is
 `8be3e3c43962652c5da8e83374ce30c4d6fc781d9e1c20cf5ed16aac44bb96c5`.
 [Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/6bbd7dc1384e9c822a87f14132f272b9e80f4b93)
 · [PR #314](https://github.com/bbs-land/remote-imaging-protocol/pull/314)
+
+## Ordinary host argument rejection
+
+Stable revision `5944d175b6cbefc7e97dc48a1e11eba2d704d2a6` includes the response rules for parser and
+callback argument errors in both ordinary passes. An immediate query and
+a stored button action retain the rejected span and execute the following
+source. The archive SHA-256 is
+`c2aa1b1e8b9f76fece39e37b9f57353727dcbf5c0e627f64ab032ea53103fc97`.
+[Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/5944d175b6cbefc7e97dc48a1e11eba2d704d2a6) · [PR #316](https://github.com/bbs-land/remote-imaging-protocol/pull/316)

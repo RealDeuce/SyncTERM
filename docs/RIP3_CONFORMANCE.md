@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-6bbd7dc1384e9c822a87f14132f272b9e80f4b93](https://github.com/RealDeuce/remote-imaging-protocol/tree/6bbd7dc1384e9c822a87f14132f272b9e80f4b93/version/3.0)
+5944d175b6cbefc7e97dc48a1e11eba2d704d2a6](https://github.com/RealDeuce/remote-imaging-protocol/tree/5944d175b6cbefc7e97dc48a1e11eba2d704d2a6/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -58,6 +58,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
+| Ordinary host argument rejection | Complete spans, missing closing dollars, two-pass recovery and exact query and button replies |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
@@ -93,9 +94,9 @@ erase, HEADER, and full drawing resets.
 The host-expression review closed 17 entries. Connected tests distinguish
 CP437 and UTF-8 byte ordering, run a three-image cycle through a stored
 button action and nested local scenes, and check the field and clipboard
-after label cancellation. The exact response bytes for a reached host
-argument syntax error await clarification.
-[Upstream issue #315](https://github.com/bbs-land/remote-imaging-protocol/issues/315)
+after label cancellation. PR #316 subsequently specified the exact response to a rejected host
+argument. The ordinary-host group tracks that implementation.
+[Upstream PR #316](https://github.com/bbs-land/remote-imaging-protocol/pull/316)
 
 A local RIP file invoked by a field inherits its numeric identity. The
 connected mouse fixtures read field 7 in two nested files after deleting

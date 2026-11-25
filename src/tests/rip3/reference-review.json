@@ -1,21 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/314",
-  "revision": "6bbd7dc1384e9c822a87f14132f272b9e80f4b93",
-  "previous_revision": "c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/316",
+  "revision": "5944d175b6cbefc7e97dc48a1e11eba2d704d2a6",
+  "previous_revision": "6bbd7dc1384e9c822a87f14132f272b9e80f4b93",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PR #314.",
-  "archive_sha256": "8be3e3c43962652c5da8e83374ce30c4d6fc781d9e1c20cf5ed16aac44bb96c5",
+  "upstream_state_at_adoption": "Fork stable incorporates PR #316.",
+  "archive_sha256": "c2aa1b1e8b9f76fece39e37b9f57353727dcbf5c0e627f64ab032ea53103fc97",
   "normative_scope": [
-    "Validate the exclusive far boundaries of a projected wire viewport before publication."
+    "Retain rejected ordinary dollar references, continue scanning each pass and preserve preceding and following effects."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md"
+    "version/3.0/ripscrip/4.3-buttons.md",
+    "version/3.0/ripscrip/5.0-host-commands.md",
+    "version/3.0/ripscrip/5.1-text-variables.md",
+    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9684,
+  "matched_source_blocks": 9686,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -949,7 +952,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 154,
+  "upstream_issue_resolutions": 155,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1868,6 +1871,12 @@
       "sha256": "395986ad8eca302ce7c550ebd58d32f0b0dc4d4251591c2a5651aa3a6e07099b",
       "title": "Issue #313 — RIP_VIEWPORT projection range",
       "role": "Original viewport publication and portable signed DEVICE bounds."
+    },
+    {
+      "path": "version/3.0/research/issue-315-host-argument-rejection.md",
+      "sha256": "cf56cbca665a924640c0a252803fff8c9d846d78b5a46c20c625389dd52471f4",
+      "title": "Issue #315 — Reached dollar-argument errors in ordinary host responses",
+      "role": "Original ordinary scanner, callback refusal and two-pass sender."
     }
   ],
   "documents": [
@@ -2013,7 +2022,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "cbca0dd7d65fab6fcc1c781fb44dc17624db773265814bb9aa5217175b1c4f21"
+      "sha256": "b3965c4af4fd051c3bf4a81857dee8296d0cadbc3feebb70bfda56b0d468fc79"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -2025,11 +2034,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "04fa8d181f282bce3b443534e637659932379deeb7287b76baeb0dc2be46d068"
+      "sha256": "86449e625c131ed942e7dd671c3a5dce94a5e53b21cc2e5d0d22046fa0ee6070"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "20c23396c50bb7e11a75c042cbe206d717f134593bc5d53ab7d89ba0314f22e7"
+      "sha256": "2501a5c9598daaa6e686336d0b8fa3fd53fb49b7edb723e364d1c42693faf63f"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2045,7 +2054,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "c234fa5c7718532efbb82f3dc8ca83e6ff415b26b2d9d1aaf1d7c279586aa688"
+      "sha256": "4da6f1dd6647225c8f26e6729256223bc0f7c87303c817aa521568a8a5cfaa20"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -2144,7 +2153,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "62d4de8bfb9456bc5bc6b74d1f08b4f175f4d691",
+  "previous_ledger_commit": "4e418349f9f24459721451f5e6dfbbebfa511652",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2221,11 +2230,12 @@
   "states_at_adoption": {
     "unreviewed": 1801,
     "context": 2283,
-    "implemented": 5265,
+    "implemented": 5290,
     "excluded": 266,
-    "pending": 73
+    "pending": 55,
+    "blocked": 2
   },
-  "source_blocks_at_adoption": 9688,
+  "source_blocks_at_adoption": 9697,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21465,6 +21475,80 @@
         "excluded": 266,
         "pending": 73
       }
+    },
+    {
+      "previous_revision": "6bbd7dc1384e9c822a87f14132f272b9e80f4b93",
+      "revision": "5944d175b6cbefc7e97dc48a1e11eba2d704d2a6",
+      "archive_sha256": "c2aa1b1e8b9f76fece39e37b9f57353727dcbf5c0e627f64ab032ea53103fc97",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/315",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/316",
+          "reviewed_head": "eec8431f06ad3611dad3d2137649b74af2a21ded",
+          "integration": "201cdc196f88f698e9330681e6a62956c44f28af"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "cbca0dd7d65fab6fcc1c781fb44dc17624db773265814bb9aa5217175b1c4f21",
+          "sha256": "b3965c4af4fd051c3bf4a81857dee8296d0cadbc3feebb70bfda56b0d468fc79"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.0-host-commands.md",
+          "previous_sha256": "04fa8d181f282bce3b443534e637659932379deeb7287b76baeb0dc2be46d068",
+          "sha256": "86449e625c131ed942e7dd671c3a5dce94a5e53b21cc2e5d0d22046fa0ee6070"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "20c23396c50bb7e11a75c042cbe206d717f134593bc5d53ab7d89ba0314f22e7",
+          "sha256": "2501a5c9598daaa6e686336d0b8fa3fd53fb49b7edb723e364d1c42693faf63f"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "c234fa5c7718532efbb82f3dc8ca83e6ff415b26b2d9d1aaf1d7c279586aa688",
+          "sha256": "4da6f1dd6647225c8f26e6729256223bc0f7c87303c817aa521568a8a5cfaa20"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-315-host-argument-rejection.md",
+          "sha256": "cf56cbca665a924640c0a252803fff8c9d846d78b5a46c20c625389dd52471f4",
+          "title": "Issue #315 — Reached dollar-argument errors in ordinary host responses",
+          "role": "Original ordinary scanner, callback refusal and two-pass sender."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 2122,
+      "new_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:837",
+        "version/3.0/ripscrip/5.0-host-commands.md:114",
+        "version/3.0/ripscrip/5.0-host-commands.md:116",
+        "version/3.0/ripscrip/5.0-host-commands.md:118",
+        "version/3.0/ripscrip/5.0-host-commands.md:120",
+        "version/3.0/ripscrip/5.0-host-commands.md:122",
+        "version/3.0/ripscrip/5.0-host-commands.md:126",
+        "version/3.0/ripscrip/5.0-host-commands.md:128",
+        "version/3.0/ripscrip/5.0-host-commands.md:132",
+        "version/3.0/ripscrip/5.1-text-variables.md:131",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:45"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/4.3-buttons.md:837",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:45"
+      ],
+      "states_after_update": {
+        "unreviewed": 1801,
+        "context": 2283,
+        "implemented": 5290,
+        "excluded": 266,
+        "pending": 55,
+        "blocked": 2
+      },
+      "reopened_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:154"
+      ]
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
