@@ -356,6 +356,8 @@ def run(args, width, height):
         frame = wire(b'h01000101.\\|c02')
         assert frame.application['connected'] == 1
         values(b'$CUR(STYLE)$:$CUR(ENV)$', b'6:2')
+        wire(b'h1<<1<12<5')
+        values(b'$CUR(STYLE)$', b'5')
 
         t.case('rip3-header-typed-segments-select-their-own-tables')
         values(b'$CUR(PORT,2)$$CUR(PORT,0)$$CUR(PAL,4)$$PROT(PAL,4)$$CUR(PAL,7)$')

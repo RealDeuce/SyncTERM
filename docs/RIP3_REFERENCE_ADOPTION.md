@@ -1657,3 +1657,16 @@ flood-fill discrepancy tracked under issue #2 and its focused follow-up.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/434aef714f25207465eb35482489b0c8152244aa),
 [PR #280](https://github.com/bbs-land/remote-imaging-protocol/pull/280)
+
+## Scene-header numeric shorthand
+
+The reference advances to `cedb7e1a40c084d11237e821f42709386dedd2b6`.
+The stable tree matches the reviewed PR #282 head
+`62771a283c871812793e6ac59e456754ad387306`. The Git archive has SHA-256
+`9e9b2975d68cee12fa41de793d2dca51c57ccb6d733fe44e5db426e7a6693d54`.
+The changed chapters give the rules for header numeric shorthand, literal
+type selectors and continuation. The derivation also records when the
+original collector accepts the early numeric-field terminator `<`.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/cedb7e1a40c084d11237e821f42709386dedd2b6),
+[PR #282](https://github.com/bbs-land/remote-imaging-protocol/pull/282)

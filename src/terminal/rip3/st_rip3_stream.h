@@ -22,9 +22,10 @@ struct st_rip3_stream_sink {
 	 * physical line endings. CR, LF and FF each terminate commands. A CR also
 	 * consumes its optional LF across input calls; ordinary text is unchanged.
 	 * For fixed numeric descriptors, only the opcode and collected fields
-	 * are passed to the consumer. Numeric backslashes are discarded before
-	 * decoding fields. String framing consumes quotes for SOH,
-	 * STX and pipe, and passes other quotes on except continuation slashes.
+	 * are passed to the consumer. Numeric backslashes are discarded and a
+	 * field ended by '<' is padded to its full width. String framing consumes
+	 * quotes for SOH, STX and pipe, and passes other quotes on except
+	 * continuation slashes.
 	 * Comments are delivered too and MUST bypass variable expansion. */
 	void (*command)(void *context, const uint8_t *bytes, size_t length);
 	/* Optional current text-window cursor check, after preceding text has

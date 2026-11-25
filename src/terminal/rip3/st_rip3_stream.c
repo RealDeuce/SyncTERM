@@ -6,6 +6,7 @@
 #include "io_error.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 enum record_list { RECORDS_NONE, RECORDS_HEADER, RECORDS_BEZIER };
 
@@ -64,6 +65,8 @@ static const char *const level_two[128] = {
 static const char *const level_nine[128] = {
 	[0x1b] = "11222T", ['D'] = "4T", ['G'] = "8T", ['R'] = "428T", ['U'] = "24",
 };
+
+static void append(struct st_rip3_stream *stream, uint8_t byte);
 
 static void
 report(struct st_rip3_stream *stream, enum st_rip3_command_diagnostic kind)
@@ -147,6 +150,23 @@ collect_selector(struct st_rip3_stream *stream, uint8_t byte)
 	return false;
 }
 
+static void
+pad_numeric_field(struct st_rip3_stream *stream, unsigned width)
+{
+	size_t digits = stream->field_digits;
+	size_t first = stream->length - digits;
+	size_t padding = width - digits;
+
+	/* The wire's early terminator can finish a middle field. Widen its
+	 * spelling for the command decoders, which consume ordinary fields. */
+	for (size_t i = 0; i < padding && !stream->dropping; i++)
+		append(stream, '0');
+	if (stream->dropping || digits == 0)
+		return;
+	memmove(stream->command + first + padding, stream->command + first, digits);
+	memset(stream->command + first, '0', padding);
+}
+
 static bool
 collect_field(struct st_rip3_stream *stream, uint8_t byte)
 {
@@ -157,13 +177,19 @@ collect_field(struct st_rip3_stream *stream, uint8_t byte)
 	bool ultra = rgb || stream->base_math == 64;
 	unsigned width = field == 'x' ? stream->coordinate_width
 	    : field == 'C' ? (rgb ? 4 : 2) : field >= 'a' ? (unsigned)(field - 'a' + 10) : (unsigned)(field - '0');
+	bool short_field = byte == '<';
 	bool digit = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z')
 	    || (ultra && ((byte >= 'a' && byte <= 'z') || byte == '#' || byte == '&'));
-	if (!digit && (byte != '.' || stream->field_digits != 0)) {
+	if (short_field) {
+		pad_numeric_field(stream, width);
+		if (stream->dropping)
+			return false;
+	}
+	else if (!digit && (byte != '.' || stream->field_digits != 0)) {
 		reject_command(stream, ST_RIP3_COMMAND_INVALID);
 		return false;
 	}
-	if (byte == '.' || ++stream->field_digits == width) {
+	if (short_field || byte == '.' || ++stream->field_digits == width) {
 		stream->field_digits = 0;
 		if (stream->fields[1] != '*')
 			stream->fields++;
@@ -171,7 +197,7 @@ collect_field(struct st_rip3_stream *stream, uint8_t byte)
 		if (*stream->fields == 'T')
 			stream->fields = NULL;
 	}
-	return true;
+	return !short_field;
 }
 
 static bool

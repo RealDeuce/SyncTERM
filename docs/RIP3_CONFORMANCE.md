@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-434aef714f25207465eb35482489b0c8152244aa](https://github.com/RealDeuce/remote-imaging-protocol/tree/434aef714f25207465eb35482489b0c8152244aa/version/3.0)
+cedb7e1a40c084d11237e821f42709386dedd2b6](https://github.com/RealDeuce/remote-imaging-protocol/tree/cedb7e1a40c084d11237e821f42709386dedd2b6/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10619,4 +10619,12 @@ works inside fields and at record boundaries.
 The original driver collector and header validator confirmed the header
 shorthands. The connected CP437 and UTF-8 fixtures check a header state
 change and Bézier drawing, including recovery on the same connection.
-[Upstream issue #281](https://github.com/bbs-land/remote-imaging-protocol/issues/281)
+[PR #282](https://github.com/bbs-land/remote-imaging-protocol/pull/282)
+
+The original numeric collector also accepts `<` to finish its current
+field early. An empty field becomes zero. The stream parser pads the
+digits to the descriptor width before handing the command to its consumer.
+In a text argument the character stays literal, and at a typed selector
+boundary it discards the command. Tests cover a live coordinate-width
+change, a compact header that selects a drawing style, receive splits,
+and recovery when padding cannot allocate space.

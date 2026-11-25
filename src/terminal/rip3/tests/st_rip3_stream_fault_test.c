@@ -104,13 +104,14 @@ main(void)
 	fail_realloc = true;
 	st_rip3_stream_process(stream, (const uint8_t *)"x\\|J10\r", sizeof("x\\|J10\r")-1);
 	CHECK(seen.errors == 4 && seen.commands == 4 && !seen.mismatch);
-	/* A numeric allocation failure recovers at the very next pipe. */
+	/* An allocation failure while padding a numeric field still recovers
+	 * at the very next pipe. */
 	st_rip3_stream_process(stream, (const uint8_t *)"!|", 2);
 	memset(block, '0', sizeof(block));
-	block[0] = 'z';
+	block[0] = 'P';
 	st_rip3_stream_process(stream, block, sizeof(block));
 	fail_realloc = true;
-	st_rip3_stream_process(stream, (const uint8_t *)"0\\|J10\r", sizeof("0\\|J10\r")-1);
+	st_rip3_stream_process(stream, (const uint8_t *)"<\\|J10\r", sizeof("<\\|J10\r")-1);
 	CHECK(seen.errors == 5 && seen.commands == 5 && !seen.mismatch);
 	st_rip3_stream_destroy(stream);
 	return 0;

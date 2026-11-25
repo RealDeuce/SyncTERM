@@ -211,6 +211,20 @@ typed_records(void)
 }
 
 static int
+numeric_terminator(void)
+{
+	EXAMPLE("!|c<|cA<|L1<2<3<4<unused|L1<<3<4<\\|@1\\<2<<text|T<<WORD>>\r\n", "",
+	    "c00\0c0A\0L01020304\0L01000304\0@0102<text\0T<<WORD>>\0", 6);
+	EXAMPLE("!|h1<<1<81<|t2<<01<1<06<6<|P3<1<1<5<1<1<5<\n", "",
+	    "h01000001801\0t02000010100606\0P03010105010105\0", 3);
+	EXAMPLE("!|1i1<2<3<4<1<1<|<1<3<1<1<5<1<1<5<\r\n", "",
+	    "1i010203040001000000000001\0<0103010105010105\0", 2);
+	EXAMPLE_ERRORS("!|h1<<1<<81\\|t2<<<01<1<06<6<\\|c02\f",
+	    "", "c02\0", 1, 2);
+	return 0;
+}
+
+static int
 lifetime(void)
 {
 	struct observation seen = {0};
@@ -407,6 +421,7 @@ main(void)
 	CHECK(argumentless_commands() == 0);
 	CHECK(numeric_recovery() == 0);
 	CHECK(typed_records() == 0);
+	CHECK(numeric_terminator() == 0);
 	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);

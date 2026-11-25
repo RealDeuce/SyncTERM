@@ -72,6 +72,11 @@ def run(args):
                            + query(b'alive', at_cursor=True), b'alive')
         assert pixel(frame, 42, 42) == 0x00aa00 and pixel(frame, 43, 43) == 0xff5555
         assert frame.application['connected'] == 1
+        t.case('rip3-early-numeric-terminator-with-live-coordinate-width')
+        frame = t.exchange(b'\x01|n3|c2<|L18<19<1B<19<|X19<1A<|n2\r\n'
+                           + query(b'$COORDSIZE$:alive', at_cursor=True), b'2:alive')
+        assert all(pixel(frame, x, 45) == 0x00aa00 for x in range(44, 48))
+        assert pixel(frame, 43, 45) == 0 and pixel(frame, 45, 46) == 0x00aa00
         t.exchange(b'\x01|E|Y00000100|c0F\r\n')
         t.case('rip3-graphical-builtins-and-ink')
         frame=t.exchange(b'\x01|m0A1E|T$RESX$\r\n'+query(b'$TEXTXY$',at_cursor=True),b'34:50')
