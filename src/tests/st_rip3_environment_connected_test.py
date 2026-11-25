@@ -186,6 +186,33 @@ def run(args,width,height):
                b':$INUSE(ENV,BASE)$:$ISPROT(ENV,S3)$', b'11:0:1:0:1')
         other_selections()
 
+        t.case(f'rip3-live-compat-switches-drawing-syntax-{width}x{height}')
+        values(b'$RESET(HARD)$$CUR(ENV,12)$$WORLD(CUR,1280,960)$$BASEMATH(CUR,64)$'
+               b'$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$$MCURSOR(6)$$DCS(CUR,KANJI)$'
+               b'$BAUDEMUL(1200)$$PROT(ENV,12)$$CUR(ENV,0)$')
+        values(b'$WORLD(CUR,800,600)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$')
+        t.exchange(b'\x1b[?25l')
+        before = client.capture()
+        after = values(b'[$COMPAT(12)$]$CUR(ENV)$:$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$'
+                       b':$WORLD(12)$:$BASEMATH(12)$:$COORDSIZE(12)$:$COLORMODE(12)$:$ISPROT(ENV,12)$',
+                       b'[]0:800:600:64:5:8:640:350:36:2:0:1')
+        assert after.primary == before.primary and after.alternate == before.alternate
+        values(b'[$COMPAT(13)$][$COMPAT(36)$][$COMPAT(CUR,0)$]$WORLD$:$INUSE(ENV,13)$',
+               b'[][][]800:600:0')
+        after = values(b'[$COMPAT(cur)$]$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',
+                       b'[]640:350:36:2:0:1200')
+        assert after.primary == before.primary and after.alternate == before.alternate
+        frame = wire(b'c04|X3C1Y')  # World (120, 70), two base-36 digits per axis.
+        assert pixel(frame, 120 * width // 640, height // 5) == 0xaa0000
+        frame = values(b'$CUR(ENV,12)$$DCS$:$ISPROT(ENV,CUR)$:$BAUDEMUL$', b'KANJI:1:1200')
+        assert frame.metadata['pointer_shape'] == 6
+        values(b'$COLORMODE(CUR,RGB,8)$')
+        values(b'$COMPAT(CUR)$$COLORMODE$:$ISPROT(ENV,CUR)$', b'0:1')
+        values(b'$UNPROT(ENV,12)$$RESET(ENV,12)$$WORLD(CUR,800,600)$'
+               b'$COMPAT(12)$$WORLD$:$INUSE(ENV,12)$', b'800:600:0')
+        values(b'$COMPAT$$WORLD$:$INUSE(ENV,12)$:$BAUDEMUL$', b'640:350:0:1200')
+        assert client.capture().application['connected'] == 1
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

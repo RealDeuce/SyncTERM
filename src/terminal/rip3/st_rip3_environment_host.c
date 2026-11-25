@@ -179,7 +179,6 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	bool height = strcmp(name, "WORLDH") == 0;
 	bool color = strcmp(name, "COLORMODE") == 0;
 	bool compat = strcmp(name, "COMPAT") == 0;
-	bool setting = compat || reference->count >= 2;
 	unsigned index;
 	int status;
 
@@ -208,6 +207,13 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
+	if (compat) {
+		status = st_rip3_environments_compat(environments, active ? 0 : index, active);
+		if (status == 0)
+			result[0] = 0;
+		return status;
+	}
+	bool setting = reference->count >= 2;
 	status = active ? st_rip3_environments_active(environments, &index, &value)
 	    : st_rip3_environments_get(environments, index, &value);
 	if (status == IO_ERROR_NOT_FOUND) {
@@ -233,12 +239,7 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 			return IO_ERROR_IO;
 		return reply_text(result, capacity, text);
 	}
-	if (compat) {
-		value.world_width = 640; value.world_height = 350;
-		value.base_math = 36; value.coordinate_size = 2;
-		value.rgb_bits = 0;
-	}
-	else if (color) {
+	if (color) {
 		const char *mode = reference->parameters[1].text;
 		unsigned bits;
 

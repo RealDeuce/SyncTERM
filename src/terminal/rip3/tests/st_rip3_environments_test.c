@@ -372,14 +372,17 @@ host_variables(void)
 	CHECK(run(&host, "$ISPROT(ENV,35)$", "1", -1) == 0);
 	CHECK(run(&host, "$BASEMATH(35,36)$", "", ST_RIP3_HOST_OPERATION_FAILED) == 0);
 	CHECK(run(&host, "$BASEMATH(35)$", "64", -1) == 0);
-	CHECK(run(&host, "$UNPROT(ENV,35)$", "", -1) == 0);
+	CHECK(st_rip3_environments_select(environments, 0) == 0);
 	CHECK(run(&host, "$COMPAT(35)$", "", -1) == 0);
+	CHECK(run(&host, "$ISPROT(ENV,35)$", "1", -1) == 0);
+	CHECK(run(&host, "$CUR(ENV)$", "0", -1) == 0);
 	CHECK(run(&host, "$BAUDEMUL$", "2147483647", -1) == 0);
 	CHECK(st_rip3_environments_get(environments, 35, &data) == 0);
 	CHECK(data.world_width == 640 && data.world_height == 350 && data.base_math == 36
 	    && data.coordinate_size == 2 && data.rgb_bits == 0
 	    && data.port == 3 && data.palette == 5 && data.mouse_pointer == 6);
 	CHECK(st_rip3_environments_select(environments, 35) == 0);
+	CHECK(run(&host, "$UNPROT(ENV,35)$", "", -1) == 0);
 	CHECK(run(&host, "$SENV$", "", -1) == 0);
 	CHECK(run(&host, "$INUSE(ENV,BASE)$", "1", -1) == 0);
 	CHECK(run(&host, "$SENV(PUSH)$", "", -1) == 0);
@@ -396,6 +399,13 @@ host_variables(void)
 	CHECK(run(&host, "$COORDSIZE(CUR,4)$", "", -1) == 0);
 	CHECK(run(&host, "$COPY(ENV,S0,TBL)$", "", -1) == 0);
 	CHECK(run(&host, "$COORDSIZE$", "2", -1) == 0);
+	CHECK(run(&host, "$RESET(ENV,35)$", "", -1) == 0);
+	CHECK(run(&host, "$WORLD(CUR,800,600)$", "", -1) == 0);
+	CHECK(run(&host, "$COMPAT(35)$", "", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
+	CHECK(run(&host, "$WORLD$", "800:600", -1) == 0);
+	CHECK(run(&host, "$COMPAT(CUR)$", "", -1) == 0);
+	CHECK(run(&host, "$WORLD$", "640:350", -1) == 0);
+	CHECK(run(&host, "$INUSE(ENV,35)$", "0", -1) == 0);
 	tables.tables[ST_RIP3_TABLE_ENV].live = NULL;
 	CHECK(run(&host, "$WORLD$", "", ST_RIP3_HOST_UNSUPPORTED_REFERENCE) == 0);
 	st_rip3_backup_destroy(backup);

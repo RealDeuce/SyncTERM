@@ -176,6 +176,28 @@ st_rip3_environments_color(struct st_rip3_environments *environments,
 	return 0;
 }
 
+int
+st_rip3_environments_compat(struct st_rip3_environments *environments,
+    unsigned number, bool current_form)
+{
+	if (environments == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (current_form)
+		number = environments->current;
+	if (number >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+
+	struct environment_entry *entry = &environments->entries[number];
+	if (!current_form && !entry->info.defined)
+		return IO_ERROR_INVALID_FORMAT;
+	entry->data.world_width = 640;
+	entry->data.world_height = 350;
+	entry->data.base_math = 36;
+	entry->data.coordinate_size = 2;
+	entry->data.rgb_bits = 0;
+	return 0;
+}
+
 enum st_rip3_charset
 st_rip3_environments_shared_charset(const struct st_rip3_environments *environments)
 {

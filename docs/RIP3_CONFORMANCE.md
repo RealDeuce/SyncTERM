@@ -1098,12 +1098,11 @@ per-record world dimensions with the client's fixed device canvas.
 The public void-returning reference processor now handles BASEMATH, COORDSIZE,
 WORLD/WORLDW/WORLDH, BAUDEMUL, COMPAT and defined COLORMODE queries/updates through
 the ENV binding. It distinguishes missing-entry replies (`NONE` or `-1` as
-documented), validates complete changes before commit, preserves protected
-records, and continues after invalid/unsupported references. WORLD(DEFAULT)
+documented), validates complete changes before commit, applies each operation's
+protection rules, and continues after invalid/unsupported references. WORLD(DEFAULT)
 uses 1280x960 for base 36 and 4096x3072 for base 64. The explicit shipping v3
 restrictions are enforced: world dimensions 1..32767 and direct RGB precision
-eight. Older 65535/1..8 tables do not override those statements. COMPAT changes
-only its five documented record settings and never invokes the old parser.
+eight. Older 65535/1..8 tables do not override those statements.
 
 Tests check literal replies, noncurrent updates, minimum/maximum world fields,
 all coordinate widths' boundaries, large decimal baud values within the existing
@@ -10770,3 +10769,18 @@ the window's bit, and the character path calls the insert-character helper
 before drawing. The portable rendering contract still needs to specify the
 bounded row shift and its interaction with wrapping and text edits.
 [Issue #298](https://github.com/bbs-land/remote-imaging-protocol/issues/298)
+
+## COMPAT on a live RIPv3 connection
+
+COMPAT applies a 640×350 world, base 36, two-digit coordinates and palette
+colors. A numbered inactive target receives the settings without changing
+the active drawing format. Connected tests check exact replies, retained
+pixels, and a palette-colored point sent in the restored syntax. They also
+check that the local playback rate, target pointer and charset survive.
+
+The original RIPtel callback writes these fields even on protected entries.
+Its omitted and CUR forms can edit a selected entry made undefined by
+numbered ENV reset. The same explicit number is rejected. The implementation
+follows those callback branches, and the selector and protection wording
+awaits an upstream clarification.
+[Issue #299](https://github.com/bbs-land/remote-imaging-protocol/issues/299)

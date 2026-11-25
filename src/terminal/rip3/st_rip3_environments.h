@@ -69,6 +69,10 @@ int st_rip3_environments_set(struct st_rip3_environments *environments,
  * Selection and every other record field remain unchanged. Wire M uses set. */
 int st_rip3_environments_color(struct st_rip3_environments *environments,
 	unsigned number, unsigned bits);
+/* COMPAT edits the drawing format even on protected entries. Only the
+ * default/CUR form can address a selected but undefined entry. */
+int st_rip3_environments_compat(struct st_rip3_environments *environments,
+	unsigned number, bool current_form);
 enum st_rip3_charset st_rip3_environments_shared_charset(const struct st_rip3_environments *);
 void st_rip3_environments_set_shared_charset(struct st_rip3_environments *, enum st_rip3_charset);
 /* DCS name setters bypass protection. OFF clears only a protected override. */
