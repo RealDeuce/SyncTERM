@@ -15,6 +15,7 @@ struct st_rip3_environments {
 	unsigned current;
 	uint32_t playback_rate;
 	enum st_rip3_charset shared_charset;
+	bool scene_arrow_pending;
 	struct environment_entry entries[36];
 };
 
@@ -228,17 +229,20 @@ st_rip3_environments_activate(struct st_rip3_environments *environments,unsigned
 {
 	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (number>=36) return IO_ERROR_OUT_OF_RANGE;
+	struct st_rip3_environment *old=&environments->entries[environments->current].data;
+	unsigned old_pointer = old->mouse_pointer;
 	struct environment_entry *target=&environments->entries[number];
 	if (!target->info.defined) {
 		(void)st_rip3_environment_defaults(&target->data);
 		target->info=(struct st_rip3_environment_info){.defined=true};
 	}
 	const struct st_rip3_environment value=target->data;
-	struct st_rip3_environment *old=&environments->entries[environments->current].data;
 	/* The documented selector applies these setters before changing current,
 	 * so they overwrite the departing record even when it is protected. */
 	old->base_math=value.base_math;old->rgb_bits=value.rgb_bits;
 	old->coordinate_size=value.coordinate_size;
+	if (old_pointer != value.mouse_pointer)
+		environments->scene_arrow_pending = false;
 	environments->current=number;return 0;
 }
 
@@ -266,7 +270,26 @@ st_rip3_environments_mouse(struct st_rip3_environments *environments,unsigned po
 {
 	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (pointer>7) return IO_ERROR_OUT_OF_RANGE;
-	environments->entries[environments->current].data.mouse_pointer=pointer;return 0;
+	environments->entries[environments->current].data.mouse_pointer = pointer;
+	environments->scene_arrow_pending = false;
+	return 0;
+}
+
+void
+st_rip3_environments_scene_lock(struct st_rip3_environments *environments)
+{
+	environments->entries[environments->current].data.mouse_pointer = 6;
+	environments->scene_arrow_pending = true;
+}
+
+void
+st_rip3_environments_scene_release(struct st_rip3_environments *environments, bool mouse_locked)
+{
+	if (environments == NULL)
+		return;
+	if (mouse_locked && environments->scene_arrow_pending)
+		environments->entries[environments->current].data.mouse_pointer = 0;
+	environments->scene_arrow_pending = false;
 }
 
 uint32_t
@@ -309,6 +332,9 @@ st_rip3_environments_header(struct st_rip3_environments *environments, unsigned 
     unsigned slot, unsigned coordinate_width, unsigned rgb_bits)
 {
 	if (flags & 1) {
+		if (environments->entries[environments->current].data.mouse_pointer
+		    != environments->entries[0].data.mouse_pointer)
+			environments->scene_arrow_pending = false;
 		header_delete_others(environments, 0);
 		environments->current = 0;
 	}
@@ -366,6 +392,7 @@ st_rip3_environments_soft_reset(struct st_rip3_environments *environments)
 	old->base_math=36;old->coordinate_size=2;old->rgb_bits=0;
 	for (unsigned i = 0; i < 36; i++)
 		(void)st_rip3_environments_reset_entry(environments, i, false);
+	environments->scene_arrow_pending = false;
 	environments->current=0;return 0;
 }
 
@@ -437,10 +464,12 @@ environment_restore(void *object, const void *saved)
 	if (environments->device.device_width != snapshot->device.device_width
 	    || environments->device.device_height != snapshot->device.device_height)
 		return IO_ERROR_CONFLICT;
-	/* Shared character-set fallback lives outside the ENV backup family. */
+	/* Shared charset and pending scene pointer return are live state. */
 	enum st_rip3_charset shared_charset = environments->shared_charset;
+	bool scene_arrow_pending = environments->scene_arrow_pending;
 	*environments = *snapshot;
 	environments->shared_charset = shared_charset;
+	environments->scene_arrow_pending = scene_arrow_pending;
 	return 0;
 }
 

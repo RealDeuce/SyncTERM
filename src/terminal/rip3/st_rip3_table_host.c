@@ -812,6 +812,13 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 			if (status == 0) result[0] = '\0';
 			return status;
 		}
+		if (equal(scope, "MCURSOR") || equal(scope, "KEYBOARD")) {
+			if (reference->count != 1) return IO_ERROR_INVALID_FORMAT;
+			if (host->reset_scene_input == NULL) return IO_ERROR_NOT_SUPPORTED;
+			status = host->reset_scene_input(host->reset_context, equal(scope, "MCURSOR"));
+			if (status == 0) result[0] = '\0';
+			return status;
+		}
 		if (equal(scope, "SOUND")) {
 			if (reference->count != 1) return IO_ERROR_INVALID_FORMAT;
 			if (host->stop_waveform == NULL) return IO_ERROR_NOT_SUPPORTED;

@@ -75,9 +75,13 @@ void st_rip3_environments_set_shared_charset(struct st_rip3_environments *, enum
 void st_rip3_environments_set_charset(struct st_rip3_environments *, unsigned number, enum st_rip3_charset);
 /* RESET clears defined unprotected overrides. The table form ignores number. */
 void st_rip3_environments_reset_charset(struct st_rip3_environments *, unsigned number, bool table);
-/* MCURSOR's protection-bypassing edit of the current defined ENV. Accept
- * the documented 0..7 preferences; the connection owns native presentation. */
+/* MCURSOR's protection-bypassing edit of the current ENV. A successful
+ * choice cancels a pending scene return to arrow. */
 int st_rip3_environments_mouse(struct st_rip3_environments *environments, unsigned pointer);
+/* Scene lock selects wait and requests an arrow on full release. Release
+ * applies that request only while the mouse scene gate is still set. */
+void st_rip3_environments_scene_lock(struct st_rip3_environments *environments);
+void st_rip3_environments_scene_release(struct st_rip3_environments *environments, bool mouse_locked);
 /* Low-level selection of an existing record without protocol side effects.
  * Used when constructing a prepared state. Wire/CUR selectors use activate. */
 int st_rip3_environments_select(struct st_rip3_environments *environments,

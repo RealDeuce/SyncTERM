@@ -1,22 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/287",
-  "revision": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65",
-  "previous_revision": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/288",
+  "revision": "fac950cc034276f3f56a226936dfd7bb18676859",
+  "previous_revision": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #287 matches its fork stable integration tree.",
-  "archive_sha256": "c67deb805dcc1b401687f8e2634fd2089d94841f694fd01a286772feade694e9",
+  "upstream_state_at_adoption": "The open PR #288 matches its fork stable integration tree.",
+  "archive_sha256": "1b62863858943684b0a592ff5f302020a88e6e01ada3c50f61a2c2366d4c7405",
   "normative_scope": [
-    "Apply portable RESET(PORT) and RESET(QUERY) dispatch, selector validation, protection, and resident expression ownership."
+    "Apply portable mouse and keyboard scene gates and pointer return on HEADER, RESET and NO_MORE."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md"
+    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+    "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+    "version/3.0/ripscrip/4.3-buttons.md",
+    "version/3.0/ripscrip/5.1-text-variables.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9527,
+  "matched_source_blocks": 9541,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -950,7 +952,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 142,
+  "upstream_issue_resolutions": 143,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1791,6 +1793,12 @@
       "sha256": "00e0ca77f61007f731dfa4c44f7be5828187cfb0b2a9887a87e6c18a16984094",
       "title": "Issue #285 — RESET PORT and QUERY dispatch",
       "role": "Original dispatch and direct QUERY leaf captures, and the source for the portable grammar."
+    },
+    {
+      "path": "version/3.0/research/issue-286-reset-input-lock.md",
+      "sha256": "95b11d305b958c0be89eae49af63723035e9a44ef75c2828bdedd786ee3e32be",
+      "title": "Issue #286 — RESET input gates and pointer state",
+      "role": "Native state and dispatch traces behind the independent scene gates and pending arrow return."
     }
   ],
   "documents": [
@@ -1884,7 +1892,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "50e036db3f8a0c945500a32bec5a9ba9c7a5121b107fa01bbc232739b7e70eed"
+      "sha256": "43cae3cb7811131b341b2ff826bb730a54ae2154f126722be667da37adbd0cee"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
@@ -1892,7 +1900,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "70b14b3d69c9ef060c7a5cba19fa6555b510d09eb459c95f1b54233a714b6cae"
+      "sha256": "bdd9a39c870bbe5c046ff13f7370b116d6be4e97288210bf8801f711f7ec2780"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -1932,11 +1940,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "a5685c5441840a44544cc51381a2de7ccb4308b5a5a6845f75bf5c3a8215ee1f"
+      "sha256": "f97a4ce762b2ab47f2276007b7915d731ea22d1112f5a83ded60ab5698b758e4"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "cffb0237262c71593b4f58ccc7514bda5ebb67e21fb62ead93c0cadf5a2c7029"
+      "sha256": "9c2d2796484a1b90799a8eb7a43196832968395bd907a77e668f6746c3ab1ccb"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1952,7 +1960,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "57ed71e5d72e90c5f7de14c8b7d80554a2642d338db7ac7511a50a05fcf889eb"
+      "sha256": "8f93e99e2e0955c1a162ec42d752448000afa41efb5640190baa342ccada1688"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2067,7 +2075,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "6a0eb911e3358e00744476a986a85bad4fbadcea",
+  "previous_ledger_commit": "79fb1a6b82b46e6951cf076a48f29dfa5d7370dc",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20583,6 +20591,98 @@
         "implemented": 4124,
         "excluded": 76,
         "blocked": 5
+      }
+    },
+    {
+      "previous_revision": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65",
+      "revision": "fac950cc034276f3f56a226936dfd7bb18676859",
+      "archive_sha256": "1b62863858943684b0a592ff5f302020a88e6e01ada3c50f61a2c2366d4c7405",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/286",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/288",
+          "reviewed_head": "5d2811d8eee0067a568cd926e9d9d8992c6fd21d",
+          "integration": "fac950cc034276f3f56a226936dfd7bb18676859"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "50e036db3f8a0c945500a32bec5a9ba9c7a5121b107fa01bbc232739b7e70eed",
+          "sha256": "43cae3cb7811131b341b2ff826bb730a54ae2154f126722be667da37adbd0cee"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "70b14b3d69c9ef060c7a5cba19fa6555b510d09eb459c95f1b54233a714b6cae",
+          "sha256": "bdd9a39c870bbe5c046ff13f7370b116d6be4e97288210bf8801f711f7ec2780"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "a5685c5441840a44544cc51381a2de7ccb4308b5a5a6845f75bf5c3a8215ee1f",
+          "sha256": "f97a4ce762b2ab47f2276007b7915d731ea22d1112f5a83ded60ab5698b758e4"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "cffb0237262c71593b4f58ccc7514bda5ebb67e21fb62ead93c0cadf5a2c7029",
+          "sha256": "9c2d2796484a1b90799a8eb7a43196832968395bd907a77e668f6746c3ab1ccb"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "57ed71e5d72e90c5f7de14c8b7d80554a2642d338db7ac7511a50a05fcf889eb",
+          "sha256": "8f93e99e2e0955c1a162ec42d752448000afa41efb5640190baa342ccada1688"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-286-reset-input-lock.md",
+          "sha256": "95b11d305b958c0be89eae49af63723035e9a44ef75c2828bdedd786ee3e32be",
+          "title": "Issue #286 — RESET input gates and pointer state",
+          "role": "Native state and dispatch traces behind the independent scene gates and pending arrow return."
+        }
+      ],
+      "moved_source_blocks": 1806,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:523",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:525",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:832",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:254",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:317",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:332",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:142",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:153",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/5.1-text-variables.md:1132",
+        "version/3.0/ripscrip/5.1-text-variables.md:2811",
+        "version/3.0/ripscrip/5.1-text-variables.md:2812",
+        "version/3.0/ripscrip/5.1-text-variables.md:2917",
+        "version/3.0/ripscrip/5.1-text-variables.md:2919",
+        "version/3.0/ripscrip/5.1-text-variables.md:2920",
+        "version/3.0/ripscrip/5.1-text-variables.md:2921",
+        "version/3.0/ripscrip/5.1-text-variables.md:2922",
+        "version/3.0/ripscrip/5.1-text-variables.md:2924",
+        "version/3.0/ripscrip/5.1-text-variables.md:2926"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:826",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:254",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:317",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:332",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:142",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:153",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/5.1-text-variables.md:2809",
+        "version/3.0/ripscrip/5.1-text-variables.md:2810",
+        "version/3.0/ripscrip/5.1-text-variables.md:2915",
+        "version/3.0/ripscrip/5.1-text-variables.md:2917"
+      ],
+      "states_after_update": {
+        "unreviewed": 2030,
+        "context": 2001,
+        "pending": 1318,
+        "implemented": 4134,
+        "excluded": 76,
+        "blocked": 1
       }
     }
   ],

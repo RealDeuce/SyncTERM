@@ -124,7 +124,7 @@ struct st_rip3_session {
 	struct st_rip3_user_variables *owned_user;
 	bool defining_variable, definition_reject_blank;
 	bool ready;
-	bool text_active, input_locked;
+	bool text_active, mouse_locked, keyboard_locked;
 	unsigned scene_revision;
 	struct st_rip3_backspace backspace;
 	unsigned current_window;
@@ -676,11 +676,26 @@ stop_waveform(void *context)
 }
 
 static void
-set_input_lock(struct st_rip3_session *session, bool locked)
+release_scene_input(struct st_rip3_session *session)
 {
-	if (locked && !session->input_locked)
-		st_rip3_session_focus_lost(session);
-	session->input_locked = locked;
+	st_rip3_environments_scene_release(session->commands.environments, session->mouse_locked);
+	session->mouse_locked = false;
+	session->keyboard_locked = false;
+}
+
+static int
+reset_scene_input(void *context, bool mouse)
+{
+	struct st_rip3_session *session = context;
+	if (mouse) {
+		int status = st_rip3_environments_mouse(session->commands.environments, 0);
+		if (status != 0)
+			return status;
+		session->mouse_locked = false;
+	}
+	else
+		session->keyboard_locked = false;
+	return 0;
 }
 
 static int
@@ -1554,8 +1569,13 @@ scene_header(struct st_rip3_session *session, const uint8_t *bytes, size_t lengt
 	if (header.flags & ST_RIP3_HEADER_HARD) header_result(session, hard_reset(session));
 	else if (header.flags & ST_RIP3_HEADER_SOFT) header_result(session, soft_reset(session));
 	session->scene_revision = header.revision;
-	set_input_lock(session, false);
-	if (header.flags & ST_RIP3_HEADER_LOCK_INPUT) set_input_lock(session, true);
+	release_scene_input(session);
+	if (header.flags & ST_RIP3_HEADER_LOCK_INPUT) {
+		st_rip3_session_focus_lost(session);
+		session->mouse_locked = true;
+		session->keyboard_locked = true;
+		st_rip3_environments_scene_lock(session->commands.environments);
+	}
 	if (header.flags & ST_RIP3_HEADER_SELECT_ZERO) {
 		header_result(session, select_text_window(session, 0, false));
 		header_result(session, st_rip3_button_styles_select(session->commands.button_styles, 0));
@@ -1860,7 +1880,7 @@ command(void *context, const uint8_t *bytes, size_t length)
 	const struct st_rip3_command_sink sink={session,diagnose};
 	if (length != 0 && bytes[0] == 'h') scene_header(session, bytes, length);
 	else if (length != 0 && bytes[0] == '#') {
-		set_input_lock(session, false);
+		release_scene_input(session);
 		st_rip3_command_result(&sink, st_rip3_columns_end(&session->columns,&session->commands), true);
 	}
 	else if (length >= 2 && bytes[0] == '2' && bytes[1] == 0x1b)
@@ -1949,7 +1969,7 @@ void
 st_rip3_session_cancel(struct st_rip3_session *session)
 {
 	if (session==NULL) return;
-	session->input_locked = false;
+	release_scene_input(session);
 	st_rip3_button_renderer_cancel(session->commands.buttons);
 	st_rip3_mouse_abort(session->commands.mouse);
 	while (session->scene_count != 0)
@@ -2088,22 +2108,27 @@ mouse_busy(void *context)
 }
 
 bool
-st_rip3_session_input_locked(const struct st_rip3_session *session)
+st_rip3_session_mouse_locked(const struct st_rip3_session *session)
 {
-	return session != NULL && session->input_locked;
+	return session != NULL && session->mouse_locked;
+}
+
+bool
+st_rip3_session_keyboard_locked(const struct st_rip3_session *session)
+{
+	return session != NULL && session->keyboard_locked;
 }
 
 bool
 st_rip3_session_mouse_active(const struct st_rip3_session *session)
 {
-	return session!=NULL && (session->input_locked || st_rip3_mouse_active(session->commands.mouse));
+	return session!=NULL && (session->mouse_locked || st_rip3_mouse_active(session->commands.mouse));
 }
 
 bool
 st_rip3_session_mouse_pointer(const struct st_rip3_session *session,unsigned *result)
 {
 	if (session==NULL || result==NULL) return false;
-	if (session->input_locked) { *result = 6; return true; }
 	struct st_rip3_environment env;
 	if (st_rip3_environments_active(session->commands.environments,NULL,&env)!=0)
 		return false;
@@ -2113,25 +2138,31 @@ st_rip3_session_mouse_pointer(const struct st_rip3_session *session,unsigned *re
 bool
 st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, bool left)
 {
-	return session!=NULL && (session->input_locked || st_rip3_mouse_event(session->commands.mouse,x,y,left));
+	if (session == NULL)
+		return false;
+	if (session->mouse_locked) {
+		st_rip3_mouse_observe_button(session->commands.mouse, left);
+		return true;
+	}
+	return st_rip3_mouse_event(session->commands.mouse, x, y, left);
 }
 
 void
 st_rip3_session_mouse_move(struct st_rip3_session *session,int32_t x,int32_t y)
 {
-	if (session!=NULL && !session->input_locked) st_rip3_mouse_move(session->commands.mouse,x,y);
+	if (session!=NULL && !session->mouse_locked) st_rip3_mouse_move(session->commands.mouse,x,y);
 }
 
 bool
 st_rip3_session_key(struct st_rip3_session *session, uint8_t byte)
 {
-	return session!=NULL && (session->input_locked || st_rip3_mouse_key(session->commands.mouse,byte));
+	return session!=NULL && (session->keyboard_locked || st_rip3_mouse_key(session->commands.mouse,byte));
 }
 
 bool
 st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward)
 {
-	return session != NULL && (session->input_locked
+	return session != NULL && (session->keyboard_locked
 	    || st_rip3_mouse_navigation(session->commands.mouse, key, backward));
 }
 
@@ -2225,6 +2256,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->tables.reset_context=session;session->tables.soft_reset=soft_reset;
 	session->tables.hard_reset=hard_reset;
 	session->tables.stop_waveform=stop_waveform;
+	session->tables.reset_scene_input=reset_scene_input;
 	session->tables.reset_port_entry=reset_port_entry;
 	session->default_text_font=config->default_text_font;session->default_text_wrap=config->default_text_wrap;
 	session->text_active=true;session->commands.text_active=&session->text_active;
@@ -2356,7 +2388,7 @@ st_rip3_session_process(struct st_rip3_session *session, size_t budget)
 void
 st_rip3_session_request_refresh(struct st_rip3_session *session)
 {
-	if (session == NULL || session->input_locked || st_rip3_session_pending(session))
+	if (session == NULL || session->keyboard_locked || st_rip3_session_pending(session))
 		return;
 	st_rip3_columns_invalidate(&session->columns);
 	header_result(session, st_rip3_refresh_start(&session->refresh));

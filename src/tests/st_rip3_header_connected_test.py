@@ -423,6 +423,37 @@ def run(args, width, height):
         frame = wire(b'h01000000')
         assert frame.metadata['pointer_shape'] == 0
 
+        t.case('rip3-header-releases-mouse-and-keyboard-independently')
+        t.exchange(field((80, 20, 120, 60), b'hotkey', hotkey=ord('h')))
+        wire(b'h01000400')
+        frame = values(b'$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$')
+        assert frame.metadata['pointer_shape'] == 6
+        frame = values(b'$RESET(MCURSOR)$')
+        assert frame.metadata['pointer_shape'] == 0
+        event(lambda: client.text('k'))
+        event(lambda: client.text('h'))
+        t.exchange()
+        click(1)
+        click(0)
+        t.input(b'click')
+        values(b'$MCURSOR(4)$')
+        frame = wire(b'#')
+        assert frame.metadata['pointer_shape'] == 2  # Native link.
+
+        wire(b'h01000400')
+        frame = values(b'$RESET(KEYBOARD)$')
+        assert frame.metadata['pointer_shape'] == 6
+        click(1)
+        click(0)
+        event(lambda: client.text('k'))
+        t.input(b'k')
+        event(lambda: client.text('h'))
+        t.input(b'hotkey')
+        frame = wire(b'1c02')
+        assert frame.metadata['pointer_shape'] == 4  # Native crosshair.
+        frame = wire(b'#')
+        assert frame.metadata['pointer_shape'] == 0
+
         t.case('rip3-header-one-numbered-save-and-physical-black')
         values(b'$SAVE(0)$$PROT(SCREEN,S0)$$SAVE(1)$$SAVE(2)$$SAVE$$SAVE(PUSH)$')
         wire(b'h0100000180E')

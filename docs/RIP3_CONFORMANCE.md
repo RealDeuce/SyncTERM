@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-6aa78684da70fb7838af5e38d53dc1e7b08a5d65](https://github.com/RealDeuce/remote-imaging-protocol/tree/6aa78684da70fb7838af5e38d53dc1e7b08a5d65/version/3.0)
+fac950cc034276f3f56a226936dfd7bb18676859](https://github.com/RealDeuce/remote-imaging-protocol/tree/fac950cc034276f3f56a226936dfd7bb18676859/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10659,9 +10659,6 @@ after reset and compare bare and numbered queries for an undefined entry.
 `RESET(SOUND)` stops the active digitized waveform. Native tests cover an
 idle session, stopping playback and recovery after an extra operand.
 
-The HEADER input-lock effects of MCURSOR and KEYBOARD remain open upstream.
-[Issue #286](https://github.com/bbs-land/remote-imaging-protocol/issues/286)
-
 ## Portable PORT and resident QUERY reset
 
 `RESET(PORT)` deletes an eligible current nonzero port and falls back to
@@ -10676,3 +10673,21 @@ table, or decimal slots through 35. Stored queries never execute during the
 reset. Native state checks and connected CP437 and UTF-8 tests cover late
 syntax errors, protected entries and retention of mouse-field expressions.
 [PR #287](https://github.com/bbs-land/remote-imaging-protocol/pull/287)
+
+## Independent mouse and keyboard scene gates
+
+HEADER flag 4 gates both devices and stores the wait pointer in the current
+ENV. `RESET(MCURSOR)` selects the arrow and releases the mouse gate.
+`RESET(KEYBOARD)` releases the keyboard gate. The scene-end command and the
+unlock stage of a validated HEADER release both gates. The pointer returns
+to arrow when its scene return is still pending at full release.
+
+A successful MCURSOR variable cancels that pending return. Wire `1c` only
+changes the pointer shape. Native tests cover held gestures, ENV selection,
+protected ENV and SOFT/HARD. Connected CP437 and UTF-8 tests exercise mouse
+fields, hotkeys, normal key forwarding and recovery after invalid operands.
+[PR #288](https://github.com/bbs-land/remote-imaging-protocol/pull/288)
+
+The separate per-window ANSI keyboard mode still needs a portable rule for
+which input it suppresses and how it combines with the scene keyboard gate.
+[Issue #289](https://github.com/bbs-land/remote-imaging-protocol/issues/289)

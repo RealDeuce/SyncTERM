@@ -4,6 +4,7 @@
 
 #include "st_rip3_builtin_reference.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 
 struct st_rip3_backup;
@@ -28,6 +29,7 @@ struct st_rip3_table_host {
 	int (*soft_reset)(void *context);
 	int (*hard_reset)(void *context);
 	int (*stop_waveform)(void *context);
+	int (*reset_scene_input)(void *context, bool mouse);
 	int (*reset_port_entry)(void *context, unsigned number);
 	/* Valid action callbacks report lower-level failure without a variable error
 	 * or returned value; malformed syntax still returns private preflight status. */

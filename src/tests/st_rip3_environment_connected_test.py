@@ -171,7 +171,7 @@ def run(args,width,height):
         after=values(b'$RESET(ENV,11)$$CUR(ENV)$:$INUSE(ENV,11)$:$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$',
                      b'11:0:640:350:36:2:0')
         assert after.primary == before.primary and after.alternate == before.alternate
-        assert after.metadata['pointer_shape'] == 6  # The HEADER lock persists.
+        assert after.metadata['pointer_shape'] == 0  # The ENV pointer changes while input stays gated.
         assert (after.application['cterm.x'], after.application['cterm.y'], after.application['cterm.attr']) == (
             before.application['cterm.x'], before.application['cterm.y'], before.application['cterm.attr'])
         values(b'$WORLD(11)$:$COLORMODE(11)$:$DCS$:$SDCS$:$CHARSET$', b'-1:-1:0:KANJI:KANJI')

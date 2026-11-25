@@ -1694,3 +1694,15 @@ protection, and deletion scope.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/6aa78684da70fb7838af5e38d53dc1e7b08a5d65),
 [PR #287](https://github.com/bbs-land/remote-imaging-protocol/pull/287)
+
+## Independent scene input gates
+
+The reference advances to `fac950cc034276f3f56a226936dfd7bb18676859`.
+The stable tree matches the reviewed PR #288 head
+`5d2811d8eee0067a568cd926e9d9d8992c6fd21d`. The Git archive has SHA-256
+`1b62863858943684b0a592ff5f302020a88e6e01ada3c50f61a2c2366d4c7405`.
+The portable profile gives mouse and keyboard independent scene gates
+and defines when a full scene release returns the pointer to arrow.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/fac950cc034276f3f56a226936dfd7bb18676859),
+[PR #288](https://github.com/bbs-land/remote-imaging-protocol/pull/288)

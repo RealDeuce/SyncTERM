@@ -1926,9 +1926,9 @@ hard_reset_lifetime(void)
 	struct st_rip3_session_capture state={0};
 	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.outline_cache_valid);
 	st_rip3_session_capture_dispose(&state);
-	CHECK(append(&f,"!|h01000400\r")==0 && pump(&f)==0 && st_rip3_session_input_locked(f.session));
+	CHECK(append(&f,"!|h01000400\r")==0 && pump(&f)==0 && st_rip3_session_keyboard_locked(f.session));
 	CHECK(query(&f,"<<?3>>:$RESET(HARD)$AFTER:$?3$:$?Z$:$&N$:$&P$","OLD:AFTER:::MEM:DISK")==0);
-	CHECK(st_rip3_session_input_locked(f.session) && st_rip3_session_key(f.session,'a'));
+	CHECK(st_rip3_session_keyboard_locked(f.session) && st_rip3_session_key(f.session,'a'));
 	CHECK(f.resets==1 && f.reset_hard && f.window.font==4 && !f.window.wrap && !f.window.extended);
 	CHECK(f.window.columns==40 && f.window.rows==25 && f.window.cell_width==20 && f.window.cell_height==24);
 	CHECK(f.window.bound_width==800 && f.window.bound_height==600);
@@ -1939,7 +1939,7 @@ hard_reset_lifetime(void)
 	CHECK(append(&f,"!|r010000$TEXTDATA$\r")==0 && pump(&f)==0);
 	CHECK(f.reply_length==2 && memcmp(f.reply,"0\r",2)==0);
 	CHECK(query(&f,"[3:]NEW","")==0 && query(&f,"$?3$","NEW")==0);
-	CHECK(append(&f,"!|h01000100\r")==0 && pump(&f)==0 && !st_rip3_session_input_locked(f.session));
+	CHECK(append(&f,"!|h01000100\r")==0 && pump(&f)==0 && !st_rip3_session_keyboard_locked(f.session));
 	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.scene_revision==1);
 	st_rip3_session_capture_dispose(&state);
 	CHECK(query(&f,"$?3$:$&N$:$&P$",":MEM:DISK")==0);
@@ -2073,9 +2073,9 @@ scene_header(void)
 	CHECK(query(&f,"$CUR(ENV)$:$BASEMATH$:$COORDSIZE$:$WORLD$","2:36:2:1280:960")==0);
 	/* Release and relock in wire order. A zero count ignores decoded extras. */
 	CHECK(append(&f,"!|h0100040050000700\f")==0 && pump(&f)==0);
-	CHECK(st_rip3_session_input_locked(f.session) && st_rip3_session_key(f.session,'x'));
-	CHECK(append(&f,"!|n20.|#0")==0 && pump(&f)==0 && f.errors==2 && st_rip3_session_input_locked(f.session));
-	CHECK(append(&f,"\n")==0 && pump(&f)==0 && f.errors==2 && !st_rip3_session_input_locked(f.session));
+	CHECK(st_rip3_session_keyboard_locked(f.session) && st_rip3_session_key(f.session,'x'));
+	CHECK(append(&f,"!|n20.|#0")==0 && pump(&f)==0 && f.errors==2 && st_rip3_session_keyboard_locked(f.session));
+	CHECK(append(&f,"\n")==0 && pump(&f)==0 && f.errors==2 && !st_rip3_session_keyboard_locked(f.session));
 	/* Environment validation uses slot 2; the invalid width is ignored.
 	 * Radix applies immediately to the next chained command. */
 	CHECK(append(&f,"!|h01000001500K02&0|X0a01\r")==0 && pump(&f)==0);
@@ -2086,7 +2086,7 @@ scene_header(void)
 	/* A standalone charset descriptor has the wrong decoded length. The
 	 * documented mixed vector shifts into a mouse segment, not a port switch. */
 	CHECK(append(&f,"!|h00000401901\r")==0 && pump(&f)==0);
-	CHECK(f.errors==3 && !st_rip3_session_input_locked(f.session));
+	CHECK(f.errors==3 && !st_rip3_session_keyboard_locked(f.session));
 	CHECK(append(&f,"!|h00000002901200060\r")==0 && pump(&f)==0);
 	CHECK(f.errors==3 && st_rip3_session_capture(f.session,&state)==0);
 	CHECK(state.scene_revision==0 && state.port==0);
@@ -2121,10 +2121,77 @@ scene_header(void)
 	CHECK(append(&f,"!|h0100000150020000\r")==0 && pump(&f)==0);
 	CHECK(query(&f,"$BASEMATH$:$COORDSIZE$:$COLORMODE$","36:2:0")==0);
 	CHECK(append(&f,"!|h0100040150100007\r")==0 && pump(&f)==0);
-	CHECK(f.errors==5 && !st_rip3_session_input_locked(f.session));
+	CHECK(f.errors==5 && !st_rip3_session_keyboard_locked(f.session));
 	st_rip3_session_destroy(f.session);
 	st_rip3_audio_destroy(player);
 	st_audio_runtime_destroy(runtime);
+	return 0;
+}
+
+static int
+scene_input_resets(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	options.sink.text_reset = reset_text;
+	unsigned pointer = 99;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(append(&f, "!|1M000A0A1O1O0000000click\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_mouse(f.session, 20, 20, true));
+	CHECK(st_rip3_session_press_token(f.session) != 0);
+	CHECK(append(&f, "!|h01000400\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_press_token(f.session) == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 6);
+	unsigned errors = f.errors;
+	CHECK(append(&f, "!|1\0330000$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$\r") == 0
+	    && pump(&f) == 0 && f.errors == errors + 2);
+	CHECK(st_rip3_session_key(f.session, 'x') && st_rip3_session_mouse(f.session, 20, 20, false));
+	CHECK(f.reply_length == 0);
+	CHECK(query(&f, "$RESET(MCURSOR)$", "") == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 0);
+	CHECK(st_rip3_session_key(f.session, 'x'));
+	CHECK(st_rip3_session_mouse(f.session, 20, 20, true));
+	CHECK(st_rip3_session_mouse(f.session, 20, 20, false) && pump(&f) == 0);
+	CHECK(f.reply_length == 5 && memcmp(f.reply, "click", 5) == 0);
+	CHECK(query(&f, "$RESET(KEYBOARD)$", "") == 0 && !st_rip3_session_key(f.session, 'x'));
+
+	CHECK(append(&f, "!|h01000400\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$RESET(KEYBOARD)$", "") == 0 && !st_rip3_session_key(f.session, 'x'));
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 6);
+	CHECK(st_rip3_session_mouse(f.session, 20, 20, true));
+	CHECK(append(&f, "!|1c04|#\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 0);
+	/* Delivery resumes while held without acquiring a new press. */
+	CHECK(!st_rip3_session_mouse(f.session, 20, 20, true));
+	CHECK(!st_rip3_session_mouse(f.session, 20, 20, false) && f.reply_length == 0);
+
+	CHECK(query(&f, "$CUR(ENV,5)$$MCURSOR(2)$$CUR(ENV,0)$", "") == 0);
+	CHECK(append(&f, "!|h01000400|2E50|#\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 2);
+	CHECK(query(&f, "$CUR(ENV,0)$", "") == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 6);
+	CHECK(append(&f, "!|h01000400\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$MCURSOR(4)$", "") == 0 && st_rip3_session_key(f.session, 'x'));
+	CHECK(append(&f, "!|#\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 4);
+
+	CHECK(query(&f, "$PROT(ENV,5)$$CUR(ENV,5)$", "") == 0);
+	CHECK(append(&f, "!|h01000400\r") == 0 && pump(&f) == 0);
+	CHECK(query(&f, "$RESET(MCURSOR)$", "") == 0);
+	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 0);
+	CHECK(query(&f, "$ISPROT(ENV,5)$", "1") == 0 && st_rip3_session_key(f.session, 'x'));
+	CHECK(append(&f, "!|h01000000\r") == 0 && pump(&f) == 0 && !st_rip3_session_key(f.session, 'x'));
+	const char *const drawing_resets[] = {"$RESET(SOFT)$", "$RESET(HARD)$"};
+	for (size_t i = 0; i < sizeof(drawing_resets) / sizeof(drawing_resets[0]); i++) {
+		CHECK(append(&f, "!|h01000400\r") == 0 && pump(&f) == 0);
+		CHECK(query(&f, drawing_resets[i], "") == 0);
+		CHECK(st_rip3_session_mouse_locked(f.session) && st_rip3_session_keyboard_locked(f.session));
+		CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 0);
+		CHECK(append(&f, "!|1c03|#\r") == 0 && pump(&f) == 0);
+		CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 3);
+	}
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live == 0);
 	return 0;
 }
 
@@ -2420,7 +2487,7 @@ main(void)
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && grouped_reset()==0 && hover_queries()==0 && hover_lifecycle()==0);
 	CHECK(world_state()==0 && encoded_stream()==0);
-	CHECK(soft_reset()==0 && live_text_resets()==0);
+	CHECK(soft_reset()==0 && live_text_resets()==0 && scene_input_resets()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);
 	CHECK(literal_dixon(ST_RIP3_CANVAS_640_480,640,480,13)==0 && literal_dixon(ST_RIP3_CANVAS_800_600,800,600,16)==0

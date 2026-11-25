@@ -130,6 +130,8 @@ bool st_rip3_mouse_active(const struct st_rip3_mouse *mouse);
 /* Capture on left press, invert while inside, commit on release inside and
  * cancel release outside. Captured instances cannot be stolen by appends. */
 bool st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left);
+/* Track the physical button behind a closed scene gate without a gesture. */
+void st_rip3_mouse_observe_button(struct st_rip3_mouse *mouse, bool left);
 /* One translated CP437 byte per character/down/repeat, never raw physical or
  * noncharacter events. A winning empty/failed action still consumes the key.
  * Cancel pointer capture without altering the sampled physical button state. */

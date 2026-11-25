@@ -212,7 +212,8 @@ bool st_rip3_session_status_bar(const struct st_rip3_session *session);
  * One reusable connection save; failures are diagnosed here and consumed.
  * May be called from sink.text, but invokes no received-input/parser callback. */
 void st_rip3_session_ansi_window(struct st_rip3_session *session,bool restore);
-bool st_rip3_session_input_locked(const struct st_rip3_session *session);
+bool st_rip3_session_mouse_locked(const struct st_rip3_session *session);
+bool st_rip3_session_keyboard_locked(const struct st_rip3_session *session);
 bool st_rip3_session_mouse_active(const struct st_rip3_session *session);
 /* Current ENV metadata only; no raster allocation/presentation. */
 bool st_rip3_session_mouse_pointer(const struct st_rip3_session *session, unsigned *result);

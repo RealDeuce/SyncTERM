@@ -589,6 +589,13 @@ st_rip3_mouse_key(struct st_rip3_mouse *mouse, uint8_t byte)
 	commit(mouse,winner,true,0,0);return true;
 }
 
+void
+st_rip3_mouse_observe_button(struct st_rip3_mouse *mouse, bool left)
+{
+	if (mouse != NULL)
+		mouse->left = left;
+}
+
 bool
 st_rip3_mouse_event(struct st_rip3_mouse *mouse, int32_t x, int32_t y, bool left)
 {
