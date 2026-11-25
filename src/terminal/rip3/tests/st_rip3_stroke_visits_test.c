@@ -79,6 +79,23 @@ paths(void)
 		    && st_rip3_stroke_visits(ports,patterned,3,false,&pen,0x0f,0x66,(enum st_rip3_write_mode)mode)==0);
 		CHECK(st_rip3_ports_read(ports,0,5,3,&value)==0 && value==(opaque ? mixed[mode] : once[mode]));
 	}
+	struct st_rip3_palette palette = {0};
+	palette.rgb[0x0f] = 0xa0b0c0;
+	palette.rgb[0x66] = 0x204060;
+	st_rip3_ports_bind_drawing_palette(ports, &palette);
+	struct st_rip3_pen pen = {.pattern=0xff00, .thickness=1, .draw_background=true};
+	uint32_t actual;
+	CHECK(st_rip3_ports_fill(ports,&area,ST_PIXEL_COLOR_RGB_TAG | 0x112233,ST_RIP3_COPY)==0);
+	CHECK(st_rip3_stroke_visits(ports,patterned,3,false,&pen,0x0f,0x66,ST_RIP3_XOR)==0);
+	CHECK(st_rip3_ports_read_color(ports,0,5,3,false,&actual)==0
+	    && actual==(ST_PIXEL_COLOR_RGB_TAG | 0x91d293));
+	pen.pattern = 0xffff;
+	CHECK(st_rip3_ports_erase(ports,0x0f)==0);
+	CHECK(st_rip3_stroke_visits(ports,backtrack,3,false,&pen,ST_PIXEL_COLOR_RGB_TAG | 0x112233,0,ST_RIP3_XOR)==0);
+	CHECK(st_rip3_ports_read_color(ports,0,5,3,false,&actual)==0
+	    && actual==(ST_PIXEL_COLOR_RGB_TAG | 0xa0b0c0));
+	CHECK(st_rip3_ports_read_color(ports,0,8,3,false,&actual)==0
+	    && actual==(ST_PIXEL_COLOR_RGB_TAG | 0xb192f3));
 	st_rip3_ports_destroy(ports);return 0;
 }
 

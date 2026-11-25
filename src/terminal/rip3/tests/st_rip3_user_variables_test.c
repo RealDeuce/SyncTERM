@@ -275,9 +275,12 @@ ownership_and_failures(void)
 	    && stored(f.session,"PLAIN")==0);
 	CHECK(process(&f,"$=NAME(ANY,Toname)$")==0
 	    && st_rip3_user_variables_state(f.processor)==ST_RIP3_USER_VARIABLE_PROMPT);
-	const char response[] = "tOM\t  mCDONALD \x82";
+	const char response[] = "tOM\t  mCDONALD ANNE-MARIE O'NEILL 42WALLABY AB7CD AB\x82" "CD";
+	const char converted[] = "Tom\t  Mcdonald Anne-Marie O'Neill 42Wallaby Ab7Cd Ab\x82" "Cd";
 	st_rip3_user_variables_respond(f.processor,(const uint8_t *)response,sizeof(response)-1,false);
-	CHECK(result(&f,"Tom\t  Mcdonald \x82")==0 && stored(f.session,"Tom\t  Mcdonald \x82")==0);
+	CHECK(result(&f,converted)==0 && stored(f.session,converted)==0);
+	CHECK(process(&f,"$-&NAME(TOUPPER)=caf\x82$")==0 && result(&f,"CAF\x82")==0);
+	CHECK(process(&f,"$-&NAME(TOLOWER)=CAF\x82$")==0 && result(&f,"caf\x82")==0);
 	CHECK(process(&f,"$=NAME(ALPHA)$")==0);
 	prompt=st_rip3_user_variables_prompt(f.processor);
 	CHECK(prompt!=NULL && prompt->mode==ST_RIP3_VARIABLE_ALPHA);

@@ -26,7 +26,7 @@ st_rip3_rounded_commands_execute(const struct st_rip3_command_host *host,
 	unsigned number, current;
 	bool filled = command[0] == 'u', borders = !filled;
 	bool foreground_used = false, background_used = false;
-	uint8_t foreground = 0, background = 0, drawing = 0;
+	uint32_t foreground = 0, background = 0, drawing = 0;
 	struct st_rip3_fields arguments = {command + 1, length - 1};
 	int status;
 	status = st_rip3_command_environment(host,&number,&environment);

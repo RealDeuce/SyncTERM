@@ -13,7 +13,7 @@
 int st_rip3_rounded_rectangle_render(struct st_rip3_ports *ports,
 	const struct st_rip3_rounded_rectangle *rectangle, double radius_y,
 	const struct st_rip3_pen *pen, const struct st_rip3_fill *fill,
-	uint8_t foreground, uint8_t background, uint8_t drawing,
+	uint32_t foreground, uint32_t background, uint32_t drawing,
 	enum st_rip3_write_mode mode);
 
 #endif

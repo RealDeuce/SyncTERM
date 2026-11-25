@@ -160,6 +160,12 @@ st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
 	return 0;
 }
 
+const struct st_rip3_palette *
+st_rip3_palettes_published(const struct st_rip3_palettes *palettes)
+{
+	return palettes == NULL ? NULL : &palettes->published;
+}
+
 int
 st_rip3_palettes_current_stored(const struct st_rip3_palettes *palettes,
     struct st_rip3_palette *result)
@@ -275,17 +281,30 @@ st_rip3_palettes_color(const struct st_rip3_palettes *palettes,
 }
 
 int
+st_rip3_color_decode(unsigned bits, uint32_t color, uint32_t *result)
+{
+	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (bits > 8 || color > (bits == 0 ? 255 : UINT32_C(0xffffff)))
+		return IO_ERROR_OUT_OF_RANGE;
+	if (bits == 0) {
+		*result = color;
+		return 0;
+	}
+	uint32_t mask=(UINT32_C(1)<<bits)-1;
+	uint32_t red=(color>>(2*bits))&mask,green=(color>>bits)&mask,blue=color&mask;
+	red=(red*255+mask/2)/mask;green=(green*255+mask/2)/mask;blue=(blue*255+mask/2)/mask;
+	*result = (red<<16) | (green<<8) | blue;
+	return 0;
+}
+
+int
 st_rip3_palettes_color_bits(const struct st_rip3_palettes *palettes,
     unsigned bits, uint32_t color, uint8_t *result)
 {
-	if (palettes==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (bits>8) return IO_ERROR_OUT_OF_RANGE;
-	if (bits==0) return st_rip3_palettes_color(palettes,false,color,result);
-	uint32_t mask=(UINT32_C(1)<<bits)-1;
-	if (color>UINT32_C(0xffffff)) return IO_ERROR_OUT_OF_RANGE;
-	uint32_t red=(color>>(2*bits))&mask,green=(color>>bits)&mask,blue=color&mask;
-	red=(red*255+mask/2)/mask;green=(green*255+mask/2)/mask;blue=(blue*255+mask/2)/mask;
-	return st_rip3_palettes_color(palettes,true,(red<<16)|(green<<8)|blue,result);
+	if (palettes == NULL || result == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	uint32_t decoded;
+	int status = st_rip3_color_decode(bits, color, &decoded);
+	return status != 0 ? status : st_rip3_palettes_color(palettes, bits != 0, decoded, result);
 }
 
 int

@@ -279,6 +279,9 @@ Hook.onKey(Key.f9) {|event|
             t.case("rip3-variable-modal-formats-and-storage")
             t.exchange(query(b"$-&=FORMAT(TONAME)=tOM mCDONALD$:$&FORMAT(TOUPPER)$:$&FORMAT$",
                              at_cursor=True), b"Tom Mcdonald:TOM MCDONALD:Tom Mcdonald")
+            accent = b"\x82" if args.encoding == "CP437" else "é".encode()
+            t.exchange(query(b"$-&PUNCT(TONAME)=ANNE-MARIE O'NEILL 42WALLABY AB" + accent + b"CD$",
+                             at_cursor=True), b"Anne-Marie O'Neill 42Wallaby Ab" + accent + b"Cd")
             t.exchange(query(b"$&MISSING(TOLOWER)=ABC$:[$INUSE(TV,MISSING)$]", at_cursor=True), b"abc:[0]")
             send(query(b"$=NUMFMT(NUMBER),8@Numeric value$:$&NUMFMT$", at_cursor=True) + b"\x1b[5n")
             client.wait_text("Numeric value")

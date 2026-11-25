@@ -466,7 +466,7 @@ draw(struct st_rip3_ports *ports,
     const struct st_rip3_rff *font, const uint8_t *text, size_t length,
     const struct st_rip3_point *origin, const struct st_rip3_text_position *positions,
     const struct st_rip3_rff_text_style *style, const struct effects *effects,
-    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rff checked;
 	struct st_rip3_rff_style face;
@@ -553,7 +553,7 @@ int
 st_rip3_draw_rff_text(struct st_rip3_ports *ports,
     const struct st_rip3_rff *font, const uint8_t *text, size_t length,
     const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
-    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	if (origin == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -564,7 +564,7 @@ int
 st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
     const struct st_rip3_rff *font, const uint8_t *text, size_t length,
     const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
-    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	if (positions == NULL && length != 0)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -575,7 +575,7 @@ int
 st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
     const struct st_rip3_outline_font *font, const struct st_rip3_outline_layout *layout,
     const uint8_t *text, size_t length, const struct st_rip3_text_position *positions,
-    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	static const unsigned orientation[]={0,3,2,1};
 	static const int cosine[]={1,0,-1,0}, sine[]={0,1,0,-1};

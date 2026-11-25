@@ -66,18 +66,18 @@ int st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
  * their order/operation. Validation/allocation failure preserves the scene. */
 int st_rip3_stroke_visits(struct st_rip3_ports *ports,
 	const struct st_rip3_vector *points, size_t count, bool closed,
-	const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+	const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
 	enum st_rip3_write_mode mode);
 
 int st_rip3_stroke_apply(struct st_rip3_ports *ports,
-	const struct st_rip3_stroke_mask *mask, uint8_t foreground,
-	uint8_t background, enum st_rip3_write_mode mode);
+	const struct st_rip3_stroke_mask *mask, uint32_t foreground,
+	uint32_t background, enum st_rip3_write_mode mode);
 /* Prepared text masks: foreground wins over shadow; apply the write mode once
  * per covered pixel. Both masks use their own already-clipped bounds. */
 int st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
 	const struct st_rip3_stroke_mask *ink,
-	const struct st_rip3_stroke_mask *shadow, uint8_t foreground,
-	uint8_t background, enum st_rip3_write_mode mode);
+	const struct st_rip3_stroke_mask *shadow, uint32_t foreground,
+	uint32_t background, enum st_rip3_write_mode mode);
 void st_rip3_stroke_free(struct st_rip3_stroke_mask *mask);
 
 #endif

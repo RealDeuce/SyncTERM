@@ -317,6 +317,38 @@ def run(args,width,height):
         assert [pixel(frame,x,y) for x,y in samples] == [0x112233,0x112233,0xaaaaaa]*2
         values(b'$RESET(PAL,17)$')
 
+        t.case('rip3-drawing-boolean-mixed-operands-in-bitmap-port')
+        define(18,(0,0,3,4))
+        copy(0,(0,0,1,1),18,(0,0,3,1))  # Literal #112233 captured from ANSI.
+        wire(b'2sI00|' + palette_entry(1,0xa0b0c0))
+        bar(1,(0,1,2,1))
+        bar(5,(0,2,2,2))
+        bar(1,(1,3,1,3))
+        draw_rgb = b'c' + number(0x112233,4,64)
+        for x in range(3):
+            mode = b'W' + number(x+1,2)
+            wire(b'M08|c01|' + mode + b'|X' + coords((x,0)))
+            wire(b'M18|' + draw_rgb + b'|' + mode + b'|X' + coords((x,1)))
+            wire(b'M08|c' + number(0xa6,2) + b'|' + mode + b'|X' + coords((x,2)))
+        wire(b'M18|' + draw_rgb + b'|W00|X0003|2s000')
+        result_colors = ((0xa3,0xdc0000),(0xa7,0x00dc00),(0x04,0x0000dc))
+        wire(b'|'.join(palette_entry(i,rgb) for i,rgb in result_colors))
+        frame = copy(18,(0,0,3,4),0,(450,350,453,354))
+        mixed = [0xb192f3,0xb1b2f3,0x002000]
+        for y in (350,351):
+            assert [pixel(frame,450+x,y) for x in range(3)] == mixed
+        assert [pixel(frame,450+x,352) for x in range(3)] == [rgb for _,rgb in result_colors]
+        assert pixel(frame,450,353) == 0x112233
+        frame = wire(palette_entry(1,0x204060) + b'|' + palette_entry(0xa3,0xa8ccec))
+        for y in (350,351):
+            assert [pixel(frame,450+x,y) for x in range(3)] == mixed
+        assert pixel(frame,450,352) == 0xa8ccec and pixel(frame,450,353) == 0x112233
+        frame = wire(b'2sI00|' + draw_rgb + b'|W01|X0103|2s000|'
+                     + copy_command(18,(1,3,2,4),0,(451,353,452,354)))
+        assert pixel(frame,451,353) == 0x316253
+        wire(b'M08')
+        values(b'$RESET(PAL,17)$')
+
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')
         wire(b'1C010103030|2s100')
         # Put the known samples in the captured tile independently of capture scaling.

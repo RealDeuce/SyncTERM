@@ -27,11 +27,11 @@ int st_rip3_fill_solid(struct st_rip3_fill *fill, bool foreground);
  * Degenerate filled rectangles draw only that border (when enabled). */
 int st_rip3_draw_bar(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, const struct st_rip3_fill *fill,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 int st_rip3_draw_filled_rectangle(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, const struct st_rip3_fill *fill,
-	uint8_t foreground, uint8_t background, const struct st_rip3_pen *border,
-	uint8_t border_color, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, const struct st_rip3_pen *border,
+	uint32_t border_color, enum st_rip3_write_mode mode);
 
 /* Even-odd fill over one or more closed contours (up to 4096 contours and
  * 4096 vertices per contour in this device-pixel kernel). Coincident edges,
@@ -41,8 +41,8 @@ int st_rip3_draw_filled_rectangle(struct st_rip3_ports *ports,
  * and validation finish before pixels change; caller inputs are unchanged. */
 int st_rip3_draw_filled_polygons(struct st_rip3_ports *ports,
 	const struct st_rip3_contour *contours, size_t count,
-	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-	const struct st_rip3_pen *border, uint8_t border_color,
+	const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+	const struct st_rip3_pen *border, uint32_t border_color,
 	enum st_rip3_write_mode mode);
 
 #endif

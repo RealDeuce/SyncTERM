@@ -42,6 +42,6 @@ int st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 	const struct st_rip3_maf_font *font,
 	const struct st_rip3_bitmap_text_style *style,
 	const uint8_t *text, size_t length, const struct st_rip3_text_position *origin,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 #endif

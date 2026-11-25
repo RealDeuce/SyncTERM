@@ -85,7 +85,7 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 	struct st_rip3_fields fields = {arguments, count};
 	bool multiple = command[0] == '<';
 	bool filled = command[0] == 'p' || multiple, borders = false, interior;
-	uint8_t foreground = 0, background = 0, drawing = 0;
+	uint32_t foreground = 0, background = 0, drawing = 0;
 	int status;
 
 	status = st_rip3_command_environment(host, &environment_number, &environment);
@@ -144,9 +144,9 @@ st_rip3_path_commands_execute(const struct st_rip3_command_host *host,
 			return status;
 	}
 	else if (style.write_mode != ST_RIP3_NOT) {
-		status = st_rip3_command_ink(host, environment.rgb_bits, style.drawing_color, &foreground);
+		status = st_rip3_command_ink(host,environment.rgb_bits, style.drawing_color, &foreground);
 		if (status == 0 && style.pen.draw_background && style.pen.pattern != 0xffff)
-			status = st_rip3_command_ink(host, environment.rgb_bits, style.background_color, &background);
+			status = st_rip3_command_ink(host,environment.rgb_bits, style.background_color, &background);
 		if (status != 0)
 			return status;
 	}

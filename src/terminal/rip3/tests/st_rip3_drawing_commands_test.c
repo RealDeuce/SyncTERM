@@ -237,7 +237,7 @@ rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		uint32_t expected = 0;
-		if (y == 1 && x >= 1 && x <= 4) expected = x%2 ? 0x112233 : 0x445566;
+		if (y == 1 && x >= 1 && x <= 4) expected = x%2 ? 0x112234 : 0x445566;
 		if (x == 6 && y == 1) expected = 0xffffff;
 		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected));
 	}
@@ -647,23 +647,26 @@ rgb_precisions(void)
 	static const uint32_t colors[]={0xff00ff,0x55aaff,0x246db6,0x2277dd,0x1952ad,0x105131,0x0a64b7,0x04140c};
 	struct st_rip3_command_host host={0};
 	CHECK(create(&host,ST_RIP3_CANVAS_640_480,640,480)==0);
-	CHECK(st_rip3_palettes_rgb(host.palettes,40,8,colors,8)==0);
 	for (unsigned radix=36;radix<=64;radix+=28) for (unsigned bits=1;bits<=8;bits++) {
 		struct st_rip3_environment environment;
+		uint32_t actual;
 		CHECK(st_rip3_environments_get(host.environments,0,&environment)==0);
 		environment.base_math=radix;environment.rgb_bits=bits;
 		CHECK(st_rip3_environments_set(host.environments,0,&environment)==0);
 		char command[20];
 		(void)snprintf(command,sizeof(command),"c%s trailing",codes[bits-1]);
 		CHECK(process(&host,command,-1)==0 && process(&host,"X0000",-1)==0);
-		CHECK(pixel(host.ports,0,0,0,(uint8_t)(39+bits))==0);
+		CHECK(st_rip3_ports_read_color(host.ports,0,0,0,false,&actual)==0
+		    && actual==(ST_PIXEL_COLOR_RGB_TAG | colors[bits-1]));
 		(void)snprintf(command,sizeof(command),"S01%s trailing",codes[bits-1]);
 		CHECK(process(&host,command,-1)==0 && process(&host,"K01010303",-1)==0);
-		CHECK(pixel(host.ports,0,2,2,(uint8_t)(39+bits))==0);
+		CHECK(st_rip3_ports_read_color(host.ports,0,2,2,false,&actual)==0
+		    && actual==(ST_PIXEL_COLOR_RGB_TAG | colors[bits-1]));
 		(void)snprintf(command,sizeof(command),"k%s trailing",codes[bits-1]);
 		CHECK(process(&host,command,-1)==0 && process(&host,"S00.",-1)==0
 		    && process(&host,"B04040606",-1)==0);
-		CHECK(pixel(host.ports,0,5,5,(uint8_t)(39+bits))==0);
+		CHECK(st_rip3_ports_read_color(host.ports,0,5,5,false,&actual)==0
+		    && actual==(ST_PIXEL_COLOR_RGB_TAG | colors[bits-1]));
 		uint8_t index=17;
 		CHECK(st_rip3_palettes_color_bits(host.palettes,bits,0xffffff,&index)==0 && index==255);
 	}

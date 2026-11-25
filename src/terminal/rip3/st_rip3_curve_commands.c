@@ -36,7 +36,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 	size_t fields = angles ? (circle ? 5 : 6) : circle ? 3 : 4;
 	struct st_rip3_fields arguments = {command + 1, length - 1};
 	size_t width;
-	uint8_t drawing = 0, foreground = 0, background = 0;
+	uint32_t drawing = 0, foreground = 0, background = 0;
 	double x, y, rx, ry;
 	int status;
 
@@ -111,7 +111,7 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			return 0;
 	}
 	if (borders || (!filled && style.write_mode != ST_RIP3_NOT)) {
-		status = st_rip3_command_ink(host, environment.rgb_bits, style.drawing_color, &drawing);
+		status = st_rip3_command_ink(host,environment.rgb_bits, style.drawing_color, &drawing);
 		if (status != 0)
 			return status;
 	}
@@ -123,9 +123,9 @@ st_rip3_curve_commands_execute(const struct st_rip3_command_host *host,
 			uses_background |= style.fill.rows[i] != 255;
 		}
 		if (uses_foreground)
-			status = st_rip3_command_ink(host, environment.rgb_bits, style.fill_color, &foreground);
+			status = st_rip3_command_ink(host,environment.rgb_bits, style.fill_color, &foreground);
 		if (status == 0 && uses_background)
-			status = st_rip3_command_ink(host, environment.rgb_bits, style.background_color, &background);
+			status = st_rip3_command_ink(host,environment.rgb_bits, style.background_color, &background);
 		if (status != 0)
 			return status;
 	}

@@ -37,7 +37,7 @@ int st_rip3_pen_set(struct st_rip3_pen *pen, bool draw_background,
  * Inactive viewports are no-ops. Invalid input is rejected before drawing. */
 int st_rip3_draw_line(struct st_rip3_ports *ports,
 	const struct st_rip3_point *first, const struct st_rip3_point *last,
-	const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+	const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
 	enum st_rip3_write_mode mode);
 
 /* Open/closed stroked path, 1..4096 vertices. Continuous endpoint-cap coverage
@@ -48,13 +48,13 @@ int st_rip3_draw_line(struct st_rip3_ports *ports,
  * Allocation failure preserves pixels. Inputs remain borrowed/unmodified. */
 int st_rip3_draw_path(struct st_rip3_ports *ports,
 	const struct st_rip3_point *points, size_t count, bool closed,
-	const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+	const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
 	enum st_rip3_write_mode mode);
 
 /* An unfilled rectangle, accepting either pair of opposing corners. Degenerate
  * rectangles are a single line/point; corners and joins apply write mode once. */
 int st_rip3_draw_rectangle(struct st_rip3_ports *ports,
 	const struct st_rip3_rect *area, const struct st_rip3_pen *pen,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 #endif

@@ -25,6 +25,7 @@ static const struct st_rip3_image_style image_defaults = {
 
 struct st_rip3_ports {
 	struct st_rip3_surface *screen;
+	const struct st_rip3_palette *drawing_palette;
 	uint8_t *damage;
 	size_t damage_length;
 	struct st_rip3_rect screen_bounds;
@@ -155,6 +156,12 @@ void
 st_rip3_ports_bind_clipboard(struct st_rip3_ports *ports,struct st_rip3_clipboard_selection *selection)
 {
 	if (ports!=NULL) ports->clipboard=selection;
+}
+
+void
+st_rip3_ports_bind_drawing_palette(struct st_rip3_ports *ports, const struct st_rip3_palette *palette)
+{
+	if (ports != NULL) ports->drawing_palette = palette;
 }
 
 int
@@ -551,7 +558,7 @@ translate(const struct port *port, const struct st_rip3_rect *area,
 
 int
 st_rip3_ports_fill(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
-    uint8_t color, enum st_rip3_write_mode mode)
+    uint32_t color, enum st_rip3_write_mode mode)
 {
 	struct port *port;
 	struct st_rip3_rect visible;
@@ -562,13 +569,13 @@ st_rip3_ports_fill(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
 	port = &ports->entries[ports->current];
 	if (!port->info.viewport_active || !translate(port, area, &visible))
 		return 0;
-	return st_rip3_surface_fill(port_surface(ports, ports->current), NULL,
-	    &visible, color, mode);
+	return st_rip3_surface_fill_colors(port_surface(ports, ports->current), NULL,
+	    &visible, color, mode, ports->drawing_palette);
 }
 
 int
 st_rip3_ports_plot(struct st_rip3_ports *ports, int32_t x, int32_t y,
-    uint8_t color, enum st_rip3_write_mode mode)
+    uint32_t color, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rect point = {x, y, x, y};
 

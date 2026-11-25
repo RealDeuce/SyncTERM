@@ -343,12 +343,13 @@ attributes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		host.palettes = bound;
 		CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
 		for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
-			unsigned index = 0;
+			uint32_t rgb = 0;
 			if (x < 8 && y < 8) {
 				char pixel = paths[kind+2][y][x];
-				index = pixel == '.' ? 85 : mode != 0 ? 170 : pixel == 'F' ? 17 : 19;
+				rgb = pixel == '.' ? colors[85] : mode != 0 ? colors[170]
+				    : pixel == 'F' ? 0x112234 : 0x445566;
 			}
-			CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | colors[index]));
+			CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | rgb));
 		}
 		st_pixel_buffer_destroy(capture); capture = NULL;
 	}

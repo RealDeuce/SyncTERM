@@ -96,7 +96,7 @@ outline_coverage(const struct rounded_outline *outline, int32_t x, int32_t y)
 
 static int
 outline_apply(struct st_rip3_ports *ports, const struct rounded_outline *outline,
-    uint8_t color, uint8_t background, enum st_rip3_write_mode mode)
+    uint32_t color, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rect bounds = {0};
 	bool found = false;
@@ -141,7 +141,7 @@ contains(const struct st_rip3_rounded_rectangle *rectangle, double radius_y, dou
 static int
 fill_interior(struct st_rip3_ports *ports, const struct st_rip3_rounded_rectangle *rectangle,
     double radius_y,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;
 	unsigned current;
@@ -184,7 +184,7 @@ fill_interior(struct st_rip3_ports *ports, const struct st_rip3_rounded_rectangl
 int
 st_rip3_draw_rounded_rectangle(struct st_rip3_ports *ports,
     const struct st_rip3_rounded_rectangle *rectangle,
-    uint32_t thickness, uint8_t color, enum st_rip3_write_mode mode)
+    uint32_t thickness, uint32_t color, enum st_rip3_write_mode mode)
 {
 	struct rounded_outline outline = {0};
 	int status;
@@ -200,8 +200,8 @@ st_rip3_draw_rounded_rectangle(struct st_rip3_ports *ports,
 int
 st_rip3_draw_filled_rounded_rectangle(struct st_rip3_ports *ports,
     const struct st_rip3_rounded_rectangle *rectangle, const struct st_rip3_fill *fill,
-    uint8_t foreground, uint8_t background, uint32_t border_thickness,
-    uint8_t border_color, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, uint32_t border_thickness,
+    uint32_t border_color, enum st_rip3_write_mode mode)
 {
 	struct rounded_outline outline = {0};
 	int status = 0;
@@ -273,7 +273,7 @@ int
 st_rip3_rounded_rectangle_render(struct st_rip3_ports *ports,
     const struct st_rip3_rounded_rectangle *rectangle, double radius_y,
     const struct st_rip3_pen *pen, const struct st_rip3_fill *fill,
-    uint8_t foreground, uint8_t background, uint8_t drawing,
+    uint32_t foreground, uint32_t background, uint32_t drawing,
     enum st_rip3_write_mode mode)
 {
 	struct rounded_outline outline = {0};

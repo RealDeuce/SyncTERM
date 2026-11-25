@@ -9,8 +9,7 @@
 #include <string.h>
 
 struct st_rip3_surface {
-	/* Index values, plus palette-independent tagged RGB from reset/native ink.
-	 * COPY/clone retain that value; indexed logical writes replace it. */
+	/* Drawing indices and palette-independent tagged RGB pixels. */
 	uint32_t *pixels;
 	uint8_t *damage;
 	uint32_t width;
@@ -229,13 +228,26 @@ complement_color(uint32_t color)
 }
 
 static uint32_t
-write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode)
+write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode,
+    const struct st_rip3_palette *palette)
 {
+	if (mode == ST_RIP3_COPY)
+		return source;
+	if (mode == ST_RIP3_NOT)
+		return complement_color(destination);
+	if (palette != NULL && ST_PIXEL_COLOR_IS_RGB(destination | source)) {
+		if (!ST_PIXEL_COLOR_IS_RGB(destination))
+			destination = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)destination];
+		if (!ST_PIXEL_COLOR_IS_RGB(source))
+			source = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)source];
+	}
+	bool direct = ST_PIXEL_COLOR_IS_RGB(destination & source);
+	uint32_t tag = direct ? ST_PIXEL_COLOR_RGB_TAG : 0;
+	uint32_t mask = direct ? UINT32_C(0xffffff) : UINT32_C(0xff);
 	switch (mode) {
-		case ST_RIP3_XOR: return (uint8_t)(destination ^ source);
-		case ST_RIP3_OR: return (uint8_t)(destination | source);
-		case ST_RIP3_AND: return (uint8_t)(destination & source);
-		case ST_RIP3_NOT: return complement_color(destination);
+		case ST_RIP3_XOR: return tag | ((destination ^ source) & mask);
+		case ST_RIP3_OR: return tag | ((destination | source) & mask);
+		case ST_RIP3_AND: return tag | ((destination & source) & mask);
 		default: return source;
 	}
 }
@@ -244,25 +256,8 @@ static uint32_t
 transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode mode,
     const struct st_rip3_palette *palette)
 {
-	if (mode == ST_RIP3_TRANSFER_COPY)
-		return source;
-	if (mode == ST_RIP3_TRANSFER_INVERT)
-		return complement_color(source);
-	if (palette != NULL && ST_PIXEL_COLOR_IS_RGB(destination | source)) {
-		if (!ST_PIXEL_COLOR_IS_RGB(destination))
-			destination = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)destination];
-		if (!ST_PIXEL_COLOR_IS_RGB(source))
-			source = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)source];
-	}
-	if (ST_PIXEL_COLOR_IS_RGB(destination & source)) {
-		switch (mode) {
-			case ST_RIP3_TRANSFER_XOR: return ST_PIXEL_COLOR_RGB_TAG | ((destination ^ source) & UINT32_C(0xffffff));
-			case ST_RIP3_TRANSFER_OR: return ST_PIXEL_COLOR_RGB_TAG | ((destination | source) & UINT32_C(0xffffff));
-			case ST_RIP3_TRANSFER_AND: return ST_PIXEL_COLOR_RGB_TAG | ((destination & source) & UINT32_C(0xffffff));
-			default: return source;
-		}
-	}
-	return write_pixel(destination, source, (enum st_rip3_write_mode)mode);
+	return mode == ST_RIP3_TRANSFER_INVERT ? complement_color(source)
+	    : write_pixel(destination, source, (enum st_rip3_write_mode)mode, palette);
 }
 
 int
@@ -329,9 +324,9 @@ st_rip3_surface_clear_black(struct st_rip3_surface *surface, const struct st_rip
 }
 
 int
-st_rip3_surface_fill(struct st_rip3_surface *surface,
+st_rip3_surface_fill_colors(struct st_rip3_surface *surface,
     const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
-    uint8_t color, enum st_rip3_write_mode mode)
+    uint32_t color, enum st_rip3_write_mode mode, const struct st_rip3_palette *palette)
 {
 	struct st_rip3_rect bounds;
 	struct st_rip3_rect visible;
@@ -350,11 +345,19 @@ st_rip3_surface_fill(struct st_rip3_surface *surface,
 			size_t offset = (size_t)y * surface->width + (uint32_t)x;
 
 			surface->pixels[offset] = write_pixel(surface->pixels[offset],
-			    color, mode);
+			    color, mode, palette);
 			if (surface->damage!=NULL) surface->damage[offset]=1;
 		}
 	}
 	return 0;
+}
+
+int
+st_rip3_surface_fill(struct st_rip3_surface *surface,
+    const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
+    uint8_t color, enum st_rip3_write_mode mode)
+{
+	return st_rip3_surface_fill_colors(surface, clip, area, color, mode, NULL);
 }
 
 int

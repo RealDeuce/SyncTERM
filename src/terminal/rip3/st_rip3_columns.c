@@ -93,7 +93,7 @@ struct column_line {
 	const uint8_t *glyphs;
 	size_t length;
 	unsigned rgb_bits;
-	uint8_t foreground, background;
+	uint32_t foreground, background;
 	const struct st_rip3_column_search *search;
 	int64_t default_steps[256];
 	int64_t baseline, fit, advance, first_offset;
@@ -228,9 +228,9 @@ prepare_line(struct column_line *line)
 			line->fit = line->advance = (int64_t)plan.cell_height;
 	}
 	if (status == 0 && line->style.write_mode != ST_RIP3_NOT) {
-		status = st_rip3_command_ink(host, env.rgb_bits, line->style.drawing_color, &line->foreground);
+		status = st_rip3_command_ink(host,env.rgb_bits, line->style.drawing_color, &line->foreground);
 		if (status == 0 && (line->style.font.flags & ST_RIP3_CLASSIC_SHADOW) != 0)
-			status = st_rip3_command_ink(host, env.rgb_bits, line->style.background_color, &line->background);
+			status = st_rip3_command_ink(host,env.rgb_bits, line->style.background_color, &line->background);
 	}
 	return status;
 }

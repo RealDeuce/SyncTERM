@@ -543,9 +543,9 @@ paint_face(void *context)
 					uses_background |= b->drawing.fill.rows[i] != 255;
 				}
 				if (uses_foreground)
-					status = st_rip3_command_ink(host, b->rgb_bits, b->drawing.fill_color, &foreground);
+					status = st_rip3_command_index(host, b->rgb_bits, b->drawing.fill_color, &foreground);
 				if (status == 0 && uses_background)
-					status = st_rip3_command_ink(host, b->rgb_bits, b->drawing.background_color, &background);
+					status = st_rip3_command_index(host, b->rgb_bits, b->drawing.background_color, &background);
 				if (status == 0) {
 					const struct st_rip3_rect rect = {(int32_t)area.x0, (int32_t)area.y0,
 					    (int32_t)(area.x1 - 1), (int32_t)(area.y1 - 1)};

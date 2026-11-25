@@ -330,10 +330,12 @@ rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		host.palettes = bound;
 		CHECK(st_rip3_ports_snapshot(host.ports,&palette,&capture) == 0);
 		for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
-			unsigned index = x < 8 && y < 8 ? 85 : 0;
-			if (x >= 1 && x < 6 && y >= 1 && y < 6) index = mode != 0 ? 170 : (x+y)%2 == 0 ? 17 : 19;
-			if (borders && ((x >= 1 && x <= 6 && (y == 1 || y == 6)) || (y >= 1 && y <= 6 && (x == 1 || x == 6)))) index = 20;
-			CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | colors[index]));
+			uint32_t rgb = x < 8 && y < 8 ? colors[85] : 0;
+			if (x >= 1 && x < 6 && y >= 1 && y < 6)
+				rgb = mode != 0 ? colors[170] : (x+y)%2 == 0 ? 0x112234 : 0x445566;
+			if (borders && ((x >= 1 && x <= 6 && (y == 1 || y == 6)) || (y >= 1 && y <= 6 && (x == 1 || x == 6))))
+				rgb = 0x223344;
+			CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | rgb));
 		}
 		st_pixel_buffer_destroy(capture); capture = NULL;
 	}

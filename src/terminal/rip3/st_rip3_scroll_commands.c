@@ -27,9 +27,9 @@ blit_fill(const struct st_rip3_command_host *host,unsigned bits,unsigned mode,
 	if (status!=0) return status;
 	uint8_t ink,background=0;
 	uint32_t color=mode==1 ? style.drawing_color : mode==2 ? style.background_color : style.fill_color;
-	status=st_rip3_command_ink(host,bits,color,&ink);
+	status=st_rip3_command_index(host,bits,color,&ink);
 	if (status==0 && mode==4)
-		status=st_rip3_command_ink(host,bits,style.background_color,&background);
+		status=st_rip3_command_index(host,bits,style.background_color,&background);
 	if (status!=0) return status;
 	fill->mode=mode==4 ? ST_RIP3_BLIT_PATTERN : ST_RIP3_BLIT_SOLID;
 	fill->ink=ink;fill->background=background;

@@ -4,6 +4,7 @@
 
 #include "st_rip3_ports.h"
 #include "io_error.h"
+#include "st_pixels.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -38,19 +39,19 @@ st_rip3_pen_init(struct st_rip3_pen *pen)
 
 struct stroke_visit {
 	size_t last_edge;
-	uint8_t current, first, operand, flags;
+	uint8_t current, first, seen, odd, flags;
 };
 
 enum {
-	VISIT_END = 1, VISIT_START = 2, VISIT_FIRST_START = 4, VISIT_COMPOSED = 8,
+	VISIT_END = 1, VISIT_START = 2, VISIT_FIRST_START = 4,
 };
 
 struct stroke_target {
 	struct st_rip3_ports *ports;
 	struct st_rip3_rect clip;
 	bool active;
-	uint8_t foreground;
-	uint8_t background;
+	uint32_t foreground;
+	uint32_t background;
 	enum st_rip3_write_mode mode;
 	/* NULL emits directly for a single segment. Geometry/text/border masks
 	 * collect union coverage; standalone paths use visits below instead. */
@@ -63,7 +64,7 @@ struct stroke_target {
 
 static int
 stroke_init(struct stroke_target *target, struct st_rip3_ports *ports,
-    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;
@@ -96,17 +97,38 @@ stroke_init(struct stroke_target *target, struct st_rip3_ports *ports,
 static void
 visit_compose(const struct stroke_target *target, struct stroke_visit *visit, uint8_t coverage)
 {
-	uint8_t source = coverage == 2 ? target->foreground : target->background;
-	if ((visit->flags&VISIT_COMPOSED) == 0)
-		visit->operand = target->mode == ST_RIP3_AND ? 255 : 0;
-	visit->flags |= VISIT_COMPOSED;
-	switch (target->mode) {
-		case ST_RIP3_XOR: visit->operand ^= source; break;
-		case ST_RIP3_OR: visit->operand |= source; break;
-		case ST_RIP3_AND: visit->operand &= source; break;
-		case ST_RIP3_NOT: visit->operand ^= 1; break;
-		default: visit->operand = source; break;
+	if (target->mode == ST_RIP3_COPY)
+		visit->seen = coverage;
+	else if (target->mode == ST_RIP3_NOT)
+		visit->odd ^= 1;
+	else {
+		visit->seen |= coverage;
+		visit->odd ^= coverage;
 	}
+}
+
+static int
+visit_draw(const struct stroke_target *target, const struct stroke_visit *visit, int32_t x, int32_t y)
+{
+	if (target->mode == ST_RIP3_COPY)
+		return st_rip3_ports_plot(target->ports, x, y,
+		    visit->seen == 2 ? target->foreground : target->background, ST_RIP3_COPY);
+	if (target->mode == ST_RIP3_NOT)
+		return visit->odd == 0 ? 0 : st_rip3_ports_plot(target->ports, x, y, 0, target->mode);
+	/* Keep the two pen operands separate until the destination domain is
+	 * known. The palette lookup of a combined index would change the RGB mix. */
+	for (uint8_t kind = 1; kind <= 2; ++kind) {
+		if ((visit->seen & kind) == 0) continue;
+		uint32_t source = kind == 2 ? target->foreground : target->background;
+		if (target->mode == ST_RIP3_XOR && (visit->odd & kind) == 0) {
+			if (!ST_PIXEL_COLOR_IS_RGB(source)) continue;
+			/* Two identical direct XORs cancel but still promote an index. */
+			source = ST_PIXEL_COLOR_RGB_TAG;
+		}
+		int status = st_rip3_ports_plot(target->ports, x, y, source, target->mode);
+		if (status != 0) return status;
+	}
+	return 0;
 }
 
 static void
@@ -255,7 +277,7 @@ stroke_segment(struct stroke_target *target,
 int
 st_rip3_draw_line(struct st_rip3_ports *ports,
     const struct st_rip3_point *first, const struct st_rip3_point *last,
-    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct stroke_target target;
@@ -562,7 +584,7 @@ st_rip3_stroke_path_vectors(struct st_rip3_ports *ports,
 int
 st_rip3_stroke_visits(struct st_rip3_ports *ports,
     const struct st_rip3_vector *points, size_t count, bool closed,
-    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct stroke_target target;
@@ -622,9 +644,7 @@ st_rip3_stroke_visits(struct st_rip3_ports *ports,
 			visit_compose(&target,visit,visit->current);
 			if (mode != ST_RIP3_COPY) visit_compose(&target,visit,visit->first);
 		}
-		if (mode == ST_RIP3_NOT && visit->operand == 0) continue;
-		status = st_rip3_ports_plot(ports,target.clip.x0+(int32_t)x,target.clip.y0+(int32_t)y,
-		    visit->operand,mode);
+		status = visit_draw(&target, visit, target.clip.x0 + (int32_t)x, target.clip.y0 + (int32_t)y);
 		if (status != 0) goto done;
 	}
 done:
@@ -633,8 +653,8 @@ done:
 
 int
 st_rip3_stroke_apply(struct st_rip3_ports *ports,
-    const struct st_rip3_stroke_mask *mask, uint8_t foreground,
-    uint8_t background, enum st_rip3_write_mode mode)
+    const struct st_rip3_stroke_mask *mask, uint32_t foreground,
+    uint32_t background, enum st_rip3_write_mode mode)
 {
 	if (ports == NULL || mask == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -670,8 +690,8 @@ mask_at(const struct st_rip3_stroke_mask *mask, int32_t x, int32_t y)
 int
 st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
     const struct st_rip3_stroke_mask *ink,
-    const struct st_rip3_stroke_mask *shadow, uint8_t foreground,
-    uint8_t background, enum st_rip3_write_mode mode)
+    const struct st_rip3_stroke_mask *shadow, uint32_t foreground,
+    uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rect bounds;
 
@@ -719,7 +739,7 @@ st_rip3_stroke_free(struct st_rip3_stroke_mask *mask)
 int
 st_rip3_draw_path(struct st_rip3_ports *ports,
     const struct st_rip3_point *points, size_t count, bool closed,
-    const struct st_rip3_pen *pen, uint8_t foreground, uint8_t background,
+    const struct st_rip3_pen *pen, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_vector *vectors;
@@ -736,7 +756,7 @@ st_rip3_draw_path(struct st_rip3_ports *ports,
 int
 st_rip3_draw_rectangle(struct st_rip3_ports *ports,
     const struct st_rip3_rect *area, const struct st_rip3_pen *pen,
-    uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_point corners[4];
 	int32_t x0, x1, y0, y1;

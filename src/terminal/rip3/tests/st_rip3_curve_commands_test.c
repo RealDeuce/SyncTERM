@@ -286,13 +286,13 @@ rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		uint32_t expected = 0;
-		if (x >= 1 && x <= 8 && y >= 1 && y <= 8 && circle[y-1][x-1] == '#') expected = 0x112233;
+		if (x >= 1 && x <= 8 && y >= 1 && y <= 8 && circle[y-1][x-1] == '#') expected = 0x112234;
 		if (inside(x,y,14,4,3,3)) expected = 0x112235;
-		if (x >= 11 && x <= 18 && y >= 1 && y <= 8 && circle[y-1][x-11] == '#') expected = 0x112233;
+		if (x >= 11 && x <= 18 && y >= 1 && y <= 8 && circle[y-1][x-11] == '#') expected = 0x112234;
 		if (inside(x,y,24,4,3,2)) expected = (x+y)%2 == 0 ? 0x112235 : 0x445566;
 		if (inside(x,y,4,14,3,2) || (x == 14 && y == 14)) expected = 0xffffff;
-		if (x == 24 && y == 14) expected = 0x112233;
-		if (x >= 31 && x <= 38 && y >= 11 && y <= 18 && circle[y-11][x-31] == '#') expected = 0x112233;
+		if (x == 24 && y == 14) expected = 0x112234;
+		if (x >= 31 && x <= 38 && y >= 11 && y <= 18 && circle[y-11][x-31] == '#') expected = 0x112234;
 		if (x >= 41 && x <= 48 && y >= 11 && y <= 18 && circle[y-11][x-41] == '#') expected = 0xffffff;
 		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected));
 	}

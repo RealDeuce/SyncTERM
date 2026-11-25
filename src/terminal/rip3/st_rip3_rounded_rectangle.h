@@ -23,7 +23,7 @@ int st_rip3_rounded_rectangle_set(struct st_rip3_rounded_rectangle *result,
  * applied once. U/u separately resolve logical pens and their pass policy. */
 int st_rip3_draw_rounded_rectangle(struct st_rip3_ports *ports,
 	const struct st_rip3_rounded_rectangle *rectangle,
-	uint32_t thickness, uint8_t color, enum st_rip3_write_mode mode);
+	uint32_t thickness, uint32_t color, enum st_rip3_write_mode mode);
 /* Pixel-center fills: straight bounds are left/top inclusive, right/bottom
  * exclusive; circular corner boundary ties are excluded. Pattern phase is
  * explicit in fill. Border zero disables it; otherwise a solid COPY border
@@ -32,7 +32,7 @@ int st_rip3_draw_rounded_rectangle(struct st_rip3_ports *ports,
  * belong to parser-owned recovery, never the terminal/session error path. */
 int st_rip3_draw_filled_rounded_rectangle(struct st_rip3_ports *ports,
 	const struct st_rip3_rounded_rectangle *rectangle,
-	const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-	uint32_t border_thickness, uint8_t border_color, enum st_rip3_write_mode mode);
+	const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+	uint32_t border_thickness, uint32_t border_color, enum st_rip3_write_mode mode);
 
 #endif

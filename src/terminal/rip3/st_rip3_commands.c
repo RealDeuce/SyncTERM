@@ -640,6 +640,8 @@ st_rip3_commands_process(const struct st_rip3_command_host *host,
     const struct st_rip3_command_sink *sink, const uint8_t *command, size_t length)
 {
 	bool operation;
+	if (host != NULL)
+		st_rip3_ports_bind_drawing_palette(host->ports, st_rip3_palettes_published(host->palettes));
 	int status = execute(host, command, length, &operation, sink);
 	st_rip3_command_result(sink,status,operation);
 }

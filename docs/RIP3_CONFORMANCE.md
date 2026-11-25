@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-acafaea31e3fe7ed8226de9490548009602fc0b2](https://github.com/RealDeuce/remote-imaging-protocol/tree/acafaea31e3fe7ed8226de9490548009602fc0b2/version/3.0)
+546c3531776617daa82732030aec32ad5b5a5af5](https://github.com/RealDeuce/remote-imaging-protocol/tree/546c3531776617daa82732030aec32ad5b5a5af5/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -9292,9 +9292,9 @@ and replacement.
 
 The variable processor applies `TONAME`, `TOUPPER` or `TOLOWER` to the
 selected response, stored value or default before emitting or storing it.
-For now, conversion changes ASCII letters and `TONAME` starts a new word
-after ASCII whitespace. The reference leaves the non-ASCII character set
-and other word boundaries open. [Issue #309](https://github.com/bbs-land/remote-imaging-protocol/issues/309)
+Conversions change ASCII letters and preserve other bytes. `TONAME`
+capitalizes the first letter of each contiguous ASCII letter run, including
+after punctuation, digits, whitespace and high bytes. [PR #310](https://github.com/bbs-land/remote-imaging-protocol/pull/310)
 
 Connected CP437 and UTF-8 fixtures cover restricted typing and paste,
 masking, unchanged prefills, conversions, exact replies and recovery
@@ -10223,22 +10223,21 @@ raster. The new connected cases check both mixed operand orders, offscreen
 paste, palette changes, and indexed composition with RGB decoding active.
 [PR #232](https://github.com/bbs-land/remote-imaging-protocol/pull/232)
 
-## Destination inversion in drawing surfaces
+## Mixed-color drawing on stored surfaces
 
-Drawing write mode `W04` complements the stored destination color. A direct
-RGB pixel keeps its representation and all 24 color bits participate. A
-palette index uses an eight-bit complement and reflects later palette edits.
-Two inversions restore the stored value, including an index or literal RGB
-black. `1P` mode 04 continues to complement the source image.
+`W00` preserves drawing indices and direct RGB values. `W01` through `W03`
+combine two drawing indices in the eight-bit index domain. When either
+operand is RGB, they resolve any index through the published palette and
+store the literal RGB result. `W04` complements the destination in its
+stored domain. Bitmap and port transfers continue to use their explicit
+transfer modes. [PR #308](https://github.com/bbs-land/remote-imaging-protocol/pull/308)
 
-Connected CP437 and UTF-8 tests apply `X` and `B` after switching the ENV back
-to palette mode with out-of-range source inks. They capture and invert mixed
-RGB and indexed pixels in an offscreen port, then invert a copied screen
-pixel. Live probes also confirmed that W01–W03 truncate a stored direct
-destination when the drawing source is indexed, and that W04 uses the old
-drawing pixel when terminal text has painted over it. The reference question
-covers mixed operands and the visible screen destination.
-[Issue #307](https://github.com/bbs-land/remote-imaging-protocol/issues/307)
+Connected CP437 and UTF-8 tests check both mixed operand orders in bitmap
+ports, palette changes, direct COPY, and repeated inversion. Native tests
+check direct color decoding at all eight precisions, patterned pen visits,
+and repeated XOR that restores the original color while retaining RGB.
+Screen drawing still needs to use the visible terminal pixel where text
+has subsequently painted over the stored drawing.
 
 ## RGB port-copy composition
 

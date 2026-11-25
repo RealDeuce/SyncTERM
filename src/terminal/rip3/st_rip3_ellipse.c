@@ -140,7 +140,7 @@ int
 st_rip3_draw_ellipse_interior(struct st_rip3_ports *ports,
     const struct st_rip3_ellipse *ellipse, double start_degrees,
     double sweep_degrees, enum st_rip3_ellipse_region region,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;
@@ -525,7 +525,7 @@ int
 st_rip3_draw_ellipse_outline(struct st_rip3_ports *ports,
     const struct st_rip3_ellipse *ellipse, double start_degrees,
     double sweep_degrees, enum st_rip3_ellipse_region region,
-    uint32_t thickness, uint8_t color, enum st_rip3_write_mode mode)
+    uint32_t thickness, uint32_t color, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_stroke_mask mask = {0};
 	int status;
@@ -544,8 +544,8 @@ int
 st_rip3_draw_filled_ellipse(struct st_rip3_ports *ports,
     const struct st_rip3_ellipse *ellipse, double start_degrees,
     double sweep_degrees, enum st_rip3_ellipse_region region,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    uint32_t border_thickness, uint8_t border_color,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+    uint32_t border_thickness, uint32_t border_color,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_stroke_mask mask = {0};

@@ -40,6 +40,8 @@ int st_rip3_palettes_get(const struct st_rip3_palettes *palettes,
 /* Published RGB for rendering and indexed pixel conversion. */
 int st_rip3_palettes_current_palette(const struct st_rip3_palettes *palettes,
 	struct st_rip3_palette *result);
+/* Borrow the published drawing palette for synchronous composition. */
+const struct st_rip3_palette *st_rip3_palettes_published(const struct st_rip3_palettes *palettes);
 /* SCREEN SAVE captures stored RGB even if the selected slot is undefined. */
 int st_rip3_palettes_current_stored(const struct st_rip3_palettes *palettes,
 	struct st_rip3_palette *result);
@@ -73,6 +75,8 @@ int st_rip3_palettes_color(const struct st_rip3_palettes *palettes,
  * code is at most 24 bits; unused bits above the three components are ignored. */
 int st_rip3_palettes_color_bits(const struct st_rip3_palettes *palettes,
 	unsigned bits, uint32_t color, uint8_t *result);
+/* Decode the same wire color without matching a direct value to a palette. */
+int st_rip3_color_decode(unsigned bits, uint32_t color, uint32_t *result);
 /* Complete owned copy for the palette backup area: current slot, in-use and
  * protection bits, and all RGB tables. Restoring explicitly replaces the
  * whole live table, including protected entries as required by the backup

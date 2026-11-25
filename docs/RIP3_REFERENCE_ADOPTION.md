@@ -1764,3 +1764,17 @@ material as excluded under the current acceptance scope.
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/acafaea31e3fe7ed8226de9490548009602fc0b2),
 [PR #304](https://github.com/bbs-land/remote-imaging-protocol/pull/304),
 [PR #305](https://github.com/bbs-land/remote-imaging-protocol/pull/305)
+
+## Mixed-color drawing and variable case conversion
+
+Stable revision `546c3531776617daa82732030aec32ad5b5a5af5` incorporates PR
+#308's drawing color domains and PR #310's ASCII case-conversion contract.
+The Git archive SHA-256 is
+`3f4010270a5c40b9690dcffa11e98ab29ba87a860eb7cc0649601a6fbce88823`.
+The ledger excludes the intervening ANSI local-echo and Telnet text from
+PR #306. Applying drawing write modes to newer terminal pixels remains
+an implementation requirement.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/546c3531776617daa82732030aec32ad5b5a5af5),
+[PR #308](https://github.com/bbs-land/remote-imaging-protocol/pull/308),
+[PR #310](https://github.com/bbs-land/remote-imaging-protocol/pull/310)

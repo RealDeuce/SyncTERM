@@ -62,7 +62,7 @@ int st_rip3_rff_text_measure(const struct st_rip3_rff *font,
 int st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
 	const struct st_rip3_point *origin, const struct st_rip3_rff_text_style *style,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 /* Rasterize already-positioned bytes using the same coverage/atomicity policy.
  * positions supplies one viewport-relative device origin per byte; it is not
@@ -76,7 +76,7 @@ int st_rip3_draw_rff_text(struct st_rip3_ports *ports,
 int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
 	const struct st_rip3_rff *font, const uint8_t *text, size_t length,
 	const struct st_rip3_text_position *positions, const struct st_rip3_rff_text_style *style,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 /* Prepared-font rendering for an already laid-out byte string. Derive the
  * glyph matrix from the realized point/DPI scales and independent character
@@ -104,6 +104,6 @@ int st_rip3_draw_rff_positioned(struct st_rip3_ports *ports,
 int st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
 	const struct st_rip3_outline_font *font, const struct st_rip3_outline_layout *layout,
 	const uint8_t *text, size_t length, const struct st_rip3_text_position *positions,
-	uint8_t foreground, uint8_t background, enum st_rip3_write_mode mode);
+	uint32_t foreground, uint32_t background, enum st_rip3_write_mode mode);
 
 #endif

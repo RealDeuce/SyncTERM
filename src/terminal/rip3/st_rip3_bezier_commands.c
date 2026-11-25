@@ -75,7 +75,7 @@ paint(const struct st_rip3_command_host *host, const struct st_rip3_environment 
 	struct st_rip3_style style;
 	struct st_rip3_vector *points;
 	unsigned current;
-	uint8_t foreground=0,background=0,drawing=0;
+	uint32_t foreground=0,background=0,drawing=0;
 	bool borders=false;
 	int status;
 	if (path->count<2) return 0; /* Both Polyline and Polygon require two points. */

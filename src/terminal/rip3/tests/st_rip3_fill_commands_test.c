@@ -276,7 +276,7 @@ rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_snapshot(host.ports, &palette, &capture) == 0);
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		uint32_t expected = 0;
-		if (x <= 7 && y <= 7) expected = y%2 == 0 ? 0x112233 : 0x445566;
+		if (x <= 7 && y <= 7) expected = y%2 == 0 ? 0x112234 : 0x445566;
 		if (x == 10 && y == 1) expected = 0xffffff;
 		CHECK(capture->primary[(size_t)y*width+x] == (ST_PIXEL_COLOR_RGB_TAG | expected));
 	}
@@ -507,7 +507,7 @@ filled_rgb(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
 		uint32_t expected = 0;
 		if (x >= 1 && x <= 6 && y >= 1 && y <= 6)
-			expected = x == 1 || x == 6 || y == 1 || y == 6 ? 0x445566 : y%2 == 0 ? 0x112233 : 0x112235;
+			expected = x == 1 || x == 6 || y == 1 || y == 6 ? 0x445566 : y%2 == 0 ? 0x112234 : 0x112235;
 		if (x >= 8 && x <= 13 && y >= 1 && y <= 6)
 			expected = x == 8 || x == 13 || y == 1 || y == 6 ? 0x445566 : 0xffffff;
 		if (x >= 15 && x <= 17 && y >= 1 && y <= 3) expected = 0xffffff;

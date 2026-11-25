@@ -127,7 +127,7 @@ boundary_compare(const void *first, const void *second)
 
 static int
 fill_span(struct st_rip3_ports *ports, struct st_rip3_rect span,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode, const struct st_rip3_stroke_mask *omit)
 {
 	if (omit != NULL && omit->coverage != NULL && span.y0 >= omit->bounds.y0
@@ -155,8 +155,8 @@ fill_span(struct st_rip3_ports *ports, struct st_rip3_rect span,
 static int
 fill_contours(struct st_rip3_ports *ports,
     const struct st_rip3_vector_contour *contours, size_t count,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    const struct st_rip3_pen *border, uint8_t border_color,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+    const struct st_rip3_pen *border, uint32_t border_color,
     enum st_rip3_write_mode mode, bool marker)
 {
 	struct st_rip3_port_info info;
@@ -252,8 +252,8 @@ done:
 int
 st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
     const struct st_rip3_vector_contour *contours, size_t count,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    const struct st_rip3_pen *border, uint8_t border_color,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+    const struct st_rip3_pen *border, uint32_t border_color,
     enum st_rip3_write_mode mode)
 {
 	return fill_contours(ports,contours,count,fill,foreground,background,border,border_color,mode,false);
@@ -262,8 +262,8 @@ st_rip3_polygon_fill_contours(struct st_rip3_ports *ports,
 int
 st_rip3_polygon_marker_fill(struct st_rip3_ports *ports,
     const struct st_rip3_vector *points, size_t count,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    const struct st_rip3_pen *pen, uint8_t draw_color, enum st_rip3_write_mode mode)
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+    const struct st_rip3_pen *pen, uint32_t draw_color, enum st_rip3_write_mode mode)
 {
 	if (pen == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
@@ -274,8 +274,8 @@ st_rip3_polygon_marker_fill(struct st_rip3_ports *ports,
 int
 st_rip3_polygon_fill(struct st_rip3_ports *ports,
     const struct st_rip3_vector *points, size_t count,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    const struct st_rip3_pen *border, uint8_t border_color,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+    const struct st_rip3_pen *border, uint32_t border_color,
     enum st_rip3_write_mode mode)
 {
 	const struct st_rip3_vector_contour contour = {points,count};

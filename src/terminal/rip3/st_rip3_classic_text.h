@@ -103,7 +103,7 @@ int st_rip3_classic_text_plan(const struct st_rip3_classic_font *font,
 int st_rip3_draw_classic_text(struct st_rip3_ports *ports,
 	const struct st_rip3_classic_font *font,
 	const struct st_rip3_classic_text_style *style, const uint8_t *text, size_t length,
-	const struct st_rip3_text_position *anchor, uint8_t foreground, uint8_t background,
+	const struct st_rip3_text_position *anchor, uint32_t foreground, uint32_t background,
 	enum st_rip3_write_mode mode);
 
 #endif

@@ -301,7 +301,7 @@ validation(void)
 	static const char *const invalid[] = {"X","j","X00","j00","X000 comment","j00 00","X000?","j000?","X00\2020","j00\303\251"};
 	struct fixture f, missing = {0};
 	struct st_rip3_environment env;
-	uint8_t pixel = 0;
+	uint32_t pixel = 0;
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480,640,480) == 0);
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID) == 0);
@@ -315,11 +315,13 @@ validation(void)
 	CHECK(st_rip3_environments_get(f.host.environments,0,&env) == 0);
 	env.rgb_bits = 8;
 	CHECK(st_rip3_environments_set(f.host.environments,0,&env) == 0);
-	CHECK(process(&f,"c0G41",-1) == 0); /* UltraNum 0x010101, grayscale index 1. */
+	CHECK(process(&f,"c0G41",-1) == 0); /* UltraNum 0x010101. */
 	CHECK(process(&f,"X0404",-1) == 0);
-	CHECK(st_rip3_ports_read(f.host.ports,0,2,2,&pixel) == 0 && pixel == 1);
+	CHECK(st_rip3_ports_read_color(f.host.ports,0,2,2,false,&pixel) == 0
+	    && pixel == (ST_PIXEL_COLOR_RGB_TAG | 0x010101));
 	CHECK(process(&f,"j0606",-1) == 0);
-	CHECK(st_rip3_ports_read(f.host.ports,0,3,3,&pixel) == 0 && pixel == 1);
+	CHECK(st_rip3_ports_read_color(f.host.ports,0,3,3,false,&pixel) == 0
+	    && pixel == (ST_PIXEL_COLOR_RGB_TAG | 0x010101));
 	struct st_rip3_palettes *palette = f.host.palettes; f.host.palettes = NULL;
 	CHECK(process(&f,"j0404",ST_RIP3_COMMAND_UNSUPPORTED) == 0);
 	const struct st_rip3_rect outside = {700,500,710,510};

@@ -59,7 +59,7 @@ normalize(struct st_rip3_rect area)
 
 static int
 fill_area(struct st_rip3_ports *ports, struct st_rip3_rect area,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;
@@ -102,7 +102,7 @@ fill_area(struct st_rip3_ports *ports, struct st_rip3_rect area,
 
 int
 st_rip3_draw_bar(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	if (ports == NULL || area == NULL || fill == NULL
@@ -114,8 +114,8 @@ st_rip3_draw_bar(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
 int
 st_rip3_draw_filled_rectangle(struct st_rip3_ports *ports,
     const struct st_rip3_rect *area, const struct st_rip3_fill *fill,
-    uint8_t foreground, uint8_t background, const struct st_rip3_pen *border,
-    uint8_t border_color, enum st_rip3_write_mode mode)
+    uint32_t foreground, uint32_t background, const struct st_rip3_pen *border,
+    uint32_t border_color, enum st_rip3_write_mode mode)
 {
 	struct st_rip3_rect rect;
 	struct st_rip3_pen outline;
@@ -209,8 +209,8 @@ polygon_edge(const struct st_rip3_point *a, const struct st_rip3_point *b)
 int
 st_rip3_draw_filled_polygons(struct st_rip3_ports *ports,
     const struct st_rip3_contour *contours, size_t count,
-    const struct st_rip3_fill *fill, uint8_t foreground, uint8_t background,
-    const struct st_rip3_pen *border, uint8_t border_color,
+    const struct st_rip3_fill *fill, uint32_t foreground, uint32_t background,
+    const struct st_rip3_pen *border, uint32_t border_color,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_port_info info;

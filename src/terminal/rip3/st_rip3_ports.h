@@ -198,10 +198,12 @@ int st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 	const unsigned *numbers, size_t count, enum st_rip3_view_operation operation);
 /* Drawing coordinates are relative to the current viewport's upper-left.
  * Protection locks configuration but permits all content operations. */
+/* The palette is borrowed and must outlive its binding. */
+void st_rip3_ports_bind_drawing_palette(struct st_rip3_ports *ports, const struct st_rip3_palette *palette);
 int st_rip3_ports_plot(struct st_rip3_ports *ports, int32_t x, int32_t y,
-	uint8_t color, enum st_rip3_write_mode mode);
+	uint32_t color, enum st_rip3_write_mode mode);
 int st_rip3_ports_fill(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
-	uint8_t color, enum st_rip3_write_mode mode);
+	uint32_t color, enum st_rip3_write_mode mode);
 int st_rip3_ports_erase(struct st_rip3_ports *ports, uint8_t background);
 /* Explicitly fitted rectangles in each stored viewport's local coordinates;
  * NULL means the full viewport. Physical clipping preserves the original

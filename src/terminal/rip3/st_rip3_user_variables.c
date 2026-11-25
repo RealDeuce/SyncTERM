@@ -121,13 +121,15 @@ convert_value(struct st_rip3_variable_value *value, enum st_rip3_variable_conver
 	bool word_start = true;
 	for (size_t i = 0; i < value->length; ++i) {
 		uint8_t byte = value->bytes[i];
+		bool lowercase = byte >= 'a' && byte <= 'z';
+		bool uppercase = byte >= 'A' && byte <= 'Z';
 		bool upper = conversion == ST_RIP3_VARIABLE_TOUPPER
 		    || (conversion == ST_RIP3_VARIABLE_TONAME && word_start);
-		if (upper && byte >= 'a' && byte <= 'z')
+		if (upper && lowercase)
 			value->bytes[i] = (uint8_t)(byte - ('a' - 'A'));
-		else if (!upper && byte >= 'A' && byte <= 'Z')
+		else if (!upper && uppercase)
 			value->bytes[i] = (uint8_t)(byte + ('a' - 'A'));
-		word_start = byte == ' ' || (byte >= '\t' && byte <= '\r');
+		word_start = !lowercase && !uppercase;
 	}
 }
 

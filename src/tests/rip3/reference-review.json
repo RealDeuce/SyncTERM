@@ -1,28 +1,26 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/305",
-  "revision": "acafaea31e3fe7ed8226de9490548009602fc0b2",
-  "previous_revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/310",
+  "revision": "546c3531776617daa82732030aec32ad5b5a5af5",
+  "previous_revision": "acafaea31e3fe7ed8226de9490548009602fc0b2",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Open PRs #304 and #305 match the corresponding fork stable integration trees. PR #303 is recorded as excluded.",
-  "archive_sha256": "1a78320cf38067fbc21c36b4f213263be548bbf807b3b683266d8d9f18bc5bd7",
+  "upstream_state_at_adoption": "Open PRs #308 and #310 are incorporated in fork stable.",
+  "archive_sha256": "3f4010270a5c40b9690dcffa11e98ab29ba87a860eb7cc0649601a6fbce88823",
   "normative_scope": [
-    "Apply COMPAT to defined numbered targets and to selected targets by CUR or omission.",
-    "Share screen-canvas geometry and eligibility between MVP and HEADER 2048/4096."
+    "Compose W drawing operands in their documented index and RGB domains.",
+    "Convert user variables using ASCII case and ASCII letter-run boundaries."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+    "version/2.0/techspecs/2.3-drawing-composition.md",
     "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/7.0-drawing-ports.md",
-    "version/3.0/ripscrip/7.1-data-tables.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md"
+    "version/3.0/techspecs/2.3-drawing-composition.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9591,
+  "matched_source_blocks": 9628,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -956,7 +954,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 150,
+  "upstream_issue_resolutions": 152,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1845,6 +1843,24 @@
       "sha256": "50d54fad1e85896536d6401e1c50c5dd887aee2025c80e680ea97fefb15eaa16",
       "title": "Issue #301 — Viewport maximize rectangle",
       "role": "Shared HEADER and MVP dispatch and source rectangle provenance."
+    },
+    {
+      "path": "version/3.0/research/issue-302-ansi-local-echo.md",
+      "sha256": "5c4d97bda093a9b65ad8912e819e4fd95186e77ad97b88f1985da260e556fe2f",
+      "title": "Issue #302 — ANSI mode 12 and local echo",
+      "role": "Ordinary local echo and Telnet negotiation. Excluded from RIPscrip acceptance."
+    },
+    {
+      "path": "version/3.0/research/issue-307-drawing-mixed-color-operands.md",
+      "sha256": "e08005af684514a803c44a7e3986b461f8ae2d1faf2309f785cbecfc35497fff",
+      "title": "Issue #307 — Drawing write-mode operands on mixed surfaces",
+      "role": "Original pen mix and screen-paint destination, with portable two-domain rules."
+    },
+    {
+      "path": "version/3.0/research/issue-309-user-variable-case-conversion.md",
+      "sha256": "d8ae99f1424e2efddf1462ed4bffbc39c7a968cc01fd303bb0c3bdac2c2d82fe",
+      "title": "Issue #309 — User-variable case conversion and TONAME words",
+      "role": "Original case mapping and word-boundary behavior with independent byte vectors."
     }
   ],
   "documents": [
@@ -1898,7 +1914,7 @@
     },
     {
       "path": "version/2.0/techspecs/2.3-drawing-composition.md",
-      "sha256": "cdac6f7aebdb53d530b2ebeb2e2e2a0366da4f2e3da0ee3906ff2f2ded6b129c"
+      "sha256": "aa455ee61d86bb946516f86e0e37213645e75a249a254daccea2520bacd1f45e"
     },
     {
       "path": "version/2.0/techspecs/3.0-icon-formats.md",
@@ -1950,11 +1966,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "f5cfa5dc9af336a2982e0bb07b35955875329b4a8b5e67ff712bc09c72d9dbef"
+      "sha256": "d696588329c36bbe21f106ba2159a07278a90f24001fa58aefb346ac41de2885"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "6dc2c973483a2920f068266c7a30fb30e647203f568e9c16a987c6c27c10ff97"
+      "sha256": "ac3c416008d6f01c09a3a9e5ec5d0db354f0e183c1f016aa7d915990b31f375c"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
@@ -2006,7 +2022,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "a05a6a8678e3682fd4f197acd00526697ab4d9ef42ad5a95b648d218d3d83e7a"
+      "sha256": "1cd6d8c4e7c439386c12744590176ecc1444d97bac606bd95bc20183283698c9"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2082,7 +2098,7 @@
     },
     {
       "path": "version/3.0/techspecs/2.3-drawing-composition.md",
-      "sha256": "9665c15655af5e7b27268e5feb70426dac4deef33a5ba3d0d011edb160db0b23"
+      "sha256": "0b5dffde05329499e27cdf4dbb548a3ea0b97821a64da172cd15703e7614840d"
     },
     {
       "path": "version/3.0/techspecs/2.4-outline-advance-and-cache.md",
@@ -2196,14 +2212,13 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 4799,
-    "context": 875,
-    "pending": 1625,
-    "implemented": 12,
-    "blocked": 17,
-    "excluded": 24
+    "unreviewed": 1808,
+    "context": 2184,
+    "pending": 1123,
+    "implemented": 4299,
+    "excluded": 266
   },
-  "source_blocks_at_adoption": 7352,
+  "source_blocks_at_adoption": 9680,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21174,6 +21189,154 @@
         "pending": 1233,
         "implemented": 4153,
         "excluded": 254
+      }
+    },
+    {
+      "previous_revision": "acafaea31e3fe7ed8226de9490548009602fc0b2",
+      "revision": "546c3531776617daa82732030aec32ad5b5a5af5",
+      "archive_sha256": "3f4010270a5c40b9690dcffa11e98ab29ba87a860eb7cc0649601a6fbce88823",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/307",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/308",
+          "reviewed_head": "1cb4404b8a51c2b5b4d1e29e218ce992eaec0a5a",
+          "integration": "89d5069e0f7f14cfcd5b85b7a5a5706f4e8dda28"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/309",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/310",
+          "reviewed_head": "5c8f4aa1a3825bbfb5bbf1dc6e20abe27d703d34",
+          "integration": "20d6c1263f87f2d4871f906d40262917b6c36f74"
+        }
+      ],
+      "excluded_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/302",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/306",
+          "reviewed_head": "3f03030e96b222e4484a824fa35902e5da1c94a6",
+          "integration": "68a82551b8b55466aa6bc36a6e5d65454f9fdc15",
+          "reason": "Ordinary ANSI local echo and Telnet negotiation are outside RIPscrip acceptance."
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/2.0/techspecs/2.3-drawing-composition.md",
+          "previous_sha256": "cdac6f7aebdb53d530b2ebeb2e2e2a0366da4f2e3da0ee3906ff2f2ded6b129c",
+          "sha256": "aa455ee61d86bb946516f86e0e37213645e75a249a254daccea2520bacd1f45e"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "f5cfa5dc9af336a2982e0bb07b35955875329b4a8b5e67ff712bc09c72d9dbef",
+          "sha256": "d696588329c36bbe21f106ba2159a07278a90f24001fa58aefb346ac41de2885"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+          "previous_sha256": "6dc2c973483a2920f068266c7a30fb30e647203f568e9c16a987c6c27c10ff97",
+          "sha256": "ac3c416008d6f01c09a3a9e5ec5d0db354f0e183c1f016aa7d915990b31f375c"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "a05a6a8678e3682fd4f197acd00526697ab4d9ef42ad5a95b648d218d3d83e7a",
+          "sha256": "1cd6d8c4e7c439386c12744590176ecc1444d97bac606bd95bc20183283698c9"
+        },
+        {
+          "path": "version/3.0/techspecs/2.3-drawing-composition.md",
+          "previous_sha256": "9665c15655af5e7b27268e5feb70426dac4deef33a5ba3d0d011edb160db0b23",
+          "sha256": "0b5dffde05329499e27cdf4dbb548a3ea0b97821a64da172cd15703e7614840d"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-302-ansi-local-echo.md",
+          "sha256": "5c4d97bda093a9b65ad8912e819e4fd95186e77ad97b88f1985da260e556fe2f",
+          "title": "Issue #302 — ANSI mode 12 and local echo",
+          "role": "Ordinary local echo and Telnet negotiation. Excluded from RIPscrip acceptance."
+        },
+        {
+          "path": "version/3.0/research/issue-307-drawing-mixed-color-operands.md",
+          "sha256": "e08005af684514a803c44a7e3986b461f8ae2d1faf2309f785cbecfc35497fff",
+          "title": "Issue #307 — Drawing write-mode operands on mixed surfaces",
+          "role": "Original pen mix and screen-paint destination, with portable two-domain rules."
+        },
+        {
+          "path": "version/3.0/research/issue-309-user-variable-case-conversion.md",
+          "sha256": "d8ae99f1424e2efddf1462ed4bffbc39c7a968cc01fd303bb0c3bdac2c2d82fe",
+          "title": "Issue #309 — User-variable case conversion and TONAME words",
+          "role": "Original case mapping and word-boundary behavior with independent byte vectors."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 2297,
+      "new_source_units": [
+        "version/2.0/techspecs/2.3-drawing-composition.md:27",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:70",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:72",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:74",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:76",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:78",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:79",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:80",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:81",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:82",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:83",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:85",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:87",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:89",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:97",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:237",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:600",
+        "version/3.0/ripscrip/5.1-text-variables.md:394",
+        "version/3.0/ripscrip/5.1-text-variables.md:396",
+        "version/3.0/ripscrip/5.1-text-variables.md:398",
+        "version/3.0/ripscrip/5.1-text-variables.md:399",
+        "version/3.0/ripscrip/5.1-text-variables.md:400",
+        "version/3.0/ripscrip/5.1-text-variables.md:402",
+        "version/3.0/ripscrip/5.1-text-variables.md:404",
+        "version/3.0/ripscrip/5.1-text-variables.md:406",
+        "version/3.0/ripscrip/5.1-text-variables.md:407",
+        "version/3.0/ripscrip/5.1-text-variables.md:408",
+        "version/3.0/ripscrip/5.1-text-variables.md:409",
+        "version/3.0/ripscrip/5.1-text-variables.md:410",
+        "version/3.0/ripscrip/5.1-text-variables.md:411",
+        "version/3.0/ripscrip/5.1-text-variables.md:412",
+        "version/3.0/ripscrip/5.1-text-variables.md:413",
+        "version/3.0/ripscrip/5.1-text-variables.md:414",
+        "version/3.0/ripscrip/5.1-text-variables.md:415",
+        "version/3.0/techspecs/2.3-drawing-composition.md:11",
+        "version/3.0/techspecs/2.3-drawing-composition.md:13",
+        "version/3.0/techspecs/2.3-drawing-composition.md:15",
+        "version/3.0/techspecs/2.3-drawing-composition.md:16",
+        "version/3.0/techspecs/2.3-drawing-composition.md:17",
+        "version/3.0/techspecs/2.3-drawing-composition.md:18",
+        "version/3.0/techspecs/2.3-drawing-composition.md:19",
+        "version/3.0/techspecs/2.3-drawing-composition.md:20",
+        "version/3.0/techspecs/2.3-drawing-composition.md:21",
+        "version/3.0/techspecs/2.3-drawing-composition.md:23",
+        "version/3.0/techspecs/2.3-drawing-composition.md:27",
+        "version/3.0/techspecs/2.3-drawing-composition.md:29",
+        "version/3.0/techspecs/2.3-drawing-composition.md:30",
+        "version/3.0/techspecs/2.3-drawing-composition.md:31",
+        "version/3.0/techspecs/2.3-drawing-composition.md:32",
+        "version/3.0/techspecs/2.3-drawing-composition.md:33",
+        "version/3.0/techspecs/2.3-drawing-composition.md:35",
+        "version/3.0/techspecs/2.3-drawing-composition.md:37"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:74",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:214",
+        "version/3.0/ripscrip/5.1-text-variables.md:394",
+        "version/3.0/ripscrip/5.1-text-variables.md:396",
+        "version/3.0/ripscrip/5.1-text-variables.md:398",
+        "version/3.0/ripscrip/5.1-text-variables.md:399",
+        "version/3.0/ripscrip/5.1-text-variables.md:400"
+      ],
+      "states_after_update": {
+        "unreviewed": 1808,
+        "context": 2184,
+        "pending": 1123,
+        "implemented": 4299,
+        "excluded": 266
       }
     }
   ],

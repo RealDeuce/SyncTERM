@@ -116,7 +116,7 @@ st_rip3_command_draw_outline(const struct st_rip3_command_host *host, const stru
 	int status=st_rip3_outline_font_advances(advances,font,style->outline.string_rotation,glyphs,length);
 	if (status==0 && layout->bounding_box_spacing) status=st_rip3_outline_font_bbox_width(&bbox,font);
 	if (status==0) status=st_rip3_outline_layout_positions(layout,anchor,advances,length,bbox,positions,&total);
-	uint8_t foreground=0,background=0;
+	uint32_t foreground=0,background=0;
 	if (status==0 && style->write_mode!=ST_RIP3_NOT) {
 		if (foreground_override != NULL)
 			foreground = *foreground_override;
@@ -245,7 +245,8 @@ text_execute(const struct st_rip3_command_host *host,
 	char kind=prepared==NULL ? (char)command[0] : (char)prepared->opcode;
 	const uint8_t *arguments = prepared==NULL ? command+1 : command, *glyphs;
 	size_t count = prepared==NULL ? length-1 : length, glyph_count;
-	uint8_t *owned = NULL, foreground = 0, background = 0;
+	uint8_t *owned = NULL;
+	uint32_t foreground = 0, background = 0;
 	int status = st_rip3_command_environment(host,&environment_number,&environment);
 	if (status != 0) return status;
 	bool positioned = kind != 'T';

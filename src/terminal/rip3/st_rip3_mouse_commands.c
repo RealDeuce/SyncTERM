@@ -55,8 +55,8 @@ remove_fields(const struct st_rip3_command_host *host,
 		if (status!=0) return status;
 		bool foreground=false,background=false;
 		for (size_t i=0;i<8;i++) {foreground|=style.fill.rows[i]!=0;background|=style.fill.rows[i]!=255;}
-		if (foreground) status=st_rip3_command_ink(host,env->rgb_bits,style.fill_color,&cleanup.foreground);
-		if (status==0 && background) status=st_rip3_command_ink(host,env->rgb_bits,style.background_color,&cleanup.background);
+		if (foreground) status=st_rip3_command_index(host,env->rgb_bits,style.fill_color,&cleanup.foreground);
+		if (status==0 && background) status=st_rip3_command_index(host,env->rgb_bits,style.background_color,&cleanup.background);
 		if (status!=0) return status;
 		cleanup.fill=style.fill;
 	}

@@ -7,6 +7,7 @@
 #include "st_rip3_palettes.h"
 #include "st_rip3_draw_internal.h"
 #include "io_error.h"
+#include "st_pixels.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -145,7 +146,7 @@ font_style(struct st_rip3_style *style, const uint8_t *arguments,
 }
 
 int
-st_rip3_command_ink(const struct st_rip3_command_host *host, unsigned bits, uint32_t color, uint8_t *result)
+st_rip3_command_index(const struct st_rip3_command_host *host, unsigned bits, uint32_t color, uint8_t *result)
 {
 	if (bits==0) {
 		if (color > 255)
@@ -156,6 +157,17 @@ st_rip3_command_ink(const struct st_rip3_command_host *host, unsigned bits, uint
 	if (host->palettes == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	return st_rip3_palettes_color_bits(host->palettes,bits,color,result);
+}
+
+int
+st_rip3_command_ink(const struct st_rip3_command_host *host, unsigned bits, uint32_t color, uint32_t *result)
+{
+	if (bits != 0 && host->palettes == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	int status = st_rip3_color_decode(bits, color, result);
+	if (status == 0 && bits != 0)
+		*result |= ST_PIXEL_COLOR_RGB_TAG;
+	return status;
 }
 
 void
@@ -180,7 +192,7 @@ point(const struct st_rip3_command_host *host, unsigned environment_number,
 	uint64_t world_x, world_y;
 	unsigned current;
 	size_t width = environment->coordinate_size;
-	uint8_t ink = 0;
+	uint32_t ink = 0;
 	int status;
 
 	struct st_rip3_fields fields = {arguments, count};
@@ -232,7 +244,7 @@ filled_rectangle(const struct st_rip3_command_host *host,
 	struct st_rip3_fill fill;
 	bool foreground_used = false, background_used = false;
 	bool interior = vertices == 4;
-	uint8_t foreground = 0, background = 0, drawing = 0;
+	uint32_t foreground = 0, background = 0, drawing = 0;
 	int status = 0;
 	bool borders = style->borders;
 	if (!borders && !interior) return 0;
@@ -278,7 +290,7 @@ shape(const struct st_rip3_command_host *host,
 	struct st_rip3_port_info port;
 	unsigned current;
 	size_t width = environment->coordinate_size, vertices = 2;
-	uint8_t foreground = 0, background = 0;
+	uint32_t foreground = 0, background = 0;
 	int status;
 
 	/* A fixed numeric command stops collecting at its complete field width.
@@ -350,9 +362,9 @@ shape(const struct st_rip3_command_host *host,
 	/* Destination NOT ignores both colour operands. Background lookup is
 	 * only needed for a pen whose pattern-off pixels are painted. */
 	if (style->write_mode != ST_RIP3_NOT) {
-		status = st_rip3_command_ink(host, environment->rgb_bits, style->drawing_color, &foreground);
+		status = st_rip3_command_ink(host,environment->rgb_bits, style->drawing_color, &foreground);
 		if (status == 0 && style->pen.draw_background)
-			status = st_rip3_command_ink(host, environment->rgb_bits, style->background_color, &background);
+			status = st_rip3_command_ink(host,environment->rgb_bits, style->background_color, &background);
 		if (status != 0)
 			return status;
 	}

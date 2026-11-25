@@ -110,6 +110,11 @@ int st_rip3_surface_plot(struct st_rip3_surface *surface,
 int st_rip3_surface_fill(struct st_rip3_surface *surface,
 	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
 	uint8_t color, enum st_rip3_write_mode mode);
+/* Tagged RGB colors remain literal. Binary mixed operands use the supplied
+ * published drawing palette to resolve the indexed color. */
+int st_rip3_surface_fill_colors(struct st_rip3_surface *surface,
+	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
+	uint32_t color, enum st_rip3_write_mode mode, const struct st_rip3_palette *palette);
 /* RGB complement for a rendered button's selected image, matched to the
  * current palette (first nearest tie), not the indexed drawing NOT operator.
  * Reuse existing indexed pixels/damage, without allocating a backing layer. */

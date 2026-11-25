@@ -42,7 +42,7 @@ int st_rip3_chr_text_measure(const struct st_rip3_chr *font,
 int st_rip3_draw_chr_text(struct st_rip3_ports *ports,
 	const struct st_rip3_chr *font, const uint8_t *text, size_t length,
 	const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
-	bool shadow, uint8_t foreground, uint8_t background,
+	bool shadow, uint32_t foreground, uint32_t background,
 	enum st_rip3_write_mode mode);
 
 #endif
