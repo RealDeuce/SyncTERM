@@ -1667,8 +1667,11 @@ coverage is inferred from these bitmap checks.
 and single-cell text presentation across 8-, 14-, and 16-pixel fonts, with
 colour both enabled and disabled. It covers native narrow symbols such as
 smiling faces, hearts, weather, vehicles, and the hut; repeated resets must
-preserve cell pairs and cursor advancement. A VS16 revision at the right margin
-must wrap the complete emoji without leaving its narrow prefix behind.
+preserve cell pairs and cursor advancement. A keycap that widens at the right margin wraps
+and leaves a space with the current colours over the original character.
+At 8×8, the VS15 watch narrows in place and its former continuation becomes a
+styled space under the cursor. Native tests also cover narrowing at the bottom
+right with deferred wrap and after an immediate scroll.
 CP437 byte output retains its
 original cell width. Font tests separately verify that native monochrome
 outlines remain unchanged, centered when emoji presentation needs two cells.

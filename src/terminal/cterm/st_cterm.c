@@ -1946,10 +1946,8 @@ status_display_changed(struct cterminal *terminal, int old_type,
 	cterm_coord_get_xy(terminal, CTERM_COORD_TERM, &saved_x, &saved_y);
 	screen = terminal->screen;
 	screen.unicode = NULL;
-	screen.provisional_drawn = false;
+	screen.provisional_columns = 0;
 	screen.provisional_discarded = false;
-	screen.provisional_cells = NULL;
-	screen.provisional_capacity = 0;
 	screen.hold_update = 0;
 	screen.error = 0;
 	screen.hyperlink_root_registered = false;

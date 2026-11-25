@@ -36,16 +36,17 @@ cursor independently. Emulation attributes, fonts, mosaic mappings, and
 movement policies still belong to their existing handlers. Cell editing and
 Prestel serial-attribute control cells remain explicit protocol operations.
 
-Provisional graphemes retain the affected row and cursor/wrap state for
-revision. Scrolling moves the retained drawable's position; a later combining
-scalar follows that position without scrolling twice. REP retains an owned
-UTF-8 grapheme rather than an encoded byte. Macro playback owns a copy of its
+CTerm tracks the position, width and wrap state of the provisional glyph.
+When a revision narrows it or wraps it onto the next line, each vacated cell
+receives a space in the current style. The cursor follows the revised glyph's
+width. A scroll moves the tracked position and remains in effect. REP retains
+an owned UTF-8 grapheme. Macro playback owns a copy of its
 input so reset or redefinition cannot invalidate the executing bytes.
 
 The parent owns the status subterminal. A subterminal retired during nested
 playback moves to the parent's retirement list while its input execution depth is
 nonzero. The driver destroys it after that stack unwinds, including its
-presenter, saved row, and repeat state. Parser errors are transferred to the
+presenter and repeat state. Parser errors are transferred to the
 owner before destruction.
 
 `cterm_text` tests compare equivalent codepage and UTF-8 input, full buffers,

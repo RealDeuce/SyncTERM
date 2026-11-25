@@ -475,6 +475,14 @@ def localized(executable, reports):
         terminal.exchange()
 
 
+def check_revision_blank(frame, x, y):
+    cell = cell_at(frame, x - 1, y - 1)
+    assert frame.cell_text(cell) == ' ' and not cell.flags & (1 << 19)
+    assert cell.foreground == 0x800c2238 and cell.background == 0x802d4359
+    for phase in (False, True):
+        assert set(tile(frame, x, y, alternate=phase)) == {cell.background}
+
+
 def presentation(executable, reports):
     # Fixed expected presentation widths, independent of the font merger.
     emoji = ['☺️', '☹️', '☠️', '❤️', '☝️', '🕴️', '🕷️', '🛖', '♨️', '🏎️', '✈️',
@@ -501,13 +509,22 @@ def presentation(executable, reports):
                         assert frame.cell_text(cell_at(frame, x + columns, 0)) == '|', sequence
                         x += columns + 1
                     assert frame.application['cterm.x'] == x + 1
-                # VS16 widens a narrow native prefix at the right margin.
-                # Its provisional one-cell image must not remain behind.
-                frame = terminal.exchange(b'\x1b[1;80H' + '☺️B'.encode(), reset=True)
-                assert frame.cell_text(cell_at(frame, 79, 0)) == ' '
-                assert cell_at(frame, 1, 1).flags & (1 << 19)
-                assert frame.cell_text(cell_at(frame, 2, 1)) == 'B'
-                assert (frame.application['cterm.x'], frame.application['cterm.y']) == (4, 2)
+                style = b'\x1b[38;2;12;34;56;48;2;45;67;89m'
+                for glyph in ('☺️', '1️⃣'):
+                    frame = terminal.exchange(b'\x1b[1;79HZA\x1b[1;80H' + style + (glyph + 'B').encode(), reset=True)
+                    assert frame.cell_text(cell_at(frame, 78, 0)) == 'Z'
+                    assert frame.cell_text(cell_at(frame, 0, 1)).replace('\ufe0f', '') == glyph.replace('\ufe0f', '')
+                    assert cell_at(frame, 1, 1).flags & (1 << 19)
+                    assert frame.cell_text(cell_at(frame, 2, 1)) == 'B'
+                    assert (frame.application['cterm.x'], frame.application['cterm.y']) == (4, 2)
+                    check_revision_blank(frame, 80, 1)
+                if height == 8:
+                    # Unscii's VS15 watch is one cell. Its bare emoji occupies two.
+                    frame = terminal.exchange(b'ABC\x1b[1;1H' + style + '⌚︎'.encode(), reset=True)
+                    assert (frame.application['cterm.x'], frame.application['cterm.y']) == (2, 1)
+                    assert frame.cell_text(cell_at(frame, 0, 0)).rstrip('\ufe0e') == '⌚'
+                    assert frame.cell_text(cell_at(frame, 2, 0)) == 'C'
+                    check_revision_blank(frame, 2, 1)
     with connection(executable, reports, encoding='CP437', settings='AudioModes=0\n') as (client, root, peer, send):
         frame = Terminal(client, root, peer, send).exchange(b'\xb3A', reset=True)
         assert frame.cell_text(cell_at(frame, 0, 0)) == '│'

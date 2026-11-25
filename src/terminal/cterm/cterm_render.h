@@ -98,20 +98,16 @@ struct cterm_render_state {
 	int error;
 	bool prestel_reveal;
 	bool hyperlink_root_registered;
-	/* Owned per display, for all wire encodings. The saved row restores
-	 * adjacent wide cells when an incremental grapheme is revised. */
+	/* Per-display grapheme placement shared by all wire encodings. */
 	st_unicode_presentation_t *unicode;
 	uint32_t provisional_x;
 	uint32_t provisional_y;
-	bool provisional_drawn;
+	uint8_t provisional_columns; /* Zero when no visible glyph can be revised. */
+	int provisional_lcf;
 	bool provisional_discarded;
 	bool missing_glyph;
 	uint16_t missing_font;
 	bool capture_decode_error;
-	struct st_console_cell *provisional_cells;
-	size_t provisional_capacity;
-	uint32_t provisional_count;
-	int provisional_lcf;
 };
 
 struct cterminal;

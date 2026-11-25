@@ -851,6 +851,40 @@ test_macro_retirement(void)
 	close_rig(&rig);
 }
 
+/* The keycap fills the last two columns. An attached mark has no mapped
+ * cluster glyph and revises it to the one-column fallback. */
+static void
+test_narrowing_at_bottom_margin(void)
+{
+	for (int deferred = 0; deferred <= 1; ++deferred) {
+		struct rig rig;
+		open_rig(&rig, ST_CTERM_ENCODING_UTF8);
+		static const char setup[] = "TOP\033[2;1HSECOND\033[4;18HZAB\033[4;19H\033[1;31;44m";
+		feed(&rig, setup, sizeof(setup) - 1);
+		rig.terminal->last_column_flag = deferred ? CTERM_LCF_ENABLED : 0;
+		static const char keycap[] = "1\xef\xb8\x8f\xe2\x83\xa3";
+		feed(&rig, keycap, sizeof(keycap) - 1);
+		const uint32_t row = deferred ? 3 : 2;
+		const struct st_console_rect tail = {17, row, 3, 1};
+		struct st_console_cell cells[3];
+		CHECK(st_console_read_cells(rig.console, &tail, cells, 3) == 0);
+		CHECK(cells[2].flags & ST_CONSOLE_CELL_CONTINUATION);
+		feed(&rig, "\xcc\x81", 2);
+		CHECK(st_console_read_cells(rig.console, &tail, cells, 3) == 0);
+		CHECK(cells[0].glyph == 'Z' && cells[2].glyph == ' ');
+		CHECK(!(cells[2].flags & ST_CONSOLE_CELL_CONTINUATION));
+		CHECK(cells[2].flags & ST_CONSOLE_CELL_BRIGHT);
+		CHECK(cells[2].foreground == cells[1].foreground && cells[2].background == cells[1].background);
+		CHECK(rig.terminal->xpos == 20 && rig.terminal->ypos == (int)row + 1);
+		CHECK(!(rig.terminal->last_column_flag & CTERM_LCF_SET));
+		CHECK(rig.terminal->backfilled == (deferred ? 0 : 1));
+		expect_text(&rig, 0, 0, deferred ? "T" : "S");
+		feed(&rig, "X", 1);
+		expect_text(&rig, 19, row, "X");
+		close_rig(&rig);
+	}
+}
+
 static void
 test_graphemes_and_boundaries(void)
 {
@@ -861,9 +895,14 @@ test_graphemes_and_boundaries(void)
 	struct rig rig;
 	open_rig(&rig, ST_CTERM_ENCODING_CODEPAGE);
 	feed(&rig, "e", 1);
+	/* Another writer can update the same row while the cluster is open. */
+	const struct st_console_rect neighbour = {1, 0, 1, 1};
+	const struct st_console_cell marker = {.glyph = 'M'};
+	CHECK(st_console_write_cells(rig.console, &neighbour, &marker, 1) == 0);
 	size_t consumed;
 	CHECK(st_cterm_write_utf8(rig.terminal, "\xcc\x81", 2, &consumed) == 0 && consumed == 2);
 	expect_text(&rig, 0, 0, "\xc3\xa9");
+	expect_text(&rig, 1, 0, "M");
 	CHECK(st_cterm_set_encoding(rig.terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437) == 0);
 	feed(&rig, "\xc3", 1);
 	CHECK(st_cterm_set_encoding(rig.terminal, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437) == 0);
@@ -877,12 +916,15 @@ test_graphemes_and_boundaries(void)
 	run(&actual, ST_CTERM_ENCODING_UTF8, "\033[1;20H\xe4\xb8\x80", SIZE_MAX, false);
 	CHECK(actual.state.x == 3 && actual.state.y == 2);
 	CHECK((actual.cells[21].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
-	/* Revising a narrow keycap prefix at the margin must not leave it
-	 * behind when its completed grapheme needs two columns. */
-	run(&actual, ST_CTERM_ENCODING_UTF8, "\033[1;20H1\xef\xb8\x8f\xe2\x83\xa3", SIZE_MAX, false);
+	/* The prefix overwrites A. Widening leaves a space in the new style. */
+	run(&actual, ST_CTERM_ENCODING_UTF8,
+	    "\033[1;19HZA\033[1;20H\033[1;31;44m1\xef\xb8\x8f\xe2\x83\xa3", SIZE_MAX, false);
 	CHECK(actual.state.x == 3 && actual.state.y == 2);
 	CHECK((actual.cells[21].flags & ST_CONSOLE_CELL_CONTINUATION) != 0);
-	CHECK(actual.cells[19].glyph == ' ');
+	CHECK(actual.cells[18].glyph == 'Z' && actual.cells[19].glyph == ' ');
+	CHECK(actual.cells[19].foreground == actual.cells[20].foreground);
+	CHECK(actual.cells[19].background == actual.cells[20].background);
+	CHECK(actual.cells[19].flags & ST_CONSOLE_CELL_BRIGHT);
 	run(&actual, ST_CTERM_ENCODING_UTF8, "\xc3", SIZE_MAX, false);
 	struct st_console_font base;
 	CHECK(st_builtin_font_get(0, 8, 16, &base));
@@ -1219,6 +1261,7 @@ st_cterm_text_test_main(void)
 	test_emulations();
 	test_macro_retirement();
 	test_graphemes_and_boundaries();
+	test_narrowing_at_bottom_margin();
 	test_raw_payloads();
 	test_resize_pending_utf8();
 	test_shutdown_and_errors();
