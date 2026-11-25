@@ -95,6 +95,16 @@ def run(args):
 
         terminal.case("rip3-wire-block-mode-owns-split-crlf-and-binary-payload")
         download(b"!|9\x1b01020000data.bmp<>\r", "data.bmp", b"\n")
+        terminal.case("rip3-block-mode-collects-zero-fields-before-the-filename")
+        for base, command, name in ((b"10", b".101..", "mega.bin"),
+                                    (b"1S", b".11<0<0&", "ultra.bin")):
+            terminal.exchange(b"\x01|J" + base + b"\r\n")
+            # Type 1 stores the payload without playing it as a RIP scene.
+            download(b"\x01|9\x1b" + command + name.encode() + b"<>\r\n", name)
+            terminal.exchange(b"\x01|9\x1b.1010..bad.bin<>\r\n"
+                              + query(b"alive", at_cursor=True), b"alive")
+            assert not (cache / "bad.bin").exists()
+        terminal.exchange(b"\x01|J10\r\n")
         terminal.case("rip3-xfer-shares-the-live-transfer-worker")
         download(b"!|1\x1b0000$XFER(receive,XMODEMCRC,none,macro.bin)$\r",
                  "macro.bin", b"\n")

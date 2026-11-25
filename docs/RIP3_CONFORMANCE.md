@@ -62,7 +62,6 @@ commands reach the same implementation.
 | Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
 | Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
-| Wire field collection | Numeric shorthand, reserved fields and command-specific recovery in both radices |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
@@ -82,6 +81,11 @@ keeps the previous viewport and continues parsing.
 The file-request group closed 11 blocks. Connected tests check FILEDEL
 replies and cache contents, XFER's 37-filename and 20-byte argument limits,
 and individual file outcomes after a cancelled or disconnected download.
+
+The wire-field review closed six entries. Connected block-mode transfers
+exercise one-byte zero fields and base-64 field terminators before the filename.
+A malformed prefix leaves the following command usable. The historical
+v2.A1 surplus rule is recorded as context for the 3.0 delimiter rules.
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.

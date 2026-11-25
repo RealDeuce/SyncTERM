@@ -1824,30 +1824,29 @@ static int
 wire_transfer(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
 	if (session->scene_count != 0 || !st_rip3_stream_pending_lf(session->stream)
-	    || length < 12 || memcmp(bytes + length - 2, "<>", 2) != 0)
+	    || length < 4 || memcmp(bytes + length - 2, "<>", 2) != 0)
 		return IO_ERROR_INVALID_FORMAT;
 	struct st_rip3_environment environment;
 	unsigned current;
 	int status = st_rip3_command_environment(&session->commands, &current, &environment);
 	const size_t widths[] = {1, 1, 2, 2, 2};
 	uint64_t value[sizeof(widths) / sizeof(*widths)];
-	size_t offset = 2;
-	for (size_t i = 0; status == 0 && i < sizeof(widths) / sizeof(*widths); ++i) {
-		status = st_rip3_command_field(&value[i], bytes + offset, widths[i],
-		    environment.base_math);
-		offset += widths[i];
-	}
+	/* Exclude the opcode and the filename terminator from the field reader. */
+	struct st_rip3_fields fields = {bytes + 2, length - 4};
+	for (size_t i = 0; status == 0 && i < sizeof(widths) / sizeof(*widths); ++i)
+		status = st_rip3_command_next_field(&fields, &value[i], widths[i],
+		    environment.base_math, false);
 	if (status != 0)
 		return status;
 	if (value[0] > 1)
 		return IO_ERROR_INVALID_FORMAT;
-	size_t size = length - offset - 2;
-	if (memchr(bytes + offset, 0, size) != NULL)
+	size_t size = fields.remaining;
+	if (memchr(fields.bytes, 0, size) != NULL)
 		return IO_ERROR_INVALID_FORMAT;
 	char *filenames = malloc(size + 1);
 	if (filenames == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	memcpy(filenames, bytes + offset, size);
+	memcpy(filenames, fields.bytes, size);
 	filenames[size] = '\0';
 	status = start_transfer(session, value[0] != 0, (unsigned)value[1],
 	    (unsigned)value[2], filenames, (value[3] & 1) != 0);

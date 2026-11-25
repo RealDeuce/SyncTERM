@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int
+static int
 st_rip3_command_field(uint64_t *result, const uint8_t *bytes, size_t length, unsigned radix)
 {
 	if (length == 0 || length > 5)

@@ -42,8 +42,6 @@ int st_rip3_button_commands_execute(const struct st_rip3_command_host *host,
 
 /* Private wire-field and execution helpers. Every status is consumed by the
  * public void processing boundary; none is a terminal/session return status. */
-int st_rip3_command_field(uint64_t *result, const uint8_t *bytes,
-	size_t length, unsigned radix);
 struct st_rip3_fields {
 	const uint8_t *bytes;
 	size_t remaining;
