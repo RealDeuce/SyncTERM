@@ -578,7 +578,7 @@ angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_byte
 	/* The outer/conditional stages synthesize retrieval. Strip only repeated
 	 * GET prefixes for ordinary built-in dispatch; extended syntax on a known
 	 * built-in must never reach a same-named user record. */
-	uint8_t ordinary[259];size_t start=1;
+	uint8_t ordinary[ST_RIP3_CONDITION_REFERENCE_CAPACITY];size_t start=1;
 	while (start<reference->length && reference->bytes[start]=='&') start++;
 	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+start,reference->length-start);
 	size_t length=reference->length-start+1;
@@ -821,7 +821,7 @@ st_rip3_query_start_owned(struct st_rip3_query *query, const uint8_t *bytes, siz
 	if (end!=NULL) length=(size_t)(end-bytes);
 	query->template_owner=owner;
 	for (size_t i=0; i+1<length; i++) if (bytes[i]=='<' && bytes[i+1]=='<') {
-		int status=st_rip3_angle_create(&query->angle,bytes,length);
+		int status=st_rip3_angle_create(&query->angle,bytes,length,query->codepage_converted);
 		if (status!=0) return status;
 		query->complete=complete;
 		query->pass=4;st_rip3_query_process(query,64);return 0;

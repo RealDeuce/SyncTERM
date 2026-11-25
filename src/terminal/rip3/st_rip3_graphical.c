@@ -172,7 +172,7 @@ static void
 reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool angle)
 {
 	const uint8_t *source=bytes;size_t source_length=length;
-	uint8_t ordinary[259];
+	uint8_t ordinary[ST_RIP3_CONDITION_REFERENCE_CAPACITY];
 	if (angle) {
 		size_t start=1;
 		while (start<length && bytes[start]=='&') start++;

@@ -153,6 +153,24 @@ def run(args):
         for source,expected in ((b'<<?3>>',b'640'),(b'<<?4>>',b'$?3$')):
             t.exchange(b'\x01|m0000|T'+source+b'\r\n'+query(b'$TEXTXY$',at_cursor=True),
                        f'{len(expected)*8}:0'.encode())
+
+        t.case('rip3-conditional-and-angle-wire-byte-limits')
+        wire_glyph = b'\xb3' if args.encoding == 'CP437' else '│'.encode()
+        bound = wire_glyph * (255 // len(wire_glyph))
+        values(b'[Q:]' + bound)
+        literal = b'"' + bound[:-len(wire_glyph)] + b'\\' + wire_glyph + b'"'
+        values(b'<<IF ?Q=' + literal + b'>>equal<<ELSE>>different<<ENDIF>>', b'equal')
+        # A lookup failure is a false comparison even with the != operator.
+        values(b'[Q:]' + bound + b'X')
+        values(b'<<IF ?Q!=' + literal + b'>>different<<ELSE>>false<<ENDIF>>', b'false')
+        values(b'<<IF ?Q="' + bound + b'X">>too long<<ENDIF>>')
+        values(b'$-=OPERAND=old$')
+        reference = b'OPERAND@' + wire_glyph * (247 // len(wire_glyph))
+        values(b'<<IF $' + reference + b'$=old>>left<<ENDIF>>:<<' + reference + b'>>', b'left:old')
+        values(b'<<' + reference + b'XXXX>>')
+        text = b'<<IF $' + reference + b'$=old>>A<<ENDIF>>'
+        t.exchange(b'\x01|m0000|T' + text + b'\r\n' + query(b'$TEXTXY$', at_cursor=True), b'8:0')
+
         t.case('rip3-graphical-position-prefix-survives-setter')
         t.exchange(b'\x01|@.1E$COORDSIZE(CUR,5)$A\r\n'
                    +query(b'$TEXTXY$:$COORDSIZE$',at_cursor=True),b'0:50:5')

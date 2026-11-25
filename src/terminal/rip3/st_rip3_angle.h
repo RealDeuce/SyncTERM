@@ -23,7 +23,7 @@ struct st_rip3_angle_request {
  * Failed creation preserves result. One owner thread invokes all methods.
  * The owner supplies the consumer's permitted provider classes and owns its
  * input gate, user operation, cancellation and callback diagnostics. */
-int st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length);
+int st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, bool converted);
 /* Graphical consumers enforce their prefix limit at entry and each splice;
  * the ordinary host factory above retains its existing unbounded policy. */
 int st_rip3_angle_create_bounded(struct st_rip3_angle **result, const uint8_t *bytes,

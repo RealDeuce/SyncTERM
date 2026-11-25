@@ -26,9 +26,9 @@ struct st_rip3_condition_provider {
  * dependency. Every failure preserves output pointers/counts. These statuses
  * must be consumed inside the owning void RIP preprocessor, never returned
  * as terminal/session processing errors. */
-int st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *consumed);
+int st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *consumed, bool converted);
 int st_rip3_condition_program_parse(struct st_rip3_condition_program **result,
-	const uint8_t *source, size_t length, size_t *consumed);
+	const uint8_t *source, size_t length, size_t *consumed, bool converted);
 void st_rip3_condition_program_destroy(struct st_rip3_condition_program *program);
 /* Typed reduction resolves all comparisons in source order, without Boolean
  * short circuit. Provider format/lookup failure, unavailable binding or result

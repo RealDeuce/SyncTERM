@@ -9351,6 +9351,23 @@ for a stored slot, a two-step chain, and a pair of selected checkbox
 contributions. The UTF-8 test includes a multibyte sequence that crosses the
 wire boundary. Chain results enter the existing ordinary expansion passes.
 
+## Connected conditional and named angle byte limits
+
+Conditional left references, right literals, and returned comparison values
+use the 255-byte protocol bound. The named angle fallback applies its own
+255-byte bound before synthesizing a variable reference. For a normalized
+codepage connection, each source byte occupies one unit in these bounds.
+UTF-8 connections count the actual wire bytes.
+
+Connected CP437 and UTF-8 tests compare an escaped literal at the limit,
+reject an oversized literal, check the false result of an oversized provider
+value, and evaluate a long reference in both host replies and graphics text.
+
+Relational comparisons of non-ASCII codepage values still need to use their
+original byte order. A connected CP437 probe compared `81` hex (`ü`) with
+`82` hex (`é`) and took the greater branch because their UTF-8 byte order is
+reversed.
+
 ## Connected RIP_DEFINE
 
 Wire `1D` uses the current radix for its three flag digits and two reserved

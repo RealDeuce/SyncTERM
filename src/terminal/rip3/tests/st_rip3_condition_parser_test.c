@@ -61,7 +61,7 @@ evaluate(struct fixture *f, const uint8_t *source, size_t length, bool expected)
 	struct st_rip3_condition_program *program=NULL;
 	struct st_rip3_condition_provider provider={f,reference,template};
 	size_t consumed=SIZE_MAX;
-	CHECK(st_rip3_condition_program_parse(&program,source,length,&consumed)==0 && consumed<=length);
+	CHECK(st_rip3_condition_program_parse(&program,source,length,&consumed, false)==0 && consumed<=length);
 	bool result=!expected;
 	CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && result==expected);
 	st_rip3_condition_program_destroy(program);return 0;
@@ -108,7 +108,7 @@ examples(void)
 	};
 	for (size_t i=0; i<sizeof(invalid)/sizeof(invalid[0]); i++) {
 		size_t consumed=99;
-		CHECK(st_rip3_condition_source_validate((const uint8_t *)invalid[i],strlen(invalid[i]),&consumed)!=0 && consumed==99);
+		CHECK(st_rip3_condition_source_validate((const uint8_t *)invalid[i],strlen(invalid[i]),&consumed, false)!=0 && consumed==99);
 	}
 	struct fixture f={.value=(const uint8_t *)"A",.length=1};
 	CHECK(text(&f,"?a=A>>",true)==0 && f.calls==1 && f.templates==1 && f.slot==10);
@@ -128,10 +128,10 @@ bytes_and_structure(void)
 	for (unsigned byte=0; byte<256; byte++) {
 		uint8_t source[]={(uint8_t)byte,'=','A','>','>'};
 		bool letter=(byte>='A' && byte<='Z') || (byte>='a' && byte<='z');
-		CHECK((st_rip3_condition_source_validate(source,sizeof(source),NULL)==0)==letter);
+		CHECK((st_rip3_condition_source_validate(source,sizeof(source),NULL, false)==0)==letter);
 		uint8_t quoted[]={'N','=','"',(uint8_t)byte,'"','>','>'};
 		bool payload=byte!=0 && byte!='"' && byte!='\\';
-		CHECK((st_rip3_condition_source_validate(quoted,sizeof(quoted),NULL)==0)==payload);
+		CHECK((st_rip3_condition_source_validate(quoted,sizeof(quoted),NULL, false)==0)==payload);
 		if (payload) {
 			uint8_t value=(uint8_t)byte;struct fixture f={.value=&value,.length=1};
 			CHECK(evaluate(&f,quoted,sizeof(quoted),true)==0);
@@ -142,7 +142,7 @@ bytes_and_structure(void)
 	const char *const valid[]={"N=A AND N=A>>","N=A\tAND N=A>>","N=A AND \t(N=A)>>",
 	    "not (N=A)>>","NOT NOT N=A>>","N=\"A\"OR N=A>>"};
 	for (size_t i=0; i<sizeof(valid)/sizeof(valid[0]); i++)
-		CHECK(st_rip3_condition_source_validate((const uint8_t *)valid[i],strlen(valid[i]),NULL)==0);
+		CHECK(st_rip3_condition_source_validate((const uint8_t *)valid[i],strlen(valid[i]),NULL, false)==0);
 	f=(struct fixture){.value=(const uint8_t *)"1",.length=1};
 	CHECK(text(&f,"N=1 OR N=0 AND N=0>>",false)==0 && f.calls==3);
 	f.calls=0;CHECK(text(&f,"NOT N=1 OR N=1>>",false)==0 && f.calls==2);
@@ -155,9 +155,9 @@ bytes_and_structure(void)
 	char deep[270];memset(deep,'(',128);memcpy(deep+128,"N=1",3);memset(deep+131,')',128);memcpy(deep+259,">>",3);
 	CHECK(text(&f,deep,true)==0);
 	const uint8_t nul[]={'N','=','A',0,'>','>'};
-	CHECK(st_rip3_condition_source_validate(nul,sizeof(nul),NULL)==IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_condition_source_validate(nul,sizeof(nul),NULL, false)==IO_ERROR_INVALID_FORMAT);
 	size_t consumed=0;
-	CHECK(st_rip3_condition_source_validate((const uint8_t *)"  N=A>>tail",11,&consumed)==0 && consumed==7);
+	CHECK(st_rip3_condition_source_validate((const uint8_t *)"  N=A>>tail",11,&consumed, false)==0 && consumed==7);
 	return 0;
 }
 
@@ -166,7 +166,7 @@ continuations(void)
 {
 	char source[]="n=1 OR ?a=2 AND M=3>>";
 	struct st_rip3_condition_program *program=NULL;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, false)==0);
 	struct st_rip3_condition_evaluation *a=NULL,*b=NULL;
 	CHECK(st_rip3_condition_evaluation_create(&a,program)==0
 	    && st_rip3_condition_evaluation_create(&b,program)==0);
@@ -223,7 +223,7 @@ continuations(void)
 	/* Invalid synthesized references do not reach a provider; syntax was still
 	 * valid at the broader conditional operand stage. Later leaves still run. */
 	const char *invalid="$N\\$TAIL$!=A OR ?0=>>";
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)invalid,strlen(invalid),NULL)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)invalid,strlen(invalid),NULL, false)==0);
 	CHECK(st_rip3_condition_evaluation_create(&a,program)==0);st_rip3_condition_program_destroy(program);program=NULL;
 	st_rip3_condition_evaluation_process(a,1);
 	CHECK(st_rip3_condition_evaluation_request(a)==NULL && st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_RUNNING);
@@ -234,7 +234,7 @@ continuations(void)
 	CHECK(st_rip3_condition_evaluation_result(a,&result) && result);
 	st_rip3_condition_evaluation_destroy(a);
 	const char *single="N!=A>>";
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)single,strlen(single),NULL)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)single,strlen(single),NULL, false)==0);
 	uint8_t long_value[256];memset(long_value,'B',sizeof(long_value));
 	const struct {const uint8_t *bytes;size_t length;int status;bool expected;} values[]={
 		{long_value,255,0,true},{long_value,256,0,false},{NULL,1,0,false},
@@ -276,32 +276,32 @@ limits_and_failures(void)
 	struct fixture f={.value=value,.length=255};
 	CHECK(evaluate(&f,source,514,true)==0 && f.calls==1);
 	memcpy(source+512,"\\A>>",4);
-	CHECK(st_rip3_condition_source_validate(source,516,NULL)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_condition_source_validate(source,516,NULL, false)==IO_ERROR_OUT_OF_RANGE);
 	/* Capacity is checked before trimming escaped whitespace. */
 	memcpy(source,"N=",2);memset(source+2,'A',254);memcpy(source+256,"\\ >>",4);
 	f.length=254;CHECK(evaluate(&f,source,260,true)==0);
 	memcpy(source+258,"\\ >>",4);
-	CHECK(st_rip3_condition_source_validate(source,262,NULL)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_condition_source_validate(source,262,NULL, false)==IO_ERROR_OUT_OF_RANGE);
 	/* The special escaped terminator pair needs two available output slots. */
 	memcpy(source,"N=",2);memset(source+2,'A',253);memcpy(source+255,"\\>>>>",5);
 	value[253]=value[254]='>';f.length=255;
 	CHECK(evaluate(&f,source,260,true)==0);
 	memcpy(source,"N=",2);memset(source+2,'A',254);memcpy(source+256,"\\>>>>",5);
-	CHECK(st_rip3_condition_source_validate(source,261,NULL)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_condition_source_validate(source,261,NULL, false)==IO_ERROR_OUT_OF_RANGE);
 	/* Long source encoding is legal; the decoded left body has its own bound,
 	 * independent of the provider's narrower identifier/argument validation. */
 	source[0]='$';source[1]='N';
 	for (size_t i=0; i<254; i++) { source[2+2*i]='\\';source[3+2*i]='A'; }
 	memcpy(source+510,"$=A>>",5);
-	CHECK(st_rip3_condition_source_validate(source,515,NULL)==0);
+	CHECK(st_rip3_condition_source_validate(source,515,NULL, false)==0);
 	memcpy(source+510,"\\A$=A>>",7);
-	CHECK(st_rip3_condition_source_validate(source,517,NULL)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_condition_source_validate(source,517,NULL, false)==IO_ERROR_OUT_OF_RANGE);
 	f=(struct fixture){.value=value,.length=256};CHECK(text(&f,"N!=A>>",false)==0 && f.calls==1);
 	f=(struct fixture){.status=IO_ERROR_NOT_FOUND};CHECK(text(&f,"N!=>>",false)==0 && f.calls==1);
 	f=(struct fixture){0};CHECK(text(&f,"N=>>",true)==0 && f.calls==1);
 	struct st_rip3_condition_program *program=NULL;
 	char owned[]="n=A>>later";size_t consumed=99;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)owned,strlen(owned),&consumed)==0 && consumed==5);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)owned,strlen(owned),&consumed, false)==0 && consumed==5);
 	memset(owned,'?',sizeof(owned)-1);
 	f=(struct fixture){.value=(const uint8_t *)"A",.length=1};
 	struct st_rip3_condition_provider provider={&f,reference,template};bool result=false;
@@ -309,24 +309,24 @@ limits_and_failures(void)
 	struct st_rip3_condition_program *saved=program;
 	st_rip3_condition_parser_test_fail=true;consumed=99;
 	size_t allocations=st_rip3_condition_parser_test_allocations;
-	CHECK(st_rip3_condition_source_validate((const uint8_t *)"N=A>>",5,&consumed)==0 && consumed==5
+	CHECK(st_rip3_condition_source_validate((const uint8_t *)"N=A>>",5,&consumed, false)==0 && consumed==5
 	    && st_rip3_condition_parser_test_allocations==allocations);
 	consumed=99;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=A>>",5,&consumed)==IO_ERROR_OUT_OF_MEMORY
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=A>>",5,&consumed, false)==IO_ERROR_OUT_OF_MEMORY
 	    && program==saved && consumed==99);
 	allocations=st_rip3_condition_parser_test_allocations;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=",2,&consumed)==IO_ERROR_INVALID_FORMAT
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=",2,&consumed, false)==IO_ERROR_INVALID_FORMAT
 	    && program==saved && consumed==99 && st_rip3_condition_parser_test_allocations==allocations);
 	st_rip3_condition_parser_test_fail=false;
 	st_rip3_condition_program_destroy(program);program=NULL;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"?0=A>>",6,NULL)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"?0=A>>",6,NULL, false)==0);
 	provider.template=NULL;result=true;
 	CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && !result);
 	result=true;CHECK(st_rip3_condition_program_evaluate(&result,program,NULL)==0 && !result);
 	st_rip3_condition_program_destroy(program);
-	CHECK(st_rip3_condition_program_parse(NULL,(const uint8_t *)"N=A>>",5,NULL)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_condition_source_validate(NULL,0,NULL)==IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_condition_source_validate((const uint8_t *)"N=A>>",SIZE_MAX,NULL)==IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_condition_program_parse(NULL,(const uint8_t *)"N=A>>",5,NULL, false)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_condition_source_validate(NULL,0,NULL, false)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_condition_source_validate((const uint8_t *)"N=A>>",SIZE_MAX,NULL, false)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_condition_program_evaluate(NULL,NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);
 	st_rip3_condition_program_destroy(NULL);
 	return 0;

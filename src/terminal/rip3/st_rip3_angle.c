@@ -19,7 +19,7 @@ struct st_rip3_angle {
 	struct st_rip3_condition_evaluation *condition;
 	struct st_rip3_angle_request request;
 	struct st_rip3_condition_bytes result;
-	uint8_t reference[259];
+	uint8_t reference[ST_RIP3_CONDITION_REFERENCE_CAPACITY];
 	enum st_rip3_angle_state state;
 	enum st_rip3_angle_diagnostic diagnostic;
 };
@@ -42,11 +42,13 @@ splice(struct st_rip3_angle *angle, size_t count, const uint8_t *bytes, size_t l
 {
 	/* The working text includes processed prefix, insertion and unread suffix.
 	 * Clip before moving/scanning so a later shrink cannot reveal discarded data. */
-	size_t remaining=angle->limit-st_rip3_graphical_units(angle->bytes,angle->cursor,angle->converted);
-	length=st_rip3_graphical_prefix(bytes,length,remaining,angle->converted);
-	remaining-=st_rip3_graphical_units(bytes,length,angle->converted);
-	size_t suffix=st_rip3_graphical_prefix(angle->bytes+angle->cursor+count,
-	    angle->length-angle->cursor-count,remaining,angle->converted);
+	size_t suffix = angle->length - angle->cursor - count;
+	if (angle->limit != SIZE_MAX - 1) {
+		size_t remaining=angle->limit-st_rip3_graphical_units(angle->bytes,angle->cursor,angle->converted);
+		length=st_rip3_graphical_prefix(bytes,length,remaining,angle->converted);
+		remaining-=st_rip3_graphical_units(bytes,length,angle->converted);
+		suffix=st_rip3_graphical_prefix(angle->bytes+angle->cursor+count,suffix,remaining,angle->converted);
+	}
 	if (length>SIZE_MAX-1-angle->cursor || suffix>SIZE_MAX-1-angle->cursor-length) {
 		fail(angle,ST_RIP3_ANGLE_RESOURCE);return false;
 	}
@@ -92,7 +94,7 @@ prefix(const uint8_t *bytes, size_t length, const char *word)
 static bool
 reference_valid(const uint8_t *bytes, size_t length)
 {
-	uint8_t ordinary[259];size_t start=1;
+	uint8_t ordinary[ST_RIP3_CONDITION_REFERENCE_CAPACITY];size_t start=1;
 	while (start<length && bytes[start]=='&') start++;
 	ordinary[0]='$';memcpy(ordinary+1,bytes+start,length-start);
 	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
@@ -123,9 +125,9 @@ st_rip3_angle_create_bounded(struct st_rip3_angle **result, const uint8_t *bytes
 }
 
 int
-st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length)
+st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, bool converted)
 {
-	return st_rip3_angle_create_bounded(result,bytes,length,SIZE_MAX-1);
+	return st_rip3_angle_create_graphical(result,bytes,length,SIZE_MAX-1,converted);
 }
 
 void
@@ -202,14 +204,14 @@ static void
 conditional(struct st_rip3_angle *angle, size_t end, bool elseif)
 {
 	size_t begin=angle->cursor+(elseif ? 9 : 5),length=end+2-begin,consumed=0;
-	int status=st_rip3_condition_source_validate(angle->bytes+begin,length,&consumed);
+	int status=st_rip3_condition_source_validate(angle->bytes+begin,length,&consumed,angle->converted);
 	if (status!=0 || consumed!=length || (elseif && (angle->depth==0 || angle->branches[angle->depth-1].seen_else))
 	    || (!elseif && angle->depth==16)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 	bool parent=elseif ? angle->branches[angle->depth-1].parent : active(angle);
 	bool eligible=parent && (!elseif || !angle->branches[angle->depth-1].selected);
 	if (eligible) {
 		struct st_rip3_condition_program *program=NULL;
-		status=st_rip3_condition_program_parse(&program,angle->bytes+begin,length,NULL);
+		status=st_rip3_condition_program_parse(&program,angle->bytes+begin,length,NULL,angle->converted);
 		if (status==0) status=st_rip3_condition_evaluation_create(&angle->condition,program);
 		st_rip3_condition_program_destroy(program);
 		if (status!=0) {fail(angle,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_ANGLE_RESOURCE : ST_RIP3_ANGLE_INVALID);return;}
@@ -243,7 +245,8 @@ header(struct st_rip3_angle *angle)
 			angle->request.kind=ST_RIP3_ANGLE_TEMPLATE;angle->request.number=(unsigned)(code<='9' ? code-'0' : code-'A'+10);
 		}
 		else {
-			if (length==0 || length>255) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
+			if (length == 0 || st_rip3_graphical_prefix(body, length, ST_RIP3_CONDITION_OPERAND_LIMIT,
+			    angle->converted) != length) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 			angle->reference[0]='$';angle->reference[1]='&';memcpy(angle->reference+2,body,length);angle->reference[length+2]='$';
 			angle->reference[length+3]=0;
 			if (!reference_valid(angle->reference,length+3)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}

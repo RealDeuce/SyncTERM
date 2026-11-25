@@ -1,6 +1,7 @@
 /* Conditional operand lexer; independent of dollar-argument escape rules. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_condition_internal.h"
+#include "st_rip3_graphical_bytes.h"
 #include "st_rip3_host_internal.h"
 #include "io_error.h"
 
@@ -9,13 +10,14 @@
 
 struct st_rip3_condition_program {
 	size_t count;
+	bool converted;
 	struct st_rip3_condition_token tokens[];
 };
 
 struct st_rip3_condition_evaluation {
 	size_t count, cursor;
 	enum st_rip3_condition_evaluation_state state;
-	bool result;
+	bool result, converted;
 	struct st_rip3_condition_token tokens[];
 };
 
@@ -24,6 +26,7 @@ struct scanner {
 	size_t length, at, count, payload;
 	struct st_rip3_condition_token *tokens;
 	uint8_t *storage;
+	bool converted;
 };
 
 static bool
@@ -67,14 +70,23 @@ terminator(const struct scanner *scanner)
 }
 
 static int
-append(uint8_t bytes[255], size_t *length, uint8_t byte)
+append(struct scanner *scanner, uint8_t *result, size_t *length, size_t *remaining, size_t units)
 {
-	if (*length==255) return IO_ERROR_OUT_OF_RANGE;
-	bytes[(*length)++]=byte;return 0;
+	if (units > *remaining) return IO_ERROR_OUT_OF_RANGE;
+	const uint8_t *source = scanner->source + scanner->at;
+	/* An escaped >> always occupies two ASCII bytes. Other payload is
+	 * copied as one source byte, or its complete normalized representation. */
+	size_t size = units == 1 && scanner->converted
+	    ? st_rip3_graphical_character(source, scanner->length - scanner->at) : units;
+	memcpy(result + *length, source, size);
+	*length += size;
+	*remaining -= units;
+	scanner->at += size;
+	return 0;
 }
 
 static int
-left(struct scanner *scanner, uint8_t result[258], size_t *length)
+left(struct scanner *scanner, uint8_t *result, size_t *length)
 {
 	if (scanner->at==scanner->length) return IO_ERROR_INVALID_FORMAT;
 	if (scanner->source[scanner->at]=='?') {
@@ -88,24 +100,22 @@ left(struct scanner *scanner, uint8_t result[258], size_t *length)
 	bool delimited=scanner->source[scanner->at]=='$';
 	if (delimited) scanner->at++;
 	if (scanner->at==scanner->length || !alpha(scanner->source[scanner->at])) return IO_ERROR_INVALID_FORMAT;
-	uint8_t body[255];size_t used=0;
+	size_t used = 0, remaining = ST_RIP3_CONDITION_OPERAND_LIMIT;
 	while (scanner->at<scanner->length) {
 		uint8_t byte=scanner->source[scanner->at];
 		if (byte=='\\') {
 			if (++scanner->at==scanner->length) return IO_ERROR_INVALID_FORMAT;
-			byte=scanner->source[scanner->at++];
 		}
 		else if (byte=='$') {
 			if (!delimited) return IO_ERROR_INVALID_FORMAT;
 			scanner->at++;delimited=false;break;
 		}
 		else if (!delimited && (space(byte) || byte=='=' || byte=='!' || byte=='<' || byte=='>')) break;
-		else scanner->at++;
-		int status=append(body,&used,byte);
+		int status = append(scanner, result + 2, &used, &remaining, 1);
 		if (status!=0) return status;
 	}
 	if (delimited || scanner->at==scanner->length) return IO_ERROR_INVALID_FORMAT;
-	result[0]='$';result[1]='&';memcpy(result+2,body,used);result[used+2]='$';*length=used+3;
+	result[0]='$';result[1]='&';result[used+2]='$';*length=used+3;
 	return 0;
 }
 
@@ -128,30 +138,24 @@ operation(struct scanner *scanner, enum st_rip3_condition_operator *result)
 }
 
 static int
-right(struct scanner *scanner, uint8_t result[255], size_t *length)
+right(struct scanner *scanner, uint8_t *result, size_t *length)
 {
 	whitespace(scanner);
 	if (scanner->at==scanner->length) return IO_ERROR_INVALID_FORMAT;
 	bool quoted=scanner->source[scanner->at]=='"',closed=false;
 	if (quoted) scanner->at++;
-	size_t used=0;
+	size_t used = 0, remaining = ST_RIP3_CONDITION_OPERAND_LIMIT;
 	while (scanner->at<scanner->length) {
 		uint8_t byte=scanner->source[scanner->at];
 		if (!quoted && (space(byte) || byte==')')) break;
+		size_t units = 1;
 		if (byte=='\\') {
 			if (++scanner->at==scanner->length) return IO_ERROR_INVALID_FORMAT;
-			if (terminator(scanner)) {
-				int status=append(result,&used,'>');
-				if (status==0) status=append(result,&used,'>');
-				if (status!=0) return status;
-				scanner->at+=2;continue;
-			}
-			byte=scanner->source[scanner->at++];
+			if (terminator(scanner)) units = 2;
 		}
 		else if (terminator(scanner)) break;
 		else if (quoted && byte=='"') { scanner->at++;closed=true;break; }
-		else scanner->at++;
-		int status=append(result,&used,byte);
+		int status = append(scanner, result, &used, &remaining, units);
 		if (status!=0) return status;
 	}
 	if (quoted && !closed) return IO_ERROR_INVALID_FORMAT;
@@ -192,7 +196,8 @@ scan(struct scanner *scanner)
 			if (keyword(scanner,"NOT ")) kind=ST_RIP3_CONDITION_NOT;
 			else if (scanner->source[scanner->at]=='(') { scanner->at++;depth++;kind=ST_RIP3_CONDITION_OPEN; }
 			else {
-				uint8_t reference[258],literal[255];size_t reference_length,literal_length;
+				uint8_t reference[ST_RIP3_CONDITION_REFERENCE_CAPACITY], literal[ST_RIP3_CONDITION_ENCODED_CAPACITY];
+				size_t reference_length,literal_length;
 				enum st_rip3_condition_operator op;
 				status=left(scanner,reference,&reference_length);
 				if (status==0) status=operation(scanner,&op);
@@ -220,19 +225,19 @@ scan(struct scanner *scanner)
 }
 
 static int
-initialize(struct scanner *scanner, const uint8_t *source, size_t length)
+initialize(struct scanner *scanner, const uint8_t *source, size_t length, bool converted)
 {
 	if (source==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (length==SIZE_MAX) return IO_ERROR_OUT_OF_RANGE;
 	const uint8_t *end=memchr(source,0,length);
-	*scanner=(struct scanner){.source=source,.length=end==NULL ? length : (size_t)(end-source)};
+	*scanner=(struct scanner){.source=source,.length=end==NULL ? length : (size_t)(end-source),.converted=converted};
 	return 0;
 }
 
 int
-st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *consumed)
+st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *consumed, bool converted)
 {
-	struct scanner scanner;int status=initialize(&scanner,source,length);
+	struct scanner scanner;int status=initialize(&scanner,source,length,converted);
 	if (status==0) status=scan(&scanner);
 	if (status==0 && consumed!=NULL) *consumed=scanner.at;
 	return status;
@@ -240,10 +245,10 @@ st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *
 
 int
 st_rip3_condition_program_parse(struct st_rip3_condition_program **result,
-    const uint8_t *source, size_t length, size_t *consumed)
+    const uint8_t *source, size_t length, size_t *consumed, bool converted)
 {
 	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	struct scanner scanner;int status=initialize(&scanner,source,length);
+	struct scanner scanner;int status=initialize(&scanner,source,length,converted);
 	if (status==0) status=scan(&scanner);
 	if (status!=0) return status;
 	size_t count=scanner.count,payload=scanner.payload;
@@ -254,6 +259,7 @@ st_rip3_condition_program_parse(struct st_rip3_condition_program **result,
 	struct st_rip3_condition_program *program=calloc(1,size+payload);
 	if (program==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	program->count=count;
+	program->converted=converted;
 	scanner.at=scanner.count=scanner.payload=0;scanner.tokens=program->tokens;
 	scanner.storage=(uint8_t *)(program->tokens+count);
 	status=scan(&scanner);
@@ -274,7 +280,7 @@ provider_reference_valid(const struct st_rip3_condition_bytes *reference)
 	if (reference->length==2 && reference->bytes[0]=='?') return reference->bytes[1]<36;
 	/* Validate the complete synthesized reference without executing a
 	 * provider on an unintended prefix. The source lexer stays broader. */
-	uint8_t ordinary[257];size_t size=reference->length-1;
+	uint8_t ordinary[ST_RIP3_CONDITION_REFERENCE_CAPACITY];size_t size=reference->length-1;
 	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+2,reference->length-2);
 	struct st_rip3_builtin_reference builtin;
 	struct st_rip3_variable_reference user;
@@ -298,8 +304,6 @@ provider_value(void *context, const struct st_rip3_condition_bytes *reference,
 		if (provider->reference==NULL) return IO_ERROR_NOT_FOUND;
 		status=provider->reference(provider->context,reference,result);
 	}
-	if (status==0 && (result->length>255 || (result->length!=0 && result->bytes==NULL)))
-		status=IO_ERROR_OUT_OF_RANGE;
 	return status;
 }
 
@@ -344,6 +348,7 @@ st_rip3_condition_evaluation_create(struct st_rip3_condition_evaluation **result
 	struct st_rip3_condition_evaluation *evaluation=calloc(1,size+payload);
 	if (evaluation==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	evaluation->count=count;
+	evaluation->converted=program->converted;
 	memcpy(evaluation->tokens,program->tokens,count*sizeof(*program->tokens));
 	uint8_t *storage=(uint8_t *)(evaluation->tokens+count);
 	for (size_t i=0; i<count; i++) {
@@ -383,8 +388,9 @@ st_rip3_condition_evaluation_supply(struct st_rip3_condition_evaluation *evaluat
 	if (st_rip3_condition_evaluation_state(evaluation)!=ST_RIP3_CONDITION_VALUE) return;
 	struct st_rip3_condition_token *token=&evaluation->tokens[evaluation->cursor];
 	bool answer=false;
-	if (status==0 && value!=NULL && value->length<=255
-	    && (value->length==0 || value->bytes!=NULL))
+	if (status==0 && value!=NULL && (value->length==0 || value->bytes!=NULL)
+	    && st_rip3_graphical_prefix(value->bytes, value->length, ST_RIP3_CONDITION_OPERAND_LIMIT,
+	        evaluation->converted) == value->length)
 		(void)st_rip3_condition_compare(&answer,token->value.comparison.operation,value,&token->value.comparison.literal);
 	*token=(struct st_rip3_condition_token){.kind=ST_RIP3_CONDITION_BOOLEAN,.value.boolean=answer};
 	evaluation->cursor++;evaluation->state=ST_RIP3_CONDITION_RUNNING;
