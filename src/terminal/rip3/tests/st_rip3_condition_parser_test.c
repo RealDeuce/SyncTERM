@@ -61,7 +61,7 @@ evaluate(struct fixture *f, const uint8_t *source, size_t length, bool expected)
 	struct st_rip3_condition_program *program=NULL;
 	struct st_rip3_condition_provider provider={f,reference,template};
 	size_t consumed=SIZE_MAX;
-	CHECK(st_rip3_condition_program_parse(&program,source,length,&consumed, false)==0 && consumed<=length);
+	CHECK(st_rip3_condition_program_parse(&program,source,length,&consumed, ST_CODEPAGE_COUNT)==0 && consumed<=length);
 	bool result=!expected;
 	CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && result==expected);
 	st_rip3_condition_program_destroy(program);return 0;
@@ -166,7 +166,7 @@ continuations(void)
 {
 	char source[]="n=1 OR ?a=2 AND M=3>>";
 	struct st_rip3_condition_program *program=NULL;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, false)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, ST_CODEPAGE_COUNT)==0);
 	struct st_rip3_condition_evaluation *a=NULL,*b=NULL;
 	CHECK(st_rip3_condition_evaluation_create(&a,program)==0
 	    && st_rip3_condition_evaluation_create(&b,program)==0);
@@ -223,7 +223,7 @@ continuations(void)
 	/* Invalid synthesized references do not reach a provider; syntax was still
 	 * valid at the broader conditional operand stage. Later leaves still run. */
 	const char *invalid="$N\\$TAIL$!=A OR ?0=>>";
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)invalid,strlen(invalid),NULL, false)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)invalid,strlen(invalid),NULL, ST_CODEPAGE_COUNT)==0);
 	CHECK(st_rip3_condition_evaluation_create(&a,program)==0);st_rip3_condition_program_destroy(program);program=NULL;
 	st_rip3_condition_evaluation_process(a,1);
 	CHECK(st_rip3_condition_evaluation_request(a)==NULL && st_rip3_condition_evaluation_state(a)==ST_RIP3_CONDITION_RUNNING);
@@ -234,7 +234,7 @@ continuations(void)
 	CHECK(st_rip3_condition_evaluation_result(a,&result) && result);
 	st_rip3_condition_evaluation_destroy(a);
 	const char *single="N!=A>>";
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)single,strlen(single),NULL, false)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)single,strlen(single),NULL, ST_CODEPAGE_COUNT)==0);
 	uint8_t long_value[256];memset(long_value,'B',sizeof(long_value));
 	const struct {const uint8_t *bytes;size_t length;int status;bool expected;} values[]={
 		{long_value,255,0,true},{long_value,256,0,false},{NULL,1,0,false},
@@ -301,7 +301,7 @@ limits_and_failures(void)
 	f=(struct fixture){0};CHECK(text(&f,"N=>>",true)==0 && f.calls==1);
 	struct st_rip3_condition_program *program=NULL;
 	char owned[]="n=A>>later";size_t consumed=99;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)owned,strlen(owned),&consumed, false)==0 && consumed==5);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)owned,strlen(owned),&consumed, ST_CODEPAGE_COUNT)==0 && consumed==5);
 	memset(owned,'?',sizeof(owned)-1);
 	f=(struct fixture){.value=(const uint8_t *)"A",.length=1};
 	struct st_rip3_condition_provider provider={&f,reference,template};bool result=false;
@@ -312,19 +312,19 @@ limits_and_failures(void)
 	CHECK(st_rip3_condition_source_validate((const uint8_t *)"N=A>>",5,&consumed, false)==0 && consumed==5
 	    && st_rip3_condition_parser_test_allocations==allocations);
 	consumed=99;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=A>>",5,&consumed, false)==IO_ERROR_OUT_OF_MEMORY
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=A>>",5,&consumed, ST_CODEPAGE_COUNT)==IO_ERROR_OUT_OF_MEMORY
 	    && program==saved && consumed==99);
 	allocations=st_rip3_condition_parser_test_allocations;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=",2,&consumed, false)==IO_ERROR_INVALID_FORMAT
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"N=",2,&consumed, ST_CODEPAGE_COUNT)==IO_ERROR_INVALID_FORMAT
 	    && program==saved && consumed==99 && st_rip3_condition_parser_test_allocations==allocations);
 	st_rip3_condition_parser_test_fail=false;
 	st_rip3_condition_program_destroy(program);program=NULL;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"?0=A>>",6,NULL, false)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)"?0=A>>",6,NULL, ST_CODEPAGE_COUNT)==0);
 	provider.template=NULL;result=true;
 	CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && !result);
 	result=true;CHECK(st_rip3_condition_program_evaluate(&result,program,NULL)==0 && !result);
 	st_rip3_condition_program_destroy(program);
-	CHECK(st_rip3_condition_program_parse(NULL,(const uint8_t *)"N=A>>",5,NULL, false)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_condition_program_parse(NULL,(const uint8_t *)"N=A>>",5,NULL, ST_CODEPAGE_COUNT)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_condition_source_validate(NULL,0,NULL, false)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_condition_source_validate((const uint8_t *)"N=A>>",SIZE_MAX,NULL, false)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_condition_program_evaluate(NULL,NULL,NULL)==IO_ERROR_INVALID_ARGUMENT);

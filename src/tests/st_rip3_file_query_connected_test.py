@@ -117,6 +117,11 @@ def run(args):
         term.exchange(b"\x01|1D00400FILEEXISTS:spoof\r\n")
         accent = b"\x82" if args.encoding == "CP437" else "é".encode()
         values(b"$FILEEXISTS(" + accent + b"Pixel.icn)$", b"1")
+        # The leading non-filename bytes still count toward the 20-byte
+        # argument limit. Global.dat is the prepared lookup name.
+        argument=accent*(10//len(accent))+b"Global.dat"
+        assert len(argument)==20
+        values(b"$FILEEXISTS("+argument+b")$",b"1")
         for invalid in (b"$FILEEXISTS$", b"$FILEEXISTS()$", b"$FILEEXISTS(Pixel.icn,Mask.msk)$",
                         b"$FILEEXISTS(Pixel.icn" + accent + b")$"):
             values(b"a" + invalid + b"b", b"a" + invalid + b"b")

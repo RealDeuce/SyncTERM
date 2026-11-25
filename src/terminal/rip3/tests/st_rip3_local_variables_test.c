@@ -159,11 +159,11 @@ conditions(void)
 	struct condition_probe probe={.host=&host};
 	const struct st_rip3_condition_provider provider={.context=&probe,.reference=condition_reference};
 	const char *source="SHIFT=1 OR CTRL=1 AND COLORS=256>>";struct st_rip3_condition_program *program=NULL;
-	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, false)==0);
+	CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, ST_CODEPAGE_COUNT)==0);
 	bool result=false;CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && result && keys.calls==2);
 	colors=16;CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && !result && keys.calls==4);
 	st_rip3_condition_program_destroy(program);program=NULL;
-	source="SHIFT!=0>>";CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, false)==0);
+	source="SHIFT!=0>>";CHECK(st_rip3_condition_program_parse(&program,(const uint8_t *)source,strlen(source),NULL, ST_CODEPAGE_COUNT)==0);
 	keys.status=IO_ERROR_IO;result=true;
 	CHECK(st_rip3_condition_program_evaluate(&result,program,&provider)==0 && !result && keys.calls==5);
 	st_rip3_condition_program_destroy(program);return 0;

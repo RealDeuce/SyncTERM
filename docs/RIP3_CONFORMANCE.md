@@ -58,7 +58,6 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
 | Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
 
@@ -91,6 +90,13 @@ The font-effects and retained-text review closed 13 entries. Connected
 tests check decorated MARIN text over truecolor pixels, and distinguish the
 lifetimes of retained text and prepared metrics across table saves, viewport
 erase, HEADER, and full drawing resets.
+
+The host-expression review closed 17 entries. Connected tests distinguish
+CP437 and UTF-8 byte ordering, run a three-image cycle through a stored
+button action and nested local scenes, and check the field and clipboard
+after label cancellation. The exact response bytes for a reached host
+argument syntax error await clarification.
+[Upstream issue #315](https://github.com/bbs-land/remote-imaging-protocol/issues/315)
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.

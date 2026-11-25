@@ -40,7 +40,7 @@ static int
 run(struct fixture *f, const char *source, const char *expected, const char *order)
 {
 	struct st_rip3_angle *angle=NULL;f->calls=0;f->order[0]=0;
-	CHECK(st_rip3_angle_create(&angle,(const uint8_t *)source,strlen(source), false)==0);
+	CHECK(st_rip3_angle_create(&angle,(const uint8_t *)source,strlen(source), ST_CODEPAGE_COUNT)==0);
 	for (unsigned i=0; i<10000 && st_rip3_angle_state(angle)<ST_RIP3_ANGLE_COMPLETE; i++) {
 		st_rip3_angle_process(angle,1);
 		const struct st_rip3_angle_request *request=st_rip3_angle_request(angle);
@@ -118,11 +118,11 @@ limits_and_failures(void)
 	st_rip3_angle_test_allocations=0;
 	CHECK(run(&f,"<<IF A=1>><<B>><<ENDIF>>",large,"AB")==0);
 	size_t allocations=st_rip3_angle_test_allocations;CHECK(allocations>=5);
-	struct st_rip3_angle *retained=NULL;CHECK(st_rip3_angle_create(&retained,(const uint8_t *)"kept",4, false)==0);
+	struct st_rip3_angle *retained=NULL;CHECK(st_rip3_angle_create(&retained,(const uint8_t *)"kept",4, ST_CODEPAGE_COUNT)==0);
 	for (size_t failure=0; failure<allocations; failure++) {
 		st_rip3_angle_test_allocations=0;st_rip3_angle_test_fail_at=failure;
 		struct st_rip3_angle *angle=retained;
-		int status=st_rip3_angle_create(&angle,(const uint8_t *)"<<IF A=1>><<B>><<ENDIF>>",24, false);
+		int status=st_rip3_angle_create(&angle,(const uint8_t *)"<<IF A=1>><<B>><<ENDIF>>",24, ST_CODEPAGE_COUNT);
 		if (status!=0) {CHECK(status==IO_ERROR_OUT_OF_MEMORY && angle==retained);continue;}
 		for (unsigned step=0; step<100 && st_rip3_angle_state(angle)<ST_RIP3_ANGLE_COMPLETE; step++) {
 			st_rip3_angle_process(angle,1);const struct st_rip3_angle_request *request=st_rip3_angle_request(angle);
@@ -135,7 +135,7 @@ limits_and_failures(void)
 	}
 	st_rip3_angle_test_fail_at=SIZE_MAX;st_rip3_angle_destroy(retained);
 	/* A self-replacing name does not consume an entire owner-thread call. */
-	struct st_rip3_angle *cycle=NULL;CHECK(st_rip3_angle_create(&cycle,(const uint8_t *)"<<A>>",5, false)==0);
+	struct st_rip3_angle *cycle=NULL;CHECK(st_rip3_angle_create(&cycle,(const uint8_t *)"<<A>>",5, ST_CODEPAGE_COUNT)==0);
 	const struct st_rip3_condition_bytes repeated={(const uint8_t *)"<<A>>",5};
 	for (unsigned i=0; i<3; i++) {
 		st_rip3_angle_process(cycle,8);CHECK(st_rip3_angle_request(cycle)!=NULL);
@@ -156,7 +156,7 @@ depth_and_ownership(void)
 	CHECK(run(&f,source,NULL,"AAAAAAAAAAAAAAAA")==0);
 	f.a="0";CHECK(run(&f,source,NULL,"A")==0);
 	struct st_rip3_angle *angle=NULL;char owned[]="<<A>>";
-	CHECK(st_rip3_angle_create(&angle,(const uint8_t *)owned,strlen(owned), false)==0);memset(owned,'!',strlen(owned));
+	CHECK(st_rip3_angle_create(&angle,(const uint8_t *)owned,strlen(owned), ST_CODEPAGE_COUNT)==0);memset(owned,'!',strlen(owned));
 	st_rip3_angle_process(angle,10);CHECK(st_rip3_angle_request(angle)!=NULL);
 	const uint8_t bytes[]={'X',0,'Y'};const struct st_rip3_condition_bytes text={bytes,sizeof(bytes)};
 	st_rip3_angle_supply(angle,&text,0);st_rip3_angle_process(angle,99);

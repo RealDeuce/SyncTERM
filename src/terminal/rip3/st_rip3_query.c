@@ -8,6 +8,7 @@
 #include "st_rip3_angle.h"
 #include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
+#include "string_util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -133,8 +134,12 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 		}
 		else if (!reference(bytes,value.length,users,converted,&value)) {
 			const uint8_t *open = memchr(bytes + 1, '(', value.length - 1);
-			if (open == NULL || bytes[value.length - 2] != ')'
-			    || !st_rip3_builtin_known((const char *)bytes + 1, (size_t)(open - bytes - 1)))
+			if (open == NULL || bytes[value.length - 2] != ')')
+				return false;
+			const char *name = (const char *)bytes + 1;
+			size_t size = (size_t)(open - bytes - 1);
+			if (!ascii_case_span_equal(name, size, "FILEDEL") && !ascii_case_span_equal(name, size, "HOSTDIR")
+			    && !ascii_case_span_equal(name, size, "XFER"))
 				return false;
 			value.kind = REJECTED_ARGUMENTS;
 		}
@@ -852,7 +857,8 @@ st_rip3_query_start_owned(struct st_rip3_query *query, const uint8_t *bytes, siz
 	if (end!=NULL) length=(size_t)(end-bytes);
 	query->template_owner=owner;
 	for (size_t i=0; i+1<length; i++) if (bytes[i]=='<' && bytes[i+1]=='<') {
-		int status=st_rip3_angle_create(&query->angle,bytes,length,query->codepage_converted);
+		int status=st_rip3_angle_create(&query->angle,bytes,length,
+		    query->codepage_converted ? query->variables->wire_codepage : ST_CODEPAGE_COUNT);
 		if (status!=0) return status;
 		query->complete=complete;
 		query->pass=4;st_rip3_query_process(query,64);return 0;

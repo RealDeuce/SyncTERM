@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_condition_internal.h"
 #include "st_rip3_graphical_bytes.h"
+#include "st_utf8.h"
 #include "st_rip3_host_internal.h"
 #include "io_error.h"
 
@@ -10,14 +11,15 @@
 
 struct st_rip3_condition_program {
 	size_t count;
-	bool converted;
+	enum st_codepage wire_codepage;
 	struct st_rip3_condition_token tokens[];
 };
 
 struct st_rip3_condition_evaluation {
 	size_t count, cursor;
 	enum st_rip3_condition_evaluation_state state;
-	bool result, converted;
+	bool result;
+	enum st_codepage wire_codepage;
 	struct st_rip3_condition_token tokens[];
 };
 
@@ -245,10 +247,10 @@ st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *
 
 int
 st_rip3_condition_program_parse(struct st_rip3_condition_program **result,
-    const uint8_t *source, size_t length, size_t *consumed, bool converted)
+    const uint8_t *source, size_t length, size_t *consumed, enum st_codepage wire_codepage)
 {
 	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	struct scanner scanner;int status=initialize(&scanner,source,length,converted);
+	struct scanner scanner;int status=initialize(&scanner,source,length,wire_codepage!=ST_CODEPAGE_COUNT);
 	if (status==0) status=scan(&scanner);
 	if (status!=0) return status;
 	size_t count=scanner.count,payload=scanner.payload;
@@ -259,7 +261,7 @@ st_rip3_condition_program_parse(struct st_rip3_condition_program **result,
 	struct st_rip3_condition_program *program=calloc(1,size+payload);
 	if (program==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	program->count=count;
-	program->converted=converted;
+	program->wire_codepage=wire_codepage;
 	scanner.at=scanner.count=scanner.payload=0;scanner.tokens=program->tokens;
 	scanner.storage=(uint8_t *)(program->tokens+count);
 	status=scan(&scanner);
@@ -347,7 +349,7 @@ st_rip3_condition_evaluation_create(struct st_rip3_condition_evaluation **result
 	struct st_rip3_condition_evaluation *evaluation=calloc(1,size+payload);
 	if (evaluation==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	evaluation->count=count;
-	evaluation->converted=program->converted;
+	evaluation->wire_codepage=program->wire_codepage;
 	memcpy(evaluation->tokens,program->tokens,count*sizeof(*program->tokens));
 	uint8_t *storage=(uint8_t *)(evaluation->tokens+count);
 	for (size_t i=0; i<count; i++) {
@@ -380,6 +382,35 @@ st_rip3_condition_evaluation_request(const struct st_rip3_condition_evaluation *
 	    ? &evaluation->tokens[evaluation->cursor].value.comparison.reference : NULL;
 }
 
+/* Providers and literals share the terminal's normalized representation.
+ * Restore the wire bytes before folding ASCII and comparing byte values. */
+static bool
+wire_operand(struct st_rip3_condition_bytes *operand, enum st_codepage codepage,
+    uint8_t storage[ST_RIP3_CONDITION_OPERAND_LIMIT])
+{
+	if (codepage == ST_CODEPAGE_COUNT)
+		return operand->length <= ST_RIP3_CONDITION_OPERAND_LIMIT;
+	size_t count = 0;
+	for (size_t at = 0; at < operand->length; count++) {
+		if (count == ST_RIP3_CONDITION_OPERAND_LIMIT) return false;
+		uint8_t byte = operand->bytes[at];
+		if (byte < 0x80) {
+			storage[count] = byte;
+			at++;
+		}
+		else {
+			uint32_t scalar;
+			size_t used;
+			if (st_utf8_decode_one(&scalar, &used, operand->bytes + at, operand->length - at) != 0
+			    || !st_codepage_from_unicode(storage + count, codepage, scalar))
+				return false;
+			at += used;
+		}
+	}
+	*operand = (struct st_rip3_condition_bytes){storage, count};
+	return true;
+}
+
 void
 st_rip3_condition_evaluation_supply(struct st_rip3_condition_evaluation *evaluation,
     const struct st_rip3_condition_bytes *value, int status)
@@ -387,10 +418,12 @@ st_rip3_condition_evaluation_supply(struct st_rip3_condition_evaluation *evaluat
 	if (st_rip3_condition_evaluation_state(evaluation)!=ST_RIP3_CONDITION_VALUE) return;
 	struct st_rip3_condition_token *token=&evaluation->tokens[evaluation->cursor];
 	bool answer=false;
-	if (status==0 && value!=NULL && (value->length==0 || value->bytes!=NULL)
-	    && st_rip3_graphical_prefix(value->bytes, value->length, ST_RIP3_CONDITION_OPERAND_LIMIT,
-	        evaluation->converted) == value->length)
-		(void)st_rip3_condition_compare(&answer,token->value.comparison.operation,value,&token->value.comparison.literal);
+	if (status==0 && value!=NULL && (value->length==0 || value->bytes!=NULL)) {
+		uint8_t a[ST_RIP3_CONDITION_OPERAND_LIMIT], b[ST_RIP3_CONDITION_OPERAND_LIMIT];
+		struct st_rip3_condition_bytes left = *value, right = token->value.comparison.literal;
+		if (wire_operand(&left, evaluation->wire_codepage, a) && wire_operand(&right, evaluation->wire_codepage, b))
+			(void)st_rip3_condition_compare(&answer,token->value.comparison.operation,&left,&right);
+	}
 	*token=(struct st_rip3_condition_token){.kind=ST_RIP3_CONDITION_BOOLEAN,.value.boolean=answer};
 	evaluation->cursor++;evaluation->state=ST_RIP3_CONDITION_RUNNING;
 }
@@ -403,7 +436,7 @@ st_rip3_condition_evaluation_process(struct st_rip3_condition_evaluation *evalua
 		struct st_rip3_condition_token *token=&evaluation->tokens[evaluation->cursor];
 		if (token->kind==ST_RIP3_CONDITION_COMPARISON) {
 			evaluation->state=ST_RIP3_CONDITION_VALUE;
-			if (provider_reference_valid(&token->value.comparison.reference,evaluation->converted)) return;
+			if (provider_reference_valid(&token->value.comparison.reference,evaluation->wire_codepage!=ST_CODEPAGE_COUNT)) return;
 			st_rip3_condition_evaluation_supply(evaluation,NULL,IO_ERROR_INVALID_FORMAT);
 		}
 		else evaluation->cursor++;

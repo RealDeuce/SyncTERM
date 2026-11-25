@@ -115,7 +115,8 @@ st_rip3_graphical_start(struct st_rip3_graphical *w, enum st_rip3_graphical_cons
 		if (length!=0) memcpy(w->bytes,bytes,length);
 		w->length=length;w->bytes[length]=0;w->state=ST_RIP3_GRAPHICAL_RUNNING;return;
 	}
-	int status=st_rip3_angle_create_graphical(&w->angle,bytes,length,w->limit,w->converted);
+	int status=st_rip3_angle_create_graphical(&w->angle,bytes,length,w->limit,
+	    w->converted ? w->variables->wire_codepage : ST_CODEPAGE_COUNT);
 	if (status!=0) {failed(w,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_INVALID_REFERENCE);return;}
 	w->state=ST_RIP3_GRAPHICAL_RUNNING;
 }

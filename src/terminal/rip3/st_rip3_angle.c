@@ -13,7 +13,8 @@ struct branch {bool parent,selected,seen_else,active;};
 
 struct st_rip3_angle {
 	uint8_t *bytes;size_t length,capacity,cursor,consumed,limit;
-	unsigned pass,depth;bool changed,converted;
+	unsigned pass,depth;bool changed;
+	enum st_codepage wire_codepage;
 	size_t inserted;
 	struct branch branches[16];
 	struct st_rip3_condition_evaluation *condition;
@@ -44,10 +45,11 @@ splice(struct st_rip3_angle *angle, size_t count, const uint8_t *bytes, size_t l
 	 * Clip before moving/scanning so a later shrink cannot reveal discarded data. */
 	size_t suffix = angle->length - angle->cursor - count;
 	if (angle->limit != SIZE_MAX - 1) {
-		size_t remaining=angle->limit-st_rip3_graphical_units(angle->bytes,angle->cursor,angle->converted);
-		length=st_rip3_graphical_prefix(bytes,length,remaining,angle->converted);
-		remaining-=st_rip3_graphical_units(bytes,length,angle->converted);
-		suffix=st_rip3_graphical_prefix(angle->bytes+angle->cursor+count,suffix,remaining,angle->converted);
+		bool converted = angle->wire_codepage != ST_CODEPAGE_COUNT;
+		size_t remaining=angle->limit-st_rip3_graphical_units(angle->bytes,angle->cursor,converted);
+		length=st_rip3_graphical_prefix(bytes,length,remaining,converted);
+		remaining-=st_rip3_graphical_units(bytes,length,converted);
+		suffix=st_rip3_graphical_prefix(angle->bytes+angle->cursor+count,suffix,remaining,converted);
 	}
 	if (length>SIZE_MAX-1-angle->cursor || suffix>SIZE_MAX-1-angle->cursor-length) {
 		fail(angle,ST_RIP3_ANGLE_RESOURCE);return false;
@@ -103,31 +105,31 @@ reference_valid(const uint8_t *bytes, size_t length, bool converted)
 }
 
 int
-st_rip3_angle_create_graphical(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, size_t limit, bool converted_codepage)
+st_rip3_angle_create_graphical(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, size_t limit, enum st_codepage wire_codepage)
 {
 	if (result==NULL || (bytes==NULL && length!=0) || length==SIZE_MAX || limit==SIZE_MAX) return IO_ERROR_INVALID_ARGUMENT;
 	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
 	if (end!=NULL) length=(size_t)(end-bytes);
-	length=st_rip3_graphical_prefix(bytes,length,limit,converted_codepage);
+	length=st_rip3_graphical_prefix(bytes,length,limit,wire_codepage!=ST_CODEPAGE_COUNT);
 	struct st_rip3_angle *angle=calloc(1,sizeof(*angle));
 	if (angle==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	angle->bytes=malloc(length+1);
 	if (angle->bytes==NULL) {free(angle);return IO_ERROR_OUT_OF_MEMORY;}
 	if (length!=0) memcpy(angle->bytes,bytes,length);
-	angle->bytes[length]=0;angle->length=length;angle->capacity=length+1;angle->pass=1;angle->limit=limit;angle->converted=converted_codepage;
+	angle->bytes[length]=0;angle->length=length;angle->capacity=length+1;angle->pass=1;angle->limit=limit;angle->wire_codepage=wire_codepage;
 	*result=angle;return 0;
 }
 
 int
 st_rip3_angle_create_bounded(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, size_t limit)
 {
-	return st_rip3_angle_create_graphical(result,bytes,length,limit,false);
+	return st_rip3_angle_create_graphical(result,bytes,length,limit,ST_CODEPAGE_COUNT);
 }
 
 int
-st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, bool converted)
+st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, enum st_codepage wire_codepage)
 {
-	return st_rip3_angle_create_graphical(result,bytes,length,SIZE_MAX-1,converted);
+	return st_rip3_angle_create_graphical(result,bytes,length,SIZE_MAX-1,wire_codepage);
 }
 
 void
@@ -204,14 +206,14 @@ static void
 conditional(struct st_rip3_angle *angle, size_t end, bool elseif)
 {
 	size_t begin=angle->cursor+(elseif ? 9 : 5),length=end+2-begin,consumed=0;
-	int status=st_rip3_condition_source_validate(angle->bytes+begin,length,&consumed,angle->converted);
+	int status=st_rip3_condition_source_validate(angle->bytes+begin,length,&consumed,angle->wire_codepage!=ST_CODEPAGE_COUNT);
 	if (status!=0 || consumed!=length || (elseif && (angle->depth==0 || angle->branches[angle->depth-1].seen_else))
 	    || (!elseif && angle->depth==16)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 	bool parent=elseif ? angle->branches[angle->depth-1].parent : active(angle);
 	bool eligible=parent && (!elseif || !angle->branches[angle->depth-1].selected);
 	if (eligible) {
 		struct st_rip3_condition_program *program=NULL;
-		status=st_rip3_condition_program_parse(&program,angle->bytes+begin,length,NULL,angle->converted);
+		status=st_rip3_condition_program_parse(&program,angle->bytes+begin,length,NULL,angle->wire_codepage);
 		if (status==0) status=st_rip3_condition_evaluation_create(&angle->condition,program);
 		st_rip3_condition_program_destroy(program);
 		if (status!=0) {fail(angle,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_ANGLE_RESOURCE : ST_RIP3_ANGLE_INVALID);return;}
@@ -246,10 +248,10 @@ header(struct st_rip3_angle *angle)
 		}
 		else {
 			if (length == 0 || st_rip3_graphical_prefix(body, length, ST_RIP3_CONDITION_OPERAND_LIMIT,
-			    angle->converted) != length) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
+			    angle->wire_codepage!=ST_CODEPAGE_COUNT) != length) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 			angle->reference[0]='$';angle->reference[1]='&';memcpy(angle->reference+2,body,length);angle->reference[length+2]='$';
 			angle->reference[length+3]=0;
-			if (!reference_valid(angle->reference,length+3,angle->converted)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
+			if (!reference_valid(angle->reference,length+3,angle->wire_codepage!=ST_CODEPAGE_COUNT)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 			angle->request.reference=(struct st_rip3_condition_bytes){angle->reference,length+3};
 		}
 		angle->consumed=end+2-angle->cursor;angle->state=ST_RIP3_ANGLE_VALUE;return;

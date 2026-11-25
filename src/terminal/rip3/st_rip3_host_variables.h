@@ -2,6 +2,7 @@
 #ifndef ST_RIP3_HOST_VARIABLES_H_
 #define ST_RIP3_HOST_VARIABLES_H_
 
+#include "st_codepage.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -110,6 +111,7 @@ struct st_rip3_host_variables {
 		const char *filenames);
 	/* The session normalized one wire codepage byte per UTF-8 scalar. */
 	bool codepage_converted;
+	enum st_codepage wire_codepage;
 	/* The text-window owner supplies activation with its protection/undefined
 	 * policy. Parameter lists are validated completely before any callback. */
 	const struct st_rip3_text_window_operations *text_windows;

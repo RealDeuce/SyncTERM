@@ -2057,7 +2057,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	if (status==0) status=st_rip3_user_variables_create(&rip->user,&user);
 	const struct st_rip3_host_variables services={.features=&rip->features,.identity=&rip->identity,
 	    .local_clock=read_local_clock,.local=&rip->local,.user_variables=rip->user,
-	    .backspace=&rip->backspace,
+	    .backspace=&rip->backspace,.wire_codepage=config->codepage,
 	    .directory=config->rip_directory!=NULL && config->rip_directory[0]!='\0' ? &rip->host_directory : NULL};
 	const struct st_rip3_session_config session={
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,

@@ -51,6 +51,58 @@ def run(args,width,height):
             mouse(x,y,True);mouse(x,y)
             return t.input(expected) if expected else t.exchange()
 
+        if width==640:
+            t.case("rip3-computed-field-playback-and-continued-button-slideshow")
+            shared=root/"RIP"
+            shared.mkdir(exist_ok=True)
+            (shared/"Cycle.FN").write_bytes(query(
+                b'<<IF $INUSE(TV,NEXT_IMG)$="0">>$-=NEXT_IMG=ASTRO.JPG$<<ENDIF>>$>Show.FN$',
+                at_cursor=True))
+            (shared/"Show.FN").write_bytes(query(b'$-=SHOWN=<<NEXT_IMG>>$',at_cursor=True))
+            values(b'$-=RETURN=>Cycle.FN$$-=NO_WIPES=NONE$$-=TGMENU_WIPES=1$')
+            back=(b'<<IF $TGMENU_WIPES$="1" AND ($NO_WIPES$="" OR $NO_WIPES$="NONE")>>'
+                  b'<<IF $RETURN$!="">>$<<RETURN>>$<<ENDIF>><<ELSE>>$NULL$<<ENDIF>>')
+            t.exchange(field((10,10,60,30),b'ID=1:'+back))
+            advance=(b'<<IF $NEXT_IMG$="ASTRO.JPG">>$-=NEXT_IMG=JUPITER.JPG$'
+                     b'<<ELSEIF $NEXT_IMG$="JUPITER.JPG">>$-=NEXT_IMG=BEACH2.JPG$'
+                     b'<<ELSE>>$-=NEXT_IMG=ASTRO.JPG$<<ENDIF>>$>Cycle.FN$')
+            t.exchange(style(flags=256|1024)+button((10,40,100,65),
+                b'$CUR(STYLE,5)$<>$COORDSIZE(CUR,3)$Next Image<>'+advance.replace(
+                b'<<ELSE',b'\\\r\n<<ELSE')))
+            values(b'$CUR(STYLE)$:$COORDSIZE$:$INUSE(TV,NEXT_IMG)$:$INUSE(TV,SHOWN)$',b'5:3:0:0')
+            values(b'$CUR(STYLE,0)$$COORDSIZE(CUR,2)$')
+            click(20,20)
+            values(b'$&NEXT_IMG$:$&SHOWN$',b'ASTRO.JPG:ASTRO.JPG')
+            for image in (b'JUPITER.JPG',b'BEACH2.JPG',b'ASTRO.JPG'):
+                click(20,50)
+                values(b'$&NEXT_IMG$:$&SHOWN$',image+b':'+image)
+            values(b'$RESET(TV,NO_WIPES)$$INUSE(TV,NO_WIPES)$$MKILL$',b'0')
+            t.exchange(b'\x01|E\r\n')
+
+            t.case("rip3-auto-stamp-label-cancellation-and-hard-abort")
+            for reference,visible in ((b'$PROMPT_LABEL$',True),(b'$&PROMPT_LABEL$',False)):
+                send(style(flags=256|64|1024,surface=3,foreground=12)
+                     +button((20,40,120,80),b'<>'+reference+b'<>clicked'))
+                client.wait_text('PROMPT_LABEL')
+                client.key('escape')
+                frame=values(b'$INUSE(MOUSE,ANY)$:$INUSE(TV,PROMPT_LABEL)$',b'1:0')
+                assert any(pixel(frame,x,y)==0xff5555 for y in range(40,80)
+                           for x in range(20,120))==visible
+                # The label can prompt again when the field is redrawn.
+                # Give it an existing value so the click can complete.
+                values(b'$-=PROMPT_LABEL=ready$')
+                click(60,60,b'clicked')
+                values(b'$MKILL$$RESET(TV,PROMPT_LABEL)$')
+            frame=t.exchange(style(flags=256|64|1024,surface=3)+button(
+                (20,40,120,80),b'<>bad<<MKILL>><>$-=ADMITTED=yes$')+
+                query(b'$INUSE(MOUSE,ANY)$:$INUSE(TV,ADMITTED)$',at_cursor=True),b'0:0')
+            assert pixel(frame,60,60)==0x00aaaa
+            # Capture and style conversion preceded the failed label.
+            frame=t.exchange(button((160,40,0,0)))
+            assert pixel(frame,259,79)==0x00aaaa
+            t.exchange(b'\x01|*\r\n')
+            values(b'$WORLD(CUR,640,480)$')
+
         t.case(f"rip3-plain-button-face-{width}x{height}")
         before=t.exchange(style(surface=3)+button((10,20,60,40)))
         assert all(pixel(before,x,y)==0x00aaaa for x,y in ((10,20),(59,39)))

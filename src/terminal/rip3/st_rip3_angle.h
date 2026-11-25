@@ -4,6 +4,7 @@
 #define ST_RIP3_ANGLE_H_
 
 #include "st_rip3_condition.h"
+#include "st_codepage.h"
 
 struct st_rip3_angle;
 enum st_rip3_angle_state { ST_RIP3_ANGLE_RUNNING, ST_RIP3_ANGLE_VALUE,
@@ -20,17 +21,17 @@ struct st_rip3_angle_request {
 };
 
 /* A factory copies the complete bounded C-string source. No provider runs.
- * Failed creation preserves result. One owner thread invokes all methods.
+ * Use ST_CODEPAGE_COUNT for unconverted bytes. Failed creation preserves result. One owner thread invokes all methods.
  * The owner supplies the consumer's permitted provider classes and owns its
  * input gate, user operation, cancellation and callback diagnostics. */
-int st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, bool converted);
+int st_rip3_angle_create(struct st_rip3_angle **result, const uint8_t *bytes, size_t length, enum st_codepage wire_codepage);
 /* Graphical consumers enforce their prefix limit at entry and each splice;
  * the ordinary host factory above retains its existing unbounded policy. */
 int st_rip3_angle_create_bounded(struct st_rip3_angle **result, const uint8_t *bytes,
 	size_t length, size_t limit);
 /* Same bounded policy for a terminal-normalized single-byte codepage source. */
 int st_rip3_angle_create_graphical(struct st_rip3_angle **result, const uint8_t *bytes,
-	size_t length, size_t limit, bool converted_codepage);
+	size_t length, size_t limit, enum st_codepage wire_codepage);
 void st_rip3_angle_destroy(struct st_rip3_angle *angle);
 /* At most budget scanner/reduction steps. Stop at each provider request; no
  * callback, sleep or thread. Source/storage/structure failures become FAILED

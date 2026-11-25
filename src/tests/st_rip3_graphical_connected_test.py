@@ -229,6 +229,16 @@ def run(args):
             t.exchange(b'\x01|m0000|T'+source+b'\r\n'+query(b'$TEXTXY$',at_cursor=True),
                        f'{len(expected)*8}:0'.encode())
 
+        t.case('rip3-host-and-graphical-conditions-use-wire-byte-order')
+        # CP437 orders ü (81) before é (82). Their UTF-8 byte order is reversed.
+        low,high=(b'\x81',b'\x82') if args.encoding=='CP437' else ('ü'.encode(),'é'.encode())
+        values(b'[Q:]a'+low)
+        comparison=b'<<IF ?Q<"A'+high+b'">>Y<<ELSE>>NO<<ENDIF>>'
+        expected=b'Y' if args.encoding=='CP437' else b'NO'
+        values(comparison,expected)
+        t.exchange(b'\x01|m0000|T'+comparison+b'\r\n'+query(b'$TEXTXY$',at_cursor=True),
+                   f'{8*len(expected)}:0'.encode())
+
         t.case('rip3-conditional-and-angle-wire-byte-limits')
         wire_glyph = b'\xb3' if args.encoding == 'CP437' else '│'.encode()
         bound = wire_glyph * (255 // len(wire_glyph))

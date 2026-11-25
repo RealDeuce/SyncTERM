@@ -259,10 +259,10 @@ st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result
 	}
 	if (text[at] != '(')
 		return IO_ERROR_INVALID_FORMAT;
-	/* Filenames may occupy several UTF-8 bytes per original codepage byte.
+	/* Normalized arguments may occupy several UTF-8 bytes per wire byte.
 	 * HOSTDIR checks its protocol limit in the directory handler. */
-	bool file_arguments = converted && (strcmp(reference.name, "FILEDEL") == 0 || strcmp(reference.name, "XFER") == 0);
-	size_t capacity = file_arguments || strcmp(reference.name, "HOSTDIR") == 0
+	bool host_directory = strcmp(reference.name, "HOSTDIR") == 0;
+	size_t capacity = converted || host_directory
 	    ? sizeof(reference.parameters[0].text) - 1 : ST_RIP3_BUILTIN_PARAMETER_LIMIT;
 	at++;
 	size_t stored=0;
@@ -280,8 +280,8 @@ st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result
 		if (ch==',' || ch==')') {
 			if (stored != 0) {
 				struct st_rip3_builtin_parameter *parameter = &reference.parameters[reference.count++];
-				if (file_arguments && st_rip3_graphical_units((const uint8_t *)parameter->text, stored, true)
-				    > ST_RIP3_BUILTIN_PARAMETER_LIMIT)
+				if (converted && !host_directory && st_rip3_graphical_prefix(
+				    (const uint8_t *)parameter->text, stored, ST_RIP3_BUILTIN_PARAMETER_LIMIT, true) < stored)
 					return IO_ERROR_OUT_OF_RANGE;
 				parameter->length = stored;
 			}
@@ -315,7 +315,7 @@ st_rip3_builtin_reference_words(struct st_rip3_builtin_reference *result,
 	struct st_rip3_builtin_reference value=*reference;
 	for (size_t i=0; i<value.count; i++) {
 		const struct st_rip3_builtin_parameter *source=&reference->parameters[i];
-		if (source->length>ST_RIP3_BUILTIN_PARAMETER_LIMIT || source->text[source->length]!=0)
+		if (source->length>=sizeof(source->text) || source->text[source->length]!=0)
 			return IO_ERROR_INVALID_FORMAT;
 		size_t first=0, last=source->length;
 		while (first<last && source->text[first]==' ') first++;

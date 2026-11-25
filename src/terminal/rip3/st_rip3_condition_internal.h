@@ -4,6 +4,7 @@
 #define ST_RIP3_CONDITION_INTERNAL_H_
 
 #include "st_rip3_condition.h"
+#include "st_codepage.h"
 
 struct st_rip3_condition_program;
 struct st_rip3_condition_evaluation;
@@ -28,7 +29,7 @@ struct st_rip3_condition_provider {
  * as terminal/session processing errors. */
 int st_rip3_condition_source_validate(const uint8_t *source, size_t length, size_t *consumed, bool converted);
 int st_rip3_condition_program_parse(struct st_rip3_condition_program **result,
-	const uint8_t *source, size_t length, size_t *consumed, bool converted);
+	const uint8_t *source, size_t length, size_t *consumed, enum st_codepage wire_codepage);
 void st_rip3_condition_program_destroy(struct st_rip3_condition_program *program);
 /* Typed reduction resolves all comparisons in source order, without Boolean
  * short circuit. Provider format/lookup failure, unavailable binding or result
