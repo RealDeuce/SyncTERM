@@ -622,7 +622,7 @@ user_recovery(void)
 	/* Cancelling a query which has not used the engine cannot cancel another
 	 * owner's pending prompt. Busy user preflight causes no earlier output. */
 	struct st_rip3_variable_reference reference;
-	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)"$P$",3)==0);
+	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)"$P$",3,false)==0);
 	st_rip3_user_variables_process(f.variables.user_variables,&reference);
 	CHECK(process(&f,"1\0330000before$&NAME$",ST_RIP3_COMMAND_OPERATION_FAILED)==0 && f.reply_length==0);
 	st_rip3_query_cancel(f.host.query);

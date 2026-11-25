@@ -29,11 +29,13 @@ enum st_rip3_variable_conversion {
 	ST_RIP3_VARIABLE_TOLOWER,
 };
 
+enum { ST_RIP3_PROMPT_TEXT_LIMIT = 100 };
+
 struct st_rip3_variable_prompt_text {
 	size_t length;
-	/* Inline references retain 100 bytes. RIP_DEFINE questions may hold
-	 * sixty codepage characters normalized to UTF-8, plus '?' and NUL. */
-	uint8_t bytes[60 * 4 + 2];
+	/* Inline references retain up to 100 characters, encoded as UTF-8
+	 * when the caller has decoded the wire. Also holds RIP_DEFINE text. */
+	uint8_t bytes[ST_RIP3_PROMPT_TEXT_LIMIT * 4 + 1];
 };
 
 struct st_rip3_variable_reference {
@@ -52,10 +54,9 @@ struct st_rip3_variable_reference {
  * The internal decoder does not
  * expand text, prompt, access tables or select lifetime/transparent-mode policy.
  * ASCII names/options fold independently of locale. Explicit question/default
- * presence survives even when empty; each truncates to 100 protocol bytes.
+ * presence survives even when empty; each truncates to 100 characters.
  * Omitted coordinates mean centered; an entirely omitted position is distinct.
- * Unsigned decimal coordinates fit int32, field widths fit uint32; these are
- * representation bounds, not inferred RIPtel numeric limits/defaults.
+ * Unsigned decimal coordinates are limited to 65535 and widths fit uint32.
  *
  * Prefix '=' selects the session-storage bit; post-name '=default' remains a
  * separate field. Repetitions accumulate idempotently; '%' is invalid. Both

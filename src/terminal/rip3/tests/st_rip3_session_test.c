@@ -373,7 +373,7 @@ borrowed_user(void)
 	CHECK(st_rip3_variables_create(&values)==0 && st_rip3_variables_create(&persistent)==0);
 	const struct st_rip3_user_variable_host user_host={.session=values,.persistent=persistent};
 	CHECK(st_rip3_user_variables_create(&user,&user_host)==0);
-	struct st_rip3_variable_reference foreign;CHECK(st_rip3_variable_reference_parse(&foreign,(const uint8_t *)"$FOREIGN$",9)==0);
+	struct st_rip3_variable_reference foreign;CHECK(st_rip3_variable_reference_parse(&foreign,(const uint8_t *)"$FOREIGN$",9,false)==0);
 	st_rip3_user_variables_process(user,&foreign);
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 	const struct st_rip3_host_variables services={.user_variables=user};options.services=&services;

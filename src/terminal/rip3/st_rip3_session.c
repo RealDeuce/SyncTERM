@@ -2387,7 +2387,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 		status=st_rip3_variables_create(&session->session_values);
 		if (status==0) status=st_rip3_variables_create(&session->persistent_values);
 		const struct st_rip3_user_variable_host user={.session=session->session_values,.persistent=session->persistent_values,
-		    .context=session,.diagnostic=user_diagnostic};
+		    .utf8=config->encoding==ST_RIP3_TEXT_UTF8,.context=session,.diagnostic=user_diagnostic};
 		if (status==0) status=st_rip3_user_variables_create(&session->owned_user,&user);
 		session->variables.user_variables=session->owned_user;
 	}

@@ -205,7 +205,7 @@ reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool
 		return;
 	}
 	struct st_rip3_variable_reference user;
-	bool parsed = st_rip3_variable_reference_parse(&user, source, source_length) == 0;
+	bool parsed = st_rip3_user_variables_decode(w->variables->user_variables, &user, source, source_length) == 0;
 	bool bookmark = parsed && st_rip3_bookmark_name(user.name, strlen(user.name));
 	if (!bookmark && (known(bytes,length) || (!angle && w->consumer==ST_RIP3_GRAPHICAL_METRIC))) {
 		if (angle) st_rip3_angle_supply(w->angle,NULL,IO_ERROR_NOT_SUPPORTED);

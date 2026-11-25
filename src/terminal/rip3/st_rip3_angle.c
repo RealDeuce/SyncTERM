@@ -97,7 +97,7 @@ reference_valid(const uint8_t *bytes, size_t length)
 	ordinary[0]='$';memcpy(ordinary+1,bytes+start,length-start);
 	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
 	return st_rip3_builtin_reference_parse(&builtin,ordinary,length-start+1)==0
-	    || st_rip3_variable_reference_parse(&user,bytes,length)==0;
+	    || st_rip3_variable_reference_parse(&user,bytes,length,false)==0;
 }
 
 int

@@ -182,8 +182,8 @@ store(struct st_rip3_variables *variables, struct st_rip3_variables *persistent,
 	status = identifier(canonical, &hash, name, name_length);
 	if (status != 0)
 		return status;
-	if (value_length > 255)
-		value_length = 255;
+	if (value_length >= sizeof(replacement.bytes))
+		return IO_ERROR_OUT_OF_RANGE;
 	replacement.length = value_length;
 	if (value_length != 0)
 		memcpy(replacement.bytes, value, value_length);
@@ -355,7 +355,7 @@ st_rip3_variables_from_snapshot(struct st_rip3_variables **result,
 		size_t hash, length;
 
 		status = IO_ERROR_INVALID_FORMAT;
-		if (end == NULL || entry->value.length > 255)
+		if (end == NULL || entry->value.length >= sizeof(entry->value.bytes))
 			goto failed;
 		length = (size_t)(end - entry->name);
 		if (identifier(canonical, &hash, entry->name, length) != 0

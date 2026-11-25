@@ -16,7 +16,7 @@
 static int
 parse(struct st_rip3_variable_reference *result, const char *text)
 {
-	return st_rip3_variable_reference_parse(result, (const uint8_t *)text, strlen(text));
+	return st_rip3_variable_reference_parse(result, (const uint8_t *)text, strlen(text), false);
 }
 
 static int
@@ -79,7 +79,7 @@ directives(void)
 			for (unsigned repetition=0; repetition<3; repetition++) text[at++]=flags[which];
 		}
 		memcpy(text+at,"nAmE=%literal$",15);at+=14;
-		CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,at)==0
+		CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,at,false)==0
 		    && reference.directives==mask && strcmp(reference.name,"NAME")==0
 		    && reference.has_default && strcmp((const char *)reference.default_value.bytes,"%literal")==0);
 	}
@@ -147,13 +147,38 @@ boundaries(void)
 	memset(text + 307, 'd', 300); text[607] = '$'; length = 608;
 	/* Retain protocol bytes, including NUL, CP437 and a complete UTF-8 sequence. */
 	text[6] = 0; text[7] = 0x82; text[8] = 0xc3; text[9] = 0xa9;
-	CHECK(st_rip3_variable_reference_parse(&reference, text, length) == 0);
+	CHECK(st_rip3_variable_reference_parse(&reference, text, length, false) == 0);
 	CHECK(reference.question.length == 100 && memcmp(reference.question.bytes, text + 6, 100) == 0);
 	CHECK(reference.default_value.length == 100 && memcmp(reference.default_value.bytes, text + 307, 100) == 0);
 	CHECK(reference.question.bytes[100] == 0 && reference.default_value.bytes[100] == 0);
 	before = reference; text[250] = '$'; /* Not ignored just because beyond truncation. */
-	CHECK(st_rip3_variable_reference_parse(&reference, text, length) == IO_ERROR_INVALID_FORMAT);
+	CHECK(st_rip3_variable_reference_parse(&reference, text, length, false) == IO_ERROR_INVALID_FORMAT);
 	CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);
+	return 0;
+}
+
+static int
+utf8_prompt_text(void)
+{
+	const uint8_t scalar[] = {0xf0, 0x9f, 0x98, 0x80};
+	uint8_t text[6 + 2 * (101 * sizeof(scalar) + 1)];
+	struct st_rip3_variable_reference reference;
+	size_t length = 0;
+
+	memcpy(text, "$NAME@", 6);
+	length += 6;
+	for (size_t field = 0; field < 2; field++) {
+		for (size_t i = 0; i < 101; i++) {
+			memcpy(text + length, scalar, sizeof(scalar));
+			length += sizeof(scalar);
+		}
+		text[length++] = field == 0 ? '=' : '$';
+	}
+	CHECK(st_rip3_variable_reference_parse(&reference, text, length, true) == 0);
+	CHECK(reference.question.length == 400 && reference.default_value.length == 400);
+	CHECK(memcmp(reference.question.bytes, text + 6, 400) == 0);
+	CHECK(memcmp(reference.default_value.bytes, text + 6 + 405, 400) == 0);
+	CHECK(reference.question.bytes[400] == 0 && reference.default_value.bytes[400] == 0);
 	return 0;
 }
 
@@ -186,11 +211,11 @@ failures(void)
 		CHECK(parse(&reference, oversized[i]) == IO_ERROR_OUT_OF_RANGE);
 		CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);
 	}
-	CHECK(st_rip3_variable_reference_parse(NULL, (const uint8_t *)"$NAME$", 6) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_variable_reference_parse(&reference, NULL, 6) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_variable_reference_parse(NULL, (const uint8_t *)"$NAME$", 6, false) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_variable_reference_parse(&reference, NULL, 6, false) == IO_ERROR_INVALID_ARGUMENT);
 	/* Every cut in a valid expression must fail without publishing a partial parse. */
 	for (size_t length = 0; length < 12; length++) {
-		CHECK(st_rip3_variable_reference_parse(&reference, (const uint8_t *)"$NAME=Value$", length) != 0);
+		CHECK(st_rip3_variable_reference_parse(&reference, (const uint8_t *)"$NAME=Value$", length, false) != 0);
 		CHECK(memcmp(&reference, &before, sizeof(reference)) == 0);
 	}
 	return 0;
@@ -203,6 +228,7 @@ main(void)
 	CHECK(directives() == 0);
 	CHECK(format_options() == 0);
 	CHECK(boundaries() == 0);
+	CHECK(utf8_prompt_text() == 0);
 	CHECK(failures() == 0);
 	return 0;
 }

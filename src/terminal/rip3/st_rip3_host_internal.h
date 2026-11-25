@@ -21,7 +21,7 @@ int st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 int st_rip3_builtin_reference_words(struct st_rip3_builtin_reference *result,
 	const struct st_rip3_builtin_reference *reference);
 int st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
-	const uint8_t *text, size_t length);
+	const uint8_t *text, size_t length, bool utf8);
 int st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result,
 	const uint8_t *text, size_t length, bool utf8, bool converted);
 int st_rip3_table_host_execute(const struct st_rip3_table_host *host,

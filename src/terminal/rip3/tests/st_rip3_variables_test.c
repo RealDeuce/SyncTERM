@@ -23,7 +23,7 @@ names_and_values(void)
 	const uint8_t cp437[] = {'c','a','f',0x82};
 	const uint8_t utf8[] = {'c','a','f',0xc3,0xa9};
 	const uint8_t binary[] = {'A',0,'B'};
-	uint8_t long_value[300];
+	uint8_t long_value[sizeof(value.bytes)];
 	size_t count = 77;
 
 	for (size_t i = 0; i < sizeof(long_value); i++)
@@ -43,9 +43,11 @@ names_and_values(void)
 	CHECK(st_rip3_variables_set(variables, boundary, 20, binary, sizeof(binary)) == 0);
 	CHECK(st_rip3_variables_get(variables, "abcdefghijklmnopqrst", 20, &value) == 0);
 	CHECK(value.length == 3 && memcmp(value.bytes, binary, 3) == 0 && value.bytes[3] == 0);
-	CHECK(st_rip3_variables_set(variables, "Long", 4, long_value, sizeof(long_value)) == 0);
+	CHECK(st_rip3_variables_set(variables, "Long", 4, long_value, sizeof(long_value) - 1) == 0);
+	CHECK(st_rip3_variables_set(variables, "Long", 4, long_value, sizeof(long_value)) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_variables_get(variables, "LONG", 4, &value) == 0);
-	CHECK(value.length == 255 && memcmp(value.bytes, long_value, 255) == 0 && value.bytes[255] == 0);
+	CHECK(value.length == sizeof(long_value) - 1 && memcmp(value.bytes, long_value, value.length) == 0
+	    && value.bytes[value.length] == 0);
 	CHECK(st_rip3_variables_set(variables, "Long", 4, (const uint8_t *)"Z", 1) == 0);
 	CHECK(st_rip3_variables_get(variables, "LONG", 4, &value) == 0 && value.length == 1 && value.bytes[0] == 'Z');
 	for (size_t i = 1; i < sizeof(value.bytes); i++)
@@ -159,7 +161,7 @@ invalid_import(void)
 	CHECK(st_rip3_variables_from_snapshot(&variables, &snapshot) == IO_ERROR_INVALID_FORMAT);
 	CHECK(variables == NULL);
 	memcpy(entries[1].name, "Second", 7);
-	entries[1].value.length = 256;
+	entries[1].value.length = sizeof(entries[1].value.bytes);
 	CHECK(st_rip3_variables_from_snapshot(&variables, &snapshot) == IO_ERROR_INVALID_FORMAT);
 	CHECK(variables == NULL);
 	snapshot.count = SIZE_MAX;

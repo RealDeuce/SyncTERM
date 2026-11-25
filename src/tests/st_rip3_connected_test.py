@@ -786,6 +786,8 @@ def font_switch_with_status(args, width, height):
 
 
 def check_variable_persistence(args):
+    glyph = "│"
+    wire_glyph = b"\xb3" if args.encoding == "CP437" else glyph.encode()
     with listener() as server:
         entry = ("[Capture]\nConnectionType=Raw\nAddress=127.0.0.1\n"
                  f"Port={server.getsockname()[1]}\nEncoding={args.encoding}\n"
@@ -813,6 +815,18 @@ def check_variable_persistence(args):
                         client.key("enter")
 
                     if visit == 0:
+                        terminal.case("rip3-variable-multibyte-prompt-and-value-limits")
+                        terminal.exchange(query(b"$&LIMITDEFAULT=" + wire_glyph * 101 + b"$:alive",
+                                                at_cursor=True), wire_glyph * 100 + b":alive")
+                        question = b"Question " + b"q" * 90 + wire_glyph + b"TRUNCATED"
+                        peer.sendall(query(b"$+LONGVALUE,260@" + question + b"$", at_cursor=True)
+                                     + b"\x1b[5n")
+                        frame = client.wait_text("Question")
+                        assert any("q│" in line for line in frame.lines), frame.lines
+                        assert "TRUNCATED" not in frame.text
+                        client.text(glyph * 256)
+                        client.key("enter")
+                        receive(peer, wire_glyph * 255 + b"\x1b[0n", root / "replies.bin")
                         terminal.case("rip3-variable-macro-storage-destinations")
                         terminal.exchange(query(b"$-+SHADOW=backing$$-=SHADOW=overlay$"
                                                 b"$-=PROMOTED=live$$&+=PROMOTED(TOUPPER)$:$&promoted$",
@@ -840,6 +854,7 @@ def check_variable_persistence(args):
                         receive(peer, b"original\x1b[0n", root / "replies.bin")
                     elif visit == 1:
                         terminal.case("rip3-variable-macro-lifetime-after-reconnect")
+                        terminal.exchange(query(b"$&LONGVALUE$", at_cursor=True), wire_glyph * 255)
                         terminal.exchange(query(b"$&SHADOW$:$&PROMOTED$:$&EMPTY=fallback$:$&VISITONLY=missing$",
                                                 at_cursor=True), b"backing:LIVE:NULL:missing")
                         terminal.exchange(query(b"$=&SHADOW(TOUPPER)$:$&SHADOW$"

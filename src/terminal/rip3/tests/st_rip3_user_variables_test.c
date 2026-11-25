@@ -98,7 +98,7 @@ static int
 process(struct fixture *f, const char *text)
 {
 	struct st_rip3_variable_reference reference;
-	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,strlen(text))==0);
+	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,strlen(text),false)==0);
 	st_rip3_user_variables_process(f->processor,&reference);return 0;
 }
 
@@ -200,7 +200,7 @@ ownership_and_failures(void)
 	CHECK(set(f.session,"S")==0 && set(f.persistent,"P")==0);
 	struct st_rip3_variable_reference reference;
 	const char *text="$*#+=20,50:name(ANY,TOUPPER),30@Question=default$";
-	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,strlen(text))==0);
+	CHECK(st_rip3_variable_reference_parse(&reference,(const uint8_t *)text,strlen(text),false)==0);
 	st_rip3_user_variables_process(f.processor,&reference);
 	memset(&reference,0,sizeof(reference));
 	const struct st_rip3_variable_reference *prompt=st_rip3_user_variables_prompt(f.processor);

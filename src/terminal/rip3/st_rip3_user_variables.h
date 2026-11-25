@@ -36,10 +36,12 @@ struct st_rip3_user_variable_host {
 	 * precedes persistent lookup regardless of the requested destination.
 	 * This component writes memory; the client owns persistent disk flushing. */
 	struct st_rip3_variables *session, *persistent;
+	/* The engine receives UTF-8 text on both normalized codepage and UTF-8 connections. */
+	bool utf8;
 	void *context;
 	/* Optional override for conversion, called once for each successful logical
 	 * value before storage/output. It must preserve input and return an owned
-	 * value of at most 255 bytes. The default code converts ASCII case and
+	 * value of at most 255 characters. The default code converts ASCII case and
 	 * leaves other bytes intact. The prompt editor enforces the input mode.
 	 * No callback may reenter processing or mutate the bound stores. */
 	int (*format)(void *context, const struct st_rip3_variable_reference *reference,
@@ -54,6 +56,9 @@ struct st_rip3_user_variable_host {
 int st_rip3_user_variables_create(struct st_rip3_user_variables **result,
 	const struct st_rip3_user_variable_host *host);
 void st_rip3_user_variables_destroy(struct st_rip3_user_variables *variables);
+/* Decode an inline reference with the same character units used for its response. */
+int st_rip3_user_variables_decode(const struct st_rip3_user_variables *variables,
+	struct st_rip3_variable_reference *result, const uint8_t *text, size_t length);
 /* Start one decoded reference. Every failure is diagnosed/consumed here.
  * Prompt state owns copies of the reference and initial value, so source
  * storage may be released. A busy start preserves the pending operation.
@@ -72,7 +77,7 @@ int st_rip3_user_variables_delete(struct st_rip3_user_variables *variables,
 int st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables,
 	const char *name, size_t length, bool *defined);
 bool st_rip3_user_variables_confirming_delete(const struct st_rip3_user_variables *variables);
-/* Respond only in PROMPT state. Values truncate to 255 protocol bytes before
+/* Respond only in PROMPT state. Values truncate to 255 characters before
  * the format adapter. Cancellation ignores value/length. '*' rejects user
  * cancellation and retains the prompt; accepted empty input remains legal.
  * No write/output occurs before successful formatting and destination storage.

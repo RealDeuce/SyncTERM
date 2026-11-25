@@ -8,11 +8,13 @@
 
 struct st_rip3_variables;
 
+enum { ST_RIP3_VARIABLE_VALUE_LIMIT = 255 };
+
 struct st_rip3_variable_value {
 	size_t length;
-	/* Original protocol bytes, plus a convenience terminator at [length].
-	 * Explicit length preserves embedded NUL/CP437 bytes; unused bytes are zero. */
-	uint8_t bytes[256];
+	/* The processor bounds logical values before storage. This span holds
+	 * wire bytes or decoded UTF-8, plus a terminator at [length]. */
+	uint8_t bytes[ST_RIP3_VARIABLE_VALUE_LIMIT * 4 + 1];
 };
 
 struct st_rip3_variable_entry {
@@ -33,8 +35,7 @@ struct st_rip3_variable_snapshot {
 int st_rip3_variables_create(struct st_rip3_variables **result);
 void st_rip3_variables_destroy(struct st_rip3_variables *variables);
 /* Names are 1..20 ASCII letters/digits/underscore, beginning with a letter.
- * Case folds independently of locale. Oversized values truncate to the first
- * 255 protocol bytes as specified; names are rejected rather than truncated.
+ * Case folds independently of locale. Values must fit the encoded storage span.
  * Existing values are replaced only after all validation/allocation succeeds. */
 int st_rip3_variables_set(struct st_rip3_variables *variables,
 	const char *name, size_t name_length, const uint8_t *value, size_t value_length);

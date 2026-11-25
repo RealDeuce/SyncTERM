@@ -836,7 +836,7 @@ SCAN painting stays blocked by #17.
 
 `rip3_variables` checks an owned, growing user-variable table with canonical
 case-insensitive ASCII names of 1..20 bytes, first-letter validation, underscore/
-digit suffixes, explicit value lengths and 255-byte truncation. CP437, UTF-8 and
+digit suffixes, explicit value lengths and the encoded storage bound. CP437, UTF-8 and
 embedded-NUL bytes round-trip unchanged; shorter replacements clear unused bytes.
 Missing and empty values remain distinct. Independent tables, 4,096 records,
 resizing/deletion, sorted independent snapshots and atomic import are covered.
@@ -859,7 +859,7 @@ grammar: case-insensitive names/options, the six distinct directive bits in any
 order, optional decimal position/width, omitted centered axes, format/conversion
 ordering, and explicit empty versus absent question/default fields. The two HLP
 examples and all legal/illegal format examples have independent expectations.
-Question/default text truncates at 100 original bytes, with delimiters validated
+Question/default text truncates at 100 characters, with delimiters validated
 even beyond that boundary. Invalid/truncated references preserve caller output;
 native Valgrind reports no errors or definite/indirect leaks. The parser leaves
 built-in dispatch, macro expansion, prompting and scope policy to the future
@@ -5120,8 +5120,8 @@ without publishing a partial value. Source references and initial values are
 owned during suspension. Complete results are borrowed until the next operation;
 no prior result is exposed after a failed new operation. Deterministic allocation
 and store failures test unchanged tables and recovery through the same processor.
-Response bytes truncate to 255 while preserving explicit CP437/NUL byte spans;
-the enclosing macro/framing stages retain their separate C-string policies.
+Responses truncate to 255 characters while preserving the explicit byte span.
+The enclosing macro and framing stages apply their own byte budgets.
 
 Independent native tests exercise all sixteen literal rows across four storage
 selections, four required/masked combinations and three lookup/shadow locations:
@@ -9314,11 +9314,14 @@ empty field still returns `NULL` after reconnecting. The session-only value
 disappears at hang-up. Invalid `%` prefixes and cancelled edits preserve
 the stored values, and the connection continues processing queries.
 
-The question, default and value limits still need to account for encoding.
-A connected CP437 query supplied 100 copies of byte `82` hex in a default
-and received 50. The parser counted the two-byte UTF-8 representation of
-each character against the wire limit. The value cap also counts normalized
-bytes, which reduces the number of characters a CP437 value can hold.
+Questions and defaults retain up to 100 characters, and a variable value
+retains up to 255. The engine counts one character per source byte on a
+codepage connection and counts Unicode scalar values on a UTF-8 connection.
+The connected fixtures supply 101 line-drawing characters in a default,
+check the 100th character of a question, and enter 256 characters in a
+prompt. They compare the complete reply and retrieve the saved 255-character
+value after reconnecting. The private cache format uses a wider length field
+when a stored value exceeds 255 encoded bytes and reads both older versions.
 
 ## Connected variable prompt placement
 

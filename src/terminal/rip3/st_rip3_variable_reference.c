@@ -145,9 +145,9 @@ options(struct parser *parser, struct st_rip3_variable_reference *reference)
 
 static void
 prompt_text(struct st_rip3_variable_prompt_text *result,
-    const uint8_t *text, size_t length)
+    const uint8_t *text, size_t length, bool utf8)
 {
-	result->length = length > 100 ? 100 : length;
+	result->length = st_rip3_graphical_prefix(text, length, ST_RIP3_PROMPT_TEXT_LIMIT, utf8);
 	memcpy(result->bytes, text, result->length);
 }
 
@@ -225,7 +225,7 @@ st_rip3_variable_definition_parse(struct st_rip3_variable_reference *result,
 
 int
 st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
-    const uint8_t *text, size_t length)
+    const uint8_t *text, size_t length, bool utf8)
 {
 	struct st_rip3_variable_reference reference = {0};
 	struct parser parser = {text, 1, length == 0 ? 0 : length - 1};
@@ -237,7 +237,7 @@ st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (length < 3 || text[0] != '$' || text[length - 1] != '$')
 		return IO_ERROR_INVALID_FORMAT;
-	/* Delimiters are forbidden even beyond the retained 100-byte payload. */
+	/* Delimiters are forbidden even beyond the retained payload. */
 	for (size_t i = 1; i < parser.end; i++) {
 		if (text[i] == '$')
 			return IO_ERROR_INVALID_FORMAT;
@@ -287,12 +287,12 @@ st_rip3_variable_reference_parse(struct st_rip3_variable_reference *result,
 		while (parser.at < parser.end && peek(&parser) != '=')
 			parser.at++;
 		reference.has_question = true;
-		prompt_text(&reference.question, text + start, parser.at - start);
+		prompt_text(&reference.question, text + start, parser.at - start, utf8);
 	}
 	if (peek(&parser) == '=') {
 		reference.has_default = true;
 		parser.at++;
-		prompt_text(&reference.default_value, text + parser.at, parser.end - parser.at);
+		prompt_text(&reference.default_value, text + parser.at, parser.end - parser.at, utf8);
 		parser.at = parser.end;
 	}
 	if (parser.at != parser.end)

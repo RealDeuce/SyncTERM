@@ -3,6 +3,7 @@
 #include "st_rip3_user_variables.h"
 #include "st_rip3_builtin_reference.h"
 #include "st_rip3_graphical_bytes.h"
+#include "st_rip3_host_internal.h"
 #include "io_error.h"
 
 #include <stdlib.h>
@@ -64,13 +65,23 @@ st_rip3_user_variables_abort(struct st_rip3_user_variables *variables)
 	variables->definition = variables->require_confirmation = false;
 }
 
+int
+st_rip3_user_variables_decode(const struct st_rip3_user_variables *variables,
+    struct st_rip3_variable_reference *result, const uint8_t *text, size_t length)
+{
+	return st_rip3_variable_reference_parse(result, text, length, variables != NULL && variables->host.utf8);
+}
+
 static bool
-valid_reference(const struct st_rip3_variable_reference *reference, size_t limit)
+valid_reference(const struct st_rip3_variable_reference *reference, size_t limit, bool utf8)
 {
 	if (reference==NULL || reference->directives>63
 	    || reference->mode<ST_RIP3_VARIABLE_ANY || reference->mode>ST_RIP3_VARIABLE_ALPHANUM
 	    || reference->conversion<ST_RIP3_VARIABLE_UNCONVERTED || reference->conversion>ST_RIP3_VARIABLE_TOLOWER
-	    || reference->question.length > limit || reference->default_value.length > limit
+	    || reference->question.length >= sizeof(reference->question.bytes)
+	    || reference->default_value.length >= sizeof(reference->default_value.bytes)
+	    || st_rip3_graphical_units(reference->question.bytes, reference->question.length, utf8) > limit
+	    || st_rip3_graphical_units(reference->default_value.bytes, reference->default_value.length, utf8) > limit
 	    || memchr(reference->name,0,sizeof(reference->name))==NULL)
 		return false;
 	/* Use the same ASCII identifier contract as the owned tables. */
@@ -146,7 +157,9 @@ finish(struct st_rip3_user_variables *variables, const struct st_rip3_variable_v
 		value = *input;
 		convert_value(&value, reference->conversion);
 	}
-	if (status==0 && value.length>255) status=IO_ERROR_OUT_OF_RANGE;
+	if (status == 0 && (value.length >= sizeof(value.bytes)
+	    || st_rip3_graphical_units(value.bytes, value.length, variables->host.utf8) > ST_RIP3_VARIABLE_VALUE_LIMIT))
+		status = IO_ERROR_OUT_OF_RANGE;
 	if (status!=0) { failed(variables,status); return; }
 	unsigned flags=reference->directives;
 	struct st_rip3_variables *destination=(flags&ST_RIP3_VARIABLE_PERSISTENT)!=0 ? variables->host.persistent
@@ -181,7 +194,7 @@ st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 	struct st_rip3_variable_reference copy;
 	if (reference!=NULL) copy=*reference;
 	st_rip3_user_variables_abort(variables);
-	if (!valid_reference(reference==NULL ? NULL : &copy, 100)) {
+	if (!valid_reference(reference==NULL ? NULL : &copy, ST_RIP3_PROMPT_TEXT_LIMIT, variables->host.utf8)) {
 		diagnose(variables,ST_RIP3_USER_VARIABLE_INVALID);return;
 	}
 	if (st_rip3_bookmark_name(copy.name, strlen(copy.name))) {
@@ -234,7 +247,7 @@ st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
 		return;
 	}
 	st_rip3_user_variables_abort(variables);
-	if (!valid_reference(reference, sizeof(reference->question.bytes) - 1)) {
+	if (!valid_reference(reference, 60 * 4 + 1, false)) {
 		diagnose(variables, ST_RIP3_USER_VARIABLE_INVALID);
 		return;
 	}
@@ -351,7 +364,7 @@ st_rip3_user_variables_respond(struct st_rip3_user_variables *variables,
 		diagnose(variables,ST_RIP3_USER_VARIABLE_INVALID);return;
 	}
 	struct st_rip3_variable_value accepted={0};
-	accepted.length=length>255 ? 255 : length;
+	accepted.length = st_rip3_graphical_prefix(value, length, ST_RIP3_VARIABLE_VALUE_LIMIT, variables->host.utf8);
 	if (accepted.length!=0) memcpy(accepted.bytes,value,accepted.length);
 	finish(variables,&accepted,ST_RIP3_USER_VARIABLE_RESPONSE);
 }

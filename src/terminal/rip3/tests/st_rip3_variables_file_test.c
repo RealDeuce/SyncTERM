@@ -71,7 +71,7 @@ read_store(const char *directory)
 	char *path = NULL;
 	const uint8_t utf8[] = {'c','a','f',0xc3,0xa9};
 	const char boundary[] = "ABCDEFGHIJKLMNOPQRST";
-	uint8_t maximum[300];
+	uint8_t maximum[255 * 4];
 	size_t count;
 
 	CHECK(path_join_alloc(&path, directory, filename) == 0);
@@ -98,7 +98,8 @@ read_store(const char *directory)
 	CHECK(value.length == sizeof(utf8) && memcmp(value.bytes, utf8, sizeof(utf8)) == 0);
 	CHECK(st_rip3_variables_get_entry(variables, "NAME", 4, &entry) == 0 && entry.require_confirmation);
 	CHECK(st_rip3_variables_get(variables, boundary, 20, &value) == 0);
-	CHECK(value.length == 255 && memcmp(value.bytes, maximum, 255) == 0 && value.bytes[255] == 0);
+	CHECK(value.length == sizeof(maximum) && memcmp(value.bytes, maximum, sizeof(maximum)) == 0
+	    && value.bytes[value.length] == 0);
 	st_rip3_variables_destroy(variables);
 	free(path);
 	return 0;
@@ -116,6 +117,10 @@ malformed_and_io(const char *directory)
 	const uint8_t duplicate[] = {
 		'S','T','R','I','P','3','V',1, 2,0,0,0,
 		3,1,'F','O','O','A', 3,1,'f','o','o','B',
+	};
+	const uint8_t too_wide[] = {
+		'S','T','R','I','P','3','V',3, 1,0,0,0,
+		1,0xfd,0,3,'A', /* Declares 1021 bytes, one more than storage can hold. */
 	};
 
 	CHECK(path_join_alloc(&path, directory, "corrupt.bin") == 0);
@@ -147,9 +152,12 @@ malformed_and_io(const char *directory)
 		CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_INVALID_FORMAT);
 		CHECK(variables == original);
 	}
-	memcpy(bad, fixture, sizeof(fixture)); bad[7] = 3;
+	memcpy(bad, fixture, sizeof(fixture)); bad[7] = 4;
 	CHECK(fs_replace_file(path, bad, sizeof(fixture)) == 0);
 	CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(variables == original);
+	CHECK(fs_replace_file(path, too_wide, sizeof(too_wide)) == 0);
+	CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_INVALID_FORMAT);
 	CHECK(variables == original);
 	CHECK(fs_replace_file(path, duplicate, sizeof(duplicate)) == 0);
 	CHECK(st_rip3_variables_load_file(&variables, path) == IO_ERROR_INVALID_FORMAT);

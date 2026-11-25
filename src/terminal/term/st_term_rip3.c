@@ -2053,7 +2053,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 		}
 	}
 	if (status==0 && rip->persistent_values==NULL) status=st_rip3_variables_create(&rip->persistent_values);
-	const struct st_rip3_user_variable_host user={.session=rip->session_values,.persistent=rip->persistent_values};
+	const struct st_rip3_user_variable_host user={.session=rip->session_values,.persistent=rip->persistent_values,.utf8=true};
 	if (status==0) status=st_rip3_user_variables_create(&rip->user,&user);
 	const struct st_rip3_host_variables services={.features=&rip->features,.identity=&rip->identity,
 	    .local_clock=read_local_clock,.local=&rip->local,.user_variables=rip->user,
