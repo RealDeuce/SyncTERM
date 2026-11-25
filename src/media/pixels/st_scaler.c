@@ -264,40 +264,52 @@ append_stage(st_pixel_scaler_t *scaler, enum scaler_stage_kind kind,
 }
 
 static int
-prepare_blocky_maps(st_pixel_scaler_t *scaler)
+prepare_blocky_axis(uint32_t output_size, uint32_t source_size,
+	uint32_t *repeat, struct axis_sample **samples, size_t *sample_capacity,
+	struct axis_damage **damage, size_t *damage_capacity)
 {
 	int status;
 
-	status = ensure_array((void **)&scaler->x_samples,
-	    &scaler->x_sample_capacity, scaler->width,
-	    sizeof(scaler->x_samples[0]));
+	*repeat = output_size % source_size == 0 ? output_size / source_size : 0;
+	if (*repeat != 0)
+		return 0;
+	status = ensure_array((void **)samples, sample_capacity, output_size,
+	    sizeof(**samples));
 	if (status == 0)
-		status = ensure_array((void **)&scaler->y_samples,
-		    &scaler->y_sample_capacity, scaler->height,
-		    sizeof(scaler->y_samples[0]));
+		status = ensure_array((void **)damage, damage_capacity, source_size,
+		    sizeof(**damage));
 	if (status == 0)
-		status = ensure_array((void **)&scaler->x_damage,
-		    &scaler->x_damage_capacity, scaler->source_width,
-		    sizeof(scaler->x_damage[0]));
+		make_axis_map(*samples, *damage, output_size, source_size);
+	return status;
+}
+
+static int
+prepare_blocky_maps(st_pixel_scaler_t *scaler)
+{
+	int status = prepare_blocky_axis(scaler->width, scaler->source_width,
+	    &scaler->exact_x_repeat, &scaler->x_samples, &scaler->x_sample_capacity,
+	    &scaler->x_damage, &scaler->x_damage_capacity);
 	if (status == 0)
-		status = ensure_array((void **)&scaler->y_damage,
-		    &scaler->y_damage_capacity, scaler->source_height,
-		    sizeof(scaler->y_damage[0]));
-	if (status == 0)
+		status = prepare_blocky_axis(scaler->height, scaler->source_height,
+		    &scaler->exact_y_repeat, &scaler->y_samples, &scaler->y_sample_capacity,
+		    &scaler->y_damage, &scaler->y_damage_capacity);
+	if (status == 0 && scaler->exact_x_repeat != 1 && scaler->exact_y_repeat == 0)
 		status = ensure_array((void **)&scaler->vertical_line,
 		    &scaler->vertical_line_capacity, scaler->source_width,
 		    sizeof(scaler->vertical_line[0]));
-	if (status != 0)
-		return status;
-	make_axis_map(scaler->x_samples, scaler->x_damage, scaler->width,
-	    scaler->source_width);
-	make_axis_map(scaler->y_samples, scaler->y_damage, scaler->height,
-	    scaler->source_height);
-	scaler->exact_x_repeat = scaler->width % scaler->source_width == 0
-	    ? scaler->width / scaler->source_width : 0;
-	scaler->exact_y_repeat = scaler->height % scaler->source_height == 0
-	    ? scaler->height / scaler->source_height : 0;
-	return 0;
+	return status;
+}
+
+static void
+multiply_row(const uint32_t *source, uint32_t *destination,
+	uint32_t width, uint32_t multiplier)
+{
+	if (multiplier == 1)
+		memcpy(destination, source, (size_t)width * sizeof(*source));
+	else
+		for (uint32_t x = 0; x < width; ++x)
+			for (uint32_t repeat = 0; repeat < multiplier; ++repeat)
+				*destination++ = source[x];
 }
 
 static void
@@ -311,10 +323,7 @@ multiply_scale(const uint32_t *source, uint32_t *destination,
 		uint32_t *row = &destination[(size_t)y * y_multiplier
 		    * destination_width];
 
-		for (uint32_t x = 0; x < width; ++x)
-			for (uint32_t repeat = 0; repeat < x_multiplier; ++repeat)
-				row[(size_t)x * x_multiplier + repeat]
-				    = source[(size_t)y * width + x];
+		multiply_row(source + (size_t)y * width, row, width, x_multiplier);
 		for (uint32_t repeat = 1; repeat < y_multiplier; ++repeat)
 			memcpy(&row[(size_t)repeat * destination_width], row,
 			    (size_t)destination_width * sizeof(row[0]));
@@ -420,7 +429,6 @@ static void
 update_exact_blocky_damage(st_pixel_scaler_t *scaler,
 	const uint32_t *source, const struct st_pixel_rect *damage)
 {
-	uint32_t source_end_x = damage->x + damage->width;
 	uint32_t source_end_y = damage->y + damage->height;
 	uint32_t output_x = damage->x * scaler->exact_x_repeat;
 	uint32_t output_width = damage->width * scaler->exact_x_repeat;
@@ -428,13 +436,9 @@ update_exact_blocky_damage(st_pixel_scaler_t *scaler,
 	for (uint32_t y = damage->y; y < source_end_y; ++y) {
 		uint32_t *first = &scaler->output.pixels[(size_t)y
 		    * scaler->exact_y_repeat * scaler->width + output_x];
-		uint32_t *destination = first;
 
-		for (uint32_t x = damage->x; x < source_end_x; ++x)
-			for (uint32_t repeat = 0;
-			    repeat < scaler->exact_x_repeat; ++repeat)
-				*destination++ = source[(size_t)y
-				    * scaler->source_width + x];
+		multiply_row(source + (size_t)y * scaler->source_width + damage->x,
+		    first, damage->width, scaler->exact_x_repeat);
 		for (uint32_t repeat = 1; repeat < scaler->exact_y_repeat;
 		    ++repeat)
 			memcpy(first + (size_t)repeat * scaler->width, first,
@@ -816,47 +820,69 @@ update_blocky_region(st_pixel_scaler_t *scaler, const uint32_t *source,
 {
 	uint32_t right = rectangle->x + rectangle->width;
 	uint32_t bottom = rectangle->y + rectangle->height;
-	uint32_t source_first = scaler->x_samples[rectangle->x].first;
-	uint32_t source_end = scaler->x_samples[right - 1].second + 1;
+	uint32_t x_repeat = scaler->exact_x_repeat;
+	uint32_t y_repeat = scaler->exact_y_repeat;
+	uint32_t source_first, source_end;
+
+	if (x_repeat == 0) {
+		source_first = scaler->x_samples[rectangle->x].first;
+		source_end = scaler->x_samples[right - 1].second + 1;
+	}
+	else {
+		/* Exact repeats map damage to whole groups of output pixels. */
+		source_first = rectangle->x / x_repeat;
+		source_end = right / x_repeat;
+	}
 
 	for (uint32_t y = rectangle->y; y < bottom; ++y) {
-		const struct axis_sample *vertical = &scaler->y_samples[y];
-		const uint32_t *top = &source[(size_t)vertical->first
-		    * scaler->source_width];
-		const uint32_t *bottom_row = &source[(size_t)vertical->second
-		    * scaler->source_width];
+		const uint32_t *row;
 		uint32_t *destination = &scaler->output.pixels[(size_t)y
 		    * scaler->width];
 
-		if (vertical->first == vertical->second
-		    || vertical->weight == 0)
-			memcpy(&scaler->vertical_line[source_first],
-			    &top[source_first],
-			    (size_t)(source_end - source_first)
-			    * sizeof(scaler->vertical_line[0]));
-		else
-			for (uint32_t x = source_first; x < source_end; ++x)
-				scaler->vertical_line[x] = blend_pixel(top[x],
-				    bottom_row[x], vertical->weight);
-		if (scaler->exact_x_repeat != 0) {
-			uint32_t output = source_first * scaler->exact_x_repeat;
+		if (y_repeat != 0)
+			row = &source[(size_t)(y / y_repeat) * scaler->source_width];
+		else {
+			const struct axis_sample *sample = &scaler->y_samples[y];
+			row = &source[(size_t)sample->first * scaler->source_width];
+			if (sample->first != sample->second && sample->weight != 0) {
+				const uint32_t *next = &source[(size_t)sample->second
+				    * scaler->source_width];
+				uint32_t *blended = x_repeat == 1 ? destination
+				    : scaler->vertical_line;
 
-			for (uint32_t x = source_first; x < source_end; ++x)
-				for (uint32_t repeat = 0;
-				    repeat < scaler->exact_x_repeat; ++repeat)
-					destination[output++]
-					    = scaler->vertical_line[x];
+				for (uint32_t x = source_first; x < source_end; ++x)
+					blended[x] = blend_pixel(row[x], next[x], sample->weight);
+				if (x_repeat == 1)
+					continue;
+				row = blended;
+			}
 		}
+		if (x_repeat != 0)
+			multiply_row(row + source_first, destination + rectangle->x,
+			    source_end - source_first, x_repeat);
 		else
 			for (uint32_t x = rectangle->x; x < right; ++x) {
-				const struct axis_sample *horizontal
-				    = &scaler->x_samples[x];
+				const struct axis_sample *sample = &scaler->x_samples[x];
 
-				destination[x] = blend_pixel(
-				    scaler->vertical_line[horizontal->first],
-				    scaler->vertical_line[horizontal->second],
-				    horizontal->weight);
+				destination[x] = blend_pixel(row[sample->first],
+				    row[sample->second], sample->weight);
 			}
+	}
+}
+
+static void
+blocky_damage_bounds(uint32_t repeat, const struct axis_damage *map,
+	uint32_t start, uint32_t length, uint32_t output_size,
+	uint32_t *output_start, uint32_t *output_length)
+{
+	if (repeat != 0) {
+		*output_start = start * repeat;
+		*output_length = length * repeat;
+	}
+	else {
+		uint32_t end;
+		damage_bounds(map, start, start + length, output_size, output_start, &end);
+		*output_length = end - *output_start;
 	}
 }
 
@@ -866,8 +892,6 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 	const struct st_pixel_rect *damage, struct st_pixel_rect *output_damage)
 {
 	const uint32_t *source_pixels;
-	uint32_t right;
-	uint32_t bottom;
 	struct st_pixel_rect changed;
 
 	if (scaler == NULL || result == NULL || source == NULL
@@ -900,27 +924,13 @@ st_pixel_scaler_scale_region(st_pixel_scaler_t *scaler,
 		*output_damage = changed;
 		return 0;
 	}
-	right = damage->x + damage->width;
-	bottom = damage->y + damage->height;
-	if (scaler->exact_x_repeat != 0 && scaler->exact_y_repeat != 0) {
-		changed = (struct st_pixel_rect){
-			.x = damage->x * scaler->exact_x_repeat,
-			.y = damage->y * scaler->exact_y_repeat,
-			.width = damage->width * scaler->exact_x_repeat,
-			.height = damage->height * scaler->exact_y_repeat,
-		};
+	blocky_damage_bounds(scaler->exact_x_repeat, scaler->x_damage,
+	    damage->x, damage->width, scaler->width, &changed.x, &changed.width);
+	blocky_damage_bounds(scaler->exact_y_repeat, scaler->y_damage,
+	    damage->y, damage->height, scaler->height, &changed.y, &changed.height);
+	if (scaler->exact_x_repeat != 0 && scaler->exact_y_repeat != 0)
 		update_exact_blocky_damage(scaler, source_pixels, damage);
-		*result = &scaler->output;
-		*output_damage = changed;
-		return 0;
-	}
-	damage_bounds(scaler->x_damage, damage->x, right, scaler->width,
-	    &changed.x, &right);
-	damage_bounds(scaler->y_damage, damage->y, bottom, scaler->height,
-	    &changed.y, &bottom);
-	changed.width = right - changed.x;
-	changed.height = bottom - changed.y;
-	if (changed.width != 0 && changed.height != 0)
+	else if (changed.width != 0 && changed.height != 0)
 		update_blocky_region(scaler, source_pixels, &changed);
 	*result = &scaler->output;
 	*output_damage = changed;

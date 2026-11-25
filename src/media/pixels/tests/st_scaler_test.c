@@ -136,6 +136,42 @@ check_small_edge_damage(void)
 }
 
 static void
+check_blocky_single_axis(bool horizontal)
+{
+	uint32_t pixels[9];
+	struct st_rgb_buffer input = {pixels, 3, 3};
+	st_pixel_scaler_t *scaler = NULL;
+	const struct st_rgb_buffer *scaled;
+	struct st_pixel_rect damage = {1, 1, 1, 1}, changed;
+	const unsigned int levels[] = {0, 60, 120, 160};
+	const unsigned int updated[] = {10, 130, 170, 170};
+
+	for (unsigned int line = 0; line < 3; ++line)
+		for (unsigned int i = 0; i < 3; ++i)
+			pixels[horizontal ? line * 3 + i : i * 3 + line]
+			    = (i * 80 + line * 10) * UINT32_C(0x010101);
+	CHECK(st_pixel_scaler_create(&scaler) == 0);
+	CHECK(st_pixel_scaler_scale(scaler, &scaled, &input,
+	    horizontal ? 4 : 3, horizontal ? 3 : 4, ST_PIXEL_SCALING_BLOCKY) == 0);
+	for (unsigned int line = 0; line < 3; ++line)
+		for (unsigned int i = 0; i < 4; ++i)
+			CHECK(scaled->pixels[horizontal ? line * 4 + i : i * 3 + line]
+			    == (levels[i] + line * 10) * UINT32_C(0x010101));
+	pixels[4] = UINT32_C(0xaaaaaa);
+	CHECK(st_pixel_scaler_scale_region(scaler, &scaled, &input, &damage,
+	    &changed) == 0);
+	CHECK((horizontal ? changed.y : changed.x) == 1);
+	CHECK((horizontal ? changed.height : changed.width) == 1);
+	for (unsigned int line = 0; line < 3; ++line)
+		for (unsigned int i = 0; i < 4; ++i) {
+			unsigned int level = line == 1 ? updated[i] : levels[i] + line * 10;
+			CHECK(scaled->pixels[horizontal ? line * 4 + i : i * 3 + line]
+			    == level * UINT32_C(0x010101));
+		}
+	st_pixel_scaler_destroy(scaler);
+}
+
+static void
 check_reduction(void)
 {
 	uint32_t source[16];
@@ -247,6 +283,8 @@ main(int argc, char **argv)
 	bool generate = argc == 2 && strcmp(argv[1], "--generate") == 0;
 
 	check_invalid_dimensions();
+	check_blocky_single_axis(false);
+	check_blocky_single_axis(true);
 	check_reduction();
 	check_small_edge_damage();
 	CHECK(st_pixel_buffer_create(&source, 7, 5, false) == 0);
