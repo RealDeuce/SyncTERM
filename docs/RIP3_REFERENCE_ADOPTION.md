@@ -1,5 +1,10 @@
 # RIP3 reference adoption
 
+The [current acceptance scope](RIP3_CONFORMANCE.md#acceptance-scope) applies
+to every adopted revision. The records below describe decisions at the time
+of adoption. Use the current ledger for acceptance, including where earlier
+records tracked RIPtel's ordinary ANSI or client behavior.
+
 The user authorized adopting the open [documentation integration PR
 #71](https://github.com/bbs-land/remote-imaging-protocol/pull/71) at commit
 [`a9e0c2f490714d82a0827675ffbc074aa5ae00e6`](https://github.com/bbs-land/remote-imaging-protocol/tree/a9e0c2f490714d82a0827675ffbc074aa5ae00e6).

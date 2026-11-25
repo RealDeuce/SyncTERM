@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from rip3_compliance import (BASELINE, REFERENCE, UPSTREAM, REFERENCE_BRANCH,
-                            ISSUE_REPOSITORY, c_functions, check_freeze,
+                            ISSUE_REPOSITORY, c_functions, check_blockers, check_freeze,
                             check_reference_review, digest, index_reference)
 
 
@@ -63,6 +63,20 @@ int other(void) { return 2; }
 
 
 class ReferenceTests(unittest.TestCase):
+    def test_excluded_issue_is_historical_and_cannot_block_a_requirement(self):
+        issue = ISSUE_REPOSITORY + "/issues/298"
+        blocker = {"id": "B298", "issue": issue, "state": "excluded",
+                   "reason": "Ordinary ANSI editing belongs to the ANSI engine."}
+        data = {"blockers": [blocker], "requirements": []}
+        check_blockers(data, require_complete=True)
+        data["requirements"].append({"id": "mixed.md:1", "status": "blocked", "issues": [issue]})
+        with self.assertRaisesRegex(ValueError, "requirement cites an excluded blocker"):
+            check_blockers(data)
+        data["requirements"].clear()
+        blocker["state"] = "open"
+        with self.assertRaisesRegex(ValueError, "clarification blockers remain"):
+            check_blockers(data, require_complete=True)
+
     def test_normal_reindex_preserves_adoption_record_and_review(self):
         with tempfile.TemporaryDirectory(prefix="syncterm-rip3-reindex-test-") as directory:
             root = Path(directory)
@@ -81,6 +95,7 @@ class ReferenceTests(unittest.TestCase):
                         "text": "A pinned source block.\n",
                         "sha256": digest(b"A pinned source block.\n"),
                         "status": "pending", "implementation": [], "tests": [],
+                        "scope": "The RIP command's observable effect.",
                         "reason": "Retain the independent review."}
             data = {"revision": REFERENCE, "reference_review": "review.json",
                     "documents": documents, "requirements": [reviewed]}

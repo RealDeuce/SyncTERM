@@ -20,6 +20,11 @@ BASELINE = "e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a"
 UPSTREAM = "https://github.com/RealDeuce/remote-imaging-protocol"
 REFERENCE_BRANCH = "stable"
 ISSUE_REPOSITORY = "https://github.com/bbs-land/remote-imaging-protocol"
+REVIEW_NOTE = (
+    "Index of pinned evidence. Active requirements cover RIPscrip commands, variables, framing and "
+    "their protocol-defined effects. For mixed blocks, scope identifies the RIPscrip clauses under "
+    "review. RIPtel ANSI behavior, Telnet negotiation and client features are not acceptance criteria."
+)
 
 
 def digest(data):
@@ -150,7 +155,7 @@ def index_reference(directory):
     result = {"schema": 1, "repository": UPSTREAM, "revision": REFERENCE,
               "reference_branch": REFERENCE_BRANCH, "issue_repository": ISSUE_REPOSITORY,
               "license": UPSTREAM + "/blob/" + REFERENCE + "/LICENSE",
-              "note": "Source blocks are a complete discovery/review queue for these documents, not individually adjudicated requirements or conformance evidence. Resolve inherited definitions against the v3 reference; classify contextual material explicitly.",
+              "note": REVIEW_NOTE,
               "blockers": old.get("blockers", []),
               "documents": documents, "requirements": requirements}
     if "reference_review" in old:
@@ -178,7 +183,24 @@ def check_reference_review(data, root=ROOT):
         raise ValueError("invalid reference archive digest")
 
 
-def check_requirements():
+def check_blockers(data, require_complete=False):
+    excluded = set()
+    for blocker in data["blockers"]:
+        state = blocker["state"]
+        if state not in {"open", "resolved", "excluded"}:
+            raise ValueError("invalid blocker state: " + blocker["id"])
+        if state == "excluded":
+            if not blocker.get("reason"):
+                raise ValueError("missing blocker exclusion reason: " + blocker["id"])
+            excluded.add(blocker["issue"])
+    for row in data["requirements"]:
+        if row["status"] == "blocked" and excluded.intersection(row.get("issues", ())):
+            raise ValueError("requirement cites an excluded blocker: " + row["id"])
+    if require_complete and any(blocker["state"] == "open" for blocker in data["blockers"]):
+        raise ValueError("RIP3 upstream clarification blockers remain")
+
+
+def check_requirements(require_complete=False):
     data = json.loads((DATA / "requirements.json").read_text())
     if data["revision"] != REFERENCE:
         raise ValueError("reference revision changed without contract review")
@@ -211,6 +233,9 @@ def check_requirements():
                     raise ValueError("missing implementation: " + path)
         counts[state] = counts.get(state, 0) + 1
     print("RIP3 source-block review queue:", json.dumps(counts, sort_keys=True))
+    if require_complete and any(counts.get(state, 0) for state in ("unreviewed", "pending", "blocked")):
+        raise ValueError("RIP3 compliance is not complete")
+    check_blockers(data, require_complete)
     return counts
 
 
@@ -230,13 +255,7 @@ def main():
     print(f"RIP154 preservation: {files} files, {functions} helper definitions match recorded checksums"
           + (f" ({len(maintained)} documented maintenance updates)" if maintained else ""))
     if not args.freeze_only:
-        counts = check_requirements()
-        if args.require_complete:
-            if any(counts.get(state, 0) for state in ("unreviewed", "pending", "blocked")):
-                raise ValueError("RIP3 compliance is not complete")
-            data = json.loads((DATA / "requirements.json").read_text())
-            if any(b["state"] != "resolved" for b in data["blockers"]):
-                raise ValueError("RIP3 upstream clarification blockers remain")
+        check_requirements(args.require_complete)
 
 
 if __name__ == "__main__":

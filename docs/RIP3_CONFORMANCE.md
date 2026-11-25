@@ -1,22 +1,40 @@
 # RIPscrip 3.0 implementation goal
 
-The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
-Visual Telnet 3.1, using [reference revision
+The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
 4c4ae276b07dbef2aaa5756abe90de1a10536dc8](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c4ae276b07dbef2aaa5756abe90de1a10536dc8/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
-That documentation is the contract, including explicit rendering corrections
-and referenced inherited formats. Exact RIPtel raster reproduction is not
-required. RIPlib extensions and future proposals are outside the goal.
-External application and URL launching are excluded: recognize the syntax,
-do not execute it, and report unsupported capabilities truthfully.
+The reference supplies the RIP command grammar, framing, required effects,
+and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
+requirements. Rendering is judged by protocol behavior on the agreed
+canvases. RIPlib extensions, future proposals, external application and URL
+launching, and exact RIPtel raster reproduction are outside this goal.
 
-**User scope constraint:** RIPv3 uses SyncTERM's existing ANSI engine. Do not
-add a VT-102 emulation mode, parser mode, UI/profile selector, toggle or keymap
-as part of this work, regardless of what reference documentation or a PR says.
-This constraint takes precedence over reference adoption. ANSI behavior and
-charset clarifications are evaluated for the existing ANSI engine; references
-to RIPtel's separate VT-102 option do not expand SyncTERM's scope. Issue #104
-remains relevant only to applicable ANSI charset/byte/reset semantics.
+## Acceptance scope
+
+An active requirement must identify a RIPscrip command, variable, framing
+rule, or interoperability rule and the observable effect it requires.
+For example, wire `2T` selects a RIP text window, `1U` defines a button and
+its host response, and `ESC[!` queries RIP capability. The RIP session
+owns routing and recognition of RIP messages. Ordinary ANSI bytes use
+SyncTERM's existing CTerm rules. RIP text-window commands can use CTerm
+APIs to configure geometry, apply RIP erasure and cursor operations, and
+retain or initialize supported window state.
+
+Generic ANSI grammar, terminal modes, editing, character mapping, and
+keyboard handling remain terminal work. Telnet negotiation remains
+connection work. RIPtel's VT-102 mode, native UI, client defaults, and
+private resources are outside this goal. Host asset operations follow the
+approved per-BBS cache and shared read-only RIP resource policy.
+Earlier language versions supply requirements where RIPscrip 3.0 inherits
+their commands or formats. The RIPv1.54 preservation suite covers its own
+behavior, including historical quirks.
+
+When a reference block mixes a RIP requirement with other behavior, the
+ledger's `scope` field identifies the clauses used for acceptance. Earlier
+ANSI milestones and upstream issues remain historical evidence. The current
+ledger governs completion and future reference adoption. File a new
+documentation issue only when a gap or conflict prevents implementing or
+verifying an in-scope RIP effect.
 
 **Status: implementation in progress; no full-compliance claim.** Connected
 RIP3 sessions now use the separate engine for its completed command families.
@@ -90,12 +108,9 @@ TW backups, full reset and remaining metadata queries remain pending. Slot
 selection/protection and defined noncurrent native views are now connected;
 wire first use copies represented state into an unprotected slot, even from a
 protected source. CUR first use creates fresh full-screen defaults instead;
-ordinary ANSI parsing follows the connection across selection. ANSI-only
-charset designation/state lifetime is now connected; displayed glyphs remain
-CP437. ESC7/8 now saves/restores the represented text-window metadata through
-the existing ANSI path, independently of CSI coordinates and whole-window
-backups. The saved value follows the scene header and HARD reset lifetime rules.
-Remaining terminal modes stay pending. Ordinary
+ordinary ANSI parsing follows the connection across selection. The RIP
+text-window acceptance criteria cover selection, supported state and
+RIP-defined backups. Ordinary
 `w` depends only on the physical device; a stored zero WORLD does not reject it.
 Changed definitions construct a fresh rendering state without clearing
 underlying artwork, retaining independently owned tab stops and unfinished
@@ -106,11 +121,7 @@ window. Adopted
 [PR #102](https://github.com/bbs-land/remote-imaging-protocol/pull/102) resolves
 the ordinary-state contract and corrects the font-2 placement example.
 Geometry/normalized identity, pixel preservation and ordinary ANSI continuation
-are implemented. [PR #107](https://github.com/bbs-land/remote-imaging-protocol/pull/107)
-supplies the applicable ANSI charset/byte contract, now implemented for the
-ANSI-only designation/glyph/lifetime scope. Separate CSI-coordinate versus
-ESC7/8 represented state and the header lifetime rules are connected under
-the PR151 completion. The full terminal mode inventory remains incomplete. No VT-102 mode is added. UTF-8 is a client extension: incomplete decoding is
+are implemented. UTF-8 is a client extension: incomplete decoding is
 committed at RIP boundaries, so bytes cannot join across window definitions.
 
 Extended `b` now defines the selected connected text window using wide,
@@ -329,7 +340,8 @@ material must be adjudicated explicitly. Chapter/corpus replay is not a
 substitute for individual requirements review. Use `pending` for reviewed
 requirements awaiting implementation, `blocked` with issue links for unresolved
 requirements, and `implemented` only with implementation paths and independent
-CTest evidence. Context/exclusion entries require reasons.
+CTest evidence. Context/exclusion entries require reasons. An upstream issue
+marked `excluded` remains in the history and cannot block RIP compliance.
 
 The following list records historical questions raised against the previous
 pin. PR #71 provides the adopted documentation answers for 34 of them, including
@@ -10756,18 +10768,16 @@ decorations, 127 and 128 residents, scene gates and removal from a full pool.
 Backup selectors continue to address saved definitions.
 [PR #296](https://github.com/bbs-land/remote-imaging-protocol/pull/296)
 
-## Reference gaps in registration and ANSI insert mode
+## Earlier registration and ANSI insert-mode reports
 
-Level-9 `R` reaches the original standalone client's registration callback.
-The command index lacks the operation and a rule for clients without the
-TeleGrafix registration service.
+The command index formerly lacked level-9 `R` and a rule for clients without
+TeleGrafix registration. The later registration milestone records its wire
+framing and portable behavior.
 [Issue #297](https://github.com/bbs-land/remote-imaging-protocol/issues/297)
 
-The reference records insert mode in text-window definitions, snapshots,
-and reset state. The original ordinary ANSI mode 4 handlers set and clear
-the window's bit, and the character path calls the insert-character helper
-before drawing. The portable rendering contract still needs to specify the
-bounded row shift and its interaction with wrapping and text edits.
+Ordinary ANSI insert mode was investigated during text-window work. It is
+outside the RIP acceptance criteria. RIP window commands operate on the
+supported state of the native text window.
 [Issue #298](https://github.com/bbs-land/remote-imaging-protocol/issues/298)
 
 ## COMPAT on a live RIPv3 connection
@@ -10800,13 +10810,13 @@ The pinned reference explicitly specifies full port bounds for those flags,
 so the implementation follows that rule while the discrepancy is reviewed.
 [Issue #301](https://github.com/bbs-land/remote-imaging-protocol/issues/301)
 
-## ANSI duplex control reference gap
+## Earlier ANSI duplex control report
 
 The original ordinary CSI 12 h/l handlers change client duplex state. The
 keyboard path can echo ordinary characters and locally echoes CR/LF for
 Enter in half duplex. The standalone client also updates the live setting
-during Telnet ECHO negotiation. The reference needs a portable rule for
-those interactions and for the lifetime of the setting.
+during Telnet ECHO negotiation. These are terminal and connection behaviors
+outside the RIP acceptance criteria.
 [Issue #302](https://github.com/bbs-land/remote-imaging-protocol/issues/302)
 
 ## Level 9 registration framing

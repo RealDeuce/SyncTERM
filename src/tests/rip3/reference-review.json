@@ -4,6 +4,7 @@
   "revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
   "previous_revision": "4dc79277a521acd92df258c836e4d067456f8327",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
+  "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
   "upstream_state_at_adoption": "The open PR #300 matches the corresponding fork stable integration tree.",
   "archive_sha256": "c5d10c735629ec3ce3c072a36e324b9c347985023ca15631d3738e367c141073",
   "normative_scope": [
@@ -950,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
   "upstream_issue_resolutions": 148,
-  "pending_followups": [
+  "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
