@@ -1962,6 +1962,35 @@ tone_actions(void)
 }
 
 static int
+sound_reset(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	st_audio_runtime_t *runtime = NULL;
+	struct st_rip3_audio *player = NULL;
+
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(query(&f, "$RESET(SOUND)$alive", "alive") == 0);
+	st_rip3_session_destroy(f.session);
+
+	CHECK(st_audio_runtime_create_pull(&runtime) == 0 && st_rip3_audio_create(&player, runtime) == 0);
+	options.audio = player;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	size_t stops = st_rip3_session_test_stops;
+	CHECK(query(&f, "before:$reset(sound)$after", "before:after") == 0);
+	CHECK(st_rip3_session_test_stops == stops + 1);
+	CHECK(append(&f, "!|1\0330000$RESET(SOUND,CUR)$\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_test_stops == stops + 1 && f.errors == 1
+	    && f.kind == ST_RIP3_COMMAND_INVALID);
+	CHECK(query(&f, "$RESET(SOUND)$still here", "still here") == 0);
+	CHECK(st_rip3_session_test_stops == stops + 2);
+	st_rip3_session_destroy(f.session);
+	st_rip3_audio_destroy(player);
+	st_audio_runtime_destroy(runtime);
+	return 0;
+}
+
+static int
 scene_header(void)
 {
 	struct fixture f={0};
@@ -2326,6 +2355,7 @@ main(void)
 	CHECK(scene_pacing()==0 && scene_query_scope()==0 && overflow_navigation()==0 && tone_actions()==0);
 	CHECK(refresh_expression()==0);
 	CHECK(ansi_text_window()==0 && scene_header()==0 && scene_header_window_lifetime()==0);
+	CHECK(sound_reset() == 0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
 	CHECK(scene_header_port_zero_queries()==0 && scene_header_palette_upload()==0 && hard_reset_lifetime()==0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);

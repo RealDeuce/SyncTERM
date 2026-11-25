@@ -27,6 +27,7 @@ struct st_rip3_table_host {
 	void *reset_context;
 	int (*soft_reset)(void *context);
 	int (*hard_reset)(void *context);
+	int (*stop_waveform)(void *context);
 	/* Valid action callbacks report lower-level failure without a variable error
 	 * or returned value; malformed syntax still returns private preflight status. */
 	void *operation_context;

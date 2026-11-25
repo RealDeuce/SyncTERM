@@ -95,14 +95,14 @@ charset_metadata(const struct st_rip3_host_variables *host,
 	}
 	else {
 		unsigned index;
-		if (words.count == 0 || equal(words.parameters[0].text, "CUR"))
-			status = st_rip3_environments_current(environments, &index);
-		else
-			status = st_rip3_host_number(words.parameters[0].text, 0, 35, &index);
-		if (status != 0)
-			return status;
 		struct st_rip3_environment value;
-		status = st_rip3_environments_get(environments, index, &value);
+		if (words.count == 0 || equal(words.parameters[0].text, "CUR"))
+			status = st_rip3_environments_active(environments, &index, &value);
+		else {
+			status = st_rip3_host_number(words.parameters[0].text, 0, 35, &index);
+			if (status == 0)
+				status = st_rip3_environments_get(environments, index, &value);
+		}
 		if (status == IO_ERROR_NOT_FOUND)
 			return reply_text(result, capacity, "-1");
 		if (status != 0)
@@ -199,7 +199,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	bool axis_setting=(width || height) && reference->count==2;
 	if (axis_setting && equal(reference->parameters[0].text,"CUR"))
 		return IO_ERROR_INVALID_FORMAT;
-	if (!axis_setting && reference->count != 0 && !equal(reference->parameters[0].text, "CUR")) {
+	bool active = axis_setting || reference->count == 0 || equal(reference->parameters[0].text, "CUR");
+	if (!active) {
 		status = st_rip3_host_number(reference->parameters[0].text, 0, 35, &index);
 		if (status != 0)
 			return status;
@@ -207,12 +208,8 @@ st_rip3_environment_host_execute(const struct st_rip3_host_variables *host,
 	if (host->tables == NULL || host->tables->tables[ST_RIP3_TABLE_ENV].live == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	environments = host->tables->tables[ST_RIP3_TABLE_ENV].live;
-	if (axis_setting || reference->count == 0 || equal(reference->parameters[0].text, "CUR")) {
-		status = st_rip3_environments_current(environments, &index);
-		if (status != 0)
-			return status;
-	}
-	status = st_rip3_environments_get(environments, index, &value);
+	status = active ? st_rip3_environments_active(environments, &index, &value)
+	    : st_rip3_environments_get(environments, index, &value);
 	if (status == IO_ERROR_NOT_FOUND) {
 		if (setting)
 			return IO_ERROR_INVALID_FORMAT;

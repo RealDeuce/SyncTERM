@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-cedb7e1a40c084d11237e821f42709386dedd2b6](https://github.com/RealDeuce/remote-imaging-protocol/tree/cedb7e1a40c084d11237e821f42709386dedd2b6/version/3.0)
+09df54d330b2a7c3c817e58b8ccde22fab5c41eb](https://github.com/RealDeuce/remote-imaging-protocol/tree/09df54d330b2a7c3c817e58b8ccde22fab5c41eb/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10629,7 +10629,7 @@ boundary it discards the command. Tests cover a live coordinate-width
 change, a compact header that selects a drawing style, receive splits,
 and recovery when padding cannot allocate space.
 
-## Bare RESET and the STYLE reset family
+## Bare RESET and the STYLE and ENV reset families
 
 Bare `$RESET$` uses the RIP3 SOFT reset and returns no text. The connected
 fixture verifies the full-screen clear, palette selection and clipboard
@@ -10648,8 +10648,18 @@ and unprotected numbered saves. The native test checks status, protection
 and backups. Connected CP437 and UTF-8 tests verify the resulting ink and
 the independence of STYLE from PORT, ENV, PAL and text-window selection.
 
-RIPtel's live ENV reset changes stored values while retaining its active
-parser settings. The documentation follow-up tracks that distinction and
-the original handling of unrecognized selectors. SyncTERM currently
-validates the full STYLE selector list before applying any of it.
-[Issue #283](https://github.com/bbs-land/remote-imaging-protocol/issues/283)
+Both families validate the full selector list before applying it in order.
+When an ENV reset reaches the selected entry, the new WORLD, Base Math,
+coordinate width, color mode, mouse pointer and charset override take effect
+immediately. The active index, input lock, pixels and ANSI text state are
+retained. Connected CP437 and UTF-8 tests exercise the first drawing command
+after reset and compare bare and numbered queries for an undefined entry.
+[PR #284](https://github.com/bbs-land/remote-imaging-protocol/pull/284)
+
+`RESET(SOUND)` stops the active digitized waveform. Native tests cover an
+idle session, stopping playback and recovery after an extra operand.
+
+The original RESET dispatch and selector conflicts for PORT and QUERY, and
+the HEADER input-lock effects of MCURSOR and KEYBOARD, remain open upstream.
+[Issue #285](https://github.com/bbs-land/remote-imaging-protocol/issues/285),
+[Issue #286](https://github.com/bbs-land/remote-imaging-protocol/issues/286)

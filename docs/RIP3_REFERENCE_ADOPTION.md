@@ -1670,3 +1670,15 @@ original collector accepts the early numeric-field terminator `<`.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/cedb7e1a40c084d11237e821f42709386dedd2b6),
 [PR #282](https://github.com/bbs-land/remote-imaging-protocol/pull/282)
+
+## Live STYLE and ENV reset
+
+The reference advances to `09df54d330b2a7c3c817e58b8ccde22fab5c41eb`.
+The stable tree matches the reviewed PR #284 head
+`0767e9ef69232ad3f2253c1e705e891e7011fe6f`. The Git archive has SHA-256
+`2e535731a394139759fea087d7eed83789fd84f16b228e8c804f325c3d8990c5`.
+The portable contract requires full selector validation, retained selection,
+and immediate activation when a live reset reaches the selected ENV.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/09df54d330b2a7c3c817e58b8ccde22fab5c41eb),
+[PR #284](https://github.com/bbs-land/remote-imaging-protocol/pull/284)

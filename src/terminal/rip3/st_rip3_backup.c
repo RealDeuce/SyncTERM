@@ -311,14 +311,14 @@ st_rip3_backup_clear_all(struct st_rip3_backup *backup, bool force)
 	if (backup == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	discard(backup, &backup->base);
-	while (backup->depth != 0)
-		discard(backup, &backup->stack[--backup->depth]);
 	for (size_t i = 0; i < 10; i++) {
 		if (force || !backup->protected[i]) {
 			discard(backup, &backup->slots[i]);
 			backup->protected[i] = false;
 		}
 	}
+	while (backup->depth != 0)
+		discard(backup, &backup->stack[--backup->depth]);
 	return 0;
 }
 

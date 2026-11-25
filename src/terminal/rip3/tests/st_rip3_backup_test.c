@@ -17,6 +17,7 @@
 
 static bool fail_clone, fail_restore;
 static unsigned created, destroyed;
+static int *cleared_values;
 
 static int
 clone_value(const void *object, void **result)
@@ -46,6 +47,8 @@ restore_value(void *object, const void *snapshot)
 static void
 destroy_value(void *snapshot)
 {
+	if (cleared_values != NULL)
+		*cleared_values++ = *(const int *)snapshot;
 	destroyed++;
 	free(snapshot);
 }
@@ -143,15 +146,16 @@ status_and_clear(void)
 	struct st_rip3_backup_info info;
 	const unsigned slots[] = {3,6,7};
 	int source = 1;
+	const int numbered[] = {3,6,7}, top = 5;
 	char text[80], previous[80];
 	const char expected[] = "0:2:3:5:0:0:0:1:0:0:1:1:0:0";
 
 	CHECK(st_rip3_backup_create(&backup, &ops) == 0);
 	CHECK(st_rip3_backup_create(&other, &ops) == 0);
 	for (size_t i = 0; i < 3; i++)
-		CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_SLOT, slots[i], &source) == 0);
+		CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_SLOT, slots[i], &numbered[i]) == 0);
 	for (unsigned i = 0; i < 2; i++)
-		CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_STACK, 0, &source) == 0);
+		CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_STACK, 0, &top) == 0);
 	/* Literal BACKSTAT USE example from the pinned reference. */
 	CHECK(st_rip3_backup_status(backup, false, text, sizeof(text)) == 0);
 	CHECK(strcmp(text, expected) == 0);
@@ -167,7 +171,12 @@ status_and_clear(void)
 	CHECK(strcmp(text, "0:0:0:1:0:0:0:1:0:0") == 0);
 	CHECK(st_rip3_backup_save(backup, ST_RIP3_BACKUP_BASE, 0, &source) == 0);
 	CHECK(st_rip3_backup_save(other, ST_RIP3_BACKUP_STACK, 0, &source) == 0);
+	int order[7] = {0};
+	const int expected_order[] = {1,6,5,5,0,0,0};
+	cleared_values = order;
 	CHECK(st_rip3_backup_clear_all(backup, false) == 0);
+	cleared_values = NULL;
+	CHECK(memcmp(order, expected_order, sizeof(order)) == 0);
 	CHECK(st_rip3_backup_info(backup, &info) == 0);
 	CHECK(!info.base && info.stack == 0 && info.slots == 2 && info.free == 8);
 	CHECK(info.slot_used[3] && info.slot_protected[3] && info.slot_used[7]);

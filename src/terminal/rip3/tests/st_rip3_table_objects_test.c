@@ -214,6 +214,19 @@ style_reset(void)
 	CHECK(run(&host, "$INUSE(STYLE,BASE)$", 0, "0") == 0);
 	CHECK(run(&host, "$INUSE(STYLE,STACK)$", 0, "0") == 0);
 
+	CHECK(run(&host, "$CUR(STYLE,5)$", 0, "") == 0);
+	CHECK(st_rip3_styles_set(styles, 5, &style) == 0);
+	CHECK(run(&host, "$RESET(STYLE, 7, cur )$", 0, "") == 0 && failures == 3);
+	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "1") == 0);
+	CHECK(st_rip3_styles_get(styles, 5, &current) == 0 && current.drawing_color == 15);
+	CHECK(run(&host, "$CUR(STYLE,7)$", 0, "") == 0);
+	CHECK(run(&host, "$RESET(STYLE,TBL,CUR)$", 0, "") == 0 && failures == 5);
+	CHECK(run(&host, "$CUR(STYLE)$", 0, "7") == 0);
+	CHECK(run(&host, "$ISPROT(STYLE,7)$", 0, "1") == 0);
+	CHECK(st_rip3_styles_get(styles, 7, &current) == 0 && current.drawing_color == 2);
+	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "0") == 0);
+	CHECK(st_rip3_styles_info(styles, 0, &info) == 0 && info.defined && !info.protected);
+
 	st_rip3_backup_destroy(backup);
 	st_rip3_styles_destroy(styles);
 	return 0;

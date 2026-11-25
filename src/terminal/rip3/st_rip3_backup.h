@@ -81,8 +81,8 @@ int st_rip3_backup_copy(struct st_rip3_backup *backup,
 int st_rip3_backup_protect(struct st_rip3_backup *backup, unsigned index, bool protect);
 int st_rip3_backup_clear(struct st_rip3_backup *backup,
 	enum st_rip3_backup_place place, unsigned index);
-/* Explicit backup clearing, not a soft scene reset (which retains backups).
- * Without force, protected numbered slots survive. With force, all are cleared. */
+/* Clear base, then numbered slots in ascending order, then the stack.
+ * Without force, protected numbered slots survive. */
 int st_rip3_backup_clear_all(struct st_rip3_backup *backup, bool force);
 int st_rip3_backup_info(const struct st_rip3_backup *backup,
 	struct st_rip3_backup_info *result);

@@ -656,6 +656,14 @@ soft_reset(void *context)
 	return reset_scene(context, false);
 }
 
+static int
+stop_waveform(void *context)
+{
+	struct st_rip3_session *session = context;
+	struct st_rip3_audio *player = session->commands.audio;
+	return player == NULL ? 0 : st_rip3_audio_stop(player);
+}
+
 static void
 set_input_lock(struct st_rip3_session *session, bool locked)
 {
@@ -765,8 +773,7 @@ erase_window(struct st_rip3_session *session, unsigned number, bool whole)
 	int status=st_rip3_palettes_current_palette(session->commands.palettes,&palette);
 	if (!whole && status==0) {
 		struct st_rip3_environment environment;struct st_rip3_style style;unsigned number;
-		status=st_rip3_environments_current(session->commands.environments,&number);
-		if (status==0) status=st_rip3_environments_get(session->commands.environments,number,&environment);
+		status=st_rip3_environments_active(session->commands.environments,NULL,&environment);
 		if (status==0) status=st_rip3_styles_current(session->commands.styles,&number);
 		if (status==0) status=st_rip3_styles_get(session->commands.styles,number,&style);
 		if (status==0) status=st_rip3_palettes_color_bits(session->commands.palettes,
@@ -2068,9 +2075,9 @@ st_rip3_session_mouse_pointer(const struct st_rip3_session *session,unsigned *re
 {
 	if (session==NULL || result==NULL) return false;
 	if (session->input_locked) { *result = 6; return true; }
-	unsigned current;struct st_rip3_environment env;
-	if (st_rip3_environments_current(session->commands.environments,&current)!=0
-	    || st_rip3_environments_get(session->commands.environments,current,&env)!=0) return false;
+	struct st_rip3_environment env;
+	if (st_rip3_environments_active(session->commands.environments,NULL,&env)!=0)
+		return false;
 	*result=env.mouse_pointer;return true;
 }
 
@@ -2188,6 +2195,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->commands.reset_context=session;session->commands.soft_reset=soft_reset;
 	session->tables.reset_context=session;session->tables.soft_reset=soft_reset;
 	session->tables.hard_reset=hard_reset;
+	session->tables.stop_waveform=stop_waveform;
 	session->default_text_font=config->default_text_font;session->default_text_wrap=config->default_text_wrap;
 	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
@@ -2500,10 +2508,8 @@ st_rip3_session_pick_list(const struct st_rip3_session *session, struct st_rip3_
 	const struct st_rip3_pick_list *list=st_rip3_query_pick_list(pick_list_query(session));
 	if (list!=NULL && frame!=NULL) {
 		*frame=session->frame;
-		unsigned current;
 		struct st_rip3_environment environment;
-		if (st_rip3_environments_current(session->commands.environments,&current)==0
-		    && st_rip3_environments_get(session->commands.environments,current,&environment)==0) {
+		if (st_rip3_environments_active(session->commands.environments,NULL,&environment)==0) {
 			frame->world_width=environment.world_width;
 			frame->world_height=environment.world_height;
 		}
@@ -2529,8 +2535,7 @@ st_rip3_session_capture(const struct st_rip3_session *session, struct st_rip3_se
 	if (session==NULL || result==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_session_capture value={0};struct st_rip3_port_info port;struct st_rip3_palette palette;
 	struct st_rip3_environment environment;
-	int status=st_rip3_environments_current(session->commands.environments,&value.environment);
-	if (status==0) status=st_rip3_environments_get(session->commands.environments,value.environment,&environment);
+	int status=st_rip3_environments_active(session->commands.environments,&value.environment,&environment);
 	if (status==0) {
 		/* Observation is valid even when WORLD stores a zero dimension.
 		 * Drawing still obtains a checked nonzero projection frame. */

@@ -110,13 +110,11 @@ start_fields(struct st_rip3_stream *stream, uint8_t level, uint8_t opcode)
 	stream->fields = fields;
 	const struct st_rip3_environments *environments = stream->environments;
 	struct st_rip3_environment environment;
-	unsigned current;
 	stream->base_math = 36;
 	stream->coordinate_width = 2;
 	stream->direct_rgb = false;
 	if (environments != NULL
-	    && st_rip3_environments_current(environments, &current) == 0
-	    && st_rip3_environments_get(environments, current, &environment) == 0) {
+	    && st_rip3_environments_active(environments, NULL, &environment) == 0) {
 		stream->base_math = environment.base_math;
 		stream->coordinate_width = environment.coordinate_size;
 		stream->direct_rgb = environment.rgb_bits != 0;

@@ -73,14 +73,9 @@ int
 st_rip3_command_environment(const struct st_rip3_command_host *host, unsigned *number,
     struct st_rip3_environment *value)
 {
-	int status;
-
 	if (host->environments == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	status = st_rip3_environments_current(host->environments, number);
-	if (status == 0)
-		status = st_rip3_environments_get(host->environments, *number, value);
-	return status;
+	return st_rip3_environments_active(host->environments, number, value);
 }
 
 int

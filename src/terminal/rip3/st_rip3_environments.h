@@ -51,17 +51,20 @@ int st_rip3_environments_current(const struct st_rip3_environments *environments
 	unsigned *result);
 int st_rip3_environments_info(const struct st_rip3_environments *environments,
 	unsigned number, struct st_rip3_environment_info *result);
+/* Explicit numbered lookup requires a defined entry. */
 int st_rip3_environments_get(const struct st_rip3_environments *environments,
 	unsigned number, struct st_rip3_environment *result);
-/* Explicit record creation/replacement; do not infer SWITCH_ENVIRONMENT's
- * undefined-entry policy or reset in-use semantics (#16). Protected entries
- * reject definition and edits. Set requires an already-defined entry. All
- * fields are validated before any change; failed calls preserve state/output. */
+/* A numbered reset can turn off the selected entry's definition. Its
+ * stored defaults are still active. The output index is optional. */
+int st_rip3_environments_active(const struct st_rip3_environments *environments,
+	unsigned *number, struct st_rip3_environment *result);
+/* Protected entries reject definition and edits. Set accepts a defined
+ * or active entry and leaves its definition unchanged. */
 int st_rip3_environments_define(struct st_rip3_environments *environments,
 	unsigned number, const struct st_rip3_environment *value);
 int st_rip3_environments_set(struct st_rip3_environments *environments,
 	unsigned number, const struct st_rip3_environment *value);
-/* COLORMODE callback's narrow protection-bypassing edit of an already defined
+/* COLORMODE callback's narrow protection-bypassing edit of a defined or active
  * slot. Zero selects palette mapping; 1..8 selects RGB component precision.
  * Selection and every other record field remain unchanged. Wire M uses set. */
 int st_rip3_environments_color(struct st_rip3_environments *environments,
@@ -96,12 +99,15 @@ int st_rip3_environments_copy_entries(struct st_rip3_environments *,unsigned sou
 	const unsigned *destinations,size_t count);
 int st_rip3_environments_protect(struct st_rip3_environments *environments,
 	unsigned number, bool protect);
-/* Outer SOFT: default unprotected records, discard their nonzero definitions
- * and select zero. Departing protected current retains WORLD/pointer but gets
- * base 36, width 2 and RGB precision 0. Independent backups are untouched. */
 /* Apply the already validated environment segment in flag order. */
 void st_rip3_environments_header(struct st_rip3_environments *, unsigned flags,
 	unsigned slot, unsigned coordinate_width, unsigned rgb_bits);
+/* CUR marks the selected entry defined; a numbered reset leaves only zero
+ * defined. The selected record takes effect as soon as it is reset. */
+int st_rip3_environments_reset_entry(struct st_rip3_environments *, unsigned number, bool current_form);
+/* Outer SOFT: default unprotected records, discard their nonzero definitions
+ * and select zero. Departing protected current retains WORLD/pointer but gets
+ * base 36, width 2 and RGB precision 0. Independent backups are untouched. */
 int st_rip3_environments_soft_reset(struct st_rip3_environments *environments);
 /* Resolve a usable projection frame. Zero stored WORLD dimensions reject
  * here before any caller can divide by them; the record itself stays valid. */

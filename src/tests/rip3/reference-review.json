@@ -1,21 +1,22 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/282",
-  "revision": "cedb7e1a40c084d11237e821f42709386dedd2b6",
-  "previous_revision": "434aef714f25207465eb35482489b0c8152244aa",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/284",
+  "revision": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb",
+  "previous_revision": "cedb7e1a40c084d11237e821f42709386dedd2b6",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #282 matches its fork stable integration tree.",
-  "archive_sha256": "9e9b2975d68cee12fa41de793d2dca51c57ccb6d733fe44e5db426e7a6693d54",
+  "upstream_state_at_adoption": "The open PR #284 matches its fork stable integration tree.",
+  "archive_sha256": "2e535731a394139759fea087d7eed83789fd84f16b228e8c804f325c3d8990c5",
   "normative_scope": [
-    "Apply the RIP_HEADER numeric, typed selector and continuation rules and match the original early field terminator."
+    "Apply live STYLE and ENV reset rules for selection, definition, protection, activation and backup deletion."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-    "version/3.0/ripscrip/6.0-writing-rip-files.md"
+    "version/3.0/ripscrip/5.1-text-variables.md",
+    "version/3.0/ripscrip/7.1-data-tables.md",
+    "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9531,
+  "matched_source_blocks": 9519,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -949,7 +950,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 140,
+  "upstream_issue_resolutions": 141,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1778,6 +1779,12 @@
       "sha256": "66cbf101a8234525e81636b7a70cdf5d68e5df42ceb9e9de94a6260fcf2039d9",
       "title": "Issue #281 — RIP_HEADER numeric shorthand and recovery",
       "role": "Original collector and header validator trace; selector, continuation and early numeric completion."
+    },
+    {
+      "path": "version/3.0/research/issue-283-style-env-live-reset.md",
+      "sha256": "623133f8e2ced624b19129c342ff120db7673aba0b2f97beb52ff4814844cb0d",
+      "title": "Issue #283 — live STYLE and ENV reset",
+      "role": "Original traces and rationale for immediate portable ENV activation and full selector validation."
     }
   ],
   "documents": [
@@ -1939,7 +1946,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "f32c8a668789ffdac7bd31064d8302b2b5e62a51014fc231be8e211109d9df78"
+      "sha256": "a7b21a886f1634e1cbfbd6b1bebd25e2e6cffecd7a9798a3cb2f1186644280ac"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1975,7 +1982,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "789b90d9524781fce6652e483c5378a2ffa83a2501b28b1fdb9896dfb14583b1"
+      "sha256": "8e15011a09cb0cb5ffc424d7ec6ad4ebcb292a9502453fd19d0343cb49615ab6"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -1987,7 +1994,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "4f59fe239cb7acf0cf5f37dbeb45c79f70fa9dc456a33e36262cb055649e9427"
+      "sha256": "43fe692f2b34335065178b2fd83e1dd39b9897cf3bfa67d01e3188d81d65eaf2"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2054,7 +2061,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "9ce458c39dbfa24e17a55d1b4eb4e1f60d2e7f70",
+  "previous_ledger_commit": "86639f1c037657b840141dba75107a48fabc3385",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20363,6 +20370,115 @@
         "pending": 1320,
         "implemented": 4068,
         "excluded": 76
+      }
+    },
+    {
+      "previous_revision": "cedb7e1a40c084d11237e821f42709386dedd2b6",
+      "revision": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb",
+      "archive_sha256": "2e535731a394139759fea087d7eed83789fd84f16b228e8c804f325c3d8990c5",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/283",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/284",
+          "reviewed_head": "0767e9ef69232ad3f2253c1e705e891e7011fe6f",
+          "integration": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "f32c8a668789ffdac7bd31064d8302b2b5e62a51014fc231be8e211109d9df78",
+          "sha256": "a7b21a886f1634e1cbfbd6b1bebd25e2e6cffecd7a9798a3cb2f1186644280ac"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.1-data-tables.md",
+          "previous_sha256": "789b90d9524781fce6652e483c5378a2ffa83a2501b28b1fdb9896dfb14583b1",
+          "sha256": "8e15011a09cb0cb5ffc424d7ec6ad4ebcb292a9502453fd19d0343cb49615ab6"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "4f59fe239cb7acf0cf5f37dbeb45c79f70fa9dc456a33e36262cb055649e9427",
+          "sha256": "43fe692f2b34335065178b2fd83e1dd39b9897cf3bfa67d01e3188d81d65eaf2"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-283-style-env-live-reset.md",
+          "sha256": "623133f8e2ced624b19129c342ff120db7673aba0b2f97beb52ff4814844cb0d",
+          "title": "Issue #283 — live STYLE and ENV reset",
+          "role": "Original traces and rationale for immediate portable ENV activation and full selector validation."
+        }
+      ],
+      "moved_source_blocks": 836,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3003",
+        "version/3.0/ripscrip/5.1-text-variables.md:3005",
+        "version/3.0/ripscrip/5.1-text-variables.md:3006",
+        "version/3.0/ripscrip/5.1-text-variables.md:3007",
+        "version/3.0/ripscrip/5.1-text-variables.md:3008",
+        "version/3.0/ripscrip/5.1-text-variables.md:3009",
+        "version/3.0/ripscrip/5.1-text-variables.md:3010",
+        "version/3.0/ripscrip/5.1-text-variables.md:3011",
+        "version/3.0/ripscrip/5.1-text-variables.md:3012",
+        "version/3.0/ripscrip/5.1-text-variables.md:3013",
+        "version/3.0/ripscrip/5.1-text-variables.md:3014",
+        "version/3.0/ripscrip/5.1-text-variables.md:3015",
+        "version/3.0/ripscrip/5.1-text-variables.md:3017",
+        "version/3.0/ripscrip/5.1-text-variables.md:3019",
+        "version/3.0/ripscrip/5.1-text-variables.md:3021",
+        "version/3.0/ripscrip/5.1-text-variables.md:3023",
+        "version/3.0/ripscrip/5.1-text-variables.md:3025",
+        "version/3.0/ripscrip/5.1-text-variables.md:3027",
+        "version/3.0/ripscrip/5.1-text-variables.md:3028",
+        "version/3.0/ripscrip/5.1-text-variables.md:3029",
+        "version/3.0/ripscrip/5.1-text-variables.md:3030",
+        "version/3.0/ripscrip/5.1-text-variables.md:3031",
+        "version/3.0/ripscrip/5.1-text-variables.md:3032",
+        "version/3.0/ripscrip/5.1-text-variables.md:3033",
+        "version/3.0/ripscrip/5.1-text-variables.md:3037",
+        "version/3.0/ripscrip/5.1-text-variables.md:3093",
+        "version/3.0/ripscrip/7.1-data-tables.md:117",
+        "version/3.0/ripscrip/7.1-data-tables.md:167",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:166"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3003",
+        "version/3.0/ripscrip/5.1-text-variables.md:3005",
+        "version/3.0/ripscrip/5.1-text-variables.md:3006",
+        "version/3.0/ripscrip/5.1-text-variables.md:3007",
+        "version/3.0/ripscrip/5.1-text-variables.md:3008",
+        "version/3.0/ripscrip/5.1-text-variables.md:3009",
+        "version/3.0/ripscrip/5.1-text-variables.md:3010",
+        "version/3.0/ripscrip/5.1-text-variables.md:3011",
+        "version/3.0/ripscrip/5.1-text-variables.md:3012",
+        "version/3.0/ripscrip/5.1-text-variables.md:3013",
+        "version/3.0/ripscrip/5.1-text-variables.md:3014",
+        "version/3.0/ripscrip/5.1-text-variables.md:3015",
+        "version/3.0/ripscrip/5.1-text-variables.md:3017",
+        "version/3.0/ripscrip/5.1-text-variables.md:3073",
+        "version/3.0/ripscrip/5.1-text-variables.md:3075",
+        "version/3.0/ripscrip/5.1-text-variables.md:3076",
+        "version/3.0/ripscrip/5.1-text-variables.md:3077",
+        "version/3.0/ripscrip/5.1-text-variables.md:3078",
+        "version/3.0/ripscrip/5.1-text-variables.md:3079",
+        "version/3.0/ripscrip/5.1-text-variables.md:3080",
+        "version/3.0/ripscrip/5.1-text-variables.md:3081",
+        "version/3.0/ripscrip/5.1-text-variables.md:3082",
+        "version/3.0/ripscrip/5.1-text-variables.md:3083",
+        "version/3.0/ripscrip/5.1-text-variables.md:3084",
+        "version/3.0/ripscrip/5.1-text-variables.md:3085",
+        "version/3.0/ripscrip/5.1-text-variables.md:3087",
+        "version/3.0/ripscrip/7.1-data-tables.md:117",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:166"
+      ],
+      "states_after_update": {
+        "unreviewed": 2040,
+        "context": 1989,
+        "pending": 1318,
+        "implemented": 4097,
+        "excluded": 76,
+        "blocked": 28
       }
     }
   ],

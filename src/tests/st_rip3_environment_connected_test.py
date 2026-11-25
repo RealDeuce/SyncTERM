@@ -159,6 +159,32 @@ def run(args,width,height):
         wire(b'2E10')
         values(b'$CUR(ENV)$:$ISPROT(ENV,1)$:alive',b'1:1:alive')
 
+        t.case(f'rip3-live-environment-reset-activates-defaults-{width}x{height}')
+        values(b'$CUR(ENV,11)$$WORLD(CUR,1280,960)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$'
+               b'$COLORMODE(CUR,RGB,8)$$MCURSOR(7)$$SDCS(KANJI)$$DCS(CUR,USASCII)$'
+               b'$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(PORT,4)$$CUR(TW,3)$$CUR(PAL,17)$'
+               b'$SENV$$SENV(3)$$PROT(ENV,S3)$')
+        values(b'$RESET(ENV,BASE,11,INVALID)$$INUSE(ENV,BASE)$:$WORLD$:$COORDSIZE$',
+               b'1:1280:960:5')
+        values(b'$RESET(ENV,0)$$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$', b'1280:960:64:5:8')
+        before=wire(b'h01000400')
+        after=values(b'$RESET(ENV,11)$$CUR(ENV)$:$INUSE(ENV,11)$:$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$',
+                     b'11:0:640:350:36:2:0')
+        assert after.primary == before.primary and after.alternate == before.alternate
+        assert after.metadata['pointer_shape'] == 6  # The HEADER lock persists.
+        assert (after.application['cterm.x'], after.application['cterm.y'], after.application['cterm.attr']) == (
+            before.application['cterm.x'], before.application['cterm.y'], before.application['cterm.attr'])
+        values(b'$WORLD(11)$:$COLORMODE(11)$:$DCS$:$SDCS$:$CHARSET$', b'-1:-1:0:KANJI:KANJI')
+        frame=wire(b'#|c04|X0W0Z')
+        assert frame.metadata['pointer_shape'] == 0
+        assert pixel(frame, 32 * width // 640, height // 10) == 0xaa0000
+        wire(b'fHSDC')  # Setter works on the selected undefined record.
+        values(b'$WORLD$:$WORLD(11)$:$INUSE(ENV,11)$', b'640:480:-1:0')
+        values(b'$RESET(ENV,11,CUR)$$CUR(ENV)$:$WORLD(11)$:$COLORMODE(11)$', b'11:640:350:0')
+        values(b'$RESET(ENV,ALL)$$CUR(ENV)$:$INUSE(ENV,11)$:$ISPROT(ENV,1)$'
+               b':$INUSE(ENV,BASE)$:$ISPROT(ENV,S3)$', b'11:0:1:0:1')
+        other_selections()
+
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)

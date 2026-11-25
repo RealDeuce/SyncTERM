@@ -116,31 +116,49 @@ st_rip3_environments_get(const struct st_rip3_environments *environments,
 }
 
 int
-st_rip3_environments_define(struct st_rip3_environments *environments,
-    unsigned number, const struct st_rip3_environment *value)
+st_rip3_environments_active(const struct st_rip3_environments *environments,
+    unsigned *number, struct st_rip3_environment *result)
+{
+	if (environments == NULL || result == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number != NULL)
+		*number = environments->current;
+	*result = environments->entries[environments->current].data;
+	return 0;
+}
+
+static int
+set_entry(struct st_rip3_environments *environments, unsigned number,
+    const struct st_rip3_environment *value, bool define)
 {
 	if (environments == NULL || value == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (number >= 36 || !valid(value))
+	if (number >= 36)
 		return IO_ERROR_OUT_OF_RANGE;
-	if (environments->entries[number].info.protected)
+	struct environment_entry *entry = &environments->entries[number];
+	if (!define && !entry->info.defined && number != environments->current)
+		return IO_ERROR_NOT_FOUND;
+	if (!valid(value))
+		return IO_ERROR_OUT_OF_RANGE;
+	if (entry->info.protected)
 		return IO_ERROR_PERMISSION_DENIED;
-	environments->entries[number].data = *value;
-	environments->entries[number].info.defined = true;
+	entry->data = *value;
+	entry->info.defined |= define;
 	return 0;
+}
+
+int
+st_rip3_environments_define(struct st_rip3_environments *environments,
+    unsigned number, const struct st_rip3_environment *value)
+{
+	return set_entry(environments, number, value, true);
 }
 
 int
 st_rip3_environments_set(struct st_rip3_environments *environments,
     unsigned number, const struct st_rip3_environment *value)
 {
-	if (environments == NULL || value == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (number >= 36)
-		return IO_ERROR_OUT_OF_RANGE;
-	if (!environments->entries[number].info.defined)
-		return IO_ERROR_NOT_FOUND;
-	return st_rip3_environments_define(environments, number, value);
+	return set_entry(environments, number, value, false);
 }
 
 int
@@ -149,7 +167,8 @@ st_rip3_environments_color(struct st_rip3_environments *environments,
 {
 	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (number>=36 || bits>8) return IO_ERROR_OUT_OF_RANGE;
-	if (!environments->entries[number].info.defined) return IO_ERROR_NOT_FOUND;
+	if (!environments->entries[number].info.defined && number != environments->current)
+		return IO_ERROR_NOT_FOUND;
 	/* COLORMODE's callback bypasses protection; wire M uses the ordinary
 	 * protected record setter. No other environment field is affected. */
 	environments->entries[number].data.rgb_bits=bits;
@@ -324,15 +343,29 @@ st_rip3_environments_header(struct st_rip3_environments *environments, unsigned 
 }
 
 int
+st_rip3_environments_reset_entry(struct st_rip3_environments *environments,
+    unsigned number, bool current_form)
+{
+	if (environments == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct environment_entry *entry = &environments->entries[number];
+	if (entry->info.protected)
+		return IO_ERROR_PERMISSION_DENIED;
+	(void)st_rip3_environment_defaults(&entry->data);
+	entry->info.defined = number == 0 || current_form;
+	return 0;
+}
+
+int
 st_rip3_environments_soft_reset(struct st_rip3_environments *environments)
 {
 	if (environments==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_environment *old=&environments->entries[environments->current].data;
 	old->base_math=36;old->coordinate_size=2;old->rgb_bits=0;
-	for (unsigned i=0;i<36;i++) if (!environments->entries[i].info.protected) {
-		(void)st_rip3_environment_defaults(&environments->entries[i].data);
-		environments->entries[i].info.defined=i==0;
-	}
+	for (unsigned i = 0; i < 36; i++)
+		(void)st_rip3_environments_reset_entry(environments, i, false);
 	environments->current=0;return 0;
 }
 
@@ -357,9 +390,10 @@ st_rip3_environments_frame(const struct st_rip3_environments *environments,
 	struct st_rip3_frame frame;
 	int status;
 
-	if (result == NULL)
+	if (environments == NULL || result == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	status = st_rip3_environments_get(environments, number, &value);
+	status = number == environments->current ? st_rip3_environments_active(environments, NULL, &value)
+	    : st_rip3_environments_get(environments, number, &value);
 	if (status != 0)
 		return status;
 	frame = environments->device;
