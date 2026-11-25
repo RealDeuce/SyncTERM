@@ -76,7 +76,7 @@ class MenuHostUI {
     return MenuUi.promptStandalone(title, message, initial, maxLen, masked)
   }
 
-  static ripPrompt(title, message, initial, maxLen, masked, mode) {
+  static ripPrompt(title, message, initial, maxLen, masked, mode, position) {
     var app = App.new()
     var p = Prompt.new(message, initial)
     p.title = title
@@ -91,6 +91,16 @@ class MenuHostUI {
       }
     }
     p.sizeForInput(maxLen, 34, Popup.appMessageFont_(app))
+    if (position != null) {
+      var size = Screen.checked_(Screen.size)
+      var cell = Screen.checked_(Screen.cellPixelSize)
+      var bounds = p.bounds
+      var maxX = size[0] - bounds.w
+      var maxY = size[1] - bounds.h
+      var x = position[0] == null ? (maxX / 2).floor : (position[0] / cell[0]).floor.min(maxX)
+      var y = position[1] == null ? (maxY / 2).floor : (position[1] / cell[1]).floor.min(maxY)
+      p.bounds = Rect.new(x + 1, y + 1, bounds.w, bounds.h)
+    }
     p.onDismiss = Fn.new {|value| app.quit() }
     app.pushModal(p)
     app.runSync()

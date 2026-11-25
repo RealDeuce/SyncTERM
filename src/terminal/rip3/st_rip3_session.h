@@ -263,6 +263,8 @@ void st_rip3_session_disconnect(struct st_rip3_session *session);
 struct st_rip3_session_prompt {
 	const struct st_rip3_variable_reference *reference;
 	const struct st_rip3_variable_value *initial;
+	/* For an explicit placement, each axis is a device pixel or -1 to center. */
+	int32_t position[2];
 	bool definition, reject_blank, require_confirmation, confirming_delete;
 };
 /* Borrowed prompt views, invalidated by response/process/cancel/destruction.

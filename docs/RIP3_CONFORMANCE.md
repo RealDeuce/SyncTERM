@@ -9298,7 +9298,25 @@ after punctuation, digits, whitespace and high bytes. [PR #310](https://github.c
 
 Connected CP437 and UTF-8 fixtures cover restricted typing and paste,
 masking, unchanged prefills, conversions, exact replies and recovery
-after an invalid format. World-coordinate prompt placement remains pending.
+after an invalid format.
+
+## Connected variable prompt placement
+
+The `x,y:` prefix places the prompt's top-left corner in the active ENV's
+WORLD coordinates. SyncTERM projects supplied axes into device pixels and
+aligns the frame to the containing console cell. Each omitted axis centers
+independently on the corresponding canvas axis. The frame moves inward at
+an edge so its controls stay visible. The scene is presented before the
+modal snapshot, so the dialog restores the preceding drawing when dismissed.
+
+While the reference clarification is pending, an explicit zero selects
+the origin, a positive coordinate on a zero-sized WORLD axis centers, and
+decimal `65535` uses the same projection as any other supplied coordinate.
+[Issue #311](https://github.com/bbs-land/remote-imaging-protocol/issues/311)
+
+Connected CP437 and UTF-8 fixtures check placement on all three agreed
+canvases, with an active nondefault ENV, missing axes, edge placement, zero
+WORLD extent, Enter and Escape, and preservation of the preceding drawing.
 
 ## Connected RIP_DEFINE
 

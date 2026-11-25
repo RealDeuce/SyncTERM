@@ -1119,12 +1119,17 @@ read_definition_response(WrenVM *vm, char **result, bool *require_confirmation)
 	return 0;
 }
 
+struct variable_dialog {
+	const char *input_mode;
+	const int32_t *position;
+};
+
 static int
 host_dialog(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result, const char *const *choices, size_t count,
 	int *selected, const char *method, const uint32_t *hotkeys, bool required,
-	struct definition_dialog *definition, const char *input_mode)
+	struct definition_dialog *definition, const struct variable_dialog *variable)
 {
 	st_console_snapshot_t *snapshot = NULL;
 	struct st_console_event resize = {0};
@@ -1152,7 +1157,7 @@ host_dialog(st_wren_host_t *host, const char *title,
 	    &resized, &resize);
 	if (status != 0 || closed)
 		goto finished;
-	wrenEnsureSlots(host->vm, definition == NULL ? 7 : 8);
+	wrenEnsureSlots(host->vm, variable != NULL ? 9 : definition != NULL ? 8 : 7);
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
 	wrenSetSlotString(host->vm, 2, question);
@@ -1180,9 +1185,18 @@ host_dialog(st_wren_host_t *host, const char *title,
 		wrenSetSlotDouble(host->vm, 4, (double)max_length);
 		if (definition == NULL) {
 			wrenSetSlotBool(host->vm, 5, masked);
-			if (input_mode != NULL) {
-				dialog_call = wrenMakeCallHandle(host->vm, "ripPrompt(_,_,_,_,_,_)");
-				wrenSetSlotString(host->vm, 6, input_mode);
+			if (variable != NULL) {
+				dialog_call = wrenMakeCallHandle(host->vm, "ripPrompt(_,_,_,_,_,_,_)");
+				wrenSetSlotString(host->vm, 6, variable->input_mode);
+				wrenSetSlotNull(host->vm, 7);
+				if (variable->position != NULL) {
+					wrenSetSlotNewList(host->vm, 7);
+					for (size_t axis = 0; axis < 2; ++axis) {
+						if (variable->position[axis] < 0) wrenSetSlotNull(host->vm, 8);
+						else wrenSetSlotDouble(host->vm, 8, (double)variable->position[axis]);
+						wrenInsertInList(host->vm, 7, -1, 8);
+					}
+				}
 			}
 		} else {
 			dialog_call = wrenMakeCallHandle(host->vm, "ripDefine(_,_,_,_,_,_,_)");
@@ -1269,12 +1283,13 @@ st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 int
 st_wren_host_rip_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
-	const char *input_mode, bool masked, char **result)
+	const char *input_mode, bool masked, const int32_t position[2], char **result)
 {
 	if (input_mode == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	const struct variable_dialog variable = {input_mode, position};
 	return host_dialog(host, title, question, initial, max_length, masked,
-	    result, NULL, 0, NULL, NULL, NULL, false, NULL, input_mode);
+	    result, NULL, 0, NULL, NULL, NULL, false, NULL, &variable);
 }
 
 int

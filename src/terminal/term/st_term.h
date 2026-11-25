@@ -89,9 +89,10 @@ struct st_term_config {
 	uint32_t initial_throttle_bps;
 	st_cterm_rip_prompt_callback_t rip_prompt;
 	void *rip_prompt_context;
-	/* RIPv3 formatted or masked macro prompt. Shares rip_prompt_context. */
+	/* RIPv3 formatted, masked or positioned macro prompt. Device axes use -1
+	 * for centering. NULL requests the ordinary dialog placement. */
 	int (*rip_variable_prompt)(void *context, const char *question, const char *initial,
-		size_t max_length, const char *input_mode, bool masked, char **result);
+		size_t max_length, const char *input_mode, bool masked, const int32_t position[2], char **result);
 	/* RIPv3 1D editor with an optional confirmation policy control. Shares
 	 * rip_prompt_context and the prompt's result/cancellation convention. */
 	int (*rip_define)(void *context, const char *question, const char *initial,

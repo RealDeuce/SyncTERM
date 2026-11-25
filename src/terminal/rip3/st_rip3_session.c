@@ -2518,6 +2518,16 @@ st_rip3_session_local_scene(const struct st_rip3_session *session)
 	return session != NULL && session->scene_count != 0;
 }
 
+static int32_t
+prompt_axis(bool present, int32_t coordinate, uint32_t device, uint32_t world)
+{
+	if (!present) return -1;
+	if (coordinate == 0) return 0;
+	if (world == 0) return -1;
+	uint64_t pixel = (uint64_t)coordinate * device / world;
+	return pixel >= device ? (int32_t)(device - 1) : (int32_t)pixel;
+}
+
 bool
 st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_session_prompt *result)
 {
@@ -2528,11 +2538,21 @@ st_rip3_session_prompt(const struct st_rip3_session *session, struct st_rip3_ses
 	*result = (struct st_rip3_session_prompt){
 		.reference = reference,
 		.initial = st_rip3_user_variables_initial(session->variables.user_variables),
+		.position = {-1, -1},
 		.definition = session->defining_variable,
 		.reject_blank = session->defining_variable && session->definition_reject_blank,
 		.require_confirmation = st_rip3_user_variables_definition_confirmation(session->variables.user_variables),
 		.confirming_delete = st_rip3_user_variables_confirming_delete(session->variables.user_variables),
 	};
+	if (reference->has_position) {
+		struct st_rip3_environment environment;
+		if (st_rip3_environments_active(session->commands.environments, NULL, &environment) == 0) {
+			result->position[0] = prompt_axis(reference->has_x, reference->x,
+			    session->frame.device_width, environment.world_width);
+			result->position[1] = prompt_axis(reference->has_y, reference->y,
+			    session->frame.device_height, environment.world_height);
+		}
+	}
 	return true;
 }
 

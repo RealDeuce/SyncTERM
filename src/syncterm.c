@@ -473,10 +473,10 @@ run_rip_prompt(void *context, const char *question, const char *initial,
 
 static int
 run_rip_variable_prompt(void *context, const char *question, const char *initial,
-	size_t max_length, const char *input_mode, bool masked, char **result)
+	size_t max_length, const char *input_mode, bool masked, const int32_t position[2], char **result)
 {
 	return st_wren_host_rip_prompt(context, "RIP Input", question, initial,
-	    max_length, input_mode, masked, result);
+	    max_length, input_mode, masked, position, result);
 }
 
 static int

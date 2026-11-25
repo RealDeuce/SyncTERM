@@ -117,6 +117,38 @@ def datetime_queries(t):
     t.exchange(query(b"$TIMEZONE$:$DATETIME(1)$alive", at_cursor=True), zone)
 
 
+def positioned_prompts(t, width, height):
+    t.case("rip3-world-coordinate-variable-prompts")
+    t.exchange(query(b"$CUR(ENV,7)$$WORLD(CUR,1280,960)$", at_cursor=True))
+    for position, x, y in ((b"333,192:", 333, 192), (b",192:", None, 192),
+                           (b"333,:", 333, None), (b",:", None, None),
+                           (b"0,0:", 0, 0), (b"90000,90000:", 90000, 90000),
+                           (b"90000,192:", None, 192)):
+        if position == b"90000,192:":
+            t.exchange(query(b"$WORLD(CUR,0,960)$", at_cursor=True))
+        request = query(b"$" + position + b"PLACED(NUMBER),8@World position=17$", at_cursor=True)
+        if position == b"333,192:":
+            request = b"\x01|c04|X995C|" + request[2:]
+        t.send(request + b"\x1b[5n")
+        frame = t.client.wait_text("World position", timeout=5)
+        lines = frame.lines
+        top, title = next((row, line) for row, line in enumerate(lines) if "RIP Input" in line)
+        left, right = title.index("╔"), title.index("╗")
+        bottom = next(row for row in range(top+1, len(lines)) if lines[row][left] == "╚")
+        columns, rows = width // 8, height // 8
+        dialog_width, dialog_height = right-left+1, bottom-top+1
+        max_left, max_top = columns-dialog_width, rows-dialog_height
+        expect_x = max_left//2 if x is None else min(x*width//1280//8, max_left)
+        expect_y = max_top//2 if y is None else min(y*height//960//8, max_top)
+        assert (left,top) == (expect_x,expect_y), (position, left, top, expect_x, expect_y)
+        t.client.key("escape" if x == y == 0 else "enter")
+        result = b"NONE" if x == y == 0 else b"17"
+        receive(t.peer, result+b"\x1b[0n", t.root / "replies.bin")
+        if position == b"333,192:":
+            assert pixel(t.client.capture(), 333*width//1280, 192*height//960) == 0xaa0000
+    t.exchange(query(b"$CUR(ENV,0)$", at_cursor=True))
+
+
 def run(args, width, height, advance):
     script = r'''
 import "syncterm" for CTerm, Conn, Hook, Key
@@ -152,6 +184,9 @@ Hook.onKey(Key.f9) {|event|
         for probe in (b"\x1b[!", b"\x1b[0!"):
             send(probe)
             receive(peer, b"RIPSCRIP030001", root / "replies.bin")
+
+        if width in (640,800,1024):
+            positioned_prompts(t,width,height)
 
         t.case("rip3-custom-mode-ansi-colours-on-entry")
         frame = t.exchange(b"\x1b[H\x1b[0;31;44mX\x1b[6n", b"\x1b[1;2R")
