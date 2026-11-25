@@ -42,7 +42,7 @@ static int value(struct st_rip3_templates *t,unsigned n,const char *expected)
 static int groups(void)
 {
 	struct st_rip3_templates *t=NULL;uint64_t redraw[128];size_t count;
-	CHECK(st_rip3_templates_create(&t)==0);
+	CHECK(st_rip3_templates_create(&t, false)==0);
 	CHECK(st_rip3_templates_button_add(t,1,2,ST_RIP3_GROUP_CHECKBOX,false,redraw,&count)==0);
 	CHECK(st_rip3_templates_button_add(t,2,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
 	CHECK(value(t,2,"")==0 && value(t,3,"")==0);
@@ -101,7 +101,7 @@ static int snapshot_groups(void)
 {
 	struct st_rip3_templates *t=NULL;uint64_t redraw[128];size_t count;
 	struct st_rip3_group_snapshot *saved=NULL,*prepared=NULL;
-	CHECK(st_rip3_templates_create(&t)==0);
+	CHECK(st_rip3_templates_create(&t, false)==0);
 	CHECK(st_rip3_templates_button_add(t,10,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
 	CHECK(st_rip3_templates_button_add(t,20,2,ST_RIP3_GROUP_CHECKBOX,true,redraw,&count)==0);
 	CHECK(st_rip3_templates_associate(t,10,2,(const uint8_t *)"A",1)==0);
@@ -187,7 +187,7 @@ main(void)
 {
 	CHECK(groups()==0 && snapshot_groups()==0);
 	struct st_rip3_templates *slots=NULL;struct st_rip3_template_bytes view;
-	CHECK(st_rip3_templates_create(&slots)==0);
+	CHECK(st_rip3_templates_create(&slots, false)==0);
 	for (unsigned i=0; i<36; i++) CHECK(st_rip3_templates_resolve(slots,i,&view)==0 && view.length==0);
 	CHECK(set(slots,3,"plain")==0 && set(slots,4,"inserts $?$ here")==0 && set(slots,5,"two $?$ and $?$ codes")==0);
 	CHECK(chain(slots,(const uint8_t[]){3},1,"LOST","plain")==0);
@@ -239,9 +239,9 @@ main(void)
 	CHECK(st_rip3_templates_set(slots,3,(const uint8_t *)"lost",4)==IO_ERROR_OUT_OF_MEMORY);
 	CHECK(st_rip3_templates_resolve(slots,3,&view)==0 && view.length==3 && memcmp(view.bytes,"$?$",3)==0);
 	struct st_rip3_templates *old=slots;
-	CHECK(st_rip3_templates_create(&slots)==IO_ERROR_OUT_OF_MEMORY && slots==old);
+	CHECK(st_rip3_templates_create(&slots, false)==IO_ERROR_OUT_OF_MEMORY && slots==old);
 	st_rip3_templates_test_fail=false;
-	CHECK(st_rip3_templates_create(NULL)==IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_templates_create(NULL, false)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_templates_set(NULL,0,NULL,0)==IO_ERROR_INVALID_ARGUMENT);
 	CHECK(st_rip3_templates_set(slots,36,NULL,0)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(st_rip3_templates_set(slots,0,NULL,1)==IO_ERROR_INVALID_ARGUMENT);

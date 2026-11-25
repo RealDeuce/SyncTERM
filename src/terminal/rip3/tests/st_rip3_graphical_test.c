@@ -38,7 +38,7 @@ static int initialize(struct fixture *f,bool converted)
 	CHECK(st_rip3_variables_create(&f->session)==0 && st_rip3_variables_create(&f->persistent)==0);
 	struct st_rip3_user_variable_host user={.session=f->session,.persistent=f->persistent,.context=f,.format=format};
 	CHECK(st_rip3_user_variables_create(&f->user,&user)==0);
-	CHECK(st_rip3_templates_create(&f->templates.slots)==0);
+	CHECK(st_rip3_templates_create(&f->templates.slots, false)==0);
 	CHECK(st_rip3_environments_create(&f->env,ST_RIP3_CANVAS_800_600)==0);
 	f->tables.tables[ST_RIP3_TABLE_ENV].live=f->env;
 	CHECK(st_rip3_frame_init(&f->frame,ST_RIP3_CANVAS_800_600)==0);

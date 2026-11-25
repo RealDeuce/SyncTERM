@@ -1199,7 +1199,7 @@ if(BUILD_TESTING)
 	add_test(NAME rip3_user_variables COMMAND st_rip3_user_variables_test)
 
 	add_executable(st_rip3_templates_test tests/st_rip3_templates_test.c tests/st_rip3_templates_fault_impl.c)
-	target_link_libraries(st_rip3_templates_test PRIVATE st_rip3)
+target_link_libraries(st_rip3_templates_test PRIVATE st_rip3 st_utf8)
 	set_target_properties(st_rip3_templates_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

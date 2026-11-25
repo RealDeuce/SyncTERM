@@ -9,6 +9,7 @@
 
 struct st_rip3_templates;
 struct st_rip3_template_bytes { const uint8_t *bytes; size_t length; };
+enum { ST_RIP3_TEMPLATE_BYTE_LIMIT = 4096, ST_RIP3_TEMPLATE_ENCODED_CAPACITY = 4096 * 4 };
 
 /* Optional borrowed query bindings. Stable grouped owners supply selection
  * and current associated definitions in creation order.
@@ -23,8 +24,10 @@ struct st_rip3_template_host {
 
 /* One session thread owns 36 baselines/publications and grouped logical
  * selection/associations. Mouse fields retain rendering/input ownership.
- * No GUI, network or provider expansion is performed by this table. */
-int st_rip3_templates_create(struct st_rip3_templates **result);
+ * No GUI, network or provider expansion is performed by this table. When the
+ * session decodes a wire codepage byte into each UTF-8 scalar, the template
+ * limit still counts the original codepage bytes. */
+int st_rip3_templates_create(struct st_rip3_templates **result, bool codepage_converted);
 void st_rip3_templates_destroy(struct st_rip3_templates *templates);
 /* Copy at most the first 4096 unexpanded definition bytes. First NUL within
  * that bound ends a C-string definition. Replacing it retains
@@ -75,7 +78,8 @@ void st_rip3_templates_free_groups(struct st_rip3_group_snapshot *);
  * the feed. Insertions are not rescanned within that step. Correct the native
  * wrong-buffer offset defect using intended composition; never emulate unsafe
  * insertion. Only the first 4096 result bytes survive each composition.
- * Outputs use caller storage, capacity>=4096; inputs/results must not overlap.
+ * Caller storage must cover the byte limit, or the full encoded capacity for
+ * normalized codepage input. Inputs/results must not overlap.
  * Preflight/stack preparation precedes publication. On failure, result/length
  * are unchanged; missing receives the failed required group only for NOT_FOUND.
  * Internal helper statuses must remain below void parser/session boundaries. */

@@ -9339,6 +9339,18 @@ canvases, with an active nondefault ENV, missing axes, edge placement at
 `65535`, zero WORLD extent, and preservation of the preceding drawing.
 They also check Enter, Escape, and recovery after an axis exceeds `65535`.
 
+## Connected template byte limits
+
+Template definitions, selected checkbox contributions, and each step of a
+template chain use the same 4096-byte protocol budget. SyncTERM counts the
+original codepage bytes before its internal UTF-8 expansion. On a UTF-8
+connection the budget counts the actual UTF-8 wire bytes.
+
+Connected CP437 and UTF-8 tests compare the entire response at the limit
+for a stored slot, a two-step chain, and a pair of selected checkbox
+contributions. The UTF-8 test includes a multibyte sequence that crosses the
+wire boundary. Chain results enter the existing ordinary expansion passes.
+
 ## Connected RIP_DEFINE
 
 Wire `1D` uses the current radix for its three flag digits and two reserved

@@ -482,7 +482,7 @@ prepare_block(struct st_rip3_query *query)
 		if (status!=0) operation_failed(query,status,0);
 		return;
 	}
-	uint8_t composed[4096];unsigned missing=0;
+	uint8_t composed[ST_RIP3_TEMPLATE_ENCODED_CAPACITY];unsigned missing=0;
 	if (value.directive.kind==CHAIN) {
 		status=st_rip3_templates_chain(host->slots,value.directive.numbers,value.directive.count,
 		    feed,length,composed,sizeof(composed),&length,&missing);

@@ -716,7 +716,7 @@ static int
 template_queries(enum st_rip3_canvas canvas)
 {
 	struct fixture f={0};
-	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots)==0);
+	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots, false)==0);
 	f.templates.context=&f;f.templates.selection_required=selection_required;f.variables.templates=&f.templates;
 	/* Compose the complete chain before callbacks. The unused feed and the
 	 * first template's D are discarded by the marker-free final template. */
@@ -817,7 +817,7 @@ static int
 embedding_limits(enum st_rip3_canvas canvas)
 {
 	struct fixture f={0};
-	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots)==0);
+	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots, false)==0);
 	f.templates=(struct st_rip3_template_host){f.templates.slots,&f,selection_required};f.variables.templates=&f.templates;
 	for (unsigned slot=0; slot<36; slot++) {
 		uint8_t name=(uint8_t)(slot<10 ? '0'+slot : 'A'+slot-10);
@@ -1164,7 +1164,7 @@ allocation_and_budget(void)
 static int
 angle_queries(enum st_rip3_canvas canvas, const char *width)
 {
-	struct fixture f={0};CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots)==0);
+	struct fixture f={0};CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots, false)==0);
 	f.templates.context=&f;f.templates.selection_required=selection_required;f.variables.templates=&f.templates;
 	struct st_rip3_table_host tables={0};tables.tables[ST_RIP3_TABLE_ENV].live=f.host.environments;f.variables.tables=&tables;
 	CHECK(st_rip3_variables_set(f.session,"A",1,(const uint8_t *)"<<B>>",5)==0

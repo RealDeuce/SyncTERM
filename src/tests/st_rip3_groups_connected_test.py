@@ -15,6 +15,7 @@ def run(args,width,height):
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
                     settings=f'CustomColumns={width//8}\nCustomRows={height//8}\nCustomFontHeight=8\n') as (client,root,peer,send):
         t=Terminal(client,root,peer,send)
+        glyph = b'\xb3' if args.encoding == 'CP437' else '│'.encode()
         def values(source,expected=b''):
             return t.exchange(query(source,at_cursor=True),expected)
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
@@ -30,6 +31,14 @@ def run(args,width,height):
             mouse(x,y,True);mouse(x,y)
             return t.input(expected) if expected else t.exchange()
         if width == 640:
+            t.case('rip3-template-storage-and-chain-wire-byte-limit')
+            body = glyph * (4095 // len(glyph))
+            stored = body + glyph + b'discarded'
+            values(b'[X:]' + stored)
+            values(b'$?X$', stored[:4096])
+            values(b'[Y:]A$?$late[Z:]$?$also-late')
+            values(b'[YZ]' + body, b'A' + body)
+
             t.case('rip3-group-empty-expanded-label-does-not-require-a-font')
             t.exchange(style(flags=256|1024|2,flags2=1,group=8,surface=3))
             # At this scale the outline font's device DPI truncates to zero,
@@ -168,11 +177,12 @@ def run(args,width,height):
         values(b'$&EFFECT$',b'cold')
         values(b'$MKILL$')
         t.case('rip3-groups-creation-order-assembly-bound')
+        first = glyph * (3000 // len(glyph))
         t.exchange(style(flags=256|1024,flags2=1,group=2,surface=3,bevel=0)
-                   +button((10,10,60,30),b'<>A<>[2:]'+b'A'*3000)
+                   +button((10,10,60,30),b'<>A<>[2:]'+first)
                    +button((10,40,60,60),b'<>B<>[2:]'+b'B'*2000))
         click(30,20);click(30,50)
-        values(b'$?2$',b'A'*3000+b'B'*1096)
+        values(b'$?2$',first+b'B'*1096)
         values(b'alive',b'alive')
         assert client.capture().application['connected']==1
 

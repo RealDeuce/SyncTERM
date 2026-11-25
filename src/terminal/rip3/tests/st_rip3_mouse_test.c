@@ -301,7 +301,7 @@ static int grouped_actions(void)
 {
 	struct grouped g={.valid=true};
 	const struct st_rip3_mouse_sink sink={.context=&g,.activate=grouped_activate,.busy=grouped_busy,.render_failure=grouped_failure};
-	CHECK(st_rip3_mouse_create(&g.mouse,&sink)==0 && st_rip3_templates_create(&g.templates)==0);
+	CHECK(st_rip3_mouse_create(&g.mouse,&sink)==0 && st_rip3_templates_create(&g.templates, false)==0);
 	st_rip3_mouse_bind_templates(g.mouse,g.templates);
 	struct grouped_visual views[]={{&g,1},{&g,2},{&g,3}};
 	const struct st_rip3_rect areas[]={{10,10,20,20},{30,10,40,20}};

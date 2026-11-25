@@ -2381,7 +2381,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->tables.tables[ST_RIP3_TABLE_PAL].live=session->commands.palettes;
 	session->tables.tables[ST_RIP3_TABLE_PORT].live=session->commands.ports;
 	if (status==0) status=st_rip3_outline_cache_create(&session->text.outline_cache);
-	if (status==0) status=st_rip3_templates_create(&session->templates.slots);
+	if (status==0) status=st_rip3_templates_create(&session->templates.slots, session->graphical_codepage_converted);
 	if (status==0) st_rip3_mouse_bind_templates(session->commands.mouse,session->templates.slots);
 	if (status==0 && session->variables.user_variables==NULL) {
 		status=st_rip3_variables_create(&session->session_values);

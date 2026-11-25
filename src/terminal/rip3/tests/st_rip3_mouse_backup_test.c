@@ -120,7 +120,7 @@ static int template_value(struct st_rip3_templates *templates,unsigned n,const c
 static int grouped_capture(void)
 {
 	struct fixture f={0};struct st_rip3_backup *backup=NULL;CHECK(begin(&f,&backup)==0);
-	struct st_rip3_templates *templates=NULL;CHECK(st_rip3_templates_create(&templates)==0);
+	struct st_rip3_templates *templates=NULL;CHECK(st_rip3_templates_create(&templates, false)==0);
 	st_rip3_mouse_kill(f.mouse);st_rip3_mouse_bind_templates(f.mouse,templates);
 	const struct st_rip3_rect area={10,10,30,30};
 	const struct st_rip3_mouse_binding binding={.hotkey='b',.group=2,.group_kind=ST_RIP3_GROUP_CHECKBOX,.selected=true};

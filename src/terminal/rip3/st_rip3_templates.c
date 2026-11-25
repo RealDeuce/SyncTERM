@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_templates.h"
+#include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
 
 #include <stdlib.h>
@@ -15,16 +16,18 @@ struct st_rip3_templates {
 	struct slot slots[36];
 	struct member *members;
 	size_t count;
+	bool codepage_converted;
 	/* One transient lookup result; stored owner bodies remain unexpanded. */
-	uint8_t aggregate[4096];
+	uint8_t aggregate[ST_RIP3_TEMPLATE_ENCODED_CAPACITY];
 };
 
 int
-st_rip3_templates_create(struct st_rip3_templates **result)
+st_rip3_templates_create(struct st_rip3_templates **result, bool codepage_converted)
 {
 	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_templates *templates=calloc(1,sizeof(*templates));
 	if (templates==NULL) return IO_ERROR_OUT_OF_MEMORY;
+	templates->codepage_converted = codepage_converted;
 	for (size_t i=0;i<36;i++) templates->slots[i].publisher=-1;
 	*result=templates;return 0;
 }
@@ -47,15 +50,32 @@ st_rip3_templates_destroy(struct st_rip3_templates *templates)
 	free(templates);
 }
 
+static size_t
+definition_length(const uint8_t *bytes, size_t length, bool converted)
+{
+	length = st_rip3_graphical_prefix(bytes, length, ST_RIP3_TEMPLATE_BYTE_LIMIT, converted);
+	const uint8_t *end = length == 0 ? NULL : memchr(bytes, 0, length);
+	return end == NULL ? length : (size_t)(end - bytes);
+}
+
+static void
+append(uint8_t *result, size_t *length, size_t *remaining,
+    const uint8_t *bytes, size_t count, bool converted)
+{
+	count = st_rip3_graphical_prefix(bytes, count, *remaining, converted);
+	if (count != 0)
+		memcpy(result + *length, bytes, count);
+	*length += count;
+	*remaining -= st_rip3_graphical_units(bytes, count, converted);
+}
+
 int
 st_rip3_templates_set(struct st_rip3_templates *templates, unsigned number,
     const uint8_t *bytes, size_t length)
 {
 	if (templates==NULL || (bytes==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	if (number>=36 || length==SIZE_MAX) return IO_ERROR_OUT_OF_RANGE;
-	if (length>4096) length=4096;
-	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);
-	if (end!=NULL) length=(size_t)(end-bytes);
+	length = definition_length(bytes, length, templates->codepage_converted);
 	uint8_t *copy=NULL;
 	if (length!=0) {
 		copy=malloc(length);
@@ -74,11 +94,12 @@ effective(const struct st_rip3_templates *templates,unsigned number,struct st_ri
 	if (slot->publisher<0) {*result=(struct st_rip3_template_bytes){slot->bytes,slot->length};return;}
 	/* Lookup work storage does not change the logical table. It is borrowed
 	 * only until the next lookup; all insertion/chain consumers copy it. */
-	struct st_rip3_templates *working=(struct st_rip3_templates *)templates;size_t length=0;
-	for (const struct member *m=templates->members;m!=NULL;m=m->next) if (m->group==(unsigned)slot->publisher && m->selected) {
-		size_t count=m->bodies[number].length;if (count>4096-length) count=4096-length;
-		if (count!=0) memcpy(working->aggregate+length,m->bodies[number].bytes,count);
-		length+=count;
+	struct st_rip3_templates *working=(struct st_rip3_templates *)templates;
+	size_t length = 0, remaining = ST_RIP3_TEMPLATE_BYTE_LIMIT;
+	for (const struct member *m = templates->members; m != NULL && remaining != 0; m = m->next) {
+		if (m->group == (unsigned)slot->publisher && m->selected)
+			append(working->aggregate, &length, &remaining, m->bodies[number].bytes,
+			    m->bodies[number].length, templates->codepage_converted);
 	}
 	*result=(struct st_rip3_template_bytes){working->aggregate,length};
 }
@@ -170,8 +191,7 @@ st_rip3_templates_associate(struct st_rip3_templates *templates,uint64_t token,u
 	if (templates==NULL || (bytes==NULL && length!=0)) return IO_ERROR_INVALID_ARGUMENT;
 	if (number>=36 || length==SIZE_MAX) return IO_ERROR_OUT_OF_RANGE;
 	struct member *m=find_member(templates,token);if (m==NULL) return 0;
-	if (length>4096) length=4096;
-	const uint8_t *end=length==0 ? NULL : memchr(bytes,0,length);if (end!=NULL) length=(size_t)(end-bytes);
+	length = definition_length(bytes, length, templates->codepage_converted);
 	uint8_t *copy=length==0 ? NULL : malloc(length);if (length!=0 && copy==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (length!=0) memcpy(copy,bytes,length);free(m->bodies[number].bytes);
 	m->bodies[number].bytes=copy;m->bodies[number].length=length;m->bodies[number].defined=true;templates->slots[number].publisher=(int)m->group;return 0;
@@ -286,14 +306,6 @@ st_rip3_templates_apply_groups(struct st_rip3_templates *templates,struct st_rip
 	free(prepared);
 }
 
-static void
-append(uint8_t result[4096], size_t *length, const uint8_t *bytes, size_t count)
-{
-	if (count>4096-*length) count=4096-*length;
-	if (count!=0) memcpy(result+*length,bytes,count);
-	*length+=count;
-}
-
 int
 st_rip3_templates_chain(const struct st_rip3_templates *templates,
     const uint8_t *numbers, size_t count, const uint8_t *feed, size_t feed_length,
@@ -301,11 +313,14 @@ st_rip3_templates_chain(const struct st_rip3_templates *templates,
 {
 	if (templates==NULL || numbers==NULL || result==NULL || length==NULL
 	    || (feed_length!=0 && feed==NULL)) return IO_ERROR_INVALID_ARGUMENT;
-	if (count==0 || count>36 || capacity<4096) return IO_ERROR_OUT_OF_RANGE;
+	bool converted = templates->codepage_converted;
+	size_t required = converted ? ST_RIP3_TEMPLATE_ENCODED_CAPACITY : ST_RIP3_TEMPLATE_BYTE_LIMIT;
+	if (count==0 || count>36 || capacity<required) return IO_ERROR_OUT_OF_RANGE;
 	for (size_t i=0; i<count; i++) if (numbers[i]>=36) return IO_ERROR_OUT_OF_RANGE;
-	uint8_t buffers[2][4096];
-	size_t used=0;unsigned current=0;
-	append(buffers[current],&used,feed,feed_length);
+	uint8_t buffers[2][ST_RIP3_TEMPLATE_ENCODED_CAPACITY];
+	size_t used = 0, remaining = ST_RIP3_TEMPLATE_BYTE_LIMIT;
+	unsigned current = 0;
+	append(buffers[current], &used, &remaining, feed, feed_length, converted);
 	for (size_t i=0; i<count; i++) {
 		struct st_rip3_template_bytes value;
 		int status=st_rip3_templates_resolve(templates,numbers[i],&value);
@@ -314,11 +329,17 @@ st_rip3_templates_chain(const struct st_rip3_templates *templates,
 			return status;
 		}
 		unsigned next=current^1;size_t produced=0;
-		for (size_t at=0; at<value.length && produced<4096;) {
+		remaining = ST_RIP3_TEMPLATE_BYTE_LIMIT;
+		for (size_t at = 0; at < value.length && remaining != 0;) {
 			if (value.length-at>=3 && memcmp(value.bytes+at,"$?$",3)==0) {
-				append(buffers[next],&produced,buffers[current],used);at+=3;
+				append(buffers[next], &produced, &remaining, buffers[current], used, converted);
+				at += 3;
 			}
-			else append(buffers[next],&produced,value.bytes+at++,1);
+			else {
+				size_t size = converted ? st_rip3_graphical_character(value.bytes + at, value.length - at) : 1;
+				append(buffers[next], &produced, &remaining, value.bytes + at, size, converted);
+				at += size;
+			}
 		}
 		current=next;used=produced;
 	}

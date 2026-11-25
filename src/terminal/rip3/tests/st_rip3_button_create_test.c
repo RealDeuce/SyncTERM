@@ -446,7 +446,7 @@ static int staged_create(struct staged *f,bool converted)
 	f->host.clipboard=&f->clipboard;f->budget=100000;f->host.offscreen_pixel_budget=&f->budget;
 	const struct st_rip3_mouse_sink mouse={.context=f,.activate=staged_activate,.busy=staged_busy,
 	    .resource_failure=staged_error,.render_failure=staged_error};
-	CHECK(st_rip3_mouse_create(&f->host.mouse,&mouse)==0 && st_rip3_templates_create(&f->slots)==0);
+	CHECK(st_rip3_mouse_create(&f->host.mouse,&mouse)==0 && st_rip3_templates_create(&f->slots, false)==0);
 	st_rip3_mouse_bind_templates(f->host.mouse,f->slots);
 	CHECK(st_rip3_variables_create(&f->session)==0 && st_rip3_variables_create(&f->persistent)==0);
 	const struct st_rip3_user_variable_host user={.session=f->session,.persistent=f->persistent,.context=f,.format=staged_format};
