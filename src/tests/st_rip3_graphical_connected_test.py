@@ -57,6 +57,10 @@ def run(args):
         assert pixel(frame, 20, 20) == 0x00aa00 and pixel(frame, 21, 21) == 0xaa0000
         assert pixel(frame, 22, 22) == 0 and pixel(frame, 10, 10) == 0xffffff
         assert frame.application['connected'] == 1
+        t.case('rip3-zero-argument-erase-and-home-delimiters')
+        frame = t.exchange(b'\x01|Eignored\\|c02|X0K0K|Hignored\\|g0203\r\n\x1b[6n', b'\x1b[4;3R')
+        assert pixel(frame, 10, 10) == 0 and pixel(frame, 20, 20) == 0x00aa00
+        assert frame.application['connected'] == 1
         t.exchange(b'\x01|E|Y00000100|c0F\r\n')
         t.case('rip3-graphical-builtins-and-ink')
         frame=t.exchange(b'\x01|m0A1E|T$RESX$\r\n'+query(b'$TEXTXY$',at_cursor=True),b'34:50')

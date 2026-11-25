@@ -3,6 +3,7 @@
 #include "io_error.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 struct st_rip3_stream {
 	struct st_rip3_stream_sink sink;
@@ -150,8 +151,8 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 		if (stream->active) {
 			if (line_end(byte)) {
 				if (stream->continued) {
-					/* The inactive F descriptor skips only the first two
-					 * consecutive line-ending bytes after a backslash. */
+					/* The descriptor's delimiter wait skips only the first
+					 * two line-ending bytes after a backslash. */
 					if (stream->discard_tail)
 						stream->continued = false;
 					continue;
@@ -174,21 +175,23 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				continue;
 			}
 			stream->continued = false;
-			/* Comments and the discarded F suffix end at any pipe. */
+			/* Comments and zero-field, no-text suffixes end at any pipe. */
 			if (byte == '|' && (!stream->quoted || stream->comment || stream->discard_tail)) {
 				dispatch(stream);
 				continue;
 			}
 			if (stream->discard_tail) {
-				/* F retains only its opcode. The last suffix byte can
+				/* Retain only the command key. The last suffix byte can
 				 * introduce a continuation regardless of slash parity. */
 				stream->quoted = byte == '\\';
 				continue;
 			}
 			if (stream->length == 0 && !stream->dropping) {
 				stream->comment = byte == '!';
-				stream->discard_tail = byte == 'F';
+				stream->discard_tail = byte != 0 && strchr("#()*>EeFH", byte) != NULL;
 			}
+			else if (stream->length == 1 && !stream->dropping && stream->command[0] == '1')
+				stream->discard_tail = byte == 'E' || byte == 'K';
 			if (stream->quoted && !stream->comment && (byte == '|' || byte == 1 || byte == 2)) {
 				/* These bytes were quoted for framing. Replace the stored
 				 * slash with the literal byte before passing the command on. */

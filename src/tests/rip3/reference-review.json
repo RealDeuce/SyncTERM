@@ -26552,6 +26552,14 @@
         "version/3.0/techspecs/2.0-fill-defects-delta.md:5",
         "version/3.0/techspecs/2.0-fill-defects-delta.md:7"
       ]
+    },
+    {
+      "after_commit": "a077b75f7144f1b4ea82c54166bebf306bb62ea5",
+      "revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
+      "scope": "Use the original delimiter state for all zero-field, no-text descriptors and verify their framing across receive splits.",
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:211"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

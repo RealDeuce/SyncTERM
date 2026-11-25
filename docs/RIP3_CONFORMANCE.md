@@ -10557,3 +10557,17 @@ fill ink and continued drawing after `F`.
 The pinned fill chapter still attributes a live flood to this descriptor.
 The ledger retains this documentation discrepancy under the focused
 follow-up to issue #2. [Issue #279](https://github.com/bbs-land/remote-imaging-protocol/issues/279)
+
+## Delimiters for commands without arguments
+
+The original parser enters the same delimiter state for all eleven
+descriptors with zero numeric fields and no text argument. SyncTERM now
+discards their suffixes in the stream parser. `#`, `(`, `)`, `*`, `>`,
+`E`, `e`, `F`, `H`, `1E` and `1K` run at the delimiter. A backslash
+immediately before a pipe leaves that pipe active. A backslash at a line
+ending permits continuation for up to two line-ending bytes.
+
+The original collector produced the same delimiter behavior in 66 wire
+cases. Native split-input tests cover all eleven descriptors, and the
+connected CP437 and UTF-8 tests verify that `E` and `H` run before the
+commands that follow them on the same line.

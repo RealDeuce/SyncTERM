@@ -149,6 +149,25 @@ boundaries(void)
 }
 
 static int
+argumentless_commands(void)
+{
+	const char *const opcodes[] = {"#", "(", ")", "*", ">", "E", "e", "F", "H", "1E", "1K"};
+	for (size_t i = 0; i < sizeof(opcodes) / sizeof(*opcodes); i++) {
+		char input[128], commands[24];
+		const char *opcode = opcodes[i];
+		int length = snprintf(input, sizeof(input), "!|%ssurplus\033[!\\|c02|%s\\\\\r\ncontinued|c01|%s\\\r\n\fOK",
+		    opcode, opcode, opcode);
+		int expected = snprintf(commands, sizeof(commands), "%s%c%s%c%s%c%s%c%s%c",
+		    opcode, 0, "c02", 0, opcode, 0, "c01", 0, opcode, 0);
+		CHECK(length > 0 && (size_t)length < sizeof(input));
+		CHECK(expected > 0 && (size_t)expected < sizeof(commands));
+		CHECK(example((const uint8_t *)input, (size_t)length, (const uint8_t *)"OK", 2,
+		    (const uint8_t *)commands, (size_t)expected, 5) == 0);
+	}
+	return 0;
+}
+
+static int
 lifetime(void)
 {
 	struct observation seen = {0};
@@ -339,6 +358,7 @@ main(void)
 	static const uint8_t ansi[] = "Z\r\nA";
 	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3)==0);
 	CHECK(boundaries() == 0);
+	CHECK(argumentless_commands() == 0);
 	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);
