@@ -180,6 +180,7 @@ enum st_rip3_view_operation {
 	ST_RIP3_VIEW_ACTIVATE,
 	ST_RIP3_VIEW_DEACTIVATE,
 	ST_RIP3_VIEW_MAXIMIZE,
+	ST_RIP3_VIEW_RESET_ACTIVE,
 	ST_RIP3_VIEW_RESET,
 	ST_RIP3_PORT_CLEAR_BLACK,
 };
@@ -189,8 +190,9 @@ int st_rip3_ports_header_delete_clipboard(struct st_rip3_ports *);
 void st_rip3_ports_header_clear_queries(struct st_rip3_ports *);
 /* Apply in the given order to defined ports without changing selection.
  * Validate every index before changes. Activation, deactivation and geometry
- * changes skip protected ports. Maximize skips inactive viewports and reset
- * activates them. Both restore full bounds without painting. Clear-black
+ * changes skip protected ports. Maximize uses the full screen canvas. Reset
+ * uses the port bounds. Only RESET activates inactive viewports. Geometry
+ * changes do not paint or resize the backing surface. Clear-black
  * fills the port's physical bounds with literal black when the viewport is
  * active, including for protected ports, and preserves all port metadata. */
 int st_rip3_ports_operate_views(struct st_rip3_ports *ports,

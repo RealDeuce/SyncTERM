@@ -10784,3 +10784,27 @@ numbered ENV reset. The same explicit number is rejected. The implementation
 follows those callback branches, and the selector and protection wording
 awaits an upstream clarification.
 [Issue #299](https://github.com/bbs-land/remote-imaging-protocol/issues/299)
+
+## Viewport activation and maximization
+
+AVP and DVP preserve the stored clipping rectangle. MVP sets an eligible
+viewport to the full screen canvas, including on a nonzero screen port or a
+smaller bitmap. The port keeps its backing storage, cursor and selection.
+Protected or undefined ports are skipped, and MVP also skips inactive
+viewports. Native tests and live CP437 and UTF-8 sessions check default and
+explicit selectors, atomic rejection, unchanged pixels, expressed geometry,
+and drawing past the previous screen-port boundary after MVP.
+
+The original HEADER geometry flags reach the same maximize helper as MVP.
+The pinned reference explicitly specifies full port bounds for those flags,
+so the implementation follows that rule while the discrepancy is reviewed.
+[Issue #301](https://github.com/bbs-land/remote-imaging-protocol/issues/301)
+
+## ANSI duplex control reference gap
+
+The original ordinary CSI 12 h/l handlers change client duplex state. The
+keyboard path can echo ordinary characters and locally echoes CR/LF for
+Enter in half duplex. The standalone client also updates the live setting
+during Telnet ECHO negotiation. The reference needs a portable rule for
+those interactions and for the lifetime of the setting.
+[Issue #302](https://github.com/bbs-land/remote-imaging-protocol/issues/302)

@@ -80,6 +80,14 @@ viewport_absolute(const struct port *port)
 	return view;
 }
 
+static struct st_rip3_rect
+viewport_relative(const struct port *port, const struct st_rip3_rect *view)
+{
+	return (struct st_rip3_rect){
+	    view->x0-port->info.bounds.x0, view->y0-port->info.bounds.y0,
+	    view->x1-port->info.bounds.x0, view->y1-port->info.bounds.y0};
+}
+
 static struct st_rip3_surface *
 port_surface(const struct st_rip3_ports *ports, unsigned number)
 {
@@ -459,9 +467,7 @@ st_rip3_ports_viewport_device(struct st_rip3_ports *ports,
 	/* Absolute inputs and nonnegative port origins fit int32_t. Subtraction
 	 * may produce negative relative coordinates, but addition in the drawing
 	 * path reconstructs the original representable absolute rectangle. */
-	port->info.viewport = (struct st_rip3_rect){
-	    viewport->x0-port->info.bounds.x0, viewport->y0-port->info.bounds.y0,
-	    viewport->x1-port->info.bounds.x0, viewport->y1-port->info.bounds.y0};
+	port->info.viewport = viewport_relative(port, viewport);
 	port->info.viewport_active = true;
 	return 0;
 }
@@ -656,13 +662,13 @@ st_rip3_ports_operate_views(struct st_rip3_ports *ports,
 				return status;
 		}
 		else if (!port->info.protected) {
-			if (operation == ST_RIP3_VIEW_MAXIMIZE || operation == ST_RIP3_VIEW_RESET) {
-				if (port->info.viewport_active || operation == ST_RIP3_VIEW_RESET)
-					port->info.viewport = port_bounds(port);
-				if (operation == ST_RIP3_VIEW_RESET) port->info.viewport_active=true;
-			}
-			else
+			if (operation == ST_RIP3_VIEW_ACTIVATE || operation == ST_RIP3_VIEW_DEACTIVATE)
 				port->info.viewport_active = operation == ST_RIP3_VIEW_ACTIVATE;
+			else if (port->info.viewport_active || operation == ST_RIP3_VIEW_RESET) {
+				port->info.viewport = operation == ST_RIP3_VIEW_MAXIMIZE
+				    ? viewport_relative(port, &ports->screen_bounds) : port_bounds(port);
+				port->info.viewport_active = true;
+			}
 		}
 	}
 	return 0;

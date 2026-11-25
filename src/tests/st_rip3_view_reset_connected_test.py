@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Viewport-only RESET through TCP: geometry/activation without lost content."""
+"""Viewport reset, activation and maximization through TCP."""
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
@@ -74,6 +74,28 @@ def run(args,width,height):
         ordinary(frame)
         values(b'$CUR(PORT)$:after-view-reset',b'1:after-view-reset')
         assert frame.application['connected']==1
+
+        t.case(f'rip3-live-view-maximize-uses-canvas-{width}x{height}')
+        wire(b'v'+coords((110,90,120,100))+b'|m0V0W')
+        values(b'$PROT(PORT,1)$$DVP(aLL)$')
+        before=client.capture()
+        frame=values(b'$MVP(ALL)$$AVP(2,36)$$TEXTXY(1)$:$TEXTXY(2)$:$PORTW(1,VIEW,DEVICE)$',
+                     b'141:122:-1:11')
+        same(before,frame)
+        values(b'$AVP(ALL)$$MVP(ALL)$$PORTW(1,VIEW,DEVICE)$:$PORTW(2,VIEW,DEVICE)$'
+               b':$PORTH(2,VIEW,DEVICE)$:$PORTW(2,PORT,DEVICE)$:$PORTH(2,PORT,DEVICE)$',
+               f'11:{width}:{height}:4:3'.encode())
+        values(b'$UNPROT(PORT,1)$$DVP(CUR,36)$$MVP(CUR,INVALID)$'
+               b'$TEXTXY(CUR)$:$PORTW(1,VIEW,DEVICE)$', b'141:122:11')
+        before=wire(b'c02|X'+coords((160,120)))
+        assert pixel(before,160,120)==0
+        frame=values(b'[$MVP$]$CUR(PORT)$:$TEXTXY$:$PORTX0(1,VIEW,DEVICE)$:$PORTY0(1,VIEW,DEVICE)$'
+                     b':$PORTW(1,VIEW,DEVICE)$:$PORTH(1,VIEW,DEVICE)$:$PORTW(1,PORT,DEVICE)$',
+                     f'[]1:141:122:-100:-80:{width}:{height}:40'.encode())
+        same(before,frame)
+        frame=wire(b'X'+coords((160,120)))
+        assert pixel(frame,160,120)==0x00aa00 and frame.application['connected']==1
+        ordinary(frame)
 
 
 if __name__=='__main__':

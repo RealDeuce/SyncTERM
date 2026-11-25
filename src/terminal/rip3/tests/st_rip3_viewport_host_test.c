@@ -166,7 +166,8 @@ main(void)
 	CHECK(run(&host, "$MVP(2,BAD)$", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
 	CHECK(check_view(ports, 2, true, 1,1,2,2) == 0);
 	CHECK(run(&host, "$MVP$", -1) == 0);
-	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
+	CHECK(check_view(ports, 2, true, 0,0,639,479) == 0);
+	CHECK(st_rip3_ports_info(ports, 2, &info) == 0 && info.clip.x1 == 3 && info.clip.y1 == 3);
 	CHECK(st_rip3_ports_viewport(ports, &small_view) == 0);
 	CHECK(run(&host, "$DVP(2,2)$", -1) == 0);
 	CHECK(run(&host, "$DVP(CUR)$", -1) == 0);
@@ -180,13 +181,13 @@ main(void)
 	CHECK(run(&host, "$AVP(2,4,5)$", -1) == 0);
 	CHECK(check_view(ports, 5, false, 0,0,1,1) == 0);
 	CHECK(run(&host, "$MVP(2,4)$", -1) == 0);
-	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
-	CHECK(check_view(ports, 4, true, 0,0,0,0) == 0); /* Maximize is not deactivation. */
+	CHECK(check_view(ports, 2, true, 0,0,639,479) == 0);
+	CHECK(check_view(ports, 4, true, -50,-60,589,419) == 0); /* Screen origin in port coordinates. */
 	CHECK(run(&host, "$DVP(2,)$", -1) == 0);
-	CHECK(check_view(ports, 2, false, 0,0,3,3) == 0);
+	CHECK(check_view(ports, 2, false, 0,0,639,479) == 0);
 	CHECK(run(&host, "$AVP(2)$", -1) == 0);
 	CHECK(run(&host, "$DVP(ABCDEFGHIJKLMNOPQRST)$", ST_RIP3_HOST_INVALID_REFERENCE) == 0);
-	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
+	CHECK(check_view(ports, 2, true, 0,0,639,479) == 0);
 	CHECK(run(&host, "$EGW$", -1) == 0);
 	uint32_t color;
 	CHECK(st_rip3_ports_read_color(ports, 2, 0, 0, false, &color) == 0
@@ -230,15 +231,15 @@ main(void)
 	}
 	memcpy(command + length, ")$", 3);
 	CHECK(run(&host, command, ST_RIP3_HOST_INVALID_REFERENCE) == 0);
-	CHECK(check_view(ports, 2, false, 0,0,3,3) == 0);
+	CHECK(check_view(ports, 2, false, 0,0,639,479) == 0);
 	memcpy(command + length - 2, ")$", 3); /* Forty valid duplicate selectors. */
 	CHECK(run(&host, command, -1) == 0);
-	CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
+	CHECK(check_view(ports, 2, true, 0,0,639,479) == 0);
 	CHECK(run(&host, "$AVP$", -1) == 0);
 	{
 		const unsigned invalid[] = {2,36};
 		CHECK(st_rip3_ports_operate_views(ports, invalid, 2, ST_RIP3_VIEW_DEACTIVATE) == IO_ERROR_OUT_OF_RANGE);
-		CHECK(check_view(ports, 2, true, 0,0,3,3) == 0);
+		CHECK(check_view(ports, 2, true, 0,0,639,479) == 0);
 		CHECK(st_rip3_ports_operate_views(ports, NULL, 0, ST_RIP3_PORT_CLEAR_BLACK) == 0);
 		CHECK(st_rip3_ports_operate_views(ports, NULL, 1, ST_RIP3_PORT_CLEAR_BLACK) == IO_ERROR_INVALID_ARGUMENT);
 		CHECK(st_rip3_ports_operate_views(ports, invalid, 1, (enum st_rip3_view_operation)99) == IO_ERROR_INVALID_ARGUMENT);
