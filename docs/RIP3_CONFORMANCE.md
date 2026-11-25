@@ -7161,6 +7161,14 @@ buttons still invert and send their actions. A combined ICON/CLIPBOARD/PLAIN
 style requires a readable clipboard and uses the normal and hot icon images
 once that precondition is met.
 
+Patterned plain button faces resolve only the colors used by their fill brush.
+An all-zero mask uses Back Color, and an all-one mask uses Fill Color. Live
+checkbox fixtures cover both cases after switching from direct RGB to palette
+mode, along with the precedence of NOFILL over PATTERN. They also exercise an
+empty expanded label on a valid button at a scale where the font has zero
+device DPI. The empty label completes without font measurement, and the button
+still registers and responds to input.
+
 Auto-stamp also accepts ICON/initial-HOT faces: existing capture/style mutation
 runs before label realization, then later buttons use the converted clipboard
 style. Existing budget/protection/label failure boundaries remain intact.

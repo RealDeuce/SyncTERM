@@ -535,13 +535,24 @@ paint_face(void *context)
 			if (area.y0<b->port.clip.y0) area.y0=b->port.clip.y0;
 			if (area.x1>(int64_t)b->port.clip.x1+1) area.x1=(int64_t)b->port.clip.x1+1;
 			if (area.y1>(int64_t)b->port.clip.y1+1) area.y1=(int64_t)b->port.clip.y1+1;
-			uint8_t foreground,background;
-			status=st_rip3_command_ink(host,b->rgb_bits,b->drawing.fill_color,&foreground);
-			if (status==0) status=st_rip3_command_ink(host,b->rgb_bits,b->drawing.background_color,&background);
-			if (status==0 && area.x0<area.x1 && area.y0<area.y1) {
-				const struct st_rip3_rect rect={(int32_t)area.x0,(int32_t)area.y0,(int32_t)(area.x1-1),(int32_t)(area.y1-1)};
-				struct st_rip3_fill pattern;st_rip3_command_fill(&b->port,&b->drawing.fill,&pattern);
-				status=st_rip3_draw_bar(host->ports,&rect,&pattern,foreground,background,ST_RIP3_COPY);
+			if (area.x0<area.x1 && area.y0<area.y1) {
+				uint8_t foreground = 0, background = 0;
+				bool uses_foreground = false, uses_background = false;
+				for (size_t i = 0; i < sizeof(b->drawing.fill.rows); i++) {
+					uses_foreground |= b->drawing.fill.rows[i] != 0;
+					uses_background |= b->drawing.fill.rows[i] != 255;
+				}
+				if (uses_foreground)
+					status = st_rip3_command_ink(host, b->rgb_bits, b->drawing.fill_color, &foreground);
+				if (status == 0 && uses_background)
+					status = st_rip3_command_ink(host, b->rgb_bits, b->drawing.background_color, &background);
+				if (status == 0) {
+					const struct st_rip3_rect rect = {(int32_t)area.x0, (int32_t)area.y0,
+					    (int32_t)(area.x1 - 1), (int32_t)(area.y1 - 1)};
+					struct st_rip3_fill pattern;
+					st_rip3_command_fill(&b->port, &b->drawing.fill, &pattern);
+					status = st_rip3_draw_bar(host->ports, &rect, &pattern, foreground, background, ST_RIP3_COPY);
+				}
 			}
 		}
 	}

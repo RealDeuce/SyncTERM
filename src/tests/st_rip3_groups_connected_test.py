@@ -29,6 +29,39 @@ def run(args,width,height):
         def click(x,y,expected=b''):
             mouse(x,y,True);mouse(x,y)
             return t.input(expected) if expected else t.exchange()
+        if width == 640:
+            t.case('rip3-group-empty-expanded-label-does-not-require-a-font')
+            t.exchange(style(flags=256|1024|2,flags2=1,group=8,surface=3))
+            # At this scale the outline font's device DPI truncates to zero,
+            # while the transmitted corners still form a visible 80x60 face.
+            values(b'$COORDSIZE(CUR,3)$$WORLD(CUR,65535,65535)$')
+            definition = button((4096,4096,12288,12288),
+                                b'<>$-=LABEL_STAGE=ran$$NULL$<>empty-label',xy=3)
+            frame = t.exchange(definition + query(b'$&LABEL_STAGE$:$INUSE(MOUSE,ANY)$', at_cursor=True), b'ran:1')
+            assert pixel(frame,50,40) == 0x00aaaa
+            frame = click(50,40,b'empty-label')
+            assert pixel(frame,50,40) == 0xff5555
+            values(f'$MKILL$$COORDSIZE(CUR,2)$$WORLD(CUR,{width},{height})$'.encode())
+
+            t.case('rip3-patterned-buttons-resolve-only-colors-used-by-their-brush')
+            # The unused color came from RGB mode and is not a valid palette
+            # index. Both buttons still have a complete one-color brush.
+            patterned = style(flags=256|1024,flags2=64|1,group=8,surface=3)
+            bg = b'\x01|k01|M18|S00&&&&|M08|W4\r\n'
+            fg = b'\x01|M18|k&&&&|M08|S0102\r\n'
+            frame = t.exchange(patterned + bg + button((300,100,340,130), b'<><>pattern-background')
+                               + fg + button((350,100,390,130), b'<><>pattern-foreground'))
+            assert pixel(frame,310,110) == 0x0000aa and pixel(frame,360,110) == 0x00aa00
+            click(310,110,b'pattern-background')
+            click(360,110,b'pattern-foreground')
+
+            before = t.exchange()
+            frame = t.exchange(bg + style(flags=256|1024,flags2=32|64|1,group=8)
+                               + button((300,100,340,130), b'<><>no-fill'))
+            assert frame.primary == before.primary and frame.alternate == before.alternate
+            click(310,110,b'no-fill')
+            values(b'$MKILL$')
+            t.exchange(b'\x01|W0|k00|S0107\r\n')
         def checkboxes():
             return (style(flags=256|1024|2,flags2=1,group=2,surface=3,bevel=0)
                     +button((10,10,60,30),b'ID=1:<>C1<>[2:]A[3:]X[]one',hotkey=ord('a'))
