@@ -800,10 +800,7 @@ cterm_coord_conv_xy(struct cterminal *cterm, enum cterm_coordinates from_coord,
 void
 cterm_coord_get_xy(struct cterminal *cterm, enum cterm_coordinates coord, int *x, int *y)
 {
-	if (x)
-		*x = cterm_render_position_x(cterm);
-	if (y)
-		*y = cterm_render_position_y(cterm);
+	cterm_render_get_position(cterm, x, y);
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_CURR, coord, x, y);
 }

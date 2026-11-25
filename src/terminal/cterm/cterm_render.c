@@ -324,32 +324,42 @@ cterm_render_set_position(struct cterminal *cterm, int x, int y)
 	    window.y + (uint32_t)y - 1));
 }
 
+void
+cterm_render_get_position(struct cterminal *cterm, int *x, int *y)
+{
+	struct st_console_rect window;
+	uint32_t screen_x, screen_y;
+	int column = 1, row = 1;
+
+	if (x == NULL && y == NULL)
+		return;
+	if (addressing_window(cterm, &window)
+	    && st_console_get_position(cterm->screen.console, &screen_x, &screen_y) == 0) {
+		column = (int)screen_x - (int)window.x + 1;
+		row = (int)screen_y - (int)window.y + 1;
+	}
+	else
+		cterm_render_record_error(cterm, IO_ERROR_IO);
+	if (x != NULL)
+		*x = column;
+	if (y != NULL)
+		*y = row;
+}
+
 int
 cterm_render_position_x(struct cterminal *cterm)
 {
-	struct st_console_rect window;
-	uint32_t x, y;
-
-	if (!addressing_window(cterm,&window)
-	    || st_console_get_position(cterm->screen.console, &x, &y) != 0) {
-		cterm_render_record_error(cterm, IO_ERROR_IO);
-		return 1;
-	}
-	return (int)x - (int)window.x + 1;
+	int x;
+	cterm_render_get_position(cterm, &x, NULL);
+	return x;
 }
 
 int
 cterm_render_position_y(struct cterminal *cterm)
 {
-	struct st_console_rect window;
-	uint32_t x, y;
-
-	if (!addressing_window(cterm,&window)
-	    || st_console_get_position(cterm->screen.console, &x, &y) != 0) {
-		cterm_render_record_error(cterm, IO_ERROR_IO);
-		return 1;
-	}
-	return (int)y - (int)window.y + 1;
+	int y;
+	cterm_render_get_position(cterm, NULL, &y);
+	return y;
 }
 
 void

@@ -134,6 +134,7 @@ void cterm_render_set_video_flags(struct cterminal *cterm, int flags);
 void cterm_render_set_window(struct cterminal *cterm, int left, int top,
 	int right, int bottom);
 void cterm_render_set_position(struct cterminal *cterm, int x, int y);
+void cterm_render_get_position(struct cterminal *cterm, int *x, int *y);
 int cterm_render_position_x(struct cterminal *cterm);
 int cterm_render_position_y(struct cterminal *cterm);
 void cterm_render_set_attribute(struct cterminal *cterm, int attribute);
