@@ -58,7 +58,6 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Font effects and retained text | Synthetic decorations, glyph measurement and cache lifetime across drawing and reset |
 | Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
 | Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
@@ -86,6 +85,11 @@ The wire-field review closed six entries. Connected block-mode transfers
 exercise one-byte zero fields and base-64 field terminators before the filename.
 A malformed prefix leaves the following command usable. The historical
 v2.A1 surplus rule is recorded as context for the 3.0 delimiter rules.
+
+The font-effects and retained-text review closed 13 entries. Connected
+tests check decorated MARIN text over truecolor pixels, and distinguish the
+lifetimes of retained text and prepared metrics across table saves, viewport
+erase, HEADER, and full drawing resets.
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.

@@ -165,7 +165,41 @@ def run(args,width,height):
         outline(b'absent')
         metric(b'F',b'50\r')
         metric(b'$TEXTDATA$',b'104\r',mode=1)
+        t.case('rip3-retained-text-and-outline-metrics-across-table-and-scene-resets')
+        outline()
+        metric(b'F',b'50\r')
+        values(b'$SAVEALL$')
+        metric(b'FF',b'100\r')
+        values(b'$RESTOREALL$$RESET(STYLE,CUR)$')
+        t.exchange(b'\x01|h...|m0A0K|TA|E\r\n')
+        outline(b'absent',size=10)
+        metric(b'$TEXTDATA$',b'50:50\r',mode=2)
+        metric(b'$TEXTDATA$',b'104\r',mode=1)
+        for reset in (query(b'$RESET(SOFT)$',at_cursor=True),
+                      query(b'$RESET(HARD)$',at_cursor=True),
+                      b'\x01|*\r\n', b'\x01|h01000200\r\n', b'\x01|h01000100\r\n'):
+            values(f'$WORLD(CUR,{width},{height})$'.encode())
+            outline()
+            metric(b'FF',b'100\r')
+            t.exchange(reset)
+            outline(b'absent')
+            metric(b'$TEXTDATA$',b'\r',mode=2)
+            metric(b'$TEXTDATA$',b'0\r',mode=1)
         if (width,height)==(640,480):
+            t.case('rip3-decorated-outline-text-xors-visible-rgb-and-preserves-advance')
+            values(b'$WORLD(CUR,640,480)$')
+            t.exchange(b'\x1b[?25l\x1b[0;48;2;17;34;51m'
+                       + b''.join(f'\x1b[{row};1H'.encode()+b' '*20 for row in range(1,18)))
+            outline(flags=15)
+            draw=b'\x01|c04|W1|@0K2SF\r\n'
+            frame=t.exchange(draw+query(b'$TEXTXY$',at_cursor=True),b'70:100')
+            # At 90 points the underline begins 9 pixels below the baseline
+            # and strikeout 30 pixels above. Both bands cross the glyph advance.
+            for x,y in ((40,110),(40,72)):
+                assert pixel(frame,x,y)==(0x112233^0xaa0000), (x,y,pixel(frame,x,y))
+            assert pixel(frame,80,110)==0x112233
+            frame=t.exchange(draw)
+            assert all(pixel(frame,x,y)==0x112233 for y in range(32,120) for x in range(10,90))
             t.case('rip3-bounded-outline-text-fits-upright-in-a-translated-viewport')
             t.exchange(b'\x01|*\r\n\x1b[?25l')
             values(b'$WORLD(CUR,640,480)$')
