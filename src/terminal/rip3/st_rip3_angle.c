@@ -92,13 +92,13 @@ prefix(const uint8_t *bytes, size_t length, const char *word)
 }
 
 static bool
-reference_valid(const uint8_t *bytes, size_t length)
+reference_valid(const uint8_t *bytes, size_t length, bool converted)
 {
 	uint8_t ordinary[ST_RIP3_CONDITION_REFERENCE_CAPACITY];size_t start=1;
 	while (start<length && bytes[start]=='&') start++;
 	ordinary[0]='$';memcpy(ordinary+1,bytes+start,length-start);
 	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
-	return st_rip3_builtin_reference_parse(&builtin,ordinary,length-start+1)==0
+	return st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,length-start+1,converted)==0
 	    || st_rip3_variable_reference_parse(&user,bytes,length,false)==0;
 }
 
@@ -249,7 +249,7 @@ header(struct st_rip3_angle *angle)
 			    angle->converted) != length) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 			angle->reference[0]='$';angle->reference[1]='&';memcpy(angle->reference+2,body,length);angle->reference[length+2]='$';
 			angle->reference[length+3]=0;
-			if (!reference_valid(angle->reference,length+3)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
+			if (!reference_valid(angle->reference,length+3,angle->converted)) {fail(angle,ST_RIP3_ANGLE_INVALID);return;}
 			angle->request.reference=(struct st_rip3_condition_bytes){angle->reference,length+3};
 		}
 		angle->consumed=end+2-angle->cursor;angle->state=ST_RIP3_ANGLE_VALUE;return;

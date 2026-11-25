@@ -62,7 +62,6 @@ commands reach the same implementation.
 | Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
 | Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
-| File requests and cache operations | Quoted FILEDEL names, transfer argument limits and visibility of resumable partial files |
 | Wire field collection | Numeric shorthand, reserved fields and command-specific recovery in both radices |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
@@ -79,6 +78,10 @@ One viewport block awaits the portable rule for a WORLD endpoint whose
 DEVICE projection exceeds signed 32-bit coordinates. SyncTERM currently
 keeps the previous viewport and continues parsing.
 [Upstream issue #313](https://github.com/bbs-land/remote-imaging-protocol/issues/313)
+
+The file-request group closed 11 blocks. Connected tests check FILEDEL
+replies and cache contents, XFER's 37-filename and 20-byte argument limits,
+and individual file outcomes after a cancelled or disconnected download.
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
@@ -9885,10 +9888,10 @@ the transfer confirmation and read files only from the active BBS cache.
 The worker still supports its existing X/Y/ZMODEM protocols. Receive codes
 7 and 8 select the same ZMODEM receiver, which uses the peer's filenames.
 The receiver opens the final filename in the active BBS cache at the start
-of the transfer. An interruption leaves received bytes at that filename,
-where a later ZMODEM request can resume after the sender confirms the prefix
-CRC. If the CRC check fails, the transfer replaces that file from byte zero.
-Local cancellation during the CRC exchange preserves the partial file.
+of the transfer. A failed receive removes the file it opened for writing.
+ZMODEM can resume an existing file after verifying its prefix CRC. A CRC
+mismatch restarts from byte zero. Cancellation during the CRC exchange
+preserves the existing file because the receiver has only read it.
 Code 8 upload and code 10 requests decline before taking the connection.
 
 `9U` accepts types 0 and 1 and leaves ordinary input routing active.
@@ -9896,8 +9899,8 @@ The type can be shortened when the four-digit reserve is omitted.
 If supplied, the reserve is checked in active Base Math and discarded.
 
 The CP437 and UTF-8 fixtures exercise XMODEM and YMODEM files and both
-ZMODEM receive handshakes. They check the cache contents during a download,
-interrupt it, and resume from the saved bytes. They also check a mismatched
+ZMODEM receive handshakes. They check the cache after an interrupted download
+and resume from a separately supplied prefix. They also check a mismatched
 prefix, cancellation during prefix verification, split CRLF handoff, upload
 approval and refusal, and recovery after malformed requests. The native macro
 fixture checks both directions across the documented keyword matrix.
@@ -9922,10 +9925,9 @@ the queued files. Failed file transfers do not enter either renderer.
 
 Received JPEG presentation uses the viewport when the style holds the
 internal zero-area inhibit value. Image-style DELETE retains the file.
-The worker writes to its existing cache destination and can leave
-partial bytes at that name after a failed transfer. Partial files never
-reach automatic playback or presentation. Portable completion-only resource
-publication remains pending.
+The worker writes to its existing cache destination. Failure closes and
+removes that file before RIP command processing resumes. Completed files
+from earlier in the batch remain eligible for their type-specific action.
 [PR #216](https://github.com/bbs-land/remote-imaging-protocol/pull/216)
 
 Connected CP437 and UTF-8 fixtures cover a scene before the caller's

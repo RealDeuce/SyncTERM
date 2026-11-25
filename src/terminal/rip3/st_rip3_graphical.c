@@ -180,7 +180,7 @@ reference(struct st_rip3_graphical *w, const uint8_t *bytes, size_t length, bool
 		length=length-start+1;bytes=ordinary;
 	}
 	struct st_rip3_builtin_reference builtin;
-	if (st_rip3_builtin_reference_parse(&builtin,bytes,length)==0
+	if (st_rip3_builtin_reference_parse_encoded(&builtin,bytes,length,w->converted)==0
 	    && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
 		struct value value={0};
 		size_t name_length = strlen(builtin.name);

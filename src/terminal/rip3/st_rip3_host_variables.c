@@ -502,7 +502,7 @@ st_rip3_host_variables_process(const struct st_rip3_host_variables *host,
 	char reply[2 + 256 * 12];
 	enum st_rip3_host_diagnostic diagnostic;
 	bool decoded = false;
-	int status = st_rip3_builtin_reference_parse(&reference, text, length);
+	int status = st_rip3_builtin_reference_parse_encoded(&reference, text, length, host != NULL && host->codepage_converted);
 
 	if (status == 0) {
 		decoded = true;

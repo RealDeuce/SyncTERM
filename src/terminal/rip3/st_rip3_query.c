@@ -50,7 +50,7 @@ slot_number(uint8_t byte)
 	return (uint8_t)(byte<='9' ? byte-'0' : byte-'A'+10);
 }
 
-enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK, PICK_LIST };
+enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, REJECTED_ARGUMENTS, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK, PICK_LIST };
 struct token {
 	enum token_kind kind;
 	size_t length;
@@ -77,10 +77,10 @@ reference_length(const uint8_t *bytes, size_t length, size_t *literal)
 }
 
 static bool
-reference(const uint8_t *bytes, size_t length, bool users, struct token *result)
+reference(const uint8_t *bytes, size_t length, bool users, bool converted, struct token *result)
 {
 	struct st_rip3_builtin_reference builtin;
-	if (st_rip3_builtin_reference_parse(&builtin,bytes,length)==0
+	if (st_rip3_builtin_reference_parse_encoded(&builtin,bytes,length,converted)==0
 	    && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
 		result->kind=REFERENCE;return true;
 	}
@@ -131,7 +131,13 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 			if (!templates) return false;
 			value.kind=TEMPLATE_REFERENCE;value.control=slot_number(bytes[2]);
 		}
-		else if (!reference(bytes,value.length,users,&value)) return false;
+		else if (!reference(bytes,value.length,users,converted,&value)) {
+			const uint8_t *open = memchr(bytes + 1, '(', value.length - 1);
+			if (open == NULL || bytes[value.length - 2] != ')'
+			    || !st_rip3_builtin_known((const char *)bytes + 1, (size_t)(open - bytes - 1)))
+				return false;
+			value.kind = REJECTED_ARGUMENTS;
+		}
 	}
 	else if (bytes[0]=='\\' && pass==2) {
 		value.kind=ESCAPED;
@@ -583,7 +589,7 @@ angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_byte
 	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+start,reference->length-start);
 	size_t length=reference->length-start+1;
 	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
-	if (st_rip3_builtin_reference_parse(&builtin,ordinary,length)==0 && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
+	if (st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,length,query->codepage_converted)==0 && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
 		struct angle_value value={0};const struct st_rip3_host_sink sink={&value,angle_reply,angle_diagnostic};
 		bool pending = process_builtin(query, &sink, ordinary, length);
 		const struct st_rip3_condition_bytes bytes={value.bytes,value.length};
@@ -679,6 +685,29 @@ settle(struct st_rip3_query *query)
 	}
 }
 
+/* Rejected argument syntax leaves the spelling in ordinary text. Pass two
+ * still decodes outer escapes and control pairs without retrying the call. */
+static void
+append_rejected(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
+{
+	size_t start = 0;
+	for (size_t i = 0; i < length;) {
+		if (bytes[i] != '\\' && bytes[i] != '^' && bytes[i] != '`') {
+			i++;
+			continue;
+		}
+		append(query, bytes + start, i - start);
+		struct token part;
+		token(bytes + i, length - i, false, false, 2, query->codepage_converted, false, &part);
+		size_t skip = part.kind == ESCAPED && part.length > 1;
+		if (part.kind == CONTROL) append(query, &part.control, 1);
+		else append(query, bytes + i + skip, part.length - skip);
+		i += part.length;
+		start = i;
+	}
+	append(query, bytes + start, length - start);
+}
+
 static bool
 playback(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 {
@@ -724,6 +753,8 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			const struct st_rip3_host_sink sink={query,replace,forward_diagnostic};
 			if (process_builtin(query, &sink, bytes, value.length)) return;
 		}
+		else if (value.kind==REJECTED_ARGUMENTS && query->pass==2)
+			append_rejected(query,bytes,value.length);
 		else if (value.kind==USER_REFERENCE) {
 			struct st_rip3_variable_reference decoded;
 			if (st_rip3_user_variables_decode(query->variables->user_variables,&decoded,bytes,value.length)!=0) {

@@ -319,8 +319,24 @@ def check_host_directory(t, root, rip, values, encoding):
     other_copy = (other_bbs / "Override.bmp").read_bytes()
     (rip / "KeepDir").mkdir()
     values(b"$FILEDEL()$alive", b"alive")
-    values(b"$FILEDEL(../Override.bmp)$")
+    rejected = b"$FILEDEL(../Override.bmp)$"
+    values(b'<' + rejected + b'>', b'<' + rejected + b'>')
     assert (rip / "Override.bmp").read_bytes() == cached
+    t.case("FILEDEL preserves rejected arguments and deletes decoded literal filenames")
+    for argument, filename in ((rb'DIR\X.bmp', 'DIRX.bmp'), (rb'..\X.bmp', '..X.bmp'),
+                               (rb'\X.bmp', 'X.bmp'), (b' Leading space.bmp', ' Leading space.bmp'),
+                               (b"'X.bmp'", "'X.bmp'")):
+        path = rip / filename
+        path.write_bytes(b'cached')
+        values(b'$FILEDEL(' + argument + b')$ok', b'ok')
+        assert not path.exists(), argument
+    keep = rip / 'X.bmp'
+    keep.write_bytes(b'keep')
+    for argument, literal in ((b'*.bmp', b'*.bmp'), (b'X?.bmp', b'X?.bmp'),
+                              (rb'DIR\\X.bmp', rb'DIR\X.bmp'), (b'X.bmp\\', b'X.bmp')):
+        source = b'$FILEDEL(' + argument + b')$'
+        values(source + b'ok', b'$FILEDEL(' + literal + b')$ok')
+        assert keep.read_bytes() == b'keep'
     values(b"$FILEDEL(AfterOff.ICN)$")
     assert (rip / "AfterOff.bmp").is_file()
     values(b"$HOSTDIR(Mix Ed)$$FILEDEL(Capture.bmp)$$HOSTDIR(Off)$")
@@ -339,7 +355,7 @@ def check_host_directory(t, root, rip, values, encoding):
     values(b"$HOSTDIR(Blocked)$$HOSTDIR$", b"BLOCKED")
     for bad in (b".", b"..", b"1234567890123", b"foo:bar", b"extra,argument"):
         values(b"$HOSTDIR(" + bad + b")$after:$HOSTDIR$", b"after:BLOCKED")
-    values(b"$HOSTDIR(\"\")$")
+    values(b"$HOSTDIR(\"\")$", b"$HOSTDIR(\"\")$")
     frame = values(b"$<Override$$HOSTDIR$", b"BLOCKED")
     assert pixel(frame, 2, 2) == 0x0000aa
     values(b"$HOSTDIR(  )$$HOSTDIR$", b"<NONE>")

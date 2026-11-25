@@ -67,6 +67,15 @@ static int xy_send(st_transfer_t *t, xmodem_t *xm)
 	}
 	return 0;
 }
+/* The receive handle must be closed before removing its destination. */
+static void remove_failed_receive(st_transfer_t *t, const char *path, bool empty)
+{
+	if (!t->config.discard && (t->config.remove_incomplete || empty)) {
+		int status = fs_remove_file(path);
+		if (t->config.remove_incomplete && status != 0 && status != IO_ERROR_NOT_FOUND)
+			st_transfer_log_message(t, LOG_ERR, "Cannot remove incomplete file %s (%d)", path, status);
+	}
+}
 static int xy_receive_file(st_transfer_t *t, xmodem_t *xm, long mode,
 	const char *name, int64_t size, time_t modified, uint8_t *first_block, bool have_first)
 {
@@ -82,7 +91,12 @@ static int xy_receive_file(st_transfer_t *t, xmodem_t *xm, long mode,
 	unsigned block_number = 1, errors = 0;
 	uint8_t block[1025];
 	status = st_transfer_received(t, ST_TRANSFER_RECEIVE_BEGIN, NULL, 0, false);
-	if (status != 0) { fclose(file); free(path); return status; }
+	if (status != 0) {
+		fclose(file);
+		remove_failed_receive(t, path, false);
+		free(path);
+		return status;
+	}
 	if (!have_first) xmodem_put_nak(xm, 1);
 	for (;;) {
 		if (!st_transfer_connected(t)) { status = IO_ERROR_NOT_CONNECTED; break; }
@@ -113,7 +127,7 @@ static int xy_receive_file(st_transfer_t *t, xmodem_t *xm, long mode,
 	int closed = file == NULL ? 0 : finish_file(&file);
 	if (status == 0) status = closed;
 	if (status == 0 && !t->config.discard && modified != 0) (void)fs_set_modified_time(path, (int64_t)modified);
-	if (status != 0 && received == 0 && !t->config.discard) (void)fs_remove_file(path);
+	if (status != 0) remove_failed_receive(t, path, received == 0);
 	int event_status = st_transfer_received(t, ST_TRANSFER_RECEIVE_END, NULL, 0, status == 0);
 	if (status == 0) status = event_status;
 	free(path);
@@ -269,7 +283,12 @@ static int z_receive(st_transfer_t *t, zmodem_t *zm)
 		else status = fs_open(&file, path, offset == 0 ? "wb" : "r+b");
 		if (status != 0) { free(path); return status; }
 		status = st_transfer_received(t, ST_TRANSFER_RECEIVE_BEGIN, NULL, 0, false);
-		if (status != 0) { fclose(file); free(path); return status; }
+		if (status != 0) {
+			fclose(file);
+			remove_failed_receive(t, path, false);
+			free(path);
+			return status;
+		}
 		zm->received = t->config.receive_events ? z_received : NULL;
 		(void)zmodem_recv_file_data(zm, file, offset);
 		bool complete = zm->file_complete;
@@ -280,7 +299,7 @@ static int z_receive(st_transfer_t *t, zmodem_t *zm)
 		status = finish_file(&file);
 		if (status == 0 && !complete) status = IO_ERROR_PROTOCOL;
 		if (status == 0 && !t->config.discard && zm->current_file_time != 0) (void)fs_set_modified_time(path, zm->current_file_time);
-		if (status != 0 && empty && !t->config.discard) (void)fs_remove_file(path);
+		if (status != 0) remove_failed_receive(t, path, empty);
 		int event_status = st_transfer_received(t, ST_TRANSFER_RECEIVE_END, NULL, 0, status == 0);
 		if (status == 0) status = event_status;
 		free(path);

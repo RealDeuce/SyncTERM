@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_host_internal.h"
+#include "st_rip3_graphical_bytes.h"
 #include "st_rip3_builtin_reference.h"
 
 #include "io_error.h"
@@ -233,8 +234,8 @@ argument_byte(uint8_t ch)
 }
 
 int
-st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
-    const uint8_t *text, size_t length)
+st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result,
+    const uint8_t *text, size_t length, bool converted)
 {
 	struct st_rip3_builtin_reference reference = {0};
 	size_t at = 1, name_length = 0, end;
@@ -258,9 +259,10 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 	}
 	if (text[at] != '(')
 		return IO_ERROR_INVALID_FORMAT;
-	/* HOSTDIR can receive UTF-8 normalized from single-byte input. Its
-	 * handler has the input encoding needed to check the logical limit. */
-	size_t capacity = strcmp(reference.name, "HOSTDIR") == 0
+	/* Filenames may occupy several UTF-8 bytes per original codepage byte.
+	 * HOSTDIR checks its protocol limit in the directory handler. */
+	bool file_arguments = converted && (strcmp(reference.name, "FILEDEL") == 0 || strcmp(reference.name, "XFER") == 0);
+	size_t capacity = file_arguments || strcmp(reference.name, "HOSTDIR") == 0
 	    ? sizeof(reference.parameters[0].text) - 1 : ST_RIP3_BUILTIN_PARAMETER_LIMIT;
 	at++;
 	size_t stored=0;
@@ -276,7 +278,13 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 			continue;
 		}
 		if (ch==',' || ch==')') {
-			if (stored!=0) reference.parameters[reference.count++].length=stored;
+			if (stored != 0) {
+				struct st_rip3_builtin_parameter *parameter = &reference.parameters[reference.count++];
+				if (file_arguments && st_rip3_graphical_units((const uint8_t *)parameter->text, stored, true)
+				    > ST_RIP3_BUILTIN_PARAMETER_LIMIT)
+					return IO_ERROR_OUT_OF_RANGE;
+				parameter->length = stored;
+			}
 			stored=0;
 			if (ch==',') continue; /* Empty fields occupy no slot. */
 			if (at!=end) return IO_ERROR_INVALID_FORMAT;
@@ -289,6 +297,13 @@ st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 		quote=ch=='\\';
 	}
 	return IO_ERROR_INVALID_FORMAT; /* No unquoted closing parenthesis. */
+}
+
+int
+st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
+    const uint8_t *text, size_t length)
+{
+	return st_rip3_builtin_reference_parse_encoded(result, text, length, false);
 }
 
 int

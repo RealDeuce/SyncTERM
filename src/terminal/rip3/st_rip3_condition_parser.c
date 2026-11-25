@@ -275,7 +275,7 @@ st_rip3_condition_program_destroy(struct st_rip3_condition_program *program)
 }
 
 static bool
-provider_reference_valid(const struct st_rip3_condition_bytes *reference)
+provider_reference_valid(const struct st_rip3_condition_bytes *reference, bool converted)
 {
 	if (reference->length==2 && reference->bytes[0]=='?') return reference->bytes[1]<36;
 	/* Validate the complete synthesized reference without executing a
@@ -284,7 +284,7 @@ provider_reference_valid(const struct st_rip3_condition_bytes *reference)
 	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+2,reference->length-2);
 	struct st_rip3_builtin_reference builtin;
 	struct st_rip3_variable_reference user;
-	return st_rip3_builtin_reference_parse(&builtin,ordinary,size)==0
+	return st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,size,converted)==0
 	    || st_rip3_variable_reference_parse(&user,reference->bytes,reference->length,false)==0;
 }
 
@@ -300,7 +300,6 @@ provider_value(void *context, const struct st_rip3_condition_bytes *reference,
 		status=provider->template(provider->context,reference->bytes[1],result);
 	}
 	else {
-		if (!provider_reference_valid(reference)) return IO_ERROR_INVALID_FORMAT;
 		if (provider->reference==NULL) return IO_ERROR_NOT_FOUND;
 		status=provider->reference(provider->context,reference,result);
 	}
@@ -404,7 +403,7 @@ st_rip3_condition_evaluation_process(struct st_rip3_condition_evaluation *evalua
 		struct st_rip3_condition_token *token=&evaluation->tokens[evaluation->cursor];
 		if (token->kind==ST_RIP3_CONDITION_COMPARISON) {
 			evaluation->state=ST_RIP3_CONDITION_VALUE;
-			if (provider_reference_valid(&token->value.comparison.reference)) return;
+			if (provider_reference_valid(&token->value.comparison.reference,evaluation->converted)) return;
 			st_rip3_condition_evaluation_supply(evaluation,NULL,IO_ERROR_INVALID_FORMAT);
 		}
 		else evaluation->cursor++;

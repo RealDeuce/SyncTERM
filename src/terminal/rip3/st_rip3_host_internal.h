@@ -13,6 +13,8 @@ struct st_rip3_ports;
  * tests. Never call these from the terminal/session input path or propagate
  * their statuses to it. The public process entry consumes rejected references
  * internally and continues; these results are not connection errors. */
+int st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result,
+	const uint8_t *text, size_t length, bool converted);
 int st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
 	const uint8_t *text, size_t length);
 /* Existing numeric/keyword handlers normalize their own parameter copies.

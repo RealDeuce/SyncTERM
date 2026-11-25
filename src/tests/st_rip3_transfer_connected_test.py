@@ -99,6 +99,27 @@ def run(args):
         download(b"!|1\x1b0000$XFER(receive,XMODEMCRC,none,macro.bin)$\r",
                  "macro.bin", b"\n")
 
+        terminal.case("rip3-xfer-max-arguments-and-twenty-byte-filename")
+        names = [b'ABCDEFGHIJKLMNOPQRST'] + [b'x'] * 36
+        arguments = b','.join(names)
+        filename = b' '.join(names)
+        download(query(b'$XFER(RECEIVE,XMODEMCRC,NONE,' + arguments + b')$', at_cursor=True),
+                 filename.decode('ascii'))
+        send(query(b'$XFER(SEND,XMODEMCRC,NONE,' + arguments + b')$', at_cursor=True))
+        client.wait_text("The host requests an upload")
+        client.key("escape")
+        reply(b"\x18" * 10)
+        terminal.exchange(query(b"declined", at_cursor=True), b"declined")
+        encoding = args.encoding
+        name = 'é' + 'n' * (19 if encoding == 'CP437' else 18)
+        encoded = name.encode(encoding)
+        assert len(encoded) == 20
+        download(query(b'$XFER(RECEIVE,XMODEMCRC,NONE,' + encoded + b')$', at_cursor=True), name)
+        for direction in (b'SEND', b'RECEIVE'):
+            for invalid in (encoded + b'x', arguments + b',x'):
+                source = b'$XFER(' + direction + b',XMODEMCRC,NONE,' + invalid + b')$'
+                terminal.exchange(query(source + b':live', at_cursor=True), source + b':live')
+
         terminal.case("rip3-transfer-type-six-stores-without-playing")
         download(b"!|9\x1b01060000extra.bin<>\r", "extra.bin")
 
@@ -134,7 +155,7 @@ def run(args):
             z_finish()
         assert not (cache / "display-name").exists()
 
-        terminal.case("rip3-zmodem-interruption-keeps-the-original-cache-destination")
+        terminal.case("rip3-zmodem-interruption-removes-the-unfinished-download")
         contents = b"partial data with a completed suffix"
         prefix = contents[:12]
         destination = cache / "Resume.BIN"
@@ -156,9 +177,8 @@ def run(args):
         client.key("escape")
         reply(b"\x18" * 8 + b"\x08" * 8)
         client.wait_for(lambda frame: not frame.application.get("transfer.active"))
-        terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
-        stored("Resume.BIN", prefix)
-        assert set(cache_root.rglob("*")) == cache_entries
+        terminal.exchange(query(b"$FILEEXISTS(Resume.BIN)$:recovered", at_cursor=True), b"0:recovered")
+        assert set(cache_root.rglob("*")) == cache_entries - {destination}
 
         def check_resume_request(*, temporary=False):
             offer_resume_file(b"resume.bin", temporary=temporary)
@@ -167,8 +187,7 @@ def run(args):
 
         terminal.case("rip3-zmodem-reuses-a-verified-partial-file-in-the-bbs-cache")
         for offset in (len(prefix), 0):
-            if offset == 0:
-                destination.write_bytes(b"x" * len(prefix))
+            destination.write_bytes(prefix if offset else b"x" * len(prefix))
             check_resume_request()
             send(z_header(13, crc32(prefix)))
             reply(z_header(9, offset) + b"\x11")  # ZRPOS
@@ -179,7 +198,7 @@ def run(args):
             stored("Resume.BIN", contents)
             assert set(cache_root.rglob("*")) == cache_entries
 
-        terminal.case("rip3-zmodem-abort-during-prefix-check-keeps-the-partial-file")
+        terminal.case("rip3-zmodem-abort-before-opening-output-keeps-the-existing-file")
         destination.write_bytes(prefix)
         check_resume_request(temporary=True)
         client.wait_text("RIP Asset Download")
@@ -245,6 +264,7 @@ def run(args):
 
         terminal.case("rip3-block-refusal-and-malformed-wire-recover-nonfatally")
         for request in (b"05010000<>", b"09010000invalid.dat<>", b"0A060000<>",
+                        b"11010000<>", b"17010000<>", b"17070000macro.bin<>",
                         b"18010000macro.bin<>", b"11070000macro.bin<>",
                         b"21010000macro.bin<>", b"01070000invalid.dat<>"):
             terminal.exchange(b"!|9\x1b" + request + b"\r\n" + query(b"alive", at_cursor=True), b"alive")
@@ -354,10 +374,11 @@ def run(args):
         reply(b"\x18" * 8 + b"\x08" * 8)
         client.wait_text("Transfer completion failed")
         client.key("escape")
-        frame = terminal.exchange(query(b"recovered", at_cursor=True), b"recovered")
+        frame = terminal.exchange(query(b"$FILEEXISTS(interrupted.rip)$:recovered", at_cursor=True),
+                                  b"0:recovered")
         assert pixel(frame, 13, 13) == 0
         partial = cache.parent / "HOST-OTHER" / "interrupted.rip"
-        assert partial.read_bytes() == b"!|c0F|X0D0D\r\n".ljust(128, b"\x1a")
+        assert not partial.exists()
 
         terminal.case("rip3-temporary-resources-remain-available-through-reset-and-directory-changes")
         terminal.exchange(query(b"$HOSTDIR(ART)$", at_cursor=True))
@@ -391,6 +412,10 @@ def run(args):
         batch_file("disconnected.icn", icon)
         stored("disconnected.icn", icon)
         assert not (cache / "DISCONNECTED.BMP").exists()
+        header = b"unfinished.bin\x00256\x00"
+        send(packet(0, header.ljust(128, b"\x00")))
+        reply(b"\x06C")
+        send_file(bytes(128))
         peer.shutdown(SHUT_RDWR)
         frame = client.wait_for(lambda snap: snap.application.get("session_active") == 0
                                 or any("Transfer completion failed" in line for line in snap.lines))
@@ -405,7 +430,7 @@ def run(args):
         assert (cache / "KeepPort.bmp").read_bytes() == port_export
         for path in (other / "SessionIcon.BMH", shared / "SessionIcon.BMH"):
             assert path.read_bytes() == b"separate resource"
-        assert partial.read_bytes() == b"!|c0F|X0D0D\r\n".ljust(128, b"\x1a")
+        assert not partial.exists() and not (cache / "unfinished.bin").exists()
         stored("Resume.BIN", prefix)
         stored("extra.bin", payload)
 

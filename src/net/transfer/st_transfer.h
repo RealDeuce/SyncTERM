@@ -29,6 +29,7 @@ struct st_transfer_config {
 	void *destination_context;
 	bool overwrite; /* Replace existing files without a collision prompt. */
 	bool resume_on_overwrite; /* Check for a resumable ZMODEM prefix before replacing a file. */
+	bool remove_incomplete; /* Remove an opened receive destination if this file fails. */
 	bool discard; /* Receive into a temporary stream instead of the destination. */
 	/* Owner must drain the bounded event mailbox. ZMODEM event consumers use
 	 * discard or overwrite with resume disabled, so playback starts at offset zero. */
