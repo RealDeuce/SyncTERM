@@ -155,6 +155,7 @@ struct state {
 	int wake[2];
 	int start_status;
 	bool started, stop, failed, configured, pointer_visible, close_posted;
+	bool waiting_for_buffer;
 	bool fullscreen, fullscreen_requested, maximized;
 	struct wl_display *display;
 	struct wl_registry *registry;
@@ -190,7 +191,6 @@ struct state {
 	struct buffer cursor_buffers[ST_CONSOLE_POINTER_COUNT];
 	struct st_console_bitmap_presenter *presenter;
 	struct st_console_bitmap_frame frame;
-	const struct st_rgb_buffer *latest_pixels;
 	uint32_t window_width, window_height, buttons, pointer_serial;
 	uint32_t windowed_width, windowed_height;
 	uint32_t bounds_width, bounds_height;
@@ -294,24 +294,9 @@ static void buffer_release(void *data, struct wl_buffer *object)
 	struct buffer *buffer = data;
 	(void)object;
 	buffer->busy = false;
-	if (buffer->pending_valid && buffer->state->latest_pixels != NULL &&
-	    buffer->width == buffer->state->latest_pixels->width &&
-	    buffer->height == buffer->state->latest_pixels->height) {
-		const struct st_rgb_buffer *pixels =
-		    buffer->state->latest_pixels;
-		for (uint32_t y = 0; y < buffer->pending.height; ++y) {
-			size_t offset =
-			    (size_t)(buffer->pending.y + y) * buffer->width +
-			    buffer->pending.x;
-			memcpy(&buffer->pixels[offset],
-			       &pixels->pixels[offset],
-			       (size_t)buffer->pending.width *
-				   sizeof(*buffer->pixels));
-		}
-		buffer->pending_valid = false;
-	} else if (buffer->pending_valid) {
-		buffer->pending_valid = false;
-		buffer->valid = false;
+	if (buffer->state->waiting_for_buffer) {
+		buffer->state->waiting_for_buffer = false;
+		st_console_display_request_repaint(buffer->state->console_display);
 	}
 }
 static const struct wl_buffer_listener buffer_listener = {
@@ -454,30 +439,6 @@ set_toplevel_icon(struct state *state)
 #endif
 }
 
-static void add_pending(struct buffer *buffer,
-			const struct st_console_rect *rect)
-{
-	uint32_t right = rect->x + rect->width;
-	uint32_t bottom = rect->y + rect->height;
-	if (!buffer->pending_valid) {
-		buffer->pending = *rect;
-		buffer->pending_valid = true;
-		return;
-	}
-	if (rect->x < buffer->pending.x) {
-		buffer->pending.width += buffer->pending.x - rect->x;
-		buffer->pending.x = rect->x;
-	}
-	if (rect->y < buffer->pending.y) {
-		buffer->pending.height += buffer->pending.y - rect->y;
-		buffer->pending.y = rect->y;
-	}
-	if (right > buffer->pending.x + buffer->pending.width)
-		buffer->pending.width = right - buffer->pending.x;
-	if (bottom > buffer->pending.y + buffer->pending.height)
-		buffer->pending.height = bottom - buffer->pending.y;
-}
-
 static int update_buffers(void *context,
 			  const struct st_rgb_buffer *pixels,
 			  const struct st_console_rect *rectangle,
@@ -486,25 +447,12 @@ static int update_buffers(void *context,
 	struct state *state = context;
 	(void)image_identity;
 	(void)generation;
-	state->latest_pixels = pixels;
 	for (size_t i = 0; i < 2; ++i) {
 		struct buffer *buffer = &state->buffers[i];
 		if (!buffer->valid || buffer->width != pixels->width ||
 		    buffer->height != pixels->height)
 			continue;
-		if (buffer->busy)
-			add_pending(buffer, rectangle);
-		else {
-			for (uint32_t y = 0; y < rectangle->height; ++y) {
-				size_t offset =
-				    (size_t)(rectangle->y + y) * pixels->width +
-				    rectangle->x;
-				memcpy(&buffer->pixels[offset],
-				       &pixels->pixels[offset],
-				       (size_t)rectangle->width *
-					   sizeof(*buffer->pixels));
-			}
-		}
+		st_console_rect_accumulate(&buffer->pending, &buffer->pending_valid, rectangle);
 	}
 	wl_surface_damage_buffer(state->video_surface,
 				 (int32_t)rectangle->x,
@@ -534,8 +482,10 @@ static int draw(struct state *state, const st_console_t *console, bool forced)
 		return 0;
 	status = get_buffer(state, state->frame.pixels->width,
 	    state->frame.pixels->height, &buffer);
-	if (status == IO_ERROR_WOULD_BLOCK)
+	if (status == IO_ERROR_WOULD_BLOCK) {
+		state->waiting_for_buffer = true;
 		return 0;
+	}
 	if (status != 0)
 		return status;
 	background_changed = state->background_width != state->window_width
@@ -544,17 +494,28 @@ static int draw(struct state *state, const st_console_t *console, bool forced)
 		status = get_buffer_from(state, state->backgrounds,
 		    state->window_width, state->window_height,
 		    WL_SHM_FORMAT_XRGB8888, &background);
-		if (status == IO_ERROR_WOULD_BLOCK)
+		if (status == IO_ERROR_WOULD_BLOCK) {
+			state->waiting_for_buffer = true;
 			return 0;
+		}
 		if (status != 0)
 			return status;
 	}
-	state->latest_pixels = state->frame.pixels;
+	state->waiting_for_buffer = false;
 	full = !buffer->valid;
 	if (full) {
 		memcpy(
 		    buffer->pixels, state->frame.pixels->pixels, buffer->size);
 		buffer->valid = true;
+		buffer->pending_valid = false;
+	}
+	else if (buffer->pending_valid) {
+		const struct st_console_rect *rect = &buffer->pending;
+		for (uint32_t y = 0; y < rect->height; ++y) {
+			size_t offset = (size_t)(rect->y + y) * buffer->width + rect->x;
+			memcpy(buffer->pixels + offset, state->frame.pixels->pixels + offset,
+			    (size_t)rect->width * sizeof(*buffer->pixels));
+		}
 		buffer->pending_valid = false;
 	}
 	if (state->viewport != NULL) {
@@ -785,7 +746,7 @@ emit_key(struct state *state, uint32_t key, bool pressed, bool repeat)
 			state->window_height = height;
 			state->windowed_width = width;
 			state->windowed_height = height;
-			(void)draw(state, state->console, true);
+			st_console_display_request_repaint(state->console_display);
 		}
 		return;
 	}
@@ -1833,7 +1794,7 @@ static int process(struct state *s, struct command *c)
 		s->console = c->data.console;
 		return 0;
 	case CMD_PRESENT:
-		return draw(s, s->console, false);
+		return draw(s, NULL, false);
 	case CMD_RESIZE:
 		{
 		struct st_console_bitmap_geometry next = {
@@ -2057,10 +2018,10 @@ activate(st_console_t *console)
 		.data.console = console,
 	});
 }
-
-static int present(st_console_t *c)
+static int
+wayland_show_frame(st_console_display_t *display)
 {
-	return submit(c->display->backend_state, &(struct command){.type = CMD_PRESENT});
+	return submit(display->backend_state, &(struct command){.type = CMD_PRESENT});
 }
 static int resize(st_console_t *c, uint32_t cols, uint32_t rows)
 {
@@ -2155,7 +2116,8 @@ static const struct st_console_backend_ops ops = {
     .presents_pixels = true,
     .deferred_present = true,
     .animated_present = true,
-    .present = present,
+    .prepare_frame = st_console_bitmap_prepare_window,
+    .show_frame = wayland_show_frame,
     .resize = resize,
     .set_title = title,
     .set_clipboard_text = clipboard_set,
@@ -2232,6 +2194,7 @@ int st_console_wayland_init(st_console_t *c)
 		return status;
 	}
 	c->display->backend_state = s;
+	c->display->window_presenter = s->presenter;
 	c->display->backend_ops = &ops;
 	return 0;
 }

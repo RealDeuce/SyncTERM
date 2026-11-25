@@ -32,9 +32,14 @@ struct st_console_backend_ops {
 	bool presents_pixels;
 	bool deferred_present;
 	bool animated_present;
+	bool pull_present;
 	/* Per-console preparation; must not change the physical display. */
 	int (*attach)(st_console_t *console);
 	int (*present)(st_console_t *console);
+	/* Bitmap preparation consumes live state under the console lock. Only
+	 * backend-owned images may be used by show_frame after handoff. */
+	int (*prepare_frame)(st_console_t *console);
+	int (*show_frame)(st_console_display_t *display);
 	/* columns/rows specify the requested grid. Console cell dimensions,
 	 * raster margins and aspect ratio are staged before resize; reconfigure
 	 * has not yet replaced the console's grid, cells or pixels.
@@ -84,6 +89,9 @@ struct st_console_display {
 	uint32_t initial_window_height;
 	const struct st_console_backend_ops *backend_ops;
 	void *backend_state;
+	/* Borrowed from the window backend, accessed under backend_mutex.
+	 * Native event handlers use their uploaded pixels and copied geometry. */
+	struct st_console_bitmap_presenter *window_presenter;
 	enum st_console_backend backend;
 	uint8_t physical_keys[(UINT16_MAX + 1U) / 8U];
 	/* Alt+Keypad composition and physical state are protected by input_mutex. */
@@ -103,7 +111,7 @@ struct st_console_display {
 	bool presentation_stop;
 	bool presentation_animation_initialized;
 	enum st_console_blink_mode presentation_blink_mode;
-	uint64_t presentation_content_deadline;
+	uint64_t presentation_retry_deadline;
 	uint64_t presentation_animation_epoch;
 	uint64_t presentation_animation_deadline;
 };
@@ -443,6 +451,7 @@ int st_console_sdl_run_application(int argc, char **argv,
 int st_console_quartz_run_application(int argc, char **argv,
 	int (*application_main)(int, char **));
 void st_console_quartz_pump(void);
+int st_console_pull_frame(st_console_display_t *display);
 int st_console_present_locked(st_console_t *console, bool forced);
 st_console_t *st_console_display_active_console(st_console_t *console);
 int st_console_start_presentation_worker(st_console_t *console);
@@ -566,6 +575,11 @@ void st_console_bitmap_presenter_set_external_scaling_available(
 	struct st_console_bitmap_presenter *presenter, bool available);
 void st_console_bitmap_presenter_set_local_animation_clock(
 	struct st_console_bitmap_presenter *presenter, bool local);
+int st_console_bitmap_prepare_window(st_console_t *console);
+bool st_console_bitmap_retained_frame(struct st_console_bitmap_presenter *presenter,
+	bool repaint);
+int st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter,
+	const st_console_t *console, uint32_t now);
 /*
  * console may be NULL for a phase selection or host-only resize.  The image
  * identity is stable for the presenter's lifetime; generations change only

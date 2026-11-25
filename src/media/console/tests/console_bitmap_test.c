@@ -366,6 +366,26 @@ test_unscaled_frame(void)
 			CHECK(frame.pixels == native && frame.destination.y == 2 && log.calls == 2);
 		}
 	}
+	/* The source can change mode after handoff. Resize the host while that
+	 * old frame is in flight, then publish the replacement source. */
+	CHECK(st_pixel_buffer_fill(console->pixels, ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3),
+	    ST_PIXEL_COLOR_RGB_VALUE(1, 2, 3)) == 0);
+	console->pixel_surface_dirty = true;
+	CHECK(st_console_bitmap_prepare_frame(presenter, console, 0) == 0);
+	CHECK(st_console_resize(console, 3, 3) == 0);
+	CHECK(st_pixel_buffer_fill(console->pixels, ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6),
+	    ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6)) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 12, 6, 0,
+	    record_upload, &log, &frame) == 0);
+	CHECK(frame.source_width == 4 && frame.source_height == 2);
+	CHECK(frame.pixels->width == 12 && frame.pixels->height == 6);
+	CHECK(frame.pixels->pixels[71] == UINT32_C(0x010203));
+	CHECK(st_console_bitmap_prepare_frame(presenter, console, 0) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 12, 6, 0,
+	    record_upload, &log, &frame) == 0);
+	CHECK(frame.source_width == 3 && frame.source_height == 3);
+	CHECK(frame.destination.x == 3 && frame.pixels->width == 6 && frame.pixels->height == 6);
+	CHECK(frame.pixels->pixels[35] == UINT32_C(0x040506));
 	st_console_bitmap_presenter_destroy(presenter);
 	st_console_destroy(console);
 }

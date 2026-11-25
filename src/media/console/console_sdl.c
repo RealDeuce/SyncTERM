@@ -68,7 +68,6 @@ typedef int (SDLCALL *sdl_lock_texture_fn)(SDL_Texture *, const SDL_Rect *,
 	void **, int *);
 typedef void (SDLCALL *sdl_unlock_texture_fn)(SDL_Texture *);
 typedef int (SDLCALL *sdl_poll_event_fn)(SDL_Event *);
-typedef Uint32 (SDLCALL *sdl_get_ticks_fn)(void);
 typedef int (SDLCALL *sdl_show_cursor_fn)(int);
 typedef SDL_Cursor *(SDLCALL *sdl_create_system_cursor_fn)(SDL_SystemCursor);
 typedef SDL_Cursor *(SDLCALL *sdl_create_cursor_fn)(const Uint8 *, const Uint8 *, int, int, int, int);
@@ -124,7 +123,6 @@ struct sdl_api {
 	    int *);
 	void (SDLCALL *unlock_texture)(SDL_Texture *);
 	int (SDLCALL *poll_event)(SDL_Event *);
-	Uint32 (SDLCALL *get_ticks)(void);
 	int (SDLCALL *show_cursor)(int);
 	SDL_Cursor *(SDLCALL *create_system_cursor)(SDL_SystemCursor);
 	SDL_Cursor *(SDLCALL *create_cursor)(const Uint8 *, const Uint8 *, int, int, int, int);
@@ -292,7 +290,6 @@ load_sdl(void)
 	manager.api.lock_texture = SDL_LockTexture;
 	manager.api.unlock_texture = SDL_UnlockTexture;
 	manager.api.poll_event = SDL_PollEvent;
-	manager.api.get_ticks = SDL_GetTicks;
 	manager.api.show_cursor = SDL_ShowCursor;
 	manager.api.create_system_cursor = SDL_CreateSystemCursor;
 	manager.api.create_cursor = SDL_CreateCursor;
@@ -380,8 +377,6 @@ load_sdl(void)
 	    "SDL_UnlockTexture")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, poll_event,
 	    "SDL_PollEvent")
-	    || !LOAD_REQUIRED(&manager.api, manager.library, get_ticks,
-	    "SDL_GetTicks")
 	    || !LOAD_REQUIRED(&manager.api, manager.library, show_cursor,
 	    "SDL_ShowCursor")
 	    || !LOAD_REQUIRED(&manager.api, manager.library,
@@ -750,27 +745,26 @@ upload_pixels(void *context, const struct st_rgb_buffer *pixels,
 }
 
 static int
-draw_state(struct sdl_state *state, const st_console_t *console, uint32_t now,
-	bool forced)
+draw_state(struct sdl_state *state)
 {
 	SDL_Rect destination;
 	int output_width;
 	int output_height;
 	int status;
+	uint64_t now = 0;
 
+	(void)st_time_monotonic_ms(&now);
 	if (manager.api.get_renderer_output_size(state->renderer, &output_width,
 	    &output_height) != 0)
 		return IO_ERROR_IO;
 	if (output_width <= 0 || output_height <= 0)
 		return 0;
-	state->frame.scaling_mode = console == NULL
-	    ? state->frame.scaling_mode : console->scaling_mode;
-	status = st_console_bitmap_presenter_frame(state->presenter, console,
-	    (uint32_t)output_width, (uint32_t)output_height, now, upload_pixels,
+	status = st_console_bitmap_presenter_frame(state->presenter, NULL,
+	    (uint32_t)output_width, (uint32_t)output_height, (uint32_t)now, upload_pixels,
 	    state, &state->frame);
 	if (status != 0)
 		return status;
-	if (!state->texture_valid || (!state->frame.changed && !forced))
+	if (!state->texture_valid || !state->frame.changed)
 		return 0;
 	destination = (SDL_Rect){(int)state->frame.destination.x,
 	    (int)state->frame.destination.y, (int)state->frame.destination.width,
@@ -1278,8 +1272,7 @@ process_command(struct sdl_command *command)
 		state->console = command->data.console;
 		return 0;
 	case SDL_COMMAND_PRESENT:
-		return draw_state(state, state->console, manager.api.get_ticks(),
-		    false);
+		return draw_state(state);
 	case SDL_COMMAND_RESIZE:
 		{
 		int status;
@@ -1566,11 +1559,11 @@ sdl_activate(st_console_t *console)
 }
 
 static int
-sdl_present(st_console_t *console)
+sdl_show_frame(st_console_display_t *display)
 {
 	return submit_command(&(struct sdl_command){
 		.type = SDL_COMMAND_PRESENT,
-		.state = console->display->backend_state,
+		.state = display->backend_state,
 	});
 }
 
@@ -1691,7 +1684,8 @@ static const struct st_console_backend_ops sdl_ops = {
 	.presents_pixels = true,
 	.deferred_present = true,
 	.animated_present = true,
-	.present = sdl_present,
+	.prepare_frame = st_console_bitmap_prepare_window,
+	.show_frame = sdl_show_frame,
 	.resize = sdl_resize,
 	.set_title = sdl_set_title,
 	.set_clipboard_text = sdl_set_clipboard,
@@ -1764,6 +1758,13 @@ st_console_sdl_init(st_console_t *console)
 		return status;
 	}
 	console->display->backend_state = state;
+	console->display->window_presenter = state->presenter;
 	console->display->backend_ops = &sdl_ops;
-	return 0;
+	status = st_console_bitmap_prepare_window(console);
+	if (status != 0) {
+		sdl_destroy(console->display);
+		console->display->window_presenter = NULL;
+		console->display->backend_ops = NULL;
+	}
+	return status;
 }

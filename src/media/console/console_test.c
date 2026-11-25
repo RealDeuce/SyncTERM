@@ -80,15 +80,24 @@ void st_console_test_event_read(st_console_display_t *display)
 	(void)st_mutex_unlock(&display->backend_mutex);
 }
 
-static int test_present(st_console_t *console)
+static int test_prepare_frame(st_console_t *console)
 {
 	struct st_console_test_state *state = st_console_test_state(console->display);
 	uint64_t now = 0;
 	(void)st_time_monotonic_ms(&now);
-	state->timestamp = state->clock_override ? state->clock_ms : now;
+	if (state->clock_override) now = state->clock_ms;
 	st_console_bitmap_presenter_set_local_animation_clock(state->presenter,
 	    state->clock_override);
-	int status = st_console_bitmap_presenter_frame(state->presenter, console,
+	return st_console_bitmap_prepare_frame(state->presenter, console, (uint32_t)now);
+}
+
+static int test_show_frame(st_console_display_t *display)
+{
+	struct st_console_test_state *state = st_console_test_state(display);
+	uint64_t now = 0;
+	(void)st_time_monotonic_ms(&now);
+	state->timestamp = state->clock_override ? state->clock_ms : now;
+	int status = st_console_bitmap_presenter_frame(state->presenter, NULL,
 	    state->width, state->height, (uint32_t)state->timestamp, NULL, NULL, &state->frame);
 	if (status == 0) ++state->presentation;
 	return status;
@@ -167,7 +176,7 @@ static void test_destroy(st_console_display_t *display)
 }
 static const struct st_console_backend_ops test_ops = {
 	.presents_pixels = true, .deferred_present = true, .animated_present = true,
-	.attach = test_attach, .present = test_present, .resize = test_resize,
+	.attach = test_attach, .prepare_frame = test_prepare_frame, .show_frame = test_show_frame, .resize = test_resize,
 	.activate = test_activate, .destroy = test_destroy,
 	.set_title = test_title, .set_clipboard_text = test_clipboard,
 	.get_clipboard_text = test_get_clipboard, .open_url = test_url,
@@ -196,9 +205,11 @@ int st_console_test_init(st_console_t *console)
 	if (status == 0 && (state->clipboard == NULL || state->url == NULL || state->title == NULL)) status = IO_ERROR_OUT_OF_MEMORY;
 	if (status == 0) status = st_console_bitmap_presenter_create(&state->presenter, console);
 	if (status != 0) { test_destroy(console->display); return status; }
+	console->display->window_presenter = state->presenter;
 	console->display->backend_ops = &test_ops;
 	(void)test_attach(console);
-	return test_present(console);
+	status = test_prepare_frame(console);
+	return status == 0 ? test_show_frame(console->display) : status;
 }
 
 void st_console_test_set_application_reader(st_console_display_t *display,
@@ -215,6 +226,7 @@ int st_console_test_host_resize(st_console_display_t *display, uint32_t width, u
 	struct st_console_test_state *state = st_console_test_state(display);
 	state->width = width; state->height = height;
 	(void)st_mutex_unlock(&display->backend_mutex);
+	st_console_display_request_repaint(display);
 	return 0;
 }
 

@@ -8,6 +8,7 @@
 #include "console_internal.h"
 
 #include "io_error.h"
+#include "st_time.h"
 
 #include <inttypes.h>
 #include <stddef.h>
@@ -67,6 +68,8 @@ struct st_console_bitmap_presenter {
 	bool upload_initialized;
 	bool uploaded_scaled;
 	bool upload_retry;
+	bool pending_damage;
+	bool pending_state;
 	bool images_valid;
 	bool invalid_colour;
 	uint32_t invalid_colour_value;
@@ -1054,6 +1057,121 @@ upload_image(struct st_console_bitmap_presenter *presenter,
 	return status;
 }
 
+bool
+st_console_bitmap_retained_frame(struct st_console_bitmap_presenter *presenter, bool repaint)
+{
+	if (!presenter->images_valid)
+		return false;
+	if (repaint)
+		presenter->upload_retry = true;
+	return true;
+}
+
+int
+st_console_bitmap_prepare_window(st_console_t *console)
+{
+	uint64_t now = 0;
+	(void)st_time_monotonic_ms(&now);
+	return st_console_bitmap_prepare_frame(console->display->window_presenter,
+	    console, (uint32_t)now);
+}
+
+int
+st_console_bitmap_prepare_frame(struct st_console_bitmap_presenter *presenter,
+	const st_console_t *console, uint32_t now)
+{
+	struct st_console_rect old_cursor, previous_damage;
+	bool previous_damage_valid, previous_damage_full;
+	uint64_t previous_damage_generation;
+	enum st_console_scaling_mode previous_scaling;
+	bool cursor_changed, content_changed = false, images_were_valid;
+	int status;
+
+	presenter->invalid_colour = false;
+	old_cursor = presenter->cursor_rectangle;
+	previous_damage = presenter->damage;
+	previous_damage_valid = presenter->damage_valid;
+	previous_damage_full = presenter->damage_full;
+	previous_damage_generation = presenter->damage_generation;
+	previous_scaling = presenter->scaling_mode;
+	presenter->damage_valid = false;
+	presenter->damage_full = false;
+	if (console->pixels == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	presenter->upload_retry |= console->pixel_surface_dirty;
+	if (console->pixels->width != presenter->images[0]->width
+	    || console->pixels->height != presenter->images[0]->height) {
+		status = replace_buffers(presenter, console->pixels);
+		if (status != 0)
+			return status;
+	}
+	presenter->pending_state |= cache_console_state(presenter, console, now,
+	    &cursor_changed);
+	if (console->palette_dirty) {
+		memcpy(presenter->palette, console->palette,
+		    sizeof(presenter->palette));
+		accumulate_full_damage(presenter);
+	}
+	if (!presenter->images_valid || console->pixel_surface_dirty)
+		accumulate_full_damage(presenter);
+	else {
+		(void)collect_cell_damage(presenter, console);
+		if (console->pixel_damage_valid)
+			st_console_rect_accumulate(&presenter->damage,
+			    &presenter->damage_valid, &console->pixel_damage);
+		if (cursor_changed) {
+			if (old_cursor.width != 0 && old_cursor.height != 0)
+				st_console_rect_accumulate(&presenter->damage,
+				    &presenter->damage_valid, &old_cursor);
+			if (presenter->cursor_rectangle.width != 0
+			    && presenter->cursor_rectangle.height != 0)
+				st_console_rect_accumulate(&presenter->damage,
+				    &presenter->damage_valid,
+				    &presenter->cursor_rectangle);
+		}
+	}
+	if (presenter->damage_valid) {
+		images_were_valid = presenter->images_valid;
+		if (presenter->images_valid)
+			presenter->plane_difference_count -= count_differences(
+			    presenter->images[BITMAP_PRIMARY],
+			    presenter->images[BITMAP_ALTERNATE],
+			    &presenter->damage);
+		else
+			presenter->plane_difference_count = 0;
+		content_changed = resolve_images(presenter, console,
+		    &presenter->damage) || !images_were_valid || cursor_changed;
+		presenter->plane_difference_count += count_differences(
+		    presenter->images[BITMAP_PRIMARY],
+		    presenter->images[BITMAP_ALTERNATE],
+		    &presenter->damage);
+		presenter->planes_differ
+		    = presenter->plane_difference_count != 0;
+		presenter->images_valid = true;
+		if (content_changed) {
+			++presenter->generation;
+			if (presenter->generation == 0)
+				++presenter->generation;
+			presenter->damage_generation = presenter->generation;
+			if (presenter->pending_damage)
+				accumulate_full_damage(presenter);
+			presenter->pending_damage = true;
+		}
+	}
+	if (!content_changed) {
+		presenter->damage = previous_damage;
+		presenter->damage_valid = previous_damage_valid;
+		presenter->damage_full = previous_damage_full;
+		presenter->damage_generation
+		    = previous_damage_generation;
+	}
+	presenter->upload_retry |= previous_scaling != presenter->scaling_mode;
+	if (presenter->invalid_colour)
+		fprintf(stderr, "Invalid colour value: %08" PRIx32 "\n",
+		    presenter->invalid_colour_value);
+	return 0;
+}
+
 int
 st_console_bitmap_presenter_frame(
 	struct st_console_bitmap_presenter *presenter,
@@ -1062,115 +1180,22 @@ st_console_bitmap_presenter_frame(
 	st_console_bitmap_upload_t upload, void *context,
 	struct st_console_bitmap_frame *frame)
 {
-	struct st_console_rect old_cursor;
-	struct st_console_rect previous_damage;
-	struct st_console_rect destination;
-	struct st_console_rect upload_damage;
+	struct st_console_rect destination, upload_damage;
 	const struct st_rgb_buffer *pixels;
-	enum st_console_scaling_mode previous_scaling;
-	bool cursor_changed = false;
-	bool content_changed = false;
-	bool images_were_valid;
-	bool state_changed = false;
-	bool layout_changed;
-	bool alternate;
-	bool cursor_phase;
-	bool use_cursor;
-	bool selection_changed;
-	bool full_upload;
-	bool force_backend_upload = false;
-	bool previous_damage_valid;
-	bool previous_damage_full;
-	uint64_t previous_damage_generation;
-	bool new_damage = false;
-	bool uploaded = false;
+	bool layout_changed, alternate, cursor_phase, use_cursor;
+	bool selection_changed, full_upload, uploaded = false;
 	uint8_t identity;
 	int status = 0;
 
-	if (presenter == NULL || frame == NULL || output_width == 0
-	    || output_height == 0)
+	if (presenter == NULL || frame == NULL || output_width == 0 || output_height == 0)
 		return IO_ERROR_INVALID_ARGUMENT;
-	presenter->invalid_colour = false;
-	old_cursor = presenter->cursor_rectangle;
-	previous_damage = presenter->damage;
-	previous_damage_valid = presenter->damage_valid;
-	previous_damage_full = presenter->damage_full;
-	previous_damage_generation = presenter->damage_generation;
-	previous_scaling = presenter->scaling_mode;
 	if (console != NULL) {
-		presenter->damage_valid = false;
-		presenter->damage_full = false;
-		if (console->pixels == NULL)
-			return IO_ERROR_INVALID_ARGUMENT;
-		force_backend_upload = console->pixel_surface_dirty;
-		if (console->pixels->width != presenter->images[0]->width
-		    || console->pixels->height != presenter->images[0]->height) {
-			status = replace_buffers(presenter, console->pixels);
-			if (status != 0)
-				return status;
-		}
-		state_changed = cache_console_state(presenter, console, now,
-		    &cursor_changed);
-		if (console->palette_dirty) {
-			memcpy(presenter->palette, console->palette,
-			    sizeof(presenter->palette));
-			accumulate_full_damage(presenter);
-		}
-		if (!presenter->images_valid || console->pixel_surface_dirty)
-			accumulate_full_damage(presenter);
-		else {
-			(void)collect_cell_damage(presenter, console);
-			if (console->pixel_damage_valid)
-				st_console_rect_accumulate(&presenter->damage,
-				    &presenter->damage_valid, &console->pixel_damage);
-			if (cursor_changed) {
-				if (old_cursor.width != 0 && old_cursor.height != 0)
-					st_console_rect_accumulate(&presenter->damage,
-					    &presenter->damage_valid, &old_cursor);
-				if (presenter->cursor_rectangle.width != 0
-				    && presenter->cursor_rectangle.height != 0)
-					st_console_rect_accumulate(&presenter->damage,
-					    &presenter->damage_valid,
-					    &presenter->cursor_rectangle);
-			}
-		}
-		if (presenter->damage_valid) {
-			images_were_valid = presenter->images_valid;
-			if (presenter->images_valid)
-				presenter->plane_difference_count -= count_differences(
-				    presenter->images[BITMAP_PRIMARY],
-				    presenter->images[BITMAP_ALTERNATE],
-				    &presenter->damage);
-			else
-				presenter->plane_difference_count = 0;
-			content_changed = resolve_images(presenter, console,
-			    &presenter->damage) || !images_were_valid || cursor_changed;
-			presenter->plane_difference_count += count_differences(
-			    presenter->images[BITMAP_PRIMARY],
-			    presenter->images[BITMAP_ALTERNATE],
-			    &presenter->damage);
-			presenter->planes_differ
-			    = presenter->plane_difference_count != 0;
-			presenter->images_valid = true;
-			if (content_changed) {
-				++presenter->generation;
-				if (presenter->generation == 0)
-					++presenter->generation;
-				presenter->damage_generation = presenter->generation;
-				new_damage = true;
-			}
-			else {
-				presenter->damage = previous_damage;
-				presenter->damage_valid = previous_damage_valid;
-				presenter->damage_full = previous_damage_full;
-				presenter->damage_generation
-				    = previous_damage_generation;
-			}
-		}
+		status = st_console_bitmap_prepare_frame(presenter, console, now);
+		if (status != 0)
+			return status;
 	}
-	else if (!presenter->initialized || !presenter->images_valid)
+	if (!presenter->images_valid)
 		return IO_ERROR_INVALID_ARGUMENT;
-
 	animation_state(presenter->blink_mode, now - presenter->epoch,
 	    &alternate, &cursor_phase);
 	if (!presenter->planes_differ)
@@ -1204,9 +1229,7 @@ st_console_bitmap_presenter_frame(
 	    || presenter->uploaded_image != identity || presenter->uploaded_scaled != scale_pixels
 	    || (presenter->uploaded_generation != presenter->generation
 	    && presenter->uploaded_generation + 1 != presenter->generation)
-	    || (new_damage && presenter->damage_full)
-	    || previous_scaling != presenter->scaling_mode
-	    || force_backend_upload;
+	    || (presenter->pending_damage && presenter->damage_full);
 	if (scale_pixels) {
 		bool cache_current = presenter->scaled[identity] != NULL
 		    && presenter->scaled_generation[identity] == presenter->generation
@@ -1261,7 +1284,8 @@ st_console_bitmap_presenter_frame(
 		pixels = presenter->scaled[identity];
 	}
 
-	if (status == 0 && (full_upload || new_damage
+	frame->scaling_mode = presenter->scaling_mode;
+	if (status == 0 && (full_upload || presenter->pending_damage
 	    || selection_changed)) {
 		if (full_upload || selection_changed) {
 			upload_damage = (struct st_console_rect){
@@ -1280,12 +1304,12 @@ st_console_bitmap_presenter_frame(
 	frame->source_height = presenter->images[0]->height;
 	frame->cell_width = presenter->cell_width;
 	frame->cell_height = presenter->cell_height;
-	frame->scaling_mode = presenter->scaling_mode;
-	frame->changed = layout_changed || state_changed || selection_changed
-	    || new_damage || uploaded;
-	if (presenter->invalid_colour)
-		fprintf(stderr, "Invalid colour value: %08" PRIx32 "\n",
-		    presenter->invalid_colour_value);
+	frame->changed = layout_changed || presenter->pending_state || selection_changed
+	    || presenter->pending_damage || uploaded;
+	if (status == 0) {
+		presenter->pending_damage = false;
+		presenter->pending_state = false;
+	}
 	return status;
 }
 

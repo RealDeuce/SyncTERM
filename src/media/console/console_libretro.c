@@ -15,7 +15,7 @@
 #include <time.h>
 
 struct libretro_state {
-	st_mutex_t mutex;
+	uint32_t source_width, source_height;
 	struct st_console_bitmap_presenter *presenter;
 	struct st_console_bitmap_frame frame;
 	uint32_t *pixels;
@@ -73,18 +73,21 @@ retain_pixels(void *context, const struct st_rgb_buffer *pixels,
 }
 
 static int
-libretro_present(st_console_t *console)
+libretro_prepare_frame(st_console_t *console)
 {
 	struct libretro_state *state = console->display->backend_state;
-	int status = st_mutex_lock(&state->mutex);
+	state->source_width = console->pixels->width;
+	state->source_height = console->pixels->height;
+	return st_console_bitmap_prepare_frame(state->presenter, console, milliseconds_now());
+}
 
-	if (status != ST_THREAD_SUCCESS)
-		return IO_ERROR_IO;
-	status = st_console_bitmap_presenter_frame(state->presenter, console,
-	    console->pixels->width, console->pixels->height, milliseconds_now(),
+static int
+libretro_show_frame(st_console_display_t *display)
+{
+	struct libretro_state *state = display->backend_state;
+	return st_console_bitmap_presenter_frame(state->presenter, NULL,
+	    state->source_width, state->source_height, milliseconds_now(),
 	    retain_pixels, state, &state->frame);
-	(void)st_mutex_unlock(&state->mutex);
-	return status;
 }
 
 static int
@@ -102,7 +105,6 @@ libretro_destroy(st_console_display_t *display)
 	struct libretro_state *state = display->backend_state;
 
 	st_console_bitmap_presenter_destroy(state->presenter);
-	st_mutex_destroy(&state->mutex);
 	free(state->pixels);
 	free(state);
 	display->backend_state = NULL;
@@ -110,7 +112,9 @@ libretro_destroy(st_console_display_t *display)
 
 static const struct st_console_backend_ops libretro_ops = {
 	.presents_pixels = true,
-	.present = libretro_present,
+	.pull_present = true,
+	.prepare_frame = libretro_prepare_frame,
+	.show_frame = libretro_show_frame,
 	.resize = libretro_resize,
 	.destroy = libretro_destroy,
 };
@@ -126,19 +130,16 @@ st_console_libretro_init(st_console_t *console)
 	state = calloc(1, sizeof(*state));
 	if (state == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
-	if (st_mutex_init(&state->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
-		free(state);
-		return IO_ERROR_IO;
-	}
 	status = st_console_bitmap_presenter_create(&state->presenter, console);
 	if (status != 0) {
-		st_mutex_destroy(&state->mutex);
 		free(state);
 		return status;
 	}
 	console->display->backend_state = state;
 	console->display->backend_ops = &libretro_ops;
-	status = libretro_present(console);
+	status = libretro_prepare_frame(console);
+	if (status == 0)
+		status = libretro_show_frame(console->display);
 	if (status != 0) {
 		libretro_destroy(console->display);
 		console->display->backend_ops = NULL;
@@ -159,10 +160,6 @@ libretro_state_lock(st_console_display_t *display,
 		return IO_ERROR_NOT_SUPPORTED;
 	}
 	*result = display->backend_state;
-	if (st_mutex_lock(&(*result)->mutex) != ST_THREAD_SUCCESS) {
-		(void)st_mutex_unlock(&display->backend_mutex);
-		return IO_ERROR_IO;
-	}
 	return 0;
 }
 
@@ -176,7 +173,6 @@ st_console_display_libretro_map_pointer(st_console_display_t *display,
 	status = libretro_state_lock(display, &state);
 	if (status != 0) return status;
 	st_console_bitmap_mouse_position(&state->frame, x, y, event);
-	(void)st_mutex_unlock(&state->mutex);
 	(void)st_mutex_unlock(&display->backend_mutex);
 	return 0;
 }
@@ -190,12 +186,14 @@ st_console_display_libretro_frame_size(st_console_display_t *display,
 
 	if (width == NULL || height == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_console_pull_frame(display);
+	if (status != 0)
+		return status;
 	status = libretro_state_lock(display, &state);
 	if (status != 0)
 		return status;
 	*width = state->width;
 	*height = state->height;
-	(void)st_mutex_unlock(&state->mutex);
 	(void)st_mutex_unlock(&display->backend_mutex);
 	return 0;
 }
@@ -209,6 +207,9 @@ st_console_display_libretro_frame_copy(st_console_display_t *display,
 
 	if (destination == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	status = st_console_pull_frame(display);
+	if (status != 0)
+		return status;
 	status = libretro_state_lock(display, &state);
 	if (status != 0)
 		return status;
@@ -225,7 +226,6 @@ st_console_display_libretro_frame_copy(st_console_display_t *display,
 			    &state->pixels[(size_t)y * state->width],
 			    (size_t)state->width * sizeof(*destination));
 	}
-	(void)st_mutex_unlock(&state->mutex);
 	(void)st_mutex_unlock(&display->backend_mutex);
 	return status;
 }

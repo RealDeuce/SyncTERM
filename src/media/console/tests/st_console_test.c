@@ -1511,49 +1511,85 @@ static const struct st_console_backend_ops deferred_present_ops = {
 	.present = record_deferred_present,
 };
 
+struct frame_handoff_test {
+	st_mutex_t mutex;
+	st_condition_t changed;
+	unsigned int frames;
+	uint32_t glyph;
+	bool release;
+	bool retry_full;
+};
+
+static int
+prepare_handoff_frame(st_console_t *console)
+{
+	struct frame_handoff_test *state = console->display->backend_state;
+	state->glyph = st_console_cell_at(console, 0)->glyph;
+	state->retry_full = console->pixel_surface_dirty;
+	return 0;
+}
+
+static int
+show_handoff_frame(st_console_display_t *display)
+{
+	struct frame_handoff_test *state = display->backend_state;
+	struct timespec deadline;
+
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	deadline.tv_sec += 5;
+	(void)st_mutex_lock(&state->mutex);
+	++state->frames;
+	(void)st_condition_broadcast(&state->changed);
+	while (!state->release)
+		CHECK(st_condition_timedwait(&state->changed, &state->mutex,
+		    &deadline) == ST_THREAD_SUCCESS);
+	(void)st_mutex_unlock(&state->mutex);
+	return state->frames == 1 ? IO_ERROR_IO : 0;
+}
+
 static void
 test_deferred_presentation(void)
 {
-	st_console_t *console = create_headless(2, 1);
-	struct deferred_present_state state;
-	const struct st_console_rect destination = {0, 0, 1, 1};
-	struct st_console_cell cell = {
-		.foreground = 7,
-		.background = 0,
+	static const struct st_console_backend_ops ops = {
+		.deferred_present = true,
+		.prepare_frame = prepare_handoff_frame,
+		.show_frame = show_handoff_frame,
 	};
+	st_console_t *console = create_headless(2, 1);
+	struct frame_handoff_test state = {0};
+	struct st_console_cell cell = {.foreground = 7, .glyph = 'A'};
+	const struct st_console_rect destination = {0, 0, 1, 1};
 	struct timespec deadline;
-	unsigned int calls;
 
-	CHECK(st_console_present(console) == 0);
 	CHECK(st_mutex_init(&state.mutex, ST_MUTEX_PLAIN) == ST_THREAD_SUCCESS);
 	CHECK(st_condition_init(&state.changed) == ST_THREAD_SUCCESS);
-	state.calls = 0;
-	console->display->backend_ops = &deferred_present_ops;
-	console->display->backend_state = &state;
-	console->display->backend_ops = &deferred_present_ops;
+	console->display->backend_ops = &ops;
 	console->display->backend_state = &state;
 	CHECK(st_console_start_presentation_worker(console) == 0);
+	st_console_display_request_repaint(console->display);
+	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
+	deadline.tv_sec += 5;
+	(void)st_mutex_lock(&state.mutex);
+	while (state.frames == 0)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex,
+		    &deadline) == ST_THREAD_SUCCESS);
+	(void)st_mutex_unlock(&state.mutex);
+	/* The first frame is still in the backend. Every write must finish. */
 	for (unsigned int i = 0; i < 200; ++i) {
-		cell.glyph = (i & 1U) == 0 ? 'a' : 'b';
+		cell.glyph = 'A' + i % 26;
 		CHECK(st_console_write_cells(console, &destination, &cell, 1) == 0);
 	}
-	CHECK(timespec_get(&deadline, TIME_UTC) == TIME_UTC);
-	++deadline.tv_sec;
 	(void)st_mutex_lock(&state.mutex);
-	while (state.calls == 0) {
-		int status = st_condition_timedwait(&state.changed, &state.mutex,
-		    &deadline);
-
-		CHECK(status == ST_THREAD_SUCCESS);
-	}
-	calls = state.calls;
-	(void)st_mutex_unlock(&state.mutex);
-	CHECK(calls < 10);
-	CHECK(st_console_present(console) == 0);
-	(void)st_mutex_lock(&state.mutex);
-	CHECK(state.calls == calls + 1);
+	CHECK(state.frames == 1 && state.glyph == ' ');
+	state.release = true;
+	(void)st_condition_broadcast(&state.changed);
+	while (state.frames < 2)
+		CHECK(st_condition_timedwait(&state.changed, &state.mutex,
+		    &deadline) == ST_THREAD_SUCCESS);
+	CHECK(state.glyph == cell.glyph && state.retry_full);
 	(void)st_mutex_unlock(&state.mutex);
 	st_console_destroy(console);
+	CHECK(state.frames == 2);
 	st_condition_destroy(&state.changed);
 	st_mutex_destroy(&state.mutex);
 }

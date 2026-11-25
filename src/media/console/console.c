@@ -20,7 +20,8 @@
 #include <string.h>
 
 static int present_locked(st_console_t *console, bool forced,
-	bool backend_locked);
+	bool backend_locked, bool *handoff);
+static int present_and_unlock(st_console_t *console, bool forced);
 static void free_console(st_console_t *console);
 static void alt_keypad_cancel(st_console_display_t *display);
 static void font_registration_free(struct st_console_font_registration *registration);
@@ -233,6 +234,21 @@ st_console_display_reset_animation(st_console_display_t *display,
 	(void)st_mutex_unlock(&display->presentation_mutex);
 }
 
+/* Resize and expose may arrive during a terminal batch. The last complete
+ * frame can be fitted to the new window without publishing any partial writes. */
+static int
+show_retained_frame(st_console_display_t *display, st_console_t *console, bool repaint)
+{
+	int status = 0;
+	(void)st_mutex_lock(&display->backend_mutex);
+	if (atomic_load_explicit(&display->active, memory_order_acquire) == console
+	    && !display->backend_failed
+	    && st_console_bitmap_retained_frame(display->window_presenter, repaint))
+		status = display->backend_ops->show_frame(display);
+	(void)st_mutex_unlock(&display->backend_mutex);
+	return status;
+}
+
 static int
 presentation_worker(void *argument)
 {
@@ -276,12 +292,12 @@ presentation_worker(void *argument)
 			animation_due = animate
 			    && now >= display->presentation_animation_deadline;
 			content_due = display->presentation_requested
-			    && now >= display->presentation_content_deadline;
+			    && now >= display->presentation_retry_deadline;
 			if (animation_due || content_due)
 				break;
 			next = UINT64_MAX;
 			if (display->presentation_requested)
-				next = display->presentation_content_deadline;
+				next = display->presentation_retry_deadline;
 			if (animate && display->presentation_animation_deadline < next)
 				next = display->presentation_animation_deadline;
 			if (next == UINT64_MAX) {
@@ -316,7 +332,13 @@ presentation_worker(void *argument)
 				schedule_animation_locked(display, console->blink_mode, now);
 				(void)st_mutex_unlock(&display->presentation_mutex);
 			}
-			if (console->update_depth != 0) {
+			if (display->window_presenter != NULL
+			    && (repaint || animation_due)
+			    && (!console->changed || console->update_depth != 0)) {
+				(void)st_rwlock_unlock(st_console_state_lock(console));
+				present_status = show_retained_frame(display, console, repaint);
+			}
+			else if (console->update_depth != 0) {
 				/* Blink and expose events must not publish an unfinished
 				 * batch. End-update will schedule the completed frame. */
 				console->changed = true;
@@ -325,24 +347,27 @@ presentation_worker(void *argument)
 					display->repaint_requested = true;
 					(void)st_mutex_unlock(&display->presentation_mutex);
 				}
+				(void)st_rwlock_unlock(st_console_state_lock(console));
 			}
 			else {
 				if (repaint) {
-					st_console_mark_all_locked(console);
+					if (display->window_presenter == NULL)
+						st_console_mark_all_locked(console);
 					console->pixel_surface_dirty = true;
 				}
-				present_status = st_console_present_locked(console,
+				present_status = present_and_unlock(console,
 				    repaint || animation_due);
 			}
-			(void)st_rwlock_unlock(st_console_state_lock(console));
 		}
 		(void)st_mutex_lock(&display->presentation_mutex);
 		display->presentation_active = NULL;
+		if (present_status != 0)
+			display->repaint_requested = true;
 		if (present_status != 0 && !display->presentation_requested) {
 			if (st_time_monotonic_ms(&now) != 0)
 				now = 0;
 			display->presentation_requested = true;
-			display->presentation_content_deadline = now + 10;
+			display->presentation_retry_deadline = now + 10;
 		}
 		(void)st_condition_broadcast(&display->presentation_ready);
 		(void)st_mutex_unlock(&display->presentation_mutex);
@@ -362,7 +387,7 @@ st_console_start_presentation_worker(st_console_t *console)
 	(void)st_mutex_lock(&display->presentation_mutex);
 	display->presentation_stop = false;
 	display->presentation_requested = true;
-	display->presentation_content_deadline = 0;
+	display->presentation_retry_deadline = 0;
 	display->presentation_animation_initialized = false;
 	(void)st_mutex_unlock(&display->presentation_mutex);
 	status = st_thread_create(&display->presentation_thread,
@@ -391,12 +416,7 @@ st_console_display_request_repaint(st_console_display_t *display)
 {
 	(void)st_mutex_lock(&display->presentation_mutex);
 	display->repaint_requested = true;
-	if (!display->presentation_requested) {
-		uint64_t now = 0;
-
-		(void)st_time_monotonic_ms(&now);
-		display->presentation_content_deadline = now + 10;
-	}
+	display->presentation_retry_deadline = 0;
 	display->presentation_requested = true;
 	(void)st_condition_signal(&display->presentation_ready);
 	(void)st_mutex_unlock(&display->presentation_mutex);
@@ -413,16 +433,13 @@ request_presentation_locked(st_console_t *console)
 	if (atomic_load_explicit(&display->active, memory_order_acquire)
 	    != console)
 		return 0;
+	if (display->backend_ops != NULL && display->backend_ops->pull_present)
+		return 0;
 	if (!display->presentation_thread_started)
 		return st_console_present_locked(console, false);
 	(void)st_mutex_lock(&display->presentation_mutex);
-	wake = !display->presentation_requested;
-	if (wake) {
-		uint64_t now = 0;
-
-		(void)st_time_monotonic_ms(&now);
-		display->presentation_content_deadline = now + 10;
-	}
+	wake = !display->presentation_requested || display->presentation_retry_deadline != 0;
+	display->presentation_retry_deadline = 0;
 	display->presentation_requested = true;
 	if (wake)
 		(void)st_condition_signal(&display->presentation_ready);
@@ -751,6 +768,7 @@ create_console(st_console_t **result, st_console_display_t *display,
 		    && console->display->backend_ops->destroy != NULL)
 			console->display->backend_ops->destroy(console->display);
 		display->backend_ops = NULL;
+		display->window_presenter = NULL;
 		display->backend_state = NULL;
 		/* Readers may have queued input before a later startup failure. */
 		free(console->events);
@@ -965,7 +983,11 @@ apply_console(st_console_display_t *display, st_console_t *console, bool setup)
 	}
 	if (status == 0) {
 		st_console_mark_all_locked(console);
-		status = present_locked(console, true, true);
+		if (setup && display->backend_ops != NULL && display->backend_ops->prepare_frame != NULL) {
+			console->palette_dirty = true;
+			console->pixel_surface_dirty = true;
+		}
+		status = present_locked(console, true, true, NULL);
 	}
 	return status;
 }
@@ -1159,6 +1181,7 @@ st_console_destroy(st_console_t *console)
 		(void)st_mutex_lock(&display->backend_mutex);
 		ops = display->backend_ops;
 		display->backend_ops = NULL;
+		display->window_presenter = NULL;
 		(void)st_mutex_unlock(&display->backend_mutex);
 		/* Input threads may still need backend_mutex while they shut down. */
 		if (ops != NULL && ops->destroy != NULL)
@@ -1540,7 +1563,36 @@ st_console_invalidate_text_locked(st_console_t *console)
 }
 
 static int
-present_locked(st_console_t *console, bool forced, bool backend_locked)
+prepare_backend_locked(st_console_t *console, bool *handoff)
+{
+	st_console_display_t *display = console->display;
+	const struct st_console_backend_ops *ops = display->backend_ops;
+	int status;
+
+	if (atomic_load_explicit(&display->active, memory_order_acquire) != console)
+		return 0;
+	if (display->backend_failed)
+		return IO_ERROR_IO;
+	if (ops->prepare_frame == NULL)
+		return ops->present(console);
+	status = ops->prepare_frame(console);
+	if (status != 0)
+		return status;
+	if (handoff != NULL) {
+		*handoff = true;
+		return 0;
+	}
+	/* Activation and coherent capture complete before releasing state. */
+	status = ops->show_frame(display);
+	if (status != 0) {
+		console->changed = true;
+		console->pixel_surface_dirty = true;
+	}
+	return status;
+}
+
+static int
+present_locked(st_console_t *console, bool forced, bool backend_locked, bool *handoff)
 {
 	if (console->raster_parent!=NULL)
 		return console->raster_enabled ? st_console_publish_raster_view_locked(console) : 0;
@@ -1562,11 +1614,8 @@ present_locked(st_console_t *console, bool forced, bool backend_locked)
 		if (!backend_locked
 		    && st_mutex_lock(&display->backend_mutex) != ST_THREAD_SUCCESS)
 			return IO_ERROR_IO;
-		if (atomic_load_explicit(&display->active, memory_order_acquire)
-		    == console)
-			status = display->backend_failed ? IO_ERROR_IO
-			    : display->backend_ops->present(console);
-		if (!backend_locked)
+		status = prepare_backend_locked(console, handoff);
+		if (!backend_locked && (handoff == NULL || !*handoff))
 			(void)st_mutex_unlock(&display->backend_mutex);
 	}
 	if (status != 0)
@@ -1582,10 +1631,52 @@ present_locked(st_console_t *console, bool forced, bool backend_locked)
 	return 0;
 }
 
+/* A successful handoff leaves backend_mutex held. Release the console before
+ * showing the frame and never reacquire it while holding the backend mutex. */
+static int
+present_and_unlock(st_console_t *console, bool forced)
+{
+	st_console_display_t *display = console->display;
+	bool handoff = false;
+	int status = present_locked(console, forced, false, &handoff);
+
+	(void)st_rwlock_unlock(st_console_state_lock(console));
+	if (handoff) {
+		status = display->backend_ops->show_frame(display);
+		(void)st_mutex_unlock(&display->backend_mutex);
+		if (status != 0) {
+			if (st_rwlock_write_lock(st_console_state_lock(console)) != ST_THREAD_SUCCESS)
+				return IO_ERROR_IO;
+			console->changed = true;
+			console->pixel_surface_dirty = true;
+			(void)st_rwlock_unlock(st_console_state_lock(console));
+		}
+	}
+	return status;
+}
+
+int
+st_console_pull_frame(st_console_display_t *display)
+{
+	int status = IO_ERROR_NOT_SUPPORTED;
+	if (display == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	(void)st_mutex_lock(&display->lifecycle_mutex);
+	st_console_t *console = atomic_load_explicit(&display->active, memory_order_acquire);
+	if (console != NULL && display->backend_ops != NULL && display->backend_ops->pull_present) {
+		if (st_rwlock_write_lock(st_console_state_lock(console)) == ST_THREAD_SUCCESS)
+			status = present_and_unlock(console, false);
+		else
+			status = IO_ERROR_IO;
+	}
+	(void)st_mutex_unlock(&display->lifecycle_mutex);
+	return status;
+}
+
 int
 st_console_present_locked(st_console_t *console, bool forced)
 {
-	return present_locked(console, forced, false);
+	return present_locked(console, forced, false, NULL);
 }
 
 int
@@ -2314,9 +2405,7 @@ st_console_present(st_console_t *console)
 	result = st_rwlock_write_lock(st_console_state_lock(console));
 	if (result != ST_THREAD_SUCCESS)
 		return IO_ERROR_IO;
-	result = st_console_present_locked(console, true);
-	(void)st_rwlock_unlock(st_console_state_lock(console));
-	return result;
+	return present_and_unlock(console, true);
 }
 
 int

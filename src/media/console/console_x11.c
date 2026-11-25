@@ -1181,7 +1181,6 @@ static int
 draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 {
 	struct st_console_rect full;
-	bool layout_changed;
 	int status;
 
 	state->damage_valid = false;
@@ -1190,7 +1189,7 @@ draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 	    upload_pixels, state, &state->frame);
 	if (status != 0)
 		return status;
-	layout_changed = !state->destination_valid
+	repaint = repaint || !state->destination_valid
 	    || !st_console_rects_equal(&state->old_destination,
 	    &state->frame.destination);
 	if (repaint && !state->damage_valid && state->image == NULL) {
@@ -1203,8 +1202,13 @@ draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 	}
 	if (!state->damage_valid && !state->frame.changed && !repaint)
 		return 0;
-	if (layout_changed || repaint)
+	if (repaint)
 		clear_window(state);
+	if (repaint) {
+		state->damage = (struct st_console_rect){0, 0,
+		    (uint32_t)state->image->width, (uint32_t)state->image->height};
+		state->damage_valid = true;
+	}
 	if (state->frame.scaling_mode == ST_CONSOLE_SCALING_EXTERNAL
 	    && (state->frame.destination.width != (uint32_t)state->image->width
 	    || state->frame.destination.height != (uint32_t)state->image->height)) {
@@ -1239,15 +1243,8 @@ draw_state(struct x11_state *state, const st_console_t *console, bool repaint)
 		return IO_ERROR_NOT_SUPPORTED;
 #endif
 	}
-	else if (state->damage_valid || repaint) {
+	else if (state->damage_valid) {
 		const struct st_console_rect *upload = &state->damage;
-
-		if (repaint) {
-			full = (struct st_console_rect){0, 0,
-			    (uint32_t)state->image->width,
-			    (uint32_t)state->image->height};
-			upload = &full;
-		}
 		(void)state->api.put_image(state->display, state->window, state->gc,
 		    state->image, (int)upload->x, (int)upload->y,
 		    (int)(state->frame.destination.x + upload->x),
@@ -2264,7 +2261,7 @@ process_command(struct x11_state *state, struct x11_command *command)
 		state->console = command->data.console;
 		return 0;
 	case X11_COMMAND_PRESENT:
-		return draw_state(state, state->console, false);
+		return draw_state(state, NULL, false);
 	case X11_COMMAND_RESIZE:
 		{
 		struct st_console_bitmap_geometry next = {
@@ -2643,9 +2640,9 @@ x11_activate(st_console_t *console)
 }
 
 static int
-x11_present(st_console_t *console)
+x11_show_frame(st_console_display_t *display)
 {
-	return submit_command(console->display->backend_state, &(struct x11_command){
+	return submit_command(display->backend_state, &(struct x11_command){
 		.type = X11_COMMAND_PRESENT,
 	});
 }
@@ -2777,7 +2774,8 @@ static const struct st_console_backend_ops x11_ops = {
 	.presents_pixels = true,
 	.deferred_present = true,
 	.animated_present = true,
-	.present = x11_present,
+	.prepare_frame = st_console_bitmap_prepare_window,
+	.show_frame = x11_show_frame,
 	.resize = x11_resize,
 	.set_title = x11_set_title,
 	.set_clipboard_text = x11_set_clipboard,
@@ -2857,6 +2855,7 @@ st_console_x11_init(st_console_t *console)
 		return status;
 	}
 	console->display->backend_state = state;
+	console->display->window_presenter = state->presenter;
 	console->display->backend_ops = &x11_ops;
 	return 0;
 }

@@ -398,11 +398,11 @@ check_mode_changes(void)
 	return check_fractional_aspect_snap();
 }
 
-#if ST_CONSOLE_HAVE_XRENDER
 static int
-check_external_scaling_pixels(void)
+check_resize_pixels(enum st_console_scaling_mode mode)
 {
-	static const char title[] = "st_console X11 XRender test";
+	const char *title = mode == ST_CONSOLE_SCALING_EXTERNAL
+	    ? "st_console X11 XRender resize" : "st_console X11 software resize";
 	const struct st_console_display_config display_config = {
 		.backend = ST_CONSOLE_BACKEND_X11,
 	};
@@ -412,7 +412,8 @@ check_external_scaling_pixels(void)
 		.cell_width = 8,
 		.cell_height = 16,
 		.wrap = true,
-		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+		.scaling_mode = mode,
+		.blink_mode = ST_CONSOLE_BLINK_ATARI,
 	};
 	const uint32_t first_colour = ST_PIXEL_COLOR_RGB_VALUE(0x20, 0x80, 0xe0);
 	const uint32_t second_colour = ST_PIXEL_COLOR_RGB_VALUE(0xe0, 0x40, 0x20);
@@ -439,7 +440,8 @@ check_external_scaling_pixels(void)
 
 	if (display == NULL)
 		return 77;
-	if (XQueryExtension(display, "RENDER", &opcode, &event, &error) == 0) {
+	if (mode == ST_CONSOLE_SCALING_EXTERNAL
+	    && XQueryExtension(display, "RENDER", &opcode, &event, &error) == 0) {
 		(void)XCloseDisplay(display);
 		return 77;
 	}
@@ -495,18 +497,25 @@ check_external_scaling_pixels(void)
 	CHECK(wait_window_pixel(display, window, 128, 128, 100, 100,
 	    second_pixel) == 0);
 
+	/* Drag the window while the next terminal frame is incomplete. With
+	 * animation disabled, the resize itself must repaint the retained image. */
+	CHECK(st_console_begin_update(console) == 0);
+	CHECK(fill_pixels(console, first_colour) == 0);
+	for (unsigned int size = 128; size < 256; size += 7)
+		CHECK(XResizeWindow(display, window, size, size) != 0);
+	CHECK(XResizeWindow(display, window, 256, 192) != 0);
+	(void)XSync(display, False);
+	CHECK(wait_window_pixel(display, window, 256, 192, 200, 100, second_pixel) == 0);
+	CHECK(wait_window_pixel(display, window, 256, 192, 5, 100,
+	    BlackPixel(display, DefaultScreen(display))) == 0);
+	CHECK(st_console_end_update(console) == 0);
+	CHECK(wait_window_pixel(display, window, 256, 192, 200, 100, first_pixel) == 0);
+
 	st_pixel_buffer_destroy(region);
 	st_console_destroy(console);
 	(void)XCloseDisplay(display);
 	return 0;
 }
-#else
-static int
-check_external_scaling_pixels(void)
-{
-	return 77;
-}
-#endif
 
 static int
 root_supports_atom(Display *display, Atom wanted)
@@ -1276,7 +1285,9 @@ main(int argc, char **argv)
 	if (argc == 2 && strcmp(argv[1], "--mode-changes") == 0)
 		return check_mode_changes();
 	if (argc == 2 && strcmp(argv[1], "--xrender-pixels") == 0)
-		return check_external_scaling_pixels();
+		return check_resize_pixels(ST_CONSOLE_SCALING_EXTERNAL);
+	if (argc == 2 && strcmp(argv[1], "--resize-pixels") == 0)
+		return check_resize_pixels(ST_CONSOLE_SCALING_INTERNAL);
 	status = st_console_create(&first, &config_display, &config);
 	if (status == IO_ERROR_NOT_FOUND || status == IO_ERROR_NOT_SUPPORTED)
 		return 77;

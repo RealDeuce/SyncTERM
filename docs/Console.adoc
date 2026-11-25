@@ -487,9 +487,13 @@ and sustained scrolling.  They are comparison tools, not CTest thresholds.
 
 == Presentation and Snapshots
 
-Bitmap backends collect normal visible changes for up to 10 ms before
-presenting them.  Small parser writes therefore accumulate dirty cells rather
-than synchronously scaling and crossing into the window system each time.
+Window bitmap backends wake the presentation worker on the first pending change.
+The worker resolves dirty pixels into retained native-size images under the
+console lock, then releases it before scaling and submitting the frame. Writes
+during display accumulate in the live console. Once the backend is ready, the
+worker takes the latest completed state. A window resize during an open batch
+uses the last complete image and the new window dimensions. Libretro consumes
+pending changes when the frontend queries or copies a frame.
 
 `st_console_begin_update()` and `st_console_end_update()` provide explicit,
 nestable batching.  The outermost end makes the batch eligible for normal
@@ -499,8 +503,7 @@ state and does not invoke the display backend.  Text backends remain
 synchronous so failures can be returned.
 
 Wayland does not wait when both shared-memory buffers remain owned by the
-compositor.  That presentation attempt is dropped successfully; a later
-change presents the then-current retained state.
+compositor.  It skips that frame and requests the latest state when a buffer is released.
 
 Snapshot creation is a drain boundary: pending changes are handed to the
 backend and live dirty flags are consumed before the copy.  A snapshot retains

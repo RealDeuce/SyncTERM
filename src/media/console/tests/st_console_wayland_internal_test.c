@@ -227,6 +227,12 @@ test_busy_buffers_skip(void)
 	install_buffer_fakes(&saved, MARSHAL_LISTENER_FAIL);
 	state.video_surface = (struct wl_surface *)(uintptr_t)1;
 	CHECK(draw(&state, console, true) == 0);
+	CHECK(state.waiting_for_buffer);
+	state.console_display = console->display;
+	state.buffers[0].state = &state;
+	buffer_release(&state.buffers[0], NULL);
+	CHECK(!state.waiting_for_buffer && !state.buffers[0].busy);
+	CHECK(console->display->presentation_requested && console->display->repaint_requested);
 	st_wayland_api = saved;
 	st_console_bitmap_presenter_destroy(state.presenter);
 	st_console_destroy(console);

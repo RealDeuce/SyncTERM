@@ -677,6 +677,7 @@ post_mouse(struct quartz_state *state, NSEvent *source,
 		consoleState->windowed_pixel_width = (uint32_t)(size.width * scale);
 		consoleState->windowed_pixel_height = (uint32_t)(size.height * scale);
 	}
+	st_console_display_request_repaint(consoleState->console_display);
 	[consoleState->view setNeedsDisplay:YES];
 }
 
@@ -846,6 +847,7 @@ invalidate_damage(struct quartz_state *state, bool forced)
 static int
 render(struct quartz_state *state, const st_console_t *console, bool forced)
 {
+	struct st_console_rect previous = state->frame.destination;
 	NSSize size = state->view.bounds.size;
 	CGFloat scale = state->window.backingScaleFactor;
 	uint32_t width;
@@ -861,7 +863,7 @@ render(struct quartz_state *state, const st_console_t *console, bool forced)
 	status = st_console_bitmap_presenter_frame(state->presenter, console,
 	    width, height, now_ms(), upload, state, &state->frame);
 	if (status == 0 && (state->frame.changed || forced))
-		invalidate_damage(state, forced);
+		invalidate_damage(state, forced || !st_console_rects_equal(&previous, &state->frame.destination));
 	return status;
 }
 
@@ -1064,11 +1066,12 @@ process_command(struct quartz_command *command)
 		state->console = command->data.console;
 		return 0;
 	case QUARTZ_COMMAND_PRESENT:
-		return render(state, state->console, false);
+		return render(state, NULL, false);
 	case QUARTZ_COMMAND_RESIZE: {
 		struct st_console_bitmap_geometry next = {
 			command->data.size.width, command->data.size.height,
-			state->console->aspect_width, state->console->aspect_height};
+			state->console->aspect_width, state->console->aspect_height,
+			state->console->preserve_window_size};
 		CGFloat scale = state->window.backingScaleFactor;
 		uint32_t width;
 		uint32_t height;
@@ -1105,7 +1108,8 @@ process_command(struct quartz_command *command)
 		if (!state->fullscreen)
 			[state->window setContentSize:NSMakeSize(width / scale,
 			    height / scale)];
-		return render(state, NULL, true);
+		st_console_display_request_repaint(state->console_display);
+		return 0;
 	}
 	case QUARTZ_COMMAND_GET_SCALING: {
 		CGFloat scale = state->window.backingScaleFactor;
@@ -1301,11 +1305,11 @@ quartz_activate(st_console_t *console)
 }
 
 static int
-quartz_present(st_console_t *console)
+quartz_show_frame(st_console_display_t *display)
 {
 	return submit_command(&(struct quartz_command){
 		.type = QUARTZ_COMMAND_PRESENT,
-		.state = console->display->backend_state,
+		.state = display->backend_state,
 	});
 }
 
@@ -1430,7 +1434,8 @@ static const struct st_console_backend_ops quartz_ops = {
 	.presents_pixels = true,
 	.deferred_present = true,
 	.animated_present = true,
-	.present = quartz_present,
+	.prepare_frame = st_console_bitmap_prepare_window,
+	.show_frame = quartz_show_frame,
 	.resize = quartz_resize,
 	.set_title = quartz_set_title,
 	.set_clipboard_text = quartz_set_clipboard,
@@ -1465,7 +1470,7 @@ st_console_quartz_init(st_console_t *console)
 	state->console = console;
 	state->window_geometry = (struct st_console_bitmap_geometry){
 		console->pixels->width, console->pixels->height,
-		console->aspect_width, console->aspect_height};
+		console->aspect_width, console->aspect_height, console->preserve_window_size};
 	state->pointer_visible = true;
 	state->pointer_shape = ST_CONSOLE_POINTER_DEFAULT;
 	state->console_display = console->display;
@@ -1491,6 +1496,7 @@ st_console_quartz_init(st_console_t *console)
 		return status;
 	}
 	console->display->backend_state = state;
+	console->display->window_presenter = state->presenter;
 	console->display->backend_ops = &quartz_ops;
 	return 0;
 }

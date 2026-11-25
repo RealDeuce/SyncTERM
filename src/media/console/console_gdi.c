@@ -398,18 +398,19 @@ invalidate_damage(struct gdi_state *state, bool forced)
 }
 
 static int
-render(struct gdi_state *state, const st_console_t *console, bool forced)
+render(struct gdi_state *state)
 {
+	struct st_console_rect previous = state->frame.destination;
 	int status;
 
 	if (state->client_width == 0 || state->client_height == 0)
 		return 0;
-	status = st_console_bitmap_presenter_frame(state->presenter, console,
+	status = st_console_bitmap_presenter_frame(state->presenter, NULL,
 	    state->client_width, state->client_height, now_ms(), upload, state,
 	    &state->frame);
 
-	if (status == 0 && (state->frame.changed || forced))
-		invalidate_damage(state, forced);
+	if (status == 0 && state->frame.changed)
+		invalidate_damage(state, !st_console_rects_equal(&previous, &state->frame.destination));
 	return status;
 }
 
@@ -817,7 +818,7 @@ process_command(struct gdi_state *state, struct command *command)
 		command->result = 0;
 		break;
 	case COMMAND_PRESENT:
-		command->result = render(state, state->console, false);
+		command->result = render(state);
 		break;
 	case COMMAND_GET_SCALING:
 		command->result = st_console_bitmap_geometry_scaling(
@@ -1011,7 +1012,7 @@ window_proc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 			state->windowed_client_height = state->client_height;
 		}
 		}
-		(void)render(state, NULL, true);
+		st_console_display_request_repaint(state->console_display);
 		return 0;
 	case WM_SETFOCUS:
 	case WM_KILLFOCUS:
@@ -1190,9 +1191,9 @@ gdi_activate(st_console_t *console)
 }
 
 static int
-gdi_present(st_console_t *console)
+gdi_show_frame(st_console_display_t *display)
 {
-	return send_command(console->display->backend_state,
+	return send_command(display->backend_state,
 	    &(struct command){.type = COMMAND_PRESENT});
 }
 
@@ -1325,7 +1326,8 @@ static const struct st_console_backend_ops gdi_ops = {
 	.presents_pixels = true,
 	.deferred_present = true,
 	.animated_present = true,
-	.present = gdi_present,
+	.prepare_frame = st_console_bitmap_prepare_window,
+	.show_frame = gdi_show_frame,
 	.resize = gdi_resize,
 	.set_title = gdi_set_title,
 	.set_clipboard_text = gdi_set_clipboard,
@@ -1389,10 +1391,14 @@ st_console_gdi_init(st_console_t *console)
 		return status;
 	}
 	console->display->backend_state = state;
+	console->display->window_presenter = state->presenter;
 	console->display->backend_ops = &gdi_ops;
-	status = gdi_present(console);
+	status = st_console_bitmap_prepare_window(console);
+	if (status == 0)
+		status = gdi_show_frame(console->display);
 	if (status != 0) {
 		gdi_destroy(console->display);
+		console->display->window_presenter = NULL;
 		console->display->backend_ops = NULL;
 	}
 	return status;

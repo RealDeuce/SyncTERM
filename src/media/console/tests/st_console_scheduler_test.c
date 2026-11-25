@@ -99,11 +99,12 @@ main(void)
 	wait_for_count(&state, 1);
 	baseline = read_count(&state);
 	(void)st_time_monotonic_ms(&content_start);
+	CHECK(st_console_begin_update(console) == 0);
 	for (uint32_t i = 0; i < 100; ++i)
 		CHECK(st_console_set_pixel(console, 0, 0,
 		    ST_PIXEL_COLOR_RGB_TAG | (i & 1U)) == 0);
+	CHECK(st_console_end_update(console) == 0);
 	wait_for_count(&state, baseline + 1);
-	CHECK(state.times[baseline] >= content_start + 8);
 	CHECK(state.times[baseline] <= content_start + 500);
 	(void)st_thread_sleep(&short_pause, NULL);
 	CHECK(read_count(&state) == baseline + 1);

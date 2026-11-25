@@ -333,13 +333,15 @@ part of this API while there is no locale-independent formatting component.
 
 ## Presentation and snapshots
 
-Bitmap backends collect ordinary visible state changes for up to 10 ms before
-presenting them.  This replaces the legacy blinker thread's implicit batching:
-small terminal-parser writes accumulate dirty cells instead of synchronously
-rasterizing and crossing into the window system for every write.
-The first pending change establishes the deadline; later changes merge without
-postponing it.  The same presentation worker owns the legacy animation
-schedules for every window bitmap backend: PC cursor/text phases are 133/266
+Window bitmap backends wake the presentation worker on the first pending change.
+The worker resolves dirty pixels into retained native-size images under the
+console lock, then releases it before scaling and submitting the frame. Writes
+during display accumulate in the live console. Once the backend is ready, the
+worker takes the latest completed state. A window resize during an open batch
+uses the last complete image and the new window dimensions. Libretro consumes
+pending changes when the frontend queries or copies a frame.
+
+The window presentation worker also schedules animation. PC cursor/text phases are 133/266
 ms, Prestel phases are 314 ms with its asymmetric text visibility, Commodore
 uses complementary 333 ms cursor/text phases, Atari leaves its cursor on, and
 Atari ST toggles only its cursor at 500 ms.  Missed phase deadlines are skipped

@@ -938,6 +938,8 @@ if(BUILD_TESTING)
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		st_console_warnings(st_console_x11_test)
 		add_test(NAME st_console_x11 COMMAND st_console_x11_test)
+		add_test(NAME st_console_x11_resize COMMAND st_console_x11_test --resize-pixels)
+		set_tests_properties(st_console_x11_resize PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 20)
 		add_test(NAME st_console_x11_mode_changes
 			COMMAND st_console_x11_test --mode-changes)
 		set_tests_properties(st_console_x11_mode_changes PROPERTIES

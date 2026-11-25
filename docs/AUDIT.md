@@ -1843,8 +1843,8 @@ are not yet reviewed. Core lifecycle uses lifecycle_mutex before state locks
 and backend_mutex, drains input selection under input_mutex and presentation
 references under presentation_mutex, and retains failed-detachment consoles.
 These mechanisms still require backend-by-backend verification, not a blanket
-concurrency approval. Deferred presentation coalesces requests for 10 ms;
-explicit presentation forces open batches. Snapshot creation calls forced
+concurrency approval. Deferred presentation wakes on the first change and coalesces writes during
+display. Explicit presentation forces open batches. Snapshot creation calls forced
 presentation, not merely rasterization; compatibility with the user's stated
 drain-versus-flush distinction needs further contract/test review.
 
