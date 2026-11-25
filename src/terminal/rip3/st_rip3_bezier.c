@@ -49,12 +49,6 @@ st_rip3_bezier_sample(struct st_rip3_point *output,
 	return 0;
 }
 
-static bool
-cubic(unsigned type)
-{
-	return type==1 || type==2 || type==5 || type==6;
-}
-
 static struct st_rip3_point
 point_record(struct st_rip3_point point)
 {
@@ -73,11 +67,13 @@ st_rip3_bezier_expand(struct st_rip3_bezier_path *result,
 	if (count>4095 || requested>4095) return IO_ERROR_OUT_OF_RANGE;
 	if (count==0) return IO_ERROR_INVALID_FORMAT;
 	for (size_t i=0; i<count; i++) {
-		if (records[i].type>6) return IO_ERROR_INVALID_FORMAT;
-		if (cubic(records[i].type)) curves++; else lines++;
+		unsigned coordinates = st_rip3_bezier_record_coordinates(records[i].type);
+		if (coordinates == 0) return IO_ERROR_INVALID_FORMAT;
+		if (coordinates == 6) curves++; else lines++;
 	}
 	if (2+7*curves+3*lines>8193) return IO_ERROR_OUT_OF_RANGE;
-	if (!closed && cubic(records[count-1].type)) return IO_ERROR_INVALID_FORMAT;
+	if (!closed && st_rip3_bezier_record_coordinates(records[count-1].type) == 6)
+		return IO_ERROR_INVALID_FORMAT;
 	if (curves!=0) {
 		if (curves*n+lines+1>4095) n=(unsigned)((4094-lines)/curves);
 		if (n==0) return IO_ERROR_OUT_OF_RANGE;
@@ -86,7 +82,8 @@ st_rip3_bezier_expand(struct st_rip3_bezier_path *result,
 	path.points=malloc(path.count*sizeof(*path.points));
 	if (path.points==NULL) return IO_ERROR_OUT_OF_MEMORY;
 	for (size_t i=0; i<count; i++) {
-		if (!cubic(records[i].type)) path.points[next++]=point_record(records[i].points[0]);
+		if (st_rip3_bezier_record_coordinates(records[i].type) == 2)
+			path.points[next++]=point_record(records[i].points[0]);
 		else if (n==1) path.points[next++]=records[i].points[0];
 		else {
 			const struct st_rip3_point controls[]={records[i].points[0],records[i].points[1],

@@ -80,7 +80,7 @@ FACTORY(st_rip3_input_create,(struct st_rip3_input **p,const struct st_rip3_inpu
 FACTORY(st_rip3_query_create,(struct st_rip3_query **p,const struct st_rip3_host_variables *v,const struct st_rip3_host_sink *s),(p,v,s))
 FACTORY(st_rip3_button_renderer_create,(struct st_rip3_button_renderer **p,const struct st_rip3_command_host *h,const struct st_rip3_command_sink *s,struct st_rip3_graphical *w,bool c),(p,h,s,w,c))
 FACTORY(st_rip3_graphical_create,(struct st_rip3_graphical **p,const struct st_rip3_host_variables *v,const struct st_rip3_host_sink *s,bool c),(p,v,s,c))
-FACTORY(st_rip3_stream_create,(struct st_rip3_stream **p,const struct st_rip3_stream_sink *s),(p,s))
+FACTORY(st_rip3_stream_create,(struct st_rip3_stream **p,const struct st_rip3_stream_sink *s,const struct st_rip3_environments *e),(p,s,e))
 RELEASE(st_rip3_environments_destroy,st_rip3_environments)
 RELEASE(st_rip3_styles_destroy,st_rip3_styles)
 RELEASE(st_rip3_button_styles_destroy,st_rip3_button_styles)

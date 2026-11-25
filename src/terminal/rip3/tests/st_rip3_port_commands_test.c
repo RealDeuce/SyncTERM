@@ -139,7 +139,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 {
 	struct st_rip3_command_host host = {0};
 	struct stream_scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
@@ -149,7 +149,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 
 	CHECK(st_rip3_environments_create(&host.environments, canvas) == 0);
 	CHECK(st_rip3_ports_create(&host.ports, canvas) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	CHECK(wire(stream, &scene, "!|J10|n2000|fZKQO|2P14G3CDB9Z00020000\r\n!|v0G0C4F3B\r") == 0);
 	CHECK(st_rip3_ports_fill(host.ports, &fill, 1, ST_RIP3_COPY) == 0);
 	CHECK(query(&host, "$CUR(PORT)$", "1") == 0);

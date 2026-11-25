@@ -312,7 +312,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    "|2C9" "00000C02" "A" "00000C02" "0\r";
 	struct st_rip3_command_host host = {0};
 	struct stream_scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_palette palette;
@@ -349,7 +349,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	}
 	CHECK(st_rip3_ports_define(host.ports, 35, &point, true) == 0);
 	CHECK(st_rip3_ports_switch(host.ports, 35) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream, input+i, 1);
 	CHECK(scene.errors == 2); /* Invalid mode and empty geometry were consumed; later copies ran. */
 	gray_palette(&palette);

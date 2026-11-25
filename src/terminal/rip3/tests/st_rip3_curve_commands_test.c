@@ -148,7 +148,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_environment environment;
 	struct st_rip3_style style;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	const struct st_rip3_rect bounds = {10,20,79,89}, view = {2,3,53,34};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_palette palette;
@@ -165,7 +165,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_define(host.environments, 1, &environment) == 0);
 	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	for (unsigned row = 0; row < 3; row++) {
 		borders = row == 1;
 		CHECK(process(&host, borders ? "N01" : "N00", -1) == 0);
@@ -310,7 +310,7 @@ arc_modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_rect bounds = {10,20,79,89}, view = {2,3,53,34};
 	unsigned runs = 0;
@@ -329,7 +329,7 @@ arc_modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_switch(host.ports, 1) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports, &view) == 0);
 	CHECK(st_rip3_ports_protect(host.ports, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	CHECK(st_rip3_palettes_get(host.palettes, 0, &palette) == 0);
 	for (unsigned base = 36; base <= 64; base += 28) {
 		for (unsigned coordinate = 2; coordinate <= 5; coordinate++) {
@@ -400,7 +400,7 @@ axis_contract(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool 
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_rect screen = {10,20,137,99}, bitmap = {0,0,127,79};
 	const struct st_rip3_rect view = {2,3,121,70}, copy = {250,101,369,168};
@@ -412,7 +412,7 @@ axis_contract(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool 
 	/* Pattern gaps and painted background must be ignored. */
 	style.pen.pattern = 1; style.pen.draw_background = true; style.drawing_color = 15;
 	CHECK(st_rip3_styles_set(host.styles,0,&style) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments) == 0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env) == 0);
 	for (unsigned scale = 1; scale <= 2; scale++) for (unsigned base = 36; base <= 64; base += 28) for (unsigned xy = 2; xy <= 5; xy++) {
 		env.world_width = width*scale; env.world_height = height*scale*2;
@@ -476,7 +476,7 @@ arc_noops(void)
 {
 	struct st_rip3_command_host host = {0}, missing;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_environment environment;
 	struct st_rip3_style style;
@@ -526,7 +526,7 @@ arc_noops(void)
 	CHECK(!st_rip3_drawing_test_fail_calloc);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)
 		CHECK(st_rip3_ports_read(host.ports,0,x,y,&value)==0 && value==0x55);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	wire(stream, "!|A030300000?|A030300A003|A0303500003|A0303000003\r");
 	CHECK(scene.errors == 1);
 	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)

@@ -170,7 +170,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture=NULL;
 	struct scene scene={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream=NULL;
 	const struct st_rip3_rect screen={10,20,261,467},bitmap={0,0,251,447};
 	const struct st_rip3_rect view={2,3,245,438},copy={251,31,494,466};
@@ -180,7 +180,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	for (unsigned scale=1; scale<=2; scale++) for (unsigned base=36; base<=64; base+=28) for (unsigned xy=2; xy<=5; xy++) {
@@ -340,8 +340,8 @@ boundaries(void)
 	CHECK(st_rip3_ports_read(host.ports,0,5,1,&value)==0 && value==12);
 	CHECK(st_rip3_ports_read(host.ports,0,1,1,&value)==0 && value==0x55);
 	env.coordinate_size=2;CHECK(st_rip3_environments_set(host.environments,0,&env)==0);
-	struct scene scene={&host,0};const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
-	struct st_rip3_stream *stream=NULL;CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	struct scene scene={&host,0};const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command, .diagnostic=scene_error};
+	struct st_rip3_stream *stream=NULL;CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	wire(stream,"!|U010109090?|u0101090900\r");
 	CHECK(scene.errors==1 && st_rip3_ports_read(host.ports,0,1,1,&value)==0 && value==7);
 	/* Accepted zero extents still consume their used inks; no radius growth. */

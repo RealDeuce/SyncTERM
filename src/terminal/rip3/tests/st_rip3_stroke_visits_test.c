@@ -153,7 +153,7 @@ scene(enum st_rip3_canvas canvas, unsigned width, unsigned height)
 	struct st_pixel_buffer *capture=NULL;
 	struct st_rip3_stream *stream=NULL;
 	struct observation seen={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&seen,.command=command};
+	const struct st_rip3_stream_sink sink={.context=&seen,.command=command, .diagnostic=diagnostic};
 	const struct st_rip3_rect area={0,0,239,159},copy={320,0,559,159};
 	uint32_t colors[256];
 	CHECK(st_rip3_style_defaults(&style)==0 && st_rip3_styles_create(&host.styles,&style)==0);
@@ -164,7 +164,7 @@ scene(enum st_rip3_canvas canvas, unsigned width, unsigned height)
 	CHECK(st_rip3_ports_create(&host.ports,canvas)==0 && st_rip3_ports_define(host.ports,3,&area,true)==0);
 	CHECK(st_rip3_palettes_create(&host.palettes)==0);
 	for (unsigned i=0; i<256; i++) colors[i]=i*UINT32_C(0x010101);
-	CHECK(st_rip3_palettes_rgb(host.palettes,0,8,colors,256)==0 && st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_palettes_rgb(host.palettes,0,8,colors,256)==0 && st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	for (unsigned target=0; target<=3; target+=3) {
 		CHECK(st_rip3_ports_switch(host.ports,target)==0 && st_rip3_ports_fill(host.ports,&area,0xa5,ST_RIP3_COPY)==0);
 		wire(stream,"m0102");

@@ -22,6 +22,18 @@ struct st_rip3_header {
 	struct st_rip3_header_segment segments[10];
 };
 
+#define ST_RIP3_HEADER_BASE_FIELDS "242"
+
+/* Fixed UltraNum widths after the literal segment type. */
+static inline const char *
+st_rip3_header_segment_fields(unsigned type)
+{
+	static const char *const fields[] = {
+		"21", "21", "41", "41", "21", "4111", "2", "2", "2", "2"
+	};
+	return type < sizeof(fields) / sizeof(*fields) ? fields[type] : NULL;
+}
+
 /* Decode the complete h command before any scene action. */
 int st_rip3_header_decode(struct st_rip3_header *result, const uint8_t *command, size_t length);
 #endif

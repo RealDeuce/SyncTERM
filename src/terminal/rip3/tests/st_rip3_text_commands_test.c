@@ -147,8 +147,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct fixture f = {0}; struct st_rip3_stream *stream = NULL;
 	CHECK(create(&f,canvas,width,height) == 0);
 	CHECK(process(&f,"m0509",-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 9);
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const uint8_t wire[] = "!|TAB|LZZZZZZZZ|T\x82|@0K02A|m020D|TA B|m0F0D|T\xdb|";
 	for (size_t i = 0; i < sizeof(wire)-1; i++) st_rip3_stream_process(stream,wire+i,1);
 	CHECK(f.errors == 0 && cursor(&f).x == 18 && cursor(&f).y == 13);
@@ -195,13 +195,14 @@ set_style(struct fixture *f, const struct st_rip3_style *style)
 }
 
 static int
-flat(struct fixture *f, uint8_t color)
+flat(struct fixture *f, uint32_t color)
 {
-	struct st_rip3_palette palette; struct st_rip3_bitmap *capture = NULL;
-	CHECK(st_rip3_palettes_get(f->host.palettes,1,&palette) == 0 && st_rip3_bitmap_capture(&capture,f->host.ports,1,NULL,&palette) == 0);
-	for (size_t i = 0; i < (size_t)capture->pixels->width*capture->pixels->height; i++)
-		CHECK(capture->pixels->primary[i] == color);
-	st_rip3_bitmap_destroy(capture); return 0;
+	const struct st_rip3_rect extent = {0, 0, 63, 39};
+	struct st_pixel_buffer *capture = NULL;
+	CHECK(st_rip3_ports_capture_pixels(f->host.ports,1,&extent,true,false,&capture) == 0);
+	for (size_t i = 0; i < (size_t)capture->width*capture->height; i++)
+		CHECK(capture->primary[i] == color);
+	st_pixel_buffer_destroy(capture); return 0;
 }
 
 static int
@@ -269,7 +270,7 @@ modes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		uint8_t actual, expected = shadow[y][x] == 'F' ? 12 : shadow[y][x] == 'S' ? 8 : 85;
 		CHECK(st_rip3_ports_read(f.host.ports,1,4+x,3+y,&actual) == 0 && actual == expected);
 	}
-	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 2 && flat(&f,8) == 0);
+	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 5 && cursor(&f).y == 2 && flat(&f,ST_PIXEL_COLOR_RGB_TAG) == 0);
 	for (unsigned variant = 0; variant < 3; variant++) {
 		style.font.flags = variant == 0 ? 1 : variant == 1 ? 2 : 4;
 		style.font.direction = variant == 0 ? 1 : 0;
@@ -360,16 +361,16 @@ vector_and_failures(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_styles_protect(f.host.styles,3,true) == 0);
 	int64_t step = width == 640 ? 5 : width == 800 ? 6 : 8;
 	CHECK(process(&f,"TA",-1) == 0 && process(&f,"TA",-1) == 0 && cursor(&f).x == 10+2*step && cursor(&f).y == 6);
-	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 10+2*step && flat(&f,8) == 0);
+	CHECK(process(&f,"E",-1) == 0 && cursor(&f).x == 10+2*step && flat(&f,ST_PIXEL_COLOR_RGB_TAG) == 0);
 	st_rip3_stroke_text_test_fail_allocate = true;
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_RESOURCE_FAILURE) == 0 && !st_rip3_stroke_text_test_fail_allocate
-	    && cursor(&f).x == 10+2*step && flat(&f,8) == 0);
+	    && cursor(&f).x == 10+2*step && flat(&f,ST_PIXEL_COLOR_RGB_TAG) == 0);
 	CHECK(process(&f,"TA",-1) == 0 && cursor(&f).x == 10+3*step);
 	CHECK(st_rip3_styles_protect(f.host.styles,3,false) == 0 && process(&f,"Y0A000400",-1) == 0
 	    && st_rip3_styles_protect(f.host.styles,3,true) == 0);
 	CHECK(process(&f,"E",-1) == 0);
 	int64_t previous = cursor(&f).x;
-	CHECK(process(&f,"TA:",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == previous && flat(&f,8) == 0);
+	CHECK(process(&f,"TA:",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == previous && flat(&f,ST_PIXEL_COLOR_RGB_TAG) == 0);
 	destroy(&f); return 0;
 }
 
@@ -395,8 +396,8 @@ errors(void)
 	CHECK(process(&f,"TA",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.text = context;
 	CHECK(process(&f,"@0000A",-1) == 0 && cursor(&f).x == 3 && cursor(&f).y == 0);
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const uint8_t recovery[] = "!|m0|T\xc3|m0202|TA|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,recovery+i,1);

@@ -26708,6 +26708,22 @@
         "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:213",
         "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:250"
       ]
+    },
+    {
+      "after_commit": "4751d2af36bd4079b795117d9b6a3248be29729a",
+      "revision": "434aef714f25207465eb35482489b0c8152244aa",
+      "scope": "Match typed record continuation and recovery, and support original RIP_HEADER zero-field shorthand and final numeric shortening.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/281"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:203",
+        "version/3.0/ripscrip/2.2-curves.md:380",
+        "version/3.0/ripscrip/2.2-curves.md:382"
+      ],
+      "source_units_awaiting_clarification": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:482"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

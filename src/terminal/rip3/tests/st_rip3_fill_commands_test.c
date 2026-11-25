@@ -194,7 +194,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_style style;
 	struct st_rip3_environment environment;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	const struct st_rip3_rect bounds = {10,20,49,59}, view = {2,3,29,30}, underlay = {20,10,23,14};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_palette palette;
@@ -210,7 +210,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_define(host.environments, 1, &environment) == 0);
 	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	for (size_t i = 0; i < strlen(wire); i++) st_rip3_stream_process(stream, (const uint8_t *)wire+i, 1);
 	CHECK(scene.errors == 1);
 	CHECK(st_rip3_palettes_get(host.palettes, 0, &palette) == 0);
@@ -380,7 +380,7 @@ filled_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_style style;
 	struct st_rip3_environment environment;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	const struct st_rip3_rect bounds = {10,20,49,59}, view = {2,3,29,30};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_palette palette;
@@ -397,7 +397,7 @@ filled_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_define(host.environments, 1, &environment) == 0);
 	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	for (size_t i = 0; i < strlen(initial); i++)
 		st_rip3_stream_process(stream, (const uint8_t *)initial+i, 1);
 	CHECK(scene.errors == 0); /* N updates the selected STYLE. */

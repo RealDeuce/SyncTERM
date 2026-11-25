@@ -7,6 +7,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define ST_RIP3_BEZIER_LIST_FIELDS "22"
+
+/* Number of coordinate fields after a literal poly-Bézier record type. */
+static inline unsigned
+st_rip3_bezier_record_coordinates(unsigned type)
+{
+	static const unsigned counts[] = {2, 6, 6, 2, 2, 6, 6};
+	return type < sizeof(counts) / sizeof(*counts) ? counts[type] : 0;
+}
+
 /* Converted device controls. Types 0/3/4 supply points[0]; 1/2/5/6 supply
  * P0/P1/P2, with P3 taken from the next record (or first for closed paths). */
 struct st_rip3_bezier_record {

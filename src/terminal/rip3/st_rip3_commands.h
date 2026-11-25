@@ -3,6 +3,7 @@
 #define ST_RIP3_COMMANDS_H_
 
 #include "st_rip3_clipboard.h"
+#include "st_rip3_diagnostic.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -88,14 +89,6 @@ struct st_rip3_command_host {
 	bool *text_active;
 	const struct st_rip3_text_window_host *text_window;
 	bool codepage_converted; /* Incoming codepage bytes normalized to UTF-8. */
-};
-
-enum st_rip3_command_diagnostic {
-	ST_RIP3_COMMAND_INVALID,
-	ST_RIP3_COMMAND_UNSUPPORTED,
-	ST_RIP3_COMMAND_OPERATION_FAILED,
-	ST_RIP3_COMMAND_RESOURCE_FAILURE,
-	ST_RIP3_COMMAND_COORDINATES_CLAMPED,
 };
 
 struct st_rip3_command_sink {

@@ -427,8 +427,8 @@ errors_and_encoding(void)
 	CHECK(process(&f,"T\xc3",ST_RIP3_COMMAND_INVALID)==0 && cursor(&f,50,37)==0);
 	CHECK(process(&f,"T",-1)==0 && xy(&f,0,0,"",ST_RIP3_COMMAND_INVALID)==0 && cursor(&f,50,37)==0);
 	/* Following valid split input recovers without a terminal/session error. */
-	struct st_rip3_stream *stream=NULL;const struct st_rip3_stream_sink sink={.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	struct st_rip3_stream *stream=NULL;const struct st_rip3_stream_sink sink={.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments)==0);
 	const uint8_t wire[]="!|m0|T\xc3|m0e0U|TA|";unsigned before=f.errors;
 	for (size_t i=0; i<sizeof(wire)-1; i++) st_rip3_stream_process(stream,wire+i,1);
 	CHECK(f.errors==before+2 && cursor(&f,50,37)==0);st_rip3_stream_destroy(stream);

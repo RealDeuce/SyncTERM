@@ -352,7 +352,7 @@ baud(enum st_rip3_canvas canvas)
 struct baud_stream {
 	const struct st_rip3_command_host *host;
 	struct observations diagnostics;
-	uint64_t rates[6];
+	uint64_t rates[5];
 	size_t count;
 	bool invalid;
 };
@@ -363,26 +363,34 @@ baud_command(void *context, const uint8_t *command, size_t length)
 	struct baud_stream *seen = context;
 	const struct st_rip3_command_sink sink = {&seen->diagnostics,diagnostic};
 	st_rip3_commands_process(seen->host, &sink, command,length);
-	if (seen->count >= 6)
+	if (seen->count >= sizeof(seen->rates) / sizeof(*seen->rates))
 		seen->invalid = true;
 	else seen->rates[seen->count++] = st_rip3_environments_playback_rate(seen->host->environments);
+}
+
+static void
+baud_diagnostic(void *context, enum st_rip3_command_diagnostic kind)
+{
+	struct baud_stream *seen = context;
+	diagnostic(&seen->diagnostics, kind);
 }
 
 static int
 baud_stream(void)
 {
-	static const uint64_t expected[] = {300,300,1295,1295,4095,0};
+	static const uint64_t expected[] = {300,1295,1295,4095,0};
 	static const char bytes[] = "!|3e8C|3e0?00|3eZZZZ\r\n!|J1S|3e&&&&|3e00\r";
 	struct st_rip3_command_host host = {0};
 	struct baud_stream seen = {.host=&host};
-	const struct st_rip3_stream_sink sink = {.context=&seen,.command=baud_command};
+	const struct st_rip3_stream_sink sink = {.context=&seen,.command=baud_command,
+	    .diagnostic=baud_diagnostic};
 	struct st_rip3_stream *stream = NULL;
 	CHECK(st_rip3_environments_create(&host.environments, ST_RIP3_CANVAS_640_480) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	for (size_t i = 0; i < sizeof(bytes)-1; i++) st_rip3_stream_process(stream, (const uint8_t *)bytes+i, 1);
-	CHECK(!seen.invalid && seen.count == 6 && seen.diagnostics.count == 1
+	CHECK(!seen.invalid && seen.count == sizeof(expected) / sizeof(*expected) && seen.diagnostics.count == 1
 	    && seen.diagnostics.last == ST_RIP3_COMMAND_INVALID);
-	for (size_t i = 0; i < 6; i++) CHECK(seen.rates[i] == expected[i]);
+	for (size_t i = 0; i < seen.count; i++) CHECK(seen.rates[i] == expected[i]);
 	CHECK(query(host.environments, "$BAUDEMUL$", "0") == 0);
 	st_rip3_stream_destroy(stream); st_rip3_environments_destroy(host.environments);
 	return 0;

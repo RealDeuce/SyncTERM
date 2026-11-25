@@ -148,7 +148,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture=NULL;
 	struct scene scene={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream=NULL;
 	const struct st_rip3_rect screen={10,20,137,115},bitmap={0,0,127,95};
 	const struct st_rip3_rect view={2,3,121,90},copy={250,101,369,188};
@@ -158,7 +158,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	for (unsigned scale=1; scale<=2; scale++) for (unsigned base=36; base<=64; base+=28) for (unsigned xy=2; xy<=5; xy++) {
@@ -350,9 +350,9 @@ boundaries(void)
 	/* Valid complete original SHAPES.RIP sample, followed by truncation and
 	 * a simple curve. Recovery must be owned by the parser and preserve state. */
 	struct scene scene={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream=NULL;
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	wire(stream,"!|z081428KGC8KESASF85CGF8E4F8BCGC5DKGCEOGCE4GW5DKHGD0I0BWI06ASI0BWGWASFS09OGW09OI008KI0|");
 	wire(stream,"z01041|Z010101050505050100|Z010101050505050102\r");
 	CHECK(scene.errors==1);

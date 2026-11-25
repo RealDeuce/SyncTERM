@@ -768,7 +768,7 @@ if(BUILD_TESTING)
 	add_test(NAME rip3_define_commands COMMAND st_rip3_define_commands_test)
 
 	add_executable(st_rip3_stream_fault_test tests/st_rip3_stream_fault_test.c)
-	target_link_libraries(st_rip3_stream_fault_test PRIVATE syncterm_io_error)
+	target_link_libraries(st_rip3_stream_fault_test PRIVATE st_rip3)
 	add_executable(st_rip3_stream_test tests/st_rip3_stream_test.c)
 	target_link_libraries(st_rip3_stream_test PRIVATE st_rip3_commands)
 	foreach(target IN ITEMS st_rip3_stream_test st_rip3_stream_fault_test)

@@ -75,10 +75,10 @@ static int
 create(struct fixture *f, enum st_rip3_canvas canvas)
 {
 	const struct st_rip3_input_source source = {.context=f,.now_ns=now,.next=next,.consume=consume};
-	const struct st_rip3_stream_sink sink = {.context=f,.text=text,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=f,.text=text,.command=command, .diagnostic=diagnostic};
 	CHECK(st_rip3_environments_create(&f->host.environments,canvas) == 0);
 	CHECK(st_rip3_input_create(&f->host.input,&source) == 0);
-	CHECK(st_rip3_stream_create(&f->stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&f->stream,&sink, f->host.environments) == 0);
 	return 0;
 }
 

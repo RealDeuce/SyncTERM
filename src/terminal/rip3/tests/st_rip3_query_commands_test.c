@@ -123,10 +123,10 @@ create(struct fixture *f, enum st_rip3_canvas canvas)
 {
 	static const struct st_rip3_terminal_identity identity = {"Fixture","Tests","0"};
 	const struct st_rip3_input_source source = {.context=f,.now_ns=now,.next=next,.consume=consume,.prepare=prepare};
-	const struct st_rip3_stream_sink sink = {.context=f,.text=text,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=f,.text=text,.command=command, .diagnostic=diagnostic};
 	CHECK(st_rip3_environments_create(&f->host.environments,canvas) == 0);
 	CHECK(st_rip3_input_create(&f->host.input,&source) == 0);
-	CHECK(st_rip3_stream_create(&f->stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&f->stream,&sink, f->host.environments) == 0);
 	CHECK(st_rip3_frame_init(&f->frame,canvas) == 0);
 	f->variables.frame = &f->frame; f->variables.identity = &identity; f->variables.input = f->host.input;
 	f->query_sink = (struct st_rip3_host_sink){f,reply,host_diagnostic};

@@ -228,8 +228,8 @@ failures(const char *directory)
 	CHECK(process(&f,"1I000000000\xff.BMP",ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.placeholders == 5);
 	CHECK(capture(&f,640,480,true,false) == 0);
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char wire[] = "!|1I|1I000000100Absent|1I000000000Pixel.BMP|J1S\r";
 	unsigned before = f.errors;
 	for (size_t i = 0; i < sizeof(wire)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)wire+i,1);

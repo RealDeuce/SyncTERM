@@ -198,8 +198,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	style.write_mode = mode;
 	CHECK(st_rip3_styles_set(f.host.styles,1,&style) == 0 && st_rip3_styles_protect(f.host.styles,1,true) == 0);
 	CHECK(rip3_test_image_area(f.host.ports,1,&area,flags) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	/* Exercise the literal documented command with every byte boundary. */
 	const char wire[] = "!|1p0000gRaY.JpG\r";
 	st_rip3_image_test_fills = 0;
@@ -342,8 +342,8 @@ recovery(const struct st_rip3_resource_paths *paths)
 	CHECK(unchanged(&f) == 0);
 	/* A bad image and a later valid ENV edit share one byte-split stream. */
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char wire[] = "!|1p0000Broken.JPG|J1S\r";
 	before = f.errors;
 	for (size_t i = 0; i < sizeof(wire)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)wire+i,1);
@@ -364,8 +364,8 @@ inactive_style(enum st_rip3_canvas canvas, uint32_t width, uint32_t height,
 	CHECK(process(&f,"1i00000K0K000F",-1) == 0 && st_rip3_ports_activate(f.host.ports,false) == 0);
 	CHECK(st_rip3_ports_protect(f.host.ports,1,true) == 0);
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char set[] = "!|1i01010J0J0005|";
 	for (size_t i = 0; i < sizeof(set)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)set+i,1);
 	struct st_rip3_port_info before, after;

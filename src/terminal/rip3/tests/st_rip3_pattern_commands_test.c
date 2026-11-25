@@ -188,13 +188,13 @@ consumers(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	const struct st_rip3_rect screen = {2,1,257,128};
 	CHECK(create(&f,canvas,width,height) == 0);
 	CHECK(st_rip3_ports_define(f.host.ports,1,&screen,false) == 0 && st_rip3_ports_switch(f.host.ports,1) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	/* Exact reference phase example plus rectangle, polygon and ellipse
 	 * consumers. Only mask[0]'s leftmost bit is on. Adjacent bars share phase. */
 	const char input[] = "!|v05036S36|s3K0000000000000007|B00000808|B08000G08|K000G0G0O|p040W000G000G080W08|G1V0L06|o2R0L0705\r";

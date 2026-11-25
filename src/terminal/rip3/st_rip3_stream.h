@@ -2,23 +2,14 @@
 #ifndef ST_RIP3_STREAM_H_
 #define ST_RIP3_STREAM_H_
 
+#include "st_rip3_diagnostic.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 struct st_rip3_stream;
-
-struct st_rip3_stream_numbers {
-	unsigned base_math, coordinate_width;
-	bool direct_rgb;
-};
-
-enum st_rip3_stream_diagnostic {
-	ST_RIP3_STREAM_INVALID_INPUT,
-	ST_RIP3_STREAM_RESOURCE_FAILURE,
-	ST_RIP3_STREAM_INVALID_COMMAND,
-	ST_RIP3_STREAM_UNSUPPORTED_COMMAND,
-};
+struct st_rip3_environments;
 
 /* Borrowed callbacks/context, copied at creation. One session thread owns the
  * stream and its callbacks; callbacks must not reenter, reset or destroy it.
@@ -40,20 +31,18 @@ struct st_rip3_stream_sink {
 	 * been delivered. True permits ! at column one after ANSI cursor motion.
 	 * Physical line starts and SOH/STX need no client cursor information. */
 	bool (*at_line_start)(void *context);
-	void (*diagnostic)(void *context, enum st_rip3_stream_diagnostic kind);
+	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
 	/* The host ANSI decoder can claim a bang before RIP checks for !|.
 	 * Read the live framing flag ahead of each byte. Disabled input bypasses
 	 * framing and preserves any unfinished RIP command for re-enable. */
 	bool (*ansi_owns_bang)(void *context);
 	const bool *framing_enabled;
-	/* Snapshot live numeric widths at the opcode. Without a callback the
-	 * initial environment is used (Base Math 36, XY=2, palette colors). */
-	void (*number_settings)(void *context, struct st_rip3_stream_numbers *numbers);
 };
 
-/* Creation is a lifetime/resource service, not incoming-data processing. */
+/* Borrow the environment table for numeric widths and radix. Without a
+ * table, use the initial settings (Base Math 36, XY=2, palette colors). */
 int st_rip3_stream_create(struct st_rip3_stream **result,
-	const struct st_rip3_stream_sink *sink);
+	const struct st_rip3_stream_sink *sink, const struct st_rip3_environments *environments);
 /* Destroy/reset discard unfinished input without executing it or invoking
  * callbacks. Reset starts a new session at line start, retaining buffer space.
  * No EOF-as-delimiter policy is inferred; the owner controls input lifetime. */

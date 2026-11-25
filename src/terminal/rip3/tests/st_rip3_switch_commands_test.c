@@ -351,7 +351,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_palette palette;
 	const struct st_rip3_rect viewport = {1,1,2,2}, inactive = {30,40,31,41}, point = {0,0,0,0};
 	struct st_rip3_clipboard_selection clipboard = {true,35};
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	const uint8_t input[] = "!|2s100|1P0000000|2s200|1P0000000|2s300|1P0000000|2s106|2s109|2s000|1P0000000|2s700|1P0506000|2s?00|2s002\r";
 	CHECK(create(&f,canvas) == 0);
 	struct st_rip3_environment environment;
@@ -365,7 +365,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_define(f.host.ports,35,&point,true) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,35) == 0 && st_rip3_ports_erase(f.host.ports,9) == 0);
 	f.host.clipboard = &clipboard;
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
 	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_INVALID && state(&f,0,true,false) == 0);
 	for (unsigned i = 0; i < 256; i++) palette.rgb[i] = i*UINT32_C(0x010101);
@@ -403,9 +403,9 @@ static int environment_protocol(void)
 	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) CHECK(process(&f,invalid[i],ST_RIP3_COMMAND_INVALID)==0);
 	CHECK(st_rip3_environments_current(f.host.environments,&current)==0 && current==35);
 	const char bytes[]="!|2E?0|2E5. ignored|2E..\r\n";
-	const struct st_rip3_stream_sink sink={.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink={.context=&f,.command=command, .diagnostic=diagnostic};
 	for (size_t split=0;split<sizeof(bytes);split++) {
-		CHECK(st_rip3_stream_create(&stream,&sink)==0);
+		CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments)==0);
 		unsigned errors=f.errors;
 		st_rip3_stream_process(stream,(const uint8_t *)bytes,split);
 		st_rip3_stream_process(stream,(const uint8_t *)bytes+split,sizeof(bytes)-1-split);

@@ -223,8 +223,8 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *d
 	const uint8_t stretched[] = {3,3,12,12,48,48,3,3,12,12,48,48,
 	    192,192,0,0,255,255,192,192,0,0,255,255};
 	CHECK(create(&f,canvas,width,height,directory) == 0);
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const uint8_t opening[] = "!|"; st_rip3_stream_process(stream,opening,2);
 	for (unsigned mode = 0; mode < 5; mode++) {
 		form(body,positions[mode],'Z',mode,"00","ZZ","tILE");
@@ -540,8 +540,8 @@ icons(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *d
 	    && rip3_test_image_area(f.host.ports,1,&disabled,15) == 0 && st_rip3_ports_protect(f.host.ports,1,true) == 0);
 	f.selection = (struct st_rip3_clipboard_selection){true,9}; f.host.clipboard = &f.selection;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
 	for (unsigned mode = 0; mode < 5; mode++) {
 		icon(body,positions[mode],mode,0,0,"tiLE");
@@ -632,8 +632,8 @@ icon_failures(const char *directory)
 	st_rip3_bitmap_file_test_fail_allocate = false; f.host.bitmap_errors = feedback;
 	f.feedback.show = NULL; CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.feedback.show = show_error;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char recovery[] = "!|1I|1I.......Missing|1I..Z...9Tile|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
@@ -755,8 +755,8 @@ errors(const char *directory)
 	CHECK(st_rip3_ports_read(f.host.ports,1,2,1,&actual) == 0 && actual == 85);
 	/* The real framer must deliver a valid load after both syntax and file errors. */
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char recovery[] = "!|1b|1b.........Missing|1b........000ZTile|";
 	unsigned previous = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);
@@ -933,8 +933,8 @@ wallpaper_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, con
 		 * clears that pointer without assigning the explicit replacement. */
 		form(body,"02030000",'9',1,stagger ? "1L" : "0P","0C","Tile");
 		struct st_rip3_stream *stream = NULL;
-		const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-		CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+		const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+		CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 		st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
 		for (size_t i = 0; i < strlen(body); i++) st_rip3_stream_process(stream,(const uint8_t *)body+i,1);
 		st_rip3_stream_process(stream,(const uint8_t *)"|",1); st_rip3_stream_destroy(stream);
@@ -1025,8 +1025,8 @@ keyed_depths(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const 
 	CHECK(f.prompts == 5 && f.selection.set && f.selection.port == 9);
 	const uint8_t prior[] = {42,42,42,42,42,42}; CHECK(duplicate_pixels(&f,9,3,2,prior) == 0);
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0); st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0); st_rip3_stream_process(stream,(const uint8_t *)"!|",2);
 	for (unsigned depth = 16; depth <= 32; depth += 16) {
 		(void)snprintf(name,sizeof(name),"Key%u.BMP",depth);
 		form(body,"000E0000",'9',0,depth == 16 ? "0P" : "08","3K",name);

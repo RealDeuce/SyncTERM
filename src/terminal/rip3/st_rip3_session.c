@@ -262,17 +262,6 @@ user_diagnostic(void *context, enum st_rip3_user_variable_diagnostic kind)
 }
 
 static void
-stream_diagnostic(void *context, enum st_rip3_stream_diagnostic kind)
-{
-	enum st_rip3_command_diagnostic reason = ST_RIP3_COMMAND_INVALID;
-	if (kind == ST_RIP3_STREAM_RESOURCE_FAILURE)
-		reason = ST_RIP3_COMMAND_RESOURCE_FAILURE;
-	else if (kind == ST_RIP3_STREAM_UNSUPPORTED_COMMAND)
-		reason = ST_RIP3_COMMAND_UNSUPPORTED;
-	diagnose(context, reason);
-}
-
-static void
 text(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
@@ -881,27 +870,13 @@ create_query(struct st_rip3_session *session, struct st_rip3_query **result,
 	return status;
 }
 
-static void
-stream_numbers(void *context, struct st_rip3_stream_numbers *numbers)
-{
-	struct st_rip3_session *session = context;
-	struct st_rip3_environment environment;
-	unsigned current;
-	int status = st_rip3_command_environment(&session->commands, &current, &environment);
-	if (status == 0) {
-		numbers->base_math = environment.base_math;
-		numbers->coordinate_width = environment.coordinate_size;
-		numbers->direct_rgb = environment.rgb_bits != 0;
-	}
-}
-
 static int
 create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, bool playback_file)
 {
 	const struct st_rip3_stream_sink sink={.context=session,.text=playback_file ? scene_text : text,.command=command,
-	    .at_line_start=line_start,.diagnostic=stream_diagnostic,
-	    .ansi_owns_bang=ansi_owns_bang,.framing_enabled=session->sink.framing_enabled,.number_settings=stream_numbers};
-	return st_rip3_stream_create(result, &sink);
+	    .at_line_start=line_start,.diagnostic=diagnose,
+	    .ansi_owns_bang=ansi_owns_bang,.framing_enabled=session->sink.framing_enabled};
+	return st_rip3_stream_create(result, &sink, session->commands.environments);
 }
 
 static uint32_t

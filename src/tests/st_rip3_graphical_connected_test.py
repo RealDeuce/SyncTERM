@@ -391,6 +391,13 @@ def run(args):
                            + query(b"alive", at_cursor=True), b"alive")
         assert frame.primary == before.primary and frame.alternate == before.alternate
 
+        t.case("rip3-typed-bezier-continuation-and-recovery")
+        frame = t.exchange(line(b"c02", b"t02.\\\r\n0." + number(131, 2) + b"0"
+                                + number(14, 2) + number(131, 2) + b"\\",
+                                b"z0200.010100606\\", geometry(b"X", 16, 131))
+                           + query(b"alive", at_cursor=True), b"alive")
+        assert pixel(frame, 7, 131) == pixel(frame, 16, 131) == 0x00aa00
+        assert pixel(frame, 15, 131) == 0 and frame.application['connected'] == 1
 
         t.case("rip3-meganum-wire-alphabet-and-ultranum-case")
         frame = t.exchange(line(

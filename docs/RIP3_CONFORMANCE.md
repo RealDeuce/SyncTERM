@@ -10605,3 +10605,18 @@ stale-prefix defect. The descriptor layouts were checked against all 118
 opcode rows in the RIPtel driver table. Native tests split the inputs at
 every byte boundary. The connected CP437 and UTF-8 tests send malformed
 commands, then verify drawing and a query reply on the same connection.
+
+## Scene header and typed Bézier continuation
+
+`h`, `t`, `x` and `z` collect numeric fields until they reach a typed
+record boundary. The next byte selects the record layout. A period
+completes one numeric field with zero, including within a header, and
+the final numeric field can be shortened. At a selector boundary the
+collector requires a literal type digit. A malformed selector discards
+the command, and a following pipe starts a new one. Numeric continuation
+works inside fields and at record boundaries.
+
+The original driver collector and header validator confirmed the header
+shorthands. The connected CP437 and UTF-8 fixtures check a header state
+change and Bézier drawing, including recovery on the same connection.
+[Upstream issue #281](https://github.com/bbs-land/remote-imaging-protocol/issues/281)

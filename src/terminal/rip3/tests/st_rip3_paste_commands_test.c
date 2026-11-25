@@ -97,7 +97,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 		{3,12,48,192},{86,89,101,149},{87,93,117,213},{1,4,16,64},{252,243,207,63},
 	};
 	const uint8_t input[] = "!|1P0000000|1P0400010|1P0800020|1P0C00030|1P0G00040|1P0K00050|1P0K00000|1P0T05000\r";
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	CHECK(create(&f,canvas,width,height) == 0);
 	CHECK(st_rip3_ports_define(f.host.ports,1,&source,true) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0);
@@ -111,7 +111,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_viewport(f.host.ports,&destination_view) == 0);
 	CHECK(st_rip3_ports_erase(f.host.ports,0x55) == 0);
 	CHECK(st_rip3_ports_protect(f.host.ports,2,true) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
 	CHECK(f.errors == 1 && f.kind == ST_RIP3_COMMAND_INVALID);
 	for (unsigned i = 0; i < 256; i++) palette.rgb[i] = i*UINT32_C(0x010101);

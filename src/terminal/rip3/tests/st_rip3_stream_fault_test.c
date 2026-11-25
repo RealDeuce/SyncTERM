@@ -54,11 +54,11 @@ command(void *context, const uint8_t *bytes, size_t length)
 }
 
 static void
-diagnostic(void *context, enum st_rip3_stream_diagnostic kind)
+diagnostic(void *context, enum st_rip3_command_diagnostic kind)
 {
 	struct observation *seen = context;
 	seen->errors++;
-	if (kind != ST_RIP3_STREAM_RESOURCE_FAILURE)
+	if (kind != ST_RIP3_COMMAND_RESOURCE_FAILURE)
 		seen->mismatch = true;
 }
 
@@ -71,10 +71,10 @@ main(void)
 	uint8_t block[256];
 
 	fail_calloc = true;
-	CHECK(st_rip3_stream_create(&stream, &sink) == IO_ERROR_OUT_OF_MEMORY && stream == NULL);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, NULL) == IO_ERROR_OUT_OF_MEMORY && stream == NULL);
+	CHECK(st_rip3_stream_create(&stream, &sink, NULL) == 0);
 	fail_realloc = true;
-	st_rip3_stream_process(stream, (const uint8_t *)"!|x", 3);
+	st_rip3_stream_process(stream, (const uint8_t *)"!|T", 3);
 	/* One error for the whole discarded command. Neither quoted pipes nor
 	 * continued line endings may resume dispatch inside discarded bytes. */
 	static const uint8_t recover[] = "\\|bad\\\r\n\fmore|J10\n";
@@ -82,6 +82,7 @@ main(void)
 	CHECK(seen.errors == 1 && seen.commands == 1 && !seen.mismatch);
 	st_rip3_stream_reset(stream);
 	memset(block, 'x', sizeof(block));
+	block[0] = 'T';
 	st_rip3_stream_process(stream, (const uint8_t *)"!|", 2);
 	st_rip3_stream_process(stream, block, sizeof(block));
 	fail_realloc = true;
@@ -103,6 +104,14 @@ main(void)
 	fail_realloc = true;
 	st_rip3_stream_process(stream, (const uint8_t *)"x\\|J10\r", sizeof("x\\|J10\r")-1);
 	CHECK(seen.errors == 4 && seen.commands == 4 && !seen.mismatch);
+	/* A numeric allocation failure recovers at the very next pipe. */
+	st_rip3_stream_process(stream, (const uint8_t *)"!|", 2);
+	memset(block, '0', sizeof(block));
+	block[0] = 'z';
+	st_rip3_stream_process(stream, block, sizeof(block));
+	fail_realloc = true;
+	st_rip3_stream_process(stream, (const uint8_t *)"0\\|J10\r", sizeof("0\\|J10\r")-1);
+	CHECK(seen.errors == 5 && seen.commands == 5 && !seen.mismatch);
 	st_rip3_stream_destroy(stream);
 	return 0;
 }

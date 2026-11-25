@@ -94,7 +94,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	struct st_rip3_environment env;
 	struct st_rip3_port_info info;
 	struct st_rip3_style style;
@@ -103,7 +103,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	const struct st_rip3_rect whole = {0,0,2047,2047};
 	unsigned current;
 	CHECK(create(&f,canvas,width,height) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	CHECK(st_rip3_ports_fill(f.host.ports,&whole,1,ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_environments_get(f.host.environments,0,&env) == 0);
 	env.port = 9; env.graphics_style = 7; env.palette = 8;
@@ -175,14 +175,14 @@ viewport_edges(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_port_info info;
 	const struct st_rip3_rect whole = {0,0,2047,2047};
 	CHECK(create(&f,canvas,width,height) == 0);
 	CHECK(st_rip3_ports_fill(f.host.ports,&whole,1,ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	/* Viewport DEVICE [10,20)x[10,20) lies outside the declared screen port
 	 * [25,35)x[25,35). j still reaches the underlying screen there, and its
 	 * square clips at the viewport's own near/far edges, not at port bounds. */

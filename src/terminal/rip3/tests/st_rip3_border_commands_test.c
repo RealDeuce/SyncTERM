@@ -153,9 +153,9 @@ state(void)
 	missing.styles=NULL;CHECK(process(&missing,"N01",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	missing=host;missing.environments=NULL;CHECK(process(&missing,"N01",ST_RIP3_COMMAND_UNSUPPORTED)==0);
 	struct stream_state state={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&state,.command=stream_command};
+	const struct st_rip3_stream_sink sink={.context=&state,.command=stream_command, .diagnostic=stream_error};
 	struct st_rip3_stream *stream=NULL;
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	const char *wire="!|N?|N00|N02\r";
 	for (size_t i=0; wire[i]!=0; i++) st_rip3_stream_process(stream,(const uint8_t *)wire+i,1);
 	CHECK(state.errors==1 && st_rip3_styles_get(host.styles,0,&after)==0 && after.borders);

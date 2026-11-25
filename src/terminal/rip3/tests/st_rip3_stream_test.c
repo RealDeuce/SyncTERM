@@ -64,7 +64,7 @@ column_one(void *context)
 }
 
 static void
-diagnostic(void *context, enum st_rip3_stream_diagnostic kind)
+diagnostic(void *context, enum st_rip3_command_diagnostic kind)
 {
 	struct observation *seen = context;
 	(void)kind;
@@ -83,7 +83,7 @@ example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_leng
 		    .diagnostic=diagnostic};
 		struct st_rip3_stream *stream = NULL;
 
-		CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+		CHECK(st_rip3_stream_create(&stream, &sink, NULL) == 0);
 		if (split <= length) {
 			st_rip3_stream_process(stream, input, split);
 			st_rip3_stream_process(stream, input + split, length - split);
@@ -197,6 +197,20 @@ numeric_recovery(void)
 }
 
 static int
+typed_records(void)
+{
+	EXAMPLE("!|h..01\\\r\n\f\n60\1771\\|h..0161|h...\f",
+	    "", "h..01601\0h..0161\0h...\0", 3);
+	EXAMPLE_ERRORS("!|h01000101.01\\|c02|h01000001\177601\\|c03\r\n",
+	    "", "c02\0c03\0", 2, 2);
+	EXAMPLE("!|z0200\\\\\r\n0010\177\\10066|t02.0010100606|x02000010100606\\|c01\r",
+	    "", "z0200001010066\0t02.0010100606\0x02000010100606\0c01\0", 4);
+	EXAMPLE_ERRORS("!|z0200.010100606\\|c01|t020000.100606\\|c02|x02000010100606 \\|c03\n",
+	    "", "c01\0c02\0c03\0", 3, 3);
+	return 0;
+}
+
+static int
 lifetime(void)
 {
 	struct observation seen = {0};
@@ -204,11 +218,11 @@ lifetime(void)
 	    .at_line_start=column_one,.diagnostic=diagnostic};
 	struct st_rip3_stream *stream = NULL, *sentinel = NULL;
 
-	CHECK(st_rip3_stream_create(NULL, &sink) == IO_ERROR_INVALID_ARGUMENT);
-	CHECK(st_rip3_stream_create(&sentinel, NULL) == 0);
+	CHECK(st_rip3_stream_create(NULL, &sink, NULL) == IO_ERROR_INVALID_ARGUMENT);
+	CHECK(st_rip3_stream_create(&sentinel, NULL, NULL) == 0);
 	st_rip3_stream_process(sentinel, (const uint8_t *)"!|J10\r", 6);
 	st_rip3_stream_destroy(sentinel);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, NULL) == 0);
 	st_rip3_stream_process(stream, (const uint8_t *)"x", 1);
 	seen.column_one = true; /* The text service observed ANSI cursor motion. */
 	st_rip3_stream_process(stream, (const uint8_t *)"!|J10\r", 6);
@@ -251,7 +265,7 @@ framing_gate(void)
 	const struct st_rip3_stream_sink sink = {.context=&seen,.text=text,.command=command,
 	    .at_line_start=column_one,.ansi_owns_bang=ansi_owns_bang,.framing_enabled=&enabled};
 	struct st_rip3_stream *stream = NULL;
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, NULL) == 0);
 	/* Even at column one, a bang already owned by ANSI is emitted immediately. */
 	st_rip3_stream_process(stream, (const uint8_t *)"\x1b[!", 3);
 	CHECK(seen.text_length == 3 && memcmp(seen.text, "\x1b[!", 3) == 0);
@@ -275,7 +289,9 @@ large_command(void *context, const uint8_t *bytes, size_t length)
 	struct large_observation *seen = context;
 	seen->calls++;
 	seen->length = length;
-	for (size_t i = 0; i < length; i++)
+	if (length == 0 || bytes[0] != 'T')
+		seen->mismatch = true;
+	for (size_t i = 1; i < length; i++)
 		if (bytes[i] != 'x') seen->mismatch = true;
 }
 
@@ -288,8 +304,9 @@ long_command(void)
 	struct st_rip3_stream *stream = NULL;
 	uint8_t *input = malloc(count);
 
-	CHECK(input != NULL && st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(input != NULL && st_rip3_stream_create(&stream, &sink, NULL) == 0);
 	memset(input, 'x', count);
+	input[0] = 'T';
 	st_rip3_stream_process(stream, (const uint8_t *)"!|", 2);
 	for (size_t start = 0; start < count;) {
 		size_t chunk = count - start > 127 ? 127 : count - start;
@@ -324,19 +341,6 @@ scene_command(void *context, const uint8_t *bytes, size_t length)
 	st_rip3_commands_process(&scene->host, &sink, bytes, length);
 }
 
-static void
-scene_numbers(void *context, struct st_rip3_stream_numbers *numbers)
-{
-	struct scene *scene = context;
-	struct st_rip3_environment environment;
-	unsigned current;
-
-	if (st_rip3_environments_current(scene->host.environments, &current) == 0
-	    && st_rip3_environments_get(scene->host.environments, current, &environment) == 0)
-		*numbers = (struct st_rip3_stream_numbers){environment.base_math,
-		    environment.coordinate_size, environment.rgb_bits != 0};
-}
-
 static int
 noops(void)
 {
@@ -356,8 +360,7 @@ integration(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	static const uint8_t input[] = "!|!$NoExpansion$|(|(|)|)|J1S|n2000|fK0F0|a010&|a0F10|a020#\r\n"
 	    "!|fZK\\\r\nQO|J10|fZKQO|a0304\r";
 	struct scene scene = {0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command,
-	    .number_settings=scene_numbers};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_surface *surface = NULL;
 	struct st_rip3_palette palette;
@@ -369,7 +372,7 @@ integration(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_surface_create(&surface, width,height) == 0);
 	for (int32_t x = 1; x <= 3; x++)
 		CHECK(st_rip3_surface_plot(surface, NULL, x,0, (uint8_t)x, ST_RIP3_COPY) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, scene.host.environments) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++)
 		st_rip3_stream_process(stream, input+i, 1);
 	CHECK(scene.errors == 1); /* a0F10 is 64 in UltraNum, then parsing recovers. */
@@ -403,6 +406,7 @@ main(void)
 	CHECK(boundaries() == 0);
 	CHECK(argumentless_commands() == 0);
 	CHECK(numeric_recovery() == 0);
+	CHECK(typed_records() == 0);
 	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);

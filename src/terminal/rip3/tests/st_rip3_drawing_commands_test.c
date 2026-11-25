@@ -119,7 +119,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    "!|L0000000?|W0|c0Aattached|k00|R020A08C\r";
 	struct st_rip3_command_host host = {0};
 	struct stream_scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_style style;
 	struct st_rip3_environment env;
@@ -140,7 +140,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_define(host.environments, 1, &env) == 0);
 	CHECK(st_rip3_environments_select(host.environments, 1) == 0);
 	CHECK(st_rip3_environments_protect(host.environments, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	wire(stream, input);
 	CHECK(scene.errors == 3);
 	{
@@ -315,9 +315,9 @@ validation(void)
 		st_rip3_ports_destroy(wrong.ports);
 	}
 	struct stream_scene scene = {&host, 0};
-	const struct st_rip3_stream_sink sink = {.context=&scene, .command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene, .command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	wire(stream, "!|L0A.0E. surplus");
 	CHECK(pixel(host.ports, 0, 12,0, 0) == 0);
 	wire(stream, "|L0A010E010123");
@@ -496,7 +496,7 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 	struct st_rip3_palettes *bound;
 	struct st_pixel_buffer *capture = NULL;
 	struct stream_scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_rect bounds = {10,20,39,49}, view = {2,3,21,22}, mark = {0,0,25,5};
 	unsigned current;
@@ -549,7 +549,7 @@ erase_scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool di
 	CHECK(st_rip3_ports_protect(host.ports, 1, false) == 0);
 	CHECK(st_rip3_ports_activate(host.ports, true) == 0);
 	CHECK(st_rip3_ports_protect(host.ports, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	wire(stream, "!|E0|E\r");
 	CHECK(scene.errors == 0 && st_rip3_drawing_test_fail_calloc);
 	st_rip3_drawing_test_fail_calloc = false;

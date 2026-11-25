@@ -327,14 +327,14 @@ render(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_pixel_buffer *capture=NULL;
 	struct st_rip3_stream *stream=NULL;
 	struct stream_state state={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&state,.command=stream_command};
+	const struct st_rip3_stream_sink sink={.context=&state,.command=stream_command, .diagnostic=stream_error};
 	CHECK(create(&host,canvas,width,height)==0);host.text=&text;
 	const struct st_rip3_cursor point={2,8};CHECK(st_rip3_ports_cursor(host.ports,0,&point)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0 && st_rip3_fill_solid(&style.fill,true)==0);
 	style.font_mode=ST_RIP3_FONT_OUTLINE;style.outline.spacing=100;style.borders=false;
 	CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
 	CHECK(process(&host,"TA",ST_RIP3_COMMAND_OPERATION_FAILED)==0); /* Stored size zero fails on use. */
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	const char *wire="!|2Y00F|2Y10?|2Y10|c03|S0109|K08010C05|T\r";
 	for (size_t i=0; wire[i]!=0; i++) st_rip3_stream_process(stream,(const uint8_t *)wire+i,1);
 	CHECK(state.errors==3 && cursor(&host,2,8) && text.encoding==ST_RIP3_TEXT_CP437);

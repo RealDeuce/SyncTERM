@@ -138,7 +138,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct scene seen = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&seen,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&seen,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_rect bounds = {10,20,79,89}, view = {2,3,53,64};
 	unsigned current;
@@ -153,7 +153,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_ports_define(host.ports, 1, &bounds, false) == 0);
 	CHECK(st_rip3_ports_switch(host.ports, 1) == 0 && st_rip3_ports_viewport(host.ports, &view) == 0);
 	CHECK(st_rip3_ports_protect(host.ports, 1, true) == 0);
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	CHECK(st_rip3_palettes_get(host.palettes, 0, &palette) == 0);
 	for (unsigned base = 36; base <= 64; base += 28) for (unsigned coordinate = 2; coordinate <= 5; coordinate++) {
 		CHECK(st_rip3_environments_get(host.environments, 0, &environment) == 0);
@@ -227,7 +227,7 @@ boundaries(void)
 	const struct st_rip3_rect view = {0,0,7,7};
 	struct st_rip3_stream *stream = NULL;
 	struct scene seen = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&seen,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&seen,.command=scene_command, .diagnostic=scene_error};
 	uint8_t value;
 	CHECK(create(&host, ST_RIP3_CANVAS_640_480, 640,480) == 0);
 	CHECK(st_rip3_ports_viewport(host.ports, &view) == 0 && st_rip3_ports_erase(host.ports, 0x55) == 0);
@@ -277,7 +277,7 @@ boundaries(void)
 		CHECK(st_rip3_ports_viewport(host.ports, &view) == 0);
 		CHECK(st_rip3_ports_erase(host.ports, 0x55) == 0);
 	}
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	wire(stream,"!|P0401010601060601?6|P00|l02.01061\r");
 	CHECK(seen.errors == 2);
 	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)
@@ -488,7 +488,7 @@ counts(unsigned base, size_t count)
 	struct st_rip3_style style;
 	struct st_rip3_stream *stream = NULL;
 	struct scene seen = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&seen,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&seen,.command=scene_command, .diagnostic=scene_error};
 	char *shape = malloc(4+count*10);
 	const struct st_rip3_rect view = {0,0,7,7};
 	uint8_t value;
@@ -503,7 +503,7 @@ counts(unsigned base, size_t count)
 	shape[0] = 'P'; number(shape+1,2,(unsigned)count,base);
 	for (size_t i = 0; i < count*2; i++) number(shape+3+i*5,5,3,base);
 	shape[3+count*10] = 0;
-	CHECK(st_rip3_stream_create(&stream, &sink) == 0);
+	CHECK(st_rip3_stream_create(&stream, &sink, host.environments) == 0);
 	wire(stream,"!|"); wire(stream,shape); wire(stream,"\r");
 	CHECK(seen.errors == 0);
 	for (int32_t y = 0; y < 8; y++) for (int32_t x = 0; x < 8; x++)

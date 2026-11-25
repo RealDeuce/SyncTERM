@@ -1,16 +1,23 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_stream.h"
+#include "st_rip3_bezier.h"
+#include "st_rip3_environments.h"
+#include "st_rip3_header.h"
 #include "io_error.h"
 
 #include <stdlib.h>
 
+enum record_list { RECORDS_NONE, RECORDS_HEADER, RECORDS_BEZIER };
+
 struct st_rip3_stream {
 	struct st_rip3_stream_sink sink;
+	const struct st_rip3_environments *environments;
 	uint8_t *command;
 	size_t length, capacity;
 	const char *fields;
-	struct st_rip3_stream_numbers numbers;
-	unsigned field_digits, level_digits;
+	enum record_list records;
+	unsigned base_math, coordinate_width, field_digits, level_digits;
+	bool direct_rgb;
 	uint8_t introducer, previous_text;
 	bool active, line_start, quoted, comment, discard_tail, continued, dropping, skip_lf;
 	bool last_backslash, prior_backslash, numeric_continuation;
@@ -18,7 +25,8 @@ struct st_rip3_stream {
 
 /* Widths from the 3.0.7 descriptors (table RVA 0x80820). x is XY, C is CM,
  * and literal widths are hexadecimal digits. T starts text, * repeats the
- * preceding width, and ? leaves framing to a command-specific decoder. */
+ * preceding width. Typed lists continue with literal selectors after the
+ * initial widths and after each complete record. */
 static const char *const level_zero[128] = {
 	['!'] = "T", ['"'] = "xxxx2T", ['#'] = "", ['&'] = "xx222",
 	['('] = "", [')'] = "", ['*'] = "",
@@ -32,10 +40,11 @@ static const char *const level_zero[128] = {
 	['V'] = "xx22xx", ['W'] = "2", ['X'] = "xx", ['Y'] = "2222", ['Z'] = "xxxxxxxx2",
 	['['] = "xxxx222", [']'] = "xxxx222", ['_'] = "xx22xx", ['`'] = "xxxxxxxxxx1",
 	['a'] = "22", ['b'] = "xxxx22143", ['c'] = "C", ['d'] = "214", ['e'] = "",
-	['f'] = "xx", ['g'] = "xx", ['h'] = "?", ['i'] = "xx22xx", ['j'] = "xx", ['k'] = "C",
+	['f'] = "xx", ['g'] = "xx", ['h'] = ST_RIP3_HEADER_BASE_FIELDS, ['i'] = "xx22xx", ['j'] = "xx", ['k'] = "C",
 	['l'] = "2x*", ['m'] = "xx", ['n'] = "13", ['o'] = "xxxx", ['p'] = "2x*", ['q'] = "2",
-	['r'] = "114T", ['s'] = "22222222C", ['t'] = "?", ['u'] = "xxxxx", ['v'] = "xxxx",
-	['w'] = "222211", ['x'] = "?", ['y'] = "11422222226T", ['z'] = "?", ['{'] = "xxxxxx",
+	['r'] = "114T", ['s'] = "22222222C", ['t'] = ST_RIP3_BEZIER_LIST_FIELDS, ['u'] = "xxxxx", ['v'] = "xxxx",
+	['w'] = "222211", ['x'] = ST_RIP3_BEZIER_LIST_FIELDS, ['y'] = "11422222226T",
+	['z'] = ST_RIP3_BEZIER_LIST_FIELDS, ['{'] = "xxxxxx",
 };
 static const char *const level_one[128] = {
 	[0x1b] = "112T",
@@ -57,14 +66,14 @@ static const char *const level_nine[128] = {
 };
 
 static void
-report(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
+report(struct st_rip3_stream *stream, enum st_rip3_command_diagnostic kind)
 {
 	if (stream->sink.diagnostic != NULL)
 		stream->sink.diagnostic(stream->sink.context, kind);
 }
 
 static void
-reject_command(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
+reject_command(struct st_rip3_stream *stream, enum st_rip3_command_diagnostic kind)
 {
 	stream->fields = NULL;
 	stream->dropping = true;
@@ -86,45 +95,79 @@ start_fields(struct st_rip3_stream *stream, uint8_t level, uint8_t opcode)
 		}
 	}
 	if (fields == NULL) {
-		reject_command(stream, ST_RIP3_STREAM_UNSUPPORTED_COMMAND);
+		reject_command(stream, ST_RIP3_COMMAND_UNSUPPORTED);
 		return;
 	}
-	if (*fields == 'T' || *fields == '?')
+	if (*fields == 'T')
 		return;
 	if (*fields == '\0') {
 		stream->discard_tail = true;
 		return;
 	}
 	stream->fields = fields;
-	stream->numbers = (struct st_rip3_stream_numbers){36, 2, false};
-	if (stream->sink.number_settings != NULL)
-		stream->sink.number_settings(stream->sink.context, &stream->numbers);
-	if (level == 0 && (opcode == 'J' || opcode == 'N'))
-		stream->numbers.base_math = 36;
-	else if (level == 0 && (opcode == 'd' || opcode == 'D' || opcode == 'y'))
-		stream->numbers.base_math = 64;
+	const struct st_rip3_environments *environments = stream->environments;
+	struct st_rip3_environment environment;
+	unsigned current;
+	stream->base_math = 36;
+	stream->coordinate_width = 2;
+	stream->direct_rgb = false;
+	if (environments != NULL
+	    && st_rip3_environments_current(environments, &current) == 0
+	    && st_rip3_environments_get(environments, current, &environment) == 0) {
+		stream->base_math = environment.base_math;
+		stream->coordinate_width = environment.coordinate_size;
+		stream->direct_rgb = environment.rgb_bits != 0;
+	}
+	if (level != 0)
+		return;
+	if (opcode == 'h')
+		stream->records = RECORDS_HEADER;
+	else if (opcode == 't' || opcode == 'x' || opcode == 'z')
+		stream->records = RECORDS_BEZIER;
+	if (opcode == 'J' || opcode == 'N')
+		stream->base_math = 36;
+	else if (opcode == 'd' || opcode == 'D' || opcode == 'h' || opcode == 'y')
+		stream->base_math = 64;
+}
+
+static bool
+collect_selector(struct st_rip3_stream *stream, uint8_t byte)
+{
+	/* In a typed list the empty descriptor expects another literal type. */
+	unsigned type = byte - '0';
+	if (stream->records == RECORDS_HEADER)
+		stream->fields = st_rip3_header_segment_fields(type);
+	else {
+		unsigned coordinates = st_rip3_bezier_record_coordinates(type);
+		stream->fields = coordinates == 6 ? "xxxxxx" : coordinates == 2 ? "xx" : NULL;
+	}
+	if (stream->fields != NULL)
+		return true;
+	reject_command(stream, ST_RIP3_COMMAND_INVALID);
+	return false;
 }
 
 static bool
 collect_field(struct st_rip3_stream *stream, uint8_t byte)
 {
 	char field = *stream->fields;
-	const struct st_rip3_stream_numbers *numbers = &stream->numbers;
-	bool rgb = field == 'C' && numbers->direct_rgb;
-	bool ultra = rgb || numbers->base_math == 64;
-	unsigned width = field == 'x' ? numbers->coordinate_width
+	if (field == '\0')
+		return collect_selector(stream, byte);
+	bool rgb = field == 'C' && stream->direct_rgb;
+	bool ultra = rgb || stream->base_math == 64;
+	unsigned width = field == 'x' ? stream->coordinate_width
 	    : field == 'C' ? (rgb ? 4 : 2) : field >= 'a' ? (unsigned)(field - 'a' + 10) : (unsigned)(field - '0');
 	bool digit = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z')
 	    || (ultra && ((byte >= 'a' && byte <= 'z') || byte == '#' || byte == '&'));
 	if (!digit && (byte != '.' || stream->field_digits != 0)) {
-		reject_command(stream, ST_RIP3_STREAM_INVALID_COMMAND);
+		reject_command(stream, ST_RIP3_COMMAND_INVALID);
 		return false;
 	}
 	if (byte == '.' || ++stream->field_digits == width) {
 		stream->field_digits = 0;
 		if (stream->fields[1] != '*')
 			stream->fields++;
-		stream->discard_tail = *stream->fields == '\0';
+		stream->discard_tail = *stream->fields == '\0' && stream->records == RECORDS_NONE;
 		if (*stream->fields == 'T')
 			stream->fields = NULL;
 	}
@@ -151,6 +194,7 @@ clear_command(struct st_rip3_stream *stream)
 {
 	stream->length = 0;
 	stream->fields = NULL;
+	stream->records = RECORDS_NONE;
 	stream->field_digits = 0;
 	stream->level_digits = 0;
 	stream->quoted = false;
@@ -184,7 +228,8 @@ append(struct st_rip3_stream *stream, uint8_t byte)
 
 		if (command == NULL) {
 			stream->dropping = true;
-			report(stream, ST_RIP3_STREAM_RESOURCE_FAILURE);
+			stream->discard_tail |= stream->fields != NULL;
+			report(stream, ST_RIP3_COMMAND_RESOURCE_FAILURE);
 			return;
 		}
 		stream->command = command;
@@ -195,7 +240,7 @@ append(struct st_rip3_stream *stream, uint8_t byte)
 
 int
 st_rip3_stream_create(struct st_rip3_stream **result,
-    const struct st_rip3_stream_sink *sink)
+    const struct st_rip3_stream_sink *sink, const struct st_rip3_environments *environments)
 {
 	struct st_rip3_stream *stream;
 
@@ -206,6 +251,7 @@ st_rip3_stream_create(struct st_rip3_stream **result,
 		return IO_ERROR_OUT_OF_MEMORY;
 	if (sink != NULL)
 		stream->sink = *sink;
+	stream->environments = environments;
 	stream->line_start = true;
 	*result = stream;
 	return 0;
@@ -251,7 +297,7 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 	if (stream == NULL)
 		return;
 	if ((bytes == NULL && length != 0) || length == SIZE_MAX) {
-		report(stream, ST_RIP3_STREAM_INVALID_INPUT);
+		report(stream, ST_RIP3_COMMAND_INVALID);
 		return;
 	}
 	for (size_t i = 0; i < length; i++) {
@@ -301,7 +347,8 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				continue;
 			bool opcode = stream->length == stream->level_digits;
 			if (!stream->dropping && (opcode || stream->fields != NULL)) {
-				if (byte == 0x7f)
+				if (byte == 0x7f && (opcode || *stream->fields != '\0'
+				    || stream->numeric_continuation))
 					continue;
 				stream->numeric_continuation = byte == '\\';
 				if (stream->numeric_continuation)
@@ -313,7 +360,7 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				}
 				if (byte >= '1' && byte <= '9') {
 					if (stream->level_digits == 9)
-						reject_command(stream, ST_RIP3_STREAM_UNSUPPORTED_COMMAND);
+						reject_command(stream, ST_RIP3_COMMAND_UNSUPPORTED);
 					else
 						stream->level_digits++;
 				}
@@ -322,7 +369,7 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 					start_fields(stream, stream->level_digits == 0 ? 0 : stream->command[0], byte);
 				}
 				else
-					reject_command(stream, ST_RIP3_STREAM_UNSUPPORTED_COMMAND);
+					reject_command(stream, ST_RIP3_COMMAND_UNSUPPORTED);
 				append(stream, byte);
 				continue;
 			}

@@ -348,6 +348,15 @@ def run(args, width, height):
         values(b'$BASEMATH$', b'64')
         values(b'$BASEMATH(CUR,36)$')
 
+        t.case('rip3-header-numeric-shortcuts-and-selector-recovery')
+        # A zero revision and flag word use periods. Select STYLE 6
+        # after two numeric continuations and shorten the last screen flag.
+        wire(b'h..02\\\r\n1026\\80')
+        values(b'$CUR(STYLE)$', b'6')
+        frame = wire(b'h01000101.\\|c02')
+        assert frame.application['connected'] == 1
+        values(b'$CUR(STYLE)$:$CUR(ENV)$', b'6:2')
+
         t.case('rip3-header-typed-segments-select-their-own-tables')
         values(b'$CUR(PORT,2)$$CUR(PORT,0)$$CUR(PAL,4)$$PROT(PAL,4)$$CUR(PAL,7)$')
         # Button 7, style 6, port 2, text window 5 and palette 5.

@@ -58,7 +58,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	const struct st_rip3_rect port = {25,25,224,224}, point = {1,1,1,1};
 	const uint8_t input[] = "!|v28283A3A\r"; /* WORLD (80,80)..(118,118). */
 	CHECK(st_rip3_ports_create(&f.host.ports,canvas) == 0);
@@ -68,7 +68,7 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	CHECK(st_rip3_environments_set(f.host.environments,0,&environment) == 0);
 	CHECK(st_rip3_ports_define(f.host.ports,1,&port,false) == 0);
 	CHECK(st_rip3_ports_switch(f.host.ports,1) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
 	CHECK(f.errors == 0);
 	CHECK(st_rip3_ports_fill(f.host.ports,&point,7,ST_RIP3_COPY) == 0);

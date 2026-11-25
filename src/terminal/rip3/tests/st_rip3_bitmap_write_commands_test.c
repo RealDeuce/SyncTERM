@@ -180,9 +180,9 @@ scene(enum st_rip3_canvas canvas, const char *directory)
 {
 	struct fixture f = {0};
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	const uint8_t input[] = "!|1W2ClipName.icn|1W2Tile.BMP|1W3temporary.hIc|1W2tile.bmp|J1S|1W6Space name.bmp|1W2\xce\xa9mega.BMP|1W2$OFF$\r";
-	CHECK(create(&f,canvas,directory) == 0 && st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(create(&f,canvas,directory) == 0 && st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
 	CHECK(f.errors == 0);
 	CHECK(missing(directory,"ClipName.icn") == 0 && expect_backing(directory,"ClipName.BMP") == 0);
@@ -407,9 +407,9 @@ port_write(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const ch
 	/* Split every byte through the public stream/parser, including recovery
 	 * after a semantic error. The following export must still run. */
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	const uint8_t input[] = "!|2W2" "01010902" "0000Stream.bmp|2W2" "01010102" "0000Stream.bmp|2W2" "01010209" "0000After.bmp\r";
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	unsigned errors = f.errors;
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,input+i,1);
 	CHECK(f.errors == errors+1 && f.kind == ST_RIP3_COMMAND_OPERATION_FAILED);

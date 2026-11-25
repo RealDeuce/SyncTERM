@@ -276,7 +276,7 @@ failures(void)
 	struct fixture f;
 	struct st_rip3_port_info info;
 	struct st_rip3_stream *stream = NULL;
-	const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
+	const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
 	const struct st_rip3_rect old = {0,0,3,2}, view = {1,1,2,2}, image = {2,2,3,3};
 	char bytes[40];
 	unsigned current, allocations;
@@ -332,7 +332,7 @@ failures(void)
 	f.host.offscreen_pixel_budget = NULL;
 	definition(bytes,&f,4,0,0,1,1,1);
 	CHECK(process(&f,bytes,ST_RIP3_COMMAND_UNSUPPORTED) == 0);
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char recovery[] = "!|2P4000000001|2P4020106042\r";
 	unsigned before = f.errors;
 	for (size_t i = 0; i < sizeof(recovery)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)recovery+i,1);

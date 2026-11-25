@@ -40,15 +40,17 @@ poly_records(const uint8_t *bytes, size_t length, const struct st_rip3_environme
 	*requested=(unsigned)value;
 	for (size_t i=0; i<*count; i++) {
 		/* Record selectors are literal bytes, including the selector 0. */
-		if (fields.remaining == 0 || fields.bytes[0] < '0' || fields.bytes[0] > '6')
+		if (fields.remaining == 0)
 			return IO_ERROR_INVALID_FORMAT;
 		last = *fields.bytes++ - '0';
 		fields.remaining--;
-		bool cubic=last==1 || last==2 || last==5 || last==6;
+		unsigned coordinates = st_rip3_bezier_record_coordinates(last);
+		if (coordinates == 0)
+			return IO_ERROR_INVALID_FORMAT;
+		bool cubic = coordinates == 6;
 		if (cubic) curves++; else lines++;
 		if (2+7*curves+3*lines>8193) return IO_ERROR_OUT_OF_RANGE;
 		if (records!=NULL) records[i].type=last;
-		size_t coordinates = cubic ? 6 : 2;
 		for (size_t j = 0; j < coordinates; j++) {
 			status = st_rip3_command_next_field(&fields, &value, env->coordinate_size,
 			    env->base_math, i+1 == *count && j+1 == coordinates);
@@ -59,7 +61,8 @@ poly_records(const uint8_t *bytes, size_t length, const struct st_rip3_environme
 			}
 		}
 	}
-	if (fields.remaining != 0 || (!closed && (last==1 || last==2 || last==5 || last==6))) return IO_ERROR_INVALID_FORMAT;
+	if (fields.remaining != 0 || (!closed && st_rip3_bezier_record_coordinates(last) == 6))
+		return IO_ERROR_INVALID_FORMAT;
 	if (curves!=0 && *requested==0) return IO_ERROR_OUT_OF_RANGE;
 	return 0;
 }

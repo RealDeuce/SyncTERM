@@ -151,7 +151,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
 	struct scene scene = {&host,0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream = NULL;
 	const struct st_rip3_rect screen = {10,20,137,155}, bitmap = {0,0,127,135};
 	const struct st_rip3_rect view = {2,3,121,130}, copy = {250,101,369,228};
@@ -161,7 +161,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 	CHECK(st_rip3_ports_define(host.ports,1,offscreen ? &bitmap : &screen,offscreen)==0);
 	CHECK(st_rip3_ports_switch(host.ports,1)==0 && st_rip3_ports_viewport(host.ports,&view)==0);
 	CHECK(st_rip3_ports_protect(host.ports,1,true)==0);
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	CHECK(st_rip3_styles_get(host.styles,0,&style)==0);
 	CHECK(st_rip3_environments_get(host.environments,0,&env)==0);
 	for (unsigned scale=1; scale<=2; scale++) for (unsigned base=36; base<=64; base+=28) for (unsigned xy=2; xy<=5; xy++) {
@@ -347,9 +347,9 @@ boundaries(void)
 	original.borders=borders;
 	CHECK(st_rip3_styles_set(host.styles,0,&original)==0);
 	struct scene scene={&host,0};
-	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink={.context=&scene,.command=scene_command, .diagnostic=scene_error};
 	struct st_rip3_stream *stream=NULL;
-	CHECK(st_rip3_stream_create(&stream,&sink)==0);
+	CHECK(st_rip3_stream_create(&stream,&sink, host.environments)==0);
 	wire(stream,"!|I0303002I0?|W1|I030300A003|W0|_030300A00303|I030300A003\r");
 	CHECK(scene.errors==1);
 	for (int32_t y=0; y<8; y++) for (int32_t x=0; x<8; x++)

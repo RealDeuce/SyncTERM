@@ -202,8 +202,8 @@ static int
 wire(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 {
 	struct fixture f = {0}; CHECK(create(&f,canvas,width,height) == 0 && pattern(&f,0,0) == 0);
-	struct st_rip3_stream *stream = NULL; const struct st_rip3_stream_sink sink = {.context=&f,.command=command};
-	CHECK(st_rip3_stream_create(&stream,&sink) == 0);
+	struct st_rip3_stream *stream = NULL; const struct st_rip3_stream_sink sink = {.context=&f,.command=command, .diagnostic=diagnostic};
+	CHECK(st_rip3_stream_create(&stream,&sink, f.host.environments) == 0);
 	const char input[] = "!|1C010103030|1C03030101. reversed\r";
 	for (size_t i = 0; i < sizeof(input)-1; i++) st_rip3_stream_process(stream,(const uint8_t *)input+i,1);
 	CHECK(f.errors == 0 && f.selection.set && f.selection.port == 1 && bitmap(&f,1,4,4,0,false) == 0);
