@@ -10,6 +10,56 @@ from st_rip3_button_styles_connected_test import number
 from st_rip3_mouse_connected_test import field
 
 
+def skewed_curves(t):
+    t.case('rip3-live-skewed-span-and-composition')
+
+    def curve(opcode, *fields):
+        return opcode + b''.join(number(value, 2) for value in fields)
+
+    commands = [b'*', b'fHSDC', b'S0104', b'B0000GO4G', b'c02']
+    for mode in range(5):
+        x = 50 + 100 * mode
+        commands += [b'W' + number(mode, 2),
+                     curve(b']', x, 58, 10, 10, 0, 719, 0),
+                     curve(b']', x + 40, 58, 10, 10, 0, 720, 0)]
+
+    # The whole oval rotates the 20-pixel X radius onto the vertical axis.
+    # Chords with these same angle spans differ in even-odd fill membership.
+    commands += [b'W0', curve(b'&', 100, 108, 20, 10, 90), b'S0102', b'N0',
+                 curve(b'+', 185, 110, 10, 10, 0, 719, 0),
+                 curve(b'+', 235, 110, 10, 10, 0, 720, 0),
+                 b'c0F', curve(b'[', 450, 114, 10, 10, 0, 720, 0),
+                 b'N1', curve(b'[', 510, 114, 10, 10, 0, 720, 0)]
+
+    # Radius X is zero. The arc goes up a straight six-pixel segment, so
+    # AAAA has marks at 116,114,112,110 with gaps between them.
+    commands += [b'W1', b'c02', b'k01', b'=040XPM01',
+                 curve(b']', 340, 116, 0, 6, 0, 90, 0), b'=140XPM01',
+                 curve(b']', 380, 116, 0, 6, 0, 90, 0)]
+    frame = t.exchange(b'\x01|' + b'|'.join(commands) + b'\r\n' + query(b'alive', at_cursor=True), b'alive')
+    single = (0x00aa00, 0xaa5500, 0xaa5500, 0, 0xffdbff)
+    double = (0x00aa00, 0xaa0000, 0xaa5500, 0, 0xaa0000)
+    for mode, (once, twice) in enumerate(zip(single, double)):
+        x = 50 + 100 * mode
+        assert pixel(frame, x, 48) == twice and pixel(frame, x + 40, 48) == once
+        assert pixel(frame, x, 68) == twice and pixel(frame, x + 40, 68) == once
+        assert pixel(frame, x, 58) == pixel(frame, x + 40, 58) == 0xaa0000
+    assert pixel(frame, 100, 88) == pixel(frame, 110, 108) == 0x00aa00
+    assert pixel(frame, 120, 108) == 0xaa0000
+    assert [pixel(frame, x, y) for x, y in ((185, 110), (235, 110), (455, 114), (515, 114))] == [
+        0xaa0000, 0x00aa00, 0x00aa00, 0xffffff,
+    ]
+    for x, gap in ((340, 0xaa0000), (380, 0xaa00aa)):
+        assert [pixel(frame, x, y) for y in range(110, 117)] == [0xaa5500, gap] * 3 + [0xaa5500]
+
+    t.case('rip3-rotated-oval-applies-world-scale-before-rotation')
+    # At a 2:1 X scale and a 1:1 Y scale, radii (20,10) become (10,10).
+    # The viewport starts at device (5,7), so angle zero rotated 90 degrees
+    # puts the first point at (50+5,80+7-10).
+    frame = t.exchange(b'\x01|*|fZKDC|v0A07ZKDC|c02|' + curve(b'&', 100, 80, 20, 10, 90) + b'\r\n')
+    assert pixel(frame, 55, 77) == 0x00aa00 and pixel(frame, 55, 67) == 0
+
+
 def run(args):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -168,6 +218,7 @@ def run(args):
         values(b'$RESET(HARD)$')
         assert default_glyph() == glyph
 
+        skewed_curves(t)
         t.case('PolyMarker projects full dimensions and selects the flag-defined pen and brush')
         # Marker 21 is a square spanning signed 50% of each full extent.
         # At a 2:1 X scale, WORLD width 40 becomes device width 20. The

@@ -73,10 +73,53 @@ check_affine(void)
 	return 0;
 }
 
+static int
+check_q14(void)
+{
+	/* FNV over the 360 (cos[t], -sin[t]) low words in the adopted
+	 * techspecs/data/skewed-ellipse-q14.json, revision acafaea. A radius
+	 * of 16384 exposes each coefficient at rotation zero. */
+	struct st_rip3_skew_path path = {0};
+	CHECK(st_rip3_skew_build(&path, 0, 0, 16384, 16384, 0, 0, 360, ST_RIP3_SKEW_OVAL) == 0);
+	CHECK(path.count == 360);
+	uint32_t digest = UINT32_C(2166136261);
+	for (size_t i = 0; i < path.count; ++i) {
+		digest = (digest ^ (uint16_t)(int64_t)path.points[i].x) * UINT32_C(16777619);
+		digest = (digest ^ (uint16_t)(int64_t)path.points[i].y) * UINT32_C(16777619);
+	}
+	CHECK(digest == UINT32_C(0x099b8da5));
+	st_rip3_skew_free(&path);
+	/* Published vectors cover both floors, wrapped angles and wide radii. */
+	static const struct {
+		int x, y;
+		unsigned rx, ry, rotation, parameter;
+		int expected_x, expected_y;
+	} vectors[] = {
+		{10,20,6,3,0,0,16,20},
+		{10,20,6,3,0,90,10,17},
+		{10,20,6,3,0,180,4,20},
+		{10,20,6,3,0,270,10,23},
+		{10,20,6,3,90,0,10,14},
+		{100,80,13,7,30,30,108,72},
+		{100,80,13,7,30,330,111,78},
+		{100,80,13,7,390,390,108,72},
+		{0,0,131072,3,0,0,131072,0},
+	};
+	for (size_t i = 0; i < sizeof(vectors) / sizeof(*vectors); i++) {
+		unsigned angle = vectors[i].parameter;
+		CHECK(st_rip3_skew_build(&path, vectors[i].x, vectors[i].y, vectors[i].rx,
+		    vectors[i].ry, vectors[i].rotation, 0, angle, ST_RIP3_SKEW_ARC) == 0);
+		CHECK(path.count == angle + 1);
+		CHECK(path.points[angle].x == vectors[i].expected_x && path.points[angle].y == vectors[i].expected_y);
+		st_rip3_skew_free(&path);
+	}
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(check_affine() == 0);
+	CHECK(check_affine() == 0 && check_q14() == 0);
 	static const struct { unsigned s,e,start,end; } cases[]={
 		{0,0,0,0},{90,90,90,90},{270,90,270,450},{0,360,0,360},
 		{360,0,360,360},{450,810,90,450},{0,720,0,360},

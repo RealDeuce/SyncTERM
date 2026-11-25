@@ -4407,6 +4407,13 @@ and retrace expectations change under the adopted protocol; wide clipping still
 has its independent single-pass slope oracle. No expectations were generated
 from the emulator.
 
+Live CP437 and UTF-8 fixtures also compare raw spans 0..719 and 0..720 on the
+indexed canvas in all five write modes. They check custom-pattern gaps,
+even-odd chord fill, pie radius borders controlled by N, and a rotated oval
+with unequal WORLD scales and an offset viewport. The Q14 geometry test
+checks all 360 sine and cosine entries against the adopted reference and
+verifies its nine signed contour vectors before rasterization.
+
 Native CMake configure/full build succeeds without warnings. Eight affected
 CTests pass: visits, native paths, native drawing, STYLE rendering, drawing/path/
 Bézier/skewed commands. Only new/changed or initially failing tests were rerun;
