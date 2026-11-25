@@ -14,6 +14,57 @@ from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
 
 
+def default_palette(t, capture, values, width, height):
+    t.case('rip3-live-default-drawing-palette')
+    # Six-bit components from the reference table. The cube is indexed with
+    # blue varying fastest, including entries 254 and 255 on the final row.
+    components = [
+        (0, 0, 0), (0, 0, 42), (0, 42, 0), (0, 42, 42),
+        (42, 0, 0), (42, 0, 42), (42, 21, 0), (42, 42, 42),
+        (21, 21, 21), (21, 21, 63), (21, 63, 21), (21, 63, 63),
+        (63, 21, 21), (63, 21, 63), (63, 63, 21), (63, 63, 63),
+    ]
+    components.extend((v, v, v) for v in
+                      (0, 4, 8, 13, 17, 21, 25, 29, 34, 38, 42, 46, 50, 55, 59, 63))
+    components.extend((r, g, b) for r in (0, 10, 21, 31, 42, 52, 63)
+                      for g in range(0, 64, 9) for b in (0, 21, 42, 63))
+    stored = ('6;' + ','.join(f'{r}:{g}:{b}' for r, g, b in components)).encode()
+    rendered = [sum(round(v * 255 / 63) << shift for v, shift in zip(rgb, (16, 8, 0)))
+                for rgb in components]
+
+    def check_pixels(frame):
+        assert [pixel(frame, index, 96) for index in range(256)] == rendered
+
+    values(b'$PALENTRY(CUR,ALL)$', stored)
+    values(f'$WORLD(CUR,{width},{height})$'.encode())
+    points = b'|'.join(b'c' + number(i, 2) + b'|X' + number(i, 2) + number(96, 2)
+                       for i in range(256))
+    before = capture(b'\x01|' + points + b'\r\n')
+    check_pixels(before)
+
+    # Editing an entry recolors pixels that keep its index. A palette reset
+    # restores the default color without clearing or repainting those pixels.
+    edited = capture(b'\x01|a3T10|a7310\r\n')  # indices 137 and 255
+    edited_colors = rendered.copy()
+    edited_colors[137] = edited_colors[255] = 0xff0000
+    assert [pixel(edited, index, 96) for index in range(256)] == edited_colors
+    frame = values(b'$RESET(PAL)$$PALENTRY(CUR,ALL)$', stored)
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    check_pixels(frame)
+
+    frame = capture(b'\x01|2A500\r\n' + query(b'$PALENTRY(CUR,ALL)$', at_cursor=True), stored)
+    check_pixels(frame)
+    capture(b'\x01|a3T10|2A600|a7309\r\n')
+    values(b'$PROT(PAL,5)$$RESET(PAL,TBL)$$PALENTRY(5,137)$:$PALENTRY(6,255)$:$CUR(PAL)$',
+           b'6;63:0:0:-1:6')
+    frame = values(b'$PALENTRY(0,ALL)$', stored)
+    check_pixels(frame)  # The selected undefined slot publishes defaults too.
+    values(b'$CUR(PAL,6)$$PALENTRY(CUR,ALL)$', stored)
+
+    values(b'$RESET(HARD)$$CUR(PAL)$:$PALENTRY(5,137)$:$PALENTRY(6,255)$:$PALENTRY(CUR,ALL)$',
+           b'0:-1:-1:' + stored)
+
+
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -49,6 +100,8 @@ def run(args, width, height):
 
         send(b"\x1b[!")
         receive(peer, b"RIPSCRIP030001", root / "replies.bin")
+        if width == 640:
+            default_palette(t, capture, values, width, height)
         t.case(f"rip3-reset-protected-current-{width}x{height}")
         capture(scene(width, height) + b"\x01|w0000270O12\r\n"
                 + b"\x1b[3g\x1b[1;6H\x1bH\x01|2T50|w00000J0900\r\n"

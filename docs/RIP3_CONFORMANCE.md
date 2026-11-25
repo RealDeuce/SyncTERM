@@ -8984,6 +8984,16 @@ full-block bounds, decode failures and recovery. Connected CP437 and UTF-8
 fixtures check exact replies and publication on existing indexed graphics,
 including palette copy and restore, out-of-range rejection and the empty block.
 
+The default palette supplies 16 desktop colors, 16 grayscale levels and a
+224-entry RGB cube with blue varying fastest. The native raster test compares
+all 256 entries against the reference table. On live CP437 and UTF-8 sessions,
+the reset fixture checks the full six-bit `PALENTRY(CUR,ALL)` reply and draws
+one pixel in each entry. It verifies that palette edits recolor existing art
+and `RESET(PAL)` restores its original colors. Table reset skips protected
+slots and publishes defaults for an unprotected selected slot whose definition
+was cleared. Reselecting that slot recreates its default table, and HARD
+selects the default palette in slot zero.
+
 ## Connected tone variables
 
 RIPv3 BEEP, BLIP, T, ALARM, MUSIC, PHASER and REVPHASER execute through the
