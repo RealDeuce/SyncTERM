@@ -44,6 +44,29 @@ Incomplete families remain unsupported and nonfatal; full compliance is not a
 prerequisite for connecting completed work. RIP1.54 retains its original route.
 Source indexing is discovery, not adjudication or working-feature evidence.
 
+## Pending work
+
+The November 25 review covered all 1,072 blocks that were Pending at the
+pinned revision. It found existing implementation and test evidence for
+820 blocks and classified 97 as context. The remaining 155 included both
+observed defects and behaviors awaiting specific evidence. The 1,806
+Unreviewed blocks were outside this pass.
+
+Each remaining Pending entry has a `work_group` and a reason identifying the
+open behavior. One connected scenario can settle several entries when their
+commands reach the same implementation.
+
+| Work group | Behavior to settle together |
+| --- | --- |
+| Bitmap loading and capture | File image modes over existing screen pixels, color keys, palette changes, duplication and capture extents |
+| Drawing geometry and composition | Fills, borders and repeated strokes across color domains, wide projections and degenerate geometry |
+| Font effects and retained text | Synthetic decorations, glyph measurement and cache lifetime across drawing and reset |
+| Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
+| Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
+| Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
+| File requests and cache operations | Quoted FILEDEL names, transfer argument limits and visibility of resumable partial files |
+| Wire field collection | Numeric shorthand, reserved fields and command-specific recovery in both radices |
+
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
 
@@ -65,6 +88,10 @@ terminate RIP commands. A command's CRLF is consumed even when split across
 reads, while ordinary text keeps its own line endings. Processing
 failures are diagnosed and discarded inside RIP3, never returned as connection
 errors. Constructor/accessor and transport failures remain distinct.
+
+## Implementation history
+
+The milestones below describe the state at the time of each change. For current work, use the Pending entries in the ledger.
 
 Level-0 `M` now selects the current environment's color mode on connections:
 `M08` restores palette mapping, `M18` enables eight-bit direct RGB, and other
