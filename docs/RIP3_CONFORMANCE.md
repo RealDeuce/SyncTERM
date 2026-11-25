@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-0413ddc5cc6f673afae513e1d7ccdae2f33622eb](https://github.com/RealDeuce/remote-imaging-protocol/tree/0413ddc5cc6f673afae513e1d7ccdae2f33622eb/version/3.0)
+434aef714f25207465eb35482489b0c8152244aa](https://github.com/RealDeuce/remote-imaging-protocol/tree/434aef714f25207465eb35482489b0c8152244aa/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10554,9 +10554,9 @@ trailing backslash can skip up to two line terminators. The native split
 tests and connected CP437 and UTF-8 fixtures check framing, absence of
 fill ink and continued drawing after `F`.
 
-The pinned fill chapter still attributes a live flood to this descriptor.
-The ledger retains this documentation discrepancy under the focused
-follow-up to issue #2. [Issue #279](https://github.com/bbs-land/remote-imaging-protocol/issues/279)
+The pinned fill chapter now specifies this no-op. The live session leaves
+the graphics and text state untouched when the descriptor dispatches.
+[PR #280](https://github.com/bbs-land/remote-imaging-protocol/pull/280)
 
 ## Delimiters for commands without arguments
 
@@ -10571,3 +10571,18 @@ The original collector produced the same delimiter behavior in 66 wire
 cases. Native split-input tests cover all eleven descriptors, and the
 connected CP437 and UTF-8 tests verify that `E` and `H` run before the
 commands that follow them on the same line.
+
+## Delimiters after fixed numeric fields
+
+After the last declared field, the stream parser discards surplus bytes
+without buffering them. A pipe dispatches the completed command even
+after a backslash in that suffix. The framer uses the active ENV coordinate
+width and color mode and the descriptor's radix rule. A leading period
+completes one field and the command decoder still handles permitted short
+fields at the delimiter.
+
+The 72 positive-count layouts match the fingerprinted driver table. Executing
+the original collector confirmed the delimiter behavior in 288 cases across
+Base Math 36/64, coordinate widths 2/5 and both color modes. Native split-input
+tests and connected CP437 and UTF-8 tests cover field changes, binary surplus,
+continuation, and the drawing command after the delimiter.

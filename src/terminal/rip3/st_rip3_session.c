@@ -876,12 +876,26 @@ create_query(struct st_rip3_session *session, struct st_rip3_query **result,
 	return status;
 }
 
+static void
+stream_numbers(void *context, struct st_rip3_stream_numbers *numbers)
+{
+	struct st_rip3_session *session = context;
+	struct st_rip3_environment environment;
+	unsigned current;
+	int status = st_rip3_command_environment(&session->commands, &current, &environment);
+	if (status == 0) {
+		numbers->base_math = environment.base_math;
+		numbers->coordinate_width = environment.coordinate_size;
+		numbers->direct_rgb = environment.rgb_bits != 0;
+	}
+}
+
 static int
 create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, bool playback_file)
 {
 	const struct st_rip3_stream_sink sink={.context=session,.text=playback_file ? scene_text : text,.command=command,
 	    .at_line_start=line_start,.diagnostic=stream_diagnostic,
-	    .ansi_owns_bang=ansi_owns_bang,.framing_enabled=session->sink.framing_enabled};
+	    .ansi_owns_bang=ansi_owns_bang,.framing_enabled=session->sink.framing_enabled,.number_settings=stream_numbers};
 	return st_rip3_stream_create(result, &sink);
 }
 
@@ -1823,6 +1837,8 @@ static void
 command(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session=context;
+	if (length != 0 && bytes[0] == 'F')
+		return; /* The inert descriptor does not create a display boundary. */
 	st_rip3_columns_invalidate(&session->columns);
 	if (session->sink.before_command!=NULL) session->sink.before_command(session->sink.context);
 	const struct st_rip3_command_sink sink={session,diagnose};

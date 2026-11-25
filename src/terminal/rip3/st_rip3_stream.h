@@ -8,6 +8,11 @@
 
 struct st_rip3_stream;
 
+struct st_rip3_stream_numbers {
+	unsigned base_math, coordinate_width;
+	bool direct_rgb;
+};
+
 enum st_rip3_stream_diagnostic {
 	ST_RIP3_STREAM_INVALID_INPUT,
 	ST_RIP3_STREAM_RESOURCE_FAILURE,
@@ -23,10 +28,10 @@ struct st_rip3_stream_sink {
 	/* Complete command ID and arguments, without introducer, delimiter or
 	 * physical line endings. CR, LF and FF each terminate commands. A CR also
 	 * consumes its optional LF across input calls; ordinary text is unchanged.
-	 * Quotes for SOH, STX and pipe are consumed by framing. Other quotes are
-	 * passed to expansion/argument stages, except continuation backslashes.
-	 * Comments are delivered too and MUST bypass variable expansion. No level
-	 * digits or command arguments are interpreted by this framing layer. */
+	 * For fixed numeric descriptors, only the opcode and collected fields
+	 * are passed to the consumer. String framing consumes quotes for SOH,
+	 * STX and pipe, and passes other quotes on except continuation slashes.
+	 * Comments are delivered too and MUST bypass variable expansion. */
 	void (*command)(void *context, const uint8_t *bytes, size_t length);
 	/* Optional current text-window cursor check, after preceding text has
 	 * been delivered. True permits ! at column one after ANSI cursor motion.
@@ -38,6 +43,9 @@ struct st_rip3_stream_sink {
 	 * framing and preserves any unfinished RIP command for re-enable. */
 	bool (*ansi_owns_bang)(void *context);
 	const bool *framing_enabled;
+	/* Snapshot live numeric widths at the opcode. Without a callback the
+	 * initial environment is used (Base Math 36, XY=2, palette colors). */
+	void (*number_settings)(void *context, struct st_rip3_stream_numbers *numbers);
 };
 
 /* Creation is a lifetime/resource service, not incoming-data processing. */

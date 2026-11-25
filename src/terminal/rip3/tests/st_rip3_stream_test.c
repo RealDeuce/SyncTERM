@@ -142,6 +142,13 @@ boundaries(void)
 	EXAMPLE("!|F\\|c02|c01\r\n!|F\\\\\r\nignored|c03\r!|F\\\r\n\fOK",
 	    "OK", "F\0c02\0c01\0F\0c03\0F\0", 6);
 	EXAMPLE("!|F\0ignored|c01\r\n!|F", "", "F\0c01\0", 2);
+	EXAMPLE("!|L000001010\0ignored\\|c02\r\n", "", "L00000101\0c02\0", 2);
+	EXAMPLE("!|f..ignored\\\\\r\ncontinued|c01\r\n!|J10\\\r\n\fOK",
+	    "OK", "f..\0c01\0J10\0", 3);
+	EXAMPLE("!|1i010203040001000000000000surplus\\|2A200comment\\|3D0001tail\n",
+	    "", "1i010203040001000000000000\0" "2A200\0" "3D0001\0", 3);
+	EXAMPLE("!|c0\\\r\n1ignored\\|d0z84ZHMsuffix\\|X0A0A\r\n",
+	    "", "c01\0d0z84ZHM\0X0A0A\0", 3);
 	EXAMPLE("\x1b[31m\xc4\xb3\r!|@0000\xc4\xb3\r", "\x1b[31m\xc4\xb3\r", "@0000\xc4\xb3\0", 1);
 	EXAMPLE("\xc3\xa9\xe2\x94\x82\r!|@0000\xc3\xa9\xe2\x94\x82\r", "\xc3\xa9\xe2\x94\x82\r", "@0000\xc3\xa9\xe2\x94\x82\0", 1);
 	EXAMPLE("!|G\\\n00\f\n!|Z00\n!|unfinished", "\n", "G00\0Z00\0", 2);

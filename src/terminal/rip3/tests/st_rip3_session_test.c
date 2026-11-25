@@ -154,6 +154,9 @@ graphics(enum st_rip3_canvas canvas, unsigned width, unsigned height)
 	    && capture.frame.world_height==350 && capture.environment==0 && capture.port==0 && capture.style==0 && capture.palette==0
 	    && capture.cursor_x==0 && capture.cursor_y==0 && !capture.outline_cache_valid && !capture.query_pending && capture.viewport_active);
 	st_rip3_session_capture_dispose(&capture);
+	uint64_t revision = st_rip3_session_revision(f.session);
+	CHECK(append(&f,"!|Fcoordinate and color surplus\r")==0 && pump(&f)==0);
+	CHECK(f.errors==0 && st_rip3_session_revision(f.session)==revision);
 	char setup[100];(void)snprintf(setup,sizeof(setup),"$WORLD(CUR,%u,%u)$$BASEMATH(CUR,64)$",width,height);
 	CHECK(query(&f,setup,"")==0 && append(&f,"!|c0C|X0101\r")==0);
 	/* Deliver each wire byte separately through the public owner. */

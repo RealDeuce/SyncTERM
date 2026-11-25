@@ -61,6 +61,12 @@ def run(args):
         frame = t.exchange(b'\x01|Eignored\\|c02|X0K0K|Hignored\\|g0203\r\n\x1b[6n', b'\x1b[4;3R')
         assert pixel(frame, 10, 10) == 0 and pixel(frame, 20, 20) == 0x00aa00
         assert frame.application['connected'] == 1
+        t.case('rip3-fixed-numeric-suffix-preserves-pipe-with-live-field-widths')
+        frame = t.exchange(b'\x01|n3|f0HS0DC|c04|L010010012010\0ignored\\|c02|X011011\r\n')
+        assert pixel(frame, 36, 36) == 0xaa0000 and pixel(frame, 37, 37) == 0x00aa00
+        frame = t.exchange(b'\x01|n2|M18|c0Fy0suffix\\|X1313|M08|c04|X1414\r\n')
+        assert pixel(frame, 39, 39) == 0x00ff00 and pixel(frame, 40, 40) == 0xaa0000
+        assert frame.application['connected'] == 1
         t.exchange(b'\x01|E|Y00000100|c0F\r\n')
         t.case('rip3-graphical-builtins-and-ink')
         frame=t.exchange(b'\x01|m0A1E|T$RESX$\r\n'+query(b'$TEXTXY$',at_cursor=True),b'34:50')

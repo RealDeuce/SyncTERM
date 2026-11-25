@@ -1,22 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/278",
-  "revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
-  "previous_revision": "65968b292f71b323f70a097c6f32b33cb714a369",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/280",
+  "revision": "434aef714f25207465eb35482489b0c8152244aa",
+  "previous_revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #278 matches its fork stable integration tree.",
-  "archive_sha256": "32ed380565b84a7f012de1ff4a901ae8171e1e03284ec473080f1b67db5188c6",
+  "upstream_state_at_adoption": "The open PR #280 matches its fork stable integration tree.",
+  "archive_sha256": "1bb03ebe2b3c0306e4ad17d60b07d6a534730cd1fdd8ee20f7d0eb942f85d3b4",
   "normative_scope": [
-    "Reserve USERNAME and PASSWORD throughout host-controlled expansion, existence checks and mutations. Use the documented always-unavailable portable profile."
+    "Use the original delimiter wait for complete fixed numeric commands, including the inactive level-0 F descriptor."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.0-host-commands.md",
-    "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md"
+    "version/2.0/techspecs/2.1-fill-defects.md",
+    "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+    "version/3.0/ripscrip/9.0-command-reference.md",
+    "version/3.0/ripscrip/README.md",
+    "version/3.0/techspecs/2.0-fill-defects-delta.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9523,
+  "matched_source_blocks": 9513,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -950,13 +952,12 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 137,
+  "upstream_issue_resolutions": 139,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume.",
-    "B279 reconciles the current live flood-fill attribution with the observed original inactive descriptor and framing."
+    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume."
   ],
   "derivations": [
     {
@@ -1768,6 +1769,12 @@
       "sha256": "9330849bdcb95a6a62fed29d5469e3162c88bfb0022cbe925fbf820e998f8a66",
       "title": "Issue #277 — Bookmark variable policy",
       "role": "Client-side variable installation, registration evidence, confirmation flag and portable credential rule."
+    },
+    {
+      "path": "version/3.0/research/issue-279-rip-fill-framing.md",
+      "sha256": "1375eba79115c7d7f55dbb73ccc862ae376a1c5b2ca5af7ebdb75cc9f81edaa3",
+      "title": "Issue #279 — RIP_FILL descriptor and framing",
+      "role": "Fingerprint, no-op descriptor and original collector delimiter paths and captures."
     }
   ],
   "documents": [
@@ -1817,7 +1824,7 @@
     },
     {
       "path": "version/2.0/techspecs/2.1-fill-defects.md",
-      "sha256": "b827b03589a70b2a8797294bfbaf772da7a95c3cd98df9212b9ef933949bad87"
+      "sha256": "6690dc8c77dd9cebf4c303baa1b10f112890b27be48abbfbde3be467c768406f"
     },
     {
       "path": "version/2.0/techspecs/2.3-drawing-composition.md",
@@ -1889,7 +1896,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
-      "sha256": "ee25e749746c87e5fa93bfb840fa68f5a103d234de90a09e6470960bee89bf9e"
+      "sha256": "8c8b837963b21a9151a07c05408a1a5dc75903e8d5a9811123110a5e90c4df9c"
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
@@ -1973,7 +1980,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "5a33f3f6390859a9e2ed36afee0a32677b23db67f29856e6dae110e4c1d96b53"
+      "sha256": "0a969eeff30de76dec03ed2ea76333faa366e647f949daeb61ffc3d23d88173c"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -1989,11 +1996,11 @@
     },
     {
       "path": "version/3.0/ripscrip/README.md",
-      "sha256": "105c76a3e337c74e46f72b1be1756d651dc4236fe31da091e833563779f935d8"
+      "sha256": "094fb2e1644c5b27b26ef56c7b52dd787170067a154608b74cfbf20933236f16"
     },
     {
       "path": "version/3.0/techspecs/2.0-fill-defects-delta.md",
-      "sha256": "f0bcd411781334cde0e35e738bdfd48bfbbe7c21920ad958afd1b5840762dbad"
+      "sha256": "f6fd1da87ca8dddccaa9692f58bb42bdcdac3ed23383c5eb5279a0d290f4b56d"
     },
     {
       "path": "version/3.0/techspecs/2.1-arc-consumer-contract.md",
@@ -2044,7 +2051,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "f6976d15ab882a64e466daa9aeb2147c993a54d0",
+  "previous_ledger_commit": "e3830d7b04180ba128400be4f4f535b857ec6075",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20181,6 +20188,114 @@
         "excluded": 76,
         "blocked": 10
       }
+    },
+    {
+      "previous_revision": "0413ddc5cc6f673afae513e1d7ccdae2f33622eb",
+      "revision": "434aef714f25207465eb35482489b0c8152244aa",
+      "archive_sha256": "1bb03ebe2b3c0306e4ad17d60b07d6a534730cd1fdd8ee20f7d0eb942f85d3b4",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/279",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/280",
+          "reviewed_head": "fe660edcf1e6e43a792c80c66a8679c9393212ee",
+          "integration": "434aef714f25207465eb35482489b0c8152244aa"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/2.0/techspecs/2.1-fill-defects.md",
+          "previous_sha256": "b827b03589a70b2a8797294bfbaf772da7a95c3cd98df9212b9ef933949bad87",
+          "sha256": "6690dc8c77dd9cebf4c303baa1b10f112890b27be48abbfbde3be467c768406f"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
+          "previous_sha256": "ee25e749746c87e5fa93bfb840fa68f5a103d234de90a09e6470960bee89bf9e",
+          "sha256": "8c8b837963b21a9151a07c05408a1a5dc75903e8d5a9811123110a5e90c4df9c"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "5a33f3f6390859a9e2ed36afee0a32677b23db67f29856e6dae110e4c1d96b53",
+          "sha256": "0a969eeff30de76dec03ed2ea76333faa366e647f949daeb61ffc3d23d88173c"
+        },
+        {
+          "path": "version/3.0/ripscrip/README.md",
+          "previous_sha256": "105c76a3e337c74e46f72b1be1756d651dc4236fe31da091e833563779f935d8",
+          "sha256": "094fb2e1644c5b27b26ef56c7b52dd787170067a154608b74cfbf20933236f16"
+        },
+        {
+          "path": "version/3.0/techspecs/2.0-fill-defects-delta.md",
+          "previous_sha256": "f0bcd411781334cde0e35e738bdfd48bfbbe7c21920ad958afd1b5840762dbad",
+          "sha256": "f6fd1da87ca8dddccaa9692f58bb42bdcdac3ed23383c5eb5279a0d290f4b56d"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-279-rip-fill-framing.md",
+          "sha256": "1375eba79115c7d7f55dbb73ccc862ae376a1c5b2ca5af7ebdb75cc9f81edaa3",
+          "title": "Issue #279 — RIP_FILL descriptor and framing",
+          "role": "Fingerprint, no-op descriptor and original collector delimiter paths and captures."
+        }
+      ],
+      "moved_source_blocks": 5,
+      "new_source_units": [
+        "version/2.0/techspecs/2.1-fill-defects.md:11",
+        "version/2.0/techspecs/2.1-fill-defects.md:17",
+        "version/2.0/techspecs/2.1-fill-defects.md:21",
+        "version/2.0/techspecs/2.1-fill-defects.md:26",
+        "version/2.0/techspecs/2.1-fill-defects.md:30",
+        "version/2.0/techspecs/2.1-fill-defects.md:46",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:9",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:634",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:636",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:637",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:638",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:639",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:640",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:642",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:644",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:646",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:648",
+        "version/3.0/ripscrip/9.0-command-reference.md:133",
+        "version/3.0/ripscrip/README.md:27",
+        "version/3.0/techspecs/2.0-fill-defects-delta.md:5",
+        "version/3.0/techspecs/2.0-fill-defects-delta.md:7"
+      ],
+      "retired_source_units": [
+        "version/2.0/techspecs/2.1-fill-defects.md:11",
+        "version/2.0/techspecs/2.1-fill-defects.md:17",
+        "version/2.0/techspecs/2.1-fill-defects.md:21",
+        "version/2.0/techspecs/2.1-fill-defects.md:26",
+        "version/2.0/techspecs/2.1-fill-defects.md:30",
+        "version/2.0/techspecs/2.1-fill-defects.md:36",
+        "version/2.0/techspecs/2.1-fill-defects.md:47",
+        "version/2.0/techspecs/2.1-fill-defects.md:49",
+        "version/2.0/techspecs/2.1-fill-defects.md:51",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:9",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:634",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:636",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:637",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:638",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:639",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:640",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:642",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:644",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:646",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:648",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:671",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:673",
+        "version/3.0/ripscrip/9.0-command-reference.md:133",
+        "version/3.0/ripscrip/README.md:27",
+        "version/3.0/techspecs/2.0-fill-defects-delta.md:5",
+        "version/3.0/techspecs/2.0-fill-defects-delta.md:7"
+      ],
+      "states_after_update": {
+        "unreviewed": 2103,
+        "context": 1980,
+        "pending": 1323,
+        "implemented": 4052,
+        "excluded": 76
+      }
     }
   ],
   "initial_pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/71",
@@ -26559,6 +26674,26 @@
       "scope": "Use the original delimiter state for all zero-field, no-text descriptors and verify their framing across receive splits.",
       "verified_source_units": [
         "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:211"
+      ]
+    },
+    {
+      "after_commit": "e3830d7b04180ba128400be4f4f535b857ec6075",
+      "revision": "434aef714f25207465eb35482489b0c8152244aa",
+      "scope": "Use the original delimiter wait for complete fixed numeric commands, including the inactive level-0 F descriptor.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/2",
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/279"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:209",
+        "version/2.0/techspecs/2.1-fill-defects.md:26",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:638",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:639",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:640",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:642",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:644",
+        "version/3.0/ripscrip/2.3-shapes-and-fills.md:646",
+        "version/3.0/ripscrip/9.0-command-reference.md:133"
       ]
     }
   ],

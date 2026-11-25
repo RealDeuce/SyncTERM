@@ -1643,3 +1643,17 @@ client to leave both fields unavailable to RIP and omit local submission.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/0413ddc5cc6f673afae513e1d7ccdae2f33622eb),
 [PR #278](https://github.com/bbs-land/remote-imaging-protocol/pull/278)
+
+
+## Inactive RIP_FILL descriptor
+
+The reference advances to `434aef714f25207465eb35482489b0c8152244aa`.
+The stable tree matches the reviewed PR #280 head
+`fe660edcf1e6e43a792c80c66a8679c9393212ee`. The Git archive has SHA-256
+`1bb03ebe2b3c0306e4ad17d60b07d6a534730cd1fdd8ee20f7d0eb942f85d3b4`.
+The adopted reference gives `F` zero arguments and discards its unused
+suffix through the original delimiter rules. This resolves the remaining
+flood-fill discrepancy tracked under issue #2 and its focused follow-up.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/434aef714f25207465eb35482489b0c8152244aa),
+[PR #280](https://github.com/bbs-land/remote-imaging-protocol/pull/280)
