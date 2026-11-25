@@ -223,13 +223,19 @@ st_rip3_surface_get(const struct st_rip3_surface *surface,
 }
 
 static uint32_t
+complement_color(uint32_t color)
+{
+	return color ^ (ST_PIXEL_COLOR_IS_RGB(color) ? UINT32_C(0xffffff) : UINT32_C(0xff));
+}
+
+static uint32_t
 write_pixel(uint32_t destination, uint32_t source, enum st_rip3_write_mode mode)
 {
 	switch (mode) {
 		case ST_RIP3_XOR: return (uint8_t)(destination ^ source);
 		case ST_RIP3_OR: return (uint8_t)(destination | source);
 		case ST_RIP3_AND: return (uint8_t)(destination & source);
-		case ST_RIP3_NOT: return (uint8_t)~destination;
+		case ST_RIP3_NOT: return complement_color(destination);
 		default: return source;
 	}
 }
@@ -241,7 +247,7 @@ transfer_pixel(uint32_t destination, uint32_t source, enum st_rip3_transfer_mode
 	if (mode == ST_RIP3_TRANSFER_COPY)
 		return source;
 	if (mode == ST_RIP3_TRANSFER_INVERT)
-		return source ^ (ST_PIXEL_COLOR_IS_RGB(source) ? UINT32_C(0xffffff) : UINT32_C(0xff));
+		return complement_color(source);
 	if (palette != NULL && ST_PIXEL_COLOR_IS_RGB(destination | source)) {
 		if (!ST_PIXEL_COLOR_IS_RGB(destination))
 			destination = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[(uint8_t)destination];

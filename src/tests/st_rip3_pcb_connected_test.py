@@ -294,6 +294,29 @@ def run(args,width,height):
         wire(b'M08')
         values(b'$RESET(PAL,17)$')
 
+        t.case('rip3-destination-not-keeps-rgb-and-index-pixels-in-their-domains')
+        define(16,(0,0,3,2))
+        copy(0,(0,0,1,1),16,(0,0,2,2))  # Captured direct RGB #112233.
+        wire(b'2sG00')
+        bar(7,(2,0,2,1))
+        # These RGB style colors exceed the index range after M08. Neither
+        # drawing nor fill source participates in destination inversion.
+        invert = b'X0000|X0200|B00010201'
+        wire(b'M18|c&&&&|S01&&&&|M08|W04|' + invert + b'|2s000')
+        present = copy_command(16,whole,0,(450,346,453,348))
+        frame = wire(palette_entry(248,0x204060) + b'|' + present)
+        samples = [(450,346),(451,346),(452,346),(450,347),(451,347),(452,347)]
+        assert [pixel(frame,x,y) for x,y in samples] == [0xeeddcc,0x112233,0x204060,
+                                                         0xeeddcc,0xeeddcc,0x204060]
+        frame = wire(palette_entry(248,0x406080))
+        assert [pixel(frame,x,y) for x,y in samples] == [0xeeddcc,0x112233,0x406080,
+                                                         0xeeddcc,0xeeddcc,0x406080]
+        frame = wire(b'X' + coords((450,346)))
+        assert pixel(frame,450,346) == 0x112233 and pixel(frame,450,347) == 0xeeddcc
+        frame = wire(b'2sG00|' + invert + b'|2s000|' + present + b'|W0')
+        assert [pixel(frame,x,y) for x,y in samples] == [0x112233,0x112233,0xaaaaaa]*2
+        values(b'$RESET(PAL,17)$')
+
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')
         wire(b'1C010103030|2s100')
         # Put the known samples in the captured tile independently of capture scaling.

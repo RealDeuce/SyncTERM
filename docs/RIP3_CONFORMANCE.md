@@ -10204,6 +10204,23 @@ raster. The new connected cases check both mixed operand orders, offscreen
 paste, palette changes, and indexed composition with RGB decoding active.
 [PR #232](https://github.com/bbs-land/remote-imaging-protocol/pull/232)
 
+## Destination inversion in drawing surfaces
+
+Drawing write mode `W04` complements the stored destination color. A direct
+RGB pixel keeps its representation and all 24 color bits participate. A
+palette index uses an eight-bit complement and reflects later palette edits.
+Two inversions restore the stored value, including an index or literal RGB
+black. `1P` mode 04 continues to complement the source image.
+
+Connected CP437 and UTF-8 tests apply `X` and `B` after switching the ENV back
+to palette mode with out-of-range source inks. They capture and invert mixed
+RGB and indexed pixels in an offscreen port, then invert a copied screen
+pixel. Live probes also confirmed that W01–W03 truncate a stored direct
+destination when the drawing source is indexed, and that W04 uses the old
+drawing pixel when terminal text has painted over it. The reference question
+covers mixed operands and the visible screen destination.
+[Issue #307](https://github.com/bbs-land/remote-imaging-protocol/issues/307)
+
 ## RGB port-copy composition
 
 `2C` modes `1`–`3` read the visible screen destination before applying

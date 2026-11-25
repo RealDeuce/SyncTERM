@@ -291,6 +291,29 @@ damage_test(void)
 }
 
 static int
+invert_destinations(void)
+{
+	struct st_rip3_surface *surface = NULL;
+	uint32_t original[] = {ST_PIXEL_COLOR_RGB_TAG | 0x123456, 0xa5, ST_PIXEL_COLOR_RGB_TAG};
+	const uint32_t inverted[] = {ST_PIXEL_COLOR_RGB_TAG | 0xedcba9, 0x5a,
+	    ST_PIXEL_COLOR_RGB_TAG | 0xffffff};
+	const struct st_pixel_buffer pixels = {.primary=original, .width=3, .height=1};
+	const struct st_rip3_rect row = {0,0,2,0};
+	CHECK(st_rip3_surface_create(&surface,3,1) == 0);
+	CHECK(st_rip3_surface_restore_raw(surface,&pixels) == 0);
+	for (unsigned pass = 0; pass < 2; ++pass) {
+		CHECK(st_rip3_surface_fill(surface,NULL,&row,255,ST_RIP3_NOT) == 0);
+		for (int32_t x = 0; x <= 2; ++x) {
+			uint32_t color;
+			CHECK(st_rip3_surface_read_color(surface,x,0,&color) == 0);
+			CHECK(color == (pass == 0 ? inverted[x] : original[x]));
+		}
+	}
+	st_rip3_surface_destroy(surface);
+	return 0;
+}
+
+static int
 black_clear(void)
 {
 	struct st_rip3_surface *surface=NULL,*copy=NULL,*saved=NULL;
@@ -346,6 +369,7 @@ main(void)
 	CHECK(surface_test() == 0);
 	CHECK(tiers_test() == 0);
 	CHECK(damage_test() == 0);
+	CHECK(invert_destinations() == 0);
 	CHECK(black_clear() == 0);
 	CHECK(button_inverse() == 0);
 	return 0;
