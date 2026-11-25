@@ -10,53 +10,86 @@ struct st_rip3_stream {
 	size_t length, capacity;
 	const char *fields;
 	struct st_rip3_stream_numbers numbers;
-	unsigned field_digits;
+	unsigned field_digits, level_digits;
 	uint8_t introducer, previous_text;
 	bool active, line_start, quoted, comment, discard_tail, continued, dropping, skip_lf;
+	bool last_backslash, prior_backslash, numeric_continuation;
 };
 
-/* Widths from the 3.0.7 fixed numeric descriptors (table RVA 0x80820).
- * x is XY, C is CM, and other widths are hexadecimal digits. NULL denotes
- * a string, variable-length, special collector or unsupported command. */
+/* Widths from the 3.0.7 descriptors (table RVA 0x80820). x is XY, C is CM,
+ * and literal widths are hexadecimal digits. T starts text, * repeats the
+ * preceding width, and ? leaves framing to a command-specific decoder. */
 static const char *const level_zero[128] = {
-	['#'] = "", ['&'] = "xx222", ['('] = "", [')'] = "", ['*'] = "",
+	['!'] = "T", ['"'] = "xxxx2T", ['#'] = "", ['&'] = "xx222",
+	['('] = "", [')'] = "", ['*'] = "",
 	['+'] = "xxxx222", [','] = "xxxxxxxxxx", ['-'] = "xxxx2", ['.'] = "xxxxxx",
-	[':'] = "xxxxxxxxxx1", [';'] = "xx2xx22", ['='] = "1142", ['>'] = "",
-	['A'] = "xx22x", ['B'] = "xxxx", ['C'] = "xxx", ['E'] = "", ['F'] = "",
+	[':'] = "xxxxxxxxxx1", [';'] = "xx2xx22", ['<'] = "22x*", ['='] = "1142", ['>'] = "",
+	['@'] = "xxT", ['A'] = "xx22x", ['B'] = "xxxx", ['C'] = "xxx", ['D'] = "2214*",
+	['E'] = "", ['F'] = "",
 	['G'] = "xxx", ['H'] = "", ['I'] = "xx22x", ['J'] = "2", ['K'] = "xxxx",
-	['L'] = "xxxx", ['M'] = "11", ['N'] = "2", ['O'] = "xx22xx",
-	['Q'] = "2222222222222222", ['R'] = "xxxx", ['S'] = "2C", ['U'] = "xxxxx",
+	['L'] = "xxxx", ['M'] = "11", ['N'] = "2", ['O'] = "xx22xx", ['P'] = "2x*",
+	['Q'] = "2222222222222222", ['R'] = "xxxx", ['S'] = "2C", ['T'] = "T", ['U'] = "xxxxx",
 	['V'] = "xx22xx", ['W'] = "2", ['X'] = "xx", ['Y'] = "2222", ['Z'] = "xxxxxxxx2",
 	['['] = "xxxx222", [']'] = "xxxx222", ['_'] = "xx22xx", ['`'] = "xxxxxxxxxx1",
 	['a'] = "22", ['b'] = "xxxx22143", ['c'] = "C", ['d'] = "214", ['e'] = "",
-	['f'] = "xx", ['g'] = "xx", ['i'] = "xx22xx", ['j'] = "xx", ['k'] = "C",
-	['m'] = "xx", ['n'] = "13", ['o'] = "xxxx", ['q'] = "2", ['s'] = "22222222C",
-	['u'] = "xxxxx", ['v'] = "xxxx", ['w'] = "222211", ['{'] = "xxxxxx",
+	['f'] = "xx", ['g'] = "xx", ['h'] = "?", ['i'] = "xx22xx", ['j'] = "xx", ['k'] = "C",
+	['l'] = "2x*", ['m'] = "xx", ['n'] = "13", ['o'] = "xxxx", ['p'] = "2x*", ['q'] = "2",
+	['r'] = "114T", ['s'] = "22222222C", ['t'] = "?", ['u'] = "xxxxx", ['v'] = "xxxx",
+	['w'] = "222211", ['x'] = "?", ['y'] = "11422222226T", ['z'] = "?", ['{'] = "xxxxxx",
 };
 static const char *const level_one[128] = {
+	[0x1b] = "112T",
 	['A'] = "24", ['B'] = "xx24222222222215", ['C'] = "xxxx1", ['E'] = "",
-	['G'] = "xxxx11x", ['K'] = "", ['P'] = "xx21", ['T'] = "xxxx11",
-	['c'] = "24", ['g'] = "xxxxxx11", ['i'] = "xxxx4c", ['k'] = "xxxx4",
+	['D'] = "32T", ['F'] = "24T", ['G'] = "xxxx11x", ['I'] = "xx11111T", ['K'] = "",
+	['M'] = "2xxxx1123T", ['P'] = "xx21", ['R'] = "26T", ['T'] = "xxxx11",
+	['U'] = "xxxx211T", ['W'] = "1T", ['b'] = "xxxx11224T", ['c'] = "24",
+	['e'] = "xxxx11428T", ['g'] = "xxxxxx11", ['i'] = "xxxx4c", ['k'] = "xxxx4",
+	['p'] = "4T", ['t'] = "1T", ['w'] = "13T",
 };
 static const char *const level_two[128] = {
+	[0x1b] = "4T",
 	['A'] = "12", ['B'] = "12", ['C'] = "1xxxx1xxxx15", ['E'] = "12",
-	['P'] = "1xxxx44", ['T'] = "12", ['Y'] = "12", ['p'] = "112", ['s'] = "12",
+	['P'] = "1xxxx44", ['R'] = "4T", ['T'] = "12", ['W'] = "1xxxx22T", ['Y'] = "12",
+	['p'] = "112", ['s'] = "12",
 };
+static const char *const level_nine[128] = {
+	[0x1b] = "11222T", ['D'] = "4T", ['G'] = "8T", ['R'] = "428T", ['U'] = "24",
+};
+
+static void
+report(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
+{
+	if (stream->sink.diagnostic != NULL)
+		stream->sink.diagnostic(stream->sink.context, kind);
+}
+
+static void
+reject_command(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
+{
+	stream->fields = NULL;
+	stream->dropping = true;
+	stream->discard_tail = true;
+	report(stream, kind);
+}
 
 static void
 start_fields(struct st_rip3_stream *stream, uint8_t level, uint8_t opcode)
 {
 	const char *fields = NULL;
-	if (opcode >= 128)
-		return;
-	switch (level) {
-	case 0: fields = level_zero[opcode]; break;
-	case '1': fields = level_one[opcode]; break;
-	case '2': fields = level_two[opcode]; break;
-	case '3': fields = opcode == 'D' ? "4" : opcode == 'e' ? "2" : NULL; break;
-	case '9': if (opcode == 'U') fields = "24"; break;
+	if (opcode < 128) {
+		switch (level) {
+		case 0: fields = level_zero[opcode]; break;
+		case '1': fields = level_one[opcode]; break;
+		case '2': fields = level_two[opcode]; break;
+		case '3': fields = opcode == 'D' ? "4" : opcode == 'e' ? "2" : NULL; break;
+		case '9': fields = level_nine[opcode]; break;
+		}
 	}
-	if (fields == NULL)
+	if (fields == NULL) {
+		reject_command(stream, ST_RIP3_STREAM_UNSUPPORTED_COMMAND);
+		return;
+	}
+	if (*fields == 'T' || *fields == '?')
 		return;
 	if (*fields == '\0') {
 		stream->discard_tail = true;
@@ -68,15 +101,13 @@ start_fields(struct st_rip3_stream *stream, uint8_t level, uint8_t opcode)
 		stream->sink.number_settings(stream->sink.context, &stream->numbers);
 	if (level == 0 && (opcode == 'J' || opcode == 'N'))
 		stream->numbers.base_math = 36;
-	else if (level == 0 && opcode == 'd')
+	else if (level == 0 && (opcode == 'd' || opcode == 'D' || opcode == 'y'))
 		stream->numbers.base_math = 64;
 }
 
-static void
+static bool
 collect_field(struct st_rip3_stream *stream, uint8_t byte)
 {
-	if (byte == '\\' && !stream->quoted)
-		return; /* Framing removes a continuation slash before the next digit. */
 	char field = *stream->fields;
 	const struct st_rip3_stream_numbers *numbers = &stream->numbers;
 	bool rgb = field == 'C' && numbers->direct_rgb;
@@ -85,28 +116,25 @@ collect_field(struct st_rip3_stream *stream, uint8_t byte)
 	    : field == 'C' ? (rgb ? 4 : 2) : field >= 'a' ? (unsigned)(field - 'a' + 10) : (unsigned)(field - '0');
 	bool digit = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z')
 	    || (ultra && ((byte >= 'a' && byte <= 'z') || byte == '#' || byte == '&'));
-	if (stream->quoted || (!digit && (byte != '.' || stream->field_digits != 0))) {
-		stream->fields = NULL;
-		return; /* The command decoder diagnoses a malformed field. */
+	if (!digit && (byte != '.' || stream->field_digits != 0)) {
+		reject_command(stream, ST_RIP3_STREAM_INVALID_COMMAND);
+		return false;
 	}
 	if (byte == '.' || ++stream->field_digits == width) {
 		stream->field_digits = 0;
-		stream->fields++;
+		if (stream->fields[1] != '*')
+			stream->fields++;
 		stream->discard_tail = *stream->fields == '\0';
+		if (*stream->fields == 'T')
+			stream->fields = NULL;
 	}
+	return true;
 }
 
 static bool
 line_end(uint8_t byte)
 {
 	return byte == '\r' || byte == '\n' || byte == '\f';
-}
-
-static void
-report(struct st_rip3_stream *stream, enum st_rip3_stream_diagnostic kind)
-{
-	if (stream->sink.diagnostic != NULL)
-		stream->sink.diagnostic(stream->sink.context, kind);
 }
 
 static void
@@ -124,17 +152,21 @@ clear_command(struct st_rip3_stream *stream)
 	stream->length = 0;
 	stream->fields = NULL;
 	stream->field_digits = 0;
+	stream->level_digits = 0;
 	stream->quoted = false;
 	stream->comment = false;
 	stream->discard_tail = false;
 	stream->continued = false;
 	stream->dropping = false;
+	stream->last_backslash = false;
+	stream->prior_backslash = false;
+	stream->numeric_continuation = false;
 }
 
 static void
 dispatch(struct st_rip3_stream *stream)
 {
-	if (!stream->dropping && stream->length != 0 && stream->sink.command != NULL)
+	if (!stream->dropping && stream->length > stream->level_digits && stream->sink.command != NULL)
 		stream->sink.command(stream->sink.context, stream->command, stream->length);
 	clear_command(stream);
 }
@@ -234,52 +266,65 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 		}
 
 		if (stream->active) {
+			/* Delimiter wait measures continuation against wire bytes,
+			 * including discarded suffix bytes and line endings. */
+			bool tail_continues = stream->last_backslash || stream->prior_backslash;
+			stream->prior_backslash = stream->last_backslash;
+			stream->last_backslash = byte == '\\';
 			if (line_end(byte)) {
-				if (stream->continued) {
-					/* The descriptor's delimiter wait skips only the first
-					 * two line-ending bytes after a backslash. */
-					if (stream->discard_tail)
-						stream->continued = false;
+				if (stream->discard_tail ? tail_continues
+				    : stream->continued || stream->numeric_continuation)
 					continue;
-				}
-				if (stream->quoted) {
+				if (!stream->discard_tail && stream->quoted) {
 					/* Only the continuation slash is removed. The
 					 * remaining even run stays quoted for later stages. */
-					if (!stream->dropping && !stream->discard_tail)
+					if (!stream->dropping)
 						stream->length--;
 					stream->quoted = false;
 					stream->continued = true;
+					continue;
 				}
-				else {
-					stream->skip_lf = byte == '\r';
-					dispatch(stream);
-					stream->active = false;
-					stream->line_start = true;
-					stream->previous_text = byte;
-				}
+				stream->skip_lf = byte == '\r';
+				dispatch(stream);
+				stream->active = false;
+				stream->line_start = true;
+				stream->previous_text = byte;
 				continue;
 			}
 			stream->continued = false;
-			/* Comments and completed fixed fields end at any pipe. */
+			/* Only string arguments can protect a pipe with a backslash. */
 			if (byte == '|' && (!stream->quoted || stream->comment || stream->discard_tail)) {
 				dispatch(stream);
 				continue;
 			}
-			if (stream->discard_tail) {
-				/* Retain the collected fields. The last suffix byte can
-				 * introduce a continuation regardless of slash parity. */
-				stream->quoted = byte == '\\';
+			if (stream->discard_tail)
 				continue;
-			}
-			if (!stream->dropping) {
-				if (stream->length == 0) {
-					stream->comment = byte == '!';
-					start_fields(stream, 0, byte);
+			bool opcode = stream->length == stream->level_digits;
+			if (!stream->dropping && (opcode || stream->fields != NULL)) {
+				if (byte == 0x7f)
+					continue;
+				stream->numeric_continuation = byte == '\\';
+				if (stream->numeric_continuation)
+					continue;
+				if (!opcode) {
+					if (collect_field(stream, byte))
+						append(stream, byte);
+					continue;
 				}
-				else if (stream->fields != NULL)
-					collect_field(stream, byte);
-				else if (stream->length == 1 && !stream->quoted && stream->command[0] != 0)
-					start_fields(stream, stream->command[0], byte);
+				if (byte >= '1' && byte <= '9') {
+					if (stream->level_digits == 9)
+						reject_command(stream, ST_RIP3_STREAM_UNSUPPORTED_COMMAND);
+					else
+						stream->level_digits++;
+				}
+				else if (stream->level_digits <= 1) {
+					stream->comment = stream->level_digits == 0 && byte == '!';
+					start_fields(stream, stream->level_digits == 0 ? 0 : stream->command[0], byte);
+				}
+				else
+					reject_command(stream, ST_RIP3_STREAM_UNSUPPORTED_COMMAND);
+				append(stream, byte);
+				continue;
 			}
 			if (stream->quoted && !stream->comment && (byte == '|' || byte == 1 || byte == 2)) {
 				/* These bytes were quoted for framing. Replace the stored

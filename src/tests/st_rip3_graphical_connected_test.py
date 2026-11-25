@@ -67,6 +67,11 @@ def run(args):
         frame = t.exchange(b'\x01|n2|M18|c0Fy0suffix\\|X1313|M08|c04|X1414\r\n')
         assert pixel(frame, 39, 39) == 0x00ff00 and pixel(frame, 40, 40) == 0xaa0000
         assert frame.application['connected'] == 1
+        t.case('rip3-malformed-numeric-prefix-preserves-following-drawing')
+        frame = t.exchange(b'\x01|1p0a00bad\\|c02|X1616|P010000 \x1b[!\\|c0C|X1717\r\n'
+                           + query(b'alive', at_cursor=True), b'alive')
+        assert pixel(frame, 42, 42) == 0x00aa00 and pixel(frame, 43, 43) == 0xff5555
+        assert frame.application['connected'] == 1
         t.exchange(b'\x01|E|Y00000100|c0F\r\n')
         t.case('rip3-graphical-builtins-and-ink')
         frame=t.exchange(b'\x01|m0A1E|T$RESX$\r\n'+query(b'$TEXTXY$',at_cursor=True),b'34:50')

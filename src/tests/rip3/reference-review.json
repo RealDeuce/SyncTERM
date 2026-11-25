@@ -26695,6 +26695,19 @@
         "version/3.0/ripscrip/2.3-shapes-and-fills.md:646",
         "version/3.0/ripscrip/9.0-command-reference.md:133"
       ]
+    },
+    {
+      "after_commit": "64e0eaa3f1462ae044e6b810750eb8a7bde555b6",
+      "revision": "434aef714f25207465eb35482489b0c8152244aa",
+      "scope": "Use the original ordinary numeric discard and continuation rules, recover from unsupported opcode prefixes and verify recovery in live sessions.",
+      "verified_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:143",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:145",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:147",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:207",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:213",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:250"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

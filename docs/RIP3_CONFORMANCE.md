@@ -10549,8 +10549,9 @@ Tests cover queries, drawing, expanded font names and resident mouse actions.
 The original RIPtel 3.1 collector dispatches `F` with zero arguments and
 an empty text tail. Its handler returns immediately. The RIPv3 stream
 discards the unused suffix, including any legacy coordinates, and accepts
-the next command at a pipe even when the pipe follows a backslash. A
-trailing backslash can skip up to two line terminators. The native split
+the next command at a pipe even when the pipe follows a backslash. Either
+of the two preceding wire bytes can be a backslash that suppresses a CR,
+LF or FF. The native split
 tests and connected CP437 and UTF-8 fixtures check framing, absence of
 fill ink and continued drawing after `F`.
 
@@ -10564,8 +10565,8 @@ The original parser enters the same delimiter state for all eleven
 descriptors with zero numeric fields and no text argument. SyncTERM now
 discards their suffixes in the stream parser. `#`, `(`, `)`, `*`, `>`,
 `E`, `e`, `F`, `H`, `1E` and `1K` run at the delimiter. A backslash
-immediately before a pipe leaves that pipe active. A backslash at a line
-ending permits continuation for up to two line-ending bytes.
+immediately before a pipe leaves that pipe active. The same two-byte
+continuation rule applies as for `F`.
 
 The original collector produced the same delimiter behavior in 66 wire
 cases. Native split-input tests cover all eleven descriptors, and the
@@ -10586,3 +10587,21 @@ the original collector confirmed the delimiter behavior in 288 cases across
 Base Math 36/64, coordinate widths 2/5 and both color modes. Native split-input
 tests and connected CP437 and UTF-8 tests cover field changes, binary surplus,
 continuation, and the drawing command after the delimiter.
+
+## Recovery from malformed numeric fields
+
+The stream parser validates ordinary numeric fields, including prefixes
+before text and repeated fields in commands such as `P`. A malformed
+field discards the command. The next pipe starts a new command even if
+the byte before it is a backslash. A backslash within numeric collection
+is removed, permitting a field to continue across a physical line break.
+Once a prefix reaches its text argument, a backslash can quote a pipe
+under the existing string framing rules.
+
+The opcode collector accepts up to nine level digits and looks up commands
+at the levels present in the driver. An unsupported command discards its
+body and clears its level key at the delimiter. This corrects RIPtel's
+stale-prefix defect. The descriptor layouts were checked against all 118
+opcode rows in the RIPtel driver table. Native tests split the inputs at
+every byte boundary. The connected CP437 and UTF-8 tests send malformed
+commands, then verify drawing and a query reply on the same connection.

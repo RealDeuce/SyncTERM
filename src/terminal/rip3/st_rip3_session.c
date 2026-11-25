@@ -264,7 +264,12 @@ user_diagnostic(void *context, enum st_rip3_user_variable_diagnostic kind)
 static void
 stream_diagnostic(void *context, enum st_rip3_stream_diagnostic kind)
 {
-	diagnose(context,kind==ST_RIP3_STREAM_RESOURCE_FAILURE ? ST_RIP3_COMMAND_RESOURCE_FAILURE : ST_RIP3_COMMAND_INVALID);
+	enum st_rip3_command_diagnostic reason = ST_RIP3_COMMAND_INVALID;
+	if (kind == ST_RIP3_STREAM_RESOURCE_FAILURE)
+		reason = ST_RIP3_COMMAND_RESOURCE_FAILURE;
+	else if (kind == ST_RIP3_STREAM_UNSUPPORTED_COMMAND)
+		reason = ST_RIP3_COMMAND_UNSUPPORTED;
+	diagnose(context, reason);
 }
 
 static void

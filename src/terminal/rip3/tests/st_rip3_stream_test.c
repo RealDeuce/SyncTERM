@@ -73,7 +73,7 @@ diagnostic(void *context, enum st_rip3_stream_diagnostic kind)
 
 static int
 example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_length,
-    const uint8_t *commands, size_t commands_length, size_t calls)
+    const uint8_t *commands, size_t commands_length, size_t calls, unsigned errors)
 {
 	/* Every single split, plus one-byte input, must produce the same literal
 	 * expected transcript. No output from the parser supplies expectations. */
@@ -90,7 +90,7 @@ example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_leng
 		}
 		else for (size_t i = 0; i < length; i++)
 			st_rip3_stream_process(stream, input + i, 1);
-		CHECK(!seen.overflow && seen.errors == 0 && seen.calls == calls);
+		CHECK(!seen.overflow && seen.errors == errors && seen.calls == calls);
 		CHECK(seen.text_length == tty_length && memcmp(seen.text, tty, tty_length) == 0);
 		CHECK(seen.command_length == commands_length
 		    && memcmp(seen.commands, commands, commands_length) == 0);
@@ -99,10 +99,11 @@ example(const uint8_t *input, size_t length, const uint8_t *tty, size_t tty_leng
 	return 0;
 }
 
-#define EXAMPLE(input, tty, commands, calls) \
+#define EXAMPLE_ERRORS(input, tty, commands, calls, errors) \
 	CHECK(example((const uint8_t *)(input), sizeof(input)-1, \
 	    (const uint8_t *)(tty), sizeof(tty)-1, \
-	    (const uint8_t *)(commands), sizeof(commands)-1, calls) == 0)
+	    (const uint8_t *)(commands), sizeof(commands)-1, calls, errors) == 0)
+#define EXAMPLE(input, tty, commands, calls) EXAMPLE_ERRORS(input, tty, commands, calls, 0)
 
 static int
 boundaries(void)
@@ -134,8 +135,9 @@ boundaries(void)
 	EXAMPLE("!|Tabc\\\r\n\f\nabc\\\ndef\\\fghi\r\n", "", "Tabcabcdefghi\0", 1);
 	EXAMPLE("text\f!|J10\f!|n2\n", "text\f", "J10\0n2\0", 2);
 	EXAMPLE("!|!$Name$\\|J10|!comment\\\r\ncontinued|n2\r", "", "!$Name$\\\0J10\0!commentcontinued\0n2\0", 4);
-	/* Levels, ESC command characters and host quoting stay opaque here. */
-	EXAMPLE("!|15Largs|1\x1b" "0000\\$Name\\$|123456789X0\r", "", "15Largs\0" "1\x1b" "0000\\$Name\\$\0" "123456789X0\0", 3);
+	/* Unknown levels do not poison the next known opcode or its string. */
+	EXAMPLE_ERRORS("!|15Largs\\|1\x1b" "0000\\$Name\\$|123456789X0\r", "",
+	    "1\x1b" "0000\\$Name\\$\0", 1, 2);
 	EXAMPLE("!|Tbefore\x1b[!after\r\n", "", "Tbefore\x1b[!after\0", 1);
 	EXAMPLE("!|F|c01\r\n!|F1E180F|c02\n!|Ffree form?\x1b[!|c03\fOK",
 	    "OK", "F\0c01\0F\0c02\0F\0c03\0", 6);
@@ -151,7 +153,7 @@ boundaries(void)
 	    "", "c01\0d0z84ZHM\0X0A0A\0", 3);
 	EXAMPLE("\x1b[31m\xc4\xb3\r!|@0000\xc4\xb3\r", "\x1b[31m\xc4\xb3\r", "@0000\xc4\xb3\0", 1);
 	EXAMPLE("\xc3\xa9\xe2\x94\x82\r!|@0000\xc3\xa9\xe2\x94\x82\r", "\xc3\xa9\xe2\x94\x82\r", "@0000\xc3\xa9\xe2\x94\x82\0", 1);
-	EXAMPLE("!|G\\\n00\f\n!|Z00\n!|unfinished", "\n", "G00\0Z00\0", 2);
+	EXAMPLE("!|G\\\n00\f\n!|Z00\n!|u000", "\n", "G00\0Z00\0", 2);
 	return 0;
 }
 
@@ -169,8 +171,28 @@ argumentless_commands(void)
 		CHECK(length > 0 && (size_t)length < sizeof(input));
 		CHECK(expected > 0 && (size_t)expected < sizeof(commands));
 		CHECK(example((const uint8_t *)input, (size_t)length, (const uint8_t *)"OK", 2,
-		    (const uint8_t *)commands, (size_t)expected, 5) == 0);
+		    (const uint8_t *)commands, (size_t)expected, 5, 0) == 0);
 	}
+	return 0;
+}
+
+static int
+numeric_recovery(void)
+{
+	EXAMPLE_ERRORS("!|c0.\033[!\\|c02|c0a\\|c03|c0-\\x\rdiscarded|c04\r\nOK", "OK",
+	    "c02\0c03\0c04\0", 3, 3);
+	EXAMPLE("!|c0\\1\\|c0\\\\|c0\\\r\n\f\n2|c04\r\n", "",
+	    "c01\0c0\0c02\0c04\0", 4);
+	EXAMPLE("!|F\\x\rdiscarded|c03\r\n!|c0\\1\r\nraw", "raw", "F\0c03\0c01\0", 3);
+	EXAMPLE_ERRORS("!|1p0a00filename\\|c01|P010000 \\|c02|D00008?\\|c03\r\n", "",
+	    "c01\0c02\0c03\0", 3, 3);
+	EXAMPLE("!|1p0000file\\|name|P010000\\|c02\r\n", "", "1p0000file|name\0P010000\0c02\0", 3);
+	EXAMPLE_ERRORS("!|?junk\\x\rdiscarded|c01|0X0000\\|c02\n", "", "c01\0c02\0", 2, 2);
+	EXAMPLE_ERRORS("!|123456789\\\r\n\f\nX0000\\|c01|1234567891\\x\rdiscarded|c02\r\n",
+	    "", "c01\0c02\0", 2, 2);
+	EXAMPLE("!|123456789|c01\r!|2\r\nOK", "OK", "c01\0", 1);
+	EXAMPLE("!|\177c0\1771|1\177K\r\n", "", "c01\0" "1K\0", 2);
+	EXAMPLE_ERRORS("!|c0\0ignored\\|c01|c0\377ignored\\|c02\r\n", "", "c01\0c02\0", 2, 2);
 	return 0;
 }
 
@@ -206,7 +228,7 @@ lifetime(void)
 	st_rip3_stream_reset(stream);
 	st_rip3_stream_process(stream, (const uint8_t *)"ok", 2);
 	CHECK(seen.text_length == 3 && memcmp(seen.text, "xok", 3) == 0);
-	st_rip3_stream_process(stream, (const uint8_t *)"\r!|unfinished", 13);
+	st_rip3_stream_process(stream, (const uint8_t *)"\r!|u000", sizeof("\r!|u000") - 1);
 	st_rip3_stream_destroy(stream);
 	CHECK(seen.calls == 3 && seen.errors == 2);
 	st_rip3_stream_reset(NULL);
@@ -302,6 +324,19 @@ scene_command(void *context, const uint8_t *bytes, size_t length)
 	st_rip3_commands_process(&scene->host, &sink, bytes, length);
 }
 
+static void
+scene_numbers(void *context, struct st_rip3_stream_numbers *numbers)
+{
+	struct scene *scene = context;
+	struct st_rip3_environment environment;
+	unsigned current;
+
+	if (st_rip3_environments_current(scene->host.environments, &current) == 0
+	    && st_rip3_environments_get(scene->host.environments, current, &environment) == 0)
+		*numbers = (struct st_rip3_stream_numbers){environment.base_math,
+		    environment.coordinate_size, environment.rgb_bits != 0};
+}
+
 static int
 noops(void)
 {
@@ -321,7 +356,8 @@ integration(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	static const uint8_t input[] = "!|!$NoExpansion$|(|(|)|)|J1S|n2000|fK0F0|a010&|a0F10|a020#\r\n"
 	    "!|fZK\\\r\nQO|J10|fZKQO|a0304\r";
 	struct scene scene = {0};
-	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command};
+	const struct st_rip3_stream_sink sink = {.context=&scene,.command=scene_command,
+	    .number_settings=scene_numbers};
 	struct st_rip3_stream *stream = NULL;
 	struct st_rip3_surface *surface = NULL;
 	struct st_rip3_palette palette;
@@ -363,9 +399,10 @@ main(void)
 	static const uint8_t wire[] = "!|h010000015004\\\r\n0220|#\fZ\r\n!|h01000000\nA";
 	static const uint8_t commands[] = "h0100000150040220\0#\0h01000000\0";
 	static const uint8_t ansi[] = "Z\r\nA";
-	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3)==0);
+	CHECK(example(wire, sizeof(wire)-1, ansi, sizeof(ansi)-1, commands, sizeof(commands)-1, 3, 0)==0);
 	CHECK(boundaries() == 0);
 	CHECK(argumentless_commands() == 0);
+	CHECK(numeric_recovery() == 0);
 	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);
