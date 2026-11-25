@@ -26792,6 +26792,36 @@
       "source_units_awaiting_clarification": [
         "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:482"
       ]
+    },
+    {
+      "after_commit": "0df3bc18ded6f72d5eda0df9a0b871bfb013171f",
+      "revision": "cedb7e1a40c084d11237e821f42709386dedd2b6",
+      "scope": "Route bare RESET to RIPv3 SOFT and implement documented STYLE reset selectors with the original definition and protection lifecycle.",
+      "issues": [
+        "https://github.com/bbs-land/remote-imaging-protocol/issues/283"
+      ],
+      "verified_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2803",
+        "version/3.0/ripscrip/5.1-text-variables.md:2807",
+        "version/3.0/ripscrip/5.1-text-variables.md:3003",
+        "version/3.0/ripscrip/5.1-text-variables.md:3007",
+        "version/3.0/ripscrip/5.1-text-variables.md:3008",
+        "version/3.0/ripscrip/5.1-text-variables.md:3009",
+        "version/3.0/ripscrip/5.1-text-variables.md:3010",
+        "version/3.0/ripscrip/5.1-text-variables.md:3011",
+        "version/3.0/ripscrip/5.1-text-variables.md:3012",
+        "version/3.0/ripscrip/5.1-text-variables.md:3013",
+        "version/3.0/ripscrip/5.1-text-variables.md:3014",
+        "version/3.0/ripscrip/5.1-text-variables.md:3015",
+        "version/3.0/ripscrip/5.1-text-variables.md:3017"
+      ],
+      "source_units_awaiting_clarification": [
+        "version/3.0/ripscrip/5.1-text-variables.md:3073",
+        "version/3.0/ripscrip/5.1-text-variables.md:3077",
+        "version/3.0/ripscrip/5.1-text-variables.md:3078",
+        "version/3.0/ripscrip/5.1-text-variables.md:3079",
+        "version/3.0/ripscrip/5.1-text-variables.md:3085"
+      ]
     }
   ],
   "archive_format": "git archive --format=tar"

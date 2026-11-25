@@ -10628,3 +10628,28 @@ In a text argument the character stays literal, and at a typed selector
 boundary it discards the command. Tests cover a live coordinate-width
 change, a compact header that selects a drawing style, receive splits,
 and recovery when padding cannot allocate space.
+
+## Bare RESET and the STYLE reset family
+
+Bare `$RESET$` uses the RIP3 SOFT reset and returns no text. The connected
+fixture verifies the full-screen clear, palette selection and clipboard
+deletion through this entry point.
+
+`RESET(STYLE)` and `RESET(STYLE,CUR)` restore and define the selected
+style. Numeric and table resets default the same record but clear its
+nonzero definition without moving the selection. A selected record with
+its definition cleared still supplies ink and accepts drawing-state
+commands. A protected entry retains its record and reports the failed
+reset while the remaining valid selectors continue.
+
+STYLE backup selectors use the same family backup routines as SGS and
+RGS. A live reset leaves backups alone. `ALL` also clears the base, stack
+and unprotected numbered saves. The native test checks status, protection
+and backups. Connected CP437 and UTF-8 tests verify the resulting ink and
+the independence of STYLE from PORT, ENV, PAL and text-window selection.
+
+RIPtel's live ENV reset changes stored values while retaining its active
+parser settings. The documentation follow-up tracks that distinction and
+the original handling of unrecognized selectors. SyncTERM currently
+validates the full STYLE selector list before applying any of it.
+[Issue #283](https://github.com/bbs-land/remote-imaging-protocol/issues/283)

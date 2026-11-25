@@ -4,6 +4,7 @@
 #include "st_rip3_backup.h"
 #include "st_rip3_palettes.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_styles.h"
 #include "io_error.h"
 
 #include <stdio.h>
@@ -157,6 +158,67 @@ palette_objects(void)
 	return 0;
 }
 
+static void
+reset_failure(void *context, int status)
+{
+	unsigned *failures = context;
+	if (status == IO_ERROR_PERMISSION_DENIED)
+		(*failures)++;
+}
+
+static int
+style_reset(void)
+{
+	unsigned failures = 0;
+	struct st_rip3_table_host host = {
+		.operation_context = &failures, .operation_failed = reset_failure
+	};
+	struct st_rip3_styles *styles = NULL;
+	struct st_rip3_backup *backup = NULL;
+	struct st_rip3_style style, current;
+	struct st_rip3_style_info info;
+
+	CHECK(st_rip3_style_defaults(&style) == 0 && st_rip3_styles_create(&styles, &style) == 0);
+	CHECK(st_rip3_styles_backup_create(&backup) == 0);
+	host.tables[ST_RIP3_TABLE_STYLE] = (struct st_rip3_table_binding){styles, backup};
+	style.drawing_color = 4;
+	CHECK(st_rip3_styles_define(styles, 5, &style) == 0);
+	style.drawing_color = 2;
+	CHECK(st_rip3_styles_define(styles, 7, &style) == 0);
+	CHECK(run(&host, "$PROT(STYLE,7)$", 0, "") == 0);
+	CHECK(run(&host, "$CUR(STYLE,5)$", 0, "") == 0);
+	CHECK(run(&host, "$RESET(STYLE,7,5)$", 0, "") == 0 && failures == 1);
+	CHECK(run(&host, "$CUR(STYLE)$", 0, "5") == 0);
+	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "0") == 0);
+	CHECK(run(&host, "$ISPROT(STYLE,5)$", 0, "-1") == 0);
+	CHECK(st_rip3_styles_get(styles, 5, &current) == 0 && current.drawing_color == 15);
+	CHECK(st_rip3_styles_get(styles, 7, &current) == 0 && current.drawing_color == 2);
+	CHECK(st_rip3_styles_set(styles, 5, &style) == 0);
+	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "0") == 0);
+	CHECK(run(&host, "$RESET(STYLE)$", 0, "") == 0);
+	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "1") == 0);
+	CHECK(st_rip3_styles_get(styles, 5, &current) == 0 && current.drawing_color == 15);
+
+	CHECK(run(&host, "$SGS$", 0, "") == 0);
+	CHECK(run(&host, "$SGS(3)$", 0, "") == 0);
+	CHECK(run(&host, "$SGS(4)$", 0, "") == 0);
+	CHECK(run(&host, "$SGS(PUSH)$", 0, "") == 0);
+	CHECK(run(&host, "$PROT(STYLE,S3)$", 0, "") == 0);
+	CHECK(run(&host, "$RESET(STYLE,ALL)$", 0, "") == 0 && failures == 2);
+	CHECK(run(&host, "$CUR(STYLE)$", 0, "5") == 0);
+	CHECK(st_rip3_styles_info(styles, 0, &info) == 0 && info.defined && !info.protected);
+	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "0") == 0);
+	CHECK(run(&host, "$ISPROT(STYLE,7)$", 0, "1") == 0);
+	CHECK(run(&host, "$INUSE(STYLE,S3)$", 0, "1") == 0);
+	CHECK(run(&host, "$INUSE(STYLE,S4)$", 0, "0") == 0);
+	CHECK(run(&host, "$INUSE(STYLE,BASE)$", 0, "0") == 0);
+	CHECK(run(&host, "$INUSE(STYLE,STACK)$", 0, "0") == 0);
+
+	st_rip3_backup_destroy(backup);
+	st_rip3_styles_destroy(styles);
+	return 0;
+}
+
 static int
 port_objects(enum st_rip3_canvas canvas, int32_t width, int32_t height)
 {
@@ -190,6 +252,7 @@ int
 main(void)
 {
 	CHECK(palette_objects() == 0);
+	CHECK(style_reset() == 0);
 	CHECK(port_objects(ST_RIP3_CANVAS_640_480, 640, 480) == 0);
 	CHECK(port_objects(ST_RIP3_CANVAS_800_600, 800, 600) == 0);
 	CHECK(port_objects(ST_RIP3_CANVAS_1024_768, 1024, 768) == 0);

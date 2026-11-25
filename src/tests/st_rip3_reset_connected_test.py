@@ -112,7 +112,7 @@ def run(args, width, height):
         assert not frame.metadata["pixel_cursor_visible"]
         values(b"$CUR(TW,0)$$UNPROT(PORT,1)$$UNPROT(PAL,5)$")
         t.case(f"rip3-reset-macro-and-clipboard-deletion-{width}x{height}")
-        frame = values(b"$RESET(SOFT)$$CUR(PAL)$:$INUSE(PAL,5)$alive", b"5:0alive")
+        frame = values(b"$RESET$$CUR(PAL)$:$INUSE(PAL,5)$alive", b"5:0alive")
         black(frame)
         # Defining the old clipboard number must not recreate its assignment.
         frame = capture(b"\x01|2P100000G0G1|2s100|S0101|B00000505|2s000|1P2S2S0\r\n")

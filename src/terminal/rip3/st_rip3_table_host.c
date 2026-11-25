@@ -516,6 +516,21 @@ table_reset(const struct st_rip3_table_host *host,const struct st_rip3_table_bin
 			else if (kind==RESET_ENTRY) status=st_rip3_button_styles_reset_entry(binding->live,index);
 			else if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_button_styles_reset_table(binding->live);
 		}
+		else if (type == ST_RIP3_TABLE_STYLE && (kind == RESET_CURRENT || kind == RESET_ENTRY
+		    || kind == RESET_TABLE || kind == RESET_ALL)) {
+			if (kind == RESET_CURRENT)
+				status = st_rip3_styles_current(binding->live, &index);
+			bool table = kind == RESET_TABLE || kind == RESET_ALL;
+			unsigned first = table ? 0 : index;
+			unsigned end = table ? 36 : index + 1;
+			if (status == 0) {
+				for (unsigned number = first; number < end; number++) {
+					int failure = st_rip3_styles_reset_entry(binding->live, number, kind == RESET_CURRENT);
+					if (failure != 0 && host->operation_failed != NULL)
+						host->operation_failed(host->operation_context, failure);
+				}
+			}
+		}
 		else if (type==ST_RIP3_TABLE_PAL) {
 			if (kind==RESET_CURRENT) status=st_rip3_palettes_current(binding->live,&index);
 			if (status==0 && (kind==RESET_ENTRY || kind==RESET_CURRENT))
@@ -704,15 +719,14 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		return screen_action(host,reference,false,reference->name[7]-'0',result,capacity);
 	if (strcmp(reference->name,"RESET")==0) {
 		if (capacity==0) return IO_ERROR_OUT_OF_RANGE;
-		if (reference->count==0) return IO_ERROR_NOT_SUPPORTED;
-		const char *scope = reference->parameters[0].text;
+		const char *scope = reference->count == 0 ? "SOFT" : reference->parameters[0].text;
 		if (equal(scope, "CHARSET")) {
 			status = reset_charset(host, reference);
 			if (status == 0) result[0] = 0;
 			return status;
 		}
 		if (equal(scope, "SOFT") || equal(scope, "HARD")) {
-			if (reference->count!=1) return IO_ERROR_INVALID_FORMAT;
+			if (reference->count>1) return IO_ERROR_INVALID_FORMAT;
 			int (*reset)(void *) = equal(scope, "HARD") ? host->hard_reset : host->soft_reset;
 			if (reset==NULL) return IO_ERROR_NOT_SUPPORTED;
 			status=reset(host->reset_context);
@@ -725,7 +739,8 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 			return status;
 		}
 		enum st_rip3_table_type reset_type;bool viewport=false;
-		if (equal(reference->parameters[0].text,"BUT")) reset_type=ST_RIP3_TABLE_BUT;
+		if (equal(scope,"BUT")) reset_type=ST_RIP3_TABLE_BUT;
+		else if (equal(scope,"STYLE")) reset_type=ST_RIP3_TABLE_STYLE;
 		else if (equal(reference->parameters[0].text,"PAL")) reset_type=ST_RIP3_TABLE_PAL;
 		else if (equal(reference->parameters[0].text,"MOUSE")) reset_type=ST_RIP3_TABLE_MOUSE;
 		else if (equal(reference->parameters[0].text,"SCREEN")) reset_type=ST_RIP3_TABLE_SCREEN;

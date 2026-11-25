@@ -66,11 +66,13 @@ void st_rip3_styles_destroy(struct st_rip3_styles *styles);
 int st_rip3_styles_current(const struct st_rip3_styles *styles, unsigned *result);
 int st_rip3_styles_info(const struct st_rip3_styles *styles,
 	unsigned number, struct st_rip3_style_info *result);
+/* The selected record stays usable by drawing consumers after its numeric
+ * reset clears definition. Use info() for definition/protection queries. */
 int st_rip3_styles_get(const struct st_rip3_styles *styles,
 	unsigned number, struct st_rip3_style *result);
 /* Validate the complete supplied value before creating/replacing an entry.
- * Definition does not select it. Protected entries reject edits. Set requires
- * an already-defined entry. Errors preserve the table, selection and outputs. */
+ * Definition does not select it. Protected entries reject edits. Set changes
+ * a defined or selected record and leaves its definition unchanged. */
 int st_rip3_styles_define(struct st_rip3_styles *styles,
 	unsigned number, const struct st_rip3_style *value);
 int st_rip3_styles_set(struct st_rip3_styles *styles,
@@ -85,6 +87,9 @@ int st_rip3_styles_protect(struct st_rip3_styles *styles, unsigned number, bool 
  * Duplicate destinations are allowed; self-copy and protected targets fail. */
 int st_rip3_styles_copy_entries(struct st_rip3_styles *styles, unsigned source,
 	const unsigned *destinations, size_t count);
+/* A CUR reset defines the selected record; an explicit number clears its
+ * definition except at zero. Selection and backup state stay unchanged. */
+int st_rip3_styles_reset_entry(struct st_rip3_styles *styles, unsigned number, bool current_form);
 /* Outer SOFT defaults unprotected records, clears nonzero in-use flags and
  * selects zero. All protected configuration and independent backups survive. */
 int st_rip3_styles_soft_reset(struct st_rip3_styles *styles);

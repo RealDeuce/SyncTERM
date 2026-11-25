@@ -88,6 +88,18 @@ def run(args,width,height):
         values(b'$CUR(BUT)$:$INUSE(BUT,9)$$INUSE(BUT,10)$',b'9:00')
         independent_state(client.capture())
         values(b'$COPY(STYLE,5)$');values(b'$COPY(BUT,5,CUR,36)$')
+
+        t.case(f'rip3-style-reset-live-record-and-defined-flag-{width}x{height}')
+        values(b'$CUR(STYLE,9)$')
+        wire(b'c02')
+        values(b'$RESET(STYLE,5,9)$$CUR(STYLE)$:$INUSE(STYLE,9)$:$ISPROT(STYLE,5)$', b'9:0:1')
+        frame = wire(b'X1414|c02|X1514')
+        assert pixel(frame, 40, 40) == 0xffffff and pixel(frame, 41, 40) == 0x00aa00
+        values(b'$INUSE(STYLE,9)$', b'0')
+        values(b'$RESET(STYLE,CUR)$$CUR(STYLE)$:$INUSE(STYLE,9)$', b'9:1')
+        frame = wire(b'X1614')
+        assert pixel(frame, 42, 40) == 0xffffff
+        independent_state(frame)
         values(b'alive',b'alive')
         assert client.capture().application['connected']==1
 

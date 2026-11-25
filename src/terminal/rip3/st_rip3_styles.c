@@ -51,13 +51,26 @@ st_rip3_style_defaults(struct st_rip3_style *result)
 }
 
 int
+st_rip3_styles_reset_entry(struct st_rip3_styles *styles, unsigned number, bool current_form)
+{
+	if (styles == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct style_entry *entry = &styles->entries[number];
+	if (entry->info.protected)
+		return IO_ERROR_PERMISSION_DENIED;
+	(void)st_rip3_style_defaults(&entry->value);
+	entry->info.defined = number == 0 || current_form;
+	return 0;
+}
+
+int
 st_rip3_styles_soft_reset(struct st_rip3_styles *styles)
 {
 	if (styles==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	for (unsigned i=0;i<36;i++) if (!styles->entries[i].info.protected) {
-		(void)st_rip3_style_defaults(&styles->entries[i].value);
-		styles->entries[i].info.defined=i==0;
-	}
+	for (unsigned i = 0; i < 36; i++)
+		(void)st_rip3_styles_reset_entry(styles, i, false);
 	styles->current=0;return 0;
 }
 
@@ -112,36 +125,41 @@ st_rip3_styles_get(const struct st_rip3_styles *styles, unsigned number, struct 
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (number >= 36)
 		return IO_ERROR_OUT_OF_RANGE;
-	if (!styles->entries[number].info.defined)
+	if (!styles->entries[number].info.defined && number != styles->current)
 		return IO_ERROR_NOT_FOUND;
 	*result = styles->entries[number].value;
+	return 0;
+}
+
+static int
+set_entry(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_style *value, bool define)
+{
+	if (styles == NULL || value == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct style_entry *entry = &styles->entries[number];
+	if (!define && !entry->info.defined && number != styles->current)
+		return IO_ERROR_NOT_FOUND;
+	if (!valid(value))
+		return IO_ERROR_OUT_OF_RANGE;
+	if (entry->info.protected)
+		return IO_ERROR_PERMISSION_DENIED;
+	entry->value = *value;
+	entry->info.defined |= define;
 	return 0;
 }
 
 int
 st_rip3_styles_define(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_style *value)
 {
-	if (styles == NULL || value == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (number >= 36 || !valid(value))
-		return IO_ERROR_OUT_OF_RANGE;
-	if (styles->entries[number].info.protected)
-		return IO_ERROR_PERMISSION_DENIED;
-	styles->entries[number].value = *value;
-	styles->entries[number].info.defined = true;
-	return 0;
+	return set_entry(styles, number, value, true);
 }
 
 int
 st_rip3_styles_set(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_style *value)
 {
-	if (styles == NULL || value == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (number >= 36)
-		return IO_ERROR_OUT_OF_RANGE;
-	if (!styles->entries[number].info.defined)
-		return IO_ERROR_NOT_FOUND;
-	return st_rip3_styles_define(styles, number, value);
+	return set_entry(styles, number, value, false);
 }
 
 int
