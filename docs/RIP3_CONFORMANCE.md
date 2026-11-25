@@ -7573,6 +7573,13 @@ callback's FIELDID and movement point. Both simple fields and mouse buttons
 participate; anonymous fields do not. Click press/release and keyboard capture
 remain independent, including movement while a button is held.
 
+The live dispatcher passes mode 5 and 6 definitions to the hover owner with
+both the prefix and suffix intact. The owner stores only the bytes before the
+first NUL, checks the 1023-byte limit on that prefix, and applies the exact
+`$OFF$` sentinel there. An empty prefix retains the previous definition. The
+wire delimiter still ends the command and permits another command on the
+same RIP line.
+
 A bounded event snapshot stores stable instance tokens, not pointers into a
 mutable field array. Deleted instances are skipped, new/reused-ID fields wait
 for the next movement, and a dispatched callback owns its source through

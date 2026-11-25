@@ -75,6 +75,18 @@ def run(args,width,height):
         move(90,90,b'X8;X7;');move(30,30,b'A'*2046)
         t.exchange(resident(5,b'E$FIELDID$;'))
         move(90,90,b'X8;X7;')
+        t.case('rip3-hover-definition-uses-first-nul')
+        t.exchange(resident(5,b'N$FIELDID$;\0'+b'A'*1024)
+                   +resident(6,b'\0replacement'))
+        move(30,30,b'N8;N7;')
+        move(90,90,b'X8;X7;')
+        # Exact sentinel before the NUL clears the entry expression. The
+        # following exit definition still dispatches on the same RIP line.
+        t.exchange(b'\x01|1\x1b5000$oFf$\0ignored|1\x1b6000Q$FIELDID$;\0ignored\r\n')
+        move(30,30)
+        move(90,90,b'Q8;Q7;')
+        t.exchange(b'\x01|1\x1b0000skip\0ignored|1\x1b0000alive\r\n',b'alive')
+        t.exchange(resident(6,b'X$FIELDID$;'))
         t.case('rip3-hover-handler-failure-stays-inside-parser')
         t.exchange(resident(5,b'$RAND("bad")$'))
         move(30,30)  # rejected handlers send nothing and do not end the session

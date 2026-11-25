@@ -246,6 +246,10 @@ host_query(const struct st_rip3_command_host *host,
 		status = st_rip3_command_next_field(&fields,NULL,2,environment.base_math,false);
 	if (status != 0)
 		return status;
+	/* The hover owner interprets its stored source as a C-string prefix.
+	 * Other query sources retain the command-level embedded-NUL rejection. */
+	if (mode != 5 && mode != 6 && memchr(fields.bytes, 0, fields.remaining) != NULL)
+		return IO_ERROR_INVALID_FORMAT;
 	if (mode>6) return IO_ERROR_NOT_SUPPORTED;
 	*operation=true;
 	if (mode==1 || mode==3) {
@@ -481,6 +485,8 @@ execute(const struct st_rip3_command_host *host,
 	*operation = false;
 	if (host == NULL || command == NULL || length == 0 || length == SIZE_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
+		return host_query(host,command,length,operation);
 	if (memchr(command, 0, length) != NULL)
 		return IO_ERROR_INVALID_FORMAT;
 	if (length >= 2 && command[0] == '3' && command[1] == 'e') {
@@ -531,8 +537,6 @@ execute(const struct st_rip3_command_host *host,
 		*operation = true;
 		return st_rip3_refresh_define(host->refresh, fields.bytes, fields.remaining);
 	}
-	if (length >= 2 && command[0] == '1' && command[1] == 0x1b)
-		return host_query(host,command,length,operation);
 	if (length >= 2 && (command[0] == '1' || command[0] == '2') && command[1] == 'W')
 		return st_rip3_bitmap_commands_execute(host,command,length,operation);
 	if (length >= 2 && command[0] == '1' && (command[1] == 'G' || command[1] == 'g'))
