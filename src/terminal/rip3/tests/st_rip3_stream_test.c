@@ -225,6 +225,16 @@ numeric_terminator(void)
 }
 
 static int
+resource_retrieval(void)
+{
+	EXAMPLE_ERRORS("!|9D0|9D12.panel|9D1<panel|9D1234PANEL.BMP|9D.PANEL.BMP\r\nraw",
+	    "raw", "9D1234PANEL.BMP\0" "9D.PANEL.BMP\0", 2, 3);
+	EXAMPLE("!|9DABC\\\r\nZpa\\|nel|9D.$&NAME$\r\n", "",
+	    "9DABCZpa|nel\0" "9D.$&NAME$\0", 2);
+	return 0;
+}
+
+static int
 lifetime(void)
 {
 	struct observation seen = {0};
@@ -422,6 +432,7 @@ main(void)
 	CHECK(numeric_recovery() == 0);
 	CHECK(typed_records() == 0);
 	CHECK(numeric_terminator() == 0);
+	CHECK(resource_retrieval() == 0);
 	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);

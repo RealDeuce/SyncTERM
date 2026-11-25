@@ -178,6 +178,12 @@ st_rip3_mouse_count(const struct st_rip3_mouse *mouse)
 	return mouse==NULL ? 0 : mouse->count;
 }
 
+bool
+st_rip3_mouse_full(const struct st_rip3_mouse *mouse)
+{
+	return mouse != NULL && mouse->count == sizeof(mouse->fields) / sizeof(mouse->fields[0]);
+}
+
 int
 st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
     const struct st_rip3_mouse_binding *binding, const struct st_rip3_rect *area,
@@ -188,7 +194,7 @@ st_rip3_mouse_define(struct st_rip3_mouse *mouse, enum st_rip3_mouse_kind kind,
 	if (kind!=ST_RIP3_MOUSE_SIMPLE && kind!=ST_RIP3_MOUSE_BUTTON) return IO_ERROR_INVALID_ARGUMENT;
 	if (identity<-1 || identity>32767 || area->x0<0 || area->y0<0 || area->x1<=area->x0 || area->y1<=area->y0)
 		return IO_ERROR_OUT_OF_RANGE;
-	if (mouse->count==128 || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
+	if (st_rip3_mouse_full(mouse) || length>SIZE_MAX-sizeof(struct field)) return IO_ERROR_OUT_OF_RANGE;
 	if (mouse->sequence==UINT64_MAX) return IO_ERROR_OUT_OF_RANGE;
 	if (visual!=NULL && (kind!=ST_RIP3_MOUSE_BUTTON || visual->select==NULL || visual->destroy==NULL)) return IO_ERROR_INVALID_ARGUMENT;
 	if (invert && visual==NULL && mouse->sink.invert==NULL) return IO_ERROR_NOT_SUPPORTED;

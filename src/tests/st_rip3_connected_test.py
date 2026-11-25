@@ -344,6 +344,19 @@ Hook.onKey(Key.f9) {|event|
             assert all(pixel(frame, x, y) == 0x0000a8 for y in range(8) for x in range(8, 16))
             assert frame.application["connected"] == 1
 
+            t.case("rip3-resource-retrieval-is-a-literal-lookup")
+            shared = root / "RIP"
+            shared.mkdir(exist_ok=True)
+            (shared / "Lookup.RIP").write_bytes(query(b"$-=LOOKUP=played$"))
+            frame = t.exchange(
+                query(b"$-=LOOKUP=idle$")
+                + b"\x01|9D0000LOOKUP.RIP|9D.MISSING.RIP|9D12.BAD|9D0<bad|c0A|X0909\r\n"
+                + query(b"$&LOOKUP$", at_cursor=True),
+                b"idle",
+            )
+            assert pixel(frame, width * 9 // 10, height * 9 // 10) == 0x55ff55
+            t.exchange(b"\x01|1R00000000LOOKUP.RIP\r\n" + query(b"$&LOOKUP$", at_cursor=True), b"played")
+
         t.case("rip3-connected-ansi-and-repeated-graphics-paint")
         # Restore one-to-one geometry and paint a small black rectangle over
         # later ANSI ink. Repeating COPY black must still publish damage even

@@ -25,7 +25,8 @@ struct st_rip3_stream {
 };
 
 /* Widths from the 3.0.7 descriptors (table RVA 0x80820). x is XY, C is CM,
- * and literal widths are hexadecimal digits. T starts text, * repeats the
+ * R is a required four-digit reserve, and literal widths are hexadecimal
+ * digits. T starts text, * repeats the
  * preceding width. Typed lists continue with literal selectors after the
  * initial widths and after each complete record. */
 static const char *const level_zero[128] = {
@@ -63,7 +64,7 @@ static const char *const level_two[128] = {
 	['p'] = "112", ['s'] = "12",
 };
 static const char *const level_nine[128] = {
-	[0x1b] = "11222T", ['D'] = "4T", ['G'] = "8T", ['R'] = "428T", ['U'] = "24",
+	[0x1b] = "11222T", ['D'] = "RT", ['G'] = "8T", ['R'] = "428T", ['U'] = "24",
 };
 
 static void append(struct st_rip3_stream *stream, uint8_t byte);
@@ -174,8 +175,9 @@ collect_field(struct st_rip3_stream *stream, uint8_t byte)
 	bool rgb = field == 'C' && stream->direct_rgb;
 	bool ultra = rgb || stream->base_math == 64;
 	unsigned width = field == 'x' ? stream->coordinate_width
-	    : field == 'C' ? (rgb ? 4 : 2) : field >= 'a' ? (unsigned)(field - 'a' + 10) : (unsigned)(field - '0');
-	bool short_field = byte == '<';
+	    : field == 'C' ? (rgb ? 4 : 2) : field == 'R' ? 4
+	    : field >= 'a' ? (unsigned)(field - 'a' + 10) : (unsigned)(field - '0');
+	bool short_field = byte == '<' && field != 'R';
 	bool digit = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z')
 	    || (ultra && ((byte >= 'a' && byte <= 'z') || byte == '#' || byte == '&'));
 	if (short_field) {
@@ -234,8 +236,12 @@ clear_command(struct st_rip3_stream *stream)
 static void
 dispatch(struct st_rip3_stream *stream)
 {
-	if (!stream->dropping && stream->length > stream->level_digits && stream->sink.command != NULL)
-		stream->sink.command(stream->sink.context, stream->command, stream->length);
+	if (!stream->dropping) {
+		if (stream->fields != NULL && *stream->fields == 'R')
+			report(stream, ST_RIP3_COMMAND_INVALID);
+		else if (stream->length > stream->level_digits && stream->sink.command != NULL)
+			stream->sink.command(stream->sink.context, stream->command, stream->length);
+	}
 	clear_command(stream);
 }
 

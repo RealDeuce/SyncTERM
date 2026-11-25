@@ -1719,3 +1719,17 @@ scene keyboard gate.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/deb6f3aa1742ed013c460e1cf33cb4186e272b19),
 [PR #293](https://github.com/bbs-land/remote-imaging-protocol/pull/293)
+
+## Wire delay, resource retrieval and live mouse occupancy
+
+The reference advances to `4dc79277a521acd92df258c836e4d067456f8327`.
+The Git archive has SHA-256
+`ec904621d30b3cb099079de1f00c0f25b84dff7b42aa75bfb68b2f9c705f6c05`.
+The adoption record preserves the three reviewed heads and their matching
+stable integration trees. The changed chapters document live `3D` delay,
+the standalone `9D` lookup, and the live MOUSE `INUSE` predicates.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/4dc79277a521acd92df258c836e4d067456f8327),
+[PR #294](https://github.com/bbs-land/remote-imaging-protocol/pull/294),
+[PR #295](https://github.com/bbs-land/remote-imaging-protocol/pull/295),
+[PR #296](https://github.com/bbs-land/remote-imaging-protocol/pull/296)

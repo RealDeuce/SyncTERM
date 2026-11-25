@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-deb6f3aa1742ed013c460e1cf33cb4186e272b19](https://github.com/RealDeuce/remote-imaging-protocol/tree/deb6f3aa1742ed013c460e1cf33cb4186e272b19/version/3.0)
+4dc79277a521acd92df258c836e4d067456f8327](https://github.com/RealDeuce/remote-imaging-protocol/tree/4dc79277a521acd92df258c836e4d067456f8327/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10717,11 +10717,9 @@ The RIP3 input gate queues drawing commands and raw terminal bytes behind
 `3D` and resumes them in order. Native mock-clock tests cover sixtieths,
 both active radices, and malformed fields. The connected CP437 and UTF-8
 tests verify a nonzero Base Math 64 delay followed by a plot, ANSI text,
-and replies on the same connection.
-
-The original RIPtel 3.1 handler remains present and uses sixtieths of a
-second. The command chapter and index still imply it was superseded.
-[Issue #290](https://github.com/bbs-land/remote-imaging-protocol/issues/290)
+and replies on the same connection. The updated reference records both
+the live wire command and the separate macro delay.
+[PR #294](https://github.com/bbs-land/remote-imaging-protocol/pull/294)
 
 ## Current table protection
 
@@ -10732,10 +10730,22 @@ later selectors. Native and connected CP437 and UTF-8 tests cover the
 undefined-current distinction and a TW request that targets zero, a live
 nonzero window, and a saved slot together.
 
-The reference omits the original `9D` resource retrieval command. Its DLL
-handler can reach an optional frontend callback after resource lookup.
-[Issue #291](https://github.com/bbs-land/remote-imaging-protocol/issues/291)
+## Resource retrieval
 
-RIPtel's live MOUSE `INUSE` aggregates return zero. The portable grammar
-still needs to specify whether these selectors address the mouse field pool.
-[Issue #292](https://github.com/bbs-land/remote-imaging-protocol/issues/292)
+`9D` consumes a required four-digit reserve or a leading period, then looks
+up the literal resource name. SyncTERM follows the standalone client's
+profile, where both hits and misses continue without sending a reply,
+loading the resource, or starting a transfer. Native tests check framing
+at every input split and observe the original name at the lookup boundary.
+Live CP437 and UTF-8 tests send a hit, miss and malformed prefixes followed
+by drawing and a query on the same connection.
+[PR #295](https://github.com/bbs-land/remote-imaging-protocol/pull/295)
+
+## Live mouse field occupancy
+
+`INUSE(MOUSE,ANY)` and `INUSE(MOUSE,ALL)` read the shared live pool for
+simple fields and mouse-active buttons. The connected fixtures cover an
+empty pool with a saved snapshot, a lone mouse-active button, nonmouse
+decorations, 127 and 128 residents, scene gates and removal from a full pool.
+Backup selectors continue to address saved definitions.
+[PR #296](https://github.com/bbs-land/remote-imaging-protocol/pull/296)

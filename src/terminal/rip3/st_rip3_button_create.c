@@ -588,7 +588,7 @@ prepare_button(const struct st_rip3_command_host *host,const uint8_t *command,si
 		status=st_rip3_mouse_group_check(host->mouse,style.group,group_kind);if (status!=0) return status;
 	}
 	if (mouse && host->mouse==NULL) return IO_ERROR_NOT_SUPPORTED;
-	if (mouse && st_rip3_mouse_count(host->mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	if (mouse && st_rip3_mouse_full(host->mouse)) return IO_ERROR_OUT_OF_RANGE;
 	if ((style.flags&64)!=0 && (host->clipboard==NULL || host->offscreen_pixel_budget==NULL)) return IO_ERROR_NOT_SUPPORTED;
 	if (is_icon && (host->resources==NULL || host->palettes==NULL || host->bitmap_errors==NULL || host->bitmap_errors->show==NULL))
 		return IO_ERROR_NOT_SUPPORTED;
@@ -652,7 +652,7 @@ finish_button(struct render_job *job)
 		b->inversion_applied=true;
 	}
 	if (!job->creation || !b->mouse) return 0;
-	if (st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	if (st_rip3_mouse_full(b->host.mouse)) return IO_ERROR_OUT_OF_RANGE;
 	int64_t ox=(int64_t)b->port.bounds.x0+b->port.viewport.x0,oy=(int64_t)b->port.bounds.y0+b->port.viewport.y0;
 	const struct st_rip3_rect area={(int32_t)(ox+b->hit.x0),(int32_t)(oy+b->hit.y0),(int32_t)(ox+b->hit.x1),(int32_t)(oy+b->hit.y1)};
 	const struct st_rip3_mouse_binding binding={.hotkey=b->hotkey,.default_enter=b->default_enter,.group=b->style.group,
@@ -682,7 +682,7 @@ face_stage(struct render_job *job)
 			if (b->mouse && (b->hit.x0>=b->hit.x1 || b->hit.y0>=b->hit.y1)) {job->stage=FINISH;return 0;}
 		}
 	}
-	if (b->mouse && job->creation && st_rip3_mouse_count(b->host.mouse)==128) return IO_ERROR_OUT_OF_RANGE;
+	if (b->mouse && job->creation && st_rip3_mouse_full(b->host.mouse)) return IO_ERROR_OUT_OF_RANGE;
 	if (job->prepare_undo && (b->style.flags&4096)!=0 && b->images[job->undo_selected ? 1 : 0]==NULL) {
 		/* Restored definitions have no feedback cache. Prepare the committed
 		 * ICON state during this actual preview, with the same resolved name,

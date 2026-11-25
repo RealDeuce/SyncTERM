@@ -1,23 +1,26 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/293",
-  "revision": "deb6f3aa1742ed013c460e1cf33cb4186e272b19",
-  "previous_revision": "fac950cc034276f3f56a226936dfd7bb18676859",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/296",
+  "revision": "4dc79277a521acd92df258c836e4d067456f8327",
+  "previous_revision": "deb6f3aa1742ed013c460e1cf33cb4186e272b19",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #293 matches its fork stable integration tree.",
-  "archive_sha256": "8192bc4c8d9dd24190914c59fb3cd6af8106e5684849c55270e2979f31a29cbd",
+  "upstream_state_at_adoption": "The open PRs #294–#296 match their corresponding fork stable integration trees.",
+  "archive_sha256": "ec904621d30b3cb099079de1f00c0f25b84dff7b42aa75bfb68b2f9c705f6c05",
   "normative_scope": [
-    "Implement ordinary single-parameter ANSI mode controls and per-window mode 2 in combination with the RIP3 scene keyboard gate."
+    "Confirm 3D as a live sixtieth-second delay in stream order.",
+    "Implement bounded literal 9D lookups for the standalone client.",
+    "Query the live shared MOUSE pool with INUSE ANY and ALL."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-    "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-    "version/3.0/ripscrip/4.3-buttons.md",
-    "version/3.0/ripscrip/5.1-text-variables.md"
+    "version/3.0/ripscrip/5.1-text-variables.md",
+    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+    "version/3.0/ripscrip/7.1-data-tables.md",
+    "version/3.0/ripscrip/9.0-command-reference.md",
+    "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9555,
+  "matched_source_blocks": 9561,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +954,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 144,
+  "upstream_issue_resolutions": 147,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1804,6 +1807,24 @@
       "sha256": "17f7bd2436368de0a9674c7bd33e649954120680cc9eae4c88ab70a3e88115b6",
       "title": "Issue #289 — ANSI mode 2 keyboard gating",
       "role": "Original mode callbacks and distinction between native hotkey checks and portable keyboard delivery."
+    },
+    {
+      "path": "version/3.0/research/issue-290-wire-delay.md",
+      "sha256": "94ce641efdede3b9f848fd04a5bc6d3da57a6f5e45cce937c6d485d476116ef3",
+      "title": "Issue #290 — Live wire RIP_DELAY",
+      "role": "Original wire descriptor, timer and sequencing."
+    },
+    {
+      "path": "version/3.0/research/issue-291-wire-resource-retrieval.md",
+      "sha256": "442a2015476a24be130fe2720a45024a719c5571d8b29734d176220bf9111cad",
+      "title": "Issue #291 — Level 9 resource retrieval",
+      "role": "Original prefix and resolver, plus standalone frontend callback registration evidence."
+    },
+    {
+      "path": "version/3.0/research/issue-292-mouse-live-inuse.md",
+      "sha256": "d28f52570e121f66735bf7b38d200c9c6d14f66d33d0884cbdb1e9c91feaac98",
+      "title": "Issue #292 — Live MOUSE occupancy",
+      "role": "Original aggregate traversal, absence of numbered MOUSE entries, and portable pool rules."
     }
   ],
   "documents": [
@@ -1965,7 +1986,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "edf31b21615a64cd2d8102df21914b177b47169e33cb0b2493cd4cd9a775df78"
+      "sha256": "c9b55a28a4467ad5f2e0b7328d5a730eb1f8c63a9f93453249a0224704e20acf"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1981,7 +2002,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "712bcb60c0d42c4f58d5314f456a054dc6a4e32072ad6cb7bf9a331c6847176e"
+      "sha256": "d62e9082e610259129100afb4c90949102dfc6723d526d867dbfe2b394053e50"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -2001,7 +2022,7 @@
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "8e15011a09cb0cb5ffc424d7ec6ad4ebcb292a9502453fd19d0343cb49615ab6"
+      "sha256": "818130e6ae9f4de43712b9b1b0b7a5d54b1b424104059150f9e1fe0c427e392b"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -2009,11 +2030,11 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "0a969eeff30de76dec03ed2ea76333faa366e647f949daeb61ffc3d23d88173c"
+      "sha256": "0045a881e3bca6e4cfb658b0f20c1cae899862de82d165db9bf707aeab5a9ba1"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "5107ca864bf204d7c548130689f331500b14fb537ccf79c8fe506971dca7b35f"
+      "sha256": "ab4d0c824900c6e719e2f292985305a2361b0da8e32641c8dac1017c3626534a"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2080,7 +2101,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "bb00bdde9cd2978a457caae6be98af70fe9dc009",
+  "previous_ledger_commit": "c7fefe846fc8065edbc6670689856344d605aae2",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20769,6 +20790,146 @@
         "implemented": 4156,
         "excluded": 76,
         "blocked": 5
+      }
+    },
+    {
+      "previous_revision": "deb6f3aa1742ed013c460e1cf33cb4186e272b19",
+      "revision": "4dc79277a521acd92df258c836e4d067456f8327",
+      "archive_sha256": "ec904621d30b3cb099079de1f00c0f25b84dff7b42aa75bfb68b2f9c705f6c05",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/290",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/294",
+          "reviewed_head": "b8990a9eb4b8f87a8418a496046cf3ce125c10f6",
+          "integration": "95377172052483abc9a561297459bb07a1815ef9"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/291",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/295",
+          "reviewed_head": "91cd02d7a70ed79f2606e316c24d5f48b1edb2ee",
+          "integration": "aa50f871939dc06faa0d2285b6172ae7d5c5ac61"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/292",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/296",
+          "reviewed_head": "385d9bcf17806d72bd8760fd388539084ed0e066",
+          "integration": "4dc79277a521acd92df258c836e4d067456f8327"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "edf31b21615a64cd2d8102df21914b177b47169e33cb0b2493cd4cd9a775df78",
+          "sha256": "c9b55a28a4467ad5f2e0b7328d5a730eb1f8c63a9f93453249a0224704e20acf"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "712bcb60c0d42c4f58d5314f456a054dc6a4e32072ad6cb7bf9a331c6847176e",
+          "sha256": "d62e9082e610259129100afb4c90949102dfc6723d526d867dbfe2b394053e50"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.1-data-tables.md",
+          "previous_sha256": "8e15011a09cb0cb5ffc424d7ec6ad4ebcb292a9502453fd19d0343cb49615ab6",
+          "sha256": "818130e6ae9f4de43712b9b1b0b7a5d54b1b424104059150f9e1fe0c427e392b"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "0a969eeff30de76dec03ed2ea76333faa366e647f949daeb61ffc3d23d88173c",
+          "sha256": "0045a881e3bca6e4cfb658b0f20c1cae899862de82d165db9bf707aeab5a9ba1"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "5107ca864bf204d7c548130689f331500b14fb537ccf79c8fe506971dca7b35f",
+          "sha256": "ab4d0c824900c6e719e2f292985305a2361b0da8e32641c8dac1017c3626534a"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-290-wire-delay.md",
+          "sha256": "94ce641efdede3b9f848fd04a5bc6d3da57a6f5e45cce937c6d485d476116ef3",
+          "title": "Issue #290 — Live wire RIP_DELAY",
+          "role": "Original wire descriptor, timer and sequencing."
+        },
+        {
+          "path": "version/3.0/research/issue-291-wire-resource-retrieval.md",
+          "sha256": "442a2015476a24be130fe2720a45024a719c5571d8b29734d176220bf9111cad",
+          "title": "Issue #291 — Level 9 resource retrieval",
+          "role": "Original prefix and resolver, plus standalone frontend callback registration evidence."
+        },
+        {
+          "path": "version/3.0/research/issue-292-mouse-live-inuse.md",
+          "sha256": "d28f52570e121f66735bf7b38d200c9c6d14f66d33d0884cbdb1e9c91feaac98",
+          "title": "Issue #292 — Live MOUSE occupancy",
+          "role": "Original aggregate traversal, absence of numbered MOUSE entries, and portable pool rules."
+        }
+      ],
+      "moved_source_blocks": 246,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2384",
+        "version/3.0/ripscrip/5.1-text-variables.md:4546",
+        "version/3.0/ripscrip/5.1-text-variables.md:4547",
+        "version/3.0/ripscrip/5.1-text-variables.md:4548",
+        "version/3.0/ripscrip/5.1-text-variables.md:4564",
+        "version/3.0/ripscrip/5.1-text-variables.md:4566",
+        "version/3.0/ripscrip/5.1-text-variables.md:4567",
+        "version/3.0/ripscrip/5.1-text-variables.md:4568",
+        "version/3.0/ripscrip/5.1-text-variables.md:4569",
+        "version/3.0/ripscrip/5.1-text-variables.md:4570",
+        "version/3.0/ripscrip/5.1-text-variables.md:4572",
+        "version/3.0/ripscrip/5.1-text-variables.md:4574",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:314",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:316",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:324",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:328",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:330",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:332",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:334",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:454",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:456",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:458",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:459",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:460",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:461",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:462",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:464",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:466",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:468",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:470",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:471",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:472",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:473",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:474",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:475",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:476",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:478",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:480",
+        "version/3.0/ripscrip/7.1-data-tables.md:181",
+        "version/3.0/ripscrip/9.0-command-reference.md:217",
+        "version/3.0/ripscrip/9.0-command-reference.md:225",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:236"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2384",
+        "version/3.0/ripscrip/5.1-text-variables.md:4546",
+        "version/3.0/ripscrip/5.1-text-variables.md:4547",
+        "version/3.0/ripscrip/5.1-text-variables.md:4548",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:314",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:316",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:318",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:326",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:330",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:332",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:334",
+        "version/3.0/ripscrip/9.0-command-reference.md:217",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:236"
+      ],
+      "states_after_update": {
+        "unreviewed": 2029,
+        "context": 2029,
+        "pending": 1290,
+        "implemented": 4179,
+        "excluded": 76
       }
     }
   ],

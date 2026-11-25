@@ -1857,6 +1857,29 @@ wire_transfer(struct st_rip3_session *session, const uint8_t *bytes, size_t leng
 }
 
 static int
+resource_retrieval(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
+{
+	enum { NAME_LIMIT = 255 };
+	char name[4 * NAME_LIMIT + 1];
+	/* The framer has consumed either the complete reserve or a leading dot. */
+	size_t first = bytes[2] == '.' ? 3 : 6;
+	size_t size = length - first;
+	const uint8_t *tail = bytes + first;
+	if (session->commands.resources == NULL || size == 0 || size >= sizeof(name)
+	    || st_rip3_graphical_prefix(tail, size, NAME_LIMIT, session->graphical_codepage_converted) != size
+	    || memchr(tail, 0, size) != NULL)
+		return 0;
+	memcpy(name, tail, size);
+	name[size] = '\0';
+	if (!st_rip3_resource_name_valid(name))
+		return 0;
+	/* Standalone sessions have no retrieval callback. Complete the lookup
+	 * without opening the asset or producing any protocol output. */
+	int status = st_rip3_resource_exists(session->commands.resources, name);
+	return status == IO_ERROR_OUT_OF_MEMORY ? status : 0;
+}
+
+static int
 encoded_stream(struct st_rip3_session *session, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_fields fields = {bytes + 2, length - 2};
@@ -1891,6 +1914,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 		st_rip3_command_result(&sink,switch_directory(session,bytes,length),false);
 	else if (length >= 2 && bytes[0] == '9' && bytes[1] == 0x1b)
 		st_rip3_command_result(&sink, wire_transfer(session, bytes, length), false);
+	else if (length >= 2 && bytes[0] == '9' && bytes[1] == 'D')
+		st_rip3_command_result(&sink, resource_retrieval(session, bytes, length), true);
 	else if (length >= 2 && bytes[0] == '9' && bytes[1] == 'U')
 		st_rip3_command_result(&sink, encoded_stream(session, bytes, length), false);
 	else if (length >= 2 && bytes[0] == '1' && bytes[1] == 'F')

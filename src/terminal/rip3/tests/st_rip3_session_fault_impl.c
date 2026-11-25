@@ -19,13 +19,27 @@
 #include "st_rip3_button_render.h"
 #include "st_rip3_input.h"
 #include "st_rip3_audio.h"
+#include "st_rip3_resources.h"
 #include "io_error.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 size_t st_rip3_session_test_fail_at=SIZE_MAX;
 size_t st_rip3_session_test_attempts,st_rip3_session_test_live,st_rip3_session_test_stops;
+unsigned st_rip3_session_test_lookups;
+int st_rip3_session_test_lookup_status;
+char st_rip3_session_test_lookup_name[1021];
+
+static int
+test_resource_exists(const struct st_rip3_resource_paths *paths, const char *name)
+{
+	st_rip3_session_test_lookups++;
+	(void)snprintf(st_rip3_session_test_lookup_name, sizeof(st_rip3_session_test_lookup_name), "%s", name);
+	st_rip3_session_test_lookup_status = st_rip3_resource_exists(paths, name);
+	return st_rip3_session_test_lookup_status;
+}
 
 static bool
 allowed(void)
@@ -148,6 +162,7 @@ test_audio_stop(struct st_rip3_audio *player)
 #define st_rip3_button_renderer_destroy test_st_rip3_button_renderer_destroy
 #define st_rip3_stream_destroy test_st_rip3_stream_destroy
 #define st_rip3_audio_stop test_audio_stop
+#define st_rip3_resource_exists test_resource_exists
 #include "../st_rip3_session.c"
 
 /* Exercise full-scene replacement while the public consumer owns a prompt.

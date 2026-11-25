@@ -344,6 +344,12 @@ objects(const struct st_rip3_table_host *host,
 				if (type == ST_RIP3_TABLE_SCREEN || (type == ST_RIP3_TABLE_MOUSE
 				    && (!inuse || kind == ENTRY)) || (active && kind == ANY))
 					return IO_ERROR_INVALID_FORMAT;
+				if (type == ST_RIP3_TABLE_MOUSE) {
+					if (binding->live == NULL)
+						return IO_ERROR_NOT_SUPPORTED;
+					return reply_number(result, capacity, kind == ALL
+					    ? st_rip3_mouse_full(binding->live) : st_rip3_mouse_active(binding->live));
+				}
 				uses_entries = true;
 				if (kind == ENTRY)
 					entries[index] = true;

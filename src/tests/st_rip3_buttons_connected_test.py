@@ -148,12 +148,27 @@ def run(args,width,height):
         t.exchange(b"\x1b[?25l")
 
         t.case(f"rip3-button-capacity-and-decorations-{width}x{height}")
-        t.exchange(style(flags=256|1024))
+        occupancy = b"$INUSE(MOUSE,ANY)$:$INUSE(MOUSE,ALL)$"
+        values(occupancy, b"0:0")
+        t.exchange(style(flags=256)+button((300,300,330,330)))
+        values(occupancy, b"0:0")
+        t.exchange(style(flags=256|1024)+button((300,300,330,330),b"<><>single"))
+        values(occupancy, b"1:0")
+        values(b"$SMF(8)$$MKILL$"+occupancy+b":$INUSE(MOUSE,S8)$", b"0:0:1")
+        values(b"$RMF(8)$"+occupancy, b"1:0")
+        values(b"$MKILL$")
+        values(b"$INUSE(MOUSE,1)$alive", b"alive")
         definitions=[]
         for i in range(128):
             definitions.append(field((100,100,120,120),b"full") if i%2==0
                                else button((100,100,121,121),b"<><>full"))
-        before=t.exchange(b"".join(definitions))
+        t.exchange(b"".join(definitions[:-1]))
+        values(occupancy, b"1:0")
+        before=t.exchange(button((200,100,221,121),b"<><>last"))
+        values(occupancy, b"1:1")
+        t.exchange(b"\x01|h01000400\r\n")
+        values(occupancy, b"1:1")
+        t.exchange(b"\x01|#\r\n")
         after=t.exchange(button((300,300,330,330),b"<><>overflow"))
         assert after.primary==before.primary and after.alternate==before.alternate
         click(110,110,b"full")
@@ -161,7 +176,10 @@ def run(args,width,height):
         t.exchange(style(surface=4)+button((300,300,330,330))*129)
         frame=t.exchange()
         assert pixel(frame,310,310)==0xaa0000
+        t.exchange(remove_fields((199,99,222,122),1))
+        values(occupancy, b"1:0")
         values(b"$MKILL$")
+        values(occupancy, b"0:0")
         click(110,110)
         before=t.exchange()
         # Creation stores raw HCL without querying providers. A later reached

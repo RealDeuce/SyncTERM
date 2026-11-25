@@ -21,6 +21,9 @@
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x);return 1; } } while (0)
 extern size_t st_rip3_session_test_fail_at,st_rip3_session_test_attempts,st_rip3_session_test_live,st_rip3_session_test_stops;
+extern unsigned st_rip3_session_test_lookups;
+extern int st_rip3_session_test_lookup_status;
+extern char st_rip3_session_test_lookup_name[];
 
 extern int st_rip3_session_test_soft_reset(struct st_rip3_session *session);
 extern void st_rip3_session_test_overflow_frontier(struct st_rip3_session *session, unsigned article, int32_t page);
@@ -420,6 +423,49 @@ erase_eol(void *context, unsigned number)
 {
 	(void)number;
 	struct fixture *f=context;f->eol_erases++;return f->erase_status;
+}
+
+static int
+resource_retrieval(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	const struct st_rip3_resource_paths resources = {.host = ST_RIP3_SESSION_SCENE_DIR};
+	options.resources = &resources;
+	st_rip3_session_test_lookups = 0;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(append(&f, "!|9DZZZZpAcE.Tx") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_test_lookups == 0);
+	CHECK(append(&f, "T\r\nraw") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_test_lookups == 1 && st_rip3_session_test_lookup_status == 0);
+	CHECK(strcmp(st_rip3_session_test_lookup_name, "pAcE.TxT") == 0);
+	CHECK(f.reply_length == 0 && f.text_length == 3 && memcmp(f.text, "raw", 3) == 0);
+
+	CHECK(query(&f, "$-=FILE=Pace.TXT$", "") == 0);
+	CHECK(append(&f, "\r!|9D.$&FILE$\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_test_lookups == 2 && st_rip3_session_test_lookup_status == IO_ERROR_NOT_FOUND);
+	CHECK(strcmp(st_rip3_session_test_lookup_name, "$&FILE$") == 0);
+	CHECK(append(&f, "!|J1S|9Da#&zPace|J10\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_test_lookups == 3 && st_rip3_session_test_lookup_status == IO_ERROR_NOT_FOUND);
+	CHECK(strcmp(st_rip3_session_test_lookup_name, "Pace") == 0);
+
+	CHECK(append(&f, "!|9D000|9D12.Pace.TXT|9D1<Pace.TXT|9D.\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 3 && f.kind == ST_RIP3_COMMAND_INVALID && st_rip3_session_test_lookups == 3);
+	CHECK(append(&f, "!|9D../Pace.TXT|9D.bad\\|name\r") == 0 && pump(&f) == 0);
+	CHECK(st_rip3_session_test_lookups == 3);
+	char name[257], wire[272];
+	memset(name, 'A', sizeof(name) - 1);
+	name[sizeof(name) - 1] = '\0';
+	(void)snprintf(wire, sizeof(wire), "!|9D.%s|9D.\r", name);
+	CHECK(append(&f, wire) == 0 && pump(&f) == 0 && st_rip3_session_test_lookups == 3);
+	name[255] = '\0';
+	(void)snprintf(wire, sizeof(wire), "!|9D.%s\r", name);
+	CHECK(append(&f, wire) == 0 && pump(&f) == 0 && st_rip3_session_test_lookups == 4);
+	CHECK(strcmp(st_rip3_session_test_lookup_name, name) == 0);
+	CHECK(query(&f, "after", "after") == 0);
+	st_rip3_session_destroy(f.session);
+	CHECK(st_rip3_session_test_live == 0);
+	return 0;
 }
 
 static int
@@ -2509,7 +2555,7 @@ main(void)
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && grouped_reset()==0 && hover_queries()==0 && hover_lifecycle()==0);
-	CHECK(world_state()==0 && encoded_stream()==0);
+	CHECK(world_state()==0 && resource_retrieval()==0 && encoded_stream()==0);
 	CHECK(soft_reset()==0 && live_text_resets()==0 && scene_input_resets()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);

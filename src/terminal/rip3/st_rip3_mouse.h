@@ -113,6 +113,7 @@ void st_rip3_mouse_boundary(struct st_rip3_mouse *mouse);
  * Hover never acquires, releases or transfers click capture. */
 void st_rip3_mouse_move(struct st_rip3_mouse *mouse,int32_t x,int32_t y);
 size_t st_rip3_mouse_count(const struct st_rip3_mouse *mouse);
+bool st_rip3_mouse_full(const struct st_rip3_mouse *mouse);
 void st_rip3_mouse_kill(struct st_rip3_mouse *mouse);
 void st_rip3_mouse_cancel(struct st_rip3_mouse *mouse);
 /* Forced shutdown/cancel: discard committed continuations, restore synchronous
