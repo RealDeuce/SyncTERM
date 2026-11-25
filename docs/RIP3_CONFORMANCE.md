@@ -9290,6 +9290,11 @@ accept a prefilled value unchanged. The `#` directive echoes the field
 with literal `#` characters and preserves the accepted value for storage
 and replacement.
 
+The `*` directive keeps the active editor and its input in place on Escape.
+The prompt offers submission through Enter and OK. An accepted empty field
+uses the normal empty-value storage and replacement rules. Transparent
+retrieval of an existing value still completes immediately.
+
 The variable processor applies `TONAME`, `TOUPPER` or `TOLOWER` to the
 selected response, stored value or default before emitting or storing it.
 Conversions change ASCII letters and preserve other bytes. `TONAME`

@@ -1450,6 +1450,7 @@ prompt(struct st_term_rip3 *rip)
 	char *value=NULL;
 	const struct st_rip3_variable_reference *reference=view.reference;
 	bool masked = (reference->directives & ST_RIP3_VARIABLE_MASKED) != 0;
+	bool required = (reference->directives & ST_RIP3_VARIABLE_REQUIRED) != 0;
 	bool custom = masked || reference->mode != ST_RIP3_VARIABLE_ANY || reference->has_position;
 	int status=IO_ERROR_NOT_SUPPORTED;
 	bool controlled = view.definition && rip->config.rip_define != NULL;
@@ -1477,14 +1478,14 @@ prompt(struct st_term_rip3 *rip)
 		const char *question = reference->has_question ? (const char *)reference->question.bytes : reference->name;
 		const char *initial = view.initial == NULL ? "" : (const char *)view.initial->bytes;
 		size_t width = reference->has_width ? reference->width : 255;
-		if (custom && rip->config.rip_variable_prompt != NULL) {
+		if ((custom || required) && rip->config.rip_variable_prompt != NULL) {
 			static const char *const modes[] = {
 				[ST_RIP3_VARIABLE_ANY] = "ANY", [ST_RIP3_VARIABLE_ALPHA] = "ALPHA",
 				[ST_RIP3_VARIABLE_NUMBER] = "NUMBER", [ST_RIP3_VARIABLE_ALPHANUM] = "ALPHANUM",
 			};
 			if (reference->has_position) present(rip);
 			status = rip->config.rip_variable_prompt(rip->config.rip_prompt_context,
-			    question, initial, width, modes[reference->mode], masked,
+			    question, initial, width, modes[reference->mode], masked, required,
 			    reference->has_position ? view.position : NULL, &value);
 		}
 		else if (!custom && rip->config.rip_prompt != NULL)

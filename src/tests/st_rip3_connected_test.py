@@ -307,10 +307,21 @@ Hook.onKey(Key.f9) {|event|
                              at_cursor=True), b"alive")
             t.case("rip3-connected-prompt")
             send(query(b"$*=PROMPT,20@RIP3 validation$") + b"\x1b[5n")
-            client.wait_text("RIP3 validation")
+            required = client.wait_text("RIP3 validation")
+            assert "Cancel" not in required.text
+            assert "[X]" not in next(line for line in required.lines if "RIP Input" in line)
             client.text("Ada")
+            edited = client.wait_text("Ada")
+            client.key("escape")
+            kept = client.wait_for(lambda frame: frame.metadata["events_dequeued"] > edited.metadata["events_dequeued"])
+            assert "RIP3 validation" in kept.text and "Ada" in kept.text
             client.key("enter")
             receive(peer, b"Ada\x1b[0n", root / "replies.bin")
+            t.exchange(query(b"$*&PROMPT$", at_cursor=True), b"Ada")
+            send(query(b"$*=REQUIREDEMPTY,8@Accept empty$:$&REQUIREDEMPTY$", at_cursor=True) + b"\x1b[5n")
+            client.wait_text("Accept empty")
+            client.key("enter")
+            receive(peer, b"NULL:NULL\x1b[0n", root / "replies.bin")
             assert client.capture().application["connected"] == 1
             t.case("rip3-variable-modal-formats-and-storage")
             t.exchange(query(b"$-&=FORMAT(TONAME)=tOM mCDONALD$:$&FORMAT(TOUPPER)$:$&FORMAT$",

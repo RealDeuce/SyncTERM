@@ -1157,7 +1157,7 @@ host_dialog(st_wren_host_t *host, const char *title,
 	    &resized, &resize);
 	if (status != 0 || closed)
 		goto finished;
-	wrenEnsureSlots(host->vm, variable != NULL ? 9 : definition != NULL ? 8 : 7);
+	wrenEnsureSlots(host->vm, variable != NULL ? 10 : definition != NULL ? 8 : 7);
 	wrenSetSlotHandle(host->vm, 0, host->menu_ui_class);
 	wrenSetSlotString(host->vm, 1, title);
 	wrenSetSlotString(host->vm, 2, question);
@@ -1186,15 +1186,16 @@ host_dialog(st_wren_host_t *host, const char *title,
 		if (definition == NULL) {
 			wrenSetSlotBool(host->vm, 5, masked);
 			if (variable != NULL) {
-				dialog_call = wrenMakeCallHandle(host->vm, "ripPrompt(_,_,_,_,_,_,_)");
+				dialog_call = wrenMakeCallHandle(host->vm, "ripPrompt(_,_,_,_,_,_,_,_)");
 				wrenSetSlotString(host->vm, 6, variable->input_mode);
 				wrenSetSlotNull(host->vm, 7);
+				wrenSetSlotBool(host->vm, 8, required);
 				if (variable->position != NULL) {
 					wrenSetSlotNewList(host->vm, 7);
 					for (size_t axis = 0; axis < 2; ++axis) {
-						if (variable->position[axis] < 0) wrenSetSlotNull(host->vm, 8);
-						else wrenSetSlotDouble(host->vm, 8, (double)variable->position[axis]);
-						wrenInsertInList(host->vm, 7, -1, 8);
+						if (variable->position[axis] < 0) wrenSetSlotNull(host->vm, 9);
+						else wrenSetSlotDouble(host->vm, 9, (double)variable->position[axis]);
+						wrenInsertInList(host->vm, 7, -1, 9);
 					}
 				}
 			}
@@ -1283,13 +1284,13 @@ st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 int
 st_wren_host_rip_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
-	const char *input_mode, bool masked, const int32_t position[2], char **result)
+	const char *input_mode, bool masked, bool required, const int32_t position[2], char **result)
 {
 	if (input_mode == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	const struct variable_dialog variable = {input_mode, position};
 	return host_dialog(host, title, question, initial, max_length, masked,
-	    result, NULL, 0, NULL, NULL, NULL, false, NULL, &variable);
+	    result, NULL, 0, NULL, NULL, NULL, required, NULL, &variable);
 }
 
 int

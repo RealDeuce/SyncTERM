@@ -76,9 +76,9 @@ class MenuHostUI {
     return MenuUi.promptStandalone(title, message, initial, maxLen, masked)
   }
 
-  static ripPrompt(title, message, initial, maxLen, masked, mode, position) {
+  static ripPrompt(title, message, initial, maxLen, masked, mode, position, required) {
     var app = App.new()
-    var p = Prompt.new(message, initial)
+    var p = Prompt.new(message, initial, required)
     p.title = title
     p.input.maxLen = maxLen
     if (masked) p.input.mask = "#"

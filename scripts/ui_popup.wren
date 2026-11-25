@@ -587,18 +587,24 @@ class Confirm is Popup {
 class Prompt is Popup {
   construct new(message, initial) {
     super(message)
-    initialize_(initial, null)
+    initialize_(initial, null, false)
+  }
+
+  construct new(message, initial, required) {
+    super(message)
+    initialize_(initial, null, required)
   }
 
   construct new(message, initial, label, checked, prepare) {
     super(message)
     _confirmation = Checkbox.new(label)
     _confirmation.value = checked
-    initialize_(initial, prepare)
+    initialize_(initial, prepare, false)
   }
 
-  initialize_(initial, prepare) {
-    keyHints = [["Enter", "Accept"], ["Esc", "Cancel"]]
+  initialize_(initial, prepare, required) {
+    keyHints = required ? [["Enter", "Accept"]] : [["Enter", "Accept"], ["Esc", "Cancel"]]
+    closeable = !required
     title  = "Prompt"
     _input = SelectOnFocusInput.new()
     _input.value = (initial == null ? "" : initial)
@@ -606,11 +612,13 @@ class Prompt is Popup {
     add(_input)
     if (_confirmation != null) add(_confirmation)
     _ok     = Button.new("OK")
-    _cancel = Button.new("Cancel")
     _ok.onPress     = Fn.new { submit_(_input.value, prepare) }
-    _cancel.onPress = Fn.new { dismissWith_(null) }
     add(_ok)
-    add(_cancel)
+    if (!required) {
+      _cancel = Button.new("Cancel")
+      _cancel.onPress = Fn.new { dismissWith_(null) }
+      add(_cancel)
+    }
   }
 
   submit_(value, prepare) {
@@ -674,20 +682,20 @@ class Prompt is Popup {
     }
     _input.bounds = Rect.new(cb.x, inputRow, iw, 1)
     var ow = _ok.intrinsicWidth
-    var cw = _cancel.intrinsicWidth
-    var gap   = 4
+    var cw = _cancel == null ? 0 : _cancel.intrinsicWidth
+    var gap = _cancel == null ? 0 : 4
     var total = ow + gap + cw
     var sx    = cb.x + ((cb.w - total) / 2).floor
     _ok.bounds     = Rect.new(sx, btnRow, ow, 1)
-    _cancel.bounds = Rect.new(sx + ow + gap, btnRow, cw, 1)
+    if (_cancel != null) _cancel.bounds = Rect.new(sx + ow + gap, btnRow, cw, 1)
   }
 
-  // Esc cancels; Enter / Tab / mouse fall through to the focused
+  // Esc cancels an optional prompt. Enter / Tab / mouse use the focused
   // child (TextInput or one of the buttons).  TextInput's onSubmit
   // wires Enter-in-the-input to dismissWith_(value).
   handle(ev) {
     if (ev is KeyEvent && ev.shortcut_ == Key.escape) {
-      dismissWith_(null)
+      if (_cancel != null) dismissWith_(null)
       return true
     }
     return super.handle(ev)

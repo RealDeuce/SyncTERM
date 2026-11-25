@@ -9045,7 +9045,13 @@ Backspace, or Delete replaces it, while cursor movement or mouse positioning
 preserves it and begins ordinary editing.  `Enter` in the input or on OK
 submits the value; `Esc` or Cancel returns `null`.  The read-only `input`
 getter exposes that input so trusted UI code can set `maxLen` or a display-only
-`mask` before presenting the popup.  `sizeForInput(inputWidth)` and
+`mask` before presenting the popup.
+
+`Prompt.new(message, initial, true)` creates a required prompt. Escape
+keeps the current edit in place and Enter accepts the field, including an
+empty value.
+
+`sizeForInput(inputWidth)` and
 `sizeForInput(inputWidth, minimumWidth)` size the field for the requested
 capacity and cap the complete popup to the standard menu modal work area.  The
 `MenuUi.prompt` wrappers use the field's `maxLen` for this width.

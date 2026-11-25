@@ -8057,16 +8057,18 @@ exercise_prompt_close_during(struct st_wren_host *host,
 	char *answer = NULL;
 	int thread_result;
 
-	CHECK(st_thread_create(&thread, post_prompt_input, &poster)
-	    == ST_THREAD_SUCCESS);
-	CHECK(st_wren_host_prompt(host, "RIP Input", "Close?", "",
-	    20, &answer) == 0);
-	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
-	CHECK(thread_result == 0 && answer == NULL);
-	CHECK(st_wren_host_exit_requested(host));
-	CHECK(st_console_event_try(console, &forwarded) == 0);
-	CHECK(forwarded.type == ST_CONSOLE_EVENT_CLOSE);
-	host->exit_requested = false;
+	for (unsigned required = 0; required < 2; ++required) {
+		CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
+		int status = required ? st_wren_host_rip_prompt(host, "RIP Input", "Close?", "",
+		    20, "ANY", false, true, NULL, &answer)
+		    : st_wren_host_prompt(host, "RIP Input", "Close?", "", 20, &answer);
+		CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS);
+		CHECK(status == 0 && thread_result == 0 && answer == NULL);
+		CHECK(st_wren_host_exit_requested(host));
+		CHECK(st_console_event_try(console, &forwarded) == 0);
+		CHECK(forwarded.type == ST_CONSOLE_EVENT_CLOSE);
+		host->exit_requested = false;
+	}
 	CHECK(st_thread_create(&thread, post_prompt_input, &poster) == ST_THREAD_SUCCESS);
 	CHECK(st_wren_host_disconnected(host, "Connection closed") == 0);
 	CHECK(st_thread_join(thread, &thread_result) == ST_THREAD_SUCCESS && thread_result == 0);
