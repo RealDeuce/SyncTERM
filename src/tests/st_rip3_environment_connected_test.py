@@ -175,6 +175,7 @@ def run(args,width,height):
         assert (after.application['cterm.x'], after.application['cterm.y'], after.application['cterm.attr']) == (
             before.application['cterm.x'], before.application['cterm.y'], before.application['cterm.attr'])
         values(b'$WORLD(11)$:$COLORMODE(11)$:$DCS$:$SDCS$:$CHARSET$', b'-1:-1:0:KANJI:KANJI')
+        values(b'$ISPROT(ENV,CUR)$:$ISPROT(ENV,11)$', b'0:-1')
         frame=wire(b'#|c04|X0W0Z')
         assert frame.metadata['pointer_shape'] == 0
         assert pixel(frame, 32 * width // 640, height // 10) == 0xaa0000

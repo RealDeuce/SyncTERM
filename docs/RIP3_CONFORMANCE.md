@@ -10703,3 +10703,20 @@ and replies on the same connection.
 The original RIPtel 3.1 handler remains present and uses sixtieths of a
 second. The command chapter and index still imply it was superseded.
 [Issue #290](https://github.com/bbs-land/remote-imaging-protocol/issues/290)
+
+## Current table protection
+
+`ISPROT(CUR)` reads the selected protection flag even after a numbered
+STYLE or ENV reset clears the slot's definition. A numbered query for the
+same entry returns `-1`. `PROT` and `UNPROT` skip slot zero and process
+later selectors. Native and connected CP437 and UTF-8 tests cover the
+undefined-current distinction and a TW request that targets zero, a live
+nonzero window, and a saved slot together.
+
+The reference omits the original `9D` resource retrieval command. Its DLL
+handler can reach an optional frontend callback after resource lookup.
+[Issue #291](https://github.com/bbs-land/remote-imaging-protocol/issues/291)
+
+RIPtel's live MOUSE `INUSE` aggregates return zero. The portable grammar
+still needs to specify whether these selectors address the mouse field pool.
+[Issue #292](https://github.com/bbs-land/remote-imaging-protocol/issues/292)

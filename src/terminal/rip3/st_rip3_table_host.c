@@ -374,7 +374,7 @@ objects(const struct st_rip3_table_host *host,
 			/* The complete selector list and required bindings are validated.
 			 * These bounded protection setters allocate nothing and cannot fail
 			 * for valid bound objects and the indexes collected above. */
-			for (unsigned i = 0; i < 36; i++) {
+			for (unsigned i = 1; i < 36; i++) {
 				if (!entries[i]) continue;
 				if (type == ST_RIP3_TABLE_PAL)
 					(void)st_rip3_palettes_protect(binding->live, i, protect);
@@ -430,8 +430,8 @@ objects(const struct st_rip3_table_host *host,
 				}
 			}
 			if (isprot && (selected == ENTRY || selected == CURRENT || selected == SLOT))
-				return reply_number(result, capacity, !single_defined && !((type==ST_RIP3_TABLE_PAL || type==ST_RIP3_TABLE_BUT) && selected==CURRENT)
-				    ? -1 : single_protected);
+				return reply_number(result, capacity,
+				    !single_defined && selected != CURRENT ? -1 : single_protected);
 			return reply_number(result, capacity, (selected == ALL || selected == ALLSLOTS)
 			    ? matched == total : matched != 0);
 		}

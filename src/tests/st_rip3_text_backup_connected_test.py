@@ -41,6 +41,10 @@ def run(args,width,height):
         assert frame.metadata['pixel_cursor_width']==8
         assert (frame.application['cterm.right_margin'],frame.application['cterm.bottom_margin'])==(width//8,height//8)
         values(b'$INUSE(TW,S8)$',b'0')
+        t.case('rip3-tw-slot-zero-protection-skips-to-later-selectors')
+        values(b'$CUR(TW,1)$$CUR(TW,0)$$STW(8)$')
+        values(b'$PROT(TW,CUR,1,S8)$$ISPROT(TW,CUR)$:$ISPROT(TW,1)$:$ISPROT(TW,S8)$',b'0:1:1')
+        values(b'$UNPROT(TW,CUR,1,S8)$$ISPROT(TW,CUR)$:$ISPROT(TW,1)$:$ISPROT(TW,S8)$',b'0:0:0')
         capture(b'\x01|*\r\n');values(f'$WORLD(CUR,{width},{height})$'.encode())
         t.case('rip3-tw-backup-all-definitions-attributes-cursors-margins')
         capture(b'\x01|w0A050T0C10\r\n'

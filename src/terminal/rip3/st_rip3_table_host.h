@@ -42,15 +42,14 @@ struct st_rip3_table_host {
  * SAVEALL/RESTOREALL, CUR, INUSE, individual
  * ISPROT, PROT/UNPROT and eight-bit PALENTRY readback. Entry selection/protection
  * supports PAL/PORT/ENV/STYLE/BUT/TW selection and PAL/PORT/ENV/STYLE/BUT/TW metadata; backup-slot operations
- * work for any bound object class. INUSE(BACKUP)
- * and aggregate ISPROT undefined cases stay unsupported pending #16.
+ * work for any bound object class. ISPROT(CUR) reads the selected protection
+ * flag even for an undefined entry. Numbered queries require definition.
  * PAL/ENV/STYLE/BUT/TW live-entry COPY validates all destinations before mutation.
  * PAL/ENV/STYLE/TW copy source protection except to zero; BUT clears destination
  * protection. RESET(PAL,...) handles current or
  * specific entries, TBL and the base/numbered/stack/aggregate backup selectors.
  * It validates the full selector list and required bindings first. Palette
- * resets preserve selection even when it becomes undefined; ISPROT(PAL,CUR)
- * reads current protection without the numeric-slot definition check.
+ * resets preserve selection even when it becomes undefined.
  * Parameter defaults and decimal slot syntax follow the reference. PORT/MOUSE/
  * SCREEN live-entry COPY is prohibited; unfinished RESET families remain unsupported.
  * CUR(STYLE,n) selects/defaults the represented style and its font family,

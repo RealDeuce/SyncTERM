@@ -191,6 +191,7 @@ style_reset(void)
 	CHECK(run(&host, "$CUR(STYLE)$", 0, "5") == 0);
 	CHECK(run(&host, "$INUSE(STYLE,5)$", 0, "0") == 0);
 	CHECK(run(&host, "$ISPROT(STYLE,5)$", 0, "-1") == 0);
+	CHECK(run(&host, "$ISPROT(STYLE,CUR)$", 0, "0") == 0);
 	CHECK(st_rip3_styles_get(styles, 5, &current) == 0 && current.drawing_color == 15);
 	CHECK(st_rip3_styles_get(styles, 7, &current) == 0 && current.drawing_color == 2);
 	CHECK(st_rip3_styles_set(styles, 5, &style) == 0);
