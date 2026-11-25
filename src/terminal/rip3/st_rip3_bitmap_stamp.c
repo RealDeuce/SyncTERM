@@ -140,6 +140,31 @@ dither_pixel(const struct dither_color *color, uint64_t x, uint64_t y)
 	    ? color->other : color->nearest;
 }
 
+struct bitmap_paint {
+	struct st_rip3_ports *ports;
+	const struct prepared_pixel *pixels;
+	struct st_rip3_rect visible;
+	enum st_rip3_write_mode mode;
+};
+
+static int
+paint_bitmap(void *context)
+{
+	const struct bitmap_paint *paint = context;
+	const struct prepared_pixel *pixel = paint->pixels;
+	for (int64_t y = paint->visible.y0; y <= paint->visible.y1; ++y) {
+		for (int64_t x = paint->visible.x0; x <= paint->visible.x1; ++x, ++pixel) {
+			if (pixel->opaque) {
+				int status = st_rip3_ports_plot(paint->ports, (int32_t)x, (int32_t)y,
+				    pixel->color, paint->mode);
+				if (status != 0)
+					return status;
+			}
+		}
+	}
+	return 0;
+}
+
 static int
 draw_bitmap(struct st_rip3_ports *ports,
     const struct st_rip3_bitmap *bitmap, const struct st_rip3_bitmap_destination *destination,
@@ -223,13 +248,10 @@ draw_bitmap(struct st_rip3_ports *ports,
 	}
 	enum st_rip3_write_mode write_mode = mode == ST_RIP3_TRANSFER_INVERT ? ST_RIP3_COPY : (enum st_rip3_write_mode)mode;
 
-	for (uint32_t y = 0; y < height; y++) for (uint32_t x = 0; x < width; x++) {
-		const struct prepared_pixel *pixel = &pixels[(size_t)y*width+x];
-		if (pixel->opaque)
-			(void)st_rip3_ports_plot(ports,visible.x0+(int32_t)x,visible.y0+(int32_t)y,pixel->color,write_mode);
-	}
+	struct bitmap_paint paint = {ports, pixels, visible, write_mode};
+	status = st_rip3_ports_draw(ports, write_mode, paint_bitmap, &paint);
 	free(pixels);
-	return 0;
+	return status;
 }
 
 int

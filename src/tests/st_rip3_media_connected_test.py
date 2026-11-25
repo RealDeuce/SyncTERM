@@ -145,6 +145,44 @@ def check_bitmap(t, assets, values, encoding):
             red, 0xffffff, 0, 0, 0]
     values(b"alive", b"alive")
 
+    t.case("Wire bitmap and icon Boolean modes use both visible destination phases")
+    reset()
+    glyph = b"\xdb" if encoding == "CP437" else "█".encode()
+    frame = t.exchange(b"\x1b[?25l\x1b[H\x1b[5;38;2;17;34;51;48;2;170;187;204m" + glyph * 4)
+    phases = ("primary", "alternate")
+    backgrounds = tuple(plane_pixel(frame, 1, 1, phase) for phase in phases)
+    assert set(backgrounds) == {0x112233, 0xaabbcc}
+    # The mask's first bit matches key zero. Its other pixel is blue.
+    # The icon has two red pixels. Global drawing mode has no effect on either.
+    frame = wire(b"W4|1b" + coords(0, 1, 1, 1) + b"0108000000Split.BMM"
+                 + b"|1I" + coords(3, 1) + b"02000Solid.BMP"
+                 + b"|1b" + coords(6, 1, 7, 1) + b"0300000000Solid.BMP")
+    for phase, dest in zip(phases, backgrounds):
+        observed = [plane_pixel(frame, x, 1, phase) for x in (0, 1, 3, 6, 8)]
+        assert observed == [dest, dest ^ blue, dest | red, dest & red, dest], (phase, observed)
+    # Explicit duplicates contain the completed stamp, including native
+    # pixels visible through the mask. Use a steady background for readback.
+    t.exchange(b"\x1b[H\x1b[0;48;2;17;34;51m    ")
+    wire(b"1b" + coords(0, 1, 1, 1) + b"5109000000Split.BMM")
+    frame = wire(b"2C5" + coords(0, 0, 2, 1) + b"0" + coords(50, 20, 52, 21) + b"0")
+    assert tint(frame, 50, 20, 2, 1) == [[0x112233, 0x112233 ^ blue]]
+
+    # The BMM palette makes bit zero white and bit one black. With no key,
+    # both samples participate in AND even though one file index is zero.
+    (assets / "Mask.BMM").write_bytes(bitmap_row(1, b"\x40" + bytes(3),
+        b"\xff\xff\xff\x00" + bytes(4)))
+    frame = wire(b"1b" + coords(4, 1, 5, 1) + b"0300000000Mask.BMM")
+    assert tint(frame, 4, 1, 2, 1) == [[0x112233, 0]]
+    frame = t.exchange(b"\x1b[H\x1b[5;38;2;17;34;51;48;2;170;187;204m" + glyph * 4)
+    backgrounds = tuple(plane_pixel(frame, 9, 1, phase) for phase in phases)
+    assert set(backgrounds) == {0x112233, 0xaabbcc}
+    # Adopt red at index zero, which was black. The source of XOR must
+    # already use the adopted palette when the destination is native RGB.
+    frame = wire(b"1b" + coords(9, 1, 10, 1) + b"0102000000Solid.BMP")
+    for phase, dest in zip(phases, backgrounds):
+        assert plane_pixel(frame, 9, 1, phase) == dest ^ red
+    values(b"alive", b"alive")
+
     t.case("Wire bitmap wallpaper repeats the live composited seed in both blink phases")
     reset()
     glyph = b"\xdb" if encoding == "CP437" else "█".encode()

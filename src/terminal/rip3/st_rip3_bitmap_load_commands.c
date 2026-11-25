@@ -205,8 +205,21 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	}
 	enum st_rip3_bitmap_colors colors = adopt ? ST_RIP3_BITMAP_ADOPTED
 	    : (flags&4) != 0 ? ST_RIP3_BITMAP_DITHER : ST_RIP3_BITMAP_MATCH;
-	if (status == 0) status = st_rip3_draw_bitmap(host->ports,bitmap,&area,&palette,colors,
-	    (enum st_rip3_transfer_mode)mode,(flags&8) != 0 ? &transparent_color : NULL);
+	if (status == 0) {
+		const struct st_rip3_palette *published = st_rip3_palettes_published(host->palettes);
+		struct st_rip3_palette staged;
+		if (adopt) {
+			/* Mixed RGB/index operations see the colors this stamp publishes.
+			 * Entries outside the file palette keep their published values. */
+			staged = *published;
+			memcpy(staged.rgb, palette.rgb, bitmap->palette_size * sizeof(staged.rgb[0]));
+			st_rip3_ports_bind_drawing_palette(host->ports, &staged);
+		}
+		status = st_rip3_draw_bitmap(host->ports, bitmap, &area, &palette, colors,
+		    (enum st_rip3_transfer_mode)mode, (flags & 8) != 0 ? &transparent_color : NULL);
+		if (adopt)
+			st_rip3_ports_bind_drawing_palette(host->ports, published);
+	}
 	if (status != 0) {
 		if (file_failure(status)) host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area,false);
 		goto done;

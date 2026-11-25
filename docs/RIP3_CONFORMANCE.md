@@ -58,7 +58,6 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Bitmap loading and capture | File image modes over existing screen pixels, color keys, palette changes, duplication and capture extents |
 | Drawing geometry and composition | Fills, borders and repeated strokes across color domains, wide projections and degenerate geometry |
 | Font effects and retained text | Synthetic decorations, glyph measurement and cache lifetime across drawing and reset |
 | Host expressions and graphical expansion | Byte ordering in comparisons, callback permissions, nested playback and suspended label evaluation |
@@ -66,6 +65,12 @@ commands reach the same implementation.
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
 | File requests and cache operations | Quoted FILEDEL names, transfer argument limits and visibility of resumable partial files |
 | Wire field collection | Numeric shorthand, reserved fields and command-specific recovery in both radices |
+
+The first group, bitmap loading and capture, closed 22 of those blocks.
+Wire `1I` and `1b` now apply Boolean image modes to the visible destination
+in each blink phase. Connected tests check keyed BMM loads, an inverted mask
+palette, palette adoption during XOR, and readback from a duplicated port.
+The clipboard fixtures cover low-word capture extents.
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
