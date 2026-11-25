@@ -283,7 +283,9 @@ Bitmap presentation retains four unscaled RGB images: primary and alternate
 text planes, each with and without the cursor.  A drained content batch updates
 all four in order and advances one generation.  Selecting a blink or cursor
 phase only selects an already composed image and does not advance that
-generation.  Each image has its own lazy software-scaling cache, so a warm
+generation.  When the fitted destination matches the native raster in both
+dimensions, the presenter uploads the composed RGB image directly.
+Each image has its own lazy software-scaling cache, so a warm
 phase change performs no scaling.  Damage in the immediately preceding
 generation makes all four caches stale but can update a selected cache
 regionally; skipped generations and

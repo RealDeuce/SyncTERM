@@ -65,6 +65,7 @@ struct st_console_bitmap_presenter {
 	bool blocky_scaling;
 	bool initialized;
 	bool upload_initialized;
+	bool uploaded_scaled;
 	bool upload_retry;
 	bool images_valid;
 	bool invalid_colour;
@@ -1043,6 +1044,7 @@ upload_image(struct st_console_bitmap_presenter *presenter,
 
 	if (status == 0) {
 		presenter->uploaded_image = identity;
+		presenter->uploaded_scaled = pixels != presenter->images[identity];
 		presenter->uploaded_generation = presenter->generation;
 		presenter->upload_initialized = true;
 		presenter->upload_retry = false;
@@ -1195,15 +1197,17 @@ st_console_bitmap_presenter_frame(
 	presenter->output_height = output_height;
 
 	pixels = presenter->images[identity];
+	const bool scale_pixels = presenter->scaling_mode == ST_CONSOLE_SCALING_INTERNAL
+	    && (destination.width != pixels->width || destination.height != pixels->height);
 	upload_damage = presenter->damage;
 	full_upload = presenter->upload_retry || !presenter->upload_initialized
-	    || presenter->uploaded_image != identity
+	    || presenter->uploaded_image != identity || presenter->uploaded_scaled != scale_pixels
 	    || (presenter->uploaded_generation != presenter->generation
 	    && presenter->uploaded_generation + 1 != presenter->generation)
 	    || (new_damage && presenter->damage_full)
 	    || previous_scaling != presenter->scaling_mode
 	    || force_backend_upload;
-	if (presenter->scaling_mode == ST_CONSOLE_SCALING_INTERNAL) {
+	if (scale_pixels) {
 		bool cache_current = presenter->scaled[identity] != NULL
 		    && presenter->scaled_generation[identity] == presenter->generation
 		    && presenter->scaled[identity]->width == destination.width
@@ -1256,8 +1260,6 @@ st_console_bitmap_presenter_frame(
 		}
 		pixels = presenter->scaled[identity];
 	}
-	else if (previous_scaling != presenter->scaling_mode)
-		full_upload = true;
 
 	if (status == 0 && (full_upload || new_damage
 	    || selection_changed)) {

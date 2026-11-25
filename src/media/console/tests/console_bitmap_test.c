@@ -327,6 +327,50 @@ test_pixel_cursor_overlay(void)
 }
 
 static void
+test_unscaled_frame(void)
+{
+	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
+	const struct st_console_config config = {
+		.columns = 4, .rows = 2, .cell_width = 1, .cell_height = 1,
+		.scaling_mode = ST_CONSOLE_SCALING_EXTERNAL,
+	};
+	st_console_t *console = NULL;
+	struct st_console_bitmap_presenter *presenter = NULL;
+	struct st_console_bitmap_frame frame;
+	struct upload_log log = {0};
+
+	CHECK(st_console_create(&console, &display, &config) == 0);
+	console->cursor_visible = false;
+	CHECK(st_console_bitmap_presenter_create(&presenter, console) == 0);
+	CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 6, 0,
+	    record_upload, &log, &frame) == 0);
+	const struct st_rgb_buffer *native = frame.pixels;
+	console->scaling_mode = ST_CONSOLE_SCALING_INTERNAL;
+	for (int blocky = 0; blocky <= 1; ++blocky) {
+		console->blocky_scaling = blocky != 0;
+		CHECK(st_console_bitmap_presenter_frame(presenter, console, 4, 6, 0,
+		    record_upload, &log, &frame) == 0);
+		CHECK(frame.pixels == native && frame.destination.y == 2);
+		for (int pass = 0; pass < 2; ++pass) {
+			log.calls = 0;
+			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 8, 4, 0,
+			    record_upload, &log, &frame) == 0);
+			CHECK(frame.pixels != native && log.calls == 1);
+			CHECK(log.rectangle.width == 8 && log.rectangle.height == 4);
+			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 4, 2, 0,
+			    record_upload, &log, &frame) == 0);
+			CHECK(frame.pixels == native && log.calls == 2);
+			CHECK(log.rectangle.width == 4 && log.rectangle.height == 2);
+			CHECK(st_console_bitmap_presenter_frame(presenter, NULL, 4, 6, 0,
+			    record_upload, &log, &frame) == 0);
+			CHECK(frame.pixels == native && frame.destination.y == 2 && log.calls == 2);
+		}
+	}
+	st_console_bitmap_presenter_destroy(presenter);
+	st_console_destroy(console);
+}
+
+static void
 test_upload_retry(void)
 {
 	const struct st_console_display_config display = {
@@ -1325,6 +1369,7 @@ main(void)
 	test_legacy_bright_cursor_colour();
 	test_wide_glyph_cursor();
 	test_vga_ninth_column();
+	test_unscaled_frame();
 	test_upload_retry();
 	test_pixel_cursor_overlay();
 	test_modify_pixels();
