@@ -28,15 +28,14 @@ struct st_rip3_chr_text_matrix {
 };
 
 /* Explicit CP437 span, including zero. Missing glyphs have zero advance/ink.
- * Widths are accumulated before any scaling, avoiding per-character drift.
- * Measurement is available even for glyphs whose SCAN painting is unresolved. */
+ * Widths are accumulated before any scaling, avoiding per-character drift. */
 int st_rip3_chr_text_measure(const struct st_rip3_chr *font,
 	const uint8_t *text, size_t length, struct st_rip3_chr_text_metrics *result);
 /* Solid one-device-pixel strokes, independent of line style. Whole-text union
  * coverage applies each write mode once, including repeated strokes/glyphs.
  * Shadow is one device pixel down/right, with foreground precedence. All input
- * validation/allocations precede painting; active SCAN glyphs return unsupported
- * without changing any pixel (#17). Inactive viewports have no painting work.
+ * validation/allocations precede painting. SCAN preserves the pen position
+ * and contributes no ink. Inactive viewports have no painting work.
  * Font and text bytes stay immutable for the call. Caller inputs and protocol
  * cursor/style state are not changed. */
 int st_rip3_draw_chr_text(struct st_rip3_ports *ports,

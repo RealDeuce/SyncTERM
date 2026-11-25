@@ -157,7 +157,8 @@ put_word(uint8_t *bytes, unsigned value)
 static int
 zero_advance_and_shadow_clip(void)
 {
-	uint8_t bytes[153] = {0};
+	const uint8_t program[] = {0x81,0, 0x81,0x81, 3,0x84, 0x81,0x82, 0,0};
+	uint8_t bytes[147 + sizeof(program)] = {0};
 	struct st_rip3_chr font;
 	struct st_rip3_chr_text_metrics metrics;
 	struct st_rip3_ports *ports = NULL;
@@ -165,21 +166,21 @@ zero_advance_and_shadow_clip(void)
 	const struct st_rip3_rect bounds = {0,0,5,5};
 	const struct st_rip3_chr_text_matrix matrix = {1,0,0,-1};
 
-	/* One zero-advance glyph: MOVE(0,0), DRAW(0,2), END. It has no final
-	 * MOVE to establish an advance; the width table alone determines it. */
+	/* MOVE(1,0), DRAW(1,1), SCAN(3,4), DRAW(1,2), END. The last DRAW
+	 * must start at (1,1), even with a nonzero scan_flag and payload. */
 	memcpy(bytes, "PK\010\010TEST\032", 9);
 	put_word(bytes + 9, 128); memcpy(bytes + 11, "TEST", 4);
-	put_word(bytes + 15, 25); bytes[17] = bytes[19] = 1;
+	put_word(bytes + 15, sizeof(bytes) - 128); bytes[17] = bytes[19] = 1;
 	bytes[128] = '+'; put_word(bytes + 129, 1); bytes[132] = 'A';
-	put_word(bytes + 133, 19); bytes[136] = 2;
-	bytes[147] = 0x80; bytes[149] = 0x80; bytes[150] = 0x82;
+	put_word(bytes + 133, 19); bytes[135] = 0xff; bytes[136] = 2;
+	memcpy(bytes + 147, program, sizeof(program));
 	CHECK(st_rip3_chr_open(&font, bytes, sizeof(bytes)) == 0);
 	CHECK(st_rip3_chr_text_measure(&font, text, 2, &metrics) == 0);
 	CHECK(metrics.advance == 0 && metrics.height == 2);
 	CHECK(st_rip3_ports_create(&ports, ST_RIP3_CANVAS_640_480) == 0);
 	CHECK(st_rip3_ports_define(ports, 1, &bounds, true) == 0);
 	CHECK(st_rip3_ports_switch(ports, 1) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_text_position){3,4},
+	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_text_position){2,4},
 	    &matrix, false, 7, 3, ST_RIP3_XOR) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		for (int32_t x = 0; x < 6; x++) {
@@ -190,7 +191,7 @@ zero_advance_and_shadow_clip(void)
 		}
 	}
 	CHECK(st_rip3_ports_erase(ports, 0) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_text_position){-1,2},
+	CHECK(st_rip3_draw_chr_text(ports, &font, text, 2, &(struct st_rip3_text_position){-2,2},
 	    &matrix, true, 7, 3, ST_RIP3_XOR) == 0);
 	for (int32_t y = 0; y < 6; y++) {
 		for (int32_t x = 0; x < 6; x++) {
@@ -227,9 +228,6 @@ errors_and_viewport(void)
 	CHECK(st_rip3_ports_switch(ports, 1) == 0);
 	CHECK(st_rip3_ports_viewport(ports, &view) == 0);
 	CHECK(st_rip3_ports_erase(ports, 3) == 0);
-	CHECK(st_rip3_draw_chr_text(ports, &bold, (const uint8_t *)"A:", 2, &origin,
-	    &(struct st_rip3_chr_text_matrix){0.1,0,0,-0.1}, false,
-	    7, 0, ST_RIP3_COPY) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_rip3_draw_chr_text(ports, &font, &a, 1, &origin,
 	    &(struct st_rip3_chr_text_matrix){NAN,0,0,-1}, false,
 	    7, 0, ST_RIP3_COPY) == IO_ERROR_OUT_OF_RANGE);

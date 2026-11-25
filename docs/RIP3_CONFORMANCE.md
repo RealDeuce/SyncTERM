@@ -421,8 +421,8 @@ Historical clarification issues:
   example and aggregate ISPROT replies when entries are undefined.
 
 - [#17](https://github.com/bbs-land/remote-imaging-protocol/issues/17): six emitted
-  BOLD.CHR opcode-01 scan records contradict the inherited unused-opcode claim;
-  their painting semantics need clarification for v3.
+  BOLD.CHR opcode-01 records prompted a correction to the inherited format
+  description. The adopted RIPtel contract consumes SCAN and preserves the pen.
 
 - [#18](https://github.com/bbs-land/remote-imaging-protocol/issues/18): YEAR's
   syntax typo, inconsistent DATETIME weekday/date example and exact single-digit
@@ -582,8 +582,8 @@ later LITT.CHR (5,151 bytes) and LCOM.CHR (12,079 bytes), which differ from the
 frozen 1.54 font bank. All classic fonts have separate v3 pins/data, and no 1.54
 font bank is replaced. The machine-generated ATF catalog cache is unnecessary
 for the new engine's asset/style registry. Classic text has independent font
-selection, layout and device stroke rendering; style-table/wire integration and
-issue #17's five BOLD glyphs containing scan records remain pending.
+selection, layout and device stroke rendering. The connected graphical text
+fixture exercises all five BOLD glyphs containing SCAN records.
 
 `rip3_maf` checks explicit little-endian directory/subrecord decoding, all
 30 documented cell sizes and first offsets, the literal 8x11 smiley bytes,
@@ -841,10 +841,9 @@ empty programs, each truncated prefix, unsupported versions and malformed
 bounds/unterminated programs, with unchanged outputs/cursors on failure.
 The inherited LITT A example supplies independent literal MOVE/DRAW expectations
 at RIPtel's later offset. All six BOLD scan records are exposed explicitly in
-the five affected glyphs, rather than silently treated as no-ops. Raw scan_flag
-metadata is retained. Native Valgrind reports no errors or definite/indirect
-leaks. Classic layout/scale is tested separately below; wire orchestration and
-scan behavior in #17 remain pending. The frozen 1.54 decoder is not called or changed.
+the five affected glyphs. The decoder retains the raw scan_flag metadata.
+Native Valgrind reports no errors or definite/indirect leaks. Classic layout
+and scale are tested separately below. The frozen 1.54 decoder is not called or changed.
 
 `rip3_stroke_text` checks classic solid one-pixel glyph strokes through explicit
 baseline/device matrices, nominal unit metrics, accumulation before scaling,
@@ -853,13 +852,13 @@ rotation/shear, clipped shadows and all five write modes. Independent literal
 LITT A grids include its retraced right stem; the original I center stem checks
 fractional accumulated placement without per-character truncation. A synthetic
 zero-advance glyph proves advances come from its width table, not its final
-pen position. SCAN in a later glyph, invalid matrices/endpoints and invalid
-metrics reject before changing pixels. Inactive and protected viewports and a
-coherent RGB region/margin capture are covered. Native Valgrind reports no
+pen position. A SCAN with a nonzero payload between two DRAWs preserves the
+pen and contributes no ink even with a nonzero header scan_flag. Invalid
+matrices, endpoints and metrics reject before changing pixels. The tests cover
+inactive and protected viewports and a coherent RGB region/margin capture. Native Valgrind reports no
 errors or definite/indirect leaks. Callers still supply the matrix/origin;
 classic-font selection/resolution/justification and outline rendering are tested
 separately below. World/cursor/style-table and wire orchestration remain pending.
-SCAN painting stays blocked by #17.
 
 `rip3_variables` checks an owned, growing user-variable table with canonical
 case-insensitive ASCII names of 1..20 bytes, first-letter validation, underscore/
@@ -1176,9 +1175,10 @@ claims. Tests check all flag combinations, the three native bitmap cell sizes,
 all font/magnification/canvas bindings, literal vector scale expectations,
 nonzero CHR baselines, fractional advances and preserved plans on rejection.
 Independently authored bitmap and vector glyphs supply two coherent RGB scene
-expectations for alignment and orientation. Unsupported SCAN rejects before
-painting. The native CMake build and all 49 RIP3/preservation checks pass;
-native Valgrind reports no errors or leaks in the classic-text fixture.
+expectations for alignment and orientation. Replacing a rectangle's closing
+DRAW with SCAN leaves three visible edges. At this milestone, the native
+CMake build and 49 RIP3/preservation checks passed. Native Valgrind reported
+no errors or leaks in the classic-text fixture.
 No world frame, current cursor or graphics-style table is modified;
 those bindings and wire processing remain pending, including #24's ownership
 questions. The public parser error boundary and frozen RIP154 path are unchanged.
@@ -2566,7 +2566,7 @@ when a text context is bound; protected/rejected Y changes neither family nor
 cursor. Active extended-family text remains unsupported. Direct RGB ink resolves
 through the current bound palette; unused shadow background and NOT-mode colors
 are not looked up. Glyph staging/validation finish before the cursor is committed,
-so unsupported SCAN records, malformed inputs, missing services and allocation
+so malformed inputs, missing services and allocation
 failures cannot leave an advanced cursor or partially accepted text command.
 
 Input encoding is explicit CP437 or strict UTF-8 mapped to original CP437 glyphs,
@@ -2586,9 +2586,9 @@ Literal published m/T/@ examples, current-radix widths 2..5, shortened final MOV
 fields, WORLD projection, huge offscreen anchors, five transfer modes, shadows,
 RGB/NOT/unused-background paths and non-advancing T orientations are checked.
 A fractional CHR advance survives successive T calls; valid Y activates the classic
-family, while protected Y and BOLD SCAN rejection preserve state. UTF-8-buffer and
-stroke-staging allocation failures retain both pixels and cursor; malformed split
-input recovers into later m/T commands. The initial MOVE test failed against the
+family. Protected Y preserves state. BOLD text containing SCAN advances
+by the full string width. UTF-8-buffer and stroke-staging allocation failures
+retain both pixels and cursor. Malformed split input recovers into later m/T commands. The initial MOVE test failed against the
 prior unsupported dispatcher before implementation changed.
 
 These are explicit-context classic literal commands, not complete text expansion,

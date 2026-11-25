@@ -10,6 +10,28 @@ from st_rip3_button_styles_connected_test import number
 from st_rip3_mouse_connected_test import field
 
 
+def bold_scan(t):
+    t.case('rip3-bold-scan-preserves-contours-and-text-advance')
+    # Baseline (20,100), size 4. The BOLD width table gives the successive
+    # origins 20, 56, 70, 83, 102, 142, 171 and the final cursor at 186.
+    frame = t.exchange(b'\x01|*|fHSDC|c0F|Y0A00040W|m0K2S|TA":;%=I\r\n'
+                       + query(b'$TEXTXY$', at_cursor=True), b'186:100')
+    # Published colon and equals contours, projected from the 640x350 CHR
+    # reference plane to this 640x480 device. Include both interiors and gaps.
+    for left, right, bars in ((70, 76, ((66, 78), (89, 100))),
+                              (142, 164, ((63, 70), (75, 82)))):
+        for y in range(60, 103):
+            for x in range(left - 1, right + 2):
+                edge = left <= x <= right and any(
+                    top <= y <= bottom and (x in (left, right) or y in (top, bottom))
+                    for top, bottom in bars)
+                assert pixel(frame, x, y) == (0xffffff if edge else 0), (x, y)
+    # Both quotes, the semicolon's upper contour, the percent's final slash
+    # and the ordinary glyphs on either side of the run all contribute ink.
+    for x, y in ((20, 100), (57, 45), (62, 45), (89, 71), (133, 42), (171, 80)):
+        assert pixel(frame, x, y) == 0xffffff, (x, y)
+
+
 def skewed_curves(t):
     t.case('rip3-live-skewed-span-and-composition')
 
@@ -236,6 +258,7 @@ def run(args):
         values(b'$RESET(HARD)$')
         assert default_glyph() == glyph
 
+        bold_scan(t)
         skewed_curves(t)
         t.case('PolyMarker projects full dimensions and selects the flag-defined pen and brush')
         # Marker 21 is a square spanning signed 50% of each full extent.

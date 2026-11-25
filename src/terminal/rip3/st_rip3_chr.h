@@ -44,8 +44,8 @@ int st_rip3_chr_open(struct st_rip3_chr *result, const void *data, size_t size);
 int st_rip3_chr_builtin(struct st_rip3_chr *result, unsigned font_number);
 int st_rip3_chr_glyph(struct st_rip3_chr_glyph *result,
 	const struct st_rip3_chr *font, uint8_t character);
-/* NOT_FOUND marks program end. SCAN is exposed, not silently discarded;
- * upstream issue #17 must settle the painting effect of BOLD's six records. */
+/* NOT_FOUND marks program end. The iterator exposes raw SCAN records.
+ * The classic renderer ignores their payload and continues at the same pen position. */
 int st_rip3_chr_next(struct st_rip3_chr_record *result,
 	const struct st_rip3_chr_glyph *glyph, size_t *cursor);
 

@@ -77,7 +77,7 @@ int st_rip3_classic_default_outline(struct st_rip3_outline_font *font,
 	const struct st_rip3_frame *frame);
 /* Original bundled RIPtel resources only: bitmap font zero is that canvas's
  * native 80x43 MAF bank, not the frozen 1.54 font. BGI fonts use their original
- * CHR views; unresolved SCAN glyphs remain unsupported during painting. */
+ * CHR views. */
 int st_rip3_classic_font_builtin(struct st_rip3_classic_font *result,
 	enum st_rip3_canvas canvas, unsigned number);
 /* Use an exact MAF bank when available; other client rasters use the 640x480

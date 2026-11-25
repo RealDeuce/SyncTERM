@@ -370,7 +370,7 @@ vector_and_failures(enum st_rip3_canvas canvas, uint32_t width, uint32_t height)
 	    && st_rip3_styles_protect(f.host.styles,3,true) == 0);
 	CHECK(process(&f,"E",-1) == 0);
 	int64_t previous = cursor(&f).x;
-	CHECK(process(&f,"TA:",ST_RIP3_COMMAND_UNSUPPORTED) == 0 && cursor(&f).x == previous && flat(&f,ST_PIXEL_COLOR_RGB_TAG) == 0);
+	CHECK(process(&f,"TA:",-1) == 0 && cursor(&f).x == previous + 49 * width / 640 && cursor(&f).y == 6);
 	destroy(&f); return 0;
 }
 

@@ -57,8 +57,6 @@ stroke_count(const struct st_rip3_chr *font, const uint8_t *text,
 			continue;
 		if (status != 0)
 			return status;
-		if (glyph.has_scan)
-			return IO_ERROR_NOT_SUPPORTED;
 		while ((status = st_rip3_chr_next(&record, &glyph, &cursor)) == 0) {
 			if (record.operation == ST_RIP3_CHR_DRAW) {
 				if (strokes == SIZE_MAX)
@@ -104,7 +102,7 @@ stroke_build(const struct st_rip3_chr *font, const uint8_t *text,
 			return status;
 		while ((status = st_rip3_chr_next(&record, &glyph, &cursor)) == 0) {
 			if (record.operation == ST_RIP3_CHR_SCAN)
-				return IO_ERROR_NOT_SUPPORTED;
+				continue;
 			if (record.operation == ST_RIP3_CHR_DRAW) {
 				if (next >= capacity)
 					return IO_ERROR_INVALID_FORMAT;

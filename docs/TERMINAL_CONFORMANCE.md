@@ -2351,6 +2351,11 @@ the original physical tail against its press token in the existing input FIFO.
 No new pixel/damage layer or guest scripting API is added. Parser/provider and
 rendering failures stay local to RIP3; the connection remains usable.
 
+The connected RIPv3 graphical tests in CP437 and UTF-8 draw all five BOLD.CHR
+characters containing SCAN between ordinary letters. A single exchange checks
+the final graphics cursor and the visible strokes, including the hollow colon
+and equals contours on the 640×480 bitmap.
+
 `rip3_text_metric`, public session tests and the connected
 `syncterm_rip3_metric_CP437` / `syncterm_rip3_metric_UTF-8` cases cover live
 level-zero r modes 0–3, exact real-font width/height axes, signed-WORD/world

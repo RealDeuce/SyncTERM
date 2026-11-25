@@ -281,13 +281,20 @@ vector_layout_and_scene(void)
 	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, 64) == 0);
 	CHECK(st_rip3_classic_text_plan(&font, &style, text, 1, &anchor, &plan) == 0 && plan.origin.y == 119);
 	CHECK(st_rip3_ports_erase(ports, 1) == 0);
-	bytes[155] = 0; /* Active SCAN instead of the last DRAW. */
+	bytes[155] = 0; /* Replace the closing DRAW with SCAN. */
 	CHECK(st_rip3_chr_open(&font.data.stroke, bytes, sizeof(bytes)) == 0);
-	CHECK(st_rip3_draw_classic_text(ports, &font, &style, text, 1, &horizontal,
-	    12, 8, ST_RIP3_COPY) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(st_rip3_classic_text_style_set(&style, 1, 0, 4, ST_RIP3_CLASSIC_BASELINE) == 0);
+	CHECK(st_rip3_draw_classic_text(ports, &font, &style, text, 1, &anchor,
+	    12, 8, ST_RIP3_COPY) == 0);
 	CHECK(st_rip3_ports_snapshot(ports, &palette, &capture) == 0);
-	for (size_t i = 0; i < 640U * 480U; i++)
-		CHECK(capture->primary[i] == (ST_PIXEL_COLOR_RGB_TAG | 0x0000aa));
+	for (unsigned y = 0; y < 480; y++) {
+		for (unsigned x = 0; x < 640; x++) {
+			bool ink = x >= 100 && x <= 104 && y >= 59 && y <= 107
+			    && (y == 59 || x == 104 || y == 107);
+			CHECK(capture->primary[y * 640 + x]
+			    == (ST_PIXEL_COLOR_RGB_TAG | (ink ? 0xff5555 : 0x0000aa)));
+		}
+	}
 	st_pixel_buffer_destroy(capture);
 	st_rip3_ports_destroy(ports);
 	return 0;
