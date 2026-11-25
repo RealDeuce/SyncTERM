@@ -4,7 +4,6 @@
 
 #include "st_rip3_ports.h"
 #include "io_error.h"
-#include "st_pixels.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -113,19 +112,22 @@ visit_draw(const struct stroke_target *target, const struct stroke_visit *visit,
 	if (target->mode == ST_RIP3_COPY)
 		return st_rip3_ports_plot(target->ports, x, y,
 		    visit->seen == 2 ? target->foreground : target->background, ST_RIP3_COPY);
-	if (target->mode == ST_RIP3_NOT)
-		return visit->odd == 0 ? 0 : st_rip3_ports_plot(target->ports, x, y, 0, target->mode);
+	if (target->mode == ST_RIP3_NOT) {
+		int status = st_rip3_ports_plot(target->ports, x, y, 0, target->mode);
+		if (status == 0 && visit->odd == 0)
+			status = st_rip3_ports_plot(target->ports, x, y, 0, target->mode);
+		return status;
+	}
 	/* Keep the two pen operands separate until the destination domain is
 	 * known. The palette lookup of a combined index would change the RGB mix. */
 	for (uint8_t kind = 1; kind <= 2; ++kind) {
 		if ((visit->seen & kind) == 0) continue;
 		uint32_t source = kind == 2 ? target->foreground : target->background;
-		if (target->mode == ST_RIP3_XOR && (visit->odd & kind) == 0) {
-			if (!ST_PIXEL_COLOR_IS_RGB(source)) continue;
-			/* Two identical direct XORs cancel but still promote an index. */
-			source = ST_PIXEL_COLOR_RGB_TAG;
-		}
 		int status = st_rip3_ports_plot(target->ports, x, y, source, target->mode);
+		/* Even visits cancel numerically but still store the result of a
+		 * drawing operation, including promotion over separate terminal ink. */
+		if (status == 0 && target->mode == ST_RIP3_XOR && (visit->odd & kind) == 0)
+			status = st_rip3_ports_plot(target->ports, x, y, source, target->mode);
 		if (status != 0) return status;
 	}
 	return 0;
@@ -651,6 +653,35 @@ done:
 	free(target.visits); return status;
 }
 
+struct stroke_paint {
+	struct st_rip3_ports *ports;
+	const struct st_rip3_stroke_mask *ink, *shadow;
+	uint32_t foreground, background;
+	enum st_rip3_write_mode mode;
+};
+
+static int
+paint_stroke(void *context)
+{
+	const struct stroke_paint *paint = context;
+	const struct st_rip3_stroke_mask *mask = paint->ink;
+	for (size_t y = 0; y < mask->height; y++) {
+		for (size_t x = 0; x < mask->width; x++) {
+			uint8_t coverage = mask->coverage[y * mask->width + x];
+			int status;
+
+			if (coverage == 0)
+				continue;
+			status = st_rip3_ports_plot(paint->ports,
+			    mask->bounds.x0 + (int32_t)x, mask->bounds.y0 + (int32_t)y,
+			    coverage == 2 ? paint->foreground : paint->background, paint->mode);
+			if (status != 0)
+				return status;
+		}
+	}
+	return 0;
+}
+
 int
 st_rip3_stroke_apply(struct st_rip3_ports *ports,
     const struct st_rip3_stroke_mask *mask, uint32_t foreground,
@@ -660,21 +691,8 @@ st_rip3_stroke_apply(struct st_rip3_ports *ports,
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (mask->coverage == NULL)
 		return 0;
-	for (size_t y = 0; y < mask->height; y++) {
-		for (size_t x = 0; x < mask->width; x++) {
-			uint8_t coverage = mask->coverage[y * mask->width + x];
-			int status;
-
-			if (coverage == 0)
-				continue;
-			status = st_rip3_ports_plot(ports,
-			    mask->bounds.x0 + (int32_t)x, mask->bounds.y0 + (int32_t)y,
-			    coverage == 2 ? foreground : background, mode);
-			if (status != 0)
-				return status;
-		}
-	}
-	return 0;
+	struct stroke_paint paint = {ports, mask, NULL, foreground, background, mode};
+	return st_rip3_ports_draw(ports, mode, paint_stroke, &paint);
 }
 
 static bool
@@ -687,22 +705,12 @@ mask_at(const struct st_rip3_stroke_mask *mask, int32_t x, int32_t y)
 	    + (size_t)(x - mask->bounds.x0)] != 0;
 }
 
-int
-st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
-    const struct st_rip3_stroke_mask *ink,
-    const struct st_rip3_stroke_mask *shadow, uint32_t foreground,
-    uint32_t background, enum st_rip3_write_mode mode)
+static int
+paint_shadow(void *context)
 {
-	struct st_rip3_rect bounds;
-
-	if (ports == NULL || ink == NULL || shadow == NULL
-	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
-		return IO_ERROR_INVALID_ARGUMENT;
-	if (ink->coverage == NULL)
-		return st_rip3_stroke_apply(ports, shadow, background, background, mode);
-	if (shadow->coverage == NULL)
-		return st_rip3_stroke_apply(ports, ink, foreground, foreground, mode);
-	bounds = ink->bounds;
+	const struct stroke_paint *paint = context;
+	const struct st_rip3_stroke_mask *ink = paint->ink, *shadow = paint->shadow;
+	struct st_rip3_rect bounds = ink->bounds;
 	if (shadow->bounds.x0 < bounds.x0)
 		bounds.x0 = shadow->bounds.x0;
 	if (shadow->bounds.y0 < bounds.y0)
@@ -718,13 +726,30 @@ st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
 
 			if (!foreground_pixel && !mask_at(shadow, x, y))
 				continue;
-			status = st_rip3_ports_plot(ports, x, y,
-			    foreground_pixel ? foreground : background, mode);
+			status = st_rip3_ports_plot(paint->ports, x, y,
+			    foreground_pixel ? paint->foreground : paint->background, paint->mode);
 			if (status != 0)
 				return status;
 		}
 	}
 	return 0;
+}
+
+int
+st_rip3_stroke_shadow_apply(struct st_rip3_ports *ports,
+    const struct st_rip3_stroke_mask *ink,
+    const struct st_rip3_stroke_mask *shadow, uint32_t foreground,
+    uint32_t background, enum st_rip3_write_mode mode)
+{
+	if (ports == NULL || ink == NULL || shadow == NULL
+	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (ink->coverage == NULL)
+		return st_rip3_stroke_apply(ports, shadow, background, background, mode);
+	if (shadow->coverage == NULL)
+		return st_rip3_stroke_apply(ports, ink, foreground, foreground, mode);
+	struct stroke_paint paint = {ports, ink, shadow, foreground, background, mode};
+	return st_rip3_ports_draw(ports, mode, paint_shadow, &paint);
 }
 
 void

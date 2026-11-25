@@ -360,6 +360,66 @@ st_rip3_surface_fill(struct st_rip3_surface *surface,
 	return st_rip3_surface_fill_colors(surface, clip, area, color, mode, NULL);
 }
 
+static uint32_t
+native_literal(uint32_t pixel, const uint32_t *palette)
+{
+	uint32_t rgb = ST_PIXEL_COLOR_IS_RGB(pixel) ? pixel & UINT32_C(0xffffff)
+	    : pixel <= UINT16_MAX ? palette[pixel] : 0;
+	return ST_PIXEL_COLOR_RGB_TAG | rgb;
+}
+
+int
+st_rip3_surface_fill_screen(struct st_rip3_surface *surface, const struct st_rip3_rect *area,
+    uint32_t color, enum st_rip3_write_mode mode, const struct st_rip3_palette *palette,
+    struct st_rip3_screen_drawing *drawing)
+{
+	const struct st_pixel_buffer *native = drawing->native;
+	struct st_rip3_rect visible = *area;
+	const struct st_rip3_rect bounds = {0, 0, (int32_t)surface->width - 1, (int32_t)surface->height - 1};
+	if (!intersect(&visible, &bounds)) return 0;
+	uint32_t *native_other = native->alternate;
+	for (int32_t y = visible.y0; y <= visible.y1; ++y) {
+		for (int32_t x = visible.x0; x <= visible.x1; ++x) {
+			size_t at = (size_t)y * surface->width + (uint32_t)x;
+			size_t target = (size_t)y * native->width + (uint32_t)x;
+			uint32_t primary = surface->pixels[at];
+			uint32_t alternate = primary;
+			/* Unpresented drawing covers both phases. Otherwise compare the
+			 * native words to the last published drawing color to retain indexes. */
+			if (mode != ST_RIP3_COPY && surface->damage[at] == 0) {
+				uint32_t previous = drawing->presented[at];
+				uint32_t visible_primary = native->primary[target];
+				uint32_t visible_other = native_other == NULL ? visible_primary : native_other[target];
+				if (visible_primary != previous)
+					primary = native_literal(visible_primary, drawing->native_palette);
+				if (visible_other != previous)
+					alternate = native_literal(visible_other, drawing->native_palette);
+			}
+			primary = write_pixel(primary, color, mode, palette);
+			surface->pixels[at] = primary;
+			if (!ST_PIXEL_COLOR_IS_RGB(primary)) primary = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[primary];
+			primary |= drawing->native_rgb_flag;
+			native->primary[target] = primary;
+			if (native_other != NULL) {
+				alternate = write_pixel(alternate, color, mode, palette);
+				if (!ST_PIXEL_COLOR_IS_RGB(alternate)) alternate = ST_PIXEL_COLOR_RGB_TAG | palette->rgb[alternate];
+				native_other[target] = alternate | drawing->native_rgb_flag;
+			}
+			drawing->presented[at] = primary;
+			surface->damage[at] = 0;
+		}
+	}
+	struct st_rip3_rect *written = &drawing->written;
+	if (!rect_valid(written)) *written = visible;
+	else {
+		if (visible.x0 < written->x0) written->x0 = visible.x0;
+		if (visible.y0 < written->y0) written->y0 = visible.y0;
+		if (visible.x1 > written->x1) written->x1 = visible.x1;
+		if (visible.y1 > written->y1) written->y1 = visible.y1;
+	}
+	return 0;
+}
+
 int
 st_rip3_surface_plot(struct st_rip3_surface *surface,
     const struct st_rip3_rect *clip, int32_t x, int32_t y, uint8_t color,

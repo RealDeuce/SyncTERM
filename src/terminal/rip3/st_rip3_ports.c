@@ -37,6 +37,9 @@ struct st_rip3_ports {
 	void *screen_writer_context;
 	int (*screen_writer)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,
 	    const struct st_pixel_mask *,const struct st_rip3_palette *);
+	void *screen_drawing_context;
+	st_rip3_screen_drawing_fn screen_drawing;
+	struct st_rip3_screen_drawing *drawing;
 	struct port entries[36];
 	struct st_rip3_resident_query floating_query;
 };
@@ -203,6 +206,38 @@ st_rip3_ports_bind_screen_writer(struct st_rip3_ports *ports,void *context,
         const struct st_pixel_mask *,const struct st_rip3_palette *))
 {
 	if (ports!=NULL) {ports->screen_writer_context=context;ports->screen_writer=write;}
+}
+
+void
+st_rip3_ports_bind_screen_drawing(struct st_rip3_ports *ports, void *context, st_rip3_screen_drawing_fn drawing)
+{
+	if (ports == NULL) return;
+	ports->screen_drawing_context = context;
+	ports->screen_drawing = drawing;
+}
+
+int
+st_rip3_ports_draw(struct st_rip3_ports *ports, enum st_rip3_write_mode mode,
+    st_rip3_drawing_fn draw, void *context)
+{
+	if (mode == ST_RIP3_COPY || ports == NULL || ports->screen_drawing == NULL || ports->drawing != NULL
+	    || ports->drawing_palette == NULL || ports->entries[ports->current].info.offscreen
+	    || !ports->entries[ports->current].info.viewport_active)
+		return draw(context);
+	return ports->screen_drawing(ports->screen_drawing_context, ports, draw, context);
+}
+
+int
+st_rip3_ports_draw_screen(struct st_rip3_ports *ports, struct st_rip3_screen_drawing *drawing,
+    st_rip3_drawing_fn draw, void *context)
+{
+	if (ports->damage == NULL || drawing->native->width <= (uint32_t)ports->screen_bounds.x1
+	    || drawing->native->height <= (uint32_t)ports->screen_bounds.y1)
+		return IO_ERROR_OUT_OF_RANGE;
+	ports->drawing = drawing;
+	int status = draw(context);
+	ports->drawing = NULL;
+	return status;
 }
 
 int
@@ -569,6 +604,8 @@ st_rip3_ports_fill(struct st_rip3_ports *ports, const struct st_rip3_rect *area,
 	port = &ports->entries[ports->current];
 	if (!port->info.viewport_active || !translate(port, area, &visible))
 		return 0;
+	if (!port->info.offscreen && ports->drawing != NULL)
+		return st_rip3_surface_fill_screen(ports->screen, &visible, color, mode, ports->drawing_palette, ports->drawing);
 	return st_rip3_surface_fill_colors(port_surface(ports, ports->current), NULL,
 	    &visible, color, mode, ports->drawing_palette);
 }

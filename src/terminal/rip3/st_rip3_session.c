@@ -2356,6 +2356,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    st_rip3_palettes_published(session->commands.palettes));
 	if (status==0) st_rip3_ports_bind_screen_reader(session->commands.ports,config->sink.context,config->sink.screen_read);
 	if (status==0) st_rip3_ports_bind_screen_writer(session->commands.ports,config->sink.context,config->sink.screen_write);
+	if (status==0) st_rip3_ports_bind_screen_drawing(session->commands.ports,config->sink.context,config->sink.screen_drawing);
 	if (config->builtin_bitmap_errors && config->bitmap_errors==NULL) {
 		session->bitmap_ui=(struct st_rip3_bitmap_error_ui){.ports=session->commands.ports,.palettes=session->commands.palettes};
 		session->bitmap_errors=(struct st_rip3_bitmap_error_sink){&session->bitmap_ui,st_rip3_bitmap_error_show};

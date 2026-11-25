@@ -472,6 +472,33 @@ color_mode(const struct st_rip3_command_host *host,
 	return st_rip3_environments_set(host->environments,number,&value);
 }
 
+struct drawing_command {
+	const struct st_rip3_command_host *host;
+	const uint8_t *bytes;
+	size_t length;
+	bool *operation;
+	int (*execute)(const struct st_rip3_command_host *, const uint8_t *, size_t, bool *);
+};
+
+static int
+draw_command(void *context)
+{
+	const struct drawing_command *call = context;
+	return call->execute(call->host, call->bytes, call->length, call->operation);
+}
+
+static int
+execute_drawing(const struct st_rip3_command_host *host, const uint8_t *bytes, size_t length,
+    bool *operation, int (*handler)(const struct st_rip3_command_host *, const uint8_t *, size_t, bool *))
+{
+	struct st_rip3_style style;
+	unsigned current;
+	if (st_rip3_styles_current(host->styles, &current) != 0 || st_rip3_styles_get(host->styles, current, &style) != 0)
+		return handler(host, bytes, length, operation);
+	struct drawing_command call = {host, bytes, length, operation, handler};
+	return st_rip3_ports_draw(host->ports, style.write_mode, draw_command, &call);
+}
+
 static int
 execute(const struct st_rip3_command_host *host,
     const uint8_t *command, size_t length, bool *operation, const struct st_rip3_command_sink *sink)
@@ -558,22 +585,24 @@ execute(const struct st_rip3_command_host *host,
 	if (command[0] == 'A' || command[0] == 'C' || command[0] == 'G' || command[0] == 'o'
 	    || command[0] == 'O' || command[0] == 'V' || command[0] == 'I'
 	    || command[0] == 'i' || command[0] == '_')
-		return st_rip3_curve_commands_execute(host, command, length, operation);
+		return execute_drawing(host, command, length, operation, st_rip3_curve_commands_execute);
 	if (command[0] == '&' || command[0] == '-' || command[0] == ']' || command[0] == '+' || command[0] == '['
 	    || command[0] == ';')
-		return st_rip3_skew_commands_execute(host,command,length,operation);
+		return execute_drawing(host, command, length, operation, st_rip3_skew_commands_execute);
 	if (command[0] == ',' || command[0] == '.' || command[0] == ':' || command[0] == '`' || command[0] == '{')
 		return st_rip3_affine_command_execute(host, command, length, operation);
 	if (command[0] == 'Z' || command[0] == 'z' || command[0] == 't' || command[0] == 'x')
-		return st_rip3_bezier_commands_execute(host,command,length,operation);
+		return execute_drawing(host, command, length, operation, st_rip3_bezier_commands_execute);
 	if (command[0] == 'U' || command[0] == 'u')
-		return st_rip3_rounded_commands_execute(host,command,length,operation);
+		return execute_drawing(host, command, length, operation, st_rip3_rounded_commands_execute);
 	if (command[0] == 'P' || command[0] == 'l' || command[0] == 'p' || command[0] == '<')
-		return st_rip3_path_commands_execute(host, command, length, operation);
+		return execute_drawing(host, command, length, operation, st_rip3_path_commands_execute);
+	if (command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K'
+	    || command[0] == 'X' || command[0] == 'j')
+		return execute_drawing(host, command, length, operation, st_rip3_drawing_commands_execute);
 	if (command[0] == 'c' || command[0] == 'k' || command[0] == 'W' || command[0] == 'Y'
-	    || command[0] == 'L' || command[0] == 'R' || command[0] == 'B' || command[0] == 'K'
 	    || command[0] == 'S' || command[0] == 's' || command[0] == 'E' || command[0] == '='
-	    || command[0] == 'X' || command[0] == 'j' || command[0] == 'N')
+	    || command[0] == 'N')
 		return st_rip3_drawing_commands_execute(host, command, length, operation);
 	if (command[0] == 'Q' || command[0] == 'a')
 		return desktop_palette(host, command, length, operation);

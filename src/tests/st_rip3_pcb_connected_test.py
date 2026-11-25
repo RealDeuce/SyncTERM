@@ -34,6 +34,8 @@ def run(args,width,height):
             return wire(copy_command(source,area,destination,target,mode))
         def bar(color,area):
             return wire(b'W0|S01'+number(color,2)+b'|B'+coords(area))
+        def palette_entry(index,rgb):
+            return b'd'+number(index,2,64)+b'8'+number(rgb,4,64)
         def same(before,after):
             assert before.primary==after.primary and before.alternate==after.alternate
         def region(frame,area,color):
@@ -44,6 +46,17 @@ def run(args,width,height):
             assert (frame.application['cterm.x'],frame.application['cterm.y'],frame.application['cterm.attr'])==(4,2,0x16)
             values(b'$CUR(ENV)$:$CUR(PAL)$:$CUR(STYLE)$:$CUR(BUT)$:$CUR(TW)$:$CUR(PORT)$:$TEXTXY$',b'5:17:7:6:3:0:50:51')
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
+        t.case('rip3-drawing-distinguishes-root-ansi-from-a-matching-index')
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        wire(palette_entry(1,0xa0b0c0)+b'|c01|X0800')
+        frame=t.exchange(b'\x1b[1;2H\x1b[48;2;160;176;192m ')
+        assert pixel(frame,8,0)==0xa0b0c0
+        frame=wire(b'W04|X0800')
+        assert pixel(frame,8,0)==0x5f4f3f
+        frame=t.exchange(b'\x1b[2;2H\x1b[48;2;17;34;51m \x1b[1S')
+        assert pixel(frame,8,0)==0x112233
+        frame=wire(b'X0800')
+        assert pixel(frame,8,0)==0xeeddcc
         wire(b'*')
         values(b'$CUR(ENV,5)$'+f'$WORLD(CUR,{width},{height})$'.encode()+b'$CUR(PAL,17)$$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(TW,3)$')
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()
@@ -185,8 +198,6 @@ def run(args,width,height):
         frame=copy(0,(x,0,x+2,1),0,(x+1,0,x+3,1),1)
         assert [pixel(frame,i,0) for i in range(x,x+4)]==[0x112233,0xb192f3,0,0xa0b0c0]
 
-        def palette_entry(index,rgb):
-            return b'd'+number(index,2,64)+b'8'+number(rgb,4,64)
         def paste(x,y,mode):
             return b'1P'+coords((x,y))+number(mode,2)+b'0'
 
@@ -347,6 +358,52 @@ def run(args,width,height):
                      + copy_command(18,(1,3,2,4),0,(451,353,452,354)))
         assert pixel(frame,451,353) == 0x316253
         wire(b'M08')
+        values(b'$RESET(PAL,17)$')
+
+        t.case('rip3-drawing-write-modes-read-the-visible-screen')
+        bar(0,(start,0,start+5,3))
+        frame = t.exchange(b'\x1b[1;61H\x1b[0;48;2;17;34;51m ')
+        region(frame,(start,0,start+cell_width,4),0x112233)
+        def point(op,x,y):
+            return op + coords((x,y))
+        frame = wire(b'W04|' + point(b'X',start,0))
+        assert pixel(frame,start,0) == 0xeeddcc
+        frame = wire(point(b'X',start,0))
+        assert pixel(frame,start,0) == 0x112233
+        frame = wire(b'|'.join((palette_entry(1,0xa0b0c0),b'c01',b'S0101',b'W01',
+                               point(b'X',start+1,0),b'W02',point(b'j',start+2,0),
+                               b'W03',b'B'+coords((start+3,0,start+4,1)))))
+        assert [pixel(frame,start+i,0) for i in range(6)] == [0x112233,0xb192f3,0xb1b2f3,0x002000,0x002000,0x112233]
+        frame = wire(palette_entry(1,0x204060))
+        region(frame,(start+3,0,start+5,2),0x002000)
+        frame = wire(b'|'.join((palette_entry(253,0x80c0f8),b'W00',b'c02',point(b'X',start+5,1),
+                               b'W04',point(b'X',start+5,1))))
+        assert pixel(frame,start+5,1) == 0x80c0f8
+        assert pixel(frame,start+5,0) == 0x112233
+
+        t.case('rip3-drawing-write-modes-preserve-both-blink-phases')
+        before = t.exchange(b'\x1b[1;65H\x1b[5;38;2;160;176;192;48;2;204;136;68m'+glyph)
+        x = before.metadata['pixel_cursor_x']-cell_width
+        original = tuple(plane_pixel(before,x+1,3,phase) for phase in phases)
+        inverted = {0xa0b0c0:0x5f4f3f,0xcc8844:0x3377bb}
+        assert set(original)==inverted.keys(),original
+        frame = wire(b'W04|'+point(b'X',x+1,3))
+        assert tuple(plane_pixel(frame,x+1,3,phase) for phase in phases)==tuple(inverted[color] for color in original)
+        assert tuple(plane_pixel(frame,x+2,3,phase) for phase in phases)==original
+        frame = wire(point(b'X',x+1,3)+b'|W00')
+        assert tuple(plane_pixel(frame,x+1,3,phase) for phase in phases)==original
+
+        t.case('rip3-outline-text-write-mode-over-terminal-background')
+        rows = b''.join(f'\x1b[{row};61H\x1b[0;48;2;17;34;51m    '.encode() for row in (1,2,3))
+        before = t.exchange(rows)
+        samples = [(x,y) for y in range(3*before.metadata['cell_height'])
+                   for x in range(start,start+4*cell_width)]
+        assert {pixel(before,x,y) for x,y in samples} == {0x112233}
+        text = b'@' + coords((start,0)) + b'F'
+        frame = wire(b'Y00000109|W04|' + text)
+        assert {pixel(frame,x,y) for x,y in samples} == {0x112233,0xeeddcc}
+        frame = wire(text + b'|W00')
+        assert {pixel(frame,x,y) for x,y in samples} == {0x112233}
         values(b'$RESET(PAL,17)$')
 
         t.case('rip3-put-image-reads-inactive-clipboard-viewport')

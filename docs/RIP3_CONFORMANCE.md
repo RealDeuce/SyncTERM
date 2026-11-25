@@ -10223,21 +10223,29 @@ raster. The new connected cases check both mixed operand orders, offscreen
 paste, palette changes, and indexed composition with RGB decoding active.
 [PR #232](https://github.com/bbs-land/remote-imaging-protocol/pull/232)
 
-## Mixed-color drawing on stored surfaces
+## Mixed-color drawing on screen and bitmap ports
 
 `W00` preserves drawing indices and direct RGB values. `W01` through `W03`
 combine two drawing indices in the eight-bit index domain. When either
 operand is RGB, they resolve any index through the published palette and
 store the literal RGB result. `W04` complements the destination in its
-stored domain. Bitmap and port transfers continue to use their explicit
-transfer modes. [PR #308](https://github.com/bbs-land/remote-imaging-protocol/pull/308)
+current domain. Bitmap and port transfers use their explicit transfer modes.
+[PR #308](https://github.com/bbs-land/remote-imaging-protocol/pull/308)
+
+On a screen port, a drawing operation reads the current scene, including
+terminal glyphs and backgrounds in both blink phases. The presentation
+raster records graphics provenance even when a subsequent text paint has
+the same RGB color. Queued drawing writes already supersede older native
+pixels. The renderer edits the existing console raster for each geometry
+operation or text mask and publishes the affected bounds using console
+damage. The edit uses the console's logical row order after scrolling.
 
 Connected CP437 and UTF-8 tests check both mixed operand orders in bitmap
-ports, palette changes, direct COPY, and repeated inversion. Native tests
-check direct color decoding at all eight precisions, patterned pen visits,
-and repeated XOR that restores the original color while retaining RGB.
-Screen drawing still needs to use the visible terminal pixel where text
-has subsequently painted over the stored drawing.
+ports, palette changes, direct COPY, repeated inversion, and all four
+destination-dependent modes over terminal paint. They cover same-color
+text overwrites, the circular console raster, both blink phases, queued
+paint order, and outline text. Native tests check direct color decoding
+at all eight precisions, patterned pen visits, and repeated XOR.
 
 ## RGB port-copy composition
 

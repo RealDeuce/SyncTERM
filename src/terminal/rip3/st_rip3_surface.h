@@ -115,6 +115,18 @@ int st_rip3_surface_fill(struct st_rip3_surface *surface,
 int st_rip3_surface_fill_colors(struct st_rip3_surface *surface,
 	const struct st_rip3_rect *clip, const struct st_rip3_rect *area,
 	uint32_t color, enum st_rip3_write_mode mode, const struct st_rip3_palette *palette);
+/* Borrowed during one native raster edit. The presented baseline has the
+ * drawing surface's dimensions. Written bounds are accumulated in device pixels. */
+struct st_rip3_screen_drawing {
+	const struct st_pixel_buffer *native;
+	const uint32_t *native_palette;
+	uint32_t *presented;
+	uint32_t native_rgb_flag;
+	struct st_rip3_rect written;
+};
+int st_rip3_surface_fill_screen(struct st_rip3_surface *, const struct st_rip3_rect *,
+	uint32_t color, enum st_rip3_write_mode, const struct st_rip3_palette *,
+	struct st_rip3_screen_drawing *);
 /* RGB complement for a rendered button's selected image, matched to the
  * current palette (first nearest tie), not the indexed drawing NOT operator.
  * Reuse existing indexed pixels/damage, without allocating a backing layer. */

@@ -24,6 +24,9 @@ typedef struct st_console_snapshot st_console_snapshot_t;
 /* Resolved RGB written by a raster view keeps its local palette origin in
  * shared pixels. The renderer still reads only the low 24 color bits. */
 #define ST_CONSOLE_COLOR_VIEW_RGB UINT32_C(0x40000000)
+/* Resolved RIP3 graphics retain their origin when terminal text paints the
+ * same RGB value in the shared raster. */
+#define ST_CONSOLE_COLOR_RIP3_RGB UINT32_C(0x20000000)
 #define ST_CONSOLE_COLOR_RGB_VALUE(red, green, blue) \
 	ST_PIXEL_COLOR_RGB_VALUE((red), (green), (blue))
 #define ST_CONSOLE_COLOR_IS_RGB(colour) \
@@ -788,6 +791,10 @@ int st_console_restore_masked_pixel_region(st_console_t *console,
 int st_console_modify_pixels(st_console_t *console,
 	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
 	    struct st_console_rect *changed), void *context);
+/* Same edit scope, with the borrowed native palette for indexed pixels. */
+int st_console_modify_pixels_with_palette(st_console_t *console,
+	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
+	    const uint32_t *palette, struct st_console_rect *changed), void *context);
 int st_console_get_pixels(struct st_pixel_buffer **result,
 	st_console_t *console, const struct st_console_rect *source,
 	bool force_text);

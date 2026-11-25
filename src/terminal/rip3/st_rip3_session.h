@@ -5,6 +5,7 @@
 
 #include "st_rip3_commands.h"
 #include "st_rip3_geometry.h"
+#include "st_rip3_ports.h"
 #include "st_rip3_text_commands.h"
 
 #include <stdbool.h>
@@ -110,6 +111,7 @@ struct st_rip3_session_sink {
 	 * if needed to present both planes without repainting unrelated pixels. */
 	int (*screen_write)(void *context,const struct st_rip3_rect *,struct st_pixel_buffer *,
 	    const struct st_pixel_mask *,const struct st_rip3_palette *);
+	st_rip3_screen_drawing_fn screen_drawing;
 	/* Apply geometry to an eligible target and home it without painting,
 	 * changing selection or replacing other window state. */
 	int (*text_maximize)(void *context, unsigned number, const struct st_rip3_text_window_layout *layout);

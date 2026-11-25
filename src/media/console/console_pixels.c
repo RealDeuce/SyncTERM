@@ -1317,14 +1317,16 @@ st_console_raster_view_restore_transient(st_console_t *console, const struct st_
 	    (uint32_t)console->raster_x,(uint32_t)console->raster_y,false);
 }
 
-int
-st_console_modify_pixels(st_console_t *console,
+static int
+modify_pixels(st_console_t *console,
 	int (*edit)(void *context, const struct st_pixel_buffer *pixels,
-	    struct st_console_rect *changed), void *context)
+	    struct st_console_rect *changed),
+	int (*edit_with_palette)(void *context, const struct st_pixel_buffer *pixels,
+	    const uint32_t *palette, struct st_console_rect *changed), void *context)
 {
 	int status;
 
-	if (console == NULL || edit == NULL)
+	if (console == NULL || (edit == NULL && edit_with_palette == NULL))
 		return IO_ERROR_INVALID_ARGUMENT;
 	/* Positioned views are not flat buffers. Their native cell/blit APIs map
 	 * rows through the parent's circular raster instead of exporting aliases. */
@@ -1341,7 +1343,8 @@ st_console_modify_pixels(st_console_t *console,
 		if (status == 0) {
 			struct st_console_rect changed = {0};
 
-			status = edit(context, console->pixels, &changed);
+			status = edit_with_palette == NULL ? edit(context, console->pixels, &changed)
+			    : edit_with_palette(context, console->pixels, console->palette, &changed);
 			if (changed.width != 0 && changed.height != 0) {
 				mark_pixel_cells(console, changed.x, changed.y,
 				    (int64_t)changed.x + changed.width,
@@ -1354,6 +1357,20 @@ st_console_modify_pixels(st_console_t *console,
 	}
 	(void)st_rwlock_unlock(st_console_state_lock(console));
 	return status;
+}
+
+int
+st_console_modify_pixels(st_console_t *console,
+	int (*edit)(void *, const struct st_pixel_buffer *, struct st_console_rect *), void *context)
+{
+	return modify_pixels(console, edit, NULL, context);
+}
+
+int
+st_console_modify_pixels_with_palette(st_console_t *console,
+	int (*edit)(void *, const struct st_pixel_buffer *, const uint32_t *, struct st_console_rect *), void *context)
+{
+	return modify_pixels(console, NULL, edit, context);
 }
 
 int

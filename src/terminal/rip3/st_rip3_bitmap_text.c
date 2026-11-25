@@ -66,6 +66,43 @@ glyph_pixel(const struct st_rip3_maf_font *font,
 	    & (UINT8_C(0x80) >> (column & 7))) != 0;
 }
 
+struct bitmap_text_paint {
+	struct st_rip3_ports *ports;
+	const struct st_rip3_maf_font *font;
+	const struct st_rip3_bitmap_text_style *style;
+	const uint8_t *text;
+	const struct st_rip3_text_position *origin;
+	int64_t span, left, top, right, bottom;
+	uint32_t foreground, background;
+	enum st_rip3_write_mode mode;
+};
+
+static int
+paint_bitmap_text(void *context)
+{
+	const struct bitmap_text_paint *paint = context;
+	const struct st_rip3_bitmap_text_style *style = paint->style;
+	for (int64_t y = paint->top; y <= paint->bottom; ++y) {
+		for (int64_t x = paint->left; x <= paint->right; ++x) {
+			int pixel = glyph_pixel(paint->font, style, paint->text, paint->span, paint->origin, x, y);
+			uint32_t color;
+
+			if (pixel == 1)
+				color = paint->foreground;
+			else if ((pixel == 0 && style->opaque)
+			    || (style->shadow && glyph_pixel(paint->font, style, paint->text,
+			    paint->span, paint->origin, x - 1, y - 1) == 1))
+				color = paint->background;
+			else
+				continue;
+			int status = st_rip3_ports_plot(paint->ports, (int32_t)x, (int32_t)y, color, paint->mode);
+			if (status != 0)
+				return status;
+		}
+	}
+	return 0;
+}
+
 int
 st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
     const struct st_rip3_maf_font *font,
@@ -116,23 +153,9 @@ st_rip3_draw_bitmap_text(struct st_rip3_ports *ports,
 		right = info.clip.x1;
 	if (bottom > info.clip.y1)
 		bottom = info.clip.y1;
-	for (int64_t y = top; y <= bottom; y++) {
-		for (int64_t x = left; x <= right; x++) {
-			int pixel = glyph_pixel(font, style, text, span, origin, x, y);
-			uint32_t color;
-
-			if (pixel == 1)
-				color = foreground;
-			else if ((pixel == 0 && style->opaque)
-			    || (style->shadow && glyph_pixel(font, style, text,
-			    span, origin, x - 1, y - 1) == 1))
-				color = background;
-			else
-				continue;
-			status = st_rip3_ports_plot(ports, (int32_t)x, (int32_t)y, color, mode);
-			if (status != 0)
-				return status;
-		}
-	}
-	return 0;
+	if (left > right || top > bottom) return 0;
+	struct bitmap_text_paint paint = {
+	    ports, font, style, text, origin, span, left, top, right, bottom, foreground, background, mode,
+	};
+	return st_rip3_ports_draw(ports, mode, paint_bitmap_text, &paint);
 }

@@ -83,6 +83,15 @@ void st_rip3_ports_bind_screen_reader(struct st_rip3_ports *,void *context,
 void st_rip3_ports_bind_screen_writer(struct st_rip3_ports *,void *context,
 	int (*write)(void *,const struct st_rip3_rect *,struct st_pixel_buffer *,
 	    const struct st_pixel_mask *,const struct st_rip3_palette *));
+typedef int (*st_rip3_drawing_fn)(void *context);
+typedef int (*st_rip3_screen_drawing_fn)(void *context, struct st_rip3_ports *,
+	st_rip3_drawing_fn, void *drawing_context);
+/* Optional synchronous host edit for destination-dependent drawing. The
+ * drawing callback performs raster work only and never calls the console. */
+void st_rip3_ports_bind_screen_drawing(struct st_rip3_ports *, void *context, st_rip3_screen_drawing_fn);
+int st_rip3_ports_draw(struct st_rip3_ports *, enum st_rip3_write_mode, st_rip3_drawing_fn, void *context);
+int st_rip3_ports_draw_screen(struct st_rip3_ports *, struct st_rip3_screen_drawing *,
+	st_rip3_drawing_fn, void *context);
 
 struct st_rip3_surface_blit_area {
 	int64_t x0,y0,x1,y1,destination_x,destination_y;

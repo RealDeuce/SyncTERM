@@ -31,7 +31,7 @@ def copy_blit(x0, y0, x1, y1, x, y, mode, *, width=2, radix=36, reserved=0):
 
 def plane_pixel(frame, x, y, phase):
     m = frame.metadata
-    value = getattr(frame, phase)[(y + m["pixel_top"]) * m["plane_width"] + x]
+    value = getattr(frame, phase)[y * m["plane_width"] + x]
     return (value if value & 0x80000000 else frame.palette[value]) & 0xffffff
 
 

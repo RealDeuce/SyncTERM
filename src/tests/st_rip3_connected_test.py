@@ -25,7 +25,8 @@ def query(source, *, at_cursor=False):
 
 def pixel(frame, x, y):
     m = frame.metadata
-    word = frame.primary[(y + m["pixel_top"]) * m["plane_width"] + x]
+    # Control capture has already copied the console's circular raster in row order.
+    word = frame.primary[y * m["plane_width"] + x]
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
 
 

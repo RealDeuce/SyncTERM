@@ -4,6 +4,7 @@
 #include "st_codepage.h"
 #include "st_term_rip3_pick_list.h"
 #include "st_term_rip3_view.h"
+#include "st_rip3_ports.h"
 #include "st_rip3_query.h"
 #include "st_rip3_session.h"
 #include "st_rip3_text_window.h"
@@ -334,9 +335,11 @@ present_frame(struct st_term_rip3 *rip,bool force)
 	}
 	/* Palette edits repaint existing graphics. Explicit paint damage also
 	 * overwrites intervening ANSI ink when a COPY repeats the same index. */
-	for (size_t i=0; i<rip->pixels; i++)
+	for (size_t i=0; i<rip->pixels; i++) {
+		capture.pixels->primary[i] |= ST_CONSOLE_COLOR_RIP3_RGB;
 		if (rip->damage[i] == 0 && capture.pixels->primary[i] != rip->previous->primary[i])
 			rip->damage[i] = RIP3_PALETTE_DAMAGE;
+	}
 	struct st_pixel_buffer *old=rip->previous;
 	rip->previous=capture.pixels;
 	struct present_pixels update = {rip, old};
@@ -1047,8 +1050,9 @@ screen_write(void *context,const struct st_rip3_rect *area,struct st_pixel_buffe
 {
 	struct st_term_rip3 *rip=context;
 	for (size_t i=0;i<(size_t)pixels->width*pixels->height;i++) {
-		pixels->primary[i]=native_rgb(pixels->primary[i],palette->rgb);
-		if (pixels->alternate!=NULL) pixels->alternate[i]=native_rgb(pixels->alternate[i],palette->rgb);
+		pixels->primary[i]=native_rgb(pixels->primary[i],palette->rgb) | ST_CONSOLE_COLOR_RIP3_RGB;
+		if (pixels->alternate!=NULL)
+			pixels->alternate[i]=native_rgb(pixels->alternate[i],palette->rgb) | ST_CONSOLE_COLOR_RIP3_RGB;
 	}
 	int status=st_console_restore_masked_pixel_region(rip->config.console,pixels,mask,
 	    (uint32_t)area->x0,(uint32_t)area->y0);
@@ -1075,6 +1079,39 @@ screen_write(void *context,const struct st_rip3_rect *area,struct st_pixel_buffe
 	return 0;
 }
 
+struct screen_draw_call {
+	struct st_term_rip3 *rip;
+	struct st_rip3_ports *ports;
+	st_rip3_drawing_fn draw;
+	void *context;
+};
+
+static int
+draw_raster(void *context, const struct st_pixel_buffer *native, const uint32_t *palette,
+    struct st_console_rect *changed)
+{
+	const struct screen_draw_call *call = context;
+	struct st_rip3_screen_drawing drawing = {
+	    .native = native, .native_palette = palette,
+	    .native_rgb_flag = ST_CONSOLE_COLOR_RIP3_RGB,
+	    .presented = call->rip->previous->primary, .written = {0, 0, -1, -1},
+	};
+	int status = st_rip3_ports_draw_screen(call->ports, &drawing, call->draw, call->context);
+	const struct st_rip3_rect *area = &drawing.written;
+	if (area->x1 >= area->x0 && area->y1 >= area->y0)
+		*changed = (struct st_console_rect){(uint32_t)area->x0, (uint32_t)area->y0,
+		    (uint32_t)(area->x1 - area->x0) + 1, (uint32_t)(area->y1 - area->y0) + 1};
+	return status;
+}
+
+static int
+screen_drawing(void *context, struct st_rip3_ports *ports, st_rip3_drawing_fn draw, void *draw_context)
+{
+	struct st_term_rip3 *rip = context;
+	struct screen_draw_call call = {rip, ports, draw, draw_context};
+	return st_console_modify_pixels_with_palette(rip->config.console, draw_raster, &call);
+}
+
 static int
 screen_restore(void *context,const struct st_pixel_buffer *pixels,const struct st_rip3_palette *palette)
 {
@@ -1085,10 +1122,9 @@ screen_restore(void *context,const struct st_pixel_buffer *pixels,const struct s
 	if (status!=0) return status;
 	for (uint32_t y=0;y<height;y++) for (uint32_t x=0;x<width;x++) {
 		size_t from=(size_t)y*pixels->width+x,to=(size_t)y*width+x;
-		uint32_t value=pixels->primary[from];native->primary[to]=ST_PIXEL_COLOR_IS_RGB(value) ? value : ST_PIXEL_COLOR_RGB_TAG|palette->rgb[value];
-		if (native->alternate!=NULL) {
-			value=pixels->alternate[from];native->alternate[to]=ST_PIXEL_COLOR_IS_RGB(value) ? value : ST_PIXEL_COLOR_RGB_TAG|palette->rgb[value];
-		}
+		native->primary[to]=native_rgb(pixels->primary[from],palette->rgb) | ST_CONSOLE_COLOR_RIP3_RGB;
+		if (native->alternate!=NULL)
+			native->alternate[to]=native_rgb(pixels->alternate[from],palette->rgb) | ST_CONSOLE_COLOR_RIP3_RGB;
 	}
 	/* Publish the new primary graphics baseline once, then retain the saved
 	 * native alternate plane. The later command revision sees no new damage. */
@@ -2035,6 +2071,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	        .mouse_invert=mouse_invert,.mouse_tab_focus=mouse_tab_focus,.mouse_capture=mouse_capture,.mouse_redraw=mouse_redraw,
 	        .status_bar_changed=status_bar_changed,
 	        .screen_capture=screen_capture,.screen_restore=screen_restore,.screen_read=screen_read,.screen_write=screen_write,
+	        .screen_drawing=screen_drawing,
 	        .text_maximize=text_maximize,.text_reset_entry=text_reset_entry,
 	        .text_ansi_capture=text_ansi_capture,.text_ansi_restore=text_ansi_restore,.text_ansi_destroy=text_ansi_destroy,
 	        .scene_begin=scene_begin,.scene_end=scene_end,
@@ -2046,7 +2083,10 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	if (status==0) status=st_rip3_session_create(&rip->session,&session);
 	struct st_rip3_session_capture capture={0};
 	if (status==0) status=st_rip3_session_capture(rip->session,&capture);
-	if (status==0) rip->previous=capture.pixels;
+	if (status==0) {
+		rip->previous=capture.pixels;
+		for (size_t i=0; i<rip->pixels; i++) rip->previous->primary[i] |= ST_CONSOLE_COLOR_RIP3_RGB;
+	}
 	if (status==0) status=st_rip3_session_damage(rip->session,rip->damage,rip->pixels);
 	/* Start ANSI before the first graphics command; its lazy startup clears
 	 * the text window. It must never clear a subsequently drawn RIP scene. */
