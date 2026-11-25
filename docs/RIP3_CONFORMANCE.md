@@ -7152,6 +7152,10 @@ custom palette, including palette updates and new RIP pixels during a held
 press. Ordinary button redraws keep their filename and label preparation.
 Grouped selection feedback still uses nearest RGB complement on the indexed
 drawing surface. Its round trip with a custom palette remains pending.
+An already selected radio stays visually unchanged during a press or outside
+release and skips label expansion. The held gesture still tracks changes in
+committed selection when a new radio is admitted. A committed click requests
+its selected redraw and processes its host action once.
 
 HOT affects feedback only on mouse-active ICON faces. The style table retains
 the requested bit for any face type. PLAIN and CLIPBOARD buttons follow their

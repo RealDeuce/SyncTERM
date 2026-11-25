@@ -62,6 +62,26 @@ def run(args,width,height):
             click(310,110,b'no-fill')
             values(b'$MKILL$')
             t.exchange(b'\x01|W0|k00|S0107\r\n')
+
+            t.case('rip3-selected-radio-press-does-not-reexpand-unchanged-artwork')
+            radio = style(flags=256|1024|2|16384, group=8, surface=3)
+            definition = button((300,160,380,190),
+                                b'<>$-=RADIO_LABEL=painted$Radio<>selected-radio', flags=1)
+            t.exchange(radio + definition)
+            values(b'$&RADIO_LABEL$', b'painted')
+            before = values(b'$-=RADIO_LABEL=idle$')
+            mouse(310,170,True)
+            pressed = values(b'$&RADIO_LABEL$', b'idle')
+            assert pressed.primary == before.primary and pressed.alternate == before.alternate
+            mouse(390,170)
+            canceled = values(b'$&RADIO_LABEL$', b'idle')
+            assert canceled.primary == before.primary and canceled.alternate == before.alternate
+            mouse(310,170,True)
+            values(b'$&RADIO_LABEL$', b'idle')
+            mouse(310,170)
+            t.input(b'selected-radio')
+            values(b'$&RADIO_LABEL$', b'painted')  # Committed redraw still runs providers.
+            values(b'$MKILL$')
         def checkboxes():
             return (style(flags=256|1024|2,flags2=1,group=2,surface=3,bevel=0)
                     +button((10,10,60,30),b'ID=1:<>C1<>[2:]A[3:]X[]one',hotkey=ord('a'))

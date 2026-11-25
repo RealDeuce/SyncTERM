@@ -139,7 +139,14 @@ feedback(struct st_rip3_mouse *mouse, bool inverted)
 		struct field *field=mouse->pressed;
 		bool grouped=field->binding.group_kind!=ST_RIP3_GROUP_NONE;
 		bool selected=grouped ? st_rip3_templates_button_selected(mouse->templates,field->instance) : false;
-		bool display=grouped ? (inverted ? field->binding.group_kind==ST_RIP3_GROUP_RADIO || !selected : selected) : inverted;
+		bool radio=field->binding.group_kind==ST_RIP3_GROUP_RADIO;
+		if (radio && selected) {
+			/* Keep tracking the gesture. A newly selected peer can still
+			 * change this field's committed state while it is held. */
+			mouse->inverted=inverted;
+			return;
+		}
+		bool display=inverted ? radio || !selected : selected;
 		int status=!inverted && field->visual.restore!=NULL
 		    ? field->visual.restore(field->visual.context,display) : field->visual.select(field->visual.context,display);
 		if (status!=0 && mouse->sink.render_failure!=NULL) mouse->sink.render_failure(mouse->sink.context);
@@ -314,8 +321,10 @@ st_rip3_mouse_cancel_silent(struct st_rip3_mouse *mouse)
 	if (mouse==NULL) return;
 	if (mouse->pressed!=NULL && mouse->pressed->visual.restore!=NULL) {
 		struct field *field=mouse->pressed;
-		(void)field->visual.restore(field->visual.context,field->binding.group_kind!=ST_RIP3_GROUP_NONE
-		    && st_rip3_templates_button_selected(mouse->templates,field->instance));
+		bool selected=field->binding.group_kind!=ST_RIP3_GROUP_NONE
+		    && st_rip3_templates_button_selected(mouse->templates,field->instance);
+		if (field->binding.group_kind!=ST_RIP3_GROUP_RADIO || !selected)
+			(void)field->visual.restore(field->visual.context,selected);
 		mouse->inverted=false;mouse->pressed=NULL;
 	}
 	else if (mouse->pressed!=NULL && mouse->pressed->visual.select!=NULL && mouse->sink.busy!=NULL) {
