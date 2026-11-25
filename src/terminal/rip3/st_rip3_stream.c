@@ -18,7 +18,7 @@ struct st_rip3_stream {
 	const char *fields;
 	enum record_list records;
 	unsigned base_math, coordinate_width, field_digits, level_digits;
-	bool direct_rgb;
+	bool direct_rgb, strict_prefix;
 	uint8_t introducer, previous_text;
 	bool active, line_start, quoted, comment, discard_tail, continued, dropping, skip_lf;
 	bool last_backslash, prior_backslash, numeric_continuation;
@@ -109,6 +109,8 @@ start_fields(struct st_rip3_stream *stream, uint8_t level, uint8_t opcode)
 		return;
 	}
 	stream->fields = fields;
+	/* The portable registration prefix requires all three fields. */
+	stream->strict_prefix = level == '9' && opcode == 'R';
 	const struct st_rip3_environments *environments = stream->environments;
 	struct st_rip3_environment environment;
 	stream->base_math = 36;
@@ -177,7 +179,7 @@ collect_field(struct st_rip3_stream *stream, uint8_t byte)
 	unsigned width = field == 'x' ? stream->coordinate_width
 	    : field == 'C' ? (rgb ? 4 : 2) : field == 'R' ? 4
 	    : field >= 'a' ? (unsigned)(field - 'a' + 10) : (unsigned)(field - '0');
-	bool short_field = byte == '<' && field != 'R';
+	bool short_field = byte == '<' && field != 'R' && !stream->strict_prefix;
 	bool digit = (byte >= '0' && byte <= '9') || (byte >= 'A' && byte <= 'Z')
 	    || (ultra && ((byte >= 'a' && byte <= 'z') || byte == '#' || byte == '&'));
 	if (short_field) {
@@ -220,6 +222,7 @@ clear_command(struct st_rip3_stream *stream)
 {
 	stream->length = 0;
 	stream->fields = NULL;
+	stream->strict_prefix = false;
 	stream->records = RECORDS_NONE;
 	stream->field_digits = 0;
 	stream->level_digits = 0;
@@ -237,7 +240,7 @@ static void
 dispatch(struct st_rip3_stream *stream)
 {
 	if (!stream->dropping) {
-		if (stream->fields != NULL && *stream->fields == 'R')
+		if (stream->fields != NULL && (stream->strict_prefix || *stream->fields == 'R'))
 			report(stream, ST_RIP3_COMMAND_INVALID);
 		else if (stream->length > stream->level_digits && stream->sink.command != NULL)
 			stream->sink.command(stream->sink.context, stream->command, stream->length);

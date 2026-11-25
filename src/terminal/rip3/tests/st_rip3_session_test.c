@@ -469,6 +469,26 @@ resource_retrieval(void)
 }
 
 static int
+registration(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(append(&f, "!|J1S\r") == 0 && pump(&f) == 0);
+	uint64_t revision = st_rip3_session_revision(f.session);
+	CHECK(append(&f, "!|9R00aB#&a000000zliteral|9R...\r\nraw") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 0 && f.reply_length == 0);
+	CHECK(f.text_length == 3 && memcmp(f.text, "raw", 3) == 0);
+	CHECK(st_rip3_session_revision(f.session) == revision);
+	CHECK(append(&f, "\r!|9R00030|9R1<..tail\r") == 0 && pump(&f) == 0);
+	CHECK(f.errors == 2 && f.kind == ST_RIP3_COMMAND_INVALID);
+	CHECK(st_rip3_session_revision(f.session) == revision);
+	CHECK(query(&f, "$BASEMATH$:alive", "64:alive") == 0);
+	st_rip3_session_destroy(f.session);
+	return 0;
+}
+
+static int
 encoded_stream(void)
 {
 	struct fixture f = {0};
@@ -2555,7 +2575,7 @@ main(void)
 	CHECK(mouse_pointer()==0);
 	CHECK(field_context()==0);
 	CHECK(plain_button()==0 && graphical_text()==0 && text_metrics()==0 && metric_lifetime()==0 && grouped_reset()==0 && hover_queries()==0 && hover_lifecycle()==0);
-	CHECK(world_state()==0 && resource_retrieval()==0 && encoded_stream()==0);
+	CHECK(world_state()==0 && resource_retrieval()==0 && registration()==0 && encoded_stream()==0);
 	CHECK(soft_reset()==0 && live_text_resets()==0 && scene_input_resets()==0);
 	CHECK(graphics(ST_RIP3_CANVAS_640_480,640,480)==0 && graphics(ST_RIP3_CANVAS_800_600,800,600)==0
 	    && graphics(ST_RIP3_CANVAS_1024_768,1024,768)==0);

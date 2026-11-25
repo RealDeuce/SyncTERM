@@ -1733,3 +1733,15 @@ the standalone `9D` lookup, and the live MOUSE `INUSE` predicates.
 [PR #294](https://github.com/bbs-land/remote-imaging-protocol/pull/294),
 [PR #295](https://github.com/bbs-land/remote-imaging-protocol/pull/295),
 [PR #296](https://github.com/bbs-land/remote-imaging-protocol/pull/296)
+
+## Level 9 registration
+
+The reference advances to `4c4ae276b07dbef2aaa5756abe90de1a10536dc8`.
+The stable tree matches the reviewed PR #300 head
+`eda1cefcafa652df379b126504379342a36cb070`. The Git archive has SHA-256
+`c5d10c735629ec3ce3c072a36e324b9c347985023ca15631d3738e367c141073`.
+The changed chapters define the 9R prefix and silent standalone handling
+for a client without TeleGrafix registration.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c4ae276b07dbef2aaa5756abe90de1a10536dc8),
+[PR #300](https://github.com/bbs-land/remote-imaging-protocol/pull/300)

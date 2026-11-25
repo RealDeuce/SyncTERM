@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-4dc79277a521acd92df258c836e4d067456f8327](https://github.com/RealDeuce/remote-imaging-protocol/tree/4dc79277a521acd92df258c836e4d067456f8327/version/3.0)
+4c4ae276b07dbef2aaa5756abe90de1a10536dc8](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c4ae276b07dbef2aaa5756abe90de1a10536dc8/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10808,3 +10808,17 @@ Enter in half duplex. The standalone client also updates the live setting
 during Telnet ECHO negotiation. The reference needs a portable rule for
 those interactions and for the lifetime of the setting.
 [Issue #302](https://github.com/bbs-land/remote-imaging-protocol/issues/302)
+
+## Level 9 registration framing
+
+9R consumes the documented 4/2/8 numeric prefix in the active Base Math
+and a literal text tail. The tail may be empty and uses the normal RIP
+delimiter, quoting and continuation rules. With no registration service,
+SyncTERM continues silently with the next RIP command or ordinary text.
+Incomplete prefixes are reported within the parser.
+
+Split-input tests cover full fields, leading periods, literal macro markup,
+escapes and recovery. The session tests check Base Math 64 and scene state.
+Live CP437 and UTF-8 fixtures check the reply, on-screen state and a chained
+draw after both valid and incomplete registration messages.
+[PR #300](https://github.com/bbs-land/remote-imaging-protocol/pull/300)

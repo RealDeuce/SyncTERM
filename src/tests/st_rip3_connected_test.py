@@ -357,6 +357,22 @@ Hook.onKey(Key.f9) {|event|
             assert pixel(frame, width * 9 // 10, height * 9 // 10) == 0x55ff55
             t.exchange(b"\x01|1R00000000LOOKUP.RIP\r\n" + query(b"$&LOOKUP$", at_cursor=True), b"played")
 
+            t.case("rip3-registration-consumes-payload-and-keeps-the-session-live")
+            before = t.exchange(query(b"$-=REG=idle$", at_cursor=True))
+            frame = t.exchange(
+                b"\x01|9R000302.$-=REG=changed$<<REG>>\\|literal|9R...\r\n"
+                + query(b"$&REG$", at_cursor=True),
+                b"idle",
+            )
+            assert frame.primary == before.primary and frame.alternate == before.alternate
+            frame = t.exchange(
+                b"\x01|9R00030|9R1<..tail|9R00030200000000sample|c04|X0808\r\n"
+                + query(b"$&REG$:alive", at_cursor=True),
+                b"idle:alive",
+            )
+            assert pixel(frame, width * 8 // 10, height * 8 // 10) == 0xaa0000
+            assert frame.application["connected"] == 1
+
         t.case("rip3-connected-ansi-and-repeated-graphics-paint")
         # Restore one-to-one geometry and paint a small black rectangle over
         # later ANSI ink. Repeating COPY black must still publish damage even

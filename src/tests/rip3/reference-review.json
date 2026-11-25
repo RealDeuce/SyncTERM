@@ -1,26 +1,21 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/296",
-  "revision": "4dc79277a521acd92df258c836e4d067456f8327",
-  "previous_revision": "deb6f3aa1742ed013c460e1cf33cb4186e272b19",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/300",
+  "revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
+  "previous_revision": "4dc79277a521acd92df258c836e4d067456f8327",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PRs #294–#296 match their corresponding fork stable integration trees.",
-  "archive_sha256": "ec904621d30b3cb099079de1f00c0f25b84dff7b42aa75bfb68b2f9c705f6c05",
+  "upstream_state_at_adoption": "The open PR #300 matches the corresponding fork stable integration tree.",
+  "archive_sha256": "c5d10c735629ec3ce3c072a36e324b9c347985023ca15631d3738e367c141073",
   "normative_scope": [
-    "Confirm 3D as a live sixtieth-second delay in stream order.",
-    "Implement bounded literal 9D lookups for the standalone client.",
-    "Query the live shared MOUSE pool with INUSE ANY and ALL."
+    "Consume the complete 9R prefix and literal tail silently in a client without the registration service."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.1-text-variables.md",
     "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/7.1-data-tables.md",
-    "version/3.0/ripscrip/9.0-command-reference.md",
-    "version/3.0/ripscrip/9.1-text-variable-reference.md"
+    "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9561,
+  "matched_source_blocks": 9603,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -954,7 +949,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 147,
+  "upstream_issue_resolutions": 148,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1825,6 +1820,12 @@
       "sha256": "d28f52570e121f66735bf7b38d200c9c6d14f66d33d0884cbdb1e9c91feaac98",
       "title": "Issue #292 — Live MOUSE occupancy",
       "role": "Original aggregate traversal, absence of numbered MOUSE entries, and portable pool rules."
+    },
+    {
+      "path": "version/3.0/research/issue-297-wire-registration.md",
+      "sha256": "77b1c763fc6f650454c26c9dfaedf348d5b38d3b9dde847bd8c2eb90308950e7",
+      "title": "Issue #297 — Level 9 client registration",
+      "role": "Original driver prefix and standalone callback registration before the portable no-service boundary."
     }
   ],
   "documents": [
@@ -2002,7 +2003,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "d62e9082e610259129100afb4c90949102dfc6723d526d867dbfe2b394053e50"
+      "sha256": "c234fa5c7718532efbb82f3dc8ca83e6ff415b26b2d9d1aaf1d7c279586aa688"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -2030,7 +2031,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "0045a881e3bca6e4cfb658b0f20c1cae899862de82d165db9bf707aeab5a9ba1"
+      "sha256": "aa9f29fc426605a2da36ae8d00c9cedd87e2489753fa8418cc20a32fdb3bb1f8"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2101,7 +2102,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "c7fefe846fc8065edbc6670689856344d605aae2",
+  "previous_ledger_commit": "d8dd1d931939885c543ff4d3fa72ca9201d94e0e",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20929,6 +20930,63 @@
         "context": 2029,
         "pending": 1290,
         "implemented": 4179,
+        "excluded": 76
+      }
+    },
+    {
+      "previous_revision": "4dc79277a521acd92df258c836e4d067456f8327",
+      "revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
+      "archive_sha256": "c5d10c735629ec3ce3c072a36e324b9c347985023ca15631d3738e367c141073",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/297",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/300",
+          "reviewed_head": "eda1cefcafa652df379b126504379342a36cb070",
+          "integration": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "d62e9082e610259129100afb4c90949102dfc6723d526d867dbfe2b394053e50",
+          "sha256": "c234fa5c7718532efbb82f3dc8ca83e6ff415b26b2d9d1aaf1d7c279586aa688"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "0045a881e3bca6e4cfb658b0f20c1cae899862de82d165db9bf707aeab5a9ba1",
+          "sha256": "aa9f29fc426605a2da36ae8d00c9cedd87e2489753fa8418cc20a32fdb3bb1f8"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-297-wire-registration.md",
+          "sha256": "77b1c763fc6f650454c26c9dfaedf348d5b38d3b9dde847bd8c2eb90308950e7",
+          "title": "Issue #297 — Level 9 client registration",
+          "role": "Original driver prefix and standalone callback registration before the portable no-service boundary."
+        }
+      ],
+      "moved_source_blocks": 39,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:484",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:486",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:488",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:489",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:490",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:491",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:492",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:494",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:496",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:498",
+        "version/3.0/ripscrip/9.0-command-reference.md:226"
+      ],
+      "retired_source_units": [],
+      "states_after_update": {
+        "unreviewed": 2029,
+        "context": 2033,
+        "pending": 1252,
+        "implemented": 4217,
+        "blocked": 7,
         "excluded": 76
       }
     }

@@ -235,6 +235,16 @@ resource_retrieval(void)
 }
 
 static int
+registration(void)
+{
+	EXAMPLE("!|9R00030200000000sample|9R000302.$-NAME$<<NAME>>\\|tail\\\r\nmore|9R...\r\nraw",
+	    "raw", "9R00030200000000sample\0" "9R000302.$-NAME$<<NAME>>|tailmore\0" "9R...\0", 3);
+	EXAMPLE_ERRORS("!|9R|9R000|9R00030|9R0003020000000|9R0003020.|9R1<..tail|c04\f",
+	    "", "c04\0", 1, 6);
+	return 0;
+}
+
+static int
 lifetime(void)
 {
 	struct observation seen = {0};
@@ -433,6 +443,7 @@ main(void)
 	CHECK(typed_records() == 0);
 	CHECK(numeric_terminator() == 0);
 	CHECK(resource_retrieval() == 0);
+	CHECK(registration() == 0);
 	CHECK(framing_gate() == 0);
 	CHECK(lifetime() == 0);
 	CHECK(long_command() == 0);

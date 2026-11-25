@@ -1902,6 +1902,8 @@ command(void *context, const uint8_t *bytes, size_t length)
 	struct st_rip3_session *session=context;
 	if (length != 0 && bytes[0] == 'F')
 		return; /* The inert descriptor does not create a display boundary. */
+	if (length >= 2 && bytes[0] == '9' && bytes[1] == 'R')
+		return; /* The framer consumed the registration message. There is no client service. */
 	st_rip3_columns_invalidate(&session->columns);
 	if (session->sink.before_command!=NULL) session->sink.before_command(session->sink.context);
 	const struct st_rip3_command_sink sink={session,diagnose};
