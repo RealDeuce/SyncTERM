@@ -58,7 +58,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Mouse input and button effects | Pointer state, nested field identities, button feedback, decorations and hit geometry |
+| Mouse input and button effects | Pointer state, button feedback, decorations and hit geometry |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
@@ -97,6 +97,12 @@ button action and nested local scenes, and check the field and clipboard
 after label cancellation. The exact response bytes for a reached host
 argument syntax error await clarification.
 [Upstream issue #315](https://github.com/bbs-land/remote-imaging-protocol/issues/315)
+
+A local RIP file invoked by a field inherits its numeric identity. The
+connected mouse fixtures read field 7 in two nested files after deleting
+the original field. The native session fixture dispatches field 8 while
+field 7 is suspended in playback and checks both replies and the end of
+the outer handler's scope.
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.

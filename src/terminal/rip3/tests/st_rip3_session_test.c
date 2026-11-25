@@ -1297,6 +1297,8 @@ static int
 field_context(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
+	const struct st_rip3_resource_paths resources={.host=ST_RIP3_SESSION_SCENE_DIR};
+	options.resources=&resources;
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
 	CHECK(query(&f,"$WORLD(CUR,640,480)$","")==0);
 	CHECK(append(&f,"!|1M000A0A1O1O0000000ID=7:$FIELDID$:$D(3)$$MKILL$$FIELDID$\r")==0 && pump(&f)==0);
@@ -1316,6 +1318,21 @@ field_context(void)
 	st_rip3_session_cancel(f.session);
 	CHECK(!st_rip3_session_pending(f.session));
 	CHECK(append(&f,"!|1\0330000$FIELDID$outside\r")==0 && pump(&f)==0 && f.errors==2);
+	CHECK(f.reply_length==7 && memcmp(f.reply,"outside",7)==0);
+	/* Dispatch a second field while the first field's local file is paused
+	 * between byte groups. Deleting both fields must preserve both handlers. */
+	CHECK(query(&f,"$BAUDEMUL(300)$","")==0);
+	CHECK(append(&f,"!|1M000A0A1O1O0000000ID=7:$FIELDID$:$>Pace.TXT$:$FIELDID$"
+	    "|1M002S2S3C3C0000000ID=8:$MKILL$inner:$FIELDID$;\r")==0 && pump(&f)==0);
+	CHECK(st_rip3_session_mouse(f.session,20,20,true) && st_rip3_session_mouse(f.session,20,20,false));
+	CHECK(pump(&f)==0 && st_rip3_session_local_scene(f.session) && f.reply_length==0);
+	CHECK(st_rip3_session_mouse(f.session,105,105,true) && st_rip3_session_mouse(f.session,105,105,false));
+	CHECK(f.reply_length==8 && memcmp(f.reply,"inner:8;",8)==0);
+	f.now+=st_rip3_session_wait_ns(f.session);
+	CHECK(pump(&f)==0 && pump(&f)==0 && !st_rip3_session_pending(f.session));
+	CHECK(f.reply_length==12 && memcmp(f.reply,"inner:8;7::7",12)==0);
+	f.reply_length=0;
+	CHECK(append(&f,"!|1\0330000$FIELDID$outside\r")==0 && pump(&f)==0 && f.errors==3);
 	CHECK(f.reply_length==7 && memcmp(f.reply,"outside",7)==0);
 	st_rip3_session_destroy(f.session);return 0;
 }

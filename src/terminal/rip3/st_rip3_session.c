@@ -62,6 +62,7 @@ struct local_scene {
 	/* Prepared child evaluators until start, then the suspended caller. */
 	struct st_rip3_query *query, *refresh;
 	bool queries_active;
+	struct st_rip3_field_context inherited_field;
 	bool field_program;
 	int field_program_id;
 	uint8_t next_byte;
@@ -978,6 +979,7 @@ start_scene(struct st_rip3_session *session, struct local_scene scene, bool susp
 		uint32_t rate = st_rip3_environments_playback_rate(session->commands.environments);
 		if (rate != 0)
 			scene_playback_rate(&scene, rate);
+		scene.inherited_field = session->field_context;
 		session->scenes[session->scene_count++] = scene;
 		return suspend_query ? IO_ERROR_IN_PROGRESS : 0;
 	}
@@ -1114,6 +1116,8 @@ close_scene(struct st_rip3_session *session)
 	if (session->sink.scene_end != NULL)
 		session->sink.scene_end(session->sink.context, scene->caller_input);
 	--session->scene_count;
+	session->field_context = session->scene_count == 0 ? (struct st_rip3_field_context){0}
+	    : session->scenes[session->scene_count - 1].inherited_field;
 	if (scene->queries_active) {
 		st_rip3_query_destroy(session->commands.query);
 		st_rip3_query_destroy(session->refresh.query);
@@ -1288,6 +1292,9 @@ prepare(void *context)
 		return activate_scene_queries(session);
 	}
 	(void)activate_scene_queries(session);
+	/* A nested mouse callback can temporarily override the scene's identity. */
+	if (session->scene_count != 0)
+		session->field_context = session->scenes[session->scene_count - 1].inherited_field;
 	bool pending=continuation_pending(session);
 	if (pending)
 		st_rip3_columns_invalidate(&session->columns);

@@ -222,14 +222,16 @@ def run(args):
         t.case("rip3-field-clear-belongs-to-the-original-action-across-playback")
         shared = root / "RIP"
         shared.mkdir(exist_ok=True)
+        (shared / "Identity.FN").write_bytes(query(b"$D(1)$nested:$FIELDID$;", at_cursor=True))
         for clear, replacement_clear in ((35,0), (0,35)):
             values(b"$WORLD(CUR,640,480)$")
             t.exchange(b"\x01|2T20|w0A050C0710\r\n")
             area = (120,90,140,110)
             replacement = field(area,b"ID=7:replacement:$FIELDID$",clear=replacement_clear)
-            (shared / "Replace.rip").write_bytes(b"!|1K\r\n!"+replacement[1:])
+            (shared / "Replace.rip").write_bytes(b"!|1K\r\n"
+                + query(b"$>Identity.FN$scene:$FIELDID$;", at_cursor=True) + replacement)
             t.exchange(field(area,b"ID=7:$>Replace.rip$$D(3)$old:$CUR(TW)$:$FIELDID$",clear=clear))
-            click(130,100,b"old:2:7")
+            click(130,100,b"nested:7;scene:7;old:2:7")
             values(b"$CUR(TW)$",b"0" if clear else b"2")
             click(130,100,b"" if clear else b"replacement:7")
             values(b"$CUR(TW)$",b"0")
