@@ -1750,3 +1750,17 @@ for a client without TeleGrafix registration.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c4ae276b07dbef2aaa5756abe90de1a10536dc8),
 [PR #300](https://github.com/bbs-land/remote-imaging-protocol/pull/300)
+
+## COMPAT and HEADER viewport geometry
+
+The reference advances to `acafaea31e3fe7ed8226de9490548009602fc0b2`.
+Its tree matches the reviewed PR #305 head
+`886d4dfce37ecd45ffb509dd8547d31a04e6447c`. Its Git archive has SHA-256
+`1a78320cf38067fbc21c36b4f213263be548bbf807b3b683266d8d9f18bc5bd7`.
+The adoption record also retains the reviewed COMPAT head and integration
+from PR #304. The ledger classifies the intervening PR #303 ANSI insert-mode
+material as excluded under the current acceptance scope.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/acafaea31e3fe7ed8226de9490548009602fc0b2),
+[PR #304](https://github.com/bbs-land/remote-imaging-protocol/pull/304),
+[PR #305](https://github.com/bbs-land/remote-imaging-protocol/pull/305)

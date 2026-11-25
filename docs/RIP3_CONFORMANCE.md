@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-4c4ae276b07dbef2aaa5756abe90de1a10536dc8](https://github.com/RealDeuce/remote-imaging-protocol/tree/4c4ae276b07dbef2aaa5756abe90de1a10536dc8/version/3.0)
+acafaea31e3fe7ed8226de9490548009602fc0b2](https://github.com/RealDeuce/remote-imaging-protocol/tree/acafaea31e3fe7ed8226de9490548009602fc0b2/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -10788,12 +10788,12 @@ the active drawing format. Connected tests check exact replies, retained
 pixels, and a palette-colored point sent in the restored syntax. They also
 check that the local playback rate, target pointer and charset survive.
 
-The original RIPtel callback writes these fields even on protected entries.
-Its omitted and CUR forms can edit a selected entry made undefined by
-numbered ENV reset. The same explicit number is rejected. The implementation
-follows those callback branches, and the selector and protection wording
-awaits an upstream clarification.
-[Issue #299](https://github.com/bbs-land/remote-imaging-protocol/issues/299)
+COMPAT writes these fields even on protected entries. Its empty and CUR
+forms can edit a selected entry made undefined by numbered ENV reset.
+An explicit number still requires a defined record. The adopted reference
+confirms these rules, and connected tests cover the protected current and
+inactive cases, slot zero, and the undefined current case.
+[PR #304](https://github.com/bbs-land/remote-imaging-protocol/pull/304)
 
 ## Viewport activation and maximization
 
@@ -10805,10 +10805,13 @@ viewports. Native tests and live CP437 and UTF-8 sessions check default and
 explicit selectors, atomic rejection, unchanged pixels, expressed geometry,
 and drawing past the previous screen-port boundary after MVP.
 
-The original HEADER geometry flags reach the same maximize helper as MVP.
-The pinned reference explicitly specifies full port bounds for those flags,
-so the implementation follows that rule while the discrepancy is reviewed.
-[Issue #301](https://github.com/bbs-land/remote-imaging-protocol/issues/301)
+HEADER flags 2048 and 4096 call the same maximize operation as MVP for all
+eligible ports or the current eligible port. Connected tests check a screen
+sub-port and a bitmap, including offscreen allocation, retained copy-pair
+offsets, the effect of activation earlier in the same segment, and drawing
+outside the old screen sub-port bounds. Live RESET(VIEW) uses the target
+port's own bounds and activates its viewport.
+[PR #305](https://github.com/bbs-land/remote-imaging-protocol/pull/305)
 
 ## Earlier ANSI duplex control report
 

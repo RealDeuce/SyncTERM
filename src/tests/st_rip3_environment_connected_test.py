@@ -208,9 +208,12 @@ def run(args,width,height):
         assert frame.metadata['pointer_shape'] == 6
         values(b'$COLORMODE(CUR,RGB,8)$')
         values(b'$COMPAT(CUR)$$COLORMODE$:$ISPROT(ENV,CUR)$', b'0:1')
+        values(b'$COLORMODE(CUR,RGB,8)$$COMPAT(12)$$COLORMODE$:$ISPROT(ENV,CUR)$', b'0:1')
         values(b'$UNPROT(ENV,12)$$RESET(ENV,12)$$WORLD(CUR,800,600)$'
                b'$COMPAT(12)$$WORLD$:$INUSE(ENV,12)$', b'800:600:0')
         values(b'$COMPAT$$WORLD$:$INUSE(ENV,12)$:$BAUDEMUL$', b'640:350:0:1200')
+        values(b'$WORLD(CUR,800,600)$$COMPAT()$$WORLD$:$INUSE(ENV,12)$', b'640:350:0')
+        values(b'$WORLD(0,800,600)$$COMPAT(0)$$WORLD(0)$:$CUR(ENV)$', b'640:350:12')
         assert client.capture().application['connected'] == 1
 
 

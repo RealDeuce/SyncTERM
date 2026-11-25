@@ -1410,10 +1410,9 @@ header_viewports(struct st_rip3_session *session, unsigned flags)
 	if (flags & 256) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_DEACTIVATE));
 	if (flags & 512) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_ACTIVATE));
 	if (flags & 1024) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_ACTIVATE));
-	/* Like MVP, HEADER bounds reset skips inactive viewports. RESET(VIEW)
-	 * also changes activation and is a different operation. */
-	if (flags & 2048) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_RESET_ACTIVE));
-	if (flags & 4096) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_RESET_ACTIVE));
+	/* HEADER shares MVP's viewport geometry and eligibility checks. */
+	if (flags & 2048) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_VIEW_MAXIMIZE));
+	if (flags & 4096) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_VIEW_MAXIMIZE));
 	if (flags & 8192) header_result(session, st_rip3_ports_operate_views(ports, windows, 36, ST_RIP3_PORT_CLEAR_BLACK));
 	if (flags & 16384) header_result(session, st_rip3_ports_operate_views(ports, &current, 1, ST_RIP3_PORT_CLEAR_BLACK));
 	if (flags & 32768) st_rip3_ports_header_clear_queries(ports);

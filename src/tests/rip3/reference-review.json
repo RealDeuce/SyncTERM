@@ -1,22 +1,28 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/300",
-  "revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
-  "previous_revision": "4dc79277a521acd92df258c836e4d067456f8327",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/305",
+  "revision": "acafaea31e3fe7ed8226de9490548009602fc0b2",
+  "previous_revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "The open PR #300 matches the corresponding fork stable integration tree.",
-  "archive_sha256": "c5d10c735629ec3ce3c072a36e324b9c347985023ca15631d3738e367c141073",
+  "upstream_state_at_adoption": "Open PRs #304 and #305 match the corresponding fork stable integration trees. PR #303 is recorded as excluded.",
+  "archive_sha256": "1a78320cf38067fbc21c36b4f213263be548bbf807b3b683266d8d9f18bc5bd7",
   "normative_scope": [
-    "Consume the complete 9R prefix and literal tail silently in a client without the registration service."
+    "Apply COMPAT to defined numbered targets and to selected targets by CUR or omission.",
+    "Share screen-canvas geometry and eligibility between MVP and HEADER 2048/4096."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-    "version/3.0/ripscrip/9.0-command-reference.md"
+    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+    "version/3.0/ripscrip/5.1-text-variables.md",
+    "version/3.0/ripscrip/7.0-drawing-ports.md",
+    "version/3.0/ripscrip/7.1-data-tables.md",
+    "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9603,
+  "matched_source_blocks": 9591,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -950,7 +956,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 148,
+  "upstream_issue_resolutions": 150,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1398,7 +1404,7 @@
     },
     {
       "path": "version/3.0/research/issue-153-header-port-clipping.md",
-      "sha256": "94b275d720bc94b604158757e04216af3d3951d65a36defdf06a60fb2b38ddcc",
+      "sha256": "2a9b2f4c8bb4c0028c01cc84ed88676501a66bada3040b180065812fdf7ad2f3",
       "title": "Issue #153: HEADER port bounds reset and black fill",
       "role": "Fingerprint and static helper evidence for the active/protection distinction and visible clear. Portable temporary clipping and RGB semantics are explicit; no original software was executed."
     },
@@ -1827,6 +1833,18 @@
       "sha256": "77b1c763fc6f650454c26c9dfaedf348d5b38d3b9dde847bd8c2eb90308950e7",
       "title": "Issue #297 — Level 9 client registration",
       "role": "Original driver prefix and standalone callback registration before the portable no-service boundary."
+    },
+    {
+      "path": "version/3.0/research/issue-299-compat-env-selectors.md",
+      "sha256": "7da2dad77e32619a7922e8688590f7e6ea90175d87a652d73805156ec9dd3006",
+      "title": "Issue #299 — COMPAT ENV selectors",
+      "role": "Original protection, defined-slot checks and active versus stored format updates."
+    },
+    {
+      "path": "version/3.0/research/issue-301-viewport-maximize-rectangle.md",
+      "sha256": "50d54fad1e85896536d6401e1c50c5dd887aee2025c80e680ea97fefb15eaa16",
+      "title": "Issue #301 — Viewport maximize rectangle",
+      "role": "Shared HEADER and MVP dispatch and source rectangle provenance."
     }
   ],
   "documents": [
@@ -1920,7 +1938,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "43cae3cb7811131b341b2ff826bb730a54ae2154f126722be667da37adbd0cee"
+      "sha256": "4143489d208dd63fe549719e161fa9cb1deb3fe8d98f2a432224a889b2dc4b03"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
@@ -1928,11 +1946,11 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "bdd9a39c870bbe5c046ff13f7370b116d6be4e97288210bf8801f711f7ec2780"
+      "sha256": "58c086cd8d1ef1871f80346f2befdd5b69dc157ac80ef46405c1057e53ca0f7c"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "1f5082599e9615d99ebc14604aa8b4721b7efede059bfd431ce732dd7116cefb"
+      "sha256": "f5cfa5dc9af336a2982e0bb07b35955875329b4a8b5e67ff712bc09c72d9dbef"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1988,7 +2006,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "c9b55a28a4467ad5f2e0b7328d5a730eb1f8c63a9f93453249a0224704e20acf"
+      "sha256": "a05a6a8678e3682fd4f197acd00526697ab4d9ef42ad5a95b648d218d3d83e7a"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2020,11 +2038,11 @@
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
-      "sha256": "56b50bdcea68df7e5496c1d399fb9d7857c49e50c546b93488e9288728f1d5ae"
+      "sha256": "1c7b1bb605d79d69edce9d855c6ca4c40d396f422810b1c668497ed79e21591c"
     },
     {
       "path": "version/3.0/ripscrip/7.1-data-tables.md",
-      "sha256": "818130e6ae9f4de43712b9b1b0b7a5d54b1b424104059150f9e1fe0c427e392b"
+      "sha256": "016635a59f7da321d55ac139f774091a269dd0af5a88c39c4bb97ef32c4b901c"
     },
     {
       "path": "version/3.0/ripscrip/7.2-data-backup-areas.md",
@@ -2036,7 +2054,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "ab4d0c824900c6e719e2f292985305a2361b0da8e32641c8dac1017c3626534a"
+      "sha256": "68d3161d32b68d7d66006c27ed4b63a1cde231b07ea651263c73b6edb0bc28c5"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2103,7 +2121,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "d8dd1d931939885c543ff4d3fa72ca9201d94e0e",
+  "previous_ledger_commit": "288be5298ce82ccee4e92ca25b1d366a241f7cb6",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20989,6 +21007,173 @@
         "implemented": 4217,
         "blocked": 7,
         "excluded": 76
+      }
+    },
+    {
+      "previous_revision": "4c4ae276b07dbef2aaa5756abe90de1a10536dc8",
+      "revision": "acafaea31e3fe7ed8226de9490548009602fc0b2",
+      "archive_sha256": "1a78320cf38067fbc21c36b4f213263be548bbf807b3b683266d8d9f18bc5bd7",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/299",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/304",
+          "reviewed_head": "2b0df6ebd40c79ed33190a3861378754b738272e",
+          "integration": "75678ae6a74dd08606c5c26327c80798a04cbb25"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/301",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/305",
+          "reviewed_head": "886d4dfce37ecd45ffb509dd8547d31a04e6447c",
+          "integration": "acafaea31e3fe7ed8226de9490548009602fc0b2"
+        }
+      ],
+      "excluded_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/298",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/303",
+          "reviewed_head": "65761439629f5970e9373bffb73e7ed1c8bfaaa4",
+          "integration": "9afdf373bb5da7a2f92212b77e05ac5d0be32a14",
+          "reason": "Ordinary ANSI editing is outside RIPscrip acceptance."
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "43cae3cb7811131b341b2ff826bb730a54ae2154f126722be667da37adbd0cee",
+          "sha256": "4143489d208dd63fe549719e161fa9cb1deb3fe8d98f2a432224a889b2dc4b03"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "bdd9a39c870bbe5c046ff13f7370b116d6be4e97288210bf8801f711f7ec2780",
+          "sha256": "58c086cd8d1ef1871f80346f2befdd5b69dc157ac80ef46405c1057e53ca0f7c"
+        },
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "1f5082599e9615d99ebc14604aa8b4721b7efede059bfd431ce732dd7116cefb",
+          "sha256": "f5cfa5dc9af336a2982e0bb07b35955875329b4a8b5e67ff712bc09c72d9dbef"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "c9b55a28a4467ad5f2e0b7328d5a730eb1f8c63a9f93453249a0224704e20acf",
+          "sha256": "a05a6a8678e3682fd4f197acd00526697ab4d9ef42ad5a95b648d218d3d83e7a"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
+          "previous_sha256": "56b50bdcea68df7e5496c1d399fb9d7857c49e50c546b93488e9288728f1d5ae",
+          "sha256": "1c7b1bb605d79d69edce9d855c6ca4c40d396f422810b1c668497ed79e21591c"
+        },
+        {
+          "path": "version/3.0/ripscrip/7.1-data-tables.md",
+          "previous_sha256": "818130e6ae9f4de43712b9b1b0b7a5d54b1b424104059150f9e1fe0c427e392b",
+          "sha256": "016635a59f7da321d55ac139f774091a269dd0af5a88c39c4bb97ef32c4b901c"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "ab4d0c824900c6e719e2f292985305a2361b0da8e32641c8dac1017c3626534a",
+          "sha256": "68d3161d32b68d7d66006c27ed4b63a1cde231b07ea651263c73b6edb0bc28c5"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-299-compat-env-selectors.md",
+          "sha256": "7da2dad77e32619a7922e8688590f7e6ea90175d87a652d73805156ec9dd3006",
+          "title": "Issue #299 — COMPAT ENV selectors",
+          "role": "Original protection, defined-slot checks and active versus stored format updates."
+        },
+        {
+          "path": "version/3.0/research/issue-301-viewport-maximize-rectangle.md",
+          "sha256": "50d54fad1e85896536d6401e1c50c5dd887aee2025c80e680ea97fefb15eaa16",
+          "title": "Issue #301 — Viewport maximize rectangle",
+          "role": "Shared HEADER and MVP dispatch and source rectangle provenance."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-153-header-port-clipping.md",
+          "previous_sha256": "94b275d720bc94b604158757e04216af3d3951d65a36defdf06a60fb2b38ddcc",
+          "sha256": "2a9b2f4c8bb4c0028c01cc84ed88676501a66bada3040b180065812fdf7ad2f3",
+          "change": "Link to the later canvas geometry derivation. The earlier black-fill evidence still applies."
+        }
+      ],
+      "moved_source_blocks": 928,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:604",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:608",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:649",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:651",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:655",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:659",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:688",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:690",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:165",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:49",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:51",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:53",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:55",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:57",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:59",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:61",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:62",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:63",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:64",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:65",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:66",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:195",
+        "version/3.0/ripscrip/5.1-text-variables.md:2033",
+        "version/3.0/ripscrip/5.1-text-variables.md:2035",
+        "version/3.0/ripscrip/5.1-text-variables.md:2043",
+        "version/3.0/ripscrip/5.1-text-variables.md:2045",
+        "version/3.0/ripscrip/5.1-text-variables.md:3146",
+        "version/3.0/ripscrip/5.1-text-variables.md:3377",
+        "version/3.0/ripscrip/5.1-text-variables.md:3379",
+        "version/3.0/ripscrip/5.1-text-variables.md:3381",
+        "version/3.0/ripscrip/5.1-text-variables.md:3382",
+        "version/3.0/ripscrip/5.1-text-variables.md:3383",
+        "version/3.0/ripscrip/5.1-text-variables.md:3384",
+        "version/3.0/ripscrip/5.1-text-variables.md:3385",
+        "version/3.0/ripscrip/5.1-text-variables.md:3386",
+        "version/3.0/ripscrip/5.1-text-variables.md:3388",
+        "version/3.0/ripscrip/5.1-text-variables.md:3390",
+        "version/3.0/ripscrip/5.1-text-variables.md:3391",
+        "version/3.0/ripscrip/5.1-text-variables.md:3392",
+        "version/3.0/ripscrip/5.1-text-variables.md:3393",
+        "version/3.0/ripscrip/5.1-text-variables.md:3394",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:137",
+        "version/3.0/ripscrip/7.1-data-tables.md:161",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:117"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:604",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:608",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:649",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:651",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:655",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:659",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:688",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:690",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:165",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:174",
+        "version/3.0/ripscrip/5.1-text-variables.md:2033",
+        "version/3.0/ripscrip/5.1-text-variables.md:2041",
+        "version/3.0/ripscrip/5.1-text-variables.md:2043",
+        "version/3.0/ripscrip/5.1-text-variables.md:2045",
+        "version/3.0/ripscrip/5.1-text-variables.md:3146",
+        "version/3.0/ripscrip/5.1-text-variables.md:3377",
+        "version/3.0/ripscrip/5.1-text-variables.md:3379",
+        "version/3.0/ripscrip/5.1-text-variables.md:3381",
+        "version/3.0/ripscrip/5.1-text-variables.md:3386",
+        "version/3.0/ripscrip/5.1-text-variables.md:3388",
+        "version/3.0/ripscrip/7.0-drawing-ports.md:137",
+        "version/3.0/ripscrip/7.1-data-tables.md:161",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:117"
+      ],
+      "states_after_update": {
+        "unreviewed": 1821,
+        "context": 2174,
+        "pending": 1233,
+        "implemented": 4153,
+        "excluded": 254
       }
     }
   ],

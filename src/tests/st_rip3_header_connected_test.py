@@ -202,6 +202,43 @@ def port_actions(t, values, wire, width, height):
     assert pixel(frame, width - 4, height - 4) == 0
     assert xy(frame) == (3, 2) and frame.application['connected'] == 1
 
+    t.case(f'rip3-header-maximizes-screen-and-bitmap-viewports-{width}x{height}')
+    wire(b'h01000100')
+    values(f'$WORLD(CUR,{width},{height})$'.encode())
+    wire(b'W0|S0104|B' + coords(24, 28, 27, 30))
+    wire(b'2P9' + coords(0, 0, 4, 3) + b'1')
+    wire(b'2C0' + coords(24, 28, 28, 31) + b'9' + coords(0, 0, 4, 3) + b'0')
+    values(b'$CUR(PORT,9)$')
+    wire(b'v' + coords(1, 0, 2, 1))
+    values(b'$DVP(9)$')
+    wire(b'2P5' + coords(100, 80, 140, 110) + b'2')
+    wire(b'v' + coords(110, 90, 120, 100) + b'|m0V0W')
+    values(b'$IMGSTYLE(5,110,90,120,100,ASPECT)$')
+
+    before = t.exchange()
+    same(before, wire(b'h01000001201009'))  # 4096 uses current PORT 5, not the reserve slot.
+    values(b'$CUR(PORT)$:$PORTX0(5,VIEW,DEVICE)$:$PORTY0(5,VIEW,DEVICE)$'
+           b':$PORTW(5,VIEW,DEVICE)$:$PORTH(5,VIEW,DEVICE)$:$PORTW(5,PORT,DEVICE)$'
+           b':$TEXTXY$:$IMGSTYLE(5)$',
+           f'5:-100:-80:{width}:{height}:40:141:122:110:90:121:101:1'.encode())
+    frame = wire(b'c02|X' + coords(160, 120))
+    assert pixel(frame, 160, 120) == 0x00aa00
+    same(frame, wire(b'h01000001200W00'))
+    values(b'$PORTW(9,VIEW,DEVICE)$', b'0')
+    values(b'$AVP(9)$$PORTW(9,VIEW,DEVICE)$', b'2')
+
+    before = t.exchange()
+    same(before, wire(b'h01000001200W00'))
+    values(b'$CUR(PORT)$:$PORTW(9,VIEW,DEVICE)$:$PORTH(9,VIEW,DEVICE)$'
+           b':$PORTW(9,PORT,DEVICE)$:$PORTH(9,PORT,DEVICE)$:$OFFSCREEN(USED)$:$INUSE(PORT,35)$',
+           f'5:{width}:{height}:4:3:12:0'.encode())
+    values(b'$CUR(PORT,0)$')
+    frame = wire(b'S0102|B' + coords(24, 28, 27, 30))
+    region(frame, (24, 28, 28, 31), 0x00aa00)
+    frame = values(b'$PCB(9)$')
+    region(frame, (24, 28, 28, 31), 0xaa0000)
+    assert frame.application['connected'] == 1
+
 
 def clipboard_actions(t, values, wire, width, height):
     budget = 36 * width * height
@@ -365,15 +402,15 @@ def run(args, width, height):
         wire(b'h01000005002710262000223000254065')
         values(b'$CUR(TW)$:$CUR(BUT)$:$CUR(STYLE)$:$CUR(PORT)$:$CUR(PAL)$', b'5:7:6:2:5')
         values(b'$INUSE(PAL,4)$:$ISPROT(PAL,4)$:$INUSE(PAL,7)$', b'1:1:0')
-        t.case('rip3-header-bounds-reset-skips-inactive-viewport')
+        t.case('rip3-header-maximize-skips-inactive-viewport')
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         wire(b'v' + b''.join(number(v, 2) for v in (40, 30, 60, 60)))
-        wire(b'h01000001201402')  # Deactivate current, then attempt bounds reset.
+        wire(b'h01000001201402')  # Deactivate current, then attempt maximization.
         values(b'$TEXTXY(2)$', b'-1')
         frame = wire(b'h01000001200G02|c02|X0K0K|X1E1E')
         assert pixel(frame, 20, 20) == 0 and pixel(frame, 50, 50) == 0x00aa00
         wire(b'h01000001200402')
-        frame = wire(b'h01000001201G02|X0K0K')  # Activate then reset in the same segment.
+        frame = wire(b'h01000001201G02|X0K0K')  # Activate then maximize in the same segment.
         assert pixel(frame, 20, 20) == 0x00aa00
         values(b'$TEXTXY(2)$', b'0:0')
         values(b'$CUR(TW,0)$$CUR(PORT,0)$')
