@@ -2521,9 +2521,7 @@ st_rip3_session_local_scene(const struct st_rip3_session *session)
 static int32_t
 prompt_axis(bool present, int32_t coordinate, uint32_t device, uint32_t world)
 {
-	if (!present) return -1;
-	if (coordinate == 0) return 0;
-	if (world == 0) return -1;
+	if (!present || world == 0) return -1;
 	uint64_t pixel = (uint64_t)coordinate * device / world;
 	return pixel >= device ? (int32_t)(device - 1) : (int32_t)pixel;
 }

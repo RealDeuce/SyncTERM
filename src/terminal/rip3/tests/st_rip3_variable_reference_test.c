@@ -133,8 +133,9 @@ boundaries(void)
 	size_t length;
 
 	CHECK(parse(&reference, "$ABCDEFGHIJKLMNOPQRST$") == 0 && strlen(reference.name) == 20);
-	CHECK(parse(&reference, "$2147483647,0:NAME,4294967295$") == 0);
-	CHECK(reference.x == INT32_MAX && reference.has_y && reference.y == 0 && reference.width == UINT32_MAX);
+	CHECK(parse(&reference, "$065535,0:NAME,4294967295$") == 0);
+	CHECK(reference.has_x && reference.x == 65535 && reference.has_y && reference.y == 0
+	    && reference.width == UINT32_MAX);
 	CHECK(parse(&reference, "$0000,0001:NAME,0$") == 0 && reference.has_width && reference.width == 0);
 	CHECK(parse(&reference, "$NAME@=$") == 0);
 	CHECK(reference.has_question && reference.question.length == 0);
@@ -170,7 +171,10 @@ failures(void)
 		"$?0$", "$&MSG<<FIELDID>>$", "$N\x82$",
 		"$%NAME$", "$%%NAME$", "$-%NAME=value$", "$+%NAME=value$", "$+%=NAME=value$",
 	};
-	const char *const oversized[] = {"$ABCDEFGHIJKLMNOPQRSTU$", "$2147483648,0:NAME$", "$0,999999999999999999999:NAME$", "$NAME,4294967296$"};
+	const char *const oversized[] = {
+		"$ABCDEFGHIJKLMNOPQRSTU$", "$65536,0:NAME$", "$0,65536:NAME$",
+		"$0,999999999999999999999:NAME$", "$NAME,4294967296$",
+	};
 	struct st_rip3_variable_reference reference, before;
 
 	memset(&reference, 0xa5, sizeof(reference)); before = reference;

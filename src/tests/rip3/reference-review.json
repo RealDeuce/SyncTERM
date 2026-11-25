@@ -1,26 +1,22 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/310",
-  "revision": "546c3531776617daa82732030aec32ad5b5a5af5",
-  "previous_revision": "acafaea31e3fe7ed8226de9490548009602fc0b2",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/312",
+  "revision": "c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3",
+  "previous_revision": "546c3531776617daa82732030aec32ad5b5a5af5",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Open PRs #308 and #310 are incorporated in fork stable.",
-  "archive_sha256": "3f4010270a5c40b9690dcffa11e98ab29ba87a860eb7cc0649601a6fbce88823",
+  "upstream_state_at_adoption": "Open PR #312 is incorporated in fork stable.",
+  "archive_sha256": "651c7076c29d9981d95780fac38b294260f9a6848bf2c96a290b6f8ab8de5ced",
   "normative_scope": [
-    "Compose W drawing operands in their documented index and RGB domains.",
-    "Convert user variables using ASCII case and ASCII letter-run boundaries."
+    "Project positioned variable prompts from the active WORLD, fit them to the drawing area, and reject axes outside the decimal range."
   ],
   "changed_documents": [
-    "version/2.0/techspecs/2.3-drawing-composition.md",
-    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-    "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/techspecs/2.3-drawing-composition.md"
+    "version/3.0/ripscrip/5.0-host-commands.md",
+    "version/3.0/ripscrip/5.1-text-variables.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9628,
+  "matched_source_blocks": 9668,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -954,7 +950,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 152,
+  "upstream_issue_resolutions": 153,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1861,6 +1857,12 @@
       "sha256": "d8ae99f1424e2efddf1462ed4bffbc39c7a968cc01fd303bb0c3bdac2c2d82fe",
       "title": "Issue #309 — User-variable case conversion and TONAME words",
       "role": "Original case mapping and word-boundary behavior with independent byte vectors."
+    },
+    {
+      "path": "version/3.0/research/issue-311-prompt-dialog-placement.md",
+      "sha256": "b120eb0a5d7b846a1b3b5ef6dac360fc91dcb01040e25528b8eaf21e2d8a3c09",
+      "title": "Issue #311 — Positioned variable prompt anchor and bounds",
+      "role": "Original coordinate parsing and dialog geometry, with portable boundary rules."
     }
   ],
   "documents": [
@@ -2018,11 +2020,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "60f0f3ba90d5330877a14e3af399420bac4dd35101d8beac41dc94e0ac224fbc"
+      "sha256": "04fa8d181f282bce3b443534e637659932379deeb7287b76baeb0dc2be46d068"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "1cd6d8c4e7c439386c12744590176ecc1444d97bac606bd95bc20183283698c9"
+      "sha256": "20c23396c50bb7e11a75c042cbe206d717f134593bc5d53ab7d89ba0314f22e7"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2212,13 +2214,13 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 1808,
-    "context": 2184,
-    "pending": 1123,
-    "implemented": 4299,
+    "unreviewed": 1807,
+    "context": 2185,
+    "pending": 1097,
+    "implemented": 4329,
     "excluded": 266
   },
-  "source_blocks_at_adoption": 9680,
+  "source_blocks_at_adoption": 9684,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21336,6 +21338,81 @@
         "context": 2184,
         "pending": 1123,
         "implemented": 4299,
+        "excluded": 266
+      }
+    },
+    {
+      "previous_revision": "546c3531776617daa82732030aec32ad5b5a5af5",
+      "revision": "c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3",
+      "archive_sha256": "651c7076c29d9981d95780fac38b294260f9a6848bf2c96a290b6f8ab8de5ced",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/311",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/312",
+          "reviewed_head": "00b21bae2ca5d153bac9807ee6487945f7ec1000",
+          "integration": "a9f42abc32583218bb5e6e73378719e33648dbfd"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.0-host-commands.md",
+          "previous_sha256": "60f0f3ba90d5330877a14e3af399420bac4dd35101d8beac41dc94e0ac224fbc",
+          "sha256": "04fa8d181f282bce3b443534e637659932379deeb7287b76baeb0dc2be46d068"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "1cd6d8c4e7c439386c12744590176ecc1444d97bac606bd95bc20183283698c9",
+          "sha256": "20c23396c50bb7e11a75c042cbe206d717f134593bc5d53ab7d89ba0314f22e7"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-311-prompt-dialog-placement.md",
+          "sha256": "b120eb0a5d7b846a1b3b5ef6dac360fc91dcb01040e25528b8eaf21e2d8a3c09",
+          "title": "Issue #311 — Positioned variable prompt anchor and bounds",
+          "role": "Original coordinate parsing and dialog geometry, with portable boundary rules."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 1976,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:208",
+        "version/3.0/ripscrip/5.1-text-variables.md:237",
+        "version/3.0/ripscrip/5.1-text-variables.md:239",
+        "version/3.0/ripscrip/5.1-text-variables.md:241",
+        "version/3.0/ripscrip/5.1-text-variables.md:243",
+        "version/3.0/ripscrip/5.1-text-variables.md:246",
+        "version/3.0/ripscrip/5.1-text-variables.md:248",
+        "version/3.0/ripscrip/5.1-text-variables.md:250",
+        "version/3.0/ripscrip/5.1-text-variables.md:251",
+        "version/3.0/ripscrip/5.1-text-variables.md:252",
+        "version/3.0/ripscrip/5.1-text-variables.md:253",
+        "version/3.0/ripscrip/5.1-text-variables.md:254",
+        "version/3.0/ripscrip/5.1-text-variables.md:255",
+        "version/3.0/ripscrip/5.1-text-variables.md:256",
+        "version/3.0/ripscrip/5.1-text-variables.md:257",
+        "version/3.0/ripscrip/5.1-text-variables.md:258"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:208",
+        "version/3.0/ripscrip/5.1-text-variables.md:278",
+        "version/3.0/ripscrip/5.1-text-variables.md:304",
+        "version/3.0/ripscrip/5.1-text-variables.md:306",
+        "version/3.0/ripscrip/5.1-text-variables.md:310",
+        "version/3.0/ripscrip/5.1-text-variables.md:312",
+        "version/3.0/ripscrip/5.1-text-variables.md:313",
+        "version/3.0/ripscrip/5.1-text-variables.md:314",
+        "version/3.0/ripscrip/5.1-text-variables.md:315",
+        "version/3.0/ripscrip/5.1-text-variables.md:316",
+        "version/3.0/ripscrip/5.1-text-variables.md:318",
+        "version/3.0/ripscrip/5.1-text-variables.md:320"
+      ],
+      "states_after_update": {
+        "unreviewed": 1807,
+        "context": 2185,
+        "pending": 1097,
+        "implemented": 4329,
         "excluded": 266
       }
     }

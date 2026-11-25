@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-546c3531776617daa82732030aec32ad5b5a5af5](https://github.com/RealDeuce/remote-imaging-protocol/tree/546c3531776617daa82732030aec32ad5b5a5af5/version/3.0)
+c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3](https://github.com/RealDeuce/remote-imaging-protocol/tree/c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -9308,20 +9308,18 @@ after an invalid format.
 ## Connected variable prompt placement
 
 The `x,y:` prefix places the prompt's top-left corner in the active ENV's
-WORLD coordinates. SyncTERM projects supplied axes into device pixels and
-aligns the frame to the containing console cell. Each omitted axis centers
-independently on the corresponding canvas axis. The frame moves inward at
-an edge so its controls stay visible. The scene is presented before the
-modal snapshot, so the dialog restores the preceding drawing when dismissed.
-
-While the reference clarification is pending, an explicit zero selects
-the origin, a positive coordinate on a zero-sized WORLD axis centers, and
-decimal `65535` uses the same projection as any other supplied coordinate.
-[Issue #311](https://github.com/bbs-land/remote-imaging-protocol/issues/311)
+WORLD coordinates. Each supplied axis is decimal `0` through `65535`.
+SyncTERM projects supplied axes into device pixels and aligns the frame to
+the containing console cell. An omitted coordinate or a zero WORLD extent
+centers that axis within the full drawing area. The frame moves inward at an
+edge so its controls stay visible. The scene is presented before the modal
+snapshot, so the dialog restores the preceding drawing when dismissed.
+[PR #312](https://github.com/bbs-land/remote-imaging-protocol/pull/312)
 
 Connected CP437 and UTF-8 fixtures check placement on all three agreed
-canvases, with an active nondefault ENV, missing axes, edge placement, zero
-WORLD extent, Enter and Escape, and preservation of the preceding drawing.
+canvases, with an active nondefault ENV, missing axes, edge placement at
+`65535`, zero WORLD extent, and preservation of the preceding drawing.
+They also check Enter, Escape, and recovery after an axis exceeds `65535`.
 
 ## Connected RIP_DEFINE
 

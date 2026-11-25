@@ -78,7 +78,7 @@ coordinate(struct parser *parser, int32_t *result, bool *present)
 
 	if (!digit(peek(parser)))
 		return 0;
-	status = decimal(parser, INT32_MAX, &value);
+	status = decimal(parser, UINT16_MAX, &value);
 	if (status != 0)
 		return status;
 	*result = (int32_t)value;

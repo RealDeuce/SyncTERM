@@ -120,14 +120,16 @@ def datetime_queries(t):
 def positioned_prompts(t, width, height):
     t.case("rip3-world-coordinate-variable-prompts")
     t.exchange(query(b"$CUR(ENV,7)$$WORLD(CUR,1280,960)$", at_cursor=True))
+    t.exchange(query(b"$65536,192:PLACED(NUMBER),8@Invalid position=17$", at_cursor=True)
+               + b"\x1b[5n", b"\x1b[0n")
     for position, x, y in ((b"333,192:", 333, 192), (b",192:", None, 192),
                            (b"333,:", 333, None), (b",:", None, None),
-                           (b"0,0:", 0, 0), (b"90000,90000:", 90000, 90000),
-                           (b"90000,192:", None, 192)):
-        if position == b"90000,192:":
+                           (b"0,0:", 0, 0), (b"65535,65535:", 65535, 65535),
+                           (b"333,192:", None, 192), (b"0,192:", None, 192)):
+        if position == b"333,192:" and x is None:
             t.exchange(query(b"$WORLD(CUR,0,960)$", at_cursor=True))
         request = query(b"$" + position + b"PLACED(NUMBER),8@World position=17$", at_cursor=True)
-        if position == b"333,192:":
+        if x == 333 and y == 192:
             request = b"\x01|c04|X995C|" + request[2:]
         t.send(request + b"\x1b[5n")
         frame = t.client.wait_text("World position", timeout=5)
@@ -144,7 +146,7 @@ def positioned_prompts(t, width, height):
         t.client.key("escape" if x == y == 0 else "enter")
         result = b"NONE" if x == y == 0 else b"17"
         receive(t.peer, result+b"\x1b[0n", t.root / "replies.bin")
-        if position == b"333,192:":
+        if x == 333 and y == 192:
             assert pixel(t.client.capture(), 333*width//1280, 192*height//960) == 0xaa0000
     t.exchange(query(b"$CUR(ENV,0)$", at_cursor=True))
 

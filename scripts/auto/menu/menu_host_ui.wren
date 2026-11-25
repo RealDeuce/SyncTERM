@@ -95,8 +95,8 @@ class MenuHostUI {
       var size = Screen.checked_(Screen.size)
       var cell = Screen.checked_(Screen.cellPixelSize)
       var bounds = p.bounds
-      var maxX = size[0] - bounds.w
-      var maxY = size[1] - bounds.h
+      var maxX = (size[0] - bounds.w).max(0)
+      var maxY = (size[1] - bounds.h).max(0)
       var x = position[0] == null ? (maxX / 2).floor : (position[0] / cell[0]).floor.min(maxX)
       var y = position[1] == null ? (maxY / 2).floor : (position[1] / cell[1]).floor.min(maxY)
       p.bounds = Rect.new(x + 1, y + 1, bounds.w, bounds.h)

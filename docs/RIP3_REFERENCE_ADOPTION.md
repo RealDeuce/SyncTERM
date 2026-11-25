@@ -1778,3 +1778,15 @@ an implementation requirement.
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/546c3531776617daa82732030aec32ad5b5a5af5),
 [PR #308](https://github.com/bbs-land/remote-imaging-protocol/pull/308),
 [PR #310](https://github.com/bbs-land/remote-imaging-protocol/pull/310)
+
+## Positioned variable prompts
+
+Stable revision `c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3` incorporates
+PR #312 at reviewed head `00b21bae2ca5d153bac9807ee6487945f7ec1000`.
+The contract specifies decimal axes from `0` through `65535`, projection
+in the active WORLD, and independent fitting and centering in the drawing
+area. Its Git archive SHA-256 is
+`651c7076c29d9981d95780fac38b294260f9a6848bf2c96a290b6f8ab8de5ced`.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3),
+[PR #312](https://github.com/bbs-land/remote-imaging-protocol/pull/312)
