@@ -1084,6 +1084,12 @@ st_term_rip_wire_to_utf8(char *result, size_t capacity,
 	return 0;
 }
 
+bool
+st_term_session_keyboard_locked(const st_term_session_t *session)
+{
+	return session != NULL && st_term_rip3_keyboard_locked(session->rip3);
+}
+
 int
 st_term_session_send_key(st_term_session_t *session,
 	const struct st_console_event *event, bool *handled)

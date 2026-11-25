@@ -509,9 +509,15 @@ cterm_handle_sm(struct cterminal *cterm, int *speed)	/* CSI h */
 {
 	int i;
 	(void)speed;
+	if (cterm->rip3_session_owner && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
+		return;
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
+			case 2:	/* KAM = keyboard locked */
+				if (cterm->rip3_session_owner)
+					cterm->extattr |= CTERM_EXTATTR_KAM;
+				break;
 			case 14:	/* FETM = EXCLUDE */
 				cterm->fetm = 1;
 				break;
@@ -527,9 +533,15 @@ cterm_handle_rm(struct cterminal *cterm, int *speed)	/* CSI l */
 {
 	int i;
 	(void)speed;
+	if (cterm->rip3_session_owner && (cterm->seq_param_count != 1 || cterm->seq_cur_has_sub))
+		return;
 	for (i = 0; i < cterm->seq_param_count; i++) {
 		cterm_seq_default(cterm, i, 0);
 		switch (cterm->seq_param_int[i]) {
+			case 2:	/* KAM = keyboard unlocked */
+				if (cterm->rip3_session_owner)
+					cterm->extattr &= ~CTERM_EXTATTR_KAM;
+				break;
 			case 14:	/* FETM = INSERT */
 				cterm->fetm = 0;
 				break;

@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-fac950cc034276f3f56a226936dfd7bb18676859](https://github.com/RealDeuce/remote-imaging-protocol/tree/fac950cc034276f3f56a226936dfd7bb18676859/version/3.0)
+deb6f3aa1742ed013c460e1cf33cb4186e272b19](https://github.com/RealDeuce/remote-imaging-protocol/tree/deb6f3aa1742ed013c460e1cf33cb4186e272b19/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10696,9 +10696,20 @@ protected ENV and SOFT/HARD. Connected CP437 and UTF-8 tests exercise mouse
 fields, hotkeys, normal key forwarding and recovery after invalid operands.
 [PR #288](https://github.com/bbs-land/remote-imaging-protocol/pull/288)
 
-The separate per-window ANSI keyboard mode still needs a portable rule for
-which input it suppresses and how it combines with the scene keyboard gate.
-[Issue #289](https://github.com/bbs-land/remote-imaging-protocol/issues/289)
+## ANSI Keyboard Action Mode
+
+CTerm handles ordinary single-parameter CSI 2 h and CSI 2 l in the
+selected RIP3 text window. The terminal's input route checks that
+window's stored mode and the separate scene keyboard gate before
+forwarding keys, applying half-duplex echo, or processing RIP hotkeys
+and Tab focus. Built-in keyboard paste, login and emoji submission also
+check both gates. Mouse input and host replies follow their existing routes.
+
+Native tests cover receive splits, compound and private controls, copy,
+fresh definitions, and ANSI reset. The connected keyboard fixtures cover
+window selection, ESC snapshots, inactive windows, scene release, pointer
+capture, focus retention, and half-duplex Backspace in CP437 and UTF-8.
+[PR #293](https://github.com/bbs-land/remote-imaging-protocol/pull/293)
 
 ## Live wire delay
 

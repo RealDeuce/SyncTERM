@@ -68,7 +68,7 @@ Hook.onKey(Key.down, Mod.command) { |key|
 }
 
 Hook.onKey(Key.insert, Mod.shift) { |key|
-  Conn.paste()
+  if (!CTerm.keyboardLocked) Conn.paste()
   return true
 }
 

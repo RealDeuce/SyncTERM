@@ -150,6 +150,13 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 	return status!=0 ? status : cterm_render_take_error(terminal);
 }
 
+bool
+st_cterm_rip3_keyboard_locked(const st_cterm_t *terminal)
+{
+	return terminal != NULL && terminal->rip3_session_owner
+	    && (terminal->extattr & CTERM_EXTATTR_KAM) != 0;
+}
+
 int
 st_cterm_copy_window_state(st_cterm_t *destination, const st_cterm_t *source)
 {

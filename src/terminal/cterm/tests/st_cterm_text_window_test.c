@@ -429,10 +429,46 @@ ansi_window_save(void)
 	return 0;
 }
 
+static int
+keyboard_action_mode(void)
+{
+	struct fixture source = {0}, clone = {0}, fresh = {0};
+	CHECK(create(&source, 17) == 0 && create(&clone, 17) == 0 && create(&fresh, 17) == 0);
+	static const char set[] = "\x1b[2h";
+	for (size_t split = 0; split < sizeof(set) - 1; ++split) {
+		CHECK(feed(&source, "\x1b[2l", 4) == 0);
+		CHECK(feed(&source, set, split) == 0 && !st_cterm_rip3_keyboard_locked(source.text));
+		CHECK(feed(&source, set + split, sizeof(set) - 1 - split) == 0);
+		CHECK(st_cterm_rip3_keyboard_locked(source.text));
+	}
+	static const char ignored[] = "\x1b[4;2l\x1b[2:l\x1b[?2l\x1b[2:0l";
+	CHECK(feed(&source, ignored, sizeof(ignored) - 1) == 0);
+	CHECK(st_cterm_rip3_ansi_reset(source.text, true) == 0 && st_cterm_rip3_keyboard_locked(source.text));
+	CHECK(st_cterm_copy_window_state(clone.text, source.text) == 0);
+	CHECK(st_cterm_default_window_interpreter(fresh.text, source.text) == 0);
+	CHECK(st_cterm_rip3_keyboard_locked(clone.text) && !st_cterm_rip3_keyboard_locked(fresh.text));
+	CHECK(feed(&source, "\x1b" "c", 2) == 0 && !st_cterm_rip3_keyboard_locked(source.text));
+	CHECK(st_cterm_rip3_keyboard_locked(clone.text));
+
+	/* Ordinary ANSI and legacy RIP keep their existing multi-mode handling. */
+	for (unsigned mode = 0; mode < 2; ++mode) {
+		fresh.text->rip3_session_owner = false;
+		fresh.text->graphics_mode = mode == 0 ? ST_CTERM_GRAPHICS_OFF : ST_CTERM_GRAPHICS_RIP_1;
+		static const char compound[] = "\x1b[2;14h";
+		CHECK(feed(&fresh, "\x1b[14l", 5) == 0);
+		CHECK(feed(&fresh, compound, sizeof(compound) - 1) == 0 && fresh.text->fetm == 1);
+		CHECK(feed(&fresh, set, sizeof(set) - 1) == 0 && !st_cterm_rip3_keyboard_locked(fresh.text));
+	}
+	destroy(&fresh);
+	destroy(&clone);
+	destroy(&source);
+	return 0;
+}
+
 int
 main(void)
 {
-	CHECK(scene_input_continuation() == 0);
+	CHECK(scene_input_continuation() == 0 && keyboard_action_mode() == 0);
 	CHECK(ansi_window_save()==0 && character_sets()==0 && definition_backups()==0 && continuations()==0 && tabs_and_saved_cursor()==0 && failures()==0 && extended_tabs()==0
 	    && window_copy()==0 && selection_continuations()==0 && default_window()==0 && soft_ansi_reset()==0);return 0;
 }

@@ -10,7 +10,7 @@ int st_term_rip3_prepare_console(st_console_t *console);
 int st_term_rip3_create(struct st_term_rip3 **result,
 	const struct st_term_config *config, st_cterm_t *text,
 	const struct st_cterm_config *text_config, st_term_session_t *owner);
-st_cterm_t *st_term_rip3_text(struct st_term_rip3 *rip);
+st_cterm_t *st_term_rip3_text(const struct st_term_rip3 *rip);
 bool st_term_rip3_text_view(struct st_term_rip3 *rip, struct st_term_text_view *view);
 void st_term_rip3_flush(struct st_term_rip3 *rip);
 void st_term_rip3_set_transfer_protocols(struct st_term_rip3 *rip, uint32_t protocols);
@@ -36,6 +36,7 @@ bool st_term_rip3_paused(const struct st_term_rip3 *rip);
 bool st_term_rip3_mouse_active(const struct st_term_rip3 *rip);
 bool st_term_rip3_pointer_shape(const struct st_term_rip3 *rip, enum st_console_pointer_shape *result);
 bool st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *event);
+bool st_term_rip3_keyboard_locked(const struct st_term_rip3 *rip);
 bool st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event);
 void st_term_rip3_mouse_cancel(struct st_term_rip3 *rip, bool keyboard_focus_lost);
 void st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event);

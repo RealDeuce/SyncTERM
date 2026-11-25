@@ -1706,3 +1706,16 @@ and defines when a full scene release returns the pointer to arrow.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/fac950cc034276f3f56a226936dfd7bb18676859),
 [PR #288](https://github.com/bbs-land/remote-imaging-protocol/pull/288)
+
+## ANSI mode 2 per text window
+
+The reference advances to `deb6f3aa1742ed013c460e1cf33cb4186e272b19`.
+The stable tree matches the reviewed PR #293 head
+`79ca5a35c0c7d0aacc648c1de348aed000eb31e8`. The Git archive has SHA-256
+`8192bc4c8d9dd24190914c59fb3cd6af8106e5684849c55270e2979f31a29cbd`.
+The four changed chapters define single-parameter ANSI mode controls
+and the interaction between per-window Keyboard Action Mode and the
+scene keyboard gate.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/deb6f3aa1742ed013c460e1cf33cb4186e272b19),
+[PR #293](https://github.com/bbs-land/remote-imaging-protocol/pull/293)

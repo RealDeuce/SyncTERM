@@ -186,7 +186,7 @@ st_term_rip3_receive_asset(struct st_term_rip3 *rip, const char *directory,
 }
 
 st_cterm_t *
-st_term_rip3_text(struct st_term_rip3 *rip)
+st_term_rip3_text(const struct st_term_rip3 *rip)
 {
 	return rip==NULL ? NULL : rip->view==NULL ? rip->text : st_term_rip3_view_text(rip->view);
 }
@@ -1692,11 +1692,18 @@ st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event *even
 	present(rip);flush_text(rip);feedback_end(rip);return handled;
 }
 
+bool
+st_term_rip3_keyboard_locked(const struct st_term_rip3 *rip)
+{
+	return rip != NULL && (st_rip3_session_keyboard_locked(rip->session)
+	    || st_cterm_rip3_keyboard_locked(st_term_rip3_text(rip)));
+}
+
 static bool
 rip3_key_binding(struct st_term_rip3 *rip, const struct st_console_event *event)
 {
 	if (rip->pick_list!=NULL) { pick_list_input(rip,event);return true; }
-	if (st_rip3_session_keyboard_locked(rip->session)) return true;
+	if (st_term_rip3_keyboard_locked(rip)) return true;
 	/* Bitmap backends may also deliver the physical F5 event. Keep the
 	 * shortcut off the BBS wire in Doorway mode and act on the translated key. */
 	if (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY && event->data.physical_key.evdev == 63

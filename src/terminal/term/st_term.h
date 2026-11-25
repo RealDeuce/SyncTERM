@@ -217,6 +217,8 @@ int st_term_session_pump(st_term_session_t *session,
  * preserved; CODEPAGE_BYTE is resolved using the session wire encoding. */
 int st_term_session_send_key(st_term_session_t *session,
 	const struct st_console_event *event, bool *handled);
+/* Combined RIP3 gate for local shortcuts that submit terminal data. */
+bool st_term_session_keyboard_locked(const st_term_session_t *session);
 
 /*
  * Sends finite Unicode text. UTF-8 is sent unchanged after validation/NFC.

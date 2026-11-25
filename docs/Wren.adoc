@@ -4461,6 +4461,11 @@ assignment when selecting an existing font; loading only registers a new font.
   re-entered. For example, `CTerm.sendKey(KeyEvent.new(Key.enter))` injects Return
   through this path.
 
+| `CTerm.keyboardLocked`
+| Bool. Reports whether the current RIP3 text window's ANSI mode 2 or
+  the RIP3 keyboard scene gate suppresses terminal keyboard actions.
+  A shortcut that submits terminal data directly can check this before sending.
+
 | `CTerm.startMusicomm()`, `CTerm.musicomm`
 | Locally arm the Musicomm receiver and read whether it still owns received
   bytes (including startup/end drains). Start returns null on success or

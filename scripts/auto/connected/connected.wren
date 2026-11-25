@@ -6,7 +6,7 @@ import "syncterm" for Hook, Key, Conn, Session, CTerm, ConnType, KeyEvent, CTerm
 
 class Connected {
   static sendComponent_(value) {
-    if (value.count == 0) return
+    if (CTerm.keyboardLocked || value.count == 0) return
     var error = Conn.sendText(value).await()
     if (error != null) Fiber.abort(error)
     var result = CTerm.sendKey(KeyEvent.new(Key.enter))

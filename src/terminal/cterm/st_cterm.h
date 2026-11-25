@@ -349,6 +349,7 @@ enum st_cterm_rip3_window_action {
 };
 enum st_cterm_rip3_window_action st_cterm_take_rip3_window_action(st_cterm_t *terminal);
 bool st_cterm_rip3_ansi_pending(st_cterm_t *terminal);
+bool st_cterm_rip3_keyboard_locked(const st_cterm_t *terminal);
 void st_cterm_set_rip3_destructive_backspace(st_cterm_t *, bool destructive);
 int st_cterm_echo_rip3_backspace(st_cterm_t *, bool destructive);
 /* ANSI saves own metadata and logical font selectors only. Restore prepares

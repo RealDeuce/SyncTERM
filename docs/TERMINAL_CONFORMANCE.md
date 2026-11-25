@@ -84,8 +84,11 @@ failures. Tests verify exported dimensions/colors and current-clipboard replacem
 `syncterm_rip3_keyboard_CP437` and `syncterm_rip3_keyboard_UTF-8` run PR #121
 byte/default/wildcard vectors, event consumption, HKEY gates, pointer cancellation
 and reset/delayed FIELDID lifetime through real keyboard events. Native forwarding
-checks cover ANSI/RIP1/RIP3 and pointer-only disable. HEADER input lock, full mouse
-queries/restore/playback, physical indicators and clear/zoom remain pending.
+checks cover ANSI/RIP1/RIP3 and pointer-only disable. The same connected
+fixtures cover ANSI Keyboard Action Mode and its independent scene gate,
+including inactive windows, retained focus and pointer capture, half-duplex
+Backspace, and built-in keyboard sends. The CTerm text-window test checks
+mode controls across receive splits and existing ANSI/RIP1 mode handling.
 Connected hover, grouped buttons, nonplain sizing/eligibility and enclosed
 painting are covered below; see the RIP3 inventory for exact scope.
 RIPv3 uses the existing ANSI engine. Adding a VT-102 emulation mode, selector

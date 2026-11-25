@@ -1297,6 +1297,7 @@ class CTerm {
   // Send a local key through cterm's active emulation mapping.  Returns
   // Bool on success (native acceptance, not delivery), CTermError on failure.
   foreign static sendKey(key)
+  foreign static keyboardLocked
   foreign static doorwayMode
   foreign static doorwayMode=(b)
   foreign static music

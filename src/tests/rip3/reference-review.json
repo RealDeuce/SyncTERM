@@ -1,24 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/288",
-  "revision": "fac950cc034276f3f56a226936dfd7bb18676859",
-  "previous_revision": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/293",
+  "revision": "deb6f3aa1742ed013c460e1cf33cb4186e272b19",
+  "previous_revision": "fac950cc034276f3f56a226936dfd7bb18676859",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #288 matches its fork stable integration tree.",
-  "archive_sha256": "1b62863858943684b0a592ff5f302020a88e6e01ada3c50f61a2c2366d4c7405",
+  "upstream_state_at_adoption": "The open PR #293 matches its fork stable integration tree.",
+  "archive_sha256": "8192bc4c8d9dd24190914c59fb3cd6af8106e5684849c55270e2979f31a29cbd",
   "normative_scope": [
-    "Apply portable mouse and keyboard scene gates and pointer return on HEADER, RESET and NO_MORE."
+    "Implement ordinary single-parameter ANSI mode controls and per-window mode 2 in combination with the RIP3 scene keyboard gate."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
     "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
     "version/3.0/ripscrip/4.3-buttons.md",
     "version/3.0/ripscrip/5.1-text-variables.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9541,
+  "matched_source_blocks": 9555,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -952,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 143,
+  "upstream_issue_resolutions": 144,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1799,6 +1798,12 @@
       "sha256": "95b11d305b958c0be89eae49af63723035e9a44ef75c2828bdedd786ee3e32be",
       "title": "Issue #286 — RESET input gates and pointer state",
       "role": "Native state and dispatch traces behind the independent scene gates and pending arrow return."
+    },
+    {
+      "path": "version/3.0/research/issue-289-ansi-keyboard-action-mode.md",
+      "sha256": "17f7bd2436368de0a9674c7bd33e649954120680cc9eae4c88ab70a3e88115b6",
+      "title": "Issue #289 — ANSI mode 2 keyboard gating",
+      "role": "Original mode callbacks and distinction between native hotkey checks and portable keyboard delivery."
     }
   ],
   "documents": [
@@ -1904,7 +1909,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "0c26f2996292aafe91065df22b7b46d13b15d06fe273bb5d39b8a0e8f1610e62"
+      "sha256": "1f5082599e9615d99ebc14604aa8b4721b7efede059bfd431ce732dd7116cefb"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -1940,11 +1945,11 @@
     },
     {
       "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
-      "sha256": "f97a4ce762b2ab47f2276007b7915d731ea22d1112f5a83ded60ab5698b758e4"
+      "sha256": "a1f0b8b20695d46293671b1f9a867b6f737df68075382ecbc332d92e1b3c9026"
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "9c2d2796484a1b90799a8eb7a43196832968395bd907a77e668f6746c3ab1ccb"
+      "sha256": "cbca0dd7d65fab6fcc1c781fb44dc17624db773265814bb9aa5217175b1c4f21"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -1960,7 +1965,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "8f93e99e2e0955c1a162ec42d752448000afa41efb5640190baa342ccada1688"
+      "sha256": "edf31b21615a64cd2d8102df21914b177b47169e33cb0b2493cd4cd9a775df78"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2075,7 +2080,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "79fb1a6b82b46e6951cf076a48f29dfa5d7370dc",
+  "previous_ledger_commit": "bb00bdde9cd2978a457caae6be98af70fe9dc009",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20683,6 +20688,87 @@
         "implemented": 4134,
         "excluded": 76,
         "blocked": 1
+      }
+    },
+    {
+      "previous_revision": "fac950cc034276f3f56a226936dfd7bb18676859",
+      "revision": "deb6f3aa1742ed013c460e1cf33cb4186e272b19",
+      "archive_sha256": "8192bc4c8d9dd24190914c59fb3cd6af8106e5684849c55270e2979f31a29cbd",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/289",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/293",
+          "reviewed_head": "79ca5a35c0c7d0aacc648c1de348aed000eb31e8",
+          "integration": "deb6f3aa1742ed013c460e1cf33cb4186e272b19"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "0c26f2996292aafe91065df22b7b46d13b15d06fe273bb5d39b8a0e8f1610e62",
+          "sha256": "1f5082599e9615d99ebc14604aa8b4721b7efede059bfd431ce732dd7116cefb"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md",
+          "previous_sha256": "f97a4ce762b2ab47f2276007b7915d731ea22d1112f5a83ded60ab5698b758e4",
+          "sha256": "a1f0b8b20695d46293671b1f9a867b6f737df68075382ecbc332d92e1b3c9026"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "9c2d2796484a1b90799a8eb7a43196832968395bd907a77e668f6746c3ab1ccb",
+          "sha256": "cbca0dd7d65fab6fcc1c781fb44dc17624db773265814bb9aa5217175b1c4f21"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "8f93e99e2e0955c1a162ec42d752448000afa41efb5640190baa342ccada1688",
+          "sha256": "edf31b21615a64cd2d8102df21914b177b47169e33cb0b2493cd4cd9a775df78"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-289-ansi-keyboard-action-mode.md",
+          "sha256": "17f7bd2436368de0a9674c7bd33e649954120680cc9eae4c88ab70a3e88115b6",
+          "title": "Issue #289 — ANSI mode 2 keyboard gating",
+          "role": "Original mode callbacks and distinction between native hotkey checks and portable keyboard delivery."
+        }
+      ],
+      "moved_source_blocks": 335,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:25",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:27",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:29",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:31",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:32",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:33",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:34",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:35",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:36",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:37",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:39",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:41",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:43",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:45",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:53",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:133",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:142",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/5.1-text-variables.md:2924"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:29",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:133",
+        "version/3.0/ripscrip/4.2-mouse-fields-and-pointer.md:142",
+        "version/3.0/ripscrip/4.3-buttons.md:648",
+        "version/3.0/ripscrip/5.1-text-variables.md:2924"
+      ],
+      "states_after_update": {
+        "unreviewed": 2030,
+        "context": 2015,
+        "pending": 1292,
+        "implemented": 4156,
+        "excluded": 76,
+        "blocked": 5
       }
     }
   ],

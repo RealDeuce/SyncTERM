@@ -41,7 +41,7 @@ class EmojiFlow {
       System.print("Emoji picker failed: %(worker.error)")
       return true
     }
-    if (picked != null && Emoji.canSend) {
+    if (picked != null && Emoji.canSend && !CTerm.keyboardLocked) {
       var error = Conn.sendText(picked.text).await()
       if (error == null) {
         var saved = Emoji.recordUse(picked)

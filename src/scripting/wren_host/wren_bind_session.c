@@ -1039,6 +1039,13 @@ LAST_COLUMN_BOOL(forced, forced)
 #undef LAST_COLUMN_BOOL
 
 static void
+fn_cterm_keyboard_locked(WrenVM *vm)
+{
+	wrenSetSlotBool(vm, 0, st_term_session_keyboard_locked(
+	    st_wren_context_from_vm(vm)->session));
+}
+
+static void
 fn_cterm_doorway_mode(WrenVM *vm)
 {
 	wrenSetSlotBool(vm, 0, st_cterm_doorway_mode(
@@ -1507,6 +1514,7 @@ static const struct session_binding bindings[] = {
 	{"CTerm", "graphicsMode", fn_cterm_graphics_mode},
 	{"CTerm", "extAttr", fn_cterm_ext_attr},
 	{"CTerm", "lastColumnFlag", fn_cterm_last_column_flag},
+	{"CTerm", "keyboardLocked", fn_cterm_keyboard_locked},
 	{"CTerm", "doorwayMode", fn_cterm_doorway_mode},
 	{"CTerm", "doorwayMode=(_)", fn_cterm_doorway_mode_set},
 	{"CTerm", "music", fn_cterm_music},
