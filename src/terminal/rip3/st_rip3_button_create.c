@@ -421,11 +421,18 @@ filename_value(struct button *button,const uint8_t *bytes,size_t length)
 	return st_rip3_resource_name_valid(button->name) ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
+static bool
+uses_hot_icon(const struct button *button)
+{
+	return button->mouse && (button->style.flags & (128u | 4096u)) == (128u | 4096u);
+}
+
 static int
 load_icon(struct button *button,struct st_rip3_bitmap **bitmap)
 {
 	int status=IO_ERROR_NOT_FOUND;
-	if (button->selected && (button->style.flags&4096)!=0) {
+	bool hot = button->selected && uses_hot_icon(button);
+	if (hot) {
 		char hot[4*255+5];size_t size=strlen(button->name);
 		const char *extension=strrchr(button->name,'.');
 		if (extension!=NULL) size=(size_t)(extension-button->name);
@@ -435,7 +442,7 @@ load_icon(struct button *button,struct st_rip3_bitmap **bitmap)
 	}
 	status=st_rip3_bitmap_load(bitmap,button->host.resources,button->name);
 	if (status!=0) button->host.bitmap_errors->show(button->host.bitmap_errors->context,button->name,button->target,NULL,false);
-	else if (button->selected && (button->style.flags&4096)!=0) button->style.flags=(button->style.flags&~4096u)|2u;
+	else if (hot) button->style.flags=(button->style.flags&~4096u)|2u;
 	return status;
 }
 
@@ -660,7 +667,7 @@ finish_button(struct render_job *job)
 	    .selected=b->selected};
 	const struct st_rip3_mouse_visual visual={.context=b,.select=select_button,.destroy=remove_button,.abort=abort_button,
 	    .restore=restore_button,.committed=commit_button,.copy=copy_button};
-	bool redraw=binding.group_kind!=ST_RIP3_GROUP_NONE || (b->style.flags&(2|4096))!=0;
+	bool redraw = binding.group_kind != ST_RIP3_GROUP_NONE || (b->style.flags & 2) != 0 || uses_hot_icon(b);
 	if (redraw) b->references++;
 	int status=st_rip3_mouse_define(b->host.mouse,ST_RIP3_MOUSE_BUTTON,&binding,&area,(b->style.flags&2)!=0,(b->style.flags&4)!=0,
 	    b->identity,b->program,b->program_length,redraw ? &visual : NULL);
@@ -683,23 +690,23 @@ face_stage(struct render_job *job)
 		}
 	}
 	if (b->mouse && job->creation && st_rip3_mouse_full(b->host.mouse)) return IO_ERROR_OUT_OF_RANGE;
-	if (job->prepare_undo && (b->style.flags&4096)!=0 && b->images[job->undo_selected ? 1 : 0]==NULL) {
+	if (job->prepare_undo && uses_hot_icon(b) && b->images[job->undo_selected ? 1 : 0]==NULL) {
 		/* Restored definitions have no feedback cache. Prepare the committed
 		 * ICON state during this actual preview, with the same resolved name,
 		 * so later cancellation runs no providers or file operations. */
 		struct st_rip3_bitmap *undo=NULL;bool selected=b->selected;b->selected=job->undo_selected;
 		status=load_icon(b,&undo);b->selected=selected;
 		if (status!=0) return status;
-		if ((b->style.flags&4096)!=0) b->images[job->undo_selected ? 1 : 0]=undo;
+		if (uses_hot_icon(b)) b->images[job->undo_selected ? 1 : 0]=undo;
 		else st_rip3_bitmap_destroy(undo);
 	}
 	job->operation=true;
 	status=st_rip3_ports_button_context(b->host.ports,b->target,b->generation,&b->port,paint_face,job);
-	if (status==0 && job->bitmap!=NULL && (b->style.flags&4096)!=0) {
+	if (status==0 && job->bitmap!=NULL && uses_hot_icon(b)) {
 		unsigned state=b->selected ? 1 : 0;st_rip3_bitmap_destroy(b->images[state]);
 		b->images[state]=job->bitmap;job->bitmap=NULL;
 	}
-	if ((b->style.flags&4096)==0) {
+	if (!uses_hot_icon(b)) {
 		st_rip3_bitmap_destroy(b->images[0]);st_rip3_bitmap_destroy(b->images[1]);b->images[0]=b->images[1]=NULL;
 	}
 	st_rip3_bitmap_destroy(job->bitmap);job->bitmap=NULL;
@@ -789,7 +796,7 @@ restore_button(void *context,bool selected)
 	if (renderer!=NULL && renderer->job!=NULL && renderer->job->button==b) st_rip3_button_renderer_cancel(renderer);
 	if (!b->alive || st_rip3_ports_generation(b->host.ports,b->target)!=b->generation) return 0;
 	b->selected=selected;
-	if ((b->style.flags&128)==0 || (b->style.flags&4096)==0) {
+	if (!uses_hot_icon(b)) {
 		/* Plain/clipboard and ICON fallback feedback is only the existing
 		 * RGB complement. Never paste/read files or run providers to undo it. */
 		bool desired=selected && (b->style.flags&2)!=0;

@@ -7151,6 +7151,14 @@ operator. This preserves indexed capture/export and uses the existing surface an
 damage planes, without adding a persistent raster, damage tracker or alternate
 ANSI path. Plain/simple native feedback keeps its existing implementation.
 
+HOT affects feedback only on mouse-active ICON faces. The style table retains
+the requested bit for any face type. PLAIN and CLIPBOARD buttons follow their
+own feedback rules even when HOT is present. Live tests verify that HOT alone
+leaves a plain press free of redraw, and that invertible plain and clipboard
+buttons still invert and send their actions. A combined ICON/CLIPBOARD/PLAIN
+style requires a readable clipboard and uses the normal and hot icon images
+once that precondition is met.
+
 Auto-stamp also accepts ICON/initial-HOT faces: existing capture/style mutation
 runs before label realization, then later buttons use the converted clipboard
 style. Existing budget/protection/label failure boundaries remain intact.

@@ -58,6 +58,32 @@ def run(args,width,height):
             # WORLD may exceed the two-digit range; the macro changes it without
             # changing coordinate width/base, keeping the fixture prefixes literal.
         world(1)
+        if width == 640:
+            t.case('rip3-hot-icon-with-multiple-face-flags')
+            both = style(flags=1|128|256|1024|4096)
+            definition = button((10,200,0,0), b'Face<><>multi-face')
+            before = t.exchange(both)
+            skipped = t.exchange(definition + query(b'$INUSE(MOUSE,ANY)$', at_cursor=True), b'0')
+            assert skipped.primary == before.primary and skipped.alternate == before.alternate
+
+            # A valid blue clipboard satisfies the precondition. ICON still
+            # supplies the 60-pixel face, and its selected image uses HOT.
+            crop = b''.join(number(v,2) for v in (10,155,11,156))
+            frame = t.exchange(b'\x01|S0101|B' + crop + b'|1C' + crop + b'0\r\n' + definition)
+            assert pixel(frame,69,229) == 0x00aa00 and pixel(frame,70,229) == 0
+            mouse(30,210,True)
+            pressed = t.exchange()
+            assert pixel(pressed,69,229) == 0xaa0000 and pixel(pressed,70,229) == 0
+            mouse(30,210)
+            released = t.input(b'multi-face')
+            assert pixel(released,69,229) == 0x00aa00
+
+            values(b'$MKILL$')
+            decoration = style(flags=128|4096) + button((80,200,0,0), b'Face<><>unused', flags=1)
+            frame = t.exchange(decoration + query(b'$INUSE(MOUSE,ANY)$', at_cursor=True), b'0')
+            assert pixel(frame,139,229) == 0x00aa00
+            t.exchange(b'\x01|*|2P6000001011\r\n\x1b[?25l')
+            world(1)
         t.case(f'rip3-icon-filename-label-expansion-and-captured-geometry-{width}x{height}')
         values(b'$-=FACE=Face$$-=LABEL=A$')
         source=f'$WORLDW(0,{2*width})$$&FACE$'.encode()+b'<>$&LABEL$<>macro:$FIELDID$'

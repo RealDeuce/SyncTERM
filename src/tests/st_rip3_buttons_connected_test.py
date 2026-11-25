@@ -139,6 +139,43 @@ def run(args,width,height):
         assert after.primary==before.primary and after.alternate==before.alternate
         click(160,30);click(20,30)
 
+        if width == 640:
+            t.case('rip3-hot-flag-does-not-enable-icon-loading-on-other-faces')
+            # The filename expression is prepared on creation even for PLAIN.
+            # An ungrouped button without inversion needs no press redraw.
+            source = b'$-=HOTFILE=prepared$NoSuchBitmap<><>plain-hot'
+            before = t.exchange(style(flags=256|1024|4096, surface=3) + button((10,70,60,100), source))
+            values(b'$&HOTFILE$', b'prepared')
+            values(b'$-=HOTFILE=idle$')
+            mouse(30,80,True)
+            pressed = values(b'$&HOTFILE$', b'idle')
+            assert pressed.primary == before.primary and pressed.alternate == before.alternate
+            mouse(30,80)
+            t.input(b'plain-hot')
+
+            # An invertible button does redraw on press. HOT still supplies
+            # no bitmap I/O or icon fallback during that redraw.
+            t.exchange(style(flags=256|1024|4096|2, surface=3)
+                       + button((70,70,120,100), b'NoSuchBitmap<><>plain-invert'))
+            mouse(90,80,True)
+            pressed = t.exchange()
+            assert pixel(pressed,90,80) == 0xff5555
+            mouse(90,80)
+            released = t.input(b'plain-invert')
+            assert pixel(released,90,80) == 0x00aaaa
+
+            crop = b''.join(number(v,2) for v in (130,70,141,81))
+            t.exchange(b'\x01|S0103|B' + crop + b'|1C' + crop + b'0\r\n'
+                       + style(flags=1|1024|4096|2)
+                       + button((150,70,0,0), b'NoSuchBitmap<><>clipboard-invert'))
+            mouse(155,75,True)
+            pressed = t.exchange()
+            assert pixel(pressed,155,75) == 0xff5555
+            mouse(155,75)
+            released = t.input(b'clipboard-invert')
+            assert pixel(released,155,75) == 0x00aaaa
+            values(b'$MKILL$')
+
         t.case(f"rip3-button-reset-before-host-{width}x{height}")
         t.exchange(style(flags=256|1024|4)+button((10,20,60,40),b"ID=9:<><>reset:$FIELDID$:$CUR(BUT)$"))
         frame=click(20,30,b"reset:9:0")
