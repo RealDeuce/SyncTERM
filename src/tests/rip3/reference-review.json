@@ -1,22 +1,21 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/312",
-  "revision": "c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3",
-  "previous_revision": "546c3531776617daa82732030aec32ad5b5a5af5",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/314",
+  "revision": "6bbd7dc1384e9c822a87f14132f272b9e80f4b93",
+  "previous_revision": "c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Open PR #312 is incorporated in fork stable.",
-  "archive_sha256": "651c7076c29d9981d95780fac38b294260f9a6848bf2c96a290b6f8ab8de5ced",
+  "upstream_state_at_adoption": "Fork stable incorporates PR #314.",
+  "archive_sha256": "8be3e3c43962652c5da8e83374ce30c4d6fc781d9e1c20cf5ed16aac44bb96c5",
   "normative_scope": [
-    "Project positioned variable prompts from the active WORLD, fit them to the drawing area, and reject axes outside the decimal range."
+    "Validate the exclusive far boundaries of a projected wire viewport before publication."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.0-host-commands.md",
-    "version/3.0/ripscrip/5.1-text-variables.md"
+    "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9668,
+  "matched_source_blocks": 9684,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -950,12 +949,12 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 153,
+  "upstream_issue_resolutions": 154,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
     "Advanced frontend user editor/format modes and remaining table/playback families.",
-    "Adopted #205 completion-only resource publication remains pending. Transfers use the existing cache destination for ZMODEM resume."
+    "The #205 download publication follow-up was resolved in c32a31f1. Failed downloads delete the incomplete cache file."
   ],
   "derivations": [
     {
@@ -1863,6 +1862,12 @@
       "sha256": "b120eb0a5d7b846a1b3b5ef6dac360fc91dcb01040e25528b8eaf21e2d8a3c09",
       "title": "Issue #311 — Positioned variable prompt anchor and bounds",
       "role": "Original coordinate parsing and dialog geometry, with portable boundary rules."
+    },
+    {
+      "path": "version/3.0/research/issue-313-viewport-projection-range.md",
+      "sha256": "395986ad8eca302ce7c550ebd58d32f0b0dc4d4251591c2a5651aa3a6e07099b",
+      "title": "Issue #313 — RIP_VIEWPORT projection range",
+      "role": "Original viewport publication and portable signed DEVICE bounds."
     }
   ],
   "documents": [
@@ -1964,7 +1969,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
-      "sha256": "58c086cd8d1ef1871f80346f2befdd5b69dc157ac80ef46405c1057e53ca0f7c"
+      "sha256": "d1b27afe89041ab74fc694ccc0e20b60b7d734d06242a80ee3983f0565efa605"
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
@@ -2139,7 +2144,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "288be5298ce82ccee4e92ca25b1d366a241f7cb6",
+  "previous_ledger_commit": "62d4de8bfb9456bc5bc6b74d1f08b4f175f4d691",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2214,13 +2219,13 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 1807,
-    "context": 2185,
-    "pending": 1097,
-    "implemented": 4329,
-    "excluded": 266
+    "unreviewed": 1801,
+    "context": 2283,
+    "implemented": 5265,
+    "excluded": 266,
+    "pending": 73
   },
-  "source_blocks_at_adoption": 9684,
+  "source_blocks_at_adoption": 9688,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21414,6 +21419,51 @@
         "pending": 1097,
         "implemented": 4329,
         "excluded": 266
+      }
+    },
+    {
+      "previous_revision": "c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3",
+      "revision": "6bbd7dc1384e9c822a87f14132f272b9e80f4b93",
+      "archive_sha256": "8be3e3c43962652c5da8e83374ce30c4d6fc781d9e1c20cf5ed16aac44bb96c5",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/313",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/314",
+          "reviewed_head": "1ffdfb6faff2c623adfe35c9896bfa68ae3598e4",
+          "integration": "83748224d5e850f0c0f936cf27a86cf996d64e53"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
+          "previous_sha256": "58c086cd8d1ef1871f80346f2befdd5b69dc157ac80ef46405c1057e53ca0f7c",
+          "sha256": "d1b27afe89041ab74fc694ccc0e20b60b7d734d06242a80ee3983f0565efa605"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-313-viewport-projection-range.md",
+          "sha256": "395986ad8eca302ce7c550ebd58d32f0b0dc4d4251591c2a5651aa3a6e07099b",
+          "title": "Issue #313 — RIP_VIEWPORT projection range",
+          "role": "Original viewport publication and portable signed DEVICE bounds."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 114,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:169",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:171",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:173",
+        "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md:175"
+      ],
+      "retired_source_units": [],
+      "states_after_update": {
+        "unreviewed": 1801,
+        "context": 2283,
+        "implemented": 5265,
+        "excluded": 266,
+        "pending": 73
       }
     }
   ],

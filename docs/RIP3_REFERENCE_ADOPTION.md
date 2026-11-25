@@ -1790,3 +1790,14 @@ area. Its Git archive SHA-256 is
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3),
 [PR #312](https://github.com/bbs-land/remote-imaging-protocol/pull/312)
+
+## Viewport projection range
+
+Stable revision `6bbd7dc1384e9c822a87f14132f272b9e80f4b93` incorporates
+PR #314 at reviewed head `1ffdfb6faff2c623adfe35c9896bfa68ae3598e4`.
+The viewport rule applies the signed 32-bit DEVICE limit to the exclusive
+far edges and preserves the previous viewport on rejection. Its Git
+archive SHA-256 is
+`8be3e3c43962652c5da8e83374ce30c4d6fc781d9e1c20cf5ed16aac44bb96c5`.
+[Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/6bbd7dc1384e9c822a87f14132f272b9e80f4b93)
+· [PR #314](https://github.com/bbs-land/remote-imaging-protocol/pull/314)

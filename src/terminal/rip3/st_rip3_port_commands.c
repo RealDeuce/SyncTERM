@@ -423,6 +423,9 @@ st_rip3_port_commands_execute(const struct st_rip3_command_host *host,
 	status = st_rip3_world_to_device(&frame,&first,&first);
 	if (status == 0) status = st_rip3_world_to_device(&frame,&last,&last);
 	if (status != 0) return status;
+	/* The protocol's exclusive far edge must fit even though our device
+	 * rectangle stores the corresponding inclusive pixel. */
+	if (last.x == INT32_MAX || last.y == INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	device = (struct st_rip3_rect){first.x,first.y,last.x,last.y};
 	/* Original helper 0x33cc6 tests zero after conversion. Its stored viewport
 	 * uses DEVICE coordinates directly, without adding the port origin or

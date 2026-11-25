@@ -31,6 +31,36 @@ def port_query_arguments(t, values, width, height):
     values(b'$AVP(1)$$BASEMATH(CUR,36)$' + f'$WORLD(CUR,{width},{height})$'.encode())
 
 
+def projection_limits(t, wire, values):
+    t.case('rip3-viewport-projection-checks-exclusive-far-edges')
+    values(b'$WORLD(CUR,640,480)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$')
+
+    def view(x0, y0, x1, y1):
+        wire(b'v'+b''.join(number(n,5,64) for n in (x0,y0,x1,y1)))
+
+    edges=b'$PORTX1(0,VIEW,DEVICE)$:$PORTY1(0,VIEW,DEVICE)$'
+    view(10,10,19,19)
+    values(b'$WORLD(CUR,1,480)$')
+    wire(b'v00000000000G00000001')
+    values(b'$WORLD(CUR,640,480)$'+edges,b'20:20')
+    frame=wire(b'c02|X..|X0000A0000A')
+    assert pixel(frame,0,0)==0 and pixel(frame,10,10)==0x00aa00
+
+    # floor(221459251*640/66) and floor(85004561*480/19)
+    # are both INT32_MAX-1. Reverse the corners before projection.
+    values(b'$WORLD(CUR,66,19)$')
+    view(221459251,85004561,0,0)
+    values(edges,b'2147483647:2147483647')
+    # These project to INT32_MAX before the exclusive increment.
+    values(b'$WORLD(CUR,131,34)$')
+    view(0,0,439563059,1)
+    values(edges,b'2147483647:2147483647')
+    values(b'$DVP(0)$')
+    view(0,0,1,152113425)
+    values(edges,b'-1:-1')
+    values(b'$AVP(0)$'+edges,b'2147483647:2147483647')
+
+
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -51,6 +81,9 @@ def run(args,width,height):
             assert (frame.metadata['plane_width'],frame.metadata['plane_height'])==(width,height)
             values(b'$CUR(ENV)$:$CUR(PAL)$:$CUR(STYLE)$:$CUR(BUT)$:$CUR(TW)$',b'5:17:7:6:3')
         t.exchange(b'\x1b[!',b'RIPSCRIP030001');wire(b'*')
+        if (width,height)==(640,480):
+            projection_limits(t,wire,values)
+            wire(b'*')
         values(b'$CUR(ENV,5)$'+f'$WORLD(CUR,{width},{height})$'.encode()+b'$CUR(PAL,17)$$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(TW,3)$')
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()
         t.exchange(b'\x1b[?25l\x1b[33;44m\x1b[2;3H'+accented)

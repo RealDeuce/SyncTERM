@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3](https://github.com/RealDeuce/remote-imaging-protocol/tree/c77fb9d4e648d9f9fdba8e22804af7ef40bb4bd3/version/3.0)
+6bbd7dc1384e9c822a87f14132f272b9e80f4b93](https://github.com/RealDeuce/remote-imaging-protocol/tree/6bbd7dc1384e9c822a87f14132f272b9e80f4b93/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -72,10 +72,11 @@ The drawing geometry and composition review closed 29 blocks. Connected
 captures exercise XOR on truecolor text beneath affine ellipses, pie and
 chord closures, rounded rectangles, retraced strokes and polygons with holes.
 They also distinguish solid COPY borders from patterned polygon borders.
-One viewport block awaits the portable rule for a WORLD endpoint whose
-DEVICE projection exceeds signed 32-bit coordinates. SyncTERM currently
-keeps the previous viewport and continues parsing.
-[Upstream issue #313](https://github.com/bbs-land/remote-imaging-protocol/issues/313)
+PR #314 resolved the remaining viewport block. A wire viewport whose
+exclusive far edge exceeds the signed 32-bit DEVICE range preserves the
+previous rectangle and activation state. Connected queries check the
+largest valid boundary on each axis and the first invalid one.
+[Upstream PR #314](https://github.com/bbs-land/remote-imaging-protocol/pull/314)
 
 The file-request group closed 11 blocks. Connected tests check FILEDEL
 replies and cache contents, XFER's 37-filename and 20-byte argument limits,
