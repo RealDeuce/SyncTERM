@@ -43,6 +43,12 @@ def run(args,width,height):
         t.case('rip3-stored-query-positive-immediate-hover-and-field-controls')
         t.exchange(resident(5,b'E$FIELDID$;')+resident(6,b'X$FIELDID$;')
                    +field((10,10,60,60),b'ID=7:field:$FIELDID$'))
+        t.case('rip3-reset-query-preserves-display-hover-and-active-entries')
+        before=client.capture()
+        after=values(b'$RESET(QUERY,TW,0,VIEW,CUR)$')
+        assert after.primary==before.primary and after.alternate==before.alternate
+        after=values(b'$RESET(QUERY,ALL)$$CUR(PORT)$:$CUR(TW)$',b'0:0')
+        assert after.primary==before.primary and after.alternate==before.alternate
         mouse(30,30,move=True);t.input(b'E7;');click(30,30,b'field:7')
         mouse(80,80,move=True);t.input(b'X7;')
         values(b'$&EFFECT$',b'cold')

@@ -49,6 +49,7 @@ struct st_rip3_text_window_operations {
 	 * change. Failure preserves this target; the dispatcher continues later
 	 * selectors and resolves CUR from live selection each time. */
 	int (*reset_entry)(void *context,unsigned number);
+	void (*clear_query)(void *context, bool floating, unsigned number);
 	/* Whole TW snapshots own logical definitions/native metadata, never screen pixels
 	 * or connection parser input. Saved objects release without the live owner. */
 	int (*backup_capture)(void *context,void **result);

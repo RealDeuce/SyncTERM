@@ -1406,6 +1406,61 @@ static int stored_queries(void)
 	extern size_t st_rip3_resident_test_live;CHECK(st_rip3_resident_test_live==0);return 0;
 }
 
+static int
+resident_query_resets(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f,ST_RIP3_CANVAS_640_480);
+	options.sink.text_select = select_text;
+	CHECK(st_rip3_session_create(&f.session,&options)==0);
+	CHECK(query(&f,"$CUR(PORT,5)$$CUR(PORT,9)$$CUR(TW,9)$$CUR(TW,10)$$CUR(TW,35)$","")==0);
+	CHECK(store_query(&f,1,'0',"floating VIEW",false)==0 && store_query(&f,2,'0',"floating TW",false)==0);
+	CHECK(store_query(&f,3,'0',"VIEW zero",false)==0 && store_query(&f,3,'5',"VIEW five",false)==0
+	    && store_query(&f,3,'9',"VIEW nine",false)==0);
+	CHECK(store_query(&f,4,'9',"TW nine",false)==0 && store_query(&f,4,'A',"TW ten",false)==0
+	    && store_query(&f,4,'Z',"TW thirty-five",false)==0);
+	CHECK(query(&f,"$PROT(TW,9)$$PROT(PORT,9)$$SCB$","")==0);
+	const char *const invalid[] = {
+		"!|1\0330000$RESET(QUERY,TW,10,VIEW,CUR)$\r",
+		"!|1\0330000$RESET(QUERY,TW,10,36)$\r",
+		"!|1\0330000$RESET(QUERY,ALL,CUR)$\r",
+		"!|1\0330000$RESET(QUERY,VIEW,5,A)$\r",
+	};
+	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
+		unsigned errors=f.errors;
+		CHECK(append(&f,invalid[i])==0 && pump(&f)==0 && f.errors==errors+1);
+	}
+	CHECK(resident_value(&f,4,10,"TW ten")==0 && resident_value(&f,3,5,"VIEW five")==0
+	    && resident_value(&f,2,0,"floating TW")==0);
+	CHECK(query(&f,"$RESET( query, tw, 9, 10, 35, 34, cur )$","")==0);
+	CHECK(resident_value(&f,4,9,"TW nine")==0 && resident_value(&f,4,10,"")==0
+	    && resident_value(&f,4,35,"")==0 && resident_value(&f,2,0,"")==0);
+	CHECK(query(&f,"$RESET(QUERY,VIEW,TBL)$","")==0);
+	CHECK(resident_value(&f,3,0,"")==0 && resident_value(&f,3,5,"")==0
+	    && resident_value(&f,3,9,"VIEW nine")==0 && resident_value(&f,1,0,"floating VIEW")==0);
+	CHECK(query(&f,"$CUR(PORT)$:$CUR(TW)$:$INUSE(TW,35)$:$INUSE(PORT,BASE)$","9:35:1:1")==0);
+	CHECK(query(&f,"$RCB$$RESET(QUERY,TW)$","")==0);
+	CHECK(resident_value(&f,1,0,"floating VIEW")==0 && resident_value(&f,3,5,"VIEW five")==0);
+	CHECK(store_query(&f,2,'0',"floating TW",false)==0 && store_query(&f,4,'0',"fixed TW",false)==0);
+	CHECK(query(&f,"$RESET(QUERY,ALL)$","")==0 && resident_value(&f,1,0,"")==0
+	    && resident_value(&f,2,0,"")==0 && resident_value(&f,3,5,"")==0 && resident_value(&f,4,0,"")==0);
+	CHECK(query(&f,"$RCB$$RESET(QUERY,VIEW,ALL)$","")==0 && resident_value(&f,1,0,"")==0
+	    && resident_value(&f,3,5,"")==0 && resident_value(&f,3,9,"VIEW nine")==0);
+	CHECK(query(&f,"$RCB$$RESET(QUERY)$alive","alive")==0 && resident_value(&f,1,0,"")==0
+	    && resident_value(&f,3,5,"")==0 && resident_value(&f,4,9,"TW nine")==0);
+	CHECK(query(&f,"$RCB$$RESET(PORT,0)$","")==0 && resident_value(&f,3,0,"")==0
+	    && resident_value(&f,1,0,"floating VIEW")==0 && resident_value(&f,3,5,"VIEW five")==0);
+	CHECK(query(&f,"$CUR(PORT)$","9")==0);
+	CHECK(query(&f,"$RESET(PORT,5)$","")==0 && st_rip3_session_test_resident(f.session,3,5)==NULL
+	    && resident_value(&f,3,9,"VIEW nine")==0);
+	CHECK(query(&f,"$RCB$","")==0 && resident_value(&f,3,0,"VIEW zero")==0
+	    && resident_value(&f,3,5,"VIEW five")==0);
+	st_rip3_session_destroy(f.session);
+	extern size_t st_rip3_resident_test_live;
+	CHECK(st_rip3_session_test_live==0 && st_rip3_resident_test_live==0);
+	return 0;
+}
+
 struct native_test_window_save {unsigned column,row;struct st_rip3_text_window_layout layout;};
 static int copy_test_window(void *context,unsigned source,unsigned destination,bool active)
 {
@@ -2358,7 +2413,7 @@ main(void)
 	CHECK(sound_reset() == 0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
 	CHECK(scene_header_port_zero_queries()==0 && scene_header_palette_upload()==0 && hard_reset_lifetime()==0);
-	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && screen_backups()==0);
+	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && resident_query_resets()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
 	CHECK(mouse_pointer()==0);

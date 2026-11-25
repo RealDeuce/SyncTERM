@@ -442,6 +442,69 @@ enum table_reset_kind { RESET_ENTRY, RESET_CURRENT, RESET_TABLE, RESET_BASE,
 	RESET_SLOT, RESET_SLOTS, RESET_STACK, RESET_BACKUP, RESET_ALL };
 
 static int
+reset_resident_queries(const struct st_rip3_table_host *host,
+    const struct st_rip3_builtin_reference *reference)
+{
+	enum { TW, VIEW };
+	enum { FLOATING = 36, FIXED_TABLE, ENTIRE_FAMILY };
+	unsigned first_family = TW, last_family = VIEW;
+	unsigned selectors[sizeof(reference->parameters) / sizeof(reference->parameters[0])] = {ENTIRE_FAMILY};
+	size_t count = 1;
+	if (reference->count > 1) {
+		const char *family = reference->parameters[1].text;
+		if (equal(family, "TW"))
+			last_family = TW;
+		else if (equal(family, "VIEW"))
+			first_family = VIEW;
+		else if (!equal(family, "ALL") || reference->count != 2)
+			return IO_ERROR_INVALID_FORMAT;
+	}
+	if (reference->count > 2) {
+		count = reference->count - 2;
+		for (size_t i = 0; i < count; i++) {
+			const char *word = reference->parameters[i + 2].text;
+			if (equal(word, "CUR"))
+				selectors[i] = FLOATING;
+			else if (equal(word, "TBL"))
+				selectors[i] = FIXED_TABLE;
+			else if (equal(word, "ALL"))
+				selectors[i] = ENTIRE_FAMILY;
+			else if (st_rip3_host_number(word, 0, 35, &selectors[i]) != 0)
+				return IO_ERROR_INVALID_FORMAT;
+		}
+	}
+
+	const struct st_rip3_text_window_operations *windows = host->tables[ST_RIP3_TABLE_TW].live;
+	struct st_rip3_ports *ports = host->tables[ST_RIP3_TABLE_PORT].live;
+	if ((first_family == TW && (windows == NULL || windows->clear_query == NULL))
+	    || (last_family == VIEW && ports == NULL))
+		return IO_ERROR_NOT_SUPPORTED;
+
+	for (unsigned family = first_family; family <= last_family; family++) {
+		for (size_t i = 0; i < count; i++) {
+			unsigned selector = selectors[i];
+			if (selector == FLOATING || selector == ENTIRE_FAMILY) {
+				if (family == TW)
+					windows->clear_query(windows->context, true, 0);
+				else
+					st_rip3_ports_clear_query(ports, true, 0);
+			}
+			if (selector == FLOATING)
+				continue;
+			unsigned first = selector < FLOATING ? selector : 0;
+			unsigned end = selector < FLOATING ? selector + 1 : FLOATING;
+			for (unsigned number = first; number < end; number++) {
+				if (family == TW)
+					windows->clear_query(windows->context, false, number);
+				else
+					st_rip3_ports_clear_query(ports, false, number);
+			}
+		}
+	}
+	return 0;
+}
+
+static int
 table_reset(const struct st_rip3_table_host *host,const struct st_rip3_table_binding *binding,
     const struct st_rip3_builtin_reference *reference, enum st_rip3_table_type type,bool viewport)
 {
@@ -473,6 +536,8 @@ table_reset(const struct st_rip3_table_host *host,const struct st_rip3_table_bin
 		needs_backup|=kind!=RESET_ENTRY && kind!=RESET_CURRENT && kind!=RESET_TABLE;
 	}
 	if ((needs_live && binding->live==NULL) || (needs_backup && binding->backup==NULL))
+		return IO_ERROR_NOT_SUPPORTED;
+	if (type == ST_RIP3_TABLE_PORT && !viewport && needs_live && host->reset_port_entry == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
 	if (type==ST_RIP3_TABLE_TW && needs_live) {
 		const struct st_rip3_text_window_operations *windows=binding->live;
@@ -515,6 +580,21 @@ table_reset(const struct st_rip3_table_host *host,const struct st_rip3_table_bin
 			if (kind==RESET_CURRENT) status=st_rip3_button_styles_reset_current(binding->live);
 			else if (kind==RESET_ENTRY) status=st_rip3_button_styles_reset_entry(binding->live,index);
 			else if (kind==RESET_TABLE || kind==RESET_ALL) status=st_rip3_button_styles_reset_table(binding->live);
+		}
+		else if (type == ST_RIP3_TABLE_PORT
+		    && (kind == RESET_CURRENT || kind == RESET_ENTRY || kind == RESET_TABLE || kind == RESET_ALL)) {
+			if (kind == RESET_CURRENT)
+				status = st_rip3_ports_current(binding->live, &index);
+			bool table = kind == RESET_TABLE || kind == RESET_ALL;
+			unsigned first = table ? 0 : index;
+			unsigned end = table ? 36 : index + 1;
+			if (status == 0) {
+				for (unsigned number = first; number < end; number++) {
+					int failure = host->reset_port_entry(host->reset_context, number);
+					if (failure != 0 && host->operation_failed != NULL)
+						host->operation_failed(host->operation_context, failure);
+				}
+			}
 		}
 		else if ((type == ST_RIP3_TABLE_STYLE || type == ST_RIP3_TABLE_ENV)
 		    && (kind == RESET_CURRENT || kind == RESET_ENTRY || kind == RESET_TABLE || kind == RESET_ALL)) {
@@ -727,6 +807,11 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 			if (status == 0) result[0] = 0;
 			return status;
 		}
+		if (equal(scope, "QUERY")) {
+			status = reset_resident_queries(host, reference);
+			if (status == 0) result[0] = '\0';
+			return status;
+		}
 		if (equal(scope, "SOUND")) {
 			if (reference->count != 1) return IO_ERROR_INVALID_FORMAT;
 			if (host->stop_waveform == NULL) return IO_ERROR_NOT_SUPPORTED;
@@ -753,6 +838,7 @@ st_rip3_table_host_execute(const struct st_rip3_table_host *host,
 		if (equal(scope,"BUT")) reset_type=ST_RIP3_TABLE_BUT;
 		else if (equal(scope,"STYLE")) reset_type=ST_RIP3_TABLE_STYLE;
 		else if (equal(scope,"ENV")) reset_type=ST_RIP3_TABLE_ENV;
+		else if (equal(scope,"PORT")) reset_type=ST_RIP3_TABLE_PORT;
 		else if (equal(reference->parameters[0].text,"PAL")) reset_type=ST_RIP3_TABLE_PAL;
 		else if (equal(reference->parameters[0].text,"MOUSE")) reset_type=ST_RIP3_TABLE_MOUSE;
 		else if (equal(reference->parameters[0].text,"SCREEN")) reset_type=ST_RIP3_TABLE_SCREEN;

@@ -76,6 +76,24 @@ def run(args,width,height):
         values(b'$RCB(5)$$INUSE(PORT,8)$',b'1')
         values(b'$SCB(10)$');values(b'$RCB(PUSH)$');values(b'$RCB(9)$')
         values(b'$CUR(PORT)$:alive',b'0:alive')
+        t.case('rip3-port-reset-orders-live-targets-and-preserves-independent-saves')
+        values(f'$WORLD(CUR,{width},{height})$'.encode())
+        wire(b'S0104|B0K0K0P0P|v00000505|k02')
+        define(6,(10,10,50,50))
+        define(7,(10,10,50,50),8)
+        define(9,(0,0,3,3),1)
+        values(b'$CUR(PORT,6)$$SCB$$SCB(3)$$PROT(PORT,S3)$$SCB(PUSH)$')
+        before=client.capture()
+        after=values(b'$RESET(PORT,BASE,6,36)$')
+        assert after.primary==before.primary and after.alternate==before.alternate
+        values(b'$CUR(PORT)$:$INUSE(PORT,6)$:$INUSE(PORT,BASE)$',b'6:1:1')
+        after=values(b'$RESET(PORT,7,34,6,CUR)$')
+        assert pixel(after,20,20)==0x00aa00 and pixel(after,width-1,height-1)==0x00aa00
+        values(b'$CUR(PORT)$:$INUSE(PORT,6)$:$ISPROT(PORT,7)$:$INUSE(PORT,9)$:$INUSE(PORT,BASE)$',
+               b'0:0:1:1:1')
+        values(b'$CUR(PORT,9)$$RESET(PORT)$$CUR(PORT)$:$INUSE(PORT,9)$',b'0:0')
+        values(b'$RESET(PORT,ALL)$$INUSE(PORT,8)$:$ISPROT(PORT,7)$:$INUSE(PORT,BASE)$:'
+               b'$INUSE(PORT,STACK)$:$INUSE(PORT,S3)$',b'0:1:0:0:1')
         assert client.capture().application['connected']==1
 
 

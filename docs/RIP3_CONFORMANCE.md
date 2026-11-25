@@ -2,7 +2,7 @@
 
 The target is the reconstructed RIPscrip 3.0 language as shipped by RIPtel
 Visual Telnet 3.1, using [reference revision
-09df54d330b2a7c3c817e58b8ccde22fab5c41eb](https://github.com/RealDeuce/remote-imaging-protocol/tree/09df54d330b2a7c3c817e58b8ccde22fab5c41eb/version/3.0)
+6aa78684da70fb7838af5e38d53dc1e7b08a5d65](https://github.com/RealDeuce/remote-imaging-protocol/tree/6aa78684da70fb7838af5e38d53dc1e7b08a5d65/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 That documentation is the contract, including explicit rendering corrections
 and referenced inherited formats. Exact RIPtel raster reproduction is not
@@ -10659,7 +10659,20 @@ after reset and compare bare and numbered queries for an undefined entry.
 `RESET(SOUND)` stops the active digitized waveform. Native tests cover an
 idle session, stopping playback and recovery after an extra operand.
 
-The original RESET dispatch and selector conflicts for PORT and QUERY, and
-the HEADER input-lock effects of MCURSOR and KEYBOARD, remain open upstream.
-[Issue #285](https://github.com/bbs-land/remote-imaging-protocol/issues/285),
+The HEADER input-lock effects of MCURSOR and KEYBOARD remain open upstream.
 [Issue #286](https://github.com/bbs-land/remote-imaging-protocol/issues/286)
+
+## Portable PORT and resident QUERY reset
+
+`RESET(PORT)` deletes an eligible current nonzero port and falls back to
+zero. Resetting zero clears its fixed query and fills its newly restored
+full viewport with the active graphics background. `CUR` resolves again
+after each deletion. Native and connected tests check this order, protected
+entries, physical coverage, and independent backups.
+
+`RESET(QUERY)` clears floating and eligible fixed expressions in both TW
+and VIEW. Family lists can target their floating expression, their fixed
+table, or decimal slots through 35. Stored queries never execute during the
+reset. Native state checks and connected CP437 and UTF-8 tests cover late
+syntax errors, protected entries and retention of mouse-field expressions.
+[PR #287](https://github.com/bbs-land/remote-imaging-protocol/pull/287)

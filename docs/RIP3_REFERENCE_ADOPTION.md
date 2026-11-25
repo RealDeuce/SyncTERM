@@ -1682,3 +1682,15 @@ and immediate activation when a live reset reaches the selected ENV.
 
 [Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/09df54d330b2a7c3c817e58b8ccde22fab5c41eb),
 [PR #284](https://github.com/bbs-land/remote-imaging-protocol/pull/284)
+
+## Portable PORT and QUERY reset
+
+The reference advances to `6aa78684da70fb7838af5e38d53dc1e7b08a5d65`.
+The stable tree matches the reviewed PR #287 head
+`9f6ff81f6b9c164ad913994b34f1534241672e89`. The Git archive has SHA-256
+`c67deb805dcc1b401687f8e2634fd2089d94841f694fd01a286772feade694e9`.
+The portable profile enables both RESET families and defines QUERY grammar,
+protection, and deletion scope.
+
+[Stable integration](https://github.com/RealDeuce/remote-imaging-protocol/tree/6aa78684da70fb7838af5e38d53dc1e7b08a5d65),
+[PR #287](https://github.com/bbs-land/remote-imaging-protocol/pull/287)

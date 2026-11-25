@@ -140,6 +140,10 @@ int st_rip3_ports_protect(struct st_rip3_ports *ports, unsigned number, bool pro
 /* Delete zero means delete all unprotected nonzero ports. A deleted current
  * port falls back to zero. Protected single deletes fail without changes. */
 int st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number);
+/* Live RESET(PORT) target. Zero clears its fixed query, restores its full
+ * active viewport and fills with background. Nonzero targets are deleted
+ * without painting, with fallback to zero when the current entry is deleted. */
+int st_rip3_ports_reset_entry(struct st_rip3_ports *ports, unsigned number, uint8_t background);
 /* Restore port zero's full active viewport and select zero; normal resets
  * retain protected ports, hard resets discard all nonzero ports. Reset image
  * state for the old current port (even if protected) and for zero; other
@@ -308,6 +312,7 @@ int st_rip3_ports_screen_clear_black(struct st_rip3_ports *ports);
  * numbered targets must be defined, unprotected screen ports. Storage has no
  * execution or selection effects. Returned views are borrowed until mutation. */
 struct st_rip3_resident_query;
+void st_rip3_ports_clear_query(struct st_rip3_ports *, bool floating, unsigned number);
 int st_rip3_ports_define_query(struct st_rip3_ports *,bool floating,unsigned number,
 	const uint8_t *,size_t,bool converted);
 const struct st_rip3_resident_query *st_rip3_ports_query(const struct st_rip3_ports *,bool floating,unsigned number);

@@ -1,22 +1,22 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/284",
-  "revision": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb",
-  "previous_revision": "cedb7e1a40c084d11237e821f42709386dedd2b6",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/287",
+  "revision": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65",
+  "previous_revision": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
-  "upstream_state_at_adoption": "The open PR #284 matches its fork stable integration tree.",
-  "archive_sha256": "2e535731a394139759fea087d7eed83789fd84f16b228e8c804f325c3d8990c5",
+  "upstream_state_at_adoption": "The open PR #287 matches its fork stable integration tree.",
+  "archive_sha256": "c67deb805dcc1b401687f8e2634fd2089d94841f694fd01a286772feade694e9",
   "normative_scope": [
-    "Apply live STYLE and ENV reset rules for selection, definition, protection, activation and backup deletion."
+    "Apply portable RESET(PORT) and RESET(QUERY) dispatch, selector validation, protection, and resident expression ownership."
   ],
   "changed_documents": [
     "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/7.1-data-tables.md",
+    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
     "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9519,
+  "matched_source_blocks": 9527,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -950,7 +950,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 141,
+  "upstream_issue_resolutions": 142,
   "pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1785,6 +1785,12 @@
       "sha256": "623133f8e2ced624b19129c342ff120db7673aba0b2f97beb52ff4814844cb0d",
       "title": "Issue #283 — live STYLE and ENV reset",
       "role": "Original traces and rationale for immediate portable ENV activation and full selector validation."
+    },
+    {
+      "path": "version/3.0/research/issue-285-reset-query-port-dispatch.md",
+      "sha256": "00e0ca77f61007f731dfa4c44f7be5828187cfb0b2a9887a87e6c18a16984094",
+      "title": "Issue #285 — RESET PORT and QUERY dispatch",
+      "role": "Original dispatch and direct QUERY leaf captures, and the source for the portable grammar."
     }
   ],
   "documents": [
@@ -1946,7 +1952,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "a7b21a886f1634e1cbfbd6b1bebd25e2e6cffecd7a9798a3cb2f1186644280ac"
+      "sha256": "57ed71e5d72e90c5f7de14c8b7d80554a2642d338db7ac7511a50a05fcf889eb"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -1962,7 +1968,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
-      "sha256": "36a0e0b0ee62087b04be93e7ef41bac30f524793f21b0e0e43f7595fe0c204c3"
+      "sha256": "712bcb60c0d42c4f58d5314f456a054dc6a4e32072ad6cb7bf9a331c6847176e"
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
@@ -1994,7 +2000,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "43fe692f2b34335065178b2fd83e1dd39b9897cf3bfa67d01e3188d81d65eaf2"
+      "sha256": "5107ca864bf204d7c548130689f331500b14fb537ccf79c8fe506971dca7b35f"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2061,7 +2067,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "86639f1c037657b840141dba75107a48fabc3385",
+  "previous_ledger_commit": "6a0eb911e3358e00744476a986a85bad4fbadcea",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -20479,6 +20485,104 @@
         "implemented": 4097,
         "excluded": 76,
         "blocked": 28
+      }
+    },
+    {
+      "previous_revision": "09df54d330b2a7c3c817e58b8ccde22fab5c41eb",
+      "revision": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65",
+      "archive_sha256": "c67deb805dcc1b401687f8e2634fd2089d94841f694fd01a286772feade694e9",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/285",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/287",
+          "reviewed_head": "9f6ff81f6b9c164ad913994b34f1534241672e89",
+          "integration": "6aa78684da70fb7838af5e38d53dc1e7b08a5d65"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "a7b21a886f1634e1cbfbd6b1bebd25e2e6cffecd7a9798a3cb2f1186644280ac",
+          "sha256": "57ed71e5d72e90c5f7de14c8b7d80554a2642d338db7ac7511a50a05fcf889eb"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.5-file-transfer-and-queries.md",
+          "previous_sha256": "36a0e0b0ee62087b04be93e7ef41bac30f524793f21b0e0e43f7595fe0c204c3",
+          "sha256": "712bcb60c0d42c4f58d5314f456a054dc6a4e32072ad6cb7bf9a331c6847176e"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "43fe692f2b34335065178b2fd83e1dd39b9897cf3bfa67d01e3188d81d65eaf2",
+          "sha256": "5107ca864bf204d7c548130689f331500b14fb537ccf79c8fe506971dca7b35f"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-285-reset-query-port-dispatch.md",
+          "sha256": "00e0ca77f61007f731dfa4c44f7be5828187cfb0b2a9887a87e6c18a16984094",
+          "title": "Issue #285 — RESET PORT and QUERY dispatch",
+          "role": "Original dispatch and direct QUERY leaf captures, and the source for the portable grammar."
+        }
+      ],
+      "moved_source_blocks": 844,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2813",
+        "version/3.0/ripscrip/5.1-text-variables.md:2843",
+        "version/3.0/ripscrip/5.1-text-variables.md:2885",
+        "version/3.0/ripscrip/5.1-text-variables.md:2887",
+        "version/3.0/ripscrip/5.1-text-variables.md:2889",
+        "version/3.0/ripscrip/5.1-text-variables.md:3042",
+        "version/3.0/ripscrip/5.1-text-variables.md:3098",
+        "version/3.0/ripscrip/5.1-text-variables.md:3141",
+        "version/3.0/ripscrip/5.1-text-variables.md:3143",
+        "version/3.0/ripscrip/5.1-text-variables.md:3144",
+        "version/3.0/ripscrip/5.1-text-variables.md:3145",
+        "version/3.0/ripscrip/5.1-text-variables.md:3146",
+        "version/3.0/ripscrip/5.1-text-variables.md:3147",
+        "version/3.0/ripscrip/5.1-text-variables.md:3149",
+        "version/3.0/ripscrip/5.1-text-variables.md:3150",
+        "version/3.0/ripscrip/5.1-text-variables.md:3151",
+        "version/3.0/ripscrip/5.1-text-variables.md:3152",
+        "version/3.0/ripscrip/5.1-text-variables.md:3153",
+        "version/3.0/ripscrip/5.1-text-variables.md:3154",
+        "version/3.0/ripscrip/5.1-text-variables.md:3156",
+        "version/3.0/ripscrip/5.1-text-variables.md:3158",
+        "version/3.0/ripscrip/5.1-text-variables.md:3160",
+        "version/3.0/ripscrip/5.1-text-variables.md:3162",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:53",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:166"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:2813",
+        "version/3.0/ripscrip/5.1-text-variables.md:2843",
+        "version/3.0/ripscrip/5.1-text-variables.md:2884",
+        "version/3.0/ripscrip/5.1-text-variables.md:3130",
+        "version/3.0/ripscrip/5.1-text-variables.md:3132",
+        "version/3.0/ripscrip/5.1-text-variables.md:3133",
+        "version/3.0/ripscrip/5.1-text-variables.md:3134",
+        "version/3.0/ripscrip/5.1-text-variables.md:3135",
+        "version/3.0/ripscrip/5.1-text-variables.md:3137",
+        "version/3.0/ripscrip/5.1-text-variables.md:3139",
+        "version/3.0/ripscrip/5.1-text-variables.md:3140",
+        "version/3.0/ripscrip/5.1-text-variables.md:3141",
+        "version/3.0/ripscrip/5.1-text-variables.md:3142",
+        "version/3.0/ripscrip/5.1-text-variables.md:3143",
+        "version/3.0/ripscrip/5.1-text-variables.md:3144",
+        "version/3.0/ripscrip/5.1-text-variables.md:3146",
+        "version/3.0/ripscrip/5.1-text-variables.md:3148",
+        "version/3.0/ripscrip/5.1-text-variables.md:3150",
+        "version/3.0/ripscrip/5.1-text-variables.md:3156",
+        "version/3.0/ripscrip/5.5-file-transfer-and-queries.md:53",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:166"
+      ],
+      "states_after_update": {
+        "unreviewed": 2031,
+        "context": 1998,
+        "pending": 1318,
+        "implemented": 4124,
+        "excluded": 76,
+        "blocked": 5
       }
     }
   ],

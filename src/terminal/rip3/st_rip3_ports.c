@@ -377,6 +377,26 @@ st_rip3_ports_delete(struct st_rip3_ports *ports, unsigned number)
 }
 
 int
+st_rip3_ports_reset_entry(struct st_rip3_ports *ports, unsigned number, uint8_t background)
+{
+	if (ports == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (number >= 36)
+		return IO_ERROR_OUT_OF_RANGE;
+	struct port *entry = &ports->entries[number];
+	if (!entry->info.defined || entry->info.protected)
+		return 0;
+	if (number != 0)
+		return st_rip3_ports_delete(ports, number);
+
+	st_rip3_resident_query_clear(&entry->query);
+	entry->info.viewport = port_bounds(entry);
+	entry->info.viewport_active = true;
+	struct st_rip3_rect view = viewport_absolute(entry);
+	return st_rip3_surface_fill(ports->screen, NULL, &view, background, ST_RIP3_COPY);
+}
+
+int
 st_rip3_ports_reset(struct st_rip3_ports *ports, bool hard)
 {
 	if (ports == NULL)
@@ -606,10 +626,9 @@ st_rip3_ports_header_delete_clipboard(struct st_rip3_ports *ports)
 void
 st_rip3_ports_header_clear_queries(struct st_rip3_ports *ports)
 {
-	st_rip3_resident_query_clear(&ports->floating_query);
+	st_rip3_ports_clear_query(ports, true, 0);
 	for (unsigned i = 0; i < 36; ++i)
-		if (!ports->entries[i].info.protected)
-			st_rip3_resident_query_clear(&ports->entries[i].query);
+		st_rip3_ports_clear_query(ports, false, i);
 }
 
 int
@@ -1485,6 +1504,20 @@ st_rip3_ports_backup_create(struct st_rip3_backup **result)
 	};
 
 	return st_rip3_backup_create(result, &ops);
+}
+
+void
+st_rip3_ports_clear_query(struct st_rip3_ports *ports, bool floating, unsigned number)
+{
+	if (ports == NULL)
+		return;
+	if (floating)
+		st_rip3_resident_query_clear(&ports->floating_query);
+	else if (number < 36) {
+		struct port *entry = &ports->entries[number];
+		if (entry->info.defined && !entry->info.protected && !entry->info.offscreen)
+			st_rip3_resident_query_clear(&entry->query);
+	}
 }
 
 int

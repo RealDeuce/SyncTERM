@@ -526,6 +526,17 @@ window_resident_query(void *context,bool floating,unsigned number,const uint8_t 
 	return st_rip3_resident_query_set(&session->windows[number].query,bytes,length,converted);
 }
 
+static void
+clear_window_query(void *context, bool floating, unsigned number)
+{
+	struct st_rip3_session *session = context;
+	if (floating)
+		st_rip3_resident_query_clear(&session->floating_window_query);
+	else if (number < 36 && session->windows[number].info.defined
+	    && !session->windows[number].info.protected)
+		st_rip3_resident_query_clear(&session->windows[number].query);
+}
+
 static int
 select_text_window(struct st_rip3_session *session, unsigned number, bool clone)
 {
@@ -765,20 +776,39 @@ show_window_cursors(void *context, const unsigned *numbers, size_t count, bool v
 }
 
 static int
+background_ink(struct st_rip3_session *session, uint8_t *ink)
+{
+	struct st_rip3_environment environment;
+	struct st_rip3_style style;
+	unsigned current;
+	int status = st_rip3_environments_active(session->commands.environments, NULL, &environment);
+	if (status == 0)
+		status = st_rip3_styles_current(session->commands.styles, &current);
+	if (status == 0)
+		status = st_rip3_styles_get(session->commands.styles, current, &style);
+	if (status == 0)
+		status = st_rip3_palettes_color_bits(session->commands.palettes,
+		    environment.rgb_bits, style.background_color, ink);
+	return status;
+}
+
+static int
+reset_port_entry(void *context, unsigned number)
+{
+	struct st_rip3_session *session = context;
+	uint8_t ink = 0;
+	int status = number == 0 ? background_ink(session, &ink) : 0;
+	return status == 0 ? st_rip3_ports_reset_entry(session->commands.ports, number, ink) : status;
+}
+
+static int
 erase_window(struct st_rip3_session *session, unsigned number, bool whole)
 {
 	if (!window_active(session,number)) return 0;
 	if (session->sink.text_erase==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_palette palette;uint8_t ink=0;
 	int status=st_rip3_palettes_current_palette(session->commands.palettes,&palette);
-	if (!whole && status==0) {
-		struct st_rip3_environment environment;struct st_rip3_style style;unsigned number;
-		status=st_rip3_environments_active(session->commands.environments,NULL,&environment);
-		if (status==0) status=st_rip3_styles_current(session->commands.styles,&number);
-		if (status==0) status=st_rip3_styles_get(session->commands.styles,number,&style);
-		if (status==0) status=st_rip3_palettes_color_bits(session->commands.palettes,
-		    environment.rgb_bits,style.background_color,&ink);
-	}
+	if (!whole && status==0) status=background_ink(session,&ink);
 	struct st_rip3_rect area={0,0,-1,-1};
 	if (status==0) status=session->sink.text_erase(session->sink.context,number,whole,palette.rgb[ink],&area);
 	if (status==0 && area.x0<=area.x1 && area.y0<=area.y1)
@@ -1422,10 +1452,9 @@ header_text_windows(struct st_rip3_session *session, unsigned flags, unsigned sl
 		for (unsigned i = 0; i < 36; ++i) header_result(session, erase_window(session, i, true));
 	if (flags & 8192) header_result(session, erase_window(session, current, true));
 	if (flags & 16384) {
-		st_rip3_resident_query_clear(&session->floating_window_query);
+		clear_window_query(session, true, 0);
 		for (unsigned i = 0; i < 36; ++i)
-			if (!session->windows[i].info.protected)
-				st_rip3_resident_query_clear(&session->windows[i].query);
+			clear_window_query(session, false, i);
 	}
 	if (flags & 32768)
 		for (unsigned i = 0; i < 36; ++i) header_result(session, show_window_cursors(session, &i, 1, false));
@@ -2196,6 +2225,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	session->tables.reset_context=session;session->tables.soft_reset=soft_reset;
 	session->tables.hard_reset=hard_reset;
 	session->tables.stop_waveform=stop_waveform;
+	session->tables.reset_port_entry=reset_port_entry;
 	session->default_text_font=config->default_text_font;session->default_text_wrap=config->default_text_wrap;
 	session->text_active=true;session->commands.text_active=&session->text_active;
 	session->windows[0].info=(struct st_rip3_text_window_info){.defined=true,.active=true};
@@ -2230,6 +2260,7 @@ st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3_ses
 	    .protect=protect_window,.activate=activate_text_windows,.maximize=maximize_window,
 	    .position=position_window_cursor,.cursor=show_window_cursors,.erase=erase_text_windows,
 	    .erase_eol=erase_window_lines,.copy_entries=copy_window_entries,.reset_entry=reset_window_entry,
+	    .clear_query=clear_window_query,
 	    .backup_capture=capture_window_save,.backup_restore=restore_window_save,
 	    .backup_destroy=destroy_window_save};
 	session->variables.text_windows=&session->window_operations;
