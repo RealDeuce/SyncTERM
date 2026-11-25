@@ -189,6 +189,44 @@ def check_overflow(terminal, root, accent):
     values(b"$OVERFLOW(13,2)$$OVERFLOW(13,PAGE)$", b"1")
     values(b"$OVERFLOW(13,NEXT)$$OVERFLOW(13,PAGE)$", b"2")
 
+    terminal.case("Reassigning a column preserves the old owner's pages and pixels")
+    next_column = extended((440, 300, 470, 321), 14, 13, 1)
+    old_column = extended((400, 300, 430, 321), 13, 13, 1)
+    new_owner = extended((490, 300, 520, 321), 13, 34, 0)
+    frame = terminal.exchange(commands(next_column, old_column, b"1t0A", new_owner, b"1t0V",
+                                       select(13)) + accent + b"\r\n" + commands(b"1E"))
+    check_pixels(frame, (398, 299, 522, 323), [(400, 300, CAPITAL_A, GREEN),
+                 (440, 300, ACCENT, GREEN), (490, 300, CAPITAL_V, GREEN)])
+    values(b"$OVERFLOW(13,PAGE)$:$OVERFLOW(34,PAGE)$", b"2:1")
+    values(b"$OVERFLOW(13,0)$$OVERFLOW(13,NEXT,QUERY)$",
+           re.compile(rb"\d{3,5}D0001\.OVR"))
+    values(b"$OVERFLOW(13,NEXT)$$OVERFLOW(13,PAGE)$", b"2")
+
+    terminal.case("Redefinition closes the page-zero source before accepting new prose")
+    first_source = extended((400, 350, 430, 381), 34, 34, 1)
+    next_source = extended((450, 350, 480, 381), 34, 34, 1)
+    frame = terminal.exchange(commands(region((490, 300, 520, 321), 13, 35), first_source)
+                              + b"A\r\n\r\n"
+                              + commands(next_source) + b"V\r\n" + commands(b"1E"))
+    check_pixels(frame, (398, 349, 482, 382),
+                 [(400, 350, CAPITAL_A, GREEN), (450, 350, CAPITAL_V, GREEN)])
+    values(b"$OVERFLOW(34,PAGE)$:$OVERFLOW(34,NEXT,QUERY)$", b"1:<NONE>")
+    replay = extended((500, 350, 530, 381), 34, 34, 1)
+    frame = terminal.exchange(commands(replay, b"1R00000000$OVERFLOW(34)$", b"1E"))
+    check_pixels(frame, (498, 349, 532, 382), [(500, 350, CAPITAL_A, GREEN)])
+
+    terminal.case("Redefinition closes the remainder and rewinds the exhausted column")
+    narrow = extended((400, 400, 407, 410), 32, 32, 1)
+    wide = extended((450, 400, 480, 420), 32, 32, 1)
+    frame = terminal.exchange(commands(narrow) + b"A V\r\n" + commands(wide)
+                              + accent + b"\r\n" + commands(b"1E"))
+    check_pixels(frame, (398, 399, 482, 423),
+                 [(400, 400, CAPITAL_A, GREEN), (450, 400, ACCENT, GREEN)])
+    values(b"$OVERFLOW(32,NEXT)$$OVERFLOW(32,PAGE)$", b"2")
+    replay = extended((500, 400, 530, 420), 32, 32, 1)
+    frame = terminal.exchange(commands(replay, b"1R00000000$OVERFLOW(32)$", b"1E"))
+    check_pixels(frame, (498, 399, 532, 423), [(500, 400, CAPITAL_V, GREEN)])
+
     terminal.case("Article, drawing and overflow resets preserve their distinct state")
     terminal.exchange(commands(column(130, 14)) + b"A A\r\n" + commands(b"#"))
     values(b"$OVERFLOW(13,RESET)$$OVERFLOW(13,PAGE)$:$OVERFLOW(13)$:$OVERFLOW(14,NEXT,QUERY)$",

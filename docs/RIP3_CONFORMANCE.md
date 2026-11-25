@@ -9627,6 +9627,13 @@ complete source of each article after switching away and back. They also cover
 a truncated command, malformed reserved digits, and selection of an article
 without columns.
 
+Further connected vectors reassign a live column and verify that the old
+article uses its next owned column. They check both articles' page positions,
+the old article's forward-page limit and the pixels already drawn. Redefining
+an active column closes the complete source and remainder before accepting
+new prose. Replay verifies each saved stream and the resumed text starts at
+the redefined column's top.
+
 ## Connected article pagination
 
 When the last `1e` definition for an article enables overflow, its first
@@ -10749,3 +10756,17 @@ empty pool with a saved snapshot, a lone mouse-active button, nonmouse
 decorations, 127 and 128 residents, scene gates and removal from a full pool.
 Backup selectors continue to address saved definitions.
 [PR #296](https://github.com/bbs-land/remote-imaging-protocol/pull/296)
+
+## Reference gaps in registration and ANSI insert mode
+
+Level-9 `R` reaches the original standalone client's registration callback.
+The command index lacks the operation and a rule for clients without the
+TeleGrafix registration service.
+[Issue #297](https://github.com/bbs-land/remote-imaging-protocol/issues/297)
+
+The reference records insert mode in text-window definitions, snapshots,
+and reset state. The original ordinary ANSI mode 4 handlers set and clear
+the window's bit, and the character path calls the insert-character helper
+before drawing. The portable rendering contract still needs to specify the
+bounded row shift and its interaction with wrapping and text edits.
+[Issue #298](https://github.com/bbs-land/remote-imaging-protocol/issues/298)
