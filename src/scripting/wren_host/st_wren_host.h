@@ -100,6 +100,9 @@ int st_wren_host_prompt(st_wren_host_t *host, const char *title,
 int st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result);
+int st_wren_host_rip_prompt(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	const char *input_mode, bool masked, char **result);
 /* RIPv3 definition editor. Changes the policy only with an accepted value. */
 int st_wren_host_rip_define(st_wren_host_t *host, const char *title, const char *question,
 	const char *initial, size_t max_length, bool count_bytes, bool reject_blank,

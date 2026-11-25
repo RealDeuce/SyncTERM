@@ -45,6 +45,7 @@ class TextInput is Widget {
     _maxLen    = null
     _onSubmit  = null
     _onChange  = null
+    _filter    = null
     _mask      = null
     _allSelected = false
   }
@@ -107,6 +108,7 @@ class TextInput is Widget {
 
   onSubmit=(fn) { _onSubmit = fn }
   onChange=(fn) { _onChange = fn }
+  filter_=(fn) { _filter = fn }
 
   insertMode { TextInput.insertMode_ }
   insertMode=(value) {
@@ -259,6 +261,7 @@ class TextInput is Widget {
   }
 
   insert_(s) {
+    if (_filter != null && !_filter.call(s)) return
     var changed = clearSelectedValue_()
     if (insertOne_(s)) changed = true
     if (changed && _onChange != null) _onChange.call(value)
@@ -266,6 +269,10 @@ class TextInput is Widget {
 
   insertText_(text) {
     if (text == null) return
+    if (_filter != null) {
+      text = text.where(_filter).join("")
+      if (text == "") return
+    }
     var changed = clearSelectedValue_()
     for (ch in text) {
       var bytes = ch.bytes
@@ -283,6 +290,7 @@ class TextInput is Widget {
     for (ch in text) {
       var cp = ch.codePoints.toList[0]
       if (cp < 0x20 || cp == 0x7f) return false
+      if (_filter != null && !_filter.call(ch)) return false
       chars.add(ch)
     }
     var count = _chars.count.max(_cursor + chars.count)

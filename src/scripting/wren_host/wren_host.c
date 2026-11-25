@@ -1124,7 +1124,7 @@ host_dialog(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length,
 	bool masked, char **result, const char *const *choices, size_t count,
 	int *selected, const char *method, const uint32_t *hotkeys, bool required,
-	struct definition_dialog *definition)
+	struct definition_dialog *definition, const char *input_mode)
 {
 	st_console_snapshot_t *snapshot = NULL;
 	struct st_console_event resize = {0};
@@ -1178,9 +1178,13 @@ host_dialog(st_wren_host_t *host, const char *title,
 	} else {
 		wrenSetSlotString(host->vm, 3, initial);
 		wrenSetSlotDouble(host->vm, 4, (double)max_length);
-		if (definition == NULL)
+		if (definition == NULL) {
 			wrenSetSlotBool(host->vm, 5, masked);
-		else {
+			if (input_mode != NULL) {
+				dialog_call = wrenMakeCallHandle(host->vm, "ripPrompt(_,_,_,_,_,_)");
+				wrenSetSlotString(host->vm, 6, input_mode);
+			}
+		} else {
 			dialog_call = wrenMakeCallHandle(host->vm, "ripDefine(_,_,_,_,_,_,_)");
 			wrenSetSlotBool(host->vm, 5, definition->count_bytes);
 			wrenSetSlotBool(host->vm, 6, definition->reject_blank);
@@ -1250,7 +1254,7 @@ st_wren_host_prompt(st_wren_host_t *host, const char *title,
 	const char *question, const char *initial, size_t max_length, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, false,
-	    result, NULL, 0, NULL, NULL, NULL, false, NULL);
+	    result, NULL, 0, NULL, NULL, NULL, false, NULL, NULL);
 }
 
 int
@@ -1259,7 +1263,18 @@ st_wren_host_prompt_masked(st_wren_host_t *host, const char *title,
 	bool masked, char **result)
 {
 	return host_dialog(host, title, question, initial, max_length, masked,
-	    result, NULL, 0, NULL, NULL, NULL, false, NULL);
+	    result, NULL, 0, NULL, NULL, NULL, false, NULL, NULL);
+}
+
+int
+st_wren_host_rip_prompt(st_wren_host_t *host, const char *title,
+	const char *question, const char *initial, size_t max_length,
+	const char *input_mode, bool masked, char **result)
+{
+	if (input_mode == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return host_dialog(host, title, question, initial, max_length, masked,
+	    result, NULL, 0, NULL, NULL, NULL, false, NULL, input_mode);
 }
 
 int
@@ -1271,7 +1286,7 @@ st_wren_host_rip_define(st_wren_host_t *host, const char *title, const char *que
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct definition_dialog definition = {*require_confirmation, count_bytes, reject_blank};
 	int status = host_dialog(host, title, question, initial, max_length, false,
-	    result, NULL, 0, NULL, NULL, NULL, false, &definition);
+	    result, NULL, 0, NULL, NULL, NULL, false, &definition, NULL);
 	if (status == 0)
 		*require_confirmation = definition.require_confirmation;
 	return status;
@@ -1286,7 +1301,7 @@ st_wren_host_choice(st_wren_host_t *host, const char *title,
 	if (choices == NULL || count == 0 || count > INT_MAX)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = host_dialog(host, title, question, "", 0, false, &unused,
-	    choices, count, &selected, NULL, NULL, false, NULL);
+	    choices, count, &selected, NULL, NULL, false, NULL, NULL);
 	return status == 0 ? selected : status;
 }
 
@@ -1306,7 +1321,7 @@ st_wren_host_rip_choice(st_wren_host_t *host, const char *title,
 			return IO_ERROR_INVALID_ARGUMENT;
 	}
 	status = host_dialog(host, title, question, "", 0, false, &unused,
-	    choices, count, &selected, NULL, hotkeys, required, NULL);
+	    choices, count, &selected, NULL, hotkeys, required, NULL, NULL);
 	return status == 0 ? selected : status;
 }
 
@@ -1315,7 +1330,7 @@ st_wren_host_alert(st_wren_host_t *host, const char *title, const char *message)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, title, message, "", 0, false, &unused,
-	    NULL, 0, NULL, "alert(_,_)", NULL, false, NULL);
+	    NULL, 0, NULL, "alert(_,_)", NULL, false, NULL, NULL);
 	free(unused);
 	return status;
 }
@@ -1325,7 +1340,7 @@ st_wren_host_help(st_wren_host_t *host, const char *title, const char *body)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, title, body, "", 0, false, &unused,
-	    NULL, 0, NULL, "help(_,_)", NULL, false, NULL);
+	    NULL, 0, NULL, "help(_,_)", NULL, false, NULL, NULL);
 	free(unused);
 	return status;
 }
@@ -1335,7 +1350,7 @@ st_wren_host_disconnected(st_wren_host_t *host, const char *details)
 {
 	char *unused = NULL;
 	int status = host_dialog(host, "Disconnected", details, "", 0, false, &unused,
-	    NULL, 0, NULL, "disconnected(_,_)", NULL, false, NULL);
+	    NULL, 0, NULL, "disconnected(_,_)", NULL, false, NULL, NULL);
 	free(unused);
 	return status;
 }

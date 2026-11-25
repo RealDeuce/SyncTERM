@@ -76,6 +76,27 @@ class MenuHostUI {
     return MenuUi.promptStandalone(title, message, initial, maxLen, masked)
   }
 
+  static ripPrompt(title, message, initial, maxLen, masked, mode) {
+    var app = App.new()
+    var p = Prompt.new(message, initial)
+    p.title = title
+    p.input.maxLen = maxLen
+    if (masked) p.input.mask = "#"
+    if (mode != "ANY") {
+      p.input.filter_ = Fn.new {|ch|
+        var byte = ch.bytes[0]
+        var letter = (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122)
+        var digit = byte >= 48 && byte <= 57
+        return (mode != "NUMBER" && letter) || (mode != "ALPHA" && digit)
+      }
+    }
+    p.sizeForInput(maxLen, 34, Popup.appMessageFont_(app))
+    p.onDismiss = Fn.new {|value| app.quit() }
+    app.pushModal(p)
+    app.runSync()
+    return p.result
+  }
+
   static ripDefine(title, message, initial, maxLen, countBytes, rejectBlank, confirmation) {
     var prepare = Fn.new {|value|
       var chars = []

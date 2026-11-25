@@ -1413,11 +1413,9 @@ prompt(struct st_term_rip3 *rip)
 	if (!st_rip3_session_prompt(rip->session,&view)) return;
 	char *value=NULL;
 	const struct st_rip3_variable_reference *reference=view.reference;
-	/* The existing editor supports unmasked, unconverted ANY values. Other
-	 * editor policies remain explicitly unsupported rather than silently
-	 * displaying a password or accepting incorrectly formatted input. */
-	bool supported=(reference->directives&ST_RIP3_VARIABLE_MASKED)==0
-	    && !reference->has_position;
+	bool masked = (reference->directives & ST_RIP3_VARIABLE_MASKED) != 0;
+	bool formatted = masked || reference->mode != ST_RIP3_VARIABLE_ANY;
+	bool supported = !reference->has_position;
 	int status=IO_ERROR_NOT_SUPPORTED;
 	bool controlled = view.definition && rip->config.rip_define != NULL;
 	bool require_confirmation = view.require_confirmation;
@@ -1440,11 +1438,22 @@ prompt(struct st_term_rip3 *rip)
 		    (const char *)reference->question.bytes,
 		    view.initial == NULL ? "" : (const char *)view.initial->bytes, reference->width - 1,
 		    rip->config.encoding == ST_CTERM_ENCODING_UTF8, view.reject_blank, &require_confirmation, &value);
-	else if (supported && rip->config.rip_prompt!=NULL)
-		status=rip->config.rip_prompt(rip->config.rip_prompt_context,
-		    reference->has_question ? (const char *)reference->question.bytes : reference->name,
-		    view.initial==NULL ? "" : (const char *)view.initial->bytes,
-		    reference->has_width ? reference->width : 255,view.reject_blank,&value);
+	else if (supported) {
+		const char *question = reference->has_question ? (const char *)reference->question.bytes : reference->name;
+		const char *initial = view.initial == NULL ? "" : (const char *)view.initial->bytes;
+		size_t width = reference->has_width ? reference->width : 255;
+		if (formatted && rip->config.rip_variable_prompt != NULL) {
+			static const char *const modes[] = {
+				[ST_RIP3_VARIABLE_ANY] = "ANY", [ST_RIP3_VARIABLE_ALPHA] = "ALPHA",
+				[ST_RIP3_VARIABLE_NUMBER] = "NUMBER", [ST_RIP3_VARIABLE_ALPHANUM] = "ALPHANUM",
+			};
+			status = rip->config.rip_variable_prompt(rip->config.rip_prompt_context,
+			    question, initial, width, modes[reference->mode], masked, &value);
+		}
+		else if (!formatted && rip->config.rip_prompt != NULL)
+			status = rip->config.rip_prompt(rip->config.rip_prompt_context,
+			    question, initial, width, view.reject_blank, &value);
+	}
 	rip->observing_prompt=false;
 	if (status!=0) {
 		diagnostic(rip,ST_RIP3_COMMAND_OPERATION_FAILED);
@@ -1462,7 +1471,7 @@ prompt(struct st_term_rip3 *rip)
 	free(value);
 	/* Required prompts reject user cancellation. A missing/failed editor
 	 * cannot leave an unanswerable prompt holding the connection forever. */
-	if (st_rip3_session_prompt(rip->session,&view) && (status!=0 || (!controlled && rip->config.rip_prompt==NULL)))
+	if (status != 0 && st_rip3_session_prompt(rip->session,&view))
 		st_rip3_session_cancel(rip->session);
 }
 

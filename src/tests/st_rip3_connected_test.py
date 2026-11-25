@@ -14,6 +14,7 @@ import time
 
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
+from syncterm_control import SHIFT
 from syncterm_fixture import cell_at, fixture, listener, receive
 
 
@@ -275,6 +276,34 @@ Hook.onKey(Key.f9) {|event|
             client.key("enter")
             receive(peer, b"Ada\x1b[0n", root / "replies.bin")
             assert client.capture().application["connected"] == 1
+            t.case("rip3-variable-modal-formats-and-storage")
+            t.exchange(query(b"$-&=FORMAT(TONAME)=tOM mCDONALD$:$&FORMAT(TOUPPER)$:$&FORMAT$",
+                             at_cursor=True), b"Tom Mcdonald:TOM MCDONALD:Tom Mcdonald")
+            t.exchange(query(b"$&MISSING(TOLOWER)=ABC$:[$INUSE(TV,MISSING)$]", at_cursor=True), b"abc:[0]")
+            send(query(b"$=NUMFMT(NUMBER),8@Numeric value$:$&NUMFMT$", at_cursor=True) + b"\x1b[5n")
+            client.wait_text("Numeric value")
+            client.text("a1-2é3")
+            client.key("enter")
+            receive(peer, b"123:123\x1b[0n", root / "replies.bin")
+            send(query(b"$#=ALPHAFMT(ALPHA,TOUPPER),8@Letter code$:$&ALPHAFMT$", at_cursor=True) + b"\x1b[5n")
+            client.wait_text("Letter code")
+            client.text("a1-éB")
+            frame = client.wait_text("##")
+            assert "aB" not in frame.text
+            client.key("enter")
+            receive(peer, b"AB:AB\x1b[0n", root / "replies.bin")
+            send(query(b"$=MIXFMT(ALPHANUM,TOLOWER),8@Mixed code$", at_cursor=True) + b"\x1b[5n")
+            client.wait_text("Mixed code")
+            client.clipboard("A 1-B2é")
+            client.key("insert", SHIFT)
+            client.key("enter")
+            receive(peer, b"a1b2\x1b[0n", root / "replies.bin")
+            send(query(b"$PREFILL(ALPHA),8@Keep default=ab-12$", at_cursor=True) + b"\x1b[5n")
+            client.wait_text("Keep default")
+            client.key("enter")
+            receive(peer, b"ab-12\x1b[0n", root / "replies.bin")
+            t.exchange(query(b"$-=FORMAT(TONAME,ANY)=bad$$&FORMAT$", at_cursor=True))
+            t.exchange(query(b"$&FORMAT$:alive", at_cursor=True), b"Tom Mcdonald:alive")
             t.case("rip3-wire-variable-definition")
             accented = b"\x82AB" if args.encoding == "CP437" else "éAB".encode()
             frame = t.exchange(b"\x01|1D0047ZLength,4:" + accented + b"|1D004.Empty:?Title"

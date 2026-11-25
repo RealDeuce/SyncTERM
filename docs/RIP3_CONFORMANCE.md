@@ -9281,6 +9281,25 @@ Connected CP437 and UTF-8 tests compare complete replies for hits, misses,
 aliases, global fallback and malformed-command recovery. Native fault tests
 distinguish lookup, open, length, metadata and time-conversion outcomes.
 
+## Connected user-variable formats
+
+Inline variable prompts apply the `ANY`, `ALPHA`, `NUMBER` and `ALPHANUM`
+input modes to typed and pasted input. `ALPHA` and `NUMBER` accept ASCII
+letters and digits respectively. `ALPHANUM` accepts both. The user can
+accept a prefilled value unchanged. The `#` directive echoes the field
+with literal `#` characters and preserves the accepted value for storage
+and replacement.
+
+The variable processor applies `TONAME`, `TOUPPER` or `TOLOWER` to the
+selected response, stored value or default before emitting or storing it.
+For now, conversion changes ASCII letters and `TONAME` starts a new word
+after ASCII whitespace. The reference leaves the non-ASCII character set
+and other word boundaries open. [Issue #309](https://github.com/bbs-land/remote-imaging-protocol/issues/309)
+
+Connected CP437 and UTF-8 fixtures cover restricted typing and paste,
+masking, unchanged prefills, conversions, exact replies and recovery
+after an invalid format. World-coordinate prompt placement remains pending.
+
 ## Connected RIP_DEFINE
 
 Wire `1D` uses the current radix for its three flag digits and two reserved

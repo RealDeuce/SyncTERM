@@ -37,12 +37,10 @@ struct st_rip3_user_variable_host {
 	 * This component writes memory; the client owns persistent disk flushing. */
 	struct st_rip3_variables *session, *persistent;
 	void *context;
-	/* Optional format/editor adapter, called once for each successful logical
-	 * value before storage/output. It owns mode/conversion enforcement, using
-	 * source to distinguish retrieval/defaults from entered responses. It must
-	 * preserve input and return an owned value of at most 255 bytes. Without
-	 * it, only ANY/unconverted values are supported. Prompt UI, world-coordinate
-	 * placement, width, masking and format policy remain client responsibilities.
+	/* Optional override for conversion, called once for each successful logical
+	 * value before storage/output. It must preserve input and return an owned
+	 * value of at most 255 bytes. The default code converts ASCII case and
+	 * leaves other bytes intact. The prompt editor enforces the input mode.
 	 * No callback may reenter processing or mutate the bound stores. */
 	int (*format)(void *context, const struct st_rip3_variable_reference *reference,
 		enum st_rip3_user_variable_source source,

@@ -269,10 +269,18 @@ ownership_and_failures(void)
 	host.persistent=host.session;CHECK(st_rip3_user_variables_create(&old,&host)==IO_ERROR_INVALID_ARGUMENT);
 	destroy(&f);
 	CHECK(create(&f,false)==0 && process(&f,"$-&NAME=plain$")==0 && result(&f,"plain")==0);
-	CHECK(process(&f,"$-&=NAME(TOUPPER)=plain$")==0 && f.last==ST_RIP3_USER_VARIABLE_OPERATION_FAILED
-	    && stored(f.session,NULL)==0);
-	CHECK(process(&f,"$=NAME(ALPHA)$")==0 && f.last==ST_RIP3_USER_VARIABLE_OPERATION_FAILED
-	    && st_rip3_user_variables_state(f.processor)==ST_RIP3_USER_VARIABLE_IDLE);
+	CHECK(process(&f,"$-&=NAME(TOUPPER)=plain$")==0 && result(&f,"PLAIN")==0
+	    && stored(f.session,"PLAIN")==0);
+	CHECK(process(&f,"$&NAME(ToLower)$")==0 && result(&f,"plain")==0
+	    && stored(f.session,"PLAIN")==0);
+	CHECK(process(&f,"$=NAME(ANY,Toname)$")==0
+	    && st_rip3_user_variables_state(f.processor)==ST_RIP3_USER_VARIABLE_PROMPT);
+	const char response[] = "tOM\t  mCDONALD \x82";
+	st_rip3_user_variables_respond(f.processor,(const uint8_t *)response,sizeof(response)-1,false);
+	CHECK(result(&f,"Tom\t  Mcdonald \x82")==0 && stored(f.session,"Tom\t  Mcdonald \x82")==0);
+	CHECK(process(&f,"$=NAME(ALPHA)$")==0);
+	prompt=st_rip3_user_variables_prompt(f.processor);
+	CHECK(prompt!=NULL && prompt->mode==ST_RIP3_VARIABLE_ALPHA);
 	destroy(&f);
 	st_rip3_user_variables_abort(NULL);st_rip3_user_variables_destroy(NULL);
 	st_rip3_user_variables_process(NULL,NULL);st_rip3_user_variables_respond(NULL,NULL,0,true);

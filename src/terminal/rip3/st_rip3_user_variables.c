@@ -114,6 +114,24 @@ st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables,
 }
 
 static void
+convert_value(struct st_rip3_variable_value *value, enum st_rip3_variable_conversion conversion)
+{
+	if (conversion == ST_RIP3_VARIABLE_UNCONVERTED)
+		return;
+	bool word_start = true;
+	for (size_t i = 0; i < value->length; ++i) {
+		uint8_t byte = value->bytes[i];
+		bool upper = conversion == ST_RIP3_VARIABLE_TOUPPER
+		    || (conversion == ST_RIP3_VARIABLE_TONAME && word_start);
+		if (upper && byte >= 'a' && byte <= 'z')
+			value->bytes[i] = (uint8_t)(byte - ('a' - 'A'));
+		else if (!upper && byte >= 'A' && byte <= 'Z')
+			value->bytes[i] = (uint8_t)(byte + ('a' - 'A'));
+		word_start = byte == ' ' || (byte >= '\t' && byte <= '\r');
+	}
+}
+
+static void
 finish(struct st_rip3_user_variables *variables, const struct st_rip3_variable_value *input,
     enum st_rip3_user_variable_source source)
 {
@@ -122,9 +140,10 @@ finish(struct st_rip3_user_variables *variables, const struct st_rip3_variable_v
 	int status=0;
 	if (variables->host.format!=NULL)
 		status=variables->host.format(variables->host.context,reference,source,input,&value);
-	else if (reference->mode!=ST_RIP3_VARIABLE_ANY || reference->conversion!=ST_RIP3_VARIABLE_UNCONVERTED)
-		status=IO_ERROR_NOT_SUPPORTED;
-	else value=*input;
+	else {
+		value = *input;
+		convert_value(&value, reference->conversion);
+	}
 	if (status==0 && value.length>255) status=IO_ERROR_OUT_OF_RANGE;
 	if (status!=0) { failed(variables,status); return; }
 	unsigned flags=reference->directives;
@@ -168,10 +187,6 @@ st_rip3_user_variables_process(struct st_rip3_user_variables *variables,
 		 * or a directive that would otherwise open an editor or write a value. */
 		variables->state = ST_RIP3_USER_VARIABLE_COMPLETE;
 		return;
-	}
-	if (variables->host.format==NULL && (copy.mode!=ST_RIP3_VARIABLE_ANY
-	    || copy.conversion!=ST_RIP3_VARIABLE_UNCONVERTED)) {
-		failed(variables,IO_ERROR_NOT_SUPPORTED);return;
 	}
 	variables->reference=copy;
 	struct st_rip3_variable_entry existing={0};

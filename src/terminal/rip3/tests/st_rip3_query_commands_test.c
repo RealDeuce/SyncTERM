@@ -605,10 +605,12 @@ user_recovery(void)
 {
 	struct fixture f={0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
-	/* Formatting without its required adapter fails nonfatally, and following
-	 * user/built-in/literal tokens still execute. No prompt or write occurs. */
-	CHECK(process(&f,"1\0330000$=NAME(ALPHA)$$-=NAME=ok$$&NAME$$NULL$tail",-1)==0);
-	CHECK(f.user_errors==1 && f.user_kind==ST_RIP3_USER_VARIABLE_OPERATION_FAILED && f.reply_length==6
+	/* Invalid formats fail before output or writes. The next query can still
+	 * run user, built-in and literal tokens. */
+	CHECK(process(&f,"1\0330000before$-=NAME(TONAME,ANY)=bad$",ST_RIP3_COMMAND_UNSUPPORTED)==0
+	    && f.reply_length==0 && user_value(f.session,"NAME",NULL)==0);
+	CHECK(process(&f,"1\0330000$-=NAME(TOLOWER)=OK$$&NAME$$NULL$tail",-1)==0);
+	CHECK(f.user_errors==0 && f.reply_length==6
 	    && memcmp(f.reply,"oktail",6)==0 && user_value(f.session,"NAME","ok")==0);
 	f.reply_length=0;
 	/* Recognized built-in names with user-only syntax cannot become prompts. */
