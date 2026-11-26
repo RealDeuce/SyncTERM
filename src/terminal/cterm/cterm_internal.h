@@ -332,6 +332,7 @@ int  cterm_setpalette(struct cterminal *cterm, uint32_t entry, uint16_t r, uint1
 int  cterm_resetpalette(struct cterminal *cterm, uint32_t entry);
 
 void cterm_reset(struct cterminal *cterm);
+void cterm_current_palette_colours(struct cterminal *cterm, uint32_t *fg, uint32_t *bg);
 void cterm_set_negative(struct cterminal *cterm, bool on);
 void cterm_cond_scrollup(struct cterminal *cterm);
 void cterm_advance_char(struct cterminal *cterm, int *x, int *y, int move);
@@ -375,20 +376,14 @@ extern const size_t              cterm_ansi_dispatch_len;
  * Called inline from the ECMA-48 SGR handler (cases 30-37 / 40-47). */
 unsigned char cterm_skypix_color(struct cterminal *cterm, unsigned char color);
 
-/* Fg / bg attribute setters defined in cterm.c.  Honour cterm->negative
- * (swap fg/bg) and update cterm->fg_color / cterm->bg_color via
- * attr2palette.  Used by Prestel, the SGR colour handlers, and anyone
- * else that needs to paint a palette-index colour onto the current
- * attribute byte. */
+/* Set a logical foreground or background colour through the mode palette. */
 void cterm_set_fgattr(struct cterminal *cterm, unsigned char colour);
 void cterm_set_bgattr(struct cterminal *cterm, unsigned char colour);
 
 /* ------------------------------------------------------------------------
  * SGR helpers
  *
- * cterm_apply_sgr is called once per SGR parameter from cterm_handle_sgr
- * and advances *pi past any consumed sub-arguments (e.g. SGR 38;2;R;G;B
- * consumes five indices).  cterm_parse_extended_colour implements the
+ * cterm_apply_sgr applies the parameters starting at the given index.  cterm_parse_extended_colour implements the
  * 38/48 sub-parameter parsing for indexed/RGB colour.  Sub-param helpers
  * split a single colon-separated parameter (CSI 38 : 2 : R : G : B m).
  * ------------------------------------------------------------------------ */
@@ -398,7 +393,7 @@ struct sub_params {
 	uint64_t *param_int;
 };
 
-void cterm_apply_sgr(struct cterminal *cterm, int *pi);
+void cterm_apply_sgr(struct cterminal *cterm, int first);
 void cterm_parse_extended_colour(struct cterminal *cterm, int *i, bool fg);
 bool cterm_parse_sub_parameters(struct sub_params *sub, struct cterminal *cterm, int param);
 void cterm_save_extended_colour_seq(struct cterminal *cterm, int fg, int seqoff, int count);

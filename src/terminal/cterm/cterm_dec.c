@@ -389,8 +389,7 @@ cterm_handle_deccara(struct cterminal *cterm, int *speed) /* CSI Pt;Pl;Pb;Pr;...
 					cterm->negative   = false;
 					CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 					CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
-					for (int p = 4; p < cterm->seq_param_count; p++)
-						cterm_apply_sgr(cterm, &p);
+					cterm_apply_sgr(cterm, 4);
 					cterm_render_make_current_cell(cterm, &rowbuf[c], byte,
 					    rowbuf[c].hyperlink);
 				}
@@ -900,7 +899,7 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 	bool     updfg, updbg;
 	(void)speed;
 	flags = cterm_render_get_video_flags(cterm);
-	cterm_render_attribute_colours(cterm, cterm->attr, &oldfg, &oldbg);
+	cterm_current_palette_colours(cterm, &oldfg, &oldbg);
 	updfg = (oldfg == cterm->fg_color);
 	updbg = (oldbg == cterm->bg_color);
 	if (cterm->seq_param_count == 0) {
@@ -1172,8 +1171,9 @@ cterm_handle_restore_dec_modes(struct cterminal *cterm, int *speed) /* CSI ? u *
 	}
 finish:
 	if (updfg || updbg) {
-		cterm_render_attribute_colours(cterm, cterm->attr, updfg ? &cterm->fg_color : NULL,
+		cterm_current_palette_colours(cterm, updfg ? &cterm->fg_color : NULL,
 		    updbg ? &cterm->bg_color : NULL);
+		cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 		if (updfg) {
 			if (cterm->negative)
 				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);

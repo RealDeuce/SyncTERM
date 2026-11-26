@@ -402,6 +402,26 @@ def attributes(t):
             assert len(pixels) == 1, (name, pixels)
         else:
             assert len(pixels) == 2, (name, pixels)
+    # Ticket 305. The first shortcut starts from reset, the other two from reverse blue.
+    shortcuts = (b"\x1b[H\x1b[J\x1b[s\x1b[1;1H\x1b[47m\x1b[K\x1b[49m\x1b[7;44mZeile\x1b[m"
+                 b"\x1b[1;49H\x1b[1;7;43mCTRL-Q\x1b[m\x1b[7;44m=Beenden   \x1b[1;7;43mCTRL-K"
+                 b"\x1b[m\x1b[7;44m+\x1b[1;7;43m?\x1b[m\x1b[7;44m=Hilfe\x1b[m\x1b[1;7H\x1b[7;44m1/1      \x1b[m\x1b[u\n")
+    transitions = (b"\x1b[7;43;1mA\x1b[22mB\x1b[1;27mC\x1b[mD"
+                   b"\x1b[1;7;48;2;12;34;56m\x1b[?32s\x1b[?32hE\x1b[?32uF\x1b[27mG")
+    frame = t.check("SGRNeg", shortcuts + transitions,
+                    lines=((49, 1, "CTRL-Q=Beenden   CTRL-K+?=Hilfe"), (1, 2, "ABCDEFG")))
+    brown, white, grey = 0xa85400, 0xffffff, 0xa8a8a8
+    for x, y, count, fg, bg in ((49, 1, 6, brown, white), (66, 1, 6, brown, white),
+                                (73, 1, 1, brown, white), (1, 2, 1, brown, white),
+                                (2, 2, 1, brown, grey), (3, 2, 1, white, brown),
+                                (4, 2, 1, grey, 0), (5, 2, 1, 0x0c2238, grey),
+                                (6, 2, 1, 0x0c2238, white), (7, 2, 1, white, 0x0c2238)):
+        for column in range(x, x + count):
+            cell = cell_at(frame, column - 1, y - 1)
+            actual = colour(frame, cell), colour(frame, cell, True)
+            assert actual == (fg, bg), (column, y, actual, (fg, bg))
+            assert set(tile(frame, column, y)) == {cell.foreground, cell.background}, (column, y)
+
     frame = t.check("SGRNoBlink", ESC + b"[5;25mX")
     assert not cell_at(frame, 0, 0).flags & 2
     assert tile(frame) == tile(frame, alternate=True)

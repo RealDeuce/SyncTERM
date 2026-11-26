@@ -634,7 +634,6 @@ cterm_handle_sr(struct cterminal *cterm, int *speed) /* CSI SP A */
 void
 cterm_handle_sgr(struct cterminal *cterm, int *speed) /* CSI m — Select Graphic Rendition */
 {
-	int i;
 	(void)speed;
 	/* Inject the SGR 0 default ONLY when the sequence arrived empty
 	 * and nothing has been consumed by an upstream cascade layer.
@@ -642,11 +641,7 @@ cterm_handle_sgr(struct cterminal *cterm, int *speed) /* CSI m — Select Graphi
 	 * the ECMA-48 reset default to clobber the attributes it set. */
 	if (cterm_seq_defaults_apply(cterm))
 		cterm_seq_default(cterm, 0, 0);
-	for (i = 0; i < cterm->seq_param_count; i++) {
-		if (cterm_seq_param_consumed(cterm, i))
-			continue;
-		cterm_apply_sgr(cterm, &i);
-	}
+	cterm_apply_sgr(cterm, 0);
 	cterm_render_set_attribute(cterm, cterm->attr);
 	cterm_render_set_colours(cterm, cterm->fg_color, cterm->bg_color);
 }
@@ -1686,8 +1681,8 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 		case 0:
 			if (cterm->skypix_engine != NULL)
 				cterm_render_record_error(cterm, cterm_skypix_reset_style(cterm->skypix_engine));
-			cterm_set_negative(cterm, false);
-			cterm->attr = cterm->screen.default_attribute;
+			cterm->negative = false;
+			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
 			CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
@@ -1696,9 +1691,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			if (!cterm->skypix)
 				cterm->attr |= 8;
 			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-				cterm_render_attribute_colours(cterm, cterm->attr,
-				    cterm->negative ? NULL : &cterm->fg_color,
-				    cterm->negative ? &cterm->fg_color : NULL);
+				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
@@ -1706,9 +1699,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			if (!cterm->skypix)
 				cterm->attr &= 247;
 			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-				cterm_render_attribute_colours(cterm, cterm->attr,
-				    cterm->negative ? NULL : &cterm->fg_color,
-				    cterm->negative ? &cterm->fg_color : NULL);
+				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
@@ -1719,14 +1710,12 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			if (!cterm->skypix)
 				cterm->attr |= 128;
 			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
-				cterm_render_attribute_colours(cterm, cterm->attr,
-				    cterm->negative ? &cterm->bg_color : NULL,
-				    cterm->negative ? NULL : &cterm->bg_color);
+				cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
 				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			}
 			break;
 		case 7:
-			cterm_set_negative(cterm, true);
+			cterm->negative = true;
 			break;
 		case 8:
 		{
@@ -1742,23 +1731,19 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 		case 22:
 			cterm->attr &= 0xf7;
 			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
-				cterm_render_attribute_colours(cterm, cterm->attr,
-				    cterm->negative ? NULL : &cterm->fg_color,
-				    cterm->negative ? &cterm->fg_color : NULL);
+				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 				CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
 			}
 			break;
 		case 25:
 			cterm->attr &= 0x7f;
 			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
-				cterm_render_attribute_colours(cterm, cterm->attr,
-				    cterm->negative ? &cterm->bg_color : NULL,
-				    cterm->negative ? NULL : &cterm->bg_color);
+				cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
 				CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			}
 			break;
 		case 27:
-			cterm_set_negative(cterm, false);
+			cterm->negative = false;
 			break;
 		case 30:
 			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLACK));

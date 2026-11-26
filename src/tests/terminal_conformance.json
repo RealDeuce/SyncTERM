@@ -146,7 +146,7 @@
     {"id": "SGRRGBFG", "source_line": 1497, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
     {"id": "SGRRGBBG", "source_line": 1515, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
     {"id": "SGRBright", "source_line": 1533, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
-    {"id": "SGRNeg", "source_line": 1569, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
+    {"id": "SGRNeg", "source_line": 1569, "suite": "attributes", "scope": "Cell colours and rendered glyphs with intensity applied before reversal, including repeated SGR 7, SGR 22, SGR 27 and reset"},
     {"id": "SGRConceal", "source_line": 1600, "suite": "attributes", "scope": "Logical RGB cell colours and rendered planes"},
     {"id": "OSC4", "source_line": 1619, "suite": "attributes", "scope": "Logical palette change and single-entry reset"},
     {"id": "OSC104All", "source_line": 1651, "suite": "attributes", "scope": "Logical palette change and full palette reset"},
