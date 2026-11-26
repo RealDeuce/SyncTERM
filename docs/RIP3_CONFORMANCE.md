@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-df95d80b2c58f500acc00c9ca26485fd1ee53f65](https://github.com/RealDeuce/remote-imaging-protocol/tree/df95d80b2c58f500acc00c9ca26485fd1ee53f65/version/3.0)
+43c3d91162b0573f06e1e17e3db861f535455fe6](https://github.com/RealDeuce/remote-imaging-protocol/tree/43c3d91162b0573f06e1e17e3db861f535455fe6/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -144,9 +144,10 @@ their shared edge once and an outline includes its far corner. Changing
 coordinate or drawing settings alone leaves the presentation revision
 unchanged. The next draw still publishes the resulting pixels.
 
-Chapter 1.2’s encoding guide gives the historical 32767 world cap. The
-recovered wire setter accepts each axis through 65535. The open documentation
-issue tracks the inconsistent advice. [Upstream issue #321](https://github.com/bbs-land/remote-imaging-protocol/issues/321)
+Chapter 1.2 distinguishes the range of a coordinate field from the
+world-frame setter’s 0–65535 range on each axis. A three-digit UltraNum
+can encode 65536. Sending that value for either axis preserves both
+dimensions. [Upstream PR #322](https://github.com/bbs-land/remote-imaging-protocol/pull/322)
 
 A fresh drawing style has zero stored fill rows and a zero user line mask.
 Its selected solid brush and pen cover every pixel. Wire `s` sets the eight

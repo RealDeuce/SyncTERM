@@ -1,23 +1,21 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/320",
-  "revision": "df95d80b2c58f500acc00c9ca26485fd1ee53f65",
-  "previous_revision": "5944d175b6cbefc7e97dc48a1e11eba2d704d2a6",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/322",
+  "revision": "43c3d91162b0573f06e1e17e3db861f535455fe6",
+  "previous_revision": "df95d80b2c58f500acc00c9ca26485fd1ee53f65",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PRs #319 and #320.",
-  "archive_sha256": "32f5f9d566e6efe58da763163da5d4009e558cb9f9591d172802223a5cafa896",
+  "upstream_state_at_adoption": "Fork stable incorporates PR #322.",
+  "archive_sha256": "aa09d89b27339941b28b75fc231325f572eba9e4d8928a3cf8bdc5e9c3bb0f60",
   "normative_scope": [
-    "Mouse coordinate capture per ordinary pass and initial DEVICE origin.",
-    "One-byte recovery from exhausted ordinary dollar candidates and full-span recovery from explicit rejection."
+    "World-frame dimensions from 0 through 65535 and atomic rejection of an oversized axis."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.0-host-commands.md",
-    "version/3.0/ripscrip/5.1-text-variables.md"
+    "version/3.0/ripscrip/1.2-math-and-coordinates.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9692,
+  "matched_source_blocks": 9705,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +949,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 157,
+  "upstream_issue_resolutions": 158,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1888,6 +1886,12 @@
       "sha256": "13a5a944586ac40e0342a58b7beabb341ed773def2f11ed2864e55d91d6cc8e9",
       "title": "Issue #318 — Pass-two quoting and rejected dollar spans",
       "role": "Original parser advances and outer quote handling on the second host pass."
+    },
+    {
+      "path": "version/3.0/research/issue-321-world-frame-encoding-guide.md",
+      "sha256": "e46e21a7f96085a1a67082f3e4f4eaf633f801aea9c29e4987015be1c4e4922e",
+      "title": "Issue #321 — World-frame limits and numeric field capacity",
+      "role": "Documents unsigned wire comparisons and the boundary sequence for the world-frame setter."
     }
   ],
   "documents": [
@@ -1985,7 +1989,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
-      "sha256": "c012660108ca9431906816f0bf576688d378fd29314726e54f3f7d753b0910c5"
+      "sha256": "de098c4e7ecc1a1f83344f0ac18b39fa2ce83ea05295ecb70fdc747764830731"
     },
     {
       "path": "version/3.0/ripscrip/1.3-world-view-virtual-canvas.md",
@@ -2164,7 +2168,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "e631456c8a4727172ab444eed3b59759320f1a6c",
+  "previous_ledger_commit": "4d82c8b90cff81de03555ad0482f2ec5fa08da32",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2239,13 +2243,14 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 1801,
-    "context": 2283,
-    "implemented": 5316,
+    "unreviewed": 1281,
+    "context": 2538,
+    "implemented": 5519,
     "excluded": 266,
-    "pending": 43
+    "pending": 8,
+    "blocked": 101
   },
-  "source_blocks_at_adoption": 9709,
+  "source_blocks_at_adoption": 9713,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21654,6 +21659,64 @@
       "resolved_source_units": [
         "version/3.0/ripscrip/5.1-text-variables.md:1208",
         "version/3.0/ripscrip/5.1-text-variables.md:1274"
+      ]
+    },
+    {
+      "previous_revision": "df95d80b2c58f500acc00c9ca26485fd1ee53f65",
+      "revision": "43c3d91162b0573f06e1e17e3db861f535455fe6",
+      "archive_sha256": "aa09d89b27339941b28b75fc231325f572eba9e4d8928a3cf8bdc5e9c3bb0f60",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/321",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/322",
+          "reviewed_head": "c109dfa642a1b73311c454c6adc617093b191cde",
+          "integration": "e0a6c4a6113e6030e5ec2e40719b80bc55af46cb"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
+          "previous_sha256": "c012660108ca9431906816f0bf576688d378fd29314726e54f3f7d753b0910c5",
+          "sha256": "de098c4e7ecc1a1f83344f0ac18b39fa2ce83ea05295ecb70fdc747764830731"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-321-world-frame-encoding-guide.md",
+          "sha256": "e46e21a7f96085a1a67082f3e4f4eaf633f801aea9c29e4987015be1c4e4922e",
+          "title": "Issue #321 — World-frame limits and numeric field capacity",
+          "role": "Documents unsigned wire comparisons and the boundary sequence for the world-frame setter."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 118,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:162",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:166",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:167",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:168",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:172",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:174",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:550",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:551"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:162",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:166",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:167",
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:545"
+      ],
+      "states_after_update": {
+        "unreviewed": 1281,
+        "context": 2538,
+        "implemented": 5519,
+        "excluded": 266,
+        "pending": 8,
+        "blocked": 101
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/1.2-math-and-coordinates.md:166"
       ]
     }
   ],

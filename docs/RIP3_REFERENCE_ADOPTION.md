@@ -1818,3 +1818,11 @@ input sample for each host pass. It also distinguishes an exhausted dollar
 candidate from an explicit argument rejection. The Git archive SHA-256 is
 `32f5f9d566e6efe58da763163da5d4009e558cb9f9591d172802223a5cafa896`.
 [Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/df95d80b2c58f500acc00c9ca26485fd1ee53f65) · [PR #319](https://github.com/bbs-land/remote-imaging-protocol/pull/319) · [PR #320](https://github.com/bbs-land/remote-imaging-protocol/pull/320)
+
+## World-frame range and coordinate encoding
+
+Stable revision `43c3d91162b0573f06e1e17e3db861f535455fe6` incorporates PR #322.
+The existing connected three-digit UltraNum fixture covers the published
+32768 × 65535 example and rejection of 65536 on either axis. The Git
+archive SHA-256 is `aa09d89b27339941b28b75fc231325f572eba9e4d8928a3cf8bdc5e9c3bb0f60`.
+[Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/43c3d91162b0573f06e1e17e3db861f535455fe6) · [PR #322](https://github.com/bbs-land/remote-imaging-protocol/pull/322)
