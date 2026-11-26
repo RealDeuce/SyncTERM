@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
 from st_rip3_button_styles_connected_test import number
@@ -64,7 +64,7 @@ def projection_limits(t, wire, values):
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
-                    settings=f'CustomColumns={width//8}\nCustomRows={height//8}\nCustomFontHeight=8\n') as (client,root,peer,send):
+                    settings=square_canvas(width, height)) as (client,root,peer,send):
         t=Terminal(client,root,peer,send)
         def values(source,expected=b''):
             return t.exchange(query(source,at_cursor=True),expected)

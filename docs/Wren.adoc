@@ -5385,6 +5385,10 @@ duplicate platform-dependent enum tables:
   for the SkyPix editor; text columns/rows derive from the selected Amiga
   strike. Use each row's value rather than its position as the mode ID.
 
+| `rip3ScreenModeChoices`
+| Screen-mode picker rows with square pixels. Current uses the live console
+  geometry and Custom uses the configured cell grid, font height and aspect.
+
 | `screenModeChoices`
 | Ordered `[ScreenMode, displayName]` rows for screen-mode pickers. CGA 80x25
   appears immediately before EGA 80x25; values retain their stable IDs.

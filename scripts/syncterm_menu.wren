@@ -122,6 +122,7 @@ class Menu {
   foreign static fontEncoding(name)
   foreign static logLevels
   foreign static screenModes
+  foreign static rip3ScreenModeChoices
   foreign static screenModeChoices
   foreign static canvasModes
   // Each build-dependent pair is [numeric value, display name].

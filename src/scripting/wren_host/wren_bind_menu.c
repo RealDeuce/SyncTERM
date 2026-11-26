@@ -1784,14 +1784,26 @@ fn_menu_screen_modes(WrenVM *vm)
 }
 
 static void
-fn_menu_screen_mode_choices(WrenVM *vm)
+menu_screen_mode_choices(WrenVM *vm, bool square_only)
 {
 	wrenEnsureSlots(vm, 3);
 	wrenSetSlotNewList(vm, 0);
 	for (size_t i = 0; i < st_screen_mode_count(); ++i) {
 		const struct st_screen_mode_descriptor *mode = st_screen_mode_choice_at(i);
+		if (square_only && !st_wren_host_mode_has_square_pixels(st_wren_host_from_vm(vm), mode->mode))
+			continue;
 		push_row(vm, 0, 1, 2, (double)mode->mode, mode->name);
 	}
+}
+
+static void fn_menu_screen_mode_choices(WrenVM *vm)
+{
+	menu_screen_mode_choices(vm, false);
+}
+
+static void fn_menu_rip3_screen_mode_choices(WrenVM *vm)
+{
+	menu_screen_mode_choices(vm, true);
 }
 
 static void fn_menu_canvas_modes(WrenVM *vm)
@@ -5278,6 +5290,7 @@ static const struct binding bindings[] = {
 	{"Menu", true, "logLevels", fn_menu_log_levels},
 	{"Menu", true, "screenModes", fn_menu_screen_modes},
 	{"Menu", true, "screenModeChoices", fn_menu_screen_mode_choices},
+	{"Menu", true, "rip3ScreenModeChoices", fn_menu_rip3_screen_mode_choices},
 	{"Menu", true, "canvasModes", fn_menu_canvas_modes},
 	{"Menu", true, "outputModes", fn_menu_output_modes},
 	{"Menu", true, "cursorStyles", fn_menu_cursor_styles},

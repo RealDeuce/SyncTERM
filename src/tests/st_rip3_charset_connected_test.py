@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 import struct
 import time
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
 from st_rip3_extended_window_connected_test import window,xy
@@ -35,7 +35,7 @@ def cp437_row(frame,codes):
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
-                    settings=f'CustomColumns={width//8}\nCustomRows={height//8}\nCustomFontHeight=8\n') as (client,root,peer,send):
+                    settings=square_canvas(width, height)) as (client,root,peer,send):
         t=Terminal(client,root,peer,send);serial=0
         def capture(data=b'',expected=b''):
             nonlocal serial

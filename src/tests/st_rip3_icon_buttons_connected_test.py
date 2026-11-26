@@ -4,7 +4,7 @@
 import argparse
 from pathlib import Path
 import struct
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
 from st_rip3_buttons_connected_test import button,style,remove_fields
@@ -24,8 +24,7 @@ def bitmap(width,height,rgb):
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
-                    settings=f'CustomColumns={width//8}\nCustomRows={height//8}\nCustomFontHeight=8\n'
-                             'CustomAspectWidth=4\nCustomAspectHeight=3\n') as (client,root,peer,send):
+                    settings=square_canvas(width, height)) as (client,root,peer,send):
         t=Terminal(client,root,peer,send)
         def values(program,expected=b''):
             return t.exchange(query(program,at_cursor=True),expected)

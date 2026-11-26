@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 import select
 
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_rip3_buttons_connected_test import button as rip_button, style
 from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
@@ -20,8 +20,7 @@ HOTKEY = 0xffdc79
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
-                    settings=f"CustomColumns={width // 8}\nCustomRows={height // 8}\n"
-                             "CustomFontHeight=8\nAudioModes=0\n") as (client, root, peer, send):
+                    settings=square_canvas(width, height)) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
 
         def packet(source):

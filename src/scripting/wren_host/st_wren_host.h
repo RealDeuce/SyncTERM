@@ -149,6 +149,7 @@ int st_wren_host_offer_save_profile(st_wren_host_t *host,
 bool st_wren_host_exit_requested(const st_wren_host_t *host);
 int st_wren_host_set_screen_mode(st_wren_host_t *host,
 	enum st_screen_mode selected);
+bool st_wren_host_mode_has_square_pixels(st_wren_host_t *host, enum st_screen_mode mode);
 int st_wren_host_get_screen_mode(const st_wren_host_t *host,
 	enum st_screen_mode *result);
 /* Capture the actual session grid for detached history presentation. */

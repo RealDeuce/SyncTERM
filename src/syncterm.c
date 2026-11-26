@@ -1261,6 +1261,9 @@ static int run_selected(st_wren_host_t *host, st_console_display_t *display, st_
 			fprintf(stderr, "SyncTERM: Amiga default font unavailable (%d); using fallback\n",
 					status);
 	}
+	if (profile->graphics_mode == ST_GRAPHICS_RIP_3
+	    && !st_wren_host_mode_has_square_pixels(host, profile->screen_mode))
+		profile->screen_mode = ST_SCREEN_MODE_80X30;
 	status = st_wren_host_begin_session_mode(host, st_term_profile_screen_mode(profile));
 	int restore_status;
 

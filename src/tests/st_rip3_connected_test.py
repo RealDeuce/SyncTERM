@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import time
 
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
 from syncterm_control import SHIFT
 from syncterm_fixture import cell_at, fixture, listener, receive
@@ -179,9 +179,7 @@ Hook.onKey(Key.f9) {|event|
 '''
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
-                    settings=f"CustomColumns={width // 8}\nCustomRows={height // 8}\n"
-                             "CustomFontHeight=8\nCustomAspectWidth=4\nCustomAspectHeight=3\n"
-                             "AudioModes=0\n", script=script) as (client, root, peer, send):
+                    settings=square_canvas(width, height), script=script) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
         for probe in (b"\x1b[!", b"\x1b[0!"):
             send(probe)
@@ -745,9 +743,7 @@ def mega(number):
 def font_switch_with_status(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\nNoStatus=false\n",
-                    settings=f"CustomColumns={width // 8}\nCustomRows={height // 8}\n"
-                             "CustomFontHeight=8\nCustomAspectWidth=4\nCustomAspectHeight=3\n"
-                             "AudioModes=0\n") as (client, root, peer, send):
+                    settings=square_canvas(width, height)) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
         t.case(f"rip3-font-switch-retains-raster-and-status-{width}x{height}")
         # A plot command can enter during an unfinished ANSI CSI. The
@@ -792,8 +788,7 @@ def font_switch_with_status(args, width, height):
         def values(source, expected=b""):
             return t.exchange(query(source, at_cursor=True), expected)
 
-        # Keep the sample inside a solid patch after output scaling. The
-        # 1280×800 canvas, for example, is presented at 1280×960.
+        # Keep the sample inside a solid patch after output scaling.
         patch = mega(width - 7) + mega(height - 4) + mega(width - 1) + mega(height - 1)
         values(f"$WORLD(CUR,{width},{height})$".encode())
         t.exchange(b"\x01|2T30|w0203070610|S010F|B" + patch + b"\r\n")

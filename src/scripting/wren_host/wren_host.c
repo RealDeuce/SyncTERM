@@ -283,6 +283,47 @@ install_mode_state(struct st_wren_context *context,
 	return st_console_fill(context->console, &screen, &blank);
 }
 
+static int
+configured_custom_mode(struct st_screen_mode_descriptor *mode)
+{
+	return st_screen_mode_custom(mode, st_settings.custom_columns, st_settings.custom_rows,
+	    st_settings.custom_font_height, st_settings.custom_aspect_width, st_settings.custom_aspect_height);
+}
+
+bool
+st_wren_host_mode_has_square_pixels(st_wren_host_t *host, enum st_screen_mode selected)
+{
+	uint32_t width, height, aspect_width, aspect_height;
+	if (selected == ST_SCREEN_MODE_CURRENT) {
+		if (st_console_pixel_size(host->menu.console, &width, &height) != 0
+		    || st_console_get_aspect_ratio(host->menu.console, &aspect_width, &aspect_height) != 0)
+			return false;
+	}
+	else {
+		struct st_screen_mode_descriptor custom;
+		const struct st_screen_mode_descriptor *mode = st_screen_mode_get(selected);
+		if (selected == ST_SCREEN_MODE_CUSTOM) {
+			if (configured_custom_mode(&custom) != 0)
+				return false;
+			mode = &custom;
+		}
+		if (mode == NULL)
+			return false;
+		const struct st_console_config *config = &mode->console;
+		uint64_t w = config->pixel_width ? config->pixel_width : (uint64_t)config->columns * config->cell_width;
+		uint64_t h = config->pixel_height ? config->pixel_height : (uint64_t)config->rows * config->cell_height;
+		if (w > UINT32_MAX || h > UINT32_MAX)
+			return false;
+		width = (uint32_t)w;
+		height = (uint32_t)h;
+		aspect_width = config->aspect_width;
+		aspect_height = config->aspect_height;
+	}
+	/* An unspecified aspect uses the raster's own proportions. */
+	return width != 0 && height != 0
+	    && (uint64_t)width * aspect_height == (uint64_t)height * aspect_width;
+}
+
 int
 st_wren_host_set_screen_mode(struct st_wren_host *host,
 	enum st_screen_mode selected)
@@ -294,12 +335,7 @@ st_wren_host_set_screen_mode(struct st_wren_host *host,
 	if (host == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (selected == ST_SCREEN_MODE_CUSTOM) {
-		status = st_screen_mode_custom(&custom,
-		    (uint32_t)st_settings.custom_columns,
-		    (uint32_t)st_settings.custom_rows,
-		    (uint32_t)st_settings.custom_font_height,
-		    (uint32_t)st_settings.custom_aspect_width,
-		    (uint32_t)st_settings.custom_aspect_height);
+		status = configured_custom_mode(&custom);
 		if (status != 0)
 			return status;
 		mode = &custom;
@@ -1977,12 +2013,7 @@ st_wren_host_create(st_wren_host_t **result,
 		    = st_screen_mode_get(host->current_screen_mode);
 
 		if (mode != NULL && mode->mode == ST_SCREEN_MODE_CUSTOM) {
-			status = st_screen_mode_custom(&custom,
-			    (uint32_t)st_settings.custom_columns,
-			    (uint32_t)st_settings.custom_rows,
-			    (uint32_t)st_settings.custom_font_height,
-			    (uint32_t)st_settings.custom_aspect_width,
-			    (uint32_t)st_settings.custom_aspect_height);
+			status = configured_custom_mode(&custom);
 			if (status == 0)
 				mode = &custom;
 		}

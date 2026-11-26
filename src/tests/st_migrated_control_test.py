@@ -94,6 +94,12 @@ Host.print("PICKER-PIXELS-PASS")
             assert b"PICKER-PIXELS-PASS" in client.stderr
 
 
+def square_canvas(width, height):
+    """Custom raster with 8×8 entry cells and square display pixels."""
+    return (f"CustomColumns={width // 8}\nCustomRows={height // 8}\nCustomFontHeight=8\n"
+            f"CustomAspectWidth={width}\nCustomAspectHeight={height}\n")
+
+
 @contextlib.contextmanager
 def connection(executable, reports, *, encoding="CP437", options="", settings="", script=None,
                menu_grid=None, prepare=None, hide_popups=True, extra=()):

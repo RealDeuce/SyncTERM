@@ -4,7 +4,7 @@
 import argparse
 import struct
 from pathlib import Path
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
 from st_rip3_buttons_connected_test import style,button
@@ -59,7 +59,7 @@ def check_clear(t, width, height):
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
-                    settings=f'CustomColumns={width//8}\nCustomRows={height//8}\nCustomFontHeight=8\n') as (client,root,peer,send):
+                    settings=square_canvas(width, height)) as (client,root,peer,send):
         t=Terminal(client,root,peer,send)
         def values(source,expected=b''):
             return t.exchange(query(source,at_cursor=True),expected)
@@ -167,11 +167,34 @@ def run(args,width,height):
         check_clear(t, width, height)
 
 
+def check_entry_modes(args):
+    custom = "CustomColumns=80\nCustomRows=50\nCustomFontHeight=14\n"
+    cases = (
+        ("80x50", "", 640, 480, 30, 16),
+        ("LCD80x25", "", 640, 400, 25, 16),
+        ("Custom", custom + "CustomAspectWidth=32\nCustomAspectHeight=35\n", 640, 700, 50, 14),
+        ("Custom", custom + "CustomAspectWidth=4\nCustomAspectHeight=3\n", 640, 480, 30, 16),
+        ("Current", "ScreenMode=80x50\n", 640, 480, 30, 16),
+        ("Current", "ScreenMode=LCD80x25\n", 640, 400, 25, 16),
+    )
+    for mode, settings, width, height, rows, cell_height in cases:
+        with connection(args.executable, args.reports, encoding=args.encoding,
+                        options=f"ScreenMode={mode}\nRIP=RIPv3\n", settings=settings) as (client, root, peer, send):
+            t = Terminal(client, root, peer, send)
+            t.case(f"{mode} entry opens with square pixels at {width}x{height}")
+            frame = t.exchange(query(b"$RESX$:$RESY$", at_cursor=True), f"{width}:{height}".encode())
+            m = frame.metadata
+            assert (m["plane_width"], m["plane_height"]) == (width, height)
+            assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, rows, 8, cell_height)
+            assert abs(m["destination_width"] * height - m["destination_height"] * width) <= max(width, height)
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable',type=Path)
     parser.add_argument('encoding',choices=('CP437','UTF-8'))
     parser.add_argument('--reports',type=Path,required=True)
     args=parser.parse_args()
+    check_entry_modes(args)
     for width,height in ((640,480),(720,400)):
         run(args,width,height)

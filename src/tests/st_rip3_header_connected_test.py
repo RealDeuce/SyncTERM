@@ -4,7 +4,7 @@
 import argparse
 from pathlib import Path
 
-from st_migrated_control_test import connection
+from st_migrated_control_test import connection, square_canvas
 from st_rip3_button_styles_connected_test import number as palette_number
 from st_rip3_connected_test import pixel, query
 from st_rip3_extended_window_connected_test import window, xy
@@ -376,8 +376,7 @@ def port_zero_actions(t, values, wire, width, height):
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
-                    settings=f'CustomColumns={width // 8}\nCustomRows={height // 8}\n'
-                             'CustomFontHeight=8\nAudioModes=0\n') as (client, root, peer, send):
+                    settings=square_canvas(width, height)) as (client, root, peer, send):
         t = Terminal(client, root, peer, send)
 
         def values(program, expected=b''):

@@ -447,7 +447,7 @@ class BbsEditor {
       "password": p.password,
       "syspass": p.syspass,
       "addressFamily": p.addressFamily,
-      "screenMode": p.screenMode,
+      "screenMode": p.graphics == 2 ? rip3Mode_(p.screenMode) : p.screenMode,
       "encoding": p.encoding,
       "termName": p.termName,
       "font": p.font,
@@ -1110,7 +1110,12 @@ class BbsEditor {
     }
   }
 
+  static rip3Mode_(mode) {
+    return Menu.rip3ScreenModeChoices.any {|row| row[0] == mode } ? mode : 4
+  }
+
   static changeScreen_(d, mode) {
+    if (d["graphics"] == 2) mode = rip3Mode_(mode)
     if (skyPix_(d["graphics"])) {
       d["screenMode"] = mode
       return
@@ -1199,10 +1204,12 @@ class BbsEditor {
       d["screenMode"] = 5
       d["encoding"] = 0
       selectFont_(d, 45)
-    } else if (version == 2 && !ansi_(d["screenMode"])) {
-      d["screenMode"] = 1
-      d["encoding"] = 0
-      selectFont_(d, 0)
+    } else if (version == 2) {
+      if (!ansi_(d["screenMode"])) {
+        d["encoding"] = 0
+        selectFont_(d, 0)
+      }
+      d["screenMode"] = rip3Mode_(d["screenMode"])
     }
   }
 
@@ -1462,6 +1469,7 @@ class BbsEditor {
     }
 
     var screenChoices = skyPix_(d["graphics"]) ? Menu.canvasModes : Menu.screenModeChoices
+    if (d["graphics"] == 2) screenChoices = Menu.rip3ScreenModeChoices
     if (d["graphics"] == 6) screenChoices = [32, 23, 4].map {|m| [m, Menu.screenModes[m]] }.toList
     if (d["graphics"] == 5) screenChoices = (27..29).map {|m| [m, Menu.screenModes[m]] }.toList
     var screenName = MenuUi.rowName(screenChoices, d["screenMode"])

@@ -139,3 +139,27 @@ if (true) {
   BbsEditor.changeEncoding_(draft, 255)
   if (draft["graphics"] != 6 || draft["screenMode"] != 32 || draft["font"] != "Codepage 437 English") Fiber.abort("BIG choices")
 }
+if (true) {
+  import "menu_bbs_editor" for BbsEditor
+  import "syncterm_menu" for Menu
+  var choices = Menu.rip3ScreenModeChoices.map {|row| row[0] }.toList
+  if (choices.contains(6) || !choices.contains(2) || !choices.contains(4)) Fiber.abort("RIPv3 square pixel choices")
+  var settings = Menu.settings
+  settings.customColumns = 80
+  settings.customRows = 50
+  settings.customFontHeight = 14
+  settings.customAspectWidth = 32
+  settings.customAspectHeight = 35
+  settings.apply()
+  if (!Menu.rip3ScreenModeChoices.any {|row| row[0] == 22 }) Fiber.abort("Square Custom missing")
+  settings = Menu.settings
+  settings.customFontHeight = 8
+  settings.apply()
+  if (Menu.rip3ScreenModeChoices.any {|row| row[0] == 22 }) Fiber.abort("Non-square Custom offered")
+  var draft = {"graphics": 0, "encoding": 255, "screenMode": 6, "font": "Codepage 437 English"}
+  BbsEditor.changeGraphics_(draft, 2)
+  if (draft["screenMode"] != 4 || draft["encoding"] != 255) Fiber.abort("RIPv3 fallback")
+  BbsEditor.changeScreen_(draft, 2)
+  BbsEditor.changeGraphics_(draft, 2)
+  if (draft["screenMode"] != 2 || draft["graphics"] != 2) Fiber.abort("RIPv3 LCD mode")
+}

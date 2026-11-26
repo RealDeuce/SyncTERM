@@ -63,7 +63,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Connection mode and default MicroANSI font | Nine Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
+| Connection mode and default MicroANSI font | Nine Pending blocks cover the initial text window or resets that select the user’s default font. SyncTERM uses square-pixel entry modes. The remaining font work covers the documented mode #2 default, native-size MAF strikes and the fallback for unmatched rasters. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws
@@ -246,6 +246,11 @@ backup during an article preserves the partially received word. ESC restore
 also preserves an article defined after the save, including its next line.
 A physical key reaches the host after a repeated extended definition or a
 live reset of window zero clears the window's keyboard lock.
+
+The directory offers RIPv3 for square-pixel screen modes. A 640×400 LCD
+entry at 8:5 qualifies. A 640×400 entry at 4:3 opens at 640×480 (80×30).
+Custom uses the configured columns, rows, font height and aspect ratio.
+Current uses the active console raster and aspect.
 
 The engine accepts ordinary default fonts 0–4. The connection frontend
 currently supplies font 0 and enables wrap. Alternate startup-font vectors
