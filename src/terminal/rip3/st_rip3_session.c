@@ -1988,7 +1988,14 @@ command(void *context, const uint8_t *bytes, size_t length)
 			session->graphical_job=GRAPHICAL_METRIC;
 		}
 	}
-	else st_rip3_commands_process(&session->commands,&sink,bytes,length);
+	else {
+		st_rip3_commands_process(&session->commands,&sink,bytes,length);
+		/* These ENV and STYLE setters affect only subsequent drawing.
+		 * Keep any earlier paint pending without requesting a new capture. */
+		static const char drawing_settings[] = "JnfMckSs=WN";
+		if (length != 0 && memchr(drawing_settings,bytes[0],sizeof(drawing_settings)-1) != NULL)
+			return;
+	}
 	++session->revision;
 }
 

@@ -231,9 +231,9 @@ void st_rip3_session_mouse_cancel(struct st_rip3_session *session);
 void st_rip3_session_pointer_boundary(struct st_rip3_session *session);
 /* Also remove keyboard focus at a local focus loss or input-lock boundary. */
 void st_rip3_session_focus_lost(struct st_rip3_session *session);
-/* Presentation services. Revision advances after commands/host continuations;
- * it does not promise that pixels changed. Damage is borrowed through unbind
- * or destruction, one byte per canvas pixel; see surface_damage. */
+/* Revision signals that a command or host continuation may need presentation.
+ * Damage is borrowed through unbind or destruction, one byte per canvas pixel;
+ * see surface_damage. */
 uint64_t st_rip3_session_revision(const struct st_rip3_session *session);
 int st_rip3_session_damage(struct st_rip3_session *session,
 	uint8_t *damage, size_t length);

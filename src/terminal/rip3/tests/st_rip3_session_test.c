@@ -160,10 +160,23 @@ graphics(enum st_rip3_canvas canvas, unsigned width, unsigned height)
 	uint64_t revision = st_rip3_session_revision(f.session);
 	CHECK(append(&f,"!|Fcoordinate and color surplus\r")==0 && pump(&f)==0);
 	CHECK(f.errors==0 && st_rip3_session_revision(f.session)==revision);
+	/* A scene may send each setting in a separate network read. None needs
+	 * a display capture until a drawing command consumes the new state. */
+	CHECK(append(&f,"!|J1S|n3|M08|f0K00F0|c0C|k00|k00|s.........|S010F|=00000001|W0|N1|n2\r")==0);
+	while (f.read < f.length) {
+		st_rip3_session_process(f.session,1);
+		CHECK(st_rip3_session_revision(f.session)==revision);
+	}
+	CHECK(f.errors==0 && st_rip3_session_capture(f.session,&capture)==0);
+	CHECK(capture.frame.world_width==1280 && capture.frame.world_height==960);
+	st_rip3_session_capture_dispose(&capture);
 	char setup[100];(void)snprintf(setup,sizeof(setup),"$WORLD(CUR,%u,%u)$$BASEMATH(CUR,64)$",width,height);
-	CHECK(query(&f,setup,"")==0 && append(&f,"!|c0C|X0101\r")==0);
+	CHECK(query(&f,setup,"")==0);
+	revision = st_rip3_session_revision(f.session);
+	CHECK(append(&f,"!|c0C|X0101\r")==0);
 	/* Deliver each wire byte separately through the public owner. */
 	while (f.read<f.length) st_rip3_session_process(f.session,1);
+	CHECK(st_rip3_session_revision(f.session)!=revision);
 	CHECK(st_rip3_session_capture(f.session,&capture)==0 && capture.frame.world_width==width && capture.frame.world_height==height);
 	for (unsigned y=0; y<height; y++) for (unsigned x=0; x<width; x++)
 		CHECK(capture.pixels->primary[(size_t)y*width+x]==(ST_PIXEL_COLOR_RGB_TAG|((x==1 && y==1) ? 0xff5555 : 0)));

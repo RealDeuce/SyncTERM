@@ -704,6 +704,38 @@ Hook.onKey(Key.f9) {|event|
         assert pixel(frame, 4, 1) == 0xffffff
         t.exchange(query(b"$UNPROT(STYLE,1)$$CUR(STYLE,0)$") + b"\x01|M08\r\n")
 
+        check_numeric_frames(t, width, height)
+
+
+def check_numeric_frames(t, width, height):
+    t.case("rip3-world-axis-limits-and-radix-changes")
+    settings = b"$BASEMATH$:$COORDSIZE$:$WORLD$"
+    packet = (query(b"$RESET(HARD)$", at_cursor=True)
+              + b"\x01|J1S|fK0F0\r\n" + query(settings, at_cursor=True)
+              + b"\x01|n3|f800F&&|c0C|X400800\r\n" + query(settings, at_cursor=True)
+              + b"\x01|fG00001|f001G00|f00@001\r\n" + query(settings, at_cursor=True)
+              + b"\x01|J10|n2|fZKQO\r\n" + query(settings, at_cursor=True))
+    frame = t.exchange(packet, b"64:2:1280:960" + b"64:3:32768:65535" * 2 + b"36:2:1280:960")
+    assert pixel(frame, width // 2, height // 2) == 0xff5555
+
+    t.case("rip3-adjacent-fill-and-outline-at-double-scale")
+    # The two filled boxes share a world boundary. XOR exposes an overlap
+    # at the seam. Both end coordinates remain addressable on the outline.
+    world = f"$WORLD(CUR,{width // 2},{height // 2})$".encode()
+    frame = t.exchange(query(world, at_cursor=True) +
+                       b"\x01|N0|W1|S0104|K02010504|S0102|K05010804|c0C|R020B050E\r\n")
+    for y in range(1, 10):
+        for x in range(3, 18):
+            expected = 0
+            if 2 <= y < 8 and 4 <= x < 16:
+                expected = 0xaa0000 if x < 10 else 0x00aa00
+            assert pixel(frame, x, y) == expected, (x, y, expected)
+    for y in range(21, 30):
+        for x in range(3, 12):
+            edge = (4 <= x <= 10 and y in (22, 28)) or (x in (4, 10) and 22 <= y <= 28)
+            assert pixel(frame, x, y) == (0xff5555 if edge else 0), (x, y)
+    assert frame.primary == frame.alternate
+
 
 def mega(number):
     digits = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

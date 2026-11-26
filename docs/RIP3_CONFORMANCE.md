@@ -131,6 +131,17 @@ queries and copy rectangles. Restoring it leaves the visible screen intact.
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
 
+Connected sessions check a three-digit UltraNum WORLD of 32768 × 65535,
+retention after an oversized axis or malformed field, and a switch back
+to the two-digit MegaNum prologue. At 2:1 scale, adjacent XOR fills cover
+their shared edge once and an outline includes its far corner. Changing
+coordinate or drawing settings alone leaves the presentation revision
+unchanged. The next draw still publishes the resulting pixels.
+
+Chapter 1.2’s encoding guide gives the historical 32767 world cap. The
+recovered wire setter accepts each axis through 65535. The open documentation
+issue tracks the inconsistent advice. [Upstream issue #321](https://github.com/bbs-land/remote-imaging-protocol/issues/321)
+
 A fresh drawing style has zero stored fill rows and a zero user line mask.
 Its selected solid brush and pen cover every pixel. Wire `s` sets the eight
 rows, and `S` loads the selected preset's rows. Wire `=` uses the supplied
