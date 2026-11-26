@@ -106,11 +106,6 @@ add_library(st_cterm STATIC
 	cterm_dec.c
 	cterm_ecma48.c
 	cterm_render.c
-	cterm_skypix_walkers.c
-	cterm_skypix.c
-	cterm_skypix_audio.c
-	cterm_skypix_parser.c
-	cterm_skypix_ilbm.c
 	cterm_text.c
 	cterm_petscii.c
 	cterm_prestel.c
@@ -914,19 +909,6 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_music_render COMMAND st_terminal_tests st_cterm_music_render_test)
 	set_tests_properties(cterm_music_render PROPERTIES TIMEOUT 60)
-	add_executable(st_cterm_skypix_audio_test tests/st_cterm_skypix_audio_test.c
-		tests/st_cterm_skypix_audio_test_bindings.c)
-	target_link_libraries(st_cterm_skypix_audio_test PRIVATE st_cterm st_fonts)
-	set_target_properties(st_cterm_skypix_audio_test PROPERTIES
-		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	if(MSVC)
-		target_compile_definitions(st_cterm_skypix_audio_test PRIVATE _CRT_SECURE_NO_WARNINGS)
-		target_compile_options(st_cterm_skypix_audio_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
-	else()
-		target_compile_options(st_cterm_skypix_audio_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
-	endif()
-	add_test(NAME cterm_skypix_audio COMMAND st_cterm_skypix_audio_test)
-	set_tests_properties(cterm_skypix_audio PROPERTIES TIMEOUT 30)
 	syncterm_add_test_case(st_terminal_tests st_cterm_musicomm_test tests/st_cterm_musicomm_test.c)
 	target_link_libraries(st_cterm_musicomm_test PRIVATE st_cterm st_igs)
 	syncterm_target_atomics(st_cterm_musicomm_test)
@@ -1239,39 +1221,4 @@ if(BUILD_TESTING)
 			COMMAND Python3::Interpreter
 				"${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compare_legacy_rip_live.py")
 	endif()
-endif()
-
-if(BUILD_TESTING)
-	syncterm_add_test_case(st_terminal_tests st_cterm_skypix_test tests/st_cterm_skypix_test.c)
-	target_link_libraries(st_cterm_skypix_test PRIVATE st_cterm st_amiga_font st_fonts)
-	set_target_properties(st_cterm_skypix_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	add_test(NAME cterm_skypix COMMAND st_terminal_tests st_cterm_skypix_test)
-	syncterm_add_test_case(st_terminal_tests st_cterm_skypix_cursor_test tests/st_cterm_skypix_cursor_test.c)
-	target_link_libraries(st_cterm_skypix_cursor_test PRIVATE st_cterm st_amiga_font st_fonts)
-	set_target_properties(st_cterm_skypix_cursor_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	add_test(NAME cterm_skypix_cursor COMMAND st_terminal_tests st_cterm_skypix_cursor_test)
-	if(MSVC)
-		target_compile_options(st_cterm_skypix_cursor_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
-	else()
-		target_compile_options(st_cterm_skypix_cursor_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
-	endif()
-endif()
-
-if(BUILD_TESTING)
-	add_executable(st_skypix_vector_probe tests/st_skypix_vector_probe.c cterm_skypix_walkers.c)
-	target_include_directories(st_skypix_vector_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-	target_link_libraries(st_skypix_vector_probe PRIVATE st_amiga_font)
-	set_target_properties(st_skypix_vector_probe PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	add_test(NAME skypix_rom_vectors COMMAND Python3::Interpreter
-		${CMAKE_CURRENT_SOURCE_DIR}/tests/test_skypix_vectors.py $<TARGET_FILE:st_skypix_vector_probe>)
-endif()
-
-if(BUILD_TESTING)
-	foreach(_test IN ITEMS st_cterm_skypix_test st_skypix_vector_probe)
-		if(MSVC)
-			target_compile_options(${_test} PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
-		else()
-			target_compile_options(${_test} PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
-		endif()
-	endforeach()
 endif()

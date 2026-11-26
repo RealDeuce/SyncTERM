@@ -38,6 +38,7 @@ mixed(int16_t value)
 }
 
 struct fixture {
+	struct cterm_skypix *sky;
 	st_console_t       *console;
 	st_font_catalog_t  *fonts;
 	st_cterm_t         *t;
@@ -67,15 +68,16 @@ create(enum st_cterm_graphics_mode mode, bool muted)
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_CP437,
-	    .graphics_mode                              = mode,
 	    .quiet                                      = true};
-	CHECK(st_cterm_create(&f.t, &config) == 0);
+	const struct st_skypix_config sky_config = {.kick13 = mode == ST_CTERM_GRAPHICS_SKYPIX_13};
+	CHECK(cterm_skypix_open(&f.sky, &f.t, &config, &sky_config) == 0);
 	return f;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_skypix_destroy(f->sky);
 	st_cterm_destroy(&f->t);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -83,38 +85,38 @@ destroy(struct fixture *f)
 }
 
 static size_t
-feed(st_cterm_t *t, const char *wire)
+feed(struct cterm_skypix *sky, const char *wire)
 {
 	size_t used;
-	CHECK(st_cterm_write(t, wire, strlen(wire), &used) == 0);
+	CHECK(cterm_skypix_feed(sky, wire, strlen(wire), &used) == 0);
 	return used;
 }
 
 static void
 decoder(struct fixture *f)
 {
-	CHECK(st_cterm_skypix_load_sample(NULL, sample, sizeof(sample)) == IO_ERROR_NOT_SUPPORTED);
-	CHECK(st_cterm_skypix_load_sample(f->t, sample, sizeof(sample)) == 0);
-	struct cterm_skypix_audio *a = &f->t->skypix_engine->audio;
+	CHECK(cterm_skypix_audio_load(NULL, sample, sizeof(sample)) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(cterm_skypix_audio_load(f->sky, sample, sizeof(sample)) == 0);
+	struct cterm_skypix_audio *a = &f->sky->audio;
 	CHECK(a->count == 8 && a->period == 447 && memcmp(a->samples, sample + 6, 8) == 0);
 	uint8_t *old = a->samples;
 	for (size_t n = 0; n < 14; ++n) {
-		CHECK(st_cterm_skypix_load_sample(f->t, sample, n) == IO_ERROR_INVALID_FORMAT);
+		CHECK(cterm_skypix_audio_load(f->sky, sample, n) == IO_ERROR_INVALID_FORMAT);
 		CHECK(a->samples == old);
 	}
 	uint8_t bad[sizeof(sample)];
 	memcpy(bad, sample, sizeof(bad));
 	memset(bad, 0, 4);
-	CHECK(st_cterm_skypix_load_sample(f->t, bad, sizeof(bad)) == IO_ERROR_INVALID_FORMAT);
+	CHECK(cterm_skypix_audio_load(f->sky, bad, sizeof(bad)) == IO_ERROR_INVALID_FORMAT);
 	memcpy(bad, sample, sizeof(bad));
 	bad[4] = bad[5] = 0;
-	CHECK(st_cterm_skypix_load_sample(f->t, bad, sizeof(bad)) == IO_ERROR_INVALID_FORMAT);
+	CHECK(cterm_skypix_audio_load(f->sky, bad, sizeof(bad)) == IO_ERROR_INVALID_FORMAT);
 	memcpy(bad, sample, sizeof(bad));
 	bad[1] = 0x40;
 	bad[3] = 1;
-	CHECK(st_cterm_skypix_load_sample(f->t, bad, sizeof(bad)) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(cterm_skypix_audio_load(f->sky, bad, sizeof(bad)) == IO_ERROR_OUT_OF_RANGE);
 	st_skypix_test_allocation_failure = true;
-	CHECK(st_cterm_skypix_load_sample(f->t, sample, sizeof(sample)) == IO_ERROR_OUT_OF_MEMORY);
+	CHECK(cterm_skypix_audio_load(f->sky, sample, sizeof(sample)) == IO_ERROR_OUT_OF_MEMORY);
 	st_skypix_test_allocation_failure = false;
 	CHECK(a->samples == old && a->count == 8);
 	static const unsigned rates[]   = {1, 54, 55, 8000, 11025, 22050, 44100, 65535};
@@ -124,7 +126,7 @@ decoder(struct fixture *f)
 		bad[3] = 3;
 		bad[4] = (uint8_t)(rates[i] >> 8);
 		bad[5] = (uint8_t)rates[i];
-		CHECK(st_cterm_skypix_load_sample(f->t, bad, sizeof(bad)) == 0);
+		CHECK(cterm_skypix_audio_load(f->sky, bad, sizeof(bad)) == 0);
 		CHECK(a->count == 3 && a->period == periods[i]);
 		struct cterm_skypix_audio converter = *a;
 		converter.repeats                   = 2;
@@ -137,7 +139,7 @@ decoder(struct fixture *f)
 	uint8_t alphabet[262] = {0, 0, 1, 0, 0x1f, 0x40};
 	for (unsigned i = 0; i < 256; ++i)
 		alphabet[i + 6] = (uint8_t)i;
-	CHECK(st_cterm_skypix_load_sample(f->t, alphabet, sizeof(alphabet)) == 0);
+	CHECK(cterm_skypix_audio_load(f->sky, alphabet, sizeof(alphabet)) == 0);
 	CHECK(a->count == 256 && memcmp(a->samples, alphabet + 6, 256) == 0);
 	size_t   maximum = CTERM_SKYPIX_SAMPLE_MAX;
 	uint8_t *large   = calloc(maximum + 6, 1);
@@ -146,26 +148,26 @@ decoder(struct fixture *f)
 	large[4]           = 0x1f;
 	large[5]           = 0x40;
 	large[maximum + 5] = 0x7f;
-	CHECK(st_cterm_skypix_load_sample(f->t, large, maximum + 6) == 0);
+	CHECK(cterm_skypix_audio_load(f->sky, large, maximum + 6) == 0);
 	CHECK(a->count == maximum && a->samples[maximum - 1] == 0x7f);
 	free(large);
-	CHECK(st_cterm_skypix_load_sample(f->t, sample, sizeof(sample)) == 0);
+	CHECK(cterm_skypix_audio_load(f->sky, sample, sizeof(sample)) == 0);
 }
 
 static void
 playback(struct fixture *f)
 {
-	struct cterm_skypix_audio converter = f->t->skypix_engine->audio;
+	struct cterm_skypix_audio converter = f->sky->audio;
 	converter.repeats                   = 1;
 	int16_t raw[45 * 2];
 	CHECK(cterm_skypix_audio_convert(&converter, raw, 45) == 45 && converter.repeats == 0);
 	for (size_t i = 0; i < 45; ++i)
 		CHECK(raw[i * 2] == expected[i] && raw[i * 2 + 1] == expected[i]);
 	st_skypix_test_open_failure = true;
-	CHECK(feed(f->t, "\x1b[9;0;0;0;1!X") == 13 && !st_cterm_input_paused(f->t));
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;1!X") == 13 && !cterm_skypix_paused(f->sky));
 	st_skypix_test_open_failure = false;
 	const char *wire            = "\x1b[9;99;1;2;1!TAIL";
-	CHECK(feed(f->t, wire) == strlen(wire) - 4 && st_cterm_input_paused(f->t));
+	CHECK(feed(f->sky, wire) == strlen(wire) - 4 && cterm_skypix_paused(f->sky));
 	CHECK(f->t->music_stream == NULL && f->t->fx_stream != NULL);
 	CHECK(audio_stream_set_volume(f->t->fx_stream, 0, 0) == 0);
 	int16_t out[45 * 2];
@@ -173,36 +175,36 @@ playback(struct fixture *f)
 		CHECK(st_audio_runtime_pull(f->runtime, out + i * 2, 1) == 0);
 		CHECK(out[i * 2] == mixed(expected[i]) && out[i * 2 + 1] == mixed(expected[i]));
 	}
-	CHECK(st_cterm_poll(f->t) == 0 && !st_cterm_input_paused(f->t));
-	CHECK(feed(f->t, "TAIL") == 4);
+	CHECK(cterm_skypix_service(f->sky) == 0 && !cterm_skypix_paused(f->sky));
+	CHECK(feed(f->sky, "TAIL") == 4);
 	/* Zero is deliberately one play. Input splits must not change it. */
 	const char *zero = "\x1b[9;0;0;0;0!";
 	for (size_t i = 0; i < strlen(zero); ++i) {
 		size_t used;
-		CHECK(st_cterm_write(f->t, zero + i, 1, &used) == 0 && used == 1);
+		CHECK(cterm_skypix_feed(f->sky, zero + i, 1, &used) == 0 && used == 1);
 	}
 	CHECK(st_audio_runtime_pull(f->runtime, out, 45) == 0);
 	for (size_t i = 0; i < 45; ++i)
 		CHECK(out[i * 2] == mixed(expected[i]) && out[i * 2 + 1] == mixed(expected[i]));
-	CHECK(st_cterm_poll(f->t) == 0 && !st_cterm_input_paused(f->t));
+	CHECK(cterm_skypix_service(f->sky) == 0 && !cterm_skypix_paused(f->sky));
 	/* Continuous phase across repeats: eight bytes * 3 at period 447
 	 * produce ceil(24*447*44100/3579545) = 133 frames, not 3*45. */
-	CHECK(feed(f->t, "\x1b[9;0;0;0;3!") == 12);
-	CHECK(st_cterm_skypix_load_sample(f->t, sample, sizeof(sample)) == IO_ERROR_BUSY);
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;3!") == 12);
+	CHECK(cterm_skypix_audio_load(f->sky, sample, sizeof(sample)) == IO_ERROR_BUSY);
 	CHECK(audio_stream_buffered_frames(f->t->fx_stream) == 133);
 	int16_t repeated[134 * 2];
 	CHECK(st_audio_runtime_pull(f->runtime, repeated, 134) == 0);
 	CHECK(repeated[132 * 2] == 0 && repeated[133 * 2] == 0);
-	CHECK(st_cterm_poll(f->t) == 0 && !st_cterm_input_paused(f->t));
+	CHECK(cterm_skypix_service(f->sky) == 0 && !cterm_skypix_paused(f->sky));
 	/* Reset and EOF cancel the shared SFX queue without disturbing music. */
-	CHECK(feed(f->t, "\x1b[9;0;0;0;2!") == 12);
-	CHECK(st_cterm_finish(f->t) == 0 && !st_cterm_input_paused(f->t));
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;2!") == 12);
+	CHECK(cterm_skypix_finish_display(f->sky) == 0 && !cterm_skypix_paused(f->sky));
 	CHECK(audio_stream_buffered_frames(f->t->fx_stream) == 0);
-	CHECK(f->t->skypix_engine->audio.count == 8);
-	CHECK(feed(f->t, "\x1b[9;0;0;0;2!") == 12);
-	CHECK(st_cterm_reset_terminal(f->t) == 0 && !st_cterm_input_paused(f->t));
-	CHECK(f->t->skypix_engine->audio.samples == NULL);
-	CHECK(feed(f->t, "\x1b[9;0;0;0;1!X") == 13);
+	CHECK(f->sky->audio.count == 8);
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;2!") == 12);
+	CHECK(st_cterm_reset_terminal(f->t) == 0 && !cterm_skypix_paused(f->sky));
+	CHECK(f->sky->audio.samples == NULL);
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;1!X") == 13);
 }
 static struct audio_backend_callbacks device;
 
@@ -246,19 +248,19 @@ device_tests(enum st_cterm_graphics_mode mode)
 	const struct audio_backend_descriptor *backends[] = {&backend};
 	CHECK(audio_engine_create_with_backends(&engine, AUDIO_BACKEND_PORTAUDIO, backends, 1) == 0);
 	CHECK(audio_stream_create(&f.t->fx_stream, engine, 0, 0) == 0);
-	CHECK(st_cterm_skypix_load_sample(f.t, sample, sizeof(sample)) == 0);
-	CHECK(feed(f.t, "\x1b[9;0;0;0;1!X") == 12);
+	CHECK(cterm_skypix_audio_load(f.sky, sample, sizeof(sample)) == 0);
+	CHECK(feed(f.sky, "\x1b[9;0;0;0;1!X") == 12);
 	int16_t out[45 * 2];
 	CHECK(device.pull(device.context, out, 45) == 45);
-	CHECK(cterm_skypix_poll(f.t->skypix_engine, 100) == 0 && st_cterm_input_paused(f.t));
-	CHECK(cterm_skypix_poll(f.t->skypix_engine, 116) == 0 && st_cterm_input_paused(f.t));
-	CHECK(cterm_skypix_poll(f.t->skypix_engine, 117) == 0 && !st_cterm_input_paused(f.t));
+	CHECK(cterm_skypix_poll(f.sky, 100) == 0 && cterm_skypix_paused(f.sky));
+	CHECK(cterm_skypix_poll(f.sky, 116) == 0 && cterm_skypix_paused(f.sky));
+	CHECK(cterm_skypix_poll(f.sky, 117) == 0 && !cterm_skypix_paused(f.sky));
 	/* More than 8192 frames remain when the device fails. Refill must
 	 * fail and cancel the parser hold rather than waiting on a dead queue. */
-	CHECK(feed(f.t, "\x1b[9;0;0;0;1000!") == 15);
+	CHECK(feed(f.sky, "\x1b[9;0;0;0;1000!") == 15);
 	device.failed(device.context);
-	CHECK(st_cterm_poll(f.t) == 0 && !st_cterm_input_paused(f.t));
-	CHECK(feed(f.t, "OK") == 2);
+	CHECK(cterm_skypix_service(f.sky) == 0 && !cterm_skypix_paused(f.sky));
+	CHECK(feed(f.sky, "OK") == 2);
 	/* Destroy cancels an active play before the shared stream is freed. */
 	destroy(&f);
 	audio_engine_destroy(engine);
@@ -277,12 +279,12 @@ large(struct fixture *f)
 	bytes[4] = 0xac;
 	bytes[5] = 0x44;
 	memset(bytes + 6, 0x40, n);
-	CHECK(st_cterm_skypix_load_sample(f->t, bytes, n + 6) == 0);
+	CHECK(cterm_skypix_audio_load(f->sky, bytes, n + 6) == 0);
 	free(bytes);
-	CHECK(feed(f->t, "\x1b[9;0;0;0;2!") == 12);
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;2!") == 12);
 	int16_t frames[257 * 2];
 	size_t  total = 0;
-	while (st_cterm_input_paused(f->t)) {
+	while (cterm_skypix_paused(f->sky)) {
 		size_t queued = audio_stream_buffered_frames(f->t->fx_stream);
 		CHECK(queued <= 8192);
 		size_t take = queued < 257 ? queued : 257;
@@ -291,12 +293,12 @@ large(struct fixture *f)
 		for (size_t i = 0; i < take * 2; ++i)
 			CHECK(frames[i] == mixed(16384));
 		total += take;
-		CHECK(st_cterm_poll(f->t) == 0);
+		CHECK(cterm_skypix_service(f->sky) == 0);
 	}
 	CHECK(total == ((uint64_t)n * 2 * 81 * 44100 + 3579544) / 3579545);
-	CHECK(feed(f->t, "\x1b[9;0;0;0;1!") == 12);
+	CHECK(feed(f->sky, "\x1b[9;0;0;0;1!") == 12);
 	st_audio_runtime_stop(f->runtime);
-	CHECK(st_cterm_poll(f->t) == 0 && !st_cterm_input_paused(f->t));
+	CHECK(cterm_skypix_service(f->sky) == 0 && !cterm_skypix_paused(f->sky));
 }
 
 int
@@ -309,13 +311,13 @@ main(void)
 		large(&f);
 		destroy(&f);
 		f = create((enum st_cterm_graphics_mode)mode, true);
-		CHECK(st_cterm_skypix_load_sample(f.t, sample, sizeof(sample)) == 0);
-		CHECK(feed(f.t, "\x1b[9;0;0;0;0!X") == 13 && !st_cterm_input_paused(f.t));
+		CHECK(cterm_skypix_audio_load(f.sky, sample, sizeof(sample)) == 0);
+		CHECK(feed(f.sky, "\x1b[9;0;0;0;0!X") == 13 && !cterm_skypix_paused(f.sky));
 		destroy(&f);
 		device_tests((enum st_cterm_graphics_mode)mode);
 		f = create((enum st_cterm_graphics_mode)mode, false);
-		CHECK(st_cterm_skypix_load_sample(f.t, sample, sizeof(sample)) == 0);
-		CHECK(feed(f.t, "\x1b[9;0;0;0;1!") == 12 && st_cterm_input_paused(f.t));
+		CHECK(cterm_skypix_audio_load(f.sky, sample, sizeof(sample)) == 0);
+		CHECK(feed(f.sky, "\x1b[9;0;0;0;1!") == 12 && cterm_skypix_paused(f.sky));
 		destroy(&f);
 	}
 	return 0;

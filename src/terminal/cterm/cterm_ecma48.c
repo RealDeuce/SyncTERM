@@ -40,7 +40,6 @@
 #include "cterm_ecma48.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
-#include "cterm_skypix.h"
 
 /* Forward declarations for the incremental CSI parser + param-string
  * splitter — defined further down in this file and used by
@@ -314,7 +313,8 @@ cterm_handle_el(struct cterminal *cterm, int *speed) /* CSI K */
 	(void)speed;
 	cterm_clear_lcf(cterm);
 	cterm_seq_default(cterm, 0, 0);
-	if (cterm->skypix_engine != NULL && cterm_skypix_erase_line(cterm->skypix_engine, cterm->seq_param_int[0]))
+	if (cterm->device.erase_line != NULL
+	    && cterm->device.erase_line(cterm->device.context, cterm->seq_param_int[0]))
 		return;
 	switch (cterm->seq_param_int[0]) {
 		case 0:
@@ -1663,7 +1663,7 @@ cterm_build_param_strs(struct cterminal *cterm)
  * Handles the SGR parameter set defined by ECMA-48: reset (0),
  * intensity / attribute on/off (1, 2, 4, 5, 6, 7, 8, 22, 25, 27),
  * foreground (30-37, 39), background (40-47, 49).  SkyPix palette
- * remapping is applied inline via cterm_skypix_color so the same
+ * remapping is applied inline via cterm_sgr_color so the same
  * path paints the correct index whether SkyPix is active or not.
  *
  * Extensions (38/48, 90-107) are handled upstream in the cascade
@@ -1679,8 +1679,8 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 	flags = cterm_render_get_video_flags(cterm);
 	switch (cterm->seq_param_int[*pi]) {
 		case 0:
-			if (cterm->skypix_engine != NULL)
-				cterm_render_record_error(cterm, cterm_skypix_reset_style(cterm->skypix_engine));
+			if (cterm->device.reset_style != NULL)
+				cterm_render_record_error(cterm, cterm->device.reset_style(cterm->device.context));
 			cterm->negative = false;
 			cterm->attr     = cterm->screen.default_attribute;
 			cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, &cterm->bg_color);
@@ -1688,7 +1688,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);
 			break;
 		case 1:
-			if (!cterm->skypix)
+			if (cterm->device.sgr_palette == NULL)
 				cterm->attr |= 8;
 			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
 				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
@@ -1696,7 +1696,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			}
 			break;
 		case 2:
-			if (!cterm->skypix)
+			if (cterm->device.sgr_palette == NULL)
 				cterm->attr &= 247;
 			if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
 				cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
@@ -1707,7 +1707,7 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			break;
 		case 5:
 		case 6:
-			if (!cterm->skypix)
+			if (cterm->device.sgr_palette == NULL)
 				cterm->attr |= 128;
 			if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
 				cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
@@ -1746,54 +1746,54 @@ cterm_ecma48_apply_sgr(struct cterminal *cterm, int *pi)
 			cterm->negative = false;
 			break;
 		case 30:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLACK));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_BLACK));
 			break;
 		case 31:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_RED));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_RED));
 			break;
 		case 32:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_GREEN));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_GREEN));
 			break;
 		case 33:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BROWN));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_BROWN));
 			break;
 		case 34:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLUE));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_BLUE));
 			break;
 		case 35:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_MAGENTA));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_MAGENTA));
 			break;
 		case 36:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_CYAN));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_CYAN));
 			break;
 		case 37:
 		case 39:
-			cterm_set_fgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_LIGHT_GRAY));
+			cterm_set_fgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_LIGHT_GRAY));
 			break;
 		case 40:
 		case 49:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLACK));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_BLACK));
 			break;
 		case 41:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_RED));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_RED));
 			break;
 		case 42:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_GREEN));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_GREEN));
 			break;
 		case 43:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BROWN));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_BROWN));
 			break;
 		case 44:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_BLUE));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_BLUE));
 			break;
 		case 45:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_MAGENTA));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_MAGENTA));
 			break;
 		case 46:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_CYAN));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_CYAN));
 			break;
 		case 47:
-			cterm_set_bgattr(cterm, cterm_skypix_color(cterm, CTERM_COLOR_LIGHT_GRAY));
+			cterm_set_bgattr(cterm, cterm_sgr_color(cterm, CTERM_COLOR_LIGHT_GRAY));
 			break;
 	}
 }

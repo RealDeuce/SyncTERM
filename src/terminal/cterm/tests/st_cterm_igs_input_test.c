@@ -81,8 +81,7 @@ create(struct fixture *f, unsigned mode, bool utf8, bool status)
 	    .input_filter_context = f,
 	};
 	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	CHECK(f->terminal->igs_engine != NULL && f->terminal->skypix_engine == NULL
-	      && f->terminal->rip_engine == NULL);
+	CHECK(f->terminal->igs_engine != NULL && f->terminal->rip_engine == NULL);
 	CHECK(f->terminal->igs_engine->resolution == mode);
 	f->terminal->igs_engine->now_ms = now_ms;
 }

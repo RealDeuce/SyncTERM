@@ -227,9 +227,9 @@ numeric field before the independent font name.
 == Sources and verification
 
 The executable contracts are in
-link:../src/terminal/cterm/cterm_skypix_parser.c[the parser],
-link:../src/terminal/cterm/cterm_skypix.c[the renderer], and
-link:../src/terminal/cterm/cterm_skypix_audio.c[the sample player].
+link:../src/terminal/skypix/cterm_skypix_parser.c[the parser],
+link:../src/terminal/skypix/cterm_skypix.c[the renderer], and
+link:../src/terminal/skypix/cterm_skypix_audio.c[the sample player].
 link:SKYPIX_CONFORMANCE.md[SkyPix conformance] records the primary JR-Comm,
 SkyTERM and ROM provenance, intentional dialect choices, independent raster
 expectations, native tests and application captures. Its remaining text

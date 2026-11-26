@@ -13,7 +13,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "st_amiga_font.h"
 #include "st_audio_runtime.h"
 #include "st_codepage.h"
 #include "st_console.h"
@@ -149,11 +148,6 @@ enum st_cterm_log_level {
  * borrowed for the call; callbacks must not reenter the terminal. */
 typedef void (*st_cterm_log_callback_t)(void *context, enum st_cterm_log_level level, const char *message);
 
-/* Called at the second bang, with following wire bytes unread. Return 0 for
- * a completed cache hit, IO_ERROR_IN_PROGRESS for an owned transfer, or an error. */
-typedef int (*st_cterm_skypix_transfer_callback_t)(void *context, unsigned mode, unsigned width, unsigned height,
-    const uint8_t *filename, size_t size);
-
 struct st_cterm_config {
 	/* Pointers are borrowed through destruction, except palette arrays which
 	 * are copied during creation. */
@@ -178,13 +172,6 @@ struct st_cterm_config {
 	void *rip3_autosense_context;
 	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
 	const char *rip_directory;
-	const char *amiga_font_directory;
-	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
-	const st_amiga_font_t *amiga_font;
-	/* Zero uses the terminal grid extent, excluding the status row. */
-	uint32_t                            skypix_width, skypix_height;
-	st_cterm_skypix_transfer_callback_t skypix_transfer;
-	void                               *skypix_transfer_context;
 	/* Enables built-in SyncTERM APC commands independently of RIP. Both
 	 * strings are borrowed through destruction; version is NUL-terminated.
 	 * NULL directory retains callback-only handling. CTSV maps UTF-8 alpha/beta
@@ -292,13 +279,6 @@ int st_cterm_poll(st_cterm_t *terminal);
 /* Owner-thread timing gate. The caller retains bytes after a write
  * consumed count while paused; no input suffix is queued by this API. */
 bool st_cterm_input_paused(st_cterm_t *terminal);
-/* Load a completed native ILBM brush; NULL/zero cancels a pending request. */
-int st_cterm_skypix_receive(st_cterm_t *terminal, const void *bytes, size_t size);
-/* Owner-thread raw type-3 load. Borrows bytes during the call, copies only
- * the declared signed PCM, and retains the previous sample on failure.
- * Maximum declared PCM length is 4 MiB; trailing bytes are ignored.
- * Returns BUSY during playback; reset/destruction releases the owned copy. */
-int st_cterm_skypix_load_sample(st_cterm_t *terminal, const void *bytes, size_t size);
 /* After disconnect only: finish pending output and, without a status row,
  * scroll the whole terminal once to make room for a local notice. Dimensions
  * and status layout remain unchanged; capture completed history beforehand. */

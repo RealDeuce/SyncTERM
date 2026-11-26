@@ -7,7 +7,9 @@
 #include "st_amiga_font.h"
 #include "st_codepage.h"
 #include "st_console.h"
+#include "st_cterm.h"
 #include "st_pixels.h"
+#include "st_skypix.h"
 #include "st_unicode_text.h"
 
 enum {
@@ -18,6 +20,8 @@ struct cterminal;
 
 struct cterm_skypix {
 	struct cterminal          *terminal;
+	st_skypix_transfer_callback_t transfer;
+	void                         *transfer_context;
 	struct cterm_skypix_audio  audio;
 	struct cterm_skypix_parser parser;
 	const st_amiga_font_t     *font, *default_data;
@@ -40,9 +44,12 @@ struct cterm_skypix {
 	char                       warned[1024];
 };
 struct st_cterm_config;
-int  cterm_skypix_create(struct cterminal *, const struct st_cterm_config *);
+int  cterm_skypix_open(struct cterm_skypix **, struct cterminal **, const struct st_cterm_config *,
+    const struct st_skypix_config *);
+int  cterm_skypix_finish_display(struct cterm_skypix *);
 void cterm_skypix_destroy(struct cterm_skypix *);
-int  cterm_skypix_feed(struct cterm_skypix *, const uint8_t *, size_t, size_t *);
+int  cterm_skypix_feed(struct cterm_skypix *, const void *, size_t, size_t *);
+int  cterm_skypix_service(struct cterm_skypix *);
 int  cterm_skypix_finish(struct cterm_skypix *);
 int  cterm_skypix_reset(struct cterm_skypix *);
 int  cterm_skypix_reset_font(struct cterm_skypix *);

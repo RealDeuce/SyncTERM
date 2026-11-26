@@ -22,16 +22,17 @@
 	} while (false)
 
 static void
-feed(st_cterm_t *t, const char *wire)
+feed(struct cterm_skypix *sky, const char *wire)
 {
 	size_t used, size = strlen(wire);
-	CHECK(st_cterm_write(t, wire, size, &used) == 0 && used == size);
-	CHECK(st_cterm_finish(t) == 0);
+	CHECK(cterm_skypix_feed(sky, wire, size, &used) == 0 && used == size);
+	CHECK(cterm_skypix_finish_display(sky) == 0);
 }
 
 static void
-rectangle(st_cterm_t *t, unsigned x, unsigned y, unsigned width, uint32_t colour)
+rectangle(struct cterm_skypix *sky, unsigned x, unsigned y, unsigned width, uint32_t colour)
 {
+	st_cterm_t                  *t      = sky->terminal;
 	struct st_pixel_buffer      *pixels = NULL;
 	const struct st_console_rect area   = {x, y, width, 1};
 	CHECK(st_console_get_pixels(&pixels, t->screen.console, &area, false) == 0);
@@ -61,84 +62,85 @@ run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsigned colours)
 	const struct st_cterm_config config = {.console = console,
 	    .fonts                                      = fonts,
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
-	    .graphics_mode                              = mode,
 	    .status_line                                = status,
 	    .encoding         = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage         = ST_CODEPAGE_CP437,
 	    .scrollback_lines = 3,
 	    .quiet            = true};
-	CHECK(st_cterm_create(&t, &config) == 0);
-	CHECK(t->skypix_engine->colours == 16);
+	const struct st_skypix_config sky_config = {.kick13 = mode == ST_CTERM_GRAPHICS_SKYPIX_13};
+	struct cterm_skypix          *sky        = NULL;
+	CHECK(cterm_skypix_open(&sky, &t, &config, &sky_config) == 0);
+	CHECK(sky->colours == 16);
 	if (colours == 8)
-		feed(t, "\x1b[17;1!\x1b[0m");
+		feed(sky, "\x1b[17;1!\x1b[0m");
 	const uint32_t cursor     = colours == 16 ? 527 : 519;
 	const uint32_t ink_cursor = colours == 16 ? 525 : 517;
-	feed(t, "\f");
+	feed(sky, "\f");
 	/* Default home is zero-origin with the complete Pearl/8 strike. The
 	 * cursor is at its text baseline, not one row below it. */
-	rectangle(t, 0, 6, 8, cursor);
+	rectangle(sky, 0, 6, 8, cursor);
 	struct st_console_pixel_cursor overlay;
 	CHECK(st_console_get_pixel_cursor(console, &overlay) == 0 && !overlay.enabled);
 	bool                         visible;
 	enum st_console_cursor_shape shape;
 	CHECK(st_console_get_cursor(console, &visible, &shape) == 0 && !visible);
-	feed(t, "A");
+	feed(sky, "A");
 	for (unsigned x = 0; x < 8; ++x)
-		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? 514 : 512);
-	rectangle(t, 8, 6, 8, cursor);
-	feed(t, "\b");
+		rectangle(sky, x, 6, 1, (0xc6u & (128u >> x)) ? 514 : 512);
+	rectangle(sky, 8, 6, 8, cursor);
+	feed(sky, "\b");
 	for (unsigned x = 0; x < 8; ++x)
-		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? ink_cursor : cursor);
-	feed(t, "\x1b[C");
+		rectangle(sky, x, 6, 1, (0xc6u & (128u >> x)) ? ink_cursor : cursor);
+	feed(sky, "\x1b[C");
 	for (unsigned x = 0; x < 8; ++x)
-		rectangle(t, x, 6, 1, (0xc6u & (128u >> x)) ? 514 : 512);
-	rectangle(t, 8, 6, 8, cursor);
-	CHECK(cterm_skypix_poll(t->skypix_engine, 1) == 0);
-	CHECK(cterm_skypix_poll(t->skypix_engine, 10000) == 0);
-	rectangle(t, 8, 6, 8, cursor); /* Idle time has no phase effect. */
-	feed(t,
+		rectangle(sky, x, 6, 1, (0xc6u & (128u >> x)) ? 514 : 512);
+	rectangle(sky, 8, 6, 8, cursor);
+	CHECK(cterm_skypix_poll(sky, 1) == 0);
+	CHECK(cterm_skypix_poll(sky, 10000) == 0);
+	rectangle(sky, 8, 6, 8, cursor); /* Idle time has no phase effect. */
+	feed(sky,
 	    "\x1b"
 	    "7B\x1b"
 	    "8");
-	rectangle(t, 16, 6, 8, 512); /* DECSC/DECRC must not abandon B's cursor. */
+	rectangle(sky, 16, 6, 8, 512); /* DECSC/DECRC must not abandon B's cursor. */
 	for (unsigned x = 0; x < 8; ++x)
-		rectangle(t, 8 + x, 6, 1, (0xfcu & (128u >> x)) ? ink_cursor : cursor);
-	feed(t, "\fA");
-	feed(t, "\x1b[65535!"); /* Unknown SkyPix commands still erase/disable C. */
-	rectangle(t, 8, 6, 8, 512);
-	feed(t, "B");
-	rectangle(t, 16, 6, 8, 512);
-	feed(t, "\x1b[10;0!"); /* Enable operations without drawing a new cursor. */
-	rectangle(t, 16, 6, 8, 512);
-	feed(t, "A");
-	rectangle(t, 24, 6, 8, cursor);
-	feed(t, "\x1b[99!");
-	rectangle(t, 24, 6, 8, 512);
-	feed(t, "\x1b[0mA");
-	rectangle(t, 32, 6, 8, cursor);
-	feed(t, "\x1b[10;20!Diamond.font!\f");
-	rectangle(t, 0, 14, 20, 512);
+		rectangle(sky, 8 + x, 6, 1, (0xfcu & (128u >> x)) ? ink_cursor : cursor);
+	feed(sky, "\fA");
+	feed(sky, "\x1b[65535!"); /* Unknown SkyPix commands still erase/disable C. */
+	rectangle(sky, 8, 6, 8, 512);
+	feed(sky, "B");
+	rectangle(sky, 16, 6, 8, 512);
+	feed(sky, "\x1b[10;0!"); /* Enable operations without drawing a new cursor. */
+	rectangle(sky, 16, 6, 8, 512);
+	feed(sky, "A");
+	rectangle(sky, 24, 6, 8, cursor);
+	feed(sky, "\x1b[99!");
+	rectangle(sky, 24, 6, 8, 512);
+	feed(sky, "\x1b[0mA");
+	rectangle(sky, 32, 6, 8, cursor);
+	feed(sky, "\x1b[10;20!Diamond.font!\f");
+	rectangle(sky, 0, 14, 20, 512);
 	/* Cursor entry happens at the FIRST bang, before a split font name. */
-	feed(t, "\x1b[10;0!\fA");
+	feed(sky, "\x1b[10;0!\fA");
 	size_t used;
-	CHECK(st_cterm_write(t, "\x1b[10;20!", 8, &used) == 0 && used == 8);
-	CHECK(!t->skypix_engine->cursor_enabled);
-	rectangle(t, 8, 6, 8, 512);
-	feed(t, "Diamond.font!");
-	CHECK(t->skypix_engine->custom);
+	CHECK(cterm_skypix_feed(sky, "\x1b[10;20!", 8, &used) == 0 && used == 8);
+	CHECK(!sky->cursor_enabled);
+	rectangle(sky, 8, 6, 8, 512);
+	feed(sky, "Diamond.font!");
+	CHECK(sky->custom);
 	/* Save/restore moves one live cursor cleanly. A brush cannot capture
 	 * an underline abandoned at an earlier position. */
-	feed(t, "\x1b[10;0!\fA\x1b[sB\x1b[u\x1b[6;16;5;8;1!");
-	CHECK(t->skypix_engine->brush != NULL && t->skypix_engine->brush->width == 8);
+	feed(sky, "\x1b[10;0!\fA\x1b[sB\x1b[u\x1b[6;16;5;8;1!");
+	CHECK(sky->brush != NULL && sky->brush->width == 8);
 	for (unsigned i = 0; i < 8; ++i)
-		CHECK(t->skypix_engine->brush->primary[i] == 512);
-	feed(t, "\x1b[7;0;0;32;6;8;1;192;255!");
-	rectangle(t, 32, 6, 8, 512);
+		CHECK(sky->brush->primary[i] == 512);
+	feed(sky, "\x1b[7;0;0;32;6;8;1;192;255!");
+	rectangle(sky, 32, 6, 8, 512);
 	/* A cursor temporarily moved home must not be retired into history
 	 * or copied upward by the next LF at the lower edge. */
 	char scroll[100];
 	snprintf(scroll, sizeof(scroll), "\x1b[0m\x1b[2J\x1b[%d;1HA\x1b[s\x1b[H\x1b[u\n", t->height);
-	feed(t, scroll);
+	feed(sky, scroll);
 	uint32_t columns;
 	size_t   rows;
 	CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows != 0);
@@ -147,37 +149,38 @@ run(enum st_cterm_graphics_mode mode, bool utf8, bool status, unsigned colours)
 	for (unsigned i = 0; i < 8; ++i)
 		CHECK(history->primary[6 * 640 + i] == ST_PIXEL_COLOR_RGB_TAG);
 	st_pixel_buffer_destroy(history);
-	rectangle(t, 8, (unsigned)t->height * 8 - 10, 8, 512);
-	rectangle(t, 8, (unsigned)t->height * 8 - 2, 8, cursor);
+	rectangle(sky, 8, (unsigned)t->height * 8 - 10, 8, 512);
+	rectangle(sky, 8, (unsigned)t->height * 8 - 2, 8, cursor);
 	/* Full depth and palette indices, never a dedicated cursor RGB colour. */
-	feed(t, "\x1b[17;2!\x1b[0m\f");
-	rectangle(t, 0, 6, 8, 527);
+	feed(sky, "\x1b[17;2!\x1b[0m\f");
+	rectangle(sky, 0, 6, 8, 527);
 	/* Every input split, including named-font framing and reset/recovery. */
 	const char wire[] = "\fA\x1b[1;0!B\x1b[10;0!A";
 	for (size_t split = 0; split < sizeof(wire); ++split) {
 		CHECK(st_cterm_reset_terminal(t) == 0);
 		if (colours == 8)
-			feed(t, "\x1b[17;1!\x1b[0m");
-		CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
-		CHECK(st_cterm_write(t, wire + split, sizeof(wire) - 1 - split, &used) == 0
+			feed(sky, "\x1b[17;1!\x1b[0m");
+		CHECK(cterm_skypix_feed(sky, wire, split, &used) == 0 && used == split);
+		CHECK(cterm_skypix_feed(sky, wire + split, sizeof(wire) - 1 - split, &used) == 0
 		      && used == sizeof(wire) - 1 - split);
-		CHECK(st_cterm_finish(t) == 0);
-		rectangle(t, 24, 6, 8, cursor);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		rectangle(sky, 24, 6, 8, cursor);
 	}
 	if (utf8) {
 		/* Independent Pearl/8 e-acute rows; revise e after the first cursor
 		 * operation without leaving a double-toggle or a stale underline. */
 		const uint8_t accent[] = {0x0c, 0x10, 0x3c, 0x66, 0x7e, 0x60, 0x3c, 0};
-		feed(t, "\f");
+		feed(sky, "\f");
 		const char composed[] = "e\xcc\x81";
 		for (size_t i = 0; i < sizeof(composed) - 1; ++i)
-			CHECK(st_cterm_write(t, composed + i, 1, &used) == 0 && used == 1);
-		CHECK(st_cterm_finish(t) == 0);
+			CHECK(cterm_skypix_feed(sky, composed + i, 1, &used) == 0 && used == 1);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
 		for (unsigned y = 0; y < 8; ++y)
 			for (unsigned x = 0; x < 8; ++x)
-				rectangle(t, x, y, 1, accent[y] & (128u >> x) ? 514 : 512);
-		rectangle(t, 8, 6, 8, cursor);
+				rectangle(sky, x, y, 1, accent[y] & (128u >> x) ? 514 : 512);
+		rectangle(sky, 8, 6, 8, cursor);
 	}
+	cterm_skypix_destroy(sky);
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -196,36 +199,37 @@ widths(enum st_cterm_graphics_mode mode, const char *name, unsigned height, unsi
 	const struct st_cterm_config config = {.console = console,
 	    .fonts                                      = fonts,
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
-	    .graphics_mode                              = mode,
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_CP437,
-	    .amiga_font = st_amiga_font_builtin(mode == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13
-	                                                                            : ST_AMIGA_FONT_SET_2PLUS,
-		name, height),
 	    .quiet = true};
-	CHECK(st_cterm_create(&t, &config) == 0);
+	const struct st_skypix_config sky_config = {.kick13 = mode == ST_CTERM_GRAPHICS_SKYPIX_13,
+	    .font = st_amiga_font_builtin(mode == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13
+	                                                                      : ST_AMIGA_FONT_SET_2PLUS,
+		name, height)};
+	struct cterm_skypix          *sky        = NULL;
+	CHECK(cterm_skypix_open(&sky, &t, &config, &sky_config) == 0);
 	char select[128];
 	int  length = snprintf(select, sizeof(select), "\x1b[10;%u!%s!", height, name);
 	CHECK(length > 0 && (size_t)length < sizeof(select));
-	feed(t, select);
-	CHECK(st_amiga_font_width(t->skypix_engine->font) == width);
-	CHECK(st_amiga_font_baseline(t->skypix_engine->font) == baseline);
-	feed(t, "\x1b[10;0!");
-	feed(t, "\f");
-	rectangle(t, 0, baseline, width, 527);
-	rectangle(t, width, baseline, 1, 512);
-	feed(t, "\x1b[19;2;11!\x1b[10;0!\x1b[K");
-	rectangle(t, 2, 11 + height - 1, width, 527);
-	feed(t, "\x1b[10;0!"); /* Hiding restores the exact background. */
-	rectangle(t, 2, 11 + height - 1, width, 512);
-	feed(t, "\x1b[19;65533;11!\x1b[10;0!\x1b[K");
-	rectangle(t, 0, 11 + height - 1, width - 3, 527);
-	rectangle(t, width - 3, 11 + height - 1, 1, 512);
-	feed(t, "\x1b[19;638;11!\x1b[10;0!\x1b[K");
-	rectangle(t, 638, 11 + height - 1, 2, 527);
+	feed(sky, select);
+	CHECK(st_amiga_font_width(sky->font) == width);
+	CHECK(st_amiga_font_baseline(sky->font) == baseline);
+	feed(sky, "\x1b[10;0!");
+	feed(sky, "\f");
+	rectangle(sky, 0, baseline, width, 527);
+	rectangle(sky, width, baseline, 1, 512);
+	feed(sky, "\x1b[19;2;11!\x1b[10;0!\x1b[K");
+	rectangle(sky, 2, 11 + height - 1, width, 527);
+	feed(sky, "\x1b[10;0!"); /* Hiding restores the exact background. */
+	rectangle(sky, 2, 11 + height - 1, width, 512);
+	feed(sky, "\x1b[19;65533;11!\x1b[10;0!\x1b[K");
+	rectangle(sky, 0, 11 + height - 1, width - 3, 527);
+	rectangle(sky, width - 3, 11 + height - 1, 1, 512);
+	feed(sky, "\x1b[19;638;11!\x1b[10;0!\x1b[K");
+	rectangle(sky, 638, 11 + height - 1, 2, 527);
 	/* Restore both actual phase backgrounds, rather than guessing a visible
 	 * phase from C or flattening a differently coloured alternate plane. */
-	feed(t, "\x1b[19;2;11!\x1b[10;0!");
+	feed(sky, "\x1b[19;2;11!\x1b[10;0!");
 	struct st_pixel_buffer *background = NULL;
 	CHECK(st_pixel_buffer_create(&background, width, 1, true) == 0);
 	st_pixel_buffer_fill(background, 515, 516);
@@ -237,17 +241,18 @@ widths(enum st_cterm_graphics_mode mode, const char *name, unsigned height, unsi
 	    .scale_y                              = 1};
 	CHECK(st_console_blit_pixels(console, background, NULL, &blit) == 0);
 	st_pixel_buffer_destroy(background);
-	feed(t, "\x1b[?25h");
+	feed(sky, "\x1b[?25h");
 	const struct st_console_rect strip = {2, 11 + height - 1, width, 1};
 	CHECK(st_console_get_pixels(&background, console, &strip, false) == 0);
 	for (unsigned i = 0; i < width; ++i)
 		CHECK(background->primary[i] == 524 && background->alternate[i] == 523);
 	st_pixel_buffer_destroy(background);
-	feed(t, "\x1b[10;0!");
+	feed(sky, "\x1b[10;0!");
 	CHECK(st_console_get_pixels(&background, console, &strip, false) == 0);
 	for (unsigned i = 0; i < width; ++i)
 		CHECK(background->primary[i] == 515 && background->alternate[i] == 516);
 	st_pixel_buffer_destroy(background);
+	cterm_skypix_destroy(sky);
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);

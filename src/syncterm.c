@@ -98,7 +98,7 @@ inspect_application(void *context, struct st_console_test_application *app)
 	st_console_test_number(app, "cterm.musicomm",
 	    st_cterm_musicomm_state(st_term_session_cterm(owner->session)));
 	/* Read-only test-control observations, captured with the scene/state. */
-	const struct cterm_skypix *sky = st_term_session_cterm(owner->session)->skypix_engine;
+	const struct cterm_skypix *sky = st_term_session_skypix(owner->session);
 	if (sky != NULL) {
 		st_console_test_number(app, "cterm.skypix_sample_size", (int64_t)sky->audio.count);
 		st_console_test_number(app, "cterm.skypix_sample_period", sky->audio.period);

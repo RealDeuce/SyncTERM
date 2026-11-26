@@ -1,5 +1,6 @@
 /* SkyPix uses its own raster policy and native Amiga bitmap metrics. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#include <inttypes.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +40,14 @@ cterm_skypix_poll(struct cterm_skypix *s, uint64_t now)
 {
 	cterm_skypix_audio_poll(s, now);
 	return 0; /* SkyTERM has no timer-driven cursor toggle. */
+}
+
+int
+cterm_skypix_service(struct cterm_skypix *s)
+{
+	uint64_t now;
+	int      status = st_time_monotonic_ms(&now);
+	return status != 0 ? status : cterm_skypix_poll(s, now);
 }
 
 void
@@ -256,6 +265,7 @@ select_depth(struct cterm_skypix *s, unsigned colours)
 			return status;
 	}
 	s->colours = colours;
+	s->terminal->device.pen_mask = colours - 1;
 	cterm_render_attribute_colours(s->terminal, s->terminal->attr, &s->terminal->fg_color,
 	    &s->terminal->bg_color);
 	return 0;
@@ -689,15 +699,14 @@ command(void *context, const unsigned *p, size_t count, const struct cterm_skypi
 	if (op == 99 && count == 1)
 		return 0;
 	if (op == 16 && count >= 4 && string_count == 1) {
-		if (t->skypix_transfer == NULL) {
+		if (s->transfer == NULL) {
 			static const uint8_t cancel[] = {0x18, 0x18};
 			if (t->api_output != NULL)
 				t->api_output(t->api_output_context, ST_CTERM_OUTPUT_RESPONSE, cancel,
 				    sizeof(cancel));
 			return 0;
 		}
-		status = t->skypix_transfer(t->skypix_transfer_context, p[1], p[2], p[3], strings[0].bytes,
-		    strings[0].size);
+		status = s->transfer(s->transfer_context, p[1], p[2], p[3], strings[0].bytes, strings[0].size);
 		if (status == IO_ERROR_IN_PROGRESS)
 			s->receiving = true;
 		else if (status != 0) {
@@ -840,7 +849,7 @@ sink(struct cterm_skypix *s)
 }
 
 int
-cterm_skypix_feed(struct cterm_skypix *s, const uint8_t *bytes, size_t size, size_t *used)
+cterm_skypix_feed(struct cterm_skypix *s, const void *bytes, size_t size, size_t *used)
 {
 	struct cterm_skypix_sink callbacks = sink(s);
 	return cterm_skypix_parser_feed(&s->parser, &callbacks, bytes, size, used);
@@ -895,8 +904,90 @@ cterm_skypix_reset(struct cterm_skypix *s)
 	return status;
 }
 
-int
-cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
+static int
+device_hide_cursor(void *context)
+{
+	return cterm_skypix_hide_cursor(context);
+}
+
+static void
+device_cursor_mode(void *context, bool hidden)
+{
+	cterm_skypix_cursor_mode(context, hidden);
+}
+
+static void
+device_home(void *context)
+{
+	cterm_skypix_home(context);
+}
+
+static int
+device_reset(void *context)
+{
+	return cterm_skypix_reset(context);
+}
+
+static int
+device_reset_style(void *context)
+{
+	return cterm_skypix_reset_style(context);
+}
+
+static bool
+device_erase_line(void *context, unsigned mode)
+{
+	return cterm_skypix_erase_line(context, mode);
+}
+
+static bool
+device_control(void *context, uint8_t byte)
+{
+	return cterm_skypix_control(context, byte);
+}
+
+static int
+device_present(void *context, const struct st_unicode_presentation_event *event, bool *handled)
+{
+	return cterm_skypix_present(context, event, handled);
+}
+
+static int
+device_present_cell(void *context)
+{
+	return cterm_skypix_present_cell(context);
+}
+
+static int
+mouse_mode(const void *context)
+{
+	(void)context;
+	return 2;
+}
+
+static bool
+mouse_event(void *context, const struct st_console_event *event, uint32_t changed)
+{
+	struct cterm_skypix *s = context;
+	if (event->data.mouse.action != ST_CONSOLE_MOUSE_BUTTON
+	    || (changed & event->data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0
+	    || event->data.mouse.pixel_x < 0 || event->data.mouse.pixel_y < 0
+	    || (uint32_t)event->data.mouse.pixel_x >= s->width || (uint32_t)event->data.mouse.pixel_y >= s->height)
+		return false;
+	char reply[64];
+	int  length = snprintf(reply, sizeof(reply), "\x1b[21;1;%" PRId32 ";%" PRId32 "!",
+	    event->data.mouse.pixel_x, event->data.mouse.pixel_y);
+	if (length <= 0 || (size_t)length >= sizeof(reply))
+		return false;
+	if (s->terminal->api_output != NULL)
+		s->terminal->api_output(s->terminal->api_output_context, ST_CTERM_OUTPUT_USER,
+		    (const uint8_t *)reply, (size_t)length);
+	return true;
+}
+
+static int
+cterm_skypix_create(struct cterm_skypix **result, struct cterminal *t, const struct st_cterm_config *config,
+    const struct st_skypix_config *sky)
 {
 	uint32_t width, height, cw, ch;
 	int      status = st_console_pixel_size(t->screen.console, &width, &height);
@@ -904,8 +995,8 @@ cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
 		status = st_console_cell_pixel_size(t->screen.console, &cw, &ch);
 	if (status != 0)
 		return status;
-	uint32_t canvas_width  = config->skypix_width == 0 ? (uint32_t)t->width * cw : config->skypix_width;
-	uint32_t canvas_height = config->skypix_height == 0 ? (uint32_t)t->height * ch : config->skypix_height;
+	uint32_t canvas_width  = sky->width == 0 ? (uint32_t)t->width * cw : sky->width;
+	uint32_t canvas_height = sky->height == 0 ? (uint32_t)t->height * ch : sky->height;
 	if (canvas_width == 0 || canvas_height == 0 || canvas_width > width || canvas_height > height
 	    || canvas_width > (uint32_t)t->width * cw || canvas_height > (uint32_t)t->height * ch
 	    || canvas_width > INT16_MAX || canvas_height > INT16_MAX
@@ -915,16 +1006,18 @@ cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
 	if (s == NULL)
 		return IO_ERROR_OUT_OF_MEMORY;
 	s->terminal       = t;
-	s->font_directory = config->amiga_font_directory;
+	s->font_directory   = sky->font_directory;
 	s->width          = canvas_width;
 	s->height         = canvas_height;
 	s->cell_width     = cw;
 	s->cell_height    = ch;
-	s->kick13         = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
-	s->default_data   = config->amiga_font == NULL
-	                        ? st_amiga_font_builtin(s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS,
-				      "pearl.font", 8)
-	                        : config->amiga_font;
+	s->transfer         = sky->transfer;
+	s->transfer_context = sky->transfer_context;
+	s->kick13           = sky->kick13;
+	s->default_data = sky->font == NULL
+	                      ? st_amiga_font_builtin(s->kick13 ? ST_AMIGA_FONT_SET_13 : ST_AMIGA_FONT_SET_2PLUS,
+				    "pearl.font", 8)
+	                      : sky->font;
 	if (s->default_data == NULL) {
 		free(s);
 		return IO_ERROR_OUT_OF_MEMORY;
@@ -946,19 +1039,65 @@ cterm_skypix_create(struct cterminal *t, const struct st_cterm_config *config)
 			t->altfont[i] = 0;
 		for (unsigned i = 0; i < 5; ++i)
 			t->screen.selectors[i] = 0;
-		t->skypix        = 1;
-		t->skypix_engine = s;
+		static const uint8_t ansi_pens[16] = {0, 1, 4, 5, 3, 7, 6, 2, 8, 9, 12, 13, 11, 15, 14, 10};
+		t->fixed_geometry                  = true;
+		t->graphics_mode = sky->kick13 ? ST_CTERM_GRAPHICS_SKYPIX_13 : ST_CTERM_GRAPHICS_SKYPIX_31;
+		t->device        = (struct cterm_device_events) {.context = s,
+		    .mouse                                         = mouse_event,
+		    .mouse_mode                                    = mouse_mode,
+		    .sgr_palette                                   = ansi_pens,
+		    .pixel_history                                 = true,
+		    .fixed_status_rows                             = true,
+		    .hide_cursor                                   = device_hide_cursor,
+		    .cursor_mode                                   = device_cursor_mode,
+		    .home                                          = device_home,
+		    .reset                                         = device_reset,
+		    .reset_style                                   = device_reset_style,
+		    .erase_line                                    = device_erase_line,
+		    .control                                       = device_control,
+		    .present                                       = device_present,
+		    .present_cell                                  = device_present_cell};
 		status           = cterm_skypix_reset(s);
 		if (status == 0) {
 			cterm_start(t);
 			status = cterm_render_take_error(t);
 		}
 	}
-	if (status != 0) {
-		t->skypix_engine = NULL;
+	if (status != 0)
 		cterm_skypix_destroy(s);
-	}
+	else
+		*result = s;
 	return status;
+}
+
+int
+cterm_skypix_open(struct cterm_skypix **result, struct cterminal **text, const struct st_cterm_config *config,
+    const struct st_skypix_config *sky)
+{
+	if (result == NULL || text == NULL || config == NULL || sky == NULL
+	    || config->emulation != ST_CTERM_ANSI_BBS)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_cterm_config tty = *config;
+	uint16_t               palette[16];
+	for (size_t i = 0; i < 16; ++i)
+		palette[i] = CTERM_SKYPIX_PALETTE_FIRST + i;
+	tty.graphics_mode   = ST_CTERM_GRAPHICS_OFF;
+	tty.palette_mapping = palette;
+	tty.disabled_capabilities |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
+	int status = st_cterm_create(text, &tty);
+	if (status != 0)
+		return status;
+	status = cterm_skypix_create(result, *text, config, sky);
+	if (status != 0)
+		st_cterm_destroy(text);
+	return status;
+}
+
+int
+cterm_skypix_finish_display(struct cterm_skypix *s)
+{
+	int status = cterm_skypix_finish(s);
+	return status != 0 ? status : st_cterm_finish(s->terminal);
 }
 
 void
@@ -966,6 +1105,12 @@ cterm_skypix_destroy(struct cterm_skypix *s)
 {
 	if (s == NULL)
 		return;
+	if (s->terminal->device.context == s) {
+		(void)cterm_skypix_finish_display(s);
+		s->terminal->device         = (struct cterm_device_events) {0};
+		s->terminal->fixed_geometry = false;
+		s->terminal->graphics_mode  = ST_CTERM_GRAPHICS_OFF;
+	}
 	cterm_skypix_audio_reset(s);
 	(void)cterm_skypix_hide_cursor(s);
 	if (s->font != s->default_data)

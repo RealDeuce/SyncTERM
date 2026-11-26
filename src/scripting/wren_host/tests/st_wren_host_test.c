@@ -9535,33 +9535,40 @@ exercise_skypix_menu_audio(struct st_wren_host *host)
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	CHECK(st_audio_runtime_create_pull(&runtime) == 0);
-	const struct st_cterm_config config = {.console = console,
-	    .fonts                                      = fonts,
-	    .audio                                      = runtime,
-	    .emulation                                  = ST_CTERM_ANSI_BBS,
-	    .encoding                                   = ST_CTERM_ENCODING_UTF8,
-	    .codepage                                   = ST_CODEPAGE_CP437,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_SKYPIX_31,
-	    .quiet                                      = true};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	const struct st_connection_transport_ops operations = {0};
+	struct st_connection                     connection = {.operations = &operations};
+	atomic_init(&connection.connected, true);
+	st_term_session_t          *session = NULL;
+	const struct st_term_config config  = {.console = console,
+	    .fonts                                     = fonts,
+	    .audio                                     = runtime,
+	    .connection                                = &connection,
+	    .screen_mode                               = ST_SCREEN_MODE_CURRENT,
+	    .encoding                                  = ST_CTERM_ENCODING_UTF8,
+	    .codepage                                  = ST_CODEPAGE_CP437,
+	    .graphics_mode                             = ST_CTERM_GRAPHICS_SKYPIX_31,
+	    .hide_status                               = true};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	terminal        = st_term_session_cterm(session);
 	uint8_t *sample = calloc(20006, 1);
 	CHECK(sample != NULL);
 	sample[2] = 0x4e;
 	sample[3] = 0x20;
 	sample[4] = 0x1f;
 	sample[5] = 0x40;
-	CHECK(st_cterm_skypix_load_sample(terminal, sample, 20006) == 0);
+	CHECK(st_term_session_skypix_load_sample(session, sample, 20006) == 0);
 	free(sample);
 	struct st_profile profile;
 	st_profile_init(&profile);
 	const struct st_wren_connected_config wren_config = {.host = host,
 	    .console                                               = console,
 	    .cterm                                                 = terminal,
+	    .session                                               = session,
 	    .profile                                               = &profile};
 	CHECK(st_wren_connected_create(&connected, &wren_config) == 0);
 	st_profile_dispose(&profile);
 	size_t used;
-	CHECK(st_cterm_write(terminal, "\x1b[9;0;0;0;1!", 12, &used) == 0 && used == 12);
+	CHECK(cterm_skypix_feed(st_term_session_skypix(session), "\x1b[9;0;0;0;1!", 12, &used) == 0 && used == 12);
 	int16_t frames[4096 * 2];
 	CHECK(st_audio_runtime_pull(runtime, frames, 4096) == 0);
 	CHECK(audio_stream_buffered_frames(terminal->fx_stream) == 0);
@@ -9573,7 +9580,7 @@ exercise_skypix_menu_audio(struct st_wren_host *host)
 	      == 0);
 	CHECK(audio_stream_buffered_frames(terminal->fx_stream) > 0);
 	CHECK(audio_stream_buffered_frames(terminal->fx_stream) <= 8192);
-	CHECK(st_cterm_input_paused(terminal));
+	CHECK(st_term_session_device_paused(session));
 	CHECK(st_audio_runtime_pull(runtime, frames, 4096) == 0);
 	CHECK(st_audio_runtime_pull(runtime, frames, 4096) == 0);
 	CHECK(audio_stream_buffered_frames(terminal->fx_stream) == 0);
@@ -9590,11 +9597,11 @@ exercise_skypix_menu_audio(struct st_wren_host *host)
 		  "import \"syncterm\" for Input\n"
 		  "if (Input.next(0) != null) Fiber.abort(\"unexpected EOF input\")\n")
 	      == WREN_RESULT_SUCCESS);
-	CHECK(!st_cterm_input_paused(terminal) && audio_stream_buffered_frames(terminal->fx_stream) == 0);
+	CHECK(!st_term_session_device_paused(session) && audio_stream_buffered_frames(terminal->fx_stream) == 0);
 	host->poll_contexts->connection = NULL;
 	st_wren_connected_destroy(connected);
 	CHECK(host->poll_contexts == NULL);
-	st_cterm_destroy(&terminal);
+	st_term_session_destroy(&session);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	st_audio_runtime_destroy(runtime);

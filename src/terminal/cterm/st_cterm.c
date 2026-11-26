@@ -26,7 +26,6 @@
 #include "cterm_rip_file_query.h"
 #include "cterm_rip_fonts.h"
 #include "cterm_rip_time.h"
-#include "cterm_skypix.h"
 #include "cterm_vt52.h"
 #include "filesystem.h"
 #include "ini.h"
@@ -1822,7 +1821,7 @@ status_display_changed(struct cterminal *terminal, int old_type, int new_type, v
 	int                       saved_y;
 	(void)context;
 
-	if (terminal->skypix_engine != NULL && (old_type >= 1) != (new_type >= 1)) {
+	if (terminal->device.fixed_status_rows && (old_type >= 1) != (new_type >= 1)) {
 		terminal->status_display_type = old_type;
 		return;
 	}
@@ -2099,15 +2098,7 @@ initialize_render_state(struct cterm_render_state *screen, const struct st_cterm
 		for (unsigned i = 0; i < 16; ++i)
 			screen->mode_palette[i] = mapping[i];
 	}
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31) {
-		for (unsigned i = 0; i < 16; ++i)
-			screen->mode_palette[i] = (uint16_t)(CTERM_SKYPIX_PALETTE_FIRST + i);
-	}
 	screen->capabilities = capabilities & ~config->disabled_capabilities;
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
-		screen->capabilities &= ~ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	screen->wscroll      = 1;
 	return 0;
 }
@@ -2199,8 +2190,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		terminal->rip3_autosense         = config->rip3_autosense;
 		terminal->rip3_autosense_context = config->rip3_autosense_context;
 	}
-	terminal->skypix_transfer         = config->skypix_transfer;
-	terminal->skypix_transfer_context = config->skypix_transfer_context;
+
 	terminal->quiet                   = config->quiet;
 	terminal->atari_st_key_clicks     = true;
 	terminal->lf_expand               = config->expand_lf;
@@ -2333,14 +2323,6 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			return status;
 		}
 	}
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31) {
-		status = cterm_skypix_create(terminal, config);
-		if (status != 0) {
-			st_cterm_destroy(&terminal);
-			return status;
-		}
-	}
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221) {
 		status = cterm_igs_create(terminal, config->transport_owns_flow_control);
 		if (status != 0) {
@@ -2365,8 +2347,6 @@ st_cterm_destroy(st_cterm_t **terminal)
 	cterm_igs_destroy((*terminal)->igs_engine);
 	(*terminal)->igs_engine = NULL;
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
-	cterm_skypix_destroy((*terminal)->skypix_engine);
-	(*terminal)->skypix_engine = NULL;
 	if ((*terminal)->rip_engine != NULL) {
 		cterm_rip_engine_destroy((*terminal)->rip_engine);
 		free((*terminal)->rip_engine);
@@ -2777,8 +2757,8 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size, si
 			}
 			bool protocol = target->accumulator != NULL;
 			++target->input_depth;
-			bool used = target->skypix_engine != NULL && target->accumulator == NULL
-			            && cterm_skypix_control(target->skypix_engine, byte);
+			bool used = target->device.control != NULL && target->accumulator == NULL
+			            && target->device.control(target->device.context, byte);
 			if (!used)
 				used = cterm_parse_byte(target, byte, &speed);
 			if (used) {
@@ -2872,8 +2852,6 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size, size_t *con
 		*consumed = size;
 		return 0;
 	}
-	if (terminal->skypix_engine != NULL)
-		return cterm_skypix_feed(terminal->skypix_engine, bytes, size, consumed);
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_feed(terminal->igs_engine, bytes, size, consumed);
 	if (terminal->rip_engine != NULL)
@@ -2884,25 +2862,7 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size, size_t *con
 bool
 st_cterm_input_paused(st_cterm_t *terminal)
 {
-	return terminal != NULL
-	       && (cterm_igs_paused(terminal->igs_engine)
-	           || (terminal->skypix_engine != NULL && cterm_skypix_paused(terminal->skypix_engine)));
-}
-
-int
-st_cterm_skypix_receive(st_cterm_t *terminal, const void *bytes, size_t size)
-{
-	return terminal == NULL || terminal->skypix_engine == NULL
-		   ? IO_ERROR_NOT_SUPPORTED
-		   : cterm_skypix_receive(terminal->skypix_engine, bytes, size);
-}
-
-int
-st_cterm_skypix_load_sample(st_cterm_t *terminal, const void *bytes, size_t size)
-{
-	return terminal == NULL || terminal->skypix_engine == NULL
-		   ? IO_ERROR_NOT_SUPPORTED
-		   : cterm_skypix_audio_load(terminal->skypix_engine, bytes, size);
+	return terminal != NULL && cterm_igs_paused(terminal->igs_engine);
 }
 
 bool
@@ -2933,13 +2893,6 @@ st_cterm_poll(st_cterm_t *terminal)
 	cterm_apc_poll(terminal);
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_poll(terminal->igs_engine);
-	if (terminal->skypix_engine != NULL) {
-		uint64_t now;
-		int      status = st_time_monotonic_ms(&now);
-		if (status != 0)
-			return status;
-		return cterm_skypix_poll(terminal->skypix_engine, now);
-	}
 	return 0;
 }
 
@@ -2984,7 +2937,6 @@ st_cterm_finish(st_cterm_t *terminal)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_musicomm_cancel(terminal);
 	status = terminal->igs_engine != NULL      ? cterm_igs_finish(terminal->igs_engine)
-	         : terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
 	         : terminal->rip_engine == NULL    ? 0
 	                                           : cterm_rip_engine_flush(terminal->rip_engine);
 	if (status == 0)
@@ -3003,8 +2955,8 @@ int
 st_cterm_prepare_disconnect(st_cterm_t *terminal)
 {
 	int status = st_cterm_finish(terminal);
-	if (status == 0 && terminal->skypix_engine != NULL) {
-		cterm_skypix_cursor_mode(terminal->skypix_engine, true);
+	if (status == 0 && terminal->device.cursor_mode != NULL) {
+		terminal->device.cursor_mode(terminal->device.context, true);
 		status = cterm_render_take_error(terminal);
 	}
 	if (status != 0 || terminal->status_display_type != 0)
@@ -3474,7 +3426,7 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
-	if ((terminal->skypix_engine != NULL || terminal->igs_engine != NULL || terminal->fixed_geometry)
+	if ((terminal->igs_engine != NULL || terminal->fixed_geometry)
 	    && (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height))
 		return IO_ERROR_NOT_SUPPORTED;
 	/* Geometry commits the old placement, but is not end-of-input for
@@ -3588,7 +3540,8 @@ st_cterm_state(const st_cterm_t *terminal, struct st_cterm_state *state)
 	    .scrollback_start     = terminal->backstart,
 	    .emulation            = (enum st_cterm_emulation)terminal->emulation,
 	    .started              = terminal->started != 0,
-	    .skypix               = terminal->skypix != 0,
+	    .skypix               = terminal->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	                            || terminal->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31,
 	    .graphics_mode        = terminal->graphics_mode,
 	    .ext_attr =
 		{
@@ -3858,8 +3811,6 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 		if (mode != 0)
 			return mode;
 	}
-	if (terminal->skypix_engine != NULL)
-		return 2;
 	if (terminal->rip_engine != NULL
 	    && (terminal->rip_engine->mouse_fields != NULL || terminal->rip_engine->text_click != NULL
 	        || terminal->rip_engine->graphics_click != NULL))
@@ -3879,7 +3830,7 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 bool
 st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal)
 {
-	return terminal != NULL && terminal->skypix_engine == NULL && terminal->igs_engine == NULL
+	return terminal != NULL && terminal->igs_engine == NULL
 	       && (terminal->device.mouse_mode == NULL
 	           || terminal->device.mouse_mode(terminal->device.context) == 0)
 	       && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
@@ -4916,27 +4867,9 @@ st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event
 	if (terminal->device.mouse != NULL) {
 		bool owned   = terminal->device.mouse_mode != NULL
 		               && terminal->device.mouse_mode(terminal->device.context) != 0;
-		bool handled = terminal->device.mouse(terminal->device.context, event);
+		bool handled = terminal->device.mouse(terminal->device.context, event, changed);
 		if (owned)
 			return handled;
-	}
-	if (terminal->skypix_engine != NULL) {
-		const struct cterm_skypix *sky = terminal->skypix_engine;
-		/* JR-Comm reports SELECTDOWN in raw canvas pixels, independent
-		 * of host tracking modes or gadget definitions. Never approximate
-		 * an unavailable pixel position with a font-dependent cell. */
-		if (event->data.mouse.action != ST_CONSOLE_MOUSE_BUTTON
-		    || (changed & event->data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0
-		    || event->data.mouse.pixel_x < 0 || event->data.mouse.pixel_y < 0
-		    || (uint32_t)event->data.mouse.pixel_x >= sky->width
-		    || (uint32_t)event->data.mouse.pixel_y >= sky->height)
-			return false;
-		length = snprintf(sequence, sizeof(sequence), "\x1b[21;1;%" PRId32 ";%" PRId32 "!",
-		    event->data.mouse.pixel_x, event->data.mouse.pixel_y);
-		if (length <= 0 || (size_t)length >= sizeof(sequence))
-			return false;
-		emit_user(sequence, (size_t)length, terminal);
-		return true;
 	}
 	if (rip_handle_mouse(terminal, event, changed))
 		return true;

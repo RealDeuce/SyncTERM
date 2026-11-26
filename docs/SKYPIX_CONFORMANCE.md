@@ -101,7 +101,7 @@ rectangle policy; the selected font still controls line advance and anchor
 limits. The local status reservation and normal CR/LF policy remain as
 described above and in the reconciliation table.
 
-`src/terminal/cterm/tests/data/skypix/golden-vectors.json` preserves the supplied
+`src/terminal/skypix/tests/data/skypix/golden-vectors.json` preserves the supplied
 independent line, ellipse and Diamond 20 text results (JSON SHA-256
 `a7ba8d85c74ac60000cd104399413e88a2360fd5368224d7f63e998cd8fd638d`). Ordered point hashes use
 signed big-endian 16-bit x/y pairs. No expectations are generated from SyncTERM.

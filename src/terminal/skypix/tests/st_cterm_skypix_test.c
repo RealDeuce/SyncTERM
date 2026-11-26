@@ -249,38 +249,40 @@ parser_tests(void)
 }
 
 static void
-feed(st_cterm_t *t, const char *text)
+feed(struct cterm_skypix *sky, const char *text)
 {
 	size_t used;
-	CHECK(st_cterm_write(t, text, strlen(text), &used) == 0 && used == strlen(text));
+	CHECK(cterm_skypix_feed(sky, text, strlen(text), &used) == 0 && used == strlen(text));
 }
 
 /* Raster/position fixtures exclude cursor pixels explicitly. Cursor behaviour
  * is independently checked by st_cterm_skypix_cursor_test. */
 static int
-reset_without_cursor(st_cterm_t *t)
+reset_without_cursor(struct cterm_skypix *sky)
 {
+	st_cterm_t *t      = sky->terminal;
 	int status = st_cterm_reset_terminal(t);
 	if (status == 0)
-		feed(t, "\x1b[?25l");
+		feed(sky, "\x1b[?25l");
 	return status;
 }
 
 static void
-depth_tests(st_cterm_t *t)
+depth_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t *t = sky->terminal;
 	/* ANSI.TXT / SkyTERM RGB4 defaults, independent of the renderer. */
 	static const uint32_t expected[16] = {0x000000, 0x1111ff, 0xdddddd, 0xff0000, 0x00ff11, 0x33aaff, 0xffff22,
 	    0xcc00ee, 0x00bb66, 0x00dddd, 0x00aaff, 0x0077cc, 0x0000ff, 0x7700ff, 0xcc00ee, 0xcc0088};
 	const char            mode[]       = "\x1b[17;2!";
 	for (size_t split = 0; split <= strlen(mode); ++split) {
-		CHECK(reset_without_cursor(t) == 0);
-		CHECK(t->skypix_engine->colours == 16);
-		feed(t, "\x1b[17;1!");
+		CHECK(reset_without_cursor(sky) == 0);
+		CHECK(sky->colours == 16);
+		feed(sky, "\x1b[17;1!");
 		size_t used;
-		CHECK(st_cterm_write(t, mode, split, &used) == 0 && used == split);
-		CHECK(st_cterm_write(t, mode + split, strlen(mode) - split, &used) == 0);
-		CHECK(t->skypix_engine->colours == 16 && t->attr == 2);
+		CHECK(cterm_skypix_feed(sky, mode, split, &used) == 0 && used == split);
+		CHECK(cterm_skypix_feed(sky, mode + split, strlen(mode) - split, &used) == 0);
+		CHECK(sky->colours == 16 && t->attr == 2);
 	}
 	uint32_t colours[16];
 	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
@@ -288,7 +290,7 @@ depth_tests(st_cterm_t *t)
 	for (unsigned pen = 0; pen < 16; ++pen) {
 		char wire[64];
 		snprintf(wire, sizeof(wire), "\x1b[15;%u!\x1b[1;%u;20!", pen, pen);
-		feed(t, wire);
+		feed(sky, wire);
 	}
 	struct st_pixel_buffer      *pixels = NULL;
 	const struct st_console_rect row    = {0, 20, 16, 1};
@@ -298,7 +300,7 @@ depth_tests(st_cterm_t *t)
 		CHECK(pixels->alternate[pen] == 512 + pen);
 	}
 	st_pixel_buffer_destroy(pixels);
-	feed(t, "\x1b[H\x1b[15;15!\x1b[18;14!A");
+	feed(sky, "\x1b[H\x1b[15;15!\x1b[18;14!A");
 	struct st_pixel_buffer *phases = NULL;
 	CHECK(st_pixel_buffer_create(&phases, 1, 1, true) == 0);
 	phases->primary[0]   = 527;
@@ -309,21 +311,21 @@ depth_tests(st_cterm_t *t)
 	st_pixel_buffer_destroy(phases);
 	uint32_t plane_width, plane_height;
 	CHECK(st_console_pixel_size(t->screen.console, &plane_width, &plane_height) == 0);
-	bool status_line = t->skypix_engine->height < plane_height;
+	bool status_line = sky->height < plane_height;
 	if (status_line)
-		CHECK(st_console_set_pixel(t->screen.console, 1, (int)t->skypix_engine->height,
-			  ST_PIXEL_COLOR_RGB_TAG | 0x123456)
-		      == 0);
+		CHECK(
+		    st_console_set_pixel(t->screen.console, 1, (int)sky->height, ST_PIXEL_COLOR_RGB_TAG | 0x123456)
+		    == 0);
 	/* Palette reset/SGR/default-font reset retain the selected depth. */
-	feed(t, "\x1b[12!\x1b[0m\x1b[10;0!\x1b[19;100;40!\x1b[15;13!\x1b[18;9!");
-	CHECK(t->skypix_engine->colours == 16);
-	int     x = t->skypix_engine->x, y = t->skypix_engine->y;
+	feed(sky, "\x1b[12!\x1b[0m\x1b[10;0!\x1b[19;100;40!\x1b[15;13!\x1b[18;9!");
+	CHECK(sky->colours == 16);
+	int     x = sky->x, y = sky->y;
 	uint8_t attr = t->attr;
-	feed(t, "\x1b[99!\x1b[99;0!\x1b[99;1!\x1b[17;0!\x1b[17;3!");
-	CHECK(t->skypix_engine->colours == 16 && t->attr == attr);
-	CHECK(t->skypix_engine->x == x && t->skypix_engine->y == y);
-	feed(t, "\x1b[17;1!");
-	CHECK(t->skypix_engine->colours == 8 && t->attr == 2);
+	feed(sky, "\x1b[99!\x1b[99;0!\x1b[99;1!\x1b[17;0!\x1b[17;3!");
+	CHECK(sky->colours == 16 && t->attr == attr);
+	CHECK(sky->x == x && sky->y == y);
+	feed(sky, "\x1b[17;1!");
+	CHECK(sky->colours == 8 && t->attr == 2);
 	struct st_console_cell       cell;
 	const struct st_console_rect first_cell = {0, 0, 1, 1}, phase_pixel = {200, 30, 1, 1};
 	CHECK(st_console_read_cells(t->screen.console, &first_cell, &cell, 1) == 0);
@@ -332,7 +334,7 @@ depth_tests(st_cterm_t *t)
 	CHECK(pixels->primary[0] == 519 && pixels->alternate[0] == 518);
 	st_pixel_buffer_destroy(pixels);
 	if (status_line) {
-		const struct st_console_rect status_pixel = {1, t->skypix_engine->height, 1, 1};
+		const struct st_console_rect status_pixel = {1, sky->height, 1, 1};
 		CHECK(st_console_get_pixels(&pixels, t->screen.console, &status_pixel, false) == 0);
 		CHECK(pixels->primary[0] == (ST_PIXEL_COLOR_RGB_TAG | 0x123456));
 		st_pixel_buffer_destroy(pixels);
@@ -342,28 +344,29 @@ depth_tests(st_cterm_t *t)
 	for (unsigned pen = 0; pen < 16; ++pen)
 		CHECK(pixels->primary[pen] == 512 + (pen & 7));
 	st_pixel_buffer_destroy(pixels);
-	feed(t, "\x1b[17;2!");
+	feed(sky, "\x1b[17;2!");
 	CHECK(st_console_get_pixels(&pixels, t->screen.console, &row, false) == 0);
 	for (unsigned pen = 0; pen < 16; ++pen)
 		CHECK(pixels->primary[pen] == 512 + (pen & 7));
 	st_pixel_buffer_destroy(pixels);
-	feed(t, "\x1b[17;1!\x1b[11;0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15!");
+	feed(sky, "\x1b[17;1!\x1b[11;0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15!");
 	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
 	for (unsigned pen = 0; pen < 16; ++pen)
 		CHECK(colours[pen] == pen * 17);
-	feed(t, "\x1b[17;2!\x1b[15;15!\x1b[1;40;20!");
-	CHECK(reset_without_cursor(t) == 0 && t->skypix_engine->colours == 16);
+	feed(sky, "\x1b[17;2!\x1b[15;15!\x1b[1;40;20!");
+	CHECK(reset_without_cursor(sky) == 0 && sky->colours == 16);
 	const struct st_console_rect reset_pixel = {40, 20, 1, 1};
 	CHECK(st_console_get_pixels(&pixels, t->screen.console, &reset_pixel, false) == 0);
 	CHECK(pixels->primary[0] == 527 && pixels->alternate[0] == 527);
 	st_pixel_buffer_destroy(pixels);
-	feed(t, "\x1b[17;1!");
-	CHECK(reset_without_cursor(t) == 0 && t->skypix_engine->colours == 16);
+	feed(sky, "\x1b[17;1!");
+	CHECK(reset_without_cursor(sky) == 0 && sky->colours == 16);
 }
 
 static void
-wrapping_tests(st_cterm_t *t)
+wrapping_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t    *t       = sky->terminal;
 	const bool     kick13  = t->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13;
 	const unsigned descent = kick13 ? 5u : 6u;
 	/* Native Diamond/20 advances with the selected measured-wrap policy.
@@ -375,82 +378,82 @@ wrapping_tests(st_cterm_t *t)
 		/* RoF welcome lines from the user's 2026-11-08 capture. Native
 		 * Times/15 declares XSize=7; its 14-pixel bounding box is not the
 		 * nominal advance used by JR-Comm's receive forecast. */
-		feed(t,
+		feed(sky,
 		    "\f\x1b[10;15!Times.font!\x1b[19;85;95!"
 		    "JoinLink - Messages - Games - Warez - ROF FTN - irc.rofbbs.com");
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 488 && t->skypix_engine->y == 95);
-		feed(t, "\x1b[19;75;127!CommodoreNet 64:500/1  *  DiscipleNet 12:316/1  *  FidoNet 1:154/50");
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 481 && t->skypix_engine->y == 127);
-		feed(t, "\x1b[10;20!Diamond.font!\x1b[?7h");
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == 488 && sky->y == 95);
+		feed(sky, "\x1b[19;75;127!CommodoreNet 64:500/1  *  DiscipleNet 12:316/1  *  FidoNet 1:154/50");
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == 481 && sky->y == 127);
+		feed(sky, "\x1b[10;20!Diamond.font!\x1b[?7h");
 		char run[41];
 		memset(run, 'i', 33);
 		run[33] = 0;
 		for (size_t split = 0; split <= 33; ++split) {
-			feed(t, "\f");
+			feed(sky, "\f");
 			size_t used;
-			CHECK(st_cterm_write(t, run, split, &used) == 0 && used == split);
-			CHECK(st_cterm_write(t, run + split, 33 - split, &used) == 0 && used == 33 - split);
-			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 132 && t->skypix_engine->y == (kick13 ? -5 : -6));
+			CHECK(cterm_skypix_feed(sky, run, split, &used) == 0 && used == split);
+			CHECK(cterm_skypix_feed(sky, run + split, 33 - split, &used) == 0 && used == 33 - split);
+			CHECK(cterm_skypix_finish_display(sky) == 0);
+			CHECK(sky->x == 132 && sky->y == (kick13 ? -5 : -6));
 		}
 		memset(run, 'W', 40);
 		run[32] = 0;
-		feed(t, "\f\x1b[19;100;40!");
-		feed(t, run);
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 100 && t->skypix_engine->y == 60);
+		feed(sky, "\f\x1b[19;100;40!");
+		feed(sky, run);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == 100 && sky->y == 60);
 		run[32] = 'W';
 		run[40] = 0;
-		feed(t, "\f\x1b[19;0;40!");
-		feed(t, run);
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 60);
-		feed(t, "\f\x1b[19;0;40!");
+		feed(sky, "\f\x1b[19;0;40!");
+		feed(sky, run);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == 160 && sky->y == 60);
+		feed(sky, "\f\x1b[19;0;40!");
 		for (unsigned i = 0; i < 40; ++i) {
-			feed(t, "W");
-			CHECK(st_cterm_finish(t) == 0);
+			feed(sky, "W");
+			CHECK(cterm_skypix_finish_display(sky) == 0);
 		}
-		CHECK(t->skypix_engine->x == 160 && t->skypix_engine->y == 60);
-		feed(t, "\f\x1b[19;0;40!\x1b[?7l");
+		CHECK(sky->x == 160 && sky->y == 60);
+		feed(sky, "\f\x1b[19;0;40!\x1b[?7l");
 		run[33] = 0;
-		feed(t, run);
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == (kick13 ? 640 : 644) && t->skypix_engine->y == 40);
-		feed(t, "\x1b[?7h\f\x1b[19;32760;40!");
-		feed(t, run);
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 20 && t->skypix_engine->y == 80);
+		feed(sky, run);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == (kick13 ? 640 : 644) && sky->y == 40);
+		feed(sky, "\x1b[?7h\f\x1b[19;32760;40!");
+		feed(sky, run);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == 20 && sky->y == 80);
 		/* Controls preserve independent CR and LF positioning. */
-		feed(t, "\f");
+		feed(sky, "\f");
 		memset(run, 'i', 32);
 		run[32] = 0;
-		feed(t, run);
-		feed(t, "\ri\nW");
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->x == 24 && t->skypix_engine->y == (kick13 ? 15 : 14));
+		feed(sky, run);
+		feed(sky, "\ri\nW");
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->x == 24 && sky->y == (kick13 ? 15 : 14));
 		if (utf8) {
 			/* Native i advances four pixels; composed acute-i advances
 			 * eight. Revising the last glyph replaces its prior advance. */
-			feed(t, "\f");
-			feed(t, run);
-			feed(t, "\xcc\x81i");
-			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 136 && t->skypix_engine->y == (kick13 ? -5 : -6));
-			feed(t, "\f\x1b[19;636;40!i\xcc\x81i");
-			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 4 && t->skypix_engine->y == 60);
+			feed(sky, "\f");
+			feed(sky, run);
+			feed(sky, "\xcc\x81i");
+			CHECK(cterm_skypix_finish_display(sky) == 0);
+			CHECK(sky->x == 136 && sky->y == (kick13 ? -5 : -6));
+			feed(sky, "\f\x1b[19;636;40!i\xcc\x81i");
+			CHECK(cterm_skypix_finish_display(sky) == 0);
+			CHECK(sky->x == 4 && sky->y == 60);
 		}
 		/* H16:11a0 and H17:1c08/1ce0 erase a native-font strike at
 		 * baseline-ascent through baseline+descent, preserving position. */
 		for (unsigned mode = 0; mode <= 3; ++mode) {
-			feed(t, "\f\x1b[15;3!\x1b[18;0!\x1b[4;0;40;639;70!\x1b[19;100;40!");
+			feed(sky, "\f\x1b[15;3!\x1b[18;0!\x1b[4;0;40;639;70!\x1b[19;100;40!");
 			char erase[16];
 			snprintf(erase, sizeof(erase), "\x1b[%uK", mode);
-			feed(t, erase);
-			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 100 && t->skypix_engine->y == 40);
+			feed(sky, erase);
+			CHECK(cterm_skypix_finish_display(sky) == 0);
+			CHECK(sky->x == 100 && sky->y == 40);
 			struct st_pixel_buffer      *pixels = NULL;
 			const struct st_console_rect rect   = {0, 40, 640, 31};
 			CHECK(st_console_get_pixels(&pixels, t->screen.console, &rect, false) == 0);
@@ -469,7 +472,7 @@ wrapping_tests(st_cterm_t *t)
 			st_pixel_buffer_destroy(pixels);
 		}
 	}
-	CHECK(reset_without_cursor(t) == 0);
+	CHECK(reset_without_cursor(sky) == 0);
 }
 
 static void
@@ -505,36 +508,36 @@ test_ilbm(uint8_t *data, unsigned width, unsigned depth, unsigned compression, c
 }
 
 static void
-brush_tests(st_cterm_t *t)
+brush_tests(struct cterm_skypix *sky)
 {
-	feed(t, "\x1b[17;1!"); /* Exercise promotion from explicitly selected eight colours. */
+	st_cterm_t *t = sky->terminal;
+	feed(sky, "\x1b[17;1!"); /* Exercise promotion from explicitly selected eight colours. */
 	uint8_t data[256], literal[129];
 	literal[0] = 127;
 	memset(literal + 1, 0xff, 128);
 	size_t size = test_ilbm(data, 1024, 1, 1, literal, sizeof(literal));
-	CHECK(st_cterm_skypix_receive(t, data, size) == 0);
+	CHECK(cterm_skypix_receive(sky, data, size) == 0);
 	for (unsigned x = 0; x < 1024; ++x)
-		CHECK(t->skypix_engine->brush->primary[x] == 1);
+		CHECK(sky->brush->primary[x] == 1);
 	const uint8_t repeat[] = {128, 129, 0xff}; /* no-op, repeat 128 */
 	size                   = test_ilbm(data, 1024, 1, 1, repeat, sizeof(repeat));
-	CHECK(st_cterm_skypix_receive(t, data, size) == 0);
+	CHECK(cterm_skypix_receive(sky, data, size) == 0);
 	for (unsigned x = 0; x < 1024; ++x)
-		CHECK(t->skypix_engine->brush->primary[x] == 1);
+		CHECK(sky->brush->primary[x] == 1);
 	const uint8_t planar[] = {0x80, 0, 0x80, 0, 0x80, 0, 0x80, 0};
 	size                   = test_ilbm(data, 2, 4, 0, planar, sizeof(planar));
 	uint32_t preserved     = 0x123456, colours[16];
 	CHECK(st_console_set_palette(t->screen.console, 516, &preserved, 1) == 0);
-	CHECK(st_cterm_skypix_receive(t, data, size) == 0);
-	CHECK(t->skypix_engine->colours == 8 && t->skypix_engine->brush_depth == 4);
-	CHECK(t->skypix_engine->brush_palette_pending);
-	CHECK(t->skypix_engine->brush_palette_size == 2);
-	CHECK(t->skypix_engine->brush_palette[0] == 0x113355 && t->skypix_engine->brush_palette[1] == 0xaaccee);
-	struct st_pixel_buffer *pending = t->skypix_engine->brush;
-	CHECK(st_cterm_skypix_receive(t, "invalid", 7) == IO_ERROR_INVALID_FORMAT);
-	CHECK(t->skypix_engine->brush == pending && t->skypix_engine->brush_palette_pending
-	      && t->skypix_engine->brush_palette_size == 2);
-	feed(t, "\x1b[7;0;0;100;100;2;1;192;255!");
-	CHECK(t->skypix_engine->colours == 16 && !t->skypix_engine->brush_palette_pending);
+	CHECK(cterm_skypix_receive(sky, data, size) == 0);
+	CHECK(sky->colours == 8 && sky->brush_depth == 4);
+	CHECK(sky->brush_palette_pending);
+	CHECK(sky->brush_palette_size == 2);
+	CHECK(sky->brush_palette[0] == 0x113355 && sky->brush_palette[1] == 0xaaccee);
+	struct st_pixel_buffer *pending = sky->brush;
+	CHECK(cterm_skypix_receive(sky, "invalid", 7) == IO_ERROR_INVALID_FORMAT);
+	CHECK(sky->brush == pending && sky->brush_palette_pending && sky->brush_palette_size == 2);
+	feed(sky, "\x1b[7;0;0;100;100;2;1;192;255!");
+	CHECK(sky->colours == 16 && !sky->brush_palette_pending);
 	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0);
 	CHECK(colours[0] == 0x113355 && colours[1] == 0xaaccee && colours[4] == preserved);
 	struct st_pixel_buffer      *pixels = NULL;
@@ -544,41 +547,40 @@ brush_tests(st_cterm_t *t)
 	st_pixel_buffer_destroy(pixels);
 	preserved = 0x224466;
 	CHECK(st_console_set_palette(t->screen.console, 512, &preserved, 1) == 0);
-	feed(t, "\x1b[7;0;0;102;100;2;1;192;255!");
+	feed(sky, "\x1b[7;0;0;102;100;2;1;192;255!");
 	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0 && colours[0] == preserved);
 	/* A captured four-plane brush owns the palette it was captured with. */
-	feed(t, "\x1b[6;100;99;2;1!");
-	CHECK(t->skypix_engine->brush_depth == 4 && t->skypix_engine->brush_palette_pending);
-	CHECK(t->skypix_engine->brush_palette[0] == preserved);
-	feed(t, "\x1b[17;1!\x1b[7;0;0;104;100;2;1;192;255!");
-	CHECK(t->skypix_engine->colours == 16 && !t->skypix_engine->brush_palette_pending);
+	feed(sky, "\x1b[6;100;99;2;1!");
+	CHECK(sky->brush_depth == 4 && sky->brush_palette_pending);
+	CHECK(sky->brush_palette[0] == preserved);
+	feed(sky, "\x1b[17;1!\x1b[7;0;0;104;100;2;1;192;255!");
+	CHECK(sky->colours == 16 && !sky->brush_palette_pending);
 	CHECK(st_console_get_palette(t->screen.console, 512, colours, 16) == 0 && colours[0] == preserved);
-	struct st_pixel_buffer *saved       = t->skypix_engine->brush;
+	struct st_pixel_buffer *saved       = sky->brush;
 	const uint8_t           malformed[] = {128, 129};
 	size                                = test_ilbm(data, 1024, 1, 1, malformed, sizeof(malformed));
-	CHECK(st_cterm_skypix_receive(t, data, size) == IO_ERROR_INVALID_FORMAT);
-	CHECK(t->skypix_engine->brush == saved && t->skypix_engine->brush_depth == 4);
-	CHECK(t->skypix_engine->brush_palette[0] == preserved && !t->skypix_engine->brush_palette_pending);
-	CHECK(st_cterm_skypix_receive(t, NULL, 0) == 0 && t->skypix_engine->brush == saved);
-	CHECK(reset_without_cursor(t) == 0);
+	CHECK(cterm_skypix_receive(sky, data, size) == IO_ERROR_INVALID_FORMAT);
+	CHECK(sky->brush == saved && sky->brush_depth == 4);
+	CHECK(sky->brush_palette[0] == preserved && !sky->brush_palette_pending);
+	CHECK(cterm_skypix_receive(sky, NULL, 0) == 0 && sky->brush == saved);
+	CHECK(reset_without_cursor(sky) == 0);
 }
 
 static void
-short_delay_tests(st_cterm_t *t)
+short_delay_tests(struct cterm_skypix *sky)
 {
 	for (unsigned ticks = 0; ticks < 3; ++ticks) {
 		char wire[16];
 		snprintf(wire, sizeof(wire), "\x1b[14;%u!", ticks);
 		uint64_t before, after;
 		CHECK(st_time_monotonic_ms(&before) == 0);
-		feed(t, wire);
+		feed(sky, wire);
 		CHECK(st_time_monotonic_ms(&after) == 0);
 		if (ticks == 0)
-			CHECK(t->skypix_engine->delay_until == 0);
+			CHECK(sky->delay_until == 0);
 		else
-			CHECK(t->skypix_engine->delay_until >= before + ticks * 20
-			      && t->skypix_engine->delay_until <= after + ticks * 20);
-		CHECK(reset_without_cursor(t) == 0);
+			CHECK(sky->delay_until >= before + ticks * 20 && sky->delay_until <= after + ticks * 20);
+		CHECK(reset_without_cursor(sky) == 0);
 	}
 }
 
@@ -599,8 +601,9 @@ mouse_capture(void *context, enum st_cterm_output_origin origin, const uint8_t *
 }
 
 static void
-mouse_tests(st_cterm_t *terminal)
+mouse_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t                *terminal      = sky->terminal;
 	struct mouse_output        output        = {0};
 	st_cterm_output_callback_t saved         = terminal->api_output;
 	void                      *saved_context = terminal->api_output_context;
@@ -622,7 +625,7 @@ mouse_tests(st_cterm_t *terminal)
 		      == 0);
 		/* No enable/gadget command. ANSI mouse modes must not change
 		 * SkyPix's unsolicited, raw-pixel controller-1 report. */
-		feed(terminal, "\x1b[?1000h\x1b[?1006h\x1b[?1016h");
+		feed(sky, "\x1b[?1000h\x1b[?1006h\x1b[?1016h");
 		CHECK(st_cterm_mouse_mode(terminal) == 2 && !st_cterm_mouse_sgr_pixels(terminal));
 		st_cterm_sync_mouse_buttons(terminal, 0);
 		output.size = 0;
@@ -673,17 +676,18 @@ mouse_tests(st_cterm_t *terminal)
 		      && memcmp(output.bytes, "\x1b[21;1;639;199!", output.size) == 0);
 		event.data.mouse.pixel_x = 317;
 		event.data.mouse.pixel_y = 143;
-		feed(terminal, "\x1b[?1000l\x1b[?1006l\x1b[?1016l");
+		feed(sky, "\x1b[?1000l\x1b[?1006l\x1b[?1016l");
 	}
-	CHECK(reset_without_cursor(terminal) == 0 && st_cterm_mouse_mode(terminal) == 2);
+	CHECK(reset_without_cursor(sky) == 0 && st_cterm_mouse_mode(terminal) == 2);
 	CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
 	terminal->api_output         = saved;
 	terminal->api_output_context = saved_context;
 }
 
 static void
-gadget_tests(st_cterm_t *t)
+gadget_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t                *t             = sky->terminal;
 	struct mouse_output        output        = {0};
 	st_cterm_output_callback_t saved         = t->api_output;
 	void                      *saved_context = t->api_output_context;
@@ -695,10 +699,10 @@ gadget_tests(st_cterm_t *t)
 		      == 0);
 		const char definition[] = "\x1b[22;1;65535;10;20;14;24!";
 		for (size_t split = 0; split <= strlen(definition); ++split) {
-			feed(t, "\f\x1b[15;3!");
+			feed(sky, "\f\x1b[15;3!");
 			size_t used;
-			CHECK(st_cterm_write(t, definition, split, &used) == 0 && used == split);
-			CHECK(st_cterm_write(t, definition + split, strlen(definition) - split, &used) == 0
+			CHECK(cterm_skypix_feed(sky, definition, split, &used) == 0 && used == split);
+			CHECK(cterm_skypix_feed(sky, definition + split, strlen(definition) - split, &used) == 0
 			      && used == strlen(definition) - split);
 			struct st_pixel_buffer      *image = NULL;
 			const struct st_console_rect area  = {9, 19, 7, 7};
@@ -711,43 +715,43 @@ gadget_tests(st_cterm_t *t)
 				}
 			st_pixel_buffer_destroy(image);
 			const uint16_t expected[] = {65535, 10, 20, 14, 24};
-			CHECK(memcmp(t->skypix_engine->gadgets[0], expected, sizeof(expected)) == 0);
+			CHECK(memcmp(sky->gadgets[0], expected, sizeof(expected)) == 0);
 		}
 		/* Both range endpoints are usable; every slot owns five wire words.
 		 * Replacing a record paints anew, without erasing its old pixels. */
 		for (unsigned slot = 1; slot <= 20; ++slot) {
 			char definition[80];
 			snprintf(definition, sizeof(definition), "\x1b[22;%u;%u;30;40;30;40!", slot, 100 + slot);
-			feed(t, definition);
-			CHECK(t->skypix_engine->gadgets[slot - 1][0] == 100 + slot);
+			feed(sky, definition);
+			CHECK(sky->gadgets[slot - 1][0] == 100 + slot);
 		}
 		uint16_t records[20][5];
-		memcpy(records, t->skypix_engine->gadgets, sizeof(records));
-		feed(t,
+		memcpy(records, sky->gadgets, sizeof(records));
+		feed(sky,
 		    "\x1b[15;4!\x1b[22;0;1;10;20;14;24!\x1b[22;21;1;10;20;14;24!"
 		    "\x1b[22;65535;1;10;20;14;24!\x1b[22;1;1;10;20;14!"
 		    "\x1b[22;1;1;10;20;14;24;99!");
-		CHECK(memcmp(records, t->skypix_engine->gadgets, sizeof(records)) == 0);
+		CHECK(memcmp(records, sky->gadgets, sizeof(records)) == 0);
 		const struct st_console_rect retained = {10, 20, 1, 1};
 		struct st_pixel_buffer      *image    = NULL;
 		CHECK(st_console_get_pixels(&image, t->screen.console, &retained, false) == 0);
 		CHECK(image->primary[0] == 515 && image->alternate[0] == 515);
 		st_pixel_buffer_destroy(image);
 		image = NULL;
-		feed(t, "\x1b[15;3!\x1b[22;20;65537;65535;199;0;201!");
+		feed(sky, "\x1b[15;3!\x1b[22;20;65537;65535;199;0;201!");
 		const uint16_t clipped[] = {1, 65535, 199, 0, 201};
-		CHECK(memcmp(t->skypix_engine->gadgets[19], clipped, sizeof(clipped)) == 0);
+		CHECK(memcmp(sky->gadgets[19], clipped, sizeof(clipped)) == 0);
 		const struct st_console_rect bottom = {0, 198, 2, 2};
 		CHECK(st_console_get_pixels(&image, t->screen.console, &bottom, false) == 0);
 		CHECK(image->primary[0] == 512 && image->primary[2] == 515 && image->primary[3] == 512);
 		st_pixel_buffer_destroy(image);
 		/* Clear/font/palette changes do not discard retained records. */
-		feed(t, "\f\x1b[10;0!\x1b[12!");
-		CHECK(memcmp(t->skypix_engine->gadgets[19], clipped, sizeof(clipped)) == 0);
+		feed(sky, "\f\x1b[10;0!\x1b[12!");
+		CHECK(memcmp(sky->gadgets[19], clipped, sizeof(clipped)) == 0);
 		CHECK(output.size == 0);
-		CHECK(reset_without_cursor(t) == 0);
+		CHECK(reset_without_cursor(sky) == 0);
 		const uint16_t empty[20][5] = {{0}};
-		CHECK(memcmp(t->skypix_engine->gadgets, empty, sizeof(empty)) == 0);
+		CHECK(memcmp(sky->gadgets, empty, sizeof(empty)) == 0);
 	}
 	CHECK(st_cterm_set_encoding(t, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
 	t->api_output         = saved;
@@ -783,8 +787,9 @@ report_pixel(unsigned x, unsigned y)
 }
 
 static void
-report_ordering_tests(st_cterm_t *t)
+report_ordering_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t *t = sky->terminal;
 	/* Report 647972f: positioned text, two-bang font strings, reset/editor
 	 * recovery and immediate outline/fill coherence must not depend on input
 	 * segmentation. This is a synthetic fixture, not the missing ACIS capture.
@@ -801,18 +806,18 @@ report_ordering_tests(st_cterm_t *t)
 		for (unsigned x = 0; x < 640; ++x)
 			expected[(size_t)y * 640 + x] = report_pixel(x, y);
 	for (size_t split = 0; split <= length + 1; ++split) {
-		CHECK(reset_without_cursor(t) == 0);
+		CHECK(reset_without_cursor(sky) == 0);
 		size_t used;
 		if (split <= length) {
-			CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
-			CHECK(
-			    st_cterm_write(t, wire + split, length - split, &used) == 0 && used == length - split);
+			CHECK(cterm_skypix_feed(sky, wire, split, &used) == 0 && used == split);
+			CHECK(cterm_skypix_feed(sky, wire + split, length - split, &used) == 0
+			      && used == length - split);
 		}
 		else {
 			for (size_t i = 0; i < length; ++i)
-				CHECK(st_cterm_write(t, wire + i, 1, &used) == 0 && used == 1);
+				CHECK(cterm_skypix_feed(sky, wire + i, 1, &used) == 0 && used == 1);
 		}
-		CHECK(st_cterm_finish(t) == 0);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
 		struct st_pixel_buffer      *pixels = NULL;
 		const struct st_console_rect area   = {0, 0, 640, 200};
 		CHECK(st_console_get_pixels(&pixels, t->screen.console, &area, false) == 0);
@@ -832,14 +837,15 @@ report_ordering_tests(st_cterm_t *t)
 				}
 		}
 		st_pixel_buffer_destroy(pixels);
-		CHECK(!t->skypix_engine->custom && t->skypix_engine->font == t->skypix_engine->default_data);
+		CHECK(!sky->custom && sky->font == sky->default_data);
 	}
 	free(expected);
 }
 
 static void
-movement_alignment_tests(st_cterm_t *t)
+movement_alignment_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t *t = sky->terminal;
 	/* Public RoF caller-header ordering: Ruby/15 at Y=11, reset to Pearl/8,
 	 * three CR/LFs, text, then CSI 7 C. The text strike starts at Y=36,
 	 * between cell rows. A horizontal move must not round it up to Y=32. */
@@ -855,19 +861,19 @@ movement_alignment_tests(st_cterm_t *t)
 			  ST_CODEPAGE_CP437)
 		      == 0);
 		for (size_t split = 0; split <= sizeof(wire); ++split) {
-			CHECK(reset_without_cursor(t) == 0);
-			feed(t, "\f");
+			CHECK(reset_without_cursor(sky) == 0);
+			feed(sky, "\f");
 			size_t used, size = sizeof(wire) - 1;
 			if (split <= size) {
-				CHECK(st_cterm_write(t, wire, split, &used) == 0 && used == split);
-				CHECK(st_cterm_write(t, wire + split, size - split, &used) == 0
+				CHECK(cterm_skypix_feed(sky, wire, split, &used) == 0 && used == split);
+				CHECK(cterm_skypix_feed(sky, wire + split, size - split, &used) == 0
 				      && used == size - split);
 			}
 			else
 				for (size_t i = 0; i < size; ++i)
-					CHECK(st_cterm_write(t, wire + i, 1, &used) == 0 && used == 1);
-			CHECK(st_cterm_finish(t) == 0);
-			CHECK(t->skypix_engine->x == 8 && t->skypix_engine->y == 43);
+					CHECK(cterm_skypix_feed(sky, wire + i, 1, &used) == 0 && used == 1);
+			CHECK(cterm_skypix_finish_display(sky) == 0);
+			CHECK(sky->x == 8 && sky->y == 43);
 			const struct st_console_rect area  = {0, 32, 80, 24};
 			struct st_pixel_buffer      *image = NULL;
 			CHECK(st_console_get_pixels(&image, t->screen.console, &area, false) == 0);
@@ -908,18 +914,19 @@ movement_alignment_tests(st_cterm_t *t)
                 };
 
 		for (size_t i = 0; i < sizeof(moves) / sizeof(*moves); ++i) {
-			feed(t, "\x1b[19;13;35!");
-			feed(t, moves[i].wire);
-			CHECK(t->skypix_engine->x == moves[i].x && t->skypix_engine->y == moves[i].y);
+			feed(sky, "\x1b[19;13;35!");
+			feed(sky, moves[i].wire);
+			CHECK(sky->x == moves[i].x && sky->y == moves[i].y);
 		}
 	}
 	CHECK(st_cterm_set_encoding(t, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_ISO_8859_1) == 0);
-	CHECK(reset_without_cursor(t) == 0);
+	CHECK(reset_without_cursor(sky) == 0);
 }
 
 static void
-brush_logic_tests(st_cterm_t *t)
+brush_logic_tests(struct cterm_skypix *sky)
 {
+	st_cterm_t *t = sky->terminal;
 	/* Enumerate all source/destination colour pairs. Expected results use
 	 * the documented one-bit truth table independently for each plane. */
 	struct st_pixel_buffer *row = NULL;
@@ -931,14 +938,14 @@ brush_logic_tests(st_cterm_t *t)
 	    .scale_x                                        = 1,
 	    .scale_y                                        = 1};
 	for (unsigned colours = 8; colours <= 16; colours *= 2) {
-		feed(t, colours == 8 ? "\x1b[17;1!" : "\x1b[17;2!");
-		st_pixel_buffer_destroy(t->skypix_engine->brush);
-		CHECK(st_pixel_buffer_create(&t->skypix_engine->brush, 256, 1, false) == 0);
+		feed(sky, colours == 8 ? "\x1b[17;1!" : "\x1b[17;2!");
+		st_pixel_buffer_destroy(sky->brush);
+		CHECK(st_pixel_buffer_create(&sky->brush, 256, 1, false) == 0);
 		for (unsigned at = 0; at < 256; ++at)
-			t->skypix_engine->brush->primary[at] = at / 16;
-		t->skypix_engine->brush_palette_pending = false;
+			sky->brush->primary[at] = at / 16;
+		sky->brush_palette_pending = false;
 		for (unsigned depth = 1; depth <= (colours == 8 ? 3u : 4u); ++depth) {
-			t->skypix_engine->brush_depth = depth;
+			sky->brush_depth = depth;
 			for (unsigned code = 0; code < 256; ++code)
 				for (unsigned mask = 0; mask < 16; ++mask) {
 					for (unsigned at = 0; at < 256; ++at)
@@ -946,7 +953,7 @@ brush_logic_tests(st_cterm_t *t)
 					CHECK(st_console_blit_pixels(t->screen.console, row, NULL, &blit) == 0);
 					char wire[80];
 					snprintf(wire, sizeof(wire), "\x1b[7;0;0;0;100;256;1;%u;%u!", code, mask);
-					feed(t, wire);
+					feed(sky, wire);
 					struct st_pixel_buffer *image = NULL;
 					CHECK(st_console_get_pixels(&image, t->screen.console, &area, false) == 0);
 					for (unsigned at = 0; at < 256; ++at) {
@@ -970,7 +977,7 @@ brush_logic_tests(st_cterm_t *t)
 		}
 	}
 	st_pixel_buffer_destroy(row);
-	CHECK(reset_without_cursor(t) == 0);
+	CHECK(reset_without_cursor(sky) == 0);
 }
 
 static void
@@ -990,14 +997,15 @@ primitive_isolation_tests(enum st_cterm_graphics_mode graphics, bool utf8)
 	const struct st_cterm_config config = {.console = console,
 	    .fonts                                      = fonts,
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
-	    .graphics_mode                              = graphics,
 	    .encoding      = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage      = ST_CODEPAGE_CP437,
-	    .skypix_width  = 31,
-	    .skypix_height = 23,
 	    .quiet         = true};
-	CHECK(st_cterm_create(&t, &config) == 0);
-	feed(t, "\x1b[?25l\x1b[99!");
+	const struct st_skypix_config sky_config = {.kick13 = graphics == ST_CTERM_GRAPHICS_SKYPIX_13,
+	    .width                                          = 31,
+	    .height                                         = 23};
+	struct cterm_skypix          *sky        = NULL;
+	CHECK(cterm_skypix_open(&sky, &t, &config, &sky_config) == 0);
+	feed(sky, "\x1b[?25l\x1b[99!");
 	/* A canvas narrower/shorter than the raster catches stride and clipping
 	 * mistakes. Different native/RGB planes must survive outside each write. */
 	static const char *const commands[] = {"\x1b[1;30;22!", "\x1b[8;29;21!\x1b[2;33;25!",
@@ -1016,7 +1024,7 @@ primitive_isolation_tests(enum st_cterm_graphics_mode graphics, bool utf8)
 			for (unsigned x = 29; x < 31; ++x)
 				base->primary[y * 40 + x] = 513;
 		CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
-		feed(t, commands[n]);
+		feed(sky, commands[n]);
 		struct st_pixel_buffer *image = NULL;
 		CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
 		for (unsigned y = 0; y < 32; ++y)
@@ -1033,24 +1041,24 @@ primitive_isolation_tests(enum st_cterm_graphics_mode graphics, bool utf8)
 			}
 		st_pixel_buffer_destroy(image);
 		if (n == 6) {
-			CHECK(t->skypix_engine->brush->width == 2 && t->skypix_engine->brush->height == 2);
+			CHECK(sky->brush->width == 2 && sky->brush->height == 2);
 			for (unsigned i = 0; i < 4; ++i)
-				CHECK(t->skypix_engine->brush->primary[i] == 513);
+				CHECK(sky->brush->primary[i] == 513);
 			/* Make the following copy's expected ink independent of capture. */
 			for (unsigned i = 0; i < 4; ++i)
-				t->skypix_engine->brush->primary[i] = 2;
+				sky->brush->primary[i] = 2;
 		}
 	}
 	/* JAM1 writes only ink, and revising the cluster restores both original
 	 * phases. Pearl/8 A rows are literal pinned-font expectations. */
-	feed(t, "\x1b[10;8!Pearl.font!\x1b[19;0;65535!\x1b[15;2!");
+	feed(sky, "\x1b[10;8!Pearl.font!\x1b[19;0;65535!\x1b[15;2!");
 	CHECK(st_pixel_buffer_fill(base, ST_PIXEL_COLOR_RGB_VALUE(4, 5, 6), 519) == 0);
 	CHECK(st_console_blit_pixels(console, base, NULL, &blit) == 0);
 	struct st_unicode_presentation_event event = {.kind = ST_UNICODE_PRESENTATION_BEGIN,
 	    .bytes                                          = (const uint8_t *)"A",
 	    .size                                           = 1};
 	bool                                 handled;
-	CHECK(cterm_skypix_present(t->skypix_engine, &event, &handled) == 0 && handled);
+	CHECK(cterm_skypix_present(sky, &event, &handled) == 0 && handled);
 	struct st_pixel_buffer *image = NULL;
 	CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
 	static const unsigned rows[8] = {0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0};
@@ -1063,14 +1071,15 @@ primitive_isolation_tests(enum st_cterm_graphics_mode graphics, bool utf8)
 	st_pixel_buffer_destroy(image);
 	event.kind  = ST_UNICODE_PRESENTATION_REVISE;
 	event.bytes = (const uint8_t *)" ";
-	CHECK(cterm_skypix_present(t->skypix_engine, &event, &handled) == 0 && handled);
+	CHECK(cterm_skypix_present(sky, &event, &handled) == 0 && handled);
 	CHECK(st_console_get_pixels(&image, console, &whole, false) == 0);
 	CHECK(memcmp(image->primary, base->primary, 40 * 32 * sizeof(uint32_t)) == 0);
 	CHECK(memcmp(image->alternate, base->alternate, 40 * 32 * sizeof(uint32_t)) == 0);
 	st_pixel_buffer_destroy(image);
 	event.kind = ST_UNICODE_PRESENTATION_COMMIT;
-	CHECK(cterm_skypix_present(t->skypix_engine, &event, &handled) == 0);
+	CHECK(cterm_skypix_present(sky, &event, &handled) == 0);
 	st_pixel_buffer_destroy(base);
+	cterm_skypix_destroy(sky);
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -1099,24 +1108,25 @@ engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_ISO_8859_1,
-	    .graphics_mode                              = graphics,
 	    .status_line                                = status_line,
 	    .scrollback_lines                           = 5,
 	    .quiet                                      = true};
-	CHECK(st_cterm_create(&t, &config) == 0);
-	feed(t, "\x1b[?25l");
+	const struct st_skypix_config sky_config = {.kick13 = graphics == ST_CTERM_GRAPHICS_SKYPIX_13};
+	struct cterm_skypix          *sky        = NULL;
+	CHECK(cterm_skypix_open(&sky, &t, &config, &sky_config) == 0);
+	feed(sky, "\x1b[?25l");
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(t, &state) == 0 && state.skypix && state.graphics_mode == graphics);
-	CHECK(t->rip_engine == NULL && t->skypix_engine != NULL);
-	CHECK(t->skypix_engine->colours == 16);
-	mouse_tests(t);
-	gadget_tests(t);
-	depth_tests(t);
-	brush_tests(t);
-	brush_logic_tests(t);
-	movement_alignment_tests(t);
-	short_delay_tests(t);
-	report_ordering_tests(t);
+	CHECK(t->rip_engine == NULL && sky != NULL);
+	CHECK(sky->colours == 16);
+	mouse_tests(sky);
+	gadget_tests(sky);
+	depth_tests(sky);
+	brush_tests(sky);
+	brush_logic_tests(sky);
+	movement_alignment_tests(sky);
+	short_delay_tests(sky);
+	report_ordering_tests(sky);
 	CHECK(st_cterm_resize(t, 100, geometry.rows) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows + 1) == IO_ERROR_NOT_SUPPORTED);
 	CHECK(st_cterm_resize(t, 80, geometry.rows) == 0);
@@ -1126,8 +1136,8 @@ engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	uint32_t palette[16];
 	CHECK(st_console_get_palette(console, 512, palette, 16) == 0);
 	CHECK(palette[1] == 0x1111ff && palette[3] == 0xff0000);
-	feed(t, "\x1b[15;3!\x1b[4;10;10;14;14!\x1b[6;10;9;5;5!\x1b[7;0;0;20;20;5;5;192;255!");
-	feed(t, "\x1b[15;4!\x1b[1;20;20!\x1b[7;0;0;20;20;1;1;96;1!"); /* XOR plane zero only: green 4 ->
+	feed(sky, "\x1b[15;3!\x1b[4;10;10;14;14!\x1b[6;10;9;5;5!\x1b[7;0;0;20;20;5;5;192;255!");
+	feed(sky, "\x1b[15;4!\x1b[1;20;20!\x1b[7;0;0;20;20;1;1;96;1!"); /* XOR plane zero only: green 4 ->
 																	 5 */
 	struct st_pixel_buffer      *pixels = NULL;
 	const struct st_console_rect rect   = {0, 0, 640, 200};
@@ -1158,82 +1168,79 @@ engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	memset(ilbm + 64, 0x55, 128);
 	ilbm[192] = 241;
 	ilbm[193] = 0x55;
-	CHECK(st_cterm_skypix_receive(t, ilbm, sizeof(ilbm)) == 0);
-	CHECK(t->skypix_engine->brush->width == 1152 && t->skypix_engine->brush_depth == 1);
-	CHECK(t->skypix_engine->brush->primary[0] == 0 && t->skypix_engine->brush->primary[1] == 1);
-	CHECK(t->skypix_engine->brush->primary[1031] == 1 && t->skypix_engine->brush->primary[1032] == 0);
-	feed(t, "\x1b[15;4!\x1b[4;100;100;109;100!\x1b[7;0;0;100;100;8;1;192;255!");
+	CHECK(cterm_skypix_receive(sky, ilbm, sizeof(ilbm)) == 0);
+	CHECK(sky->brush->width == 1152 && sky->brush_depth == 1);
+	CHECK(sky->brush->primary[0] == 0 && sky->brush->primary[1] == 1);
+	CHECK(sky->brush->primary[1031] == 1 && sky->brush->primary[1032] == 0);
+	feed(sky, "\x1b[15;4!\x1b[4;100;100;109;100!\x1b[7;0;0;100;100;8;1;192;255!");
 	const struct st_console_rect planes = {100, 100, 8, 1};
 	CHECK(st_console_get_pixels(&pixels, console, &planes, false) == 0);
 	for (unsigned x = 0; x < 8; ++x)
 		CHECK(pixels->primary[x] == 516 + (x & 1));
 	st_pixel_buffer_destroy(pixels);
 	memcpy(ilbm + 40, "JUNK", 4);
-	CHECK(st_cterm_skypix_receive(t, ilbm, sizeof(ilbm)) == IO_ERROR_INVALID_FORMAT);
-	CHECK(t->skypix_engine->brush->width == 1152);
-	feed(t, "\x1b[11;3840;15;0;0;0;0;0;0;0;0;0;0;0;0;0;0!");
+	CHECK(cterm_skypix_receive(sky, ilbm, sizeof(ilbm)) == IO_ERROR_INVALID_FORMAT);
+	CHECK(sky->brush->width == 1152);
+	feed(sky, "\x1b[11;3840;15;0;0;0;0;0;0;0;0;0;0;0;0;0;0!");
 	CHECK(st_console_get_palette(console, 512, palette, 16) == 0 && palette[0] == 0xff0000
 	      && palette[1] == 0x0000ff);
-	feed(t, "\x1b[19;100;50!\x1b[10;19!Sapphire.font!R\r\n");
-	CHECK(t->skypix_engine->custom && t->skypix_engine->x == 0 && t->skypix_engine->y == 69);
-	feed(t, "\x1b[10;0!");
-	CHECK(!t->skypix_engine->custom && t->skypix_engine->y == 69);
-	feed(t, "\x1b[10;77!missing.font!");
-	CHECK(t->skypix_engine->custom && st_amiga_font_height(t->skypix_engine->font) == 8);
+	feed(sky, "\x1b[19;100;50!\x1b[10;19!Sapphire.font!R\r\n");
+	CHECK(sky->custom && sky->x == 0 && sky->y == 69);
+	feed(sky, "\x1b[10;0!");
+	CHECK(!sky->custom && sky->y == 69);
+	feed(sky, "\x1b[10;77!missing.font!");
+	CHECK(sky->custom && st_amiga_font_height(sky->font) == 8);
 	const char delay[] = "\x1b[14;60!\x1b[15;4!";
 	size_t     used;
-	CHECK(st_cterm_write(t, delay, strlen(delay), &used) == 0 && used == 8 && st_cterm_input_paused(t));
-	CHECK(reset_without_cursor(t) == 0 && !st_cterm_input_paused(t));
-	feed(t, "\x1b[2J\x1b[H\x1b[19;16;21!\x1b[10;20!Diamond.font!<");
-	CHECK(st_cterm_finish(t) == 0);
+	CHECK(cterm_skypix_feed(sky, delay, strlen(delay), &used) == 0 && used == 8 && cterm_skypix_paused(sky));
+	CHECK(reset_without_cursor(sky) == 0 && !cterm_skypix_paused(sky));
+	feed(sky, "\x1b[2J\x1b[H\x1b[19;16;21!\x1b[10;20!Diamond.font!<");
+	CHECK(cterm_skypix_finish_display(sky) == 0);
 	const struct st_console_rect overhang = {26, graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 29 : 30, 1, 9};
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
 	unsigned ink = graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 512 : 514;
 	CHECK(pixels->primary[0] == ink && pixels->primary[8] == ink);
 	st_pixel_buffer_destroy(pixels);
-	feed(t, " ");
-	CHECK(st_cterm_finish(t) == 0);
+	feed(sky, " ");
+	CHECK(cterm_skypix_finish_display(sky) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &overhang, false) == 0);
 	CHECK(pixels->primary[0] == ink && pixels->primary[8] == ink);
 	st_pixel_buffer_destroy(pixels);
 	/* Text-position probes remain independent of cursor presentation. Named
 	 * fonts disable SkyTERM's bitmap cursor; its primitive has a focused test. */
-	feed(t, "\x1b[10;20!Diamond.font!\f");
-	CHECK(t->skypix_engine->x == 0
-	      && t->skypix_engine->y == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -5 : -6));
-	feed(t, "i");
-	CHECK(st_cterm_finish(t) == 0 && t->skypix_engine->x == 4);
-	feed(t, "W");
-	CHECK(st_cterm_finish(t) == 0 && t->skypix_engine->x == 24);
-	feed(t, "\x1b[19;101;40!");
-	CHECK(t->skypix_engine->x == 101 && t->skypix_engine->y == 40);
-	feed(t, "\x1b[12!\x1b[10;0!");
+	feed(sky, "\x1b[10;20!Diamond.font!\f");
+	CHECK(sky->x == 0 && sky->y == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -5 : -6));
+	feed(sky, "i");
+	CHECK(cterm_skypix_finish_display(sky) == 0 && sky->x == 4);
+	feed(sky, "W");
+	CHECK(cterm_skypix_finish_display(sky) == 0 && sky->x == 24);
+	feed(sky, "\x1b[19;101;40!");
+	CHECK(sky->x == 101 && sky->y == 40);
+	feed(sky, "\x1b[12!\x1b[10;0!");
 	/* JR-Comm position probes: CR/LF are independent and BS/HT use
 	 * nominal Diamond/20 width, never the last proportional advance. */
-	feed(t, "\x1b[19;100;40!\x1b[10;20!Diamond.font!i\r");
-	CHECK(st_cterm_finish(t) == 0);
-	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == 40);
-	feed(t, "\n");
-	CHECK(t->skypix_engine->x == 0 && t->skypix_engine->y == 60);
-	feed(t, "\x1b[19;0;40!i\b");
-	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -16 : -8)
-	      && t->skypix_engine->y == 40);
-	feed(t, "\b");
-	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -16 : -8));
-	feed(t, "\x1b[19;100;40!\t");
-	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 160 : 192)
-	      && t->skypix_engine->y == 40);
-	feed(t, "\v");
-	CHECK(t->skypix_engine->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 160 : 192)
-	      && t->skypix_engine->y == 40);
-	feed(t, "\x1b[19;13;51!\x1b[10;0!B\rC\nD");
-	CHECK(st_cterm_finish(t) == 0);
-	CHECK(t->skypix_engine->x == 16 && t->skypix_engine->y == 59);
-	CHECK(st_cterm_finish(t) == 0);
+	feed(sky, "\x1b[19;100;40!\x1b[10;20!Diamond.font!i\r");
+	CHECK(cterm_skypix_finish_display(sky) == 0);
+	CHECK(sky->x == 0 && sky->y == 40);
+	feed(sky, "\n");
+	CHECK(sky->x == 0 && sky->y == 60);
+	feed(sky, "\x1b[19;0;40!i\b");
+	CHECK(sky->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -16 : -8) && sky->y == 40);
+	feed(sky, "\b");
+	CHECK(sky->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? -16 : -8));
+	feed(sky, "\x1b[19;100;40!\t");
+	CHECK(sky->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 160 : 192) && sky->y == 40);
+	feed(sky, "\v");
+	CHECK(sky->x == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 160 : 192) && sky->y == 40);
+	feed(sky, "\x1b[19;13;51!\x1b[10;0!B\rC\nD");
+	CHECK(cterm_skypix_finish_display(sky) == 0);
+	CHECK(sky->x == 16 && sky->y == 59);
+	CHECK(cterm_skypix_finish_display(sky) == 0);
 	uint32_t width, height;
-	wrapping_tests(t);
+	wrapping_tests(sky);
 	CHECK(st_console_pixel_size(console, &width, &height) == 0 && width == 640
 	      && height == (status_line ? 208u : 200u));
+	cterm_skypix_destroy(sky);
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -1269,23 +1276,24 @@ pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode graphics, bool u
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
 	    .encoding      = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage      = ST_CODEPAGE_CP437,
-	    .graphics_mode = graphics,
 	    .status_line   = status_line,
-	    .amiga_font = st_amiga_font_builtin(graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13
-	                                                                                : ST_AMIGA_FONT_SET_2PLUS,
-		font_height == 20 ? "Diamond.font" : "Ruby.font", font_height),
 	    .scrollback_lines = capacity,
 	    .quiet            = true};
-	CHECK(st_cterm_create(&t, &config) == 0);
-	feed(t, "\x1b[?25l");
+	const struct st_skypix_config sky_config = {.kick13 = graphics == ST_CTERM_GRAPHICS_SKYPIX_13,
+	    .font = st_amiga_font_builtin(graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? ST_AMIGA_FONT_SET_13
+	                                                                          : ST_AMIGA_FONT_SET_2PLUS,
+		font_height == 20 ? "Diamond.font" : "Ruby.font", font_height)};
+	struct cterm_skypix          *sky        = NULL;
+	CHECK(cterm_skypix_open(&sky, &t, &config, &sky_config) == 0);
+	feed(sky, "\x1b[?25l");
 	CHECK(t->backfilled == 0);
-	feed(t, "\x1b[17;2!\x1b[99;0!"); /* Neither command disables normal scrolling. */
+	feed(sky, "\x1b[17;2!\x1b[99;0!"); /* Neither command disables normal scrolling. */
 	for (unsigned i = 0; i < (font_height == 20 ? 9u : 15u); ++i)
-		feed(t, "\r\n");
+		feed(sky, "\r\n");
 	if (first_distance == 19)
-		feed(t, graphics == ST_CTERM_GRAPHICS_SKYPIX_13
-			    ? "\x1b[19;0;174!"
-			    : "\x1b[19;0;173!"); /* One pixel above the last native baseline. */
+		feed(sky, graphics == ST_CTERM_GRAPHICS_SKYPIX_13
+			      ? "\x1b[19;0;174!"
+			      : "\x1b[19;0;173!"); /* One pixel above the last native baseline. */
 	struct st_pixel_buffer *scene = NULL;
 	CHECK(st_pixel_buffer_create(&scene, 640, 200, true) == 0);
 	for (unsigned y = 0; y < 200; ++y)
@@ -1307,10 +1315,10 @@ pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode graphics, bool u
 	for (unsigned scroll = 1; scroll <= 4; ++scroll) {
 		unsigned retired = first_distance + (scroll - 1) * font_height;
 		CHECK(st_console_begin_update(console) == 0);
-		feed(t, "\r\n");
-		CHECK(st_cterm_finish(t) == 0);
+		feed(sky, "\r\n");
+		CHECK(cterm_skypix_finish_display(sky) == 0);
 		CHECK(st_console_end_update(console) == 0);
-		CHECK(t->skypix_engine->y + (int)font_height
+		CHECK(sky->y + (int)font_height
 		      == (font_height == 20 ? (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 195 : 194)
 		                            : (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 190 : 189)));
 		if (scroll == 1)
@@ -1353,8 +1361,8 @@ pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode graphics, bool u
 			      == 0);
 			detached_row = rows - 1;
 			/* Reset retains history, including an unfinished pixel strip. */
-			CHECK(reset_without_cursor(t) == 0);
-			feed(t, font_height == 20 ? "\x1b[19;0;175!" : "\x1b[19;0;178!");
+			CHECK(reset_without_cursor(sky) == 0);
+			feed(sky, font_height == 20 ? "\x1b[19;0;175!" : "\x1b[19;0;178!");
 		}
 		free(cells);
 		const struct st_console_rect live  = {0, 0, 1, 1};
@@ -1421,9 +1429,9 @@ pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode graphics, bool u
 		char narrow[162];
 		memset(narrow, 'i', 161);
 		narrow[161] = 0;
-		feed(t, narrow);
-		CHECK(st_cterm_finish(t) == 0);
-		CHECK(t->skypix_engine->y + 20 == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 195 : 194));
+		feed(sky, narrow);
+		CHECK(cterm_skypix_finish_display(sky) == 0);
+		CHECK(sky->y + 20 == (graphics == ST_CTERM_GRAPHICS_SKYPIX_13 ? 195 : 194));
 		uint32_t columns;
 		size_t   rows;
 		CHECK(st_cterm_scrollback_size(t, &columns, &rows) == 0 && rows > 0);
@@ -1436,7 +1444,8 @@ pixel_scroll_test(bool status_line, enum st_cterm_graphics_mode graphics, bool u
 		}
 		st_pixel_buffer_destroy(image);
 	}
-	CHECK(reset_without_cursor(t) == 0);
+	CHECK(reset_without_cursor(sky) == 0);
+	cterm_skypix_destroy(sky);
 	st_cterm_destroy(&t);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
@@ -1461,13 +1470,15 @@ graphics_history_test(void)
 	    .emulation                                  = ST_CTERM_ANSI_BBS,
 	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
 	    .codepage                                   = ST_CODEPAGE_ISO_8859_1,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_SKYPIX_31,
 	    .scrollback_lines                           = 3};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
-	feed(terminal, "\x1b[?25l");
-	feed(terminal, "\x1b[10;8!Pearl.font!\x1b[H");
+	const struct st_skypix_config sky_config = {
+	    .kick13 = ST_CTERM_GRAPHICS_SKYPIX_31 == ST_CTERM_GRAPHICS_SKYPIX_13};
+	struct cterm_skypix *sky = NULL;
+	CHECK(cterm_skypix_open(&sky, &terminal, &config, &sky_config) == 0);
+	feed(sky, "\x1b[?25l");
+	feed(sky, "\x1b[10;8!Pearl.font!\x1b[H");
 	for (unsigned row = 0; row < 30; ++row)
-		feed(terminal, "A\r\n");
+		feed(sky, "A\r\n");
 	uint32_t columns;
 	size_t   lines;
 	CHECK(st_cterm_scrollback_size(terminal, &columns, &lines) == 0 && lines == 3);
@@ -1479,13 +1490,13 @@ graphics_history_test(void)
 	CHECK(pixels->primary[0] == ST_PIXEL_COLOR_RGB_VALUE(0, 0, 0));
 	st_pixel_buffer_destroy(pixels);
 	int position = terminal->backpos;
-	feed(terminal, "\x1b[19;0;32700!\n");
+	feed(sky, "\x1b[19;0;32700!\n");
 	CHECK(terminal->backpos == position);
 	/* A later fractional font must be able to join older grid text without
 	 * rerendering it using the newly selected font or palette. */
-	CHECK(reset_without_cursor(terminal) == 0);
+	CHECK(reset_without_cursor(sky) == 0);
 	for (unsigned row = 0; row < 25; ++row)
-		feed(terminal, "A\r\n");
+		feed(sky, "A\r\n");
 	struct st_console_cell text_row[80];
 	CHECK(st_cterm_copy_scrollback_rows(terminal, text_row, 80, 1, 2, 1, 0) == 1);
 	char   text[8];
@@ -1494,7 +1505,7 @@ graphics_history_test(void)
 		  &required)
 	          == 0
 	      && required == 1 && text[0] == 'A');
-	feed(terminal, "\x1b[10;20!Diamond.font!\n");
+	feed(sky, "\x1b[10;20!Diamond.font!\n");
 	const unsigned pearl[] = {0x10, 0x38, 0x6c, 0xc6, 0xfe, 0xc6, 0xc6, 0};
 	for (size_t row = 0; row < 3; ++row) {
 		pixels = NULL;
@@ -1507,6 +1518,7 @@ graphics_history_test(void)
 			}
 		st_pixel_buffer_destroy(pixels);
 	}
+	cterm_skypix_destroy(sky);
 	st_cterm_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);

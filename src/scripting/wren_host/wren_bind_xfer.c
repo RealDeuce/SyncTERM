@@ -468,7 +468,8 @@ skypix_load_sample(struct st_wren_context *context, const char *path)
 	if (file != NULL && fclose(file) != 0 && status == 0)
 		status = IO_ERROR_IO;
 	if (status == 0)
-		status = st_cterm_skypix_load_sample(context->cterm, bytes, (size_t)count + sizeof(header));
+		status =
+		    st_term_session_skypix_load_sample(context->session, bytes, (size_t)count + sizeof(header));
 	free(bytes);
 	/* Successful caching does not depend on audio format or allocation.
 	 * A failed load retains the previous sample and never adds wire output. */
@@ -502,7 +503,7 @@ skypix_cached(struct st_wren_context *context, const char *path, unsigned mode)
 		if (file != NULL && fclose(file) != 0 && status == 0)
 			status = IO_ERROR_IO;
 		if (status == 0)
-			status = st_cterm_skypix_receive(context->cterm, bytes, (size_t)info.size);
+			status = st_term_session_skypix_receive(context->session, bytes, (size_t)info.size);
 		free(bytes);
 	}
 	if (status == 0) {
@@ -764,7 +765,7 @@ st_wren_transfer_pump(struct st_wren_context *context)
 			else if (event.kind == ST_TRANSFER_RECEIVE_END) {
 				status = s->skypix_error != 0
 				             ? s->skypix_error
-				             : st_cterm_skypix_receive(context->cterm,
+				             : st_term_session_skypix_receive(context->session,
 						   event.success && s->skypix_mode == 1 ? s->skypix_bytes : NULL,
 						   event.success && s->skypix_mode == 1 ? s->skypix_size : 0);
 				if (event.success && status == 0) {
@@ -784,7 +785,7 @@ st_wren_transfer_pump(struct st_wren_context *context)
 				s->skypix_error = status;
 				if (event.kind != ST_TRANSFER_RECEIVE_END)
 					(void)st_transfer_request_abort(s->worker);
-				(void)st_cterm_skypix_receive(context->cterm, NULL, 0);
+				(void)st_term_session_skypix_receive(context->session, NULL, 0);
 			}
 			continue;
 		}
@@ -845,7 +846,7 @@ finish(struct st_wren_context *context)
 		s->rip_scene = false;
 		(void)st_term_session_end_transfer(context->session);
 		if (s->skypix_directory != NULL)
-			(void)st_cterm_skypix_receive(context->cterm, NULL, 0);
+			(void)st_term_session_skypix_receive(context->session, NULL, 0);
 		size_t         replay_size;
 		const uint8_t *replay = st_transfer_replay(s->worker, &replay_size);
 		if (context->cterm != NULL && replay_size != 0) {
@@ -863,7 +864,7 @@ finish(struct st_wren_context *context)
 	}
 	st_term_session_reserve_transfer(context->session, false);
 	if (s->skypix_directory != NULL)
-		(void)st_cterm_skypix_receive(context->cterm, NULL, 0);
+		(void)st_term_session_skypix_receive(context->session, NULL, 0);
 	free(s->skypix_directory);
 	s->skypix_directory = NULL;
 	free(s->skypix_filename);

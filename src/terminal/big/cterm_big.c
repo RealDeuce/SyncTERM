@@ -1590,8 +1590,9 @@ key_event(void *context, const struct cterm_key *key)
 }
 
 static bool
-mouse_event(void *context, const struct st_console_event *event)
+mouse_event(void *context, const struct st_console_event *event, uint32_t changed)
 {
+	(void)changed;
 	return cterm_big_mouse(context, event);
 }
 

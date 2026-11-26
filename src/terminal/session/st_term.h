@@ -17,6 +17,7 @@
 #include "st_font_catalog.h"
 #include "st_profile.h"
 #include "st_session_history.h"
+#include "st_skypix.h"
 #include "st_transfer.h"
 
 typedef struct st_term_session st_term_session_t;
@@ -67,7 +68,7 @@ struct st_term_config {
 	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */
 	const st_amiga_font_t              *amiga_font;
 	uint32_t                            skypix_width, skypix_height;
-	st_cterm_skypix_transfer_callback_t skypix_transfer;
+	st_skypix_transfer_callback_t       skypix_transfer;
 	void                               *skypix_transfer_context;
 	const char                         *apc_directory;
 	const char                         *application_version;
@@ -140,6 +141,16 @@ st_cterm_t *st_term_session_cterm(st_term_session_t *session);
 /* History is recorded in the physical display grid. */
 st_cterm_t *st_term_session_history_terminal(st_term_session_t *session);
 /* The RIPv3 indicator lives outside ANSI display state and screen contents. */
+struct cterm_skypix;
+struct cterm_skypix *st_term_session_skypix(st_term_session_t *session);
+/* Load a completed native ILBM brush; NULL/zero cancels a pending request. */
+int st_term_session_skypix_receive(st_term_session_t *session, const void *bytes, size_t size);
+/* Owner-thread raw type-3 load. Borrows bytes during the call, copies only
+ * the declared signed PCM, and retains the previous sample on failure.
+ * Maximum declared PCM length is 4 MiB; trailing bytes are ignored.
+ * Returns BUSY during playback; reset/destruction releases the owned copy. */
+int st_term_session_skypix_load_sample(st_term_session_t *session, const void *bytes, size_t size);
+
 struct cterm_big;
 struct cterm_big *st_term_session_big(st_term_session_t *session);
 bool              st_term_session_device_paused(st_term_session_t *session);

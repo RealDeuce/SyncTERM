@@ -28,7 +28,7 @@ target_compile_definitions(st_application PRIVATE
 	$<$<CONFIG:Debug>:ST_DEBUG_BUILD>)
 target_link_libraries(st_application PUBLIC st_console st_audio
 	PRIVATE st_wren_host st_settings
-	st_app_startup st_audio st_fonts st_font_catalog st_term st_big_terminal
+	st_app_startup st_audio st_fonts st_font_catalog st_term st_big_terminal st_skypix
 	st_session_history st_hyperlink st_bbs_list)
 target_link_libraries(st_application PRIVATE st_time syncterm_threads
 	syncterm_value_convert syncterm_filesystem syncterm_path)

@@ -48,7 +48,6 @@
 #include "cterm_petscii.h"
 #include "cterm_prestel.h"
 #include "cterm_render.h"
-#include "cterm_skypix.h"
 #include "cterm_vt52.h"
 #include "st_session_history.h"
 
@@ -1149,8 +1148,8 @@ cterm_clrblk(struct cterminal *cterm, int sx, int sy, int ex, int ey)
 void
 cterm_scrolldown(struct cterminal *cterm)
 {
-	if (cterm->skypix_engine != NULL) {
-		int status = cterm_skypix_hide_cursor(cterm->skypix_engine);
+	if (cterm->device.hide_cursor != NULL) {
+		int status = cterm->device.hide_cursor(cterm->device.context);
 		if (status != 0) {
 			cterm_render_record_error(cterm, status);
 			return;
@@ -1399,14 +1398,14 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 		const struct st_console_rect region = {(uint32_t)(cterm->x - 1) * cw, (uint32_t)(row - 1) * ch,
 		    (uint32_t)width * cw, ch};
 		uint32_t                     flags  = cells[0].flags;
-		if (cterm->skypix_engine != NULL || cterm->rip3_session_owner)
+		if (cterm->device.pixel_history || cterm->rip3_session_owner)
 			cells[0].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		status =
 		    st_history_capture_pixels(&pixels, cterm->screen.console, cells, (uint32_t)width, &region);
 		cells[0].flags = flags;
 	}
 	if (status == 0) {
-		if (cterm->skypix_engine != NULL || cterm->rip3_session_owner)
+		if (cterm->device.pixel_history || cterm->rip3_session_owner)
 			status = cterm_history_append_pixels(cterm, pixels, cells, ch);
 		else {
 			status = history_store_row(cterm, cells, pixels, (size_t)width);
@@ -1423,8 +1422,8 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 void
 cterm_scrollup(struct cterminal *cterm)
 {
-	if (cterm->skypix_engine != NULL) {
-		int status = cterm_skypix_hide_cursor(cterm->skypix_engine);
+	if (cterm->device.hide_cursor != NULL) {
+		int status = cterm->device.hide_cursor(cterm->device.context);
 		if (status != 0) {
 			cterm_render_record_error(cterm, status);
 			return;
@@ -1530,8 +1529,8 @@ cterm_page_to_scrollback(struct cterminal *cterm)
 void
 cterm_clearscreen(struct cterminal *cterm, char attr)
 {
-	if (cterm->skypix_engine != NULL) {
-		int status = cterm_skypix_hide_cursor(cterm->skypix_engine);
+	if (cterm->device.hide_cursor != NULL) {
+		int status = cterm->device.hide_cursor(cterm->device.context);
 		if (status != 0) {
 			cterm_render_record_error(cterm, status);
 			return;
@@ -1552,8 +1551,8 @@ cterm_clearscreen(struct cterminal *cterm, char attr)
 		cterm_line_to_scrollback(cterm, row);
 	cterm_render_clear_window(cterm);
 	cterm_render_set_position(cterm, CURR_MINX, CURR_MINY);
-	if (cterm->skypix_engine != NULL)
-		cterm_skypix_home(cterm->skypix_engine);
+	if (cterm->device.home != NULL)
+		cterm->device.home(cterm->device.context);
 }
 
 /*
@@ -1838,58 +1837,10 @@ cterm_clear_lcf(struct cterminal *cterm)
 	cterm->last_column_flag &= ~CTERM_LCF_SET;
 }
 
-/* ------------------------------------------------------------------------
- * cterm_skypix_color — SkyPix palette translation.
- *
- * SkyPix is its own graphics mode with a 16-colour palette in a
- * different order than the standard ANSI/IBM palette.  The ECMA-48
- * SGR colour cases (30-37, 40-47) call this inline so the same handler
- * paints the right index whether or not SkyPix is active: when
- * cterm->skypix is clear, this is a no-op pass-through.  Lives in
- * cterm.c rather than any emulation-specific file because SkyPix
- * interacts with the base attribute path rather than sitting cleanly
- * inside one standard.
- * ------------------------------------------------------------------------ */
 unsigned char
-cterm_skypix_color(struct cterminal *cterm, unsigned char color)
+cterm_sgr_color(const struct cterminal *cterm, unsigned char color)
 {
-	if (!cterm->skypix)
-		return color;
-	switch (color) {
-		case CTERM_COLOR_BLACK:
-			return 0;
-		case CTERM_COLOR_RED:
-			return 3;
-		case CTERM_COLOR_GREEN:
-			return 4;
-		case CTERM_COLOR_BROWN:
-			return 6;
-		case CTERM_COLOR_BLUE:
-			return 1;
-		case CTERM_COLOR_MAGENTA:
-			return 7;
-		case CTERM_COLOR_CYAN:
-			return 5;
-		case CTERM_COLOR_LIGHT_GRAY:
-			return 2;
-		case CTERM_COLOR_DARK_GRAY:
-			return 8;
-		case CTERM_COLOR_LIGHT_RED:
-			return 11;
-		case CTERM_COLOR_LIGHT_GREEN:
-			return 12;
-		case CTERM_COLOR_YELLOW:
-			return 14;
-		case CTERM_COLOR_LIGHT_BLUE:
-			return 9;
-		case CTERM_COLOR_LIGHT_MAGENTA:
-			return 15;
-		case CTERM_COLOR_LIGHT_CYAN:
-			return 13;
-		case CTERM_COLOR_WHITE:
-			return 10;
-	}
-	return color;
+	return cterm->device.sgr_palette != NULL && color < 16 ? cterm->device.sgr_palette[color] : color;
 }
 
 static uint8_t
@@ -2226,8 +2177,8 @@ cterm_reset(struct cterminal *cterm)
 		cterm->mouse_state_change(1015, 0, cterm->mouse_state_change_cbdata);
 		cterm->mouse_state_change(1016, 0, cterm->mouse_state_change_cbdata);
 	}
-	if (cterm->skypix_engine != NULL)
-		cterm_render_record_error(cterm, cterm_skypix_reset(cterm->skypix_engine));
+	if (cterm->device.reset != NULL)
+		cterm_render_record_error(cterm, cterm->device.reset(cterm->device.context));
 }
 
 struct cterminal *

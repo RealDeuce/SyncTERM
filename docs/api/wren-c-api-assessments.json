@@ -3470,7 +3470,7 @@
           "anchor": "st_amiga_font_decode"
         },
         {
-          "path": "src/terminal/cterm/cterm_skypix.c",
+          "path": "src/terminal/skypix/cterm_skypix.c",
           "anchor": "st_amiga_fonts_lookup"
         }
       ]
@@ -3923,19 +3923,19 @@
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_skypix.h",
+      "path": "src/terminal/skypix/cterm_skypix.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_skypix_audio.h",
+      "path": "src/terminal/skypix/cterm_skypix_audio.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_skypix_parser.h",
+      "path": "src/terminal/skypix/cterm_skypix_parser.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_skypix_walkers.h",
+      "path": "src/terminal/skypix/cterm_skypix_walkers.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
@@ -4670,12 +4670,12 @@
       "aspect": "Private mapping/flush controls and cleanup accounting; actual grant creation and stale ownership checks."
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_test.c",
       "anchor": "main(",
       "aspect": "Independent parser/pixel/state, native text and ILBM checks"
     },
     {
-      "path": "src/terminal/cterm/tests/test_skypix_vectors.py",
+      "path": "src/terminal/skypix/tests/test_skypix_vectors.py",
       "anchor": "text_overhang_example",
       "aspect": "Independent supplied ROM point/text vectors"
     },
@@ -4700,12 +4700,12 @@
       "aspect": "Locked persistence from legacy RIP, concurrent merge, conflicts and defaults"
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_test.c",
       "anchor": "pixels->alternate",
       "aspect": "Identical primary/alternate SkyPix raster planes"
     },
     {
-      "path": "src/terminal/cterm/tests/data/skypix/golden-vectors.json",
+      "path": "src/terminal/skypix/tests/data/skypix/golden-vectors.json",
       "anchor": "\"point_hash_encoding\"",
       "aspect": "Independent supplied ROM point/text reference data; no generated emulator oracle"
     },
@@ -4750,7 +4750,7 @@
       "aspect": "Literal RGB cursor overlay, clipping, raw phase exclusion, standard-cursor handoff and snapshot restoration; identical-cell clear followed by graphics and independent status-row invalidation retains literal pixels in both planes"
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_cursor_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_cursor_test.c",
       "anchor": "static void widths",
       "aspect": "SkyTERM cursor shape and colours with clean visible-cursor ownership: exact nominal widths/baseline, two-phase saved-background restoration, clipping, first-bang command entry, font/reset transitions, no idle phase, palette/depth and split input/UTF-8 revision; brushes and retired scrollback reject stale cursor pixels. Replaces the former JR-Comm sprite/phase expectations."
     },
@@ -4760,12 +4760,12 @@
       "aspect": "Literal controller-1 bytes, both variants/encodings/status choices, scaled pixel mapping, bright/dim M, Alt-O/online-menu gates, disabled release recovery, local UI/status exclusion, reset and local wheel scrollback; command-22 inclusive foreground fills, record replacement retaining prior pixels, endpoint slots, invalid definitions, raw clicks inside/outside and no command acknowledgments/controller-2 output"
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_test.c",
       "anchor": "mouse_tests(st_cterm_t *terminal)",
       "aspect": "Native exact report and user output origin, button edges, invalid/missing native pixels, canvas boundaries, ANSI tracking precedence, reset and both receive encodings"
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_test.c",
       "anchor": "static void wrapping_tests",
       "aspect": "Independent Diamond/20 nominal-count/forecast wrapping, explicit flushes, all write splits, wrap-off, signed-word overflow and UTF-8 grapheme revision; all EL modes with literal pixel rectangle expectations in both phases."
     },
@@ -4775,7 +4775,7 @@
       "aspect": "Literal Diamond i/W strike rasters after native-font wrapping and JAM1/JAM2 BS-space; observed tcsh TERM=ansi BS CSI K uses full font-height erasure in both variants/encodings/status choices."
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_test.c",
       "anchor": "static void gadget_tests",
       "aspect": "JR-Comm command-22 five-word storage in all 20 slots, every input split, inclusive fills in both planes, signed clipping/numeric wrapping, invalid arity/range preservation, clear/font/palette retention and full-reset cleanup; no acknowledgments."
     },
@@ -4785,7 +4785,7 @@
       "aspect": "Reply-fenced literal four-pixel stripes, exact Diamond/20 bottom scrolling, pending-strip joins in live/disconnected/directory viewers, both variants/encodings/status choices; independent fixture colours, no emulator-generated expected raster."
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_skypix_test.c",
+      "path": "src/terminal/skypix/tests/st_cterm_skypix_test.c",
       "anchor": "static void pixel_scroll_test",
       "aspect": "Both phases and RGB palette freezing across partial-strip merges, zero/one-row capacity, ring wrap, reset and detached snapshots, exact 19-pixel overshoot, later ordinary cell scroll and bottom auto-wrap, full drawable raster extent through the Ruby/12 font-row remainder and retained old Pearl rasters after selecting Diamond."
     },

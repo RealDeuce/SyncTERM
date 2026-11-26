@@ -323,7 +323,7 @@ int main(void)
 				ST_RIP_TEST_PYTHON="${Python3_EXECUTABLE}")
 		endif()
 	endif()
-	target_link_libraries(st_wren_host_test PRIVATE st_wren_host
+	target_link_libraries(st_wren_host_test PRIVATE st_wren_host st_skypix
 		st_wren_vm st_settings st_theme st_time st_bbs_list st_audio st_term st_language st_transfer
 		st_consent_token
 		syncterm_filesystem syncterm_string_compat

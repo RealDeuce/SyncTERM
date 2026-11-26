@@ -11,7 +11,6 @@
 #include "cterm_input.h"
 #include "cterm_internal.h"
 #include "cterm_prestel.h"
-#include "cterm_skypix.h"
 #include "cterm_text.h"
 #include "io_error.h"
 #include "st_utf8.h"
@@ -203,9 +202,9 @@ present(void *context, const struct st_unicode_presentation_event *event)
 		if (cterm->screen.provisional_columns != 0 && cterm->screen.missing_glyph)
 			log_missing(cterm, event);
 		cterm->screen.provisional_columns = 0;
-		if (cterm->skypix_engine != NULL) {
+		if (cterm->device.present != NULL) {
 			bool handled;
-			return cterm_skypix_present(cterm->skypix_engine, event, &handled);
+			return cterm->device.present(cterm->device.context, event, &handled);
 		}
 		return 0;
 	}
@@ -227,17 +226,17 @@ present(void *context, const struct st_unicode_presentation_event *event)
 		if (status != 0)
 			return status;
 	}
-	if (cterm->skypix_engine != NULL) {
+	if (cterm->device.present != NULL) {
 		bool handled;
-		status = cterm_skypix_present(cterm->skypix_engine, event, &handled);
+		status = cterm->device.present(cterm->device.context, event, &handled);
 		if (status != 0 || handled)
 			return status;
 	}
 	if (event->kind == ST_UNICODE_PRESENTATION_REVISE && cterm->screen.provisional_discarded)
 		return 0;
 	status = place(cterm, event, event->kind != ST_UNICODE_PRESENTATION_DECODE_ERROR, 0);
-	if (status == 0 && cterm->skypix_engine != NULL)
-		status = cterm_skypix_present_cell(cterm->skypix_engine);
+	if (status == 0 && cterm->device.present_cell != NULL)
+		status = cterm->device.present_cell(cterm->device.context);
 	return status;
 }
 

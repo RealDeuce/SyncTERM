@@ -91,7 +91,6 @@ enum prestel_prog_states {
 #define PRESTEL_MEM_SLOT_SIZE 16
 
 struct cterm_rip_engine;
-struct cterm_skypix;
 struct cterm_igs;
 struct cterm_key;
 
@@ -100,10 +99,23 @@ struct cterm_device_events {
 	void *context;
 	bool  (*key)(void *, const struct cterm_key *);
 	int   (*mouse_mode)(const void *);
-	bool  (*mouse)(void *, const struct st_console_event *);
+	bool           (*mouse)(void *, const struct st_console_event *, uint32_t changed);
 	void  (*observe_mouse)(void *, const struct st_console_event *);
 	void  (*sync_mouse)(void *, uint32_t);
 	void  (*yield_fx)(void *);
+	int            (*hide_cursor)(void *);
+	void           (*cursor_mode)(void *, bool hidden);
+	void           (*home)(void *);
+	int            (*reset)(void *);
+	int            (*reset_style)(void *);
+	bool           (*erase_line)(void *, unsigned mode);
+	bool           (*control)(void *, uint8_t);
+	int            (*present)(void *, const struct st_unicode_presentation_event *, bool *handled);
+	int            (*present_cell)(void *);
+	const uint8_t *sgr_palette;
+	unsigned       pen_mask;
+	bool           fixed_status_rows;
+	bool           pixel_history;
 };
 struct cterm_apc_state;
 
@@ -111,7 +123,7 @@ struct cterminal {
 	/* Rendering state */
 	struct cterm_render_state screen;
 	struct cterm_rip_engine  *rip_engine;
-	struct cterm_skypix      *skypix_engine;
+
 	struct cterm_igs         *igs_engine;
 	struct cterm_device_events device;
 	bool                       fixed_geometry;
@@ -128,8 +140,7 @@ struct cterminal {
 	 * SI/SO do not invoke G1 in this profile. Values are ESC final bytes. */
 	uint8_t                             rip3_g0, rip3_g1;
 	enum st_cterm_rip3_window_action    rip3_window_action;
-	st_cterm_skypix_transfer_callback_t skypix_transfer;
-	void                               *skypix_transfer_context;
+
 	struct cterm_apc_state             *apc;
 	const char                         *rip_directory;
 	st_cterm_rip_prompt_callback_t      rip_prompt;
@@ -378,7 +389,7 @@ struct cterminal {
 #define MACRO_ENCODING_HEX   1
 
 	/* Alternate font renderer */
-	int     skypix;
+
 	uint8_t prestel_last_mosaic;
 
 	/* ATASCII inverse-video input mode, toggled by the backtick key.

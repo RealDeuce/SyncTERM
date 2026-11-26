@@ -10,6 +10,7 @@
 
 #include "audio.h"
 #include "cterm_big.h"
+#include "cterm_skypix.h"
 #include "io_error.h"
 #include "st_ooii.h"
 #include "st_term.h"
@@ -32,6 +33,7 @@ struct st_term_session {
 	struct st_term_config  config;
 	st_cterm_t            *cterm;
 	struct cterm_big      *big;
+	struct cterm_skypix   *skypix;
 	st_ooii_t             *ooii;
 	struct st_utf8_decoder ooii_decoder;
 	struct st_term_rip3   *rip3;
@@ -96,7 +98,9 @@ bool
 st_term_session_device_paused(st_term_session_t *session)
 {
 	return session != NULL
-	       && (cterm_big_paused(session->big) || st_cterm_input_paused(st_term_session_cterm(session)));
+	       && (cterm_big_paused(session->big)
+	           || (session->skypix != NULL && cterm_skypix_paused(session->skypix))
+	           || st_cterm_input_paused(st_term_session_cterm(session)));
 }
 
 int
@@ -107,6 +111,8 @@ st_term_session_poll_display(st_term_session_t *session)
 	int status = st_cterm_poll(st_term_session_cterm(session));
 	if (status == 0 && session->big != NULL)
 		status = cterm_big_poll(session->big);
+	if (status == 0 && session->skypix != NULL)
+		status = cterm_skypix_service(session->skypix);
 	return status;
 }
 
@@ -115,7 +121,8 @@ st_term_session_finish_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	int status = cterm_big_finish(session->big);
+	int status =
+	    session->skypix != NULL ? cterm_skypix_finish(session->skypix) : cterm_big_finish(session->big);
 	return status != 0 ? status : st_cterm_finish(st_term_session_cterm(session));
 }
 
@@ -124,6 +131,11 @@ st_term_session_reset_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->skypix != NULL) {
+		int status = cterm_skypix_finish(session->skypix);
+		if (status != 0)
+			return status;
+	}
 	return session->big != NULL ? cterm_big_reset_terminal(session->big)
 	                            : st_cterm_reset_terminal(st_term_session_cterm(session));
 }
@@ -132,6 +144,24 @@ struct cterm_big *
 st_term_session_big(st_term_session_t *session)
 {
 	return session == NULL ? NULL : session->big;
+}
+
+struct cterm_skypix *
+st_term_session_skypix(st_term_session_t *session)
+{
+	return session == NULL ? NULL : session->skypix;
+}
+
+int
+st_term_session_skypix_receive(st_term_session_t *session, const void *bytes, size_t size)
+{
+	return cterm_skypix_receive(st_term_session_skypix(session), bytes, size);
+}
+
+int
+st_term_session_skypix_load_sample(st_term_session_t *session, const void *bytes, size_t size)
+{
+	return cterm_skypix_audio_load(st_term_session_skypix(session), bytes, size);
 }
 
 static bool
@@ -153,7 +183,8 @@ finish(st_term_session_t *session)
 			return status;
 	}
 	st_term_rip3_cancel(session->rip3);
-	int status = cterm_big_finish(session->big);
+	int status =
+	    session->skypix != NULL ? cterm_skypix_finish(session->skypix) : cterm_big_finish(session->big);
 	return status != 0 ? status : st_cterm_finish(session->cterm);
 }
 
@@ -488,47 +519,42 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	}
 	st_screen_mode_profile_palette(mode, config->palette, config->palette_size, palette_override);
 	const struct st_cterm_config cterm_config = {
-	    .console                 = config->console,
-	    .fonts                   = config->fonts,
-	    .audio                   = config->audio,
-	    .hyperlinks              = config->hyperlinks,
-	    .emulation               = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	                                   || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
-	                                   || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
-	                                   ? ST_CTERM_ANSI_BBS
-	                                   : profile_emulation(config->screen_mode),
-	    .encoding                = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-	                                   || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
-	                                   ? ST_CTERM_ENCODING_UTF8
-	                                   : config->encoding,
-	    .graphics_mode           = config->graphics_mode,
-	    .rip3_session_owner      = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
-	    .rip3_autosense          = rip3_autosense,
-	    .rip3_autosense_context  = session,
-	    .rip_directory           = config->rip_directory,
-	    .amiga_font_directory    = config->amiga_font_directory,
-	    .amiga_font              = config->amiga_font,
-	    .skypix_width            = config->skypix_width,
-	    .skypix_height           = config->skypix_height,
-	    .skypix_transfer         = config->skypix_transfer,
-	    .skypix_transfer_context = config->skypix_transfer_context,
-	    .apc_directory           = config->apc_directory,
-	    .application_version     = config->application_version,
-	    .codepage                = config->codepage,
-	    .palette_mapping         = mode == NULL ? NULL : palette_mapping,
-	    .petscii_machine         = profile_petscii_machine(config->screen_mode),
-	    .font_selector           = config->font_selector,
-	    .terminal_rows           = reserve_status ? rows - 1 : rows,
-	    .status_line             = reserve_status,
-	    .expand_lf               = config->expand_lf,
-	    .force_lcf               = config->force_lcf,
-	    .yellow_is_yellow        = config->yellow_is_yellow,
-	    .palette_override        = config->palette_size == 0 ? NULL : palette_override,
-	    .scrollback_lines        = config->history == NULL ? 0 : st_session_history_capacity(config->history),
-	    .output                  = cterm_output,
-	    .output_context          = session,
-	    .size_changed            = cterm_size,
-	    .size_context            = session,
+	    .console                = config->console,
+	    .fonts                  = config->fonts,
+	    .audio                  = config->audio,
+	    .hyperlinks             = config->hyperlinks,
+	    .emulation              = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	                                  || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
+	                                  || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
+	                                  ? ST_CTERM_ANSI_BBS
+	                                  : profile_emulation(config->screen_mode),
+	    .encoding               = (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
+	                                  || config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
+	                                  ? ST_CTERM_ENCODING_UTF8
+	                                  : config->encoding,
+	    .graphics_mode          = config->graphics_mode,
+	    .rip3_session_owner     = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
+	    .rip3_autosense         = rip3_autosense,
+	    .rip3_autosense_context = session,
+	    .rip_directory          = config->rip_directory,
+
+	    .apc_directory       = config->apc_directory,
+	    .application_version = config->application_version,
+	    .codepage            = config->codepage,
+	    .palette_mapping     = mode == NULL ? NULL : palette_mapping,
+	    .petscii_machine     = profile_petscii_machine(config->screen_mode),
+	    .font_selector       = config->font_selector,
+	    .terminal_rows       = reserve_status ? rows - 1 : rows,
+	    .status_line         = reserve_status,
+	    .expand_lf           = config->expand_lf,
+	    .force_lcf           = config->force_lcf,
+	    .yellow_is_yellow    = config->yellow_is_yellow,
+	    .palette_override    = config->palette_size == 0 ? NULL : palette_override,
+	    .scrollback_lines    = config->history == NULL ? 0 : st_session_history_capacity(config->history),
+	    .output              = cterm_output,
+	    .output_context      = session,
+	    .size_changed        = cterm_size,
+	    .size_context        = session,
 	    .transport_owns_flow_control = true,
 	    .igs_loop_service_pending    = igs_loop_service_pending,
 	    .igs_loop_service_context    = session,
@@ -553,6 +579,16 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
 		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
+	else if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	         || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
+		status = cterm_skypix_open(&session->skypix, &session->cterm, &cterm_config,
+		    &(struct st_skypix_config) {.kick13 = config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13,
+			.width                          = config->skypix_width,
+			.height                         = config->skypix_height,
+			.font                           = config->amiga_font,
+			.font_directory                 = config->amiga_font_directory,
+			.transfer                       = config->skypix_transfer,
+			.transfer_context               = config->skypix_transfer_context});
 	else
 		status = st_cterm_create(&session->cterm, &cterm_config);
 	if (status != 0) {
@@ -561,6 +597,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	}
 	status = update_connection_geometry(session);
 	if (status != 0) {
+		cterm_skypix_destroy(session->skypix);
 		cterm_big_destroy(session->big);
 		st_cterm_destroy(&session->cterm);
 		free(session);
@@ -575,6 +612,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	status = st_ooii_create(&session->ooii, &ooii_config);
 	if (status != 0) {
+		cterm_skypix_destroy(session->skypix);
 		cterm_big_destroy(session->big);
 		st_cterm_destroy(&session->cterm);
 		free(session);
@@ -641,6 +679,7 @@ st_term_session_destroy(st_term_session_t **session)
 	publish_history(*session);
 	st_ooii_destroy((*session)->ooii);
 	st_term_rip3_destroy((*session)->rip3);
+	cterm_skypix_destroy((*session)->skypix);
 	cterm_big_destroy((*session)->big);
 	st_cterm_destroy(&(*session)->cterm);
 	free((*session)->returned_wire);
@@ -991,8 +1030,12 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 		*consumed = size;
 		return 0;
 	}
-	if (session->big != NULL && st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF)
-		return cterm_big_feed(session->big, bytes, size, consumed);
+	if (st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+		if (session->big != NULL)
+			return cterm_big_feed(session->big, bytes, size, consumed);
+		if (session->skypix != NULL)
+			return cterm_skypix_feed(session->skypix, bytes, size, consumed);
+	}
 	return st_cterm_write(session->cterm, bytes, size, consumed);
 }
 

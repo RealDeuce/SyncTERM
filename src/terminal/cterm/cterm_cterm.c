@@ -1198,7 +1198,7 @@ set_bright_fg(struct cterminal *cterm, unsigned char colour, int flags)
 {
 	if (!(flags & ST_CONSOLE_VIDEO_NO_BRIGHT)) {
 		cterm_set_fgattr(cterm, colour);
-		if (!cterm->skypix)
+		if (cterm->device.sgr_palette == NULL)
 			cterm->attr |= 8;
 		cterm_render_attribute_colours(cterm, cterm->attr, &cterm->fg_color, NULL);
 		CTERM_FREE_AND_CLEAR(cterm->fg_tc_str);
@@ -1210,7 +1210,7 @@ set_bright_bg(struct cterminal *cterm, unsigned char colour, int flags)
 {
 	if (flags & ST_CONSOLE_VIDEO_BRIGHT_BACKGROUND) {
 		cterm_set_bgattr(cterm, colour);
-		if (!cterm->skypix)
+		if (cterm->device.sgr_palette == NULL)
 			cterm->attr |= 128;
 		cterm_render_attribute_colours(cterm, cterm->attr, NULL, &cterm->bg_color);
 		CTERM_FREE_AND_CLEAR(cterm->bg_tc_str);

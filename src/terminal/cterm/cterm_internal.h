@@ -371,10 +371,7 @@ void cterm_dispatch_byte(struct cterminal *cterm, unsigned char byte, int *speed
 extern const struct seq_dispatch cterm_ansi_dispatch[];
 extern const size_t              cterm_ansi_dispatch_len;
 
-/* SkyPix palette translation — a no-op when cterm->skypix is clear,
- * otherwise remaps ANSI colour indices to SkyPix palette positions.
- * Called inline from the ECMA-48 SGR handler (cases 30-37 / 40-47). */
-unsigned char cterm_skypix_color(struct cterminal *cterm, unsigned char color);
+unsigned char cterm_sgr_color(const struct cterminal *cterm, unsigned char color);
 
 /* Set a logical foreground or background colour through the mode palette. */
 void cterm_set_fgattr(struct cterminal *cterm, unsigned char colour);

@@ -6,7 +6,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermTestRunner.cmake")
 add_library(st_term STATIC st_term.c st_term_rip3.c st_term_rip3_view.c st_term_rip3_pick_list.c)
 target_include_directories(st_term PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_term PUBLIC st_connection st_cterm st_font_catalog st_transfer
-	st_session_history PRIVATE st_big_terminal st_audio st_ooii st_unicode_text st_utf8 st_time
+	st_session_history st_skypix PRIVATE st_big_terminal st_audio st_ooii st_unicode_text st_utf8 st_time
 	st_rip3_commands st_rip3_storage st_pixel_image st_fonts st_unicode_compare
 	syncterm_filesystem syncterm_path
 	syncterm_threads

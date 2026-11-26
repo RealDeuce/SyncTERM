@@ -17,7 +17,6 @@
 #include "cterm_igs_audio.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
-#include "cterm_skypix.h"
 #include "cterm_vt52.h"
 #include "io_error.h"
 #include "st_base64.h"
@@ -114,9 +113,9 @@ cterm_render_attribute_colours(struct cterminal *cterm, uint8_t attribute, uint3
 	unsigned fg    = attribute & 15U;
 	unsigned bg    = (attribute >> 4) & 15U;
 
-	if (cterm->skypix_engine != NULL) {
-		fg &= cterm->skypix_engine->colours - 1;
-		bg &= cterm->skypix_engine->colours - 1;
+	if (cterm->device.sgr_palette != NULL) {
+		fg &= cterm->device.pen_mask;
+		bg &= cterm->device.pen_mask;
 	}
 	else {
 		if ((flags & ST_CONSOLE_VIDEO_NO_BRIGHT) != 0)
@@ -160,7 +159,7 @@ cterm_render_make_cell(struct cterminal *cterm, struct st_console_cell *cell, ui
 		flags |= ST_CONSOLE_CELL_BRIGHT;
 	if ((attribute & CTERM_ATTR_BLINK) != 0)
 		flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->skypix || cterm->igs_engine != NULL)
+	if (cterm->device.sgr_palette != NULL || cterm->igs_engine != NULL)
 		flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	*cell = (struct st_console_cell) {
 	    .foreground = foreground,
@@ -377,7 +376,7 @@ cterm_render_set_attribute(struct cterminal *cterm, int attribute)
 	}
 	if ((cterm->attr & CTERM_ATTR_BLINK) != 0)
 		style.flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->skypix || cterm->igs_engine != NULL)
+	if (cterm->device.sgr_palette != NULL || cterm->igs_engine != NULL)
 		style.flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	style.font      = font_identifier(cterm, cterm_render_attribute_font(cterm, cterm->attr));
 	style.hyperlink = cterm->screen.current_hyperlink;
@@ -410,8 +409,8 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 		cterm_vt52_render_cursor(cterm, cursor);
 		return;
 	}
-	if (cterm->skypix_engine != NULL) {
-		cterm_skypix_cursor_mode(cterm->skypix_engine, cursor == CTERM_CURSOR_HIDDEN);
+	if (cterm->device.cursor_mode != NULL) {
+		cterm->device.cursor_mode(cterm->device.context, cursor == CTERM_CURSOR_HIDDEN);
 		return;
 	}
 	if (!render_succeeded(cterm, st_console_get_default_cursor(cterm->screen.console, &custom)))

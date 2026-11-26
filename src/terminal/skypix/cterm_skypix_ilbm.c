@@ -21,6 +21,8 @@ be32(const uint8_t *p)
 int
 cterm_skypix_receive(struct cterm_skypix *s, const void *bytes, size_t size)
 {
+	if (s == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
 	s->receiving = false;
 	if (bytes == NULL && size == 0)
 		return 0;

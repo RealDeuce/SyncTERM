@@ -12,6 +12,8 @@
 int
 cterm_skypix_audio_load(struct cterm_skypix *s, const void *bytes, size_t size)
 {
+	if (s == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
 	const uint8_t *p = bytes;
 	if (p == NULL || size < 6)
 		return IO_ERROR_INVALID_FORMAT;

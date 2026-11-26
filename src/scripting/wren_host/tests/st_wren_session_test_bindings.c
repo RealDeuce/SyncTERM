@@ -62,6 +62,15 @@ test_cterm_reset(st_cterm_t *terminal)
 	                                         : st_cterm_reset_terminal(terminal);
 }
 
+static int
+test_session_reset(st_term_session_t *session)
+{
+	++st_wren_test_cterm_reset_calls;
+	return st_wren_test_cterm_reset_override ? st_wren_test_cterm_reset_status
+	                                         : st_term_session_reset_display(session);
+}
+
+#define st_term_session_reset_display test_session_reset
 #define st_cterm_reset_terminal  test_cterm_reset
 #define st_cterm_write_utf8      test_cterm_write
 #define st_term_session_send_key test_cterm_key
