@@ -1861,3 +1861,8 @@ The updated example preserves its original input and specifies every transmitted
 
 Stable commit `6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c` incorporates #337, #338.
 The revised chapters specify immediate and stored query behavior, literal control bytes, capability lookups, address delimiters and ordinary masked prompts. [PR #337](https://github.com/bbs-land/remote-imaging-protocol/pull/337) · [PR #338](https://github.com/bbs-land/remote-imaging-protocol/pull/338)
+
+## Continued polygon and minimal-scene font examples
+
+Stable commit `bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553` incorporates #341, #342.
+[PR #341](https://github.com/bbs-land/remote-imaging-protocol/pull/341) gives the exact polygon continuation exercised through the connected parser. [PR #342](https://github.com/bbs-land/remote-imaging-protocol/pull/342) corrects the Small stroke font annotation in both copies of the introductory scene.

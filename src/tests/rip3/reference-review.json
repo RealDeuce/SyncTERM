@@ -1,23 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/338",
-  "revision": "6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c",
-  "previous_revision": "090ed549c59b0157130e123a3b2ffb6009055779",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/342",
+  "revision": "bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553",
+  "previous_revision": "6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates #337, #338.",
-  "archive_sha256": "81474a82002ccf2b6d77643d250f0b5fdb90cdf63038e5a473cc9fcc583e63bf",
+  "upstream_state_at_adoption": "Fork stable incorporates #341, #342.",
+  "archive_sha256": "4e0a59cd88b17efe1a0ab2a46795253521e49b6249b22589eee37b8eb336c702",
   "normative_scope": [
-    "Separates stored query modes from live responses and gives the concrete control bytes and capability-query results.",
-    "Corrects the address response, name conversion and masked editor examples while preserving the historical help spelling."
+    "Supplies a valid continued four-vertex filled polygon.",
+    "Decodes the Small stroke face, direction, 3:1 scale and left/top alignment in both copies of the example."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/9.3-host-command-reference.md"
+    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+    "version/3.0/ripscrip/6.0-writing-rip-files.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9719,
+  "matched_source_blocks": 9736,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 166,
+  "upstream_issue_resolutions": 168,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1942,6 +1942,18 @@
       "sha256": "9f31030334b32cd7af84377aa13937f47530cbe25607113c2fb0dc31254d31f9",
       "title": "Issue #336 — Address query and positioned editor examples",
       "role": "Corrects the address response, name conversion and masked editor examples while preserving the historical help spelling."
+    },
+    {
+      "path": "version/3.0/research/issue-339-filled-polygon-continuation-example.md",
+      "sha256": "c159da7aa0cf2eaf78355b8bd99254949a9947489732c64c9388320e1104814e",
+      "title": "Issue #339 — Continued filled-polygon example",
+      "role": "Supplies a valid continued four-vertex filled polygon."
+    },
+    {
+      "path": "version/3.0/research/issue-340-minimal-scene-font-annotation.md",
+      "sha256": "03ea3988dd59b3e28552565f3db2de5a530339450448ded01040d8df36ce48f8",
+      "title": "Issue #340 — Minimal scene's classic font selection",
+      "role": "Decodes the Small stroke face, direction, 3:1 scale and left/top alignment in both copies of the example."
     }
   ],
   "documents": [
@@ -2035,7 +2047,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-      "sha256": "4143489d208dd63fe549719e161fa9cb1deb3fe8d98f2a432224a889b2dc4b03"
+      "sha256": "376fdd09156099d63707958bf341cd7a9e8042e0367797b5608b77f21e1e3296"
     },
     {
       "path": "version/3.0/ripscrip/1.2-math-and-coordinates.md",
@@ -2123,7 +2135,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
-      "sha256": "07d49d3c176852689d94638651155c8ed5f5e5842015876d7f6294311fea81b8"
+      "sha256": "c53e6ab9bd59096b4c21b9bfd580cf0fadd519a1933252f229d15d22622e3a4b"
     },
     {
       "path": "version/3.0/ripscrip/6.1-content-file-roles.md",
@@ -2218,7 +2230,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "39495d6f6b05ef0b5e0a894545eb187292002286",
+  "previous_ledger_commit": "78581ab7b30137d038d4cdce33fcb811061744c9",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2293,13 +2305,13 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 643,
-    "context": 2980,
-    "implemented": 5835,
+    "context": 3059,
+    "implemented": 5878,
+    "unreviewed": 524,
     "excluded": 273,
     "pending": 8
   },
-  "source_blocks_at_adoption": 9739,
+  "source_blocks_at_adoption": 9742,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -22274,6 +22286,82 @@
         "version/3.0/ripscrip/9.3-host-command-reference.md:27",
         "version/3.0/ripscrip/9.3-host-command-reference.md:28",
         "version/3.0/ripscrip/9.3-host-command-reference.md:29"
+      ]
+    },
+    {
+      "previous_revision": "6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c",
+      "revision": "bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553",
+      "archive_sha256": "4e0a59cd88b17efe1a0ab2a46795253521e49b6249b22589eee37b8eb336c702",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/339",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/341",
+          "reviewed_head": "ae87a9ac323998be9558f1aad4b15a9cee8a20cc",
+          "integration": "2bde1d07134ccc07096a7c06ed59763d2a7bac92"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/340",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/342",
+          "reviewed_head": "a9b24efda6a59ff54c55a91a23603e06d6f47382",
+          "integration": "8886e3474457856c456d09aa48892de42abb81db"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
+          "previous_sha256": "4143489d208dd63fe549719e161fa9cb1deb3fe8d98f2a432224a889b2dc4b03",
+          "sha256": "376fdd09156099d63707958bf341cd7a9e8042e0367797b5608b77f21e1e3296"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
+          "previous_sha256": "07d49d3c176852689d94638651155c8ed5f5e5842015876d7f6294311fea81b8",
+          "sha256": "c53e6ab9bd59096b4c21b9bfd580cf0fadd519a1933252f229d15d22622e3a4b"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-339-filled-polygon-continuation-example.md",
+          "sha256": "c159da7aa0cf2eaf78355b8bd99254949a9947489732c64c9388320e1104814e",
+          "title": "Issue #339 — Continued filled-polygon example",
+          "role": "Supplies a valid continued four-vertex filled polygon."
+        },
+        {
+          "path": "version/3.0/research/issue-340-minimal-scene-font-annotation.md",
+          "sha256": "03ea3988dd59b3e28552565f3db2de5a530339450448ded01040d8df36ce48f8",
+          "title": "Issue #340 — Minimal scene's classic font selection",
+          "role": "Decodes the Small stroke face, direction, 3:1 scale and left/top alignment in both copies of the example."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 305,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:384",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:393",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:395",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:400",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:406",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:129"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:384",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:400",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:129"
+      ],
+      "states_after_update": {
+        "context": 3059,
+        "implemented": 5878,
+        "unreviewed": 524,
+        "excluded": 273,
+        "pending": 8
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:384",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:393",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:395",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:400",
+        "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:406",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:129"
       ]
     }
   ],

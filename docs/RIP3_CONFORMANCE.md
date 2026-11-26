@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c](https://github.com/RealDeuce/remote-imaging-protocol/tree/6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c/version/3.0)
+bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553](https://github.com/RealDeuce/remote-imaging-protocol/tree/bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -94,7 +94,9 @@ The final invalid digit prevents its HARD reset and button deletion. A query
 chained after the error observes the original slots. The valid header prunes
 only the unprotected button and selects environment zero. Continued polygon
 tests check both four complete vertices and excess coordinate digits, with a
-subsequent point confirming parser recovery.
+subsequent point confirming parser recovery. The corrected reference uses the same four
+vertices as the connected test. Both copies of the introductory scene now
+identify the Small stroke font at 3:1 scale with left/top alignment.
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
