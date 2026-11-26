@@ -16,39 +16,7 @@ add_library(st_controller STATIC controller.c controller_mapping.c controller_de
 target_include_directories(st_controller PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_controller PRIVATE st_time st_md5 st_utf8 syncterm_path syncterm_filesystem)
 set_target_properties(st_controller PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
-syncterm_check_c17_source([=[
-#include <sys/types.h>
-#include <stdint.h>
-#include <sys/ioctl.h>
-#include <dev/usb/usb_ioctl.h>
-#include <fcntl.h>
-int main(void) {
-	struct usb_device_info info = {0};
-	struct usb_gen_descriptor desc = {0};
-	return ioctl(-1, USB_GET_DEVICEINFO, &info) + ioctl(-1, USB_GET_REPORT_DESC, &desc)
-	    + info.udi_bustypeNo + desc.ugd_actlen + O_CLOEXEC;
-}
-]=] ST_CONTROLLER_HAVE_UHID)
-if(NOT ST_CONTROLLER_HAVE_UHID AND UNIX)
-	syncterm_check_c17_source([=[
-#define _POSIX_C_SOURCE 200809L
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/hidraw.h>
-#include <linux/input.h>
-int main(void) {
-	struct hidraw_devinfo info;
-	struct hidraw_report_descriptor desc;
-	int length;
-	return ioctl(-1, HIDIOCGRAWINFO, &info) + ioctl(-1, HIDIOCGRDESCSIZE, &length)
-	    + ioctl(-1, HIDIOCGRDESC, &desc) + BUS_USB + O_CLOEXEC;
-}
-]=] ST_CONTROLLER_HAVE_LINUX_HIDRAW)
-endif()
-if(ST_CONTROLLER_HAVE_UHID OR ST_CONTROLLER_HAVE_LINUX_HIDRAW)
-	target_sources(st_controller PRIVATE controller_raw.c)
-elseif(WIN32 OR APPLE)
+if(WIN32 OR APPLE)
 	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
 	syncterm_dependency(NAME HIDAPI PACKAGE "hidapi>=0.14" HEADER hidapi.h LIBRARIES hidapi
 		DEFAULT STATIC REQUIRED LINK_REQUIRED PROBE
@@ -69,9 +37,9 @@ else()
 	find_package(PkgConfig QUIET)
 	if(PkgConfig_FOUND AND (NOT CMAKE_CROSSCOMPILING OR DEFINED ENV{PKG_CONFIG_SYSROOT_DIR}))
 		if(NOT _st_hidapi)
-			pkg_search_module(ST_CONTROLLER_HID QUIET IMPORTED_TARGET hidapi-hidraw>=0.14 hidapi-netbsd>=0.14)
-			if(ST_CONTROLLER_HID_FOUND)
-				set(_st_hidapi PkgConfig::ST_CONTROLLER_HID)
+			pkg_search_module(ST_CONTROLLER_HID_NATIVE QUIET IMPORTED_TARGET hidapi-hidraw>=0.14 hidapi-netbsd>=0.14)
+			if(ST_CONTROLLER_HID_NATIVE_FOUND)
+				set(_st_hidapi PkgConfig::ST_CONTROLLER_HID_NATIVE)
 			endif()
 		endif()
 		pkg_check_modules(ST_CONTROLLER_USB QUIET IMPORTED_TARGET libusb-1.0)

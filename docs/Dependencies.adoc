@@ -25,13 +25,11 @@ macOS does not supply a supported OpenSSL development installation. Installed
 DeuceSSH packages cannot currently establish provider provenance and are not
 used. Explicit `none` retains the crypto-disabled configuration.
 
-For USB controller input, Windows and macOS use HIDAPI 0.14 or later,
-with a pinned source build available. Linux uses hidraw and FreeBSD uses
-hidraw or uhid. The user running SyncTERM needs read access to the device
-node. Other POSIX builds can use a compatible HIDAPI backend or libusb-1.0
-(e.g. on Haiku). The libusb backend requires an accessible HID interface
-and leaves attached kernel drivers in place. Libretro uses the frontend's
-configured RetroPad ports.
+USB controller input uses HIDAPI 0.14 or later on Windows and macOS,
+with a pinned source build available. On other targets CMake looks for
+HIDAPI's hidraw or NetBSD backend, then libusb-1.0. The libusb backend
+requires an accessible USB HID interface and leaves kernel drivers attached.
+Libretro uses the frontend's configured RetroPad ports.
 
 == Feature and library options
 

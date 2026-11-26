@@ -1,5 +1,4 @@
-/* Native libusb provider for targets without a kernel hidraw API, including
- * Haiku's USBKit-backed libusb. Never detach a system input driver. */
+/* Portable USB HID input through libusb-1.0. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include <stdlib.h>
 
@@ -13,7 +12,7 @@ struct usb_input {
 	libusb_device_handle   *handle;
 	struct libusb_transfer *transfer;
 	struct pad_collections  collections;
-	int                     interface_number;
+	uint8_t                 bus, address, interface_number;
 	bool                    pending, gone, seen;
 	struct usb_provider    *owner;
 };
@@ -108,12 +107,18 @@ open_input(struct usb_provider *p, libusb_device *device, const struct libusb_in
 		libusb_close(handle);
 		return NULL;
 	}
-	d->handle           = handle;
-	d->owner            = p;
-	d->interface_number = iface->bInterfaceNumber;
-	d->seen             = true;
+	d->handle               = handle;
+	d->owner                = p;
+	d->bus                  = libusb_get_bus_number(device);
+	d->address              = libusb_get_device_address(device);
+	d->interface_number     = iface->bInterfaceNumber;
+	d->seen                 = true;
+	unsigned char name[128] = {0};
+	if (info->iProduct
+	    && libusb_get_string_descriptor_ascii(handle, info->iProduct, name, sizeof name - 1) < 0)
+		name[0] = 0;
 	if (!pad_attach_collections(p->hub, &d->collections, descriptor, (size_t)size, info->idVendor,
-		info->idProduct, NULL))
+		info->idProduct, (const char *)name))
 		goto fail;
 	d->transfer = libusb_alloc_transfer(0);
 	if (!d->transfer)
@@ -157,8 +162,10 @@ scan(struct usb_provider *p)
 				continue;
 			const struct libusb_interface_descriptor *iface = &config->interface[j].altsetting[0];
 			struct usb_input                         *d     = p->inputs;
+			/* Enumeration may allocate a fresh libusb_device for an open device. */
 			while (d
-			       && (libusb_get_device(d->handle) != list[i]
+			       && (d->bus != libusb_get_bus_number(list[i])
+			           || d->address != libusb_get_device_address(list[i])
 			           || d->interface_number != iface->bInterfaceNumber))
 				d = d->next;
 			if (d)
