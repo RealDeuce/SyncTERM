@@ -1,21 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/335",
-  "revision": "090ed549c59b0157130e123a3b2ffb6009055779",
-  "previous_revision": "8875443b50eb40f9bac243019cdacfe55438b32a",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/338",
+  "revision": "6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c",
+  "previous_revision": "090ed549c59b0157130e123a3b2ffb6009055779",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates #335.",
-  "archive_sha256": "eb1c0730df8f933cad6eafe590a95bac289ca361f9a90d84a7c0a28311b5fd9d",
+  "upstream_state_at_adoption": "Fork stable incorporates #337, #338.",
+  "archive_sha256": "81474a82002ccf2b6d77643d250f0b5fdb90cdf63038e5a473cc9fcc583e63bf",
   "normative_scope": [
-    "Specifies the 76 response bytes for the nested date/day template with slot 4 empty."
+    "Separates stored query modes from live responses and gives the concrete control bytes and capability-query results.",
+    "Corrects the address response, name conversion and masked editor examples while preserving the historical help spelling."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
+    "version/3.0/ripscrip/5.1-text-variables.md",
+    "version/3.0/ripscrip/9.3-host-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9730,
+  "matched_source_blocks": 9719,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -949,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 164,
+  "upstream_issue_resolutions": 166,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1928,6 +1930,18 @@
       "sha256": "d175b980ba3425a06babdaf08b75b0aee499420f28420fb5d14e43f5599cdd86",
       "title": "Issue #333 — Exact nested template example bytes",
       "role": "Specifies the 76 response bytes for the nested date/day template with slot 4 empty."
+    },
+    {
+      "path": "version/3.0/research/issue-334-host-response-index.md",
+      "sha256": "5a51bd71dbb0068e5aba39c8e02c91d0ddd90eafa197e8572de1e9826e40c4e1",
+      "title": "Issue #334 — Host response index",
+      "role": "Separates stored query modes from live responses and gives the concrete control bytes and capability-query results."
+    },
+    {
+      "path": "version/3.0/research/issue-336-address-and-editor-examples.md",
+      "sha256": "9f31030334b32cd7af84377aa13937f47530cbe25607113c2fb0dc31254d31f9",
+      "title": "Issue #336 — Address query and positioned editor examples",
+      "role": "Corrects the address response, name conversion and masked editor examples while preserving the historical help spelling."
     }
   ],
   "documents": [
@@ -2089,7 +2103,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "f60e64b9dbfc613165845cf9d34625fa3bb8b18a9958731db05a5f74bba37d49"
+      "sha256": "5eb288171f6f02c72ca209d5370b00bdf87d073ec40cdb2cbc9c02a31b92477d"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2145,7 +2159,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
-      "sha256": "419796261c8268dcbe8629a1b133493d4aed1bdd4416e0c5356115690b388ef9"
+      "sha256": "b7367f3621619f189e4c319ab56b27d99d775b262997f0a2846ede3ef1248a7a"
     },
     {
       "path": "version/3.0/ripscrip/README.md",
@@ -2204,7 +2218,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "9b649831384692f488a8008f1581aab82e434ab6",
+  "previous_ledger_commit": "39495d6f6b05ef0b5e0a894545eb187292002286",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2280,13 +2294,12 @@
   ],
   "states_at_adoption": {
     "unreviewed": 643,
-    "context": 2984,
-    "implemented": 5817,
+    "context": 2980,
+    "implemented": 5835,
     "excluded": 273,
-    "pending": 8,
-    "blocked": 9
+    "pending": 8
   },
-  "source_blocks_at_adoption": 9734,
+  "source_blocks_at_adoption": 9739,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -22144,6 +22157,123 @@
         "version/3.0/ripscrip/5.2-templates-and-conditionals.md:833",
         "version/3.0/ripscrip/5.2-templates-and-conditionals.md:835",
         "version/3.0/ripscrip/5.2-templates-and-conditionals.md:839"
+      ]
+    },
+    {
+      "previous_revision": "090ed549c59b0157130e123a3b2ffb6009055779",
+      "revision": "6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c",
+      "archive_sha256": "81474a82002ccf2b6d77643d250f0b5fdb90cdf63038e5a473cc9fcc583e63bf",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/334",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/337",
+          "reviewed_head": "6ac2772b25887ea590f1e39bdf7ae60c3cedb18c",
+          "integration": "f2a4d343241c229a2ac65c596ee429a659f47d2f"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/336",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/338",
+          "reviewed_head": "f3ac9726b3f0f1f5bac20535852059b99242c9a6",
+          "integration": "cac1035812761a664e4db59861cc0273f671cd4d"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "f60e64b9dbfc613165845cf9d34625fa3bb8b18a9958731db05a5f74bba37d49",
+          "sha256": "5eb288171f6f02c72ca209d5370b00bdf87d073ec40cdb2cbc9c02a31b92477d"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.3-host-command-reference.md",
+          "previous_sha256": "419796261c8268dcbe8629a1b133493d4aed1bdd4416e0c5356115690b388ef9",
+          "sha256": "b7367f3621619f189e4c319ab56b27d99d775b262997f0a2846ede3ef1248a7a"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-334-host-response-index.md",
+          "sha256": "5a51bd71dbb0068e5aba39c8e02c91d0ddd90eafa197e8572de1e9826e40c4e1",
+          "title": "Issue #334 — Host response index",
+          "role": "Separates stored query modes from live responses and gives the concrete control bytes and capability-query results."
+        },
+        {
+          "path": "version/3.0/research/issue-336-address-and-editor-examples.md",
+          "sha256": "9f31030334b32cd7af84377aa13937f47530cbe25607113c2fb0dc31254d31f9",
+          "title": "Issue #336 — Address query and positioned editor examples",
+          "role": "Corrects the address response, name conversion and masked editor examples while preserving the historical help spelling."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 1863,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:191",
+        "version/3.0/ripscrip/5.1-text-variables.md:193",
+        "version/3.0/ripscrip/5.1-text-variables.md:197",
+        "version/3.0/ripscrip/5.1-text-variables.md:206",
+        "version/3.0/ripscrip/5.1-text-variables.md:228",
+        "version/3.0/ripscrip/5.1-text-variables.md:235",
+        "version/3.0/ripscrip/5.1-text-variables.md:463",
+        "version/3.0/ripscrip/5.1-text-variables.md:471",
+        "version/3.0/ripscrip/5.1-text-variables.md:473",
+        "version/3.0/ripscrip/5.1-text-variables.md:477",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:11",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:15",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:22",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:23",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:24",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:25",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:26",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:27",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:28",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:29"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:191",
+        "version/3.0/ripscrip/5.1-text-variables.md:193",
+        "version/3.0/ripscrip/5.1-text-variables.md:197",
+        "version/3.0/ripscrip/5.1-text-variables.md:206",
+        "version/3.0/ripscrip/5.1-text-variables.md:228",
+        "version/3.0/ripscrip/5.1-text-variables.md:235",
+        "version/3.0/ripscrip/5.1-text-variables.md:463",
+        "version/3.0/ripscrip/5.1-text-variables.md:471",
+        "version/3.0/ripscrip/5.1-text-variables.md:473",
+        "version/3.0/ripscrip/5.1-text-variables.md:477",
+        "version/3.0/ripscrip/5.1-text-variables.md:479",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:11",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:15",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:22",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:23"
+      ],
+      "states_after_update": {
+        "unreviewed": 643,
+        "context": 2980,
+        "implemented": 5835,
+        "excluded": 273,
+        "pending": 8
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:191",
+        "version/3.0/ripscrip/5.1-text-variables.md:193",
+        "version/3.0/ripscrip/5.1-text-variables.md:197",
+        "version/3.0/ripscrip/5.1-text-variables.md:199",
+        "version/3.0/ripscrip/5.1-text-variables.md:206",
+        "version/3.0/ripscrip/5.1-text-variables.md:228",
+        "version/3.0/ripscrip/5.1-text-variables.md:235",
+        "version/3.0/ripscrip/5.1-text-variables.md:463",
+        "version/3.0/ripscrip/5.1-text-variables.md:471",
+        "version/3.0/ripscrip/5.1-text-variables.md:473",
+        "version/3.0/ripscrip/5.1-text-variables.md:477",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:11",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:15",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:22",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:23",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:24",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:25",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:26",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:27",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:28",
+        "version/3.0/ripscrip/9.3-host-command-reference.md:29"
       ]
     }
   ],

@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-090ed549c59b0157130e123a3b2ffb6009055779](https://github.com/RealDeuce/remote-imaging-protocol/tree/090ed549c59b0157130e123a3b2ffb6009055779/version/3.0)
+6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c](https://github.com/RealDeuce/remote-imaging-protocol/tree/6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -80,13 +80,14 @@ A connected entry handler plays one menu scene for two different fields.
 Its graphics-text argument uses FIELDID to choose the message, and the rendered
 ink matches the corresponding literal label. A separate photo-button click
 checks that local JPEG playback uses the image style selected after button
-creation. Three host-response index entries still need reconciliation with the
-detailed chapters. [Issue #334](https://github.com/bbs-land/remote-imaging-protocol/issues/334)
+creation. The host-response index now distinguishes immediate, stored and hover
+queries and gives exact control bytes and capability-query examples.
+[PR #337](https://github.com/bbs-land/remote-imaging-protocol/pull/337)
 
-The address-query test answers six ordinary prompts and checks the full
-CR-separated reply. An unterminated final `$ZIP^m` instead sends literal
-`$ZIP` and CR. A required, positioned prompt using the reserved PASSWORD name
-also returns empty. [Issue #336](https://github.com/bbs-land/remote-imaging-protocol/issues/336)
+The corrected address example matches the four CR-terminated lines from
+six prompts. A required, positioned prompt using the reserved PASSWORD name
+returns empty. The editable example uses TESTCODE instead.
+[PR #338](https://github.com/bbs-land/remote-imaging-protocol/pull/338)
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
