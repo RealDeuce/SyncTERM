@@ -98,6 +98,12 @@ subsequent point confirming parser recovery. The corrected reference uses the sa
 vertices as the connected test. Both copies of the introductory scene now
 identify the Small stroke font at 3:1 scale with left/top alignment.
 
+The connected reset fixture sends the guide's mixed `RESET(BUT, CUR, 30, BASE, S5)`
+and `RESET(PAL, CUR, 30, BASE, S5)` examples. It checks both live entries and
+all three saved areas, then restores the original table from protected slot S4.
+BUT selects zero after its current-entry reset. PAL keeps its selected index
+even though that entry becomes undefined.
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask

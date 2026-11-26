@@ -109,6 +109,21 @@ def default_palette(t, capture, values, width, height):
            b'0:-1:-1:' + stored)
 
 
+def selective_table_resets(t, values):
+    for family, current in (('BUT', '0'), ('PAL', '7')):
+        t.case('rip3-selective-reset-' + family.lower())
+        values(f'$CUR({family},30)$$CUR({family},7)$$COPY({family},TBL,BASE,S4,S5)$'
+               f'$PROT({family},S4)$'.encode())
+        slots = ''.join(f'$INUSE({family},{slot})$' for slot in ('7', '30', 'BASE', 'S4', 'S5'))
+        state = f'$CUR({family})$:{slots}'.encode()
+        values(state, b'7:11111')
+        values(f'$RESET({family}, CUR, 30, BASE, S5)$'.encode() + state,
+               f'{current}:00010'.encode())
+        # The protected S4 snapshot can restore the original table and selection.
+        values(f'$COPY({family},S4,TBL)$'.encode() + state, b'7:11010')
+    values(b'$RESET(HARD)$')
+
+
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -146,6 +161,7 @@ def run(args, width, height):
         receive(peer, b"RIPSCRIP030001", root / "replies.bin")
         if width == 640:
             default_palette(t, capture, values, width, height)
+            selective_table_resets(t, values)
         live_families = ('TW', 'BUT', 'STYLE', 'PORT', 'PAL', 'ENV')
         saved_families = (*live_families, 'MOUSE', 'SCREEN')
         current = ':'.join(f'$CUR({family})$' for family in live_families).encode()
