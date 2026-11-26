@@ -12,7 +12,8 @@
 struct st_rip3_outline_cache {
 	uint64_t logical[256], height;
 	int64_t steps[256], bbox_width;
-	unsigned dpi_x, spacing;
+	uint32_t dpi_x;
+	unsigned spacing;
 	bool bounding_box_spacing, valid;
 };
 
@@ -69,8 +70,7 @@ static int
 set_spacing(struct st_rip3_outline_cache *cache, unsigned spacing)
 {
 	for (size_t code=0; code<256; code++) {
-		/* The validated u16/Q/DPI/H ranges keep this product in uint64_t. */
-		uint64_t device=cache->logical[code]*cache->dpi_x/1440;
+		uint64_t device=st_rip3_outline_device_extent(cache->logical[code],cache->dpi_x);
 		int status=step(&cache->steps[code],device,
 		    cache->bounding_box_spacing ? (uint64_t)cache->bbox_width : device,spacing);
 		if (status!=0) return status;

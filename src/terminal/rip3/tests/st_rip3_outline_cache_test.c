@@ -88,6 +88,15 @@ bounded(void)
 	CHECK(st_rip3_outline_cache_fit(&cache,&font,&spacing,&frame,0,1,1,text,2)==IO_ERROR_OUT_OF_RANGE);
 	CHECK(font.points==10 && spacing==100 && width(cache,text,2,26,26)==0
 	    && st_rip3_outline_cache_height(cache)==10);
+	/* One design unit per em and the full u16 advance make the unscaled
+	 * logical-width times DPI exceed uint64_t. The pixel result fits. */
+	word(copy+44,1);
+	word(copy+file.base+12,1);
+	word(copy+file.advances+2*('A'-file.first_character),65535);
+	CHECK(st_rip3_frame_init_device(&frame,59000000,480)==0 && st_rip3_frame_world(&frame,1,480)==0);
+	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,4095,0,0)==0);
+	CHECK(st_rip3_outline_cache_prepare(cache,&font,100)==0);
+	CHECK(width(cache,text,1,INT64_C(65535)*4095*59000000,17600)==0);
 	st_rip3_outline_cache_destroy(cache);
 	free(copy);
 	return 0;

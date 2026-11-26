@@ -581,7 +581,7 @@ st_rip3_draw_outline_positioned(struct st_rip3_ports *ports,
 	static const int cosine[]={1,0,-1,0}, sine[]={0,1,0,-1};
 	if (font==NULL || layout==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (font->points==0 || font->points>4095 || font->flags>0xffffff
-	    || font->dpi_x==0 || font->dpi_x>72*1024 || font->dpi_y==0 || font->dpi_y>72*1024
+	    || font->dpi_x==0 || font->dpi_y==0
 	    || !isfinite(font->scale_x) || !isfinite(font->scale_y) || font->scale_x<=0 || font->scale_y<=0
 	    || layout->character_turns>3 || layout->font_orientation!=orientation[layout->character_turns]
 	    || font->orientation!=layout->font_orientation)

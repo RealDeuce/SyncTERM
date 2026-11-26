@@ -16,7 +16,8 @@ struct st_rip3_outline_font {
 	struct st_rip3_rff file;
 	struct st_rip3_rff_style style;
 	size_t face;
-	unsigned points, dpi_x, dpi_y, orientation;
+	unsigned points, orientation;
+	uint32_t dpi_x, dpi_y;
 	uint32_t flags;
 	/* Device-axis units per font unit, before the face's horizontal percent.
 	 * Layout supplies string/character rotation and spacing independently. */
@@ -46,8 +47,8 @@ struct st_rip3_outline_column_metrics st_rip3_outline_font_column_metrics(
  * already-loaded RFF face, revalidating its immutable bytes. The caller owns
  * those bytes for the complete lifetime of the returned view. Point size is
  * 1..4095; flags retain all 24 wire bits. Engine orientation 0..3 selects X
- * DPI for 0/2 and Y for 1/3 when choosing the hollow stamp. All three device
- * canvases and the current world frame determine DPI, truncated before use.
+ * DPI for 0/2 and Y for 1/3 when choosing the hollow stamp. The connection's
+ * device and current world dimensions determine DPI, truncated before use.
  * Failures preserve result, permitting a session to retain its prior cache. */
 int st_rip3_outline_font_bind(struct st_rip3_outline_font *result,
 	const struct st_rip3_rff *file, size_t face, const struct st_rip3_frame *frame,

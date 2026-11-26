@@ -106,7 +106,7 @@ metrics_and_spacing(void)
 	metric=77;
 	CHECK(st_rip3_outline_metric_device(&metric,INT32_MAX,73728)==IO_ERROR_OUT_OF_RANGE && metric==77);
 	CHECK(st_rip3_outline_metric_device(&metric,1,0)==IO_ERROR_OUT_OF_RANGE && metric==77);
-	CHECK(st_rip3_outline_metric_device(&metric,1,73729)==IO_ERROR_OUT_OF_RANGE && metric==77);
+	CHECK(st_rip3_outline_metric_device(&metric,1,73729)==0 && metric==51);
 	CHECK(st_rip3_outline_metric_device(NULL,1,72)==IO_ERROR_INVALID_ARGUMENT);
 	struct st_rip3_frame frame;
 	struct st_rip3_outline_style style=normal();

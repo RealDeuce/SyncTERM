@@ -60,6 +60,14 @@ commands reach the same implementation.
 | --- | --- |
 | Connection mode and default MicroANSI font | Eight Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
 
+Outline font measurement and drawing use the DPI projected from the connected
+device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws
+a ten-point MARIN F and reports a device advance of 7104 in both encodings.
+The font-format review also verified all thirty MicroANSI subrecords against
+the shipped data. Each stores codes 1 through 255, with code zero implicitly
+blank. [Issue #347](https://github.com/bbs-land/remote-imaging-protocol/issues/347)
+tracks discrepancies in the overview and resolution count.
+
 The command index has been checked against the detailed chapters. Connected
 CP437 and UTF-8 sessions discard reserved level-1 N/O/S, level-zero ESC and
 the legacy dollar opcode. A chained color and pixel still execute, and the

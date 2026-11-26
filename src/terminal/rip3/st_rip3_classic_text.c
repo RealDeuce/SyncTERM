@@ -70,7 +70,10 @@ st_rip3_classic_default_outline(struct st_rip3_outline_font *font,
 	    : (checked.flags & ST_RIP3_CLASSIC_BOTTOM) != 0 ? 250
 	    : (checked.flags & ST_RIP3_CLASSIC_MIDDLE) != 0 ? -250 : -750;
 	unsigned dpi = vertical ? font->dpi_x : font->dpi_y;
-	int32_t cross = (int32_t)(-(int64_t)reference * points[size] * dpi / (72 * 1000));
+	int64_t displacement = -(int64_t)reference * points[size] * dpi / (72 * 1000);
+	if (displacement < INT32_MIN || displacement > INT32_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	int32_t cross = (int32_t)displacement;
 	*layout = (struct st_rip3_outline_layout){
 		.direction = vertical ? (struct st_rip3_point){0,-1} : (struct st_rip3_point){1,0},
 		.baseline = vertical ? (struct st_rip3_point){cross,0} : (struct st_rip3_point){0,cross},

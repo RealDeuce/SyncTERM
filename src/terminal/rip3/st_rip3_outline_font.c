@@ -20,9 +20,9 @@ request(struct st_rip3_outline_font *value, const struct st_rip3_frame *frame,
 	if (status != 0) return status;
 	uint64_t dx=UINT64_C(72)*checked.device_width/checked.world_width;
 	uint64_t dy=UINT64_C(72)*checked.device_height/checked.world_height;
-	if (dx>72*1024 || dy>72*1024) return IO_ERROR_OUT_OF_RANGE;
+	if (dx>UINT32_MAX || dy>UINT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	*value = (struct st_rip3_outline_font){.points=points,.flags=flags,.orientation=orientation,
-	    .dpi_x=(unsigned)dx,.dpi_y=(unsigned)dy};
+	    .dpi_x=(uint32_t)dx,.dpi_y=(uint32_t)dy};
 	return 0;
 }
 
@@ -30,10 +30,12 @@ request(struct st_rip3_outline_font *value, const struct st_rip3_frame *frame,
  * scaled is a signed s16 coordinate multiplied by at most 255; legal point/
  * DPI products fit int64_t, including custom units_per_em=1 realizations. */
 static int64_t
-edge(int64_t scaled, unsigned points, unsigned dpi, unsigned units)
+edge(int64_t scaled, unsigned points, uint32_t dpi, unsigned units)
 {
-	int64_t numerator=scaled*(int64_t)points*(int64_t)dpi, denominator=(int64_t)units*72*100;
-	int64_t quotient=numerator/denominator, remainder=numerator%denominator;
+	int64_t numerator = scaled * points, denominator = (int64_t)units * 72 * 100;
+	int64_t fraction = (numerator % denominator) * dpi;
+	int64_t quotient = numerator / denominator * dpi + fraction / denominator;
+	int64_t remainder = fraction % denominator;
 	if (remainder*2>=denominator) quotient++;
 	else if (remainder*2 < -denominator) quotient--;
 	return quotient;
@@ -61,7 +63,8 @@ st_rip3_outline_font_column_metrics(const struct st_rip3_outline_font *font)
 	/* The face coefficient consumes decipoints in the original realization.
 	 * Produce its 1/1440-inch value before computing the device advance. */
 	int64_t leading = ((int64_t)font->points * 10 * 1440 * font->style.leading + 3600) / 7200;
-	int64_t advance = ((above + below) * 1440 + leading * font->dpi_y) / 1440;
+	int64_t leading_pixels = leading * font->dpi_y;
+	int64_t advance = above + below + leading_pixels / 1440 - (leading_pixels % 1440 < 0);
 	int64_t fit = baseline + below + 1;
 	return (struct st_rip3_outline_column_metrics){
 		.baseline = baseline, .fit = fit > 0 ? fit : 1, .advance = advance > 0 ? advance : 1,
@@ -191,7 +194,6 @@ metric_parameters(struct st_rip3_rff *file, struct st_rip3_rff_style *style,
 {
 	if (font==NULL) return IO_ERROR_INVALID_ARGUMENT;
 	if (font->points==0 || font->points>4095
-	    || font->dpi_x>72*1024 || font->dpi_y>72*1024
 	    || font->orientation>3 || font->flags>0xffffff)
 		return IO_ERROR_OUT_OF_RANGE;
 	int status=st_rip3_rff_open(file,font->file.data,font->file.size);
@@ -230,7 +232,7 @@ st_rip3_outline_font_metric_map(uint64_t result[256], uint64_t *height, const st
 	 * Validated signed 16-bit bbox, Q and DPI keep each product in u64. */
 	uint64_t numerator=(uint64_t)(file.ymax-file.ymin)*font->points*20;
 	uint64_t logical_height=(numerator+file.units_per_em/2)/file.units_per_em;
-	*height=logical_height*font->dpi_y/1440;
+	*height=st_rip3_outline_device_extent(logical_height,font->dpi_y);
 	memcpy(result,values,sizeof(values));
 	return 0;
 }
@@ -264,7 +266,7 @@ st_rip3_outline_font_advances(int32_t *result,
 			/* Max u16 advance, wire point size and byte percentage fit uint64_t.
 			 * Round logical units before device truncation, never a string sum. */
 			uint64_t logical=logical_advance(advance,font,&file,&style);
-			uint64_t device=logical*dpi/1440;
+			uint64_t device=st_rip3_outline_device_extent(logical,dpi);
 			if (device>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 			advances[code]=(int32_t)device;
 		}

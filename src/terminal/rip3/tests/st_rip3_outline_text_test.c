@@ -732,7 +732,7 @@ realized_behavior(void)
 		switch (which) {
 			case 0:font.scale_x=NAN;break; case 1:font.scale_y=-1;break;
 			case 2:font.orientation=3;break; case 3:font.points=0;break;
-			case 4:font.dpi_x=0;break; case 5:font.dpi_y=73729;break;
+			case 4:font.dpi_x=0;break; case 5:font.dpi_y=0;break;
 			case 6:font.flags=0x1000000;break; default:font.scale_x=0;break;
 		}
 		CHECK(st_rip3_draw_outline_positioned(ports,&font,&layout,(const uint8_t *)"A",1,

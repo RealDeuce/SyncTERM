@@ -282,11 +282,27 @@ def run(args,width,height):
         assert client.capture().application['connected']==1
 
 
+def check_wide_device(args):
+    with connection(args.executable, args.reports, encoding=args.encoding,
+                    options='ScreenMode=Custom\nRIP=RIPv3\n',
+                    settings='CustomColumns=160\nCustomRows=50\nCustomFontHeight=8\n') as (client, root, peer, send):
+        t = Terminal(client, root, peer, send)
+        t.case('outline text on a 1280-pixel device with a one-unit WORLD width')
+        t.exchange(b'\x01|*\r\n\x1b[?25l' + query(b'$WORLD(CUR,1,400)$', at_cursor=True))
+        # MARIN F at ten points rounds to 111 logical units. X DPI is
+        # 72 * 1280, giving a device advance of 111 * 92160 / 1440.
+        frame = t.exchange(b'\x01|y0000000A000000001a1a000000Marin|c0F|@002SF|r010000F\r\n',
+                           b'7104\r')
+        assert any(pixel(frame, x, y) == 0xffffff for x in range(1280) for y in range(92, 101))
+        assert pixel(frame, 0, 100) == 0 and frame.application['connected'] == 1
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable',type=Path)
     parser.add_argument('encoding',choices=('CP437','UTF-8'))
     parser.add_argument('--reports',type=Path,required=True)
     args=parser.parse_args()
+    check_wide_device(args)
     for width,height in ((640,480),(720,400)):
         run(args,width,height)

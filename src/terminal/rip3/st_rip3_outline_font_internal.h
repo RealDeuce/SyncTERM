@@ -7,6 +7,14 @@
 
 #include <stdint.h>
 
+/* Convert a nonnegative RFF metric from 1/1440-inch units to pixels.
+ * Divide before scaling so a wide intermediate product cannot wrap. */
+static inline uint64_t
+st_rip3_outline_device_extent(uint64_t logical, uint32_t dpi)
+{
+	return logical / 1440 * dpi + logical % 1440 * dpi / 1440;
+}
+
 /* All 256 raw-code 1/1440-inch advances before DPI/spacing, plus the
  * unrotated global device height. Truncated zero DPI is valid for metrics.
  * No outline path is read. Revalidates the immutable file/style and preserves

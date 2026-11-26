@@ -33,8 +33,8 @@ int st_rip3_outline_layout_prepare(struct st_rip3_outline_layout *result,
 /* Font-engine advances use 1/1440-inch units. Convert to a selected device DPI
  * with signed integer truncation toward zero, before spacing is added. DPI is
  * explicit: the caller owns which realized metric/axis it queried. Results
- * outside int32_t or DPI outside 1..72*1024 fail without changing result. */
-int st_rip3_outline_metric_device(int32_t *result, int32_t advance, unsigned dpi);
+ * outside int32_t or a zero DPI fail without changing result. */
+int st_rip3_outline_metric_device(int32_t *result, int32_t advance, uint32_t dpi);
 
 /* Apply spacing to already converted device advances and place each byte from
  * the command's device anchor. Use the signed ordinary total, including the

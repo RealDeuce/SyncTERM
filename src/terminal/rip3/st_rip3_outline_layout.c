@@ -40,7 +40,9 @@ st_rip3_outline_layout_prepare(struct st_rip3_outline_layout *result,
 	    .justification=(style->flags>>4)&3,
 	};
 	if (style->shadow!=0) {
-		int32_t distance=(int32_t)((uint64_t)style->shadow*frame->device_width/frame->world_width);
+		uint64_t projected=(uint64_t)style->shadow*frame->device_width/frame->world_width;
+		if (projected>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
+		int32_t distance=(int32_t)projected;
 		if (distance==0) distance=1;
 		unsigned which=(style->flags>>6)&3;
 		value.shadow=(struct st_rip3_point){(which&1)!=0 ? distance : -distance,
@@ -51,10 +53,10 @@ st_rip3_outline_layout_prepare(struct st_rip3_outline_layout *result,
 }
 
 int
-st_rip3_outline_metric_device(int32_t *result, int32_t advance, unsigned dpi)
+st_rip3_outline_metric_device(int32_t *result, int32_t advance, uint32_t dpi)
 {
 	if (result==NULL) return IO_ERROR_INVALID_ARGUMENT;
-	if (dpi==0 || dpi>72*1024) return IO_ERROR_OUT_OF_RANGE;
+	if (dpi==0) return IO_ERROR_OUT_OF_RANGE;
 	int64_t value=(int64_t)advance*dpi/1440;
 	if (value<INT32_MIN || value>INT32_MAX) return IO_ERROR_OUT_OF_RANGE;
 	*result=(int32_t)value;

@@ -212,9 +212,13 @@ bounds(void)
 	put16(bytes+44,1);put16(bytes+file.base+12,1);
 	put16(bytes+file.base+0x16,32768);put16(bytes+file.base+0x18,32768);
 	put16(bytes+file.base+0x1a,32767);put16(bytes+file.base+0x1c,32767);
+	/* Scale a near-maximum representable DPI without allocating a raster.
+	 * The raw edge numerator exceeds int64_t even though the edge fits. */
+	CHECK(st_rip3_frame_init_device(&frame,59000000,480)==0);
 	CHECK(st_rip3_frame_world(&frame,1,1)==0);
 	CHECK(st_rip3_outline_font_bind(&font,&file,0,&frame,4095,0,0)==0);
-	CHECK(font.bounds.xmax>INT32_MAX && font.bounds.xmin<INT32_MIN);
+	CHECK(font.bounds.xmax==INT64_C(32767)*4095*59000000
+	    && font.bounds.xmin==-INT64_C(32768)*4095*59000000);
 	width=77;CHECK(st_rip3_outline_font_bbox_width(&width,&font)==IO_ERROR_OUT_OF_RANGE && width==77);
 	memcpy(&saved,&font,sizeof(saved));
 	put16(bytes+file.base+0x16,1);put16(bytes+file.base+0x1a,0);
@@ -295,14 +299,13 @@ advances(void)
 	CHECK(st_rip3_outline_font_advances(long_advances,&font,0,long_text,sizeof(long_text))==0);
 	for (size_t i=0; i<512; i++) CHECK(long_advances[i]==6);
 	CHECK(st_rip3_outline_font_advances(NULL,&font,0,NULL,0)==0);
-	for (unsigned which=0; which<10; which++) {
+	for (unsigned which=0; which<8; which++) {
 		struct st_rip3_outline_font bad=font;
 		switch (which) {
 			case 0:bad.points=0;break; case 1:bad.points=4096;break;
-			case 2:bad.dpi_x=0;break; case 3:bad.dpi_x=73729;break;
+			case 2:bad.dpi_x=0;break; case 3:bad.dpi_y=0;break;
 			case 4:bad.orientation=4;break; case 5:bad.flags=0x1000000;break;
 			case 6:bad.face=10;break; case 7:bad.file.size=1;break;
-			case 8:bad.dpi_y=0;break; default:bad.dpi_y=73729;break;
 		}
 		values[0]=77;values[1]=88;
 		CHECK(st_rip3_outline_font_advances(values,&bad,0,(const uint8_t *)"AV",2)!=0
