@@ -28,7 +28,10 @@ used. Explicit `none` retains the crypto-disabled configuration.
 USB controller input uses HIDAPI 0.14 or later on Windows and macOS,
 with a pinned source build available. On other targets CMake looks for
 HIDAPI's hidraw or NetBSD backend, then libusb-1.0. The libusb backend
-requires an accessible USB HID interface and leaves kernel drivers attached.
+requires an accessible USB interface and leaves kernel drivers attached.
+Wired XUSB gamepads use libusb-1.0 on POSIX, including a pinned source build
+on macOS. Systems with libudev and libevdev can also read XUSB interfaces
+owned by a kernel input driver. Windows uses the SDK's XInput API.
 Libretro uses the frontend's configured RetroPad ports.
 
 == Feature and library options
@@ -58,7 +61,7 @@ that prerequisite uses runtime loading; the report records that closure too.
 The old MIDI feature values `STATIC` and `RUNTIME` now belong on the dependency
 linkage option, rather than the feature enablement switch.
 
-Library names are `HIDAPI`, `OPENSSL`, `BOTAN`, `SNDFILE`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
+Library names are `HIDAPI`, `LIBUSB`, `OPENSSL`, `BOTAN`, `SNDFILE`, `JPEG`, `JXL`, `SDL2`, `PORTAUDIO`,
 `ALSA`, `PULSEAUDIO`, `PIPEWIRE`, `FLUIDSYNTH`, `ADLMIDI`, `CURSES`, `TERMINFO`,
 `X11`, `XRENDER`, `XRANDR`, `XINERAMA`, `WAYLAND`, and `XKBCOMMON`.
 Transitive libraries have the same controls: `FLAC`, `OGG`, `VORBIS`, `OPUS`,

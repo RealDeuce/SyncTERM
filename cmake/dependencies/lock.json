@@ -8,6 +8,12 @@
       "sha256": "5d84dec684c27b97b921d2f3b73218cb773cf4ea915caee317ac8fc73cef8136",
       "license": "BSD-3-Clause OR GPL-3.0-only OR LicenseRef-HIDAPI"
     },
+    "LIBUSB": {
+      "version": "1.0.30",
+      "url": "https://github.com/libusb/libusb/releases/download/v1.0.30/libusb-1.0.30.tar.bz2",
+      "sha256": "fea36f34f9156400209595e300840767ab1a385ede1dc7ee893015aea9c6dbaf",
+      "license": "LGPL-2.1-or-later"
+    },
     "BOTAN": {
       "version": "3.14.1",
       "url": "https://botan.randombit.net/releases/Botan-3.14.1.tar.xz",

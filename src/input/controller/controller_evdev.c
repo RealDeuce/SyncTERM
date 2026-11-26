@@ -1,0 +1,236 @@
+/* Read wired XUSB interfaces owned by a kernel input driver. */
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#define _POSIX_C_SOURCE 200809L
+#include <sys/types.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <libevdev/libevdev.h>
+#include <libudev.h>
+
+#include "controller_internal.h"
+
+struct evdev_binding {
+	unsigned type, code;
+	int      hat_sign;
+};
+
+struct evdev_pad {
+	struct evdev_pad    *next;
+	struct libevdev     *dev;
+	struct st_pad       *pad;
+	dev_t                device;
+	bool                 syncing;
+	struct evdev_binding bindings[];
+};
+
+struct evdev_provider {
+	struct udev      *udev;
+	struct evdev_pad *pads;
+};
+
+bool
+pad_evdev_init(struct st_controllers *hub)
+{
+	struct evdev_provider *provider = calloc(1, sizeof(*provider));
+	if (!provider)
+		return false;
+	provider->udev = udev_new();
+	if (!provider->udev) {
+		free(provider);
+		return false;
+	}
+	hub->evdev = provider;
+	return true;
+}
+
+static void
+close_pad(struct evdev_pad *d)
+{
+	if (d->pad)
+		d->pad->removed = true;
+	int fd = libevdev_get_fd(d->dev);
+	libevdev_free(d->dev);
+	close(fd);
+	free(d);
+}
+
+static bool
+attr_is(struct udev_device *device, const char *name, const char *value)
+{
+	const char *attr = udev_device_get_sysattr_value(device, name);
+	return attr && strcmp(attr, value) == 0;
+}
+
+static void
+attach(struct st_controllers *hub, struct udev_device *event)
+{
+	struct udev_device *usb = udev_device_get_parent_with_subsystem_devtype(event, "usb", "usb_interface");
+	if (!usb || !attr_is(usb, "bInterfaceClass", "ff") || !attr_is(usb, "bInterfaceSubClass", "5d")
+	    || !attr_is(usb, "bInterfaceProtocol", "01"))
+		return;
+
+	dev_t device = udev_device_get_devnum(event);
+	for (struct evdev_pad *d = hub->evdev->pads; d; d = d->next)
+		if (d->device == device)
+			return;
+	const char *path = udev_device_get_devnode(event);
+	if (!path)
+		return;
+	int fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0)
+		return;
+	struct libevdev *dev;
+	if (libevdev_new_from_fd(fd, &dev) < 0) {
+		close(fd);
+		return;
+	}
+
+	size_t            targets = st_controller_target_count();
+	struct evdev_pad *d       = calloc(1, sizeof(*d) + targets * sizeof(*d->bindings));
+	if (!d) {
+		libevdev_free(dev);
+		close(fd);
+		return;
+	}
+	d->dev             = dev;
+	d->device          = device;
+	struct st_pad *pad = calloc(1, sizeof(*pad));
+	if (!pad)
+		goto fail;
+	pad->fields = calloc(targets, sizeof(*pad->fields));
+	if (!pad->fields)
+		goto fail;
+
+	/* Linux may present the four XUSB D-pad switches as a pair of hat axes. */
+	/* Hash the ordered evdev identities because profiles store bindings by field index. */
+	uint64_t layout = UINT64_C(14695981039346656037);
+	for (size_t i = 0; i < targets; ++i) {
+		const struct st_control_target *t = st_controller_target(i);
+		struct evdev_binding b = {.type = t->kind == ST_BUTTON ? EV_KEY : EV_ABS, .code = t->code};
+		if (t->kind == ST_HAT)
+			continue;
+		if (t->code >= BTN_DPAD_UP && t->code <= BTN_DPAD_RIGHT
+		    && !libevdev_has_event_code(dev, EV_KEY, t->code)) {
+			b.type     = EV_ABS;
+			b.code     = t->code <= BTN_DPAD_DOWN ? ABS_HAT0Y : ABS_HAT0X;
+			b.hat_sign = t->code == BTN_DPAD_UP || t->code == BTN_DPAD_LEFT ? -1 : 1;
+		}
+		if (!libevdev_has_event_code(dev, b.type, b.code))
+			continue;
+		struct pad_field *f = &pad->fields[pad->count];
+		f->kind             = t->kind;
+		f->target           = (int)i;
+		f->minimum          = t->kind == ST_BUTTON ? 0 : libevdev_get_abs_minimum(dev, b.code);
+		f->maximum          = t->kind == ST_BUTTON ? 1 : libevdev_get_abs_maximum(dev, b.code);
+		snprintf(f->label, sizeof f->label, "%s", t->label);
+		d->bindings[pad->count++] = b;
+		layout                    = (layout ^ t->kind) * UINT64_C(1099511628211);
+		layout                    = (layout ^ t->code) * UINT64_C(1099511628211);
+	}
+	if (!pad->count)
+		goto fail;
+	pad->source            = 3;
+	pad->device_class      = 2;
+	pad->descriptor_fields = pad->count;
+	const char *name       = libevdev_get_name(dev);
+	snprintf(pad->name, sizeof pad->name, "%s", name ? name : "XUSB gamepad");
+	snprintf(pad->profile, sizeof pad->profile, "xusb-%04x-%04x-evdev-%" PRIx64 ".map",
+	    (unsigned)libevdev_get_id_vendor(dev), (unsigned)libevdev_get_id_product(dev), layout);
+	if (!pad_attach(hub, pad))
+		goto fail;
+	d->pad           = pad;
+	d->next          = hub->evdev->pads;
+	hub->evdev->pads = d;
+	return;
+fail:
+	if (pad)
+		free(pad->fields);
+	free(pad);
+	close_pad(d);
+}
+
+static void
+scan(struct st_controllers *hub)
+{
+	struct udev_enumerate *list = udev_enumerate_new(hub->evdev->udev);
+	if (!list)
+		return;
+	if (udev_enumerate_add_match_subsystem(list, "input") == 0
+	    && udev_enumerate_add_match_sysname(list, "event*") == 0 && udev_enumerate_scan_devices(list) == 0) {
+		struct udev_list_entry *entry;
+		udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(list))
+		{
+			struct udev_device *event =
+			    udev_device_new_from_syspath(hub->evdev->udev, udev_list_entry_get_name(entry));
+			if (event) {
+				attach(hub, event);
+				udev_device_unref(event);
+			}
+		}
+	}
+	udev_enumerate_unref(list);
+}
+
+static void
+publish(struct evdev_pad *d, st_controller_emit emit, void *ctx)
+{
+	for (size_t i = 0; i < d->pad->count; i++) {
+		const struct evdev_binding *b     = &d->bindings[i];
+		int                         value = libevdev_get_event_value(d->dev, b->type, b->code);
+		pad_value(d->pad, i, b->hat_sign ? value == b->hat_sign : value);
+	}
+	pad_publish(d->pad, emit, ctx);
+}
+
+void
+pad_evdev_poll(struct st_controllers *hub, bool discover, st_controller_emit emit, void *ctx)
+{
+	if (discover)
+		scan(hub);
+	for (struct evdev_pad **link = &hub->evdev->pads; *link;) {
+		struct evdev_pad *d      = *link;
+		int               status = 0;
+		if (!d->pad->fields[0].known)
+			publish(d, emit, ctx);
+		for (unsigned n = 0; n < 256; n++) {
+			struct input_event e;
+			status = libevdev_next_event(d->dev,
+			    d->syncing ? LIBEVDEV_READ_FLAG_SYNC : LIBEVDEV_READ_FLAG_NORMAL, &e);
+			if (status == -EAGAIN && d->syncing) {
+				d->syncing = false;
+				publish(d, emit, ctx);
+				continue;
+			}
+			if (status < 0)
+				break;
+			if (status == LIBEVDEV_READ_STATUS_SYNC)
+				d->syncing = true;
+			else if (e.type == EV_SYN && e.code == SYN_REPORT)
+				publish(d, emit, ctx);
+		}
+		if (status < 0 && status != -EAGAIN && status != -EINTR) {
+			*link = d->next;
+			close_pad(d);
+		}
+		else
+			link = &d->next;
+	}
+}
+
+void
+pad_evdev_close(struct st_controllers *hub)
+{
+	while (hub->evdev->pads) {
+		struct evdev_pad *d = hub->evdev->pads;
+		hub->evdev->pads    = d->next;
+		close_pad(d);
+	}
+	udev_unref(hub->evdev->udev);
+	free(hub->evdev);
+}

@@ -5519,7 +5519,7 @@ duplicate platform-dependent enum tables:
 
 `Menu.controllers` lists attached devices as `[localId, label]` pairs. An empty
 list means zero devices and null means no provider. `Menu.controllerFields(id)`
-returns one row per physical control in descriptor order, containing its
+returns one row per physical control in HID descriptor order or XUSB provider order, containing its
 label, binding index (−1 if unassigned), inversion flag and current preview
 value (null if unknown). Each physical hat also has four button fields appended
 after the descriptor fields, one per cardinal direction. A diagonal presses

@@ -276,7 +276,7 @@ pad_attach(struct st_controllers *hub, struct st_pad *pad)
 	pad->id             = hub->next_id++;
 	pad->capture_target = -1;
 	pad->actuation      = -1;
-	if (pad->source == 1)
+	if (st_controller_fields(pad))
 		pad_load_mapping(hub, pad);
 	struct st_pad **tail = &hub->pads;
 	while (*tail)
@@ -473,7 +473,7 @@ st_controller_name(const struct st_pad *p)
 size_t
 st_controller_fields(const struct st_pad *p)
 {
-	return p->source == 1 ? p->count : 0;
+	return p->source == 2 ? 0 : p->count;
 }
 
 const char *

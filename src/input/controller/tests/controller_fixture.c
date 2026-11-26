@@ -13,9 +13,23 @@ struct request {
 	uint8_t         data[];
 };
 
+struct fixture_pad {
+	struct pad_collections hid;
+	struct st_pad         *xusb;
+};
+
+static void
+detach(struct fixture_pad *slot)
+{
+	pad_detach_collections(&slot->hid);
+	if (slot->xusb)
+		slot->xusb->removed = true;
+	slot->xusb = NULL;
+}
+
 struct fixture {
-	struct request        *head, *tail;
-	struct pad_collections slot[4];
+	struct request    *head, *tail;
+	struct fixture_pad slot[4];
 };
 
 static void
@@ -23,20 +37,28 @@ fixture_poll(struct st_controllers *hub, st_controller_emit emit, void *context)
 {
 	struct fixture *f = hub->interfaces;
 	while (f->head) {
-		struct request         *r   = f->head;
-		struct pad_collections *set = &f->slot[r->slot];
+		struct request         *r    = f->head;
+		struct fixture_pad     *slot = &f->slot[r->slot];
+		struct pad_collections *set  = &slot->hid;
 		if (r->action == 1) {
-			pad_detach_collections(set);
+			detach(slot);
 			pad_attach_collections(hub, set, r->data, r->size, 0x1234, 0x4321, "Fixture gamepad");
 		}
+		else if (r->action == 5) {
+			detach(slot);
+			slot->xusb = pad_xusb_attach(hub, 0x1234, 0x4321, "Fixture XUSB gamepad", true);
+		}
+		else if (r->action == 2 && slot->xusb)
+			pad_xusb_report(slot->xusb, r->data, r->size, emit, context);
 		else if (r->action == 2)
 			pad_input_collections(set, r->data, r->size, emit, context);
 		else if (r->action == 3)
-			pad_detach_collections(set);
-		else if (set->count && set->pads[0]) {
-			int target = pad_target(r->data[1], r->data[2] | (unsigned)r->data[3] << 8);
-			if (target >= 0)
-				st_controller_bind(hub, set->pads[0], r->data[0], target, false, false);
+			detach(slot);
+		else {
+			struct st_pad *pad    = slot->xusb ? slot->xusb : set->count ? set->pads[0] : NULL;
+			int            target = pad_target(r->data[1], r->data[2] | (unsigned)r->data[3] << 8);
+			if (pad && target >= 0)
+				st_controller_bind(hub, pad, r->data[0], target, false, false);
 		}
 		f->head = r->next;
 		free(r);
@@ -50,7 +72,7 @@ fixture_close(struct st_controllers *hub)
 	struct fixture *f = hub->interfaces;
 	fixture_poll(hub, NULL, NULL);
 	for (size_t i = 0; i < 4; i++)
-		pad_detach_collections(&f->slot[i]);
+		detach(&f->slot[i]);
 	free(f);
 }
 
@@ -72,8 +94,8 @@ int
 st_controller_fixture_request(void *context, const uint8_t *bytes, size_t size)
 {
 	struct st_controllers *hub = context;
-	if (!hub || !hub->interfaces || size < 2 || size > 4098 || bytes[0] < 1 || bytes[0] > 4 || bytes[1] >= 4
-	    || (bytes[0] == 4 && size != 6))
+	if (!hub || !hub->interfaces || size < 2 || size > 4098 || bytes[0] < 1 || bytes[0] > 5 || bytes[1] >= 4
+	    || (bytes[0] == 4 && size != 6) || (bytes[0] == 5 && size != 2))
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct fixture *f = hub->interfaces;
 	struct request *r = malloc(sizeof(*r) + size - 2);

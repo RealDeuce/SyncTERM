@@ -139,7 +139,7 @@ composite(void)
 static int
 repeated_vendor_usage(void)
 {
-	/* The F310's D-mode descriptor assigns FF00:0001 to sixteen one-bit inputs. */
+	/* A vendor can repeat one usage across sixteen one-bit inputs. */
 	static const uint8_t desc[] = {5, 1, 9, 4, 0xa1, 1, 6, 0, 0xff, 0x15, 0, 0x25, 1, 0x75, 1, 0x95, 16, 9, 1,
 	    0x81, 2, 0xc0};
 	unsigned             collections;
@@ -180,6 +180,47 @@ button_array(void)
 	CHECK(p->fields[0].raw && !p->fields[1].raw && !p->fields[4].raw);
 	free(p->fields);
 	free(p);
+	return 0;
+}
+
+static int
+xusb(void)
+{
+	struct st_controllers *hub = pad_create(NULL, NULL, NULL);
+	CHECK(hub);
+	struct st_pad *p = pad_xusb_attach(hub, 0x1234, 0x5678, "Test pad", true);
+	CHECK(p && st_controller_fields(p) == 21);
+	uint8_t       report[20] = {0, 20, 0x81, 0x14, 128, 255, 0, 128, 255, 127, 255, 127, 0, 128};
+	struct events out        = {0};
+	pad_xusb_report(p, report, 19, record, &out);
+	report[0] = 1;
+	pad_xusb_report(p, report, sizeof report, record, &out);
+	report[0] = 0;
+	report[1] = 3;
+	pad_xusb_report(p, report, sizeof report, record, &out);
+	CHECK(!out.count);
+	report[1] = 20;
+	pad_xusb_report(p, report, sizeof report, record, &out);
+	CHECK(out.count == 44 && out.records[0].source == 3 && out.records[43].record == ST_PAD_FRAME);
+	for (size_t i = 22; i < 43; ++i) {
+		const struct st_controller_event *e = &out.records[i];
+		CHECK(e->record == ST_PAD_VALUE);
+		int expected = e->type == 1
+		                   ? (e->code == 544 || e->code == 318 || e->code == 316 || e->code == 304)
+		               : e->code == 2                   ? 16448
+		               : (e->code == 0 || e->code == 1) ? -32768
+		                                                : 32767;
+		CHECK(e->value == expected);
+	}
+	out.count = 0;
+	pad_xusb_report(p, report, sizeof report, record, &out);
+	CHECK(!out.count);
+	memset(report + 2, 0, 18);
+	pad_xusb_report(p, report, sizeof report, record, &out);
+	CHECK(out.count == 11);
+	for (size_t i = 0; i + 1 < out.count; ++i)
+		CHECK(out.records[i].value == 0);
+	st_controllers_destroy(hub);
 	return 0;
 }
 
@@ -226,5 +267,6 @@ ports(void)
 int
 main(void)
 {
-	return scaling() || mapping() || composite() || repeated_vendor_usage() || button_array() || ports();
+	return scaling() || mapping() || composite() || repeated_vendor_usage() || button_array() || xusb()
+	       || ports();
 }

@@ -959,7 +959,7 @@ A BBS can use both modes on the same connection.
 | Report following `ESC[=` | Meaning
 
 |`1;device;class;sourceJ` | Device added. Class 1 is a joystick and 2 a
-gamepad. Source 1 is native USB HID and 2 a mapped libretro port.
+gamepad. Source 1 is USB HID, 2 is a mapped libretro port, and 3 is XUSB.
 |`2;device;type;code;min;maxJ` | Named evdev control and its inclusive wire range.
 |`3;device;type;code;valueJ` | Known initial value or changed value.
 |`4;deviceJ` | End of frame. Apply this device's pending values together.
@@ -969,6 +969,8 @@ gamepad. Source 1 is native USB HID and 2 a mapped libretro port.
 
 Each device is announced with all capabilities, all known values, and a frame
 end, in that order. An absent initial value remains unknown until reported.
+XUSB gamepads report the left and right triggers as independent axes.
+Windows XInput omits the Guide button.
 Hotplug follows the same announcement order. Device IDs are positive and
 never reused during a connection. Reassigning a control removes the old
 device and announces its new capabilities under a fresh ID.

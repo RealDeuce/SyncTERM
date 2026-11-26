@@ -69,7 +69,7 @@ int
 st_controller_bind(struct st_controllers *hub, struct st_pad *pad, size_t field, int target, bool invert,
     bool persist)
 {
-	if (!hub || !pad || pad->source != 1 || field >= pad->count
+	if (!hub || !pad || !st_controller_fields(pad) || field >= pad->count
 	    || !st_controller_compatible(pad, field, target))
 		return IO_ERROR_INVALID_ARGUMENT;
 	unsigned char *rows = calloc(pad->count, 4);
@@ -99,7 +99,7 @@ st_controller_bind(struct st_controllers *hub, struct st_pad *pad, size_t field,
 	}
 	if (!status)
 		for (struct st_pad *p = hub->pads; p; p = p->next)
-			if (p->source == 1 && p->count == pad->count && !strcmp(pad->profile, p->profile))
+			if (st_controller_fields(p) && p->count == pad->count && !strcmp(pad->profile, p->profile))
 				(void)apply(p, rows);
 	free(rows);
 	return status;

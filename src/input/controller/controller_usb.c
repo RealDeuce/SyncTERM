@@ -1,17 +1,18 @@
-/* Portable USB HID input through libusb-1.0. */
+/* Portable USB HID and wired XUSB input through libusb-1.0. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include <stdlib.h>
 
 #include <libusb.h>
 
 #include "controller_internal.h"
-#include "st_time.h"
+#include "st_controller_config.h"
 
 struct usb_input {
 	struct usb_input       *next;
 	libusb_device_handle   *handle;
 	struct libusb_transfer *transfer;
 	struct pad_collections  collections;
+	struct st_pad          *xusb;
 	uint8_t                 bus, address, interface_number;
 	bool                    pending, gone, seen;
 	struct usb_provider    *owner;
@@ -26,7 +27,7 @@ struct usb_provider {
 };
 
 bool
-pad_native_init(struct st_controllers *hub)
+pad_usb_init(struct st_controllers *hub)
 {
 	struct usb_provider *p = calloc(1, sizeof(*p));
 	if (!p)
@@ -35,8 +36,8 @@ pad_native_init(struct st_controllers *hub)
 		free(p);
 		return false;
 	}
-	p->hub          = hub;
-	hub->interfaces = p;
+	p->hub   = hub;
+	hub->usb = p;
 	return true;
 }
 
@@ -46,8 +47,12 @@ received(struct libusb_transfer *transfer)
 	struct usb_input *d = transfer->user_data;
 	d->pending          = false;
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED && !d->gone) {
-		pad_input_collections(&d->collections, transfer->buffer, (size_t)transfer->actual_length,
-		    d->owner->emit, d->owner->context);
+		if (d->xusb)
+			pad_xusb_report(d->xusb, transfer->buffer, (size_t)transfer->actual_length, d->owner->emit,
+			    d->owner->context);
+		else
+			pad_input_collections(&d->collections, transfer->buffer, (size_t)transfer->actual_length,
+			    d->owner->emit, d->owner->context);
 		d->pending = libusb_submit_transfer(transfer) == 0;
 	}
 	if (!d->pending)
@@ -57,6 +62,8 @@ received(struct libusb_transfer *transfer)
 static void
 close_input(struct usb_input *d)
 {
+	if (d->xusb)
+		d->xusb->removed = true;
 	pad_detach_collections(&d->collections);
 	if (d->transfer)
 		libusb_free_transfer(d->transfer);
@@ -69,8 +76,11 @@ static struct usb_input *
 open_input(struct usb_provider *p, libusb_device *device, const struct libusb_interface_descriptor *iface,
     const struct libusb_device_descriptor *info)
 {
-	if (iface->bInterfaceClass != LIBUSB_CLASS_HID || iface->bInterfaceSubClass == 1
-	    || iface->bAlternateSetting != 0)
+	bool xusb = iface->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC && iface->bInterfaceSubClass == 0x5d
+	            && iface->bInterfaceProtocol == 1;
+	bool hid =
+	    !ST_CONTROLLER_HIDAPI && iface->bInterfaceClass == LIBUSB_CLASS_HID && iface->bInterfaceSubClass != 1;
+	if ((!hid && !xusb) || iface->bAlternateSetting != 0)
 		return NULL;
 	const struct libusb_endpoint_descriptor *endpoint = NULL;
 	for (unsigned i = 0; i < iface->bNumEndpoints; i++) {
@@ -88,16 +98,23 @@ open_input(struct usb_provider *p, libusb_device *device, const struct libusb_in
 		return NULL;
 	/* Read the report descriptor on endpoint zero before claiming the
 	 * interface, so an unrelated HID device never loses its owner. */
-	unsigned char  descriptor[4096];
-	int            size  = libusb_control_transfer(handle, 0x81, LIBUSB_REQUEST_GET_DESCRIPTOR, 0x2200,
-	    iface->bInterfaceNumber, descriptor, sizeof descriptor, 100);
-	unsigned       count = 0;
-	struct st_pad *probe = size > 0 ? pad_parse(descriptor, (size_t)size, 0, &count) : NULL;
-	if (probe) {
-		free(probe->fields);
-		free(probe);
+	unsigned char descriptor[4096];
+	int           size = 0;
+	if (hid) {
+		size                 = libusb_control_transfer(handle, 0x81, LIBUSB_REQUEST_GET_DESCRIPTOR, 0x2200,
+		    iface->bInterfaceNumber, descriptor, sizeof descriptor, 100);
+		unsigned       count = 0;
+		struct st_pad *probe = size > 0 ? pad_parse(descriptor, (size_t)size, 0, &count) : NULL;
+		if (probe) {
+			free(probe->fields);
+			free(probe);
+		}
+		if (!count) {
+			libusb_close(handle);
+			return NULL;
+		}
 	}
-	if (!count || libusb_claim_interface(handle, iface->bInterfaceNumber) != 0) {
+	if (libusb_claim_interface(handle, iface->bInterfaceNumber) != 0) {
 		libusb_close(handle);
 		return NULL;
 	}
@@ -117,8 +134,13 @@ open_input(struct usb_provider *p, libusb_device *device, const struct libusb_in
 	if (info->iProduct
 	    && libusb_get_string_descriptor_ascii(handle, info->iProduct, name, sizeof name - 1) < 0)
 		name[0] = 0;
-	if (!pad_attach_collections(p->hub, &d->collections, descriptor, (size_t)size, info->idVendor,
-		info->idProduct, (const char *)name))
+	if (xusb) {
+		d->xusb = pad_xusb_attach(p->hub, info->idVendor, info->idProduct, (const char *)name, true);
+		if (!d->xusb)
+			goto fail;
+	}
+	else if (!pad_attach_collections(p->hub, &d->collections, descriptor, (size_t)size, info->idVendor,
+		     info->idProduct, (const char *)name))
 		goto fail;
 	d->transfer = libusb_alloc_transfer(0);
 	if (!d->transfer)
@@ -189,15 +211,11 @@ cancel(struct usb_input *d)
 }
 
 void
-pad_native_poll(struct st_controllers *hub, st_controller_emit emit, void *ctx)
+pad_usb_poll(struct st_controllers *hub, bool discover, st_controller_emit emit, void *ctx)
 {
-	struct usb_provider *p   = hub->interfaces;
-	uint64_t             now = 0;
-	(void)st_time_monotonic_ms(&now);
-	if (!hub->next_scan || now >= hub->next_scan) {
+	struct usb_provider *p = hub->usb;
+	if (discover)
 		scan(p);
-		hub->next_scan = now + 1000;
-	}
 	p->emit             = emit;
 	p->context          = ctx;
 	struct timeval zero = {0};
@@ -218,9 +236,9 @@ pad_native_poll(struct st_controllers *hub, st_controller_emit emit, void *ctx)
 }
 
 void
-pad_native_close(struct st_controllers *hub)
+pad_usb_close(struct st_controllers *hub)
 {
-	struct usb_provider *p = hub->interfaces;
+	struct usb_provider *p = hub->usb;
 	for (struct usb_input *d = p->inputs; d; d = d->next)
 		cancel(d);
 	while (p->inputs) {

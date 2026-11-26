@@ -859,7 +859,7 @@ class SettingsMenu {
     return "# Controller Mapping\n\n" +
         "Choose what a BBS receives when you use your controller. " +
         "Each row shows a BBS input and the physical control assigned to it. An unassigned input sends nothing.\n\n" +
-        "Action pad south is the lowest button in the four-button diamond (A on a Logitech F310). Select that row and press the button you want to use. " +
+        "Action pad south is the lowest button in the four-button diamond. Select that row and press the button you want to use. " +
         "Its device name (such as Button 7) appears next to Action pad south.\n\n" +
         "To start with the controller, select Press a control to assign, move it, then choose its BBS input. " +
         "Browse physical controls lets you select it by name instead.\n\n" +
@@ -873,7 +873,7 @@ class SettingsMenu {
     return "# Detect a physical control\n\n" +
         "Release held buttons and let the sticks rest. Press one button, push the directional hat, pull a trigger, or move a stick along one axis. " +
         "For a horizontal axis, move left or right. For a vertical axis, move up or down. " +
-        "For a trigger axis, the controller must report how far you pull it. The Logitech F310 reports trigger presses as buttons in D mode. " +
+        "For a trigger axis, the controller must report how far you pull it. For an on/off trigger, choose a trigger button row. " +
         "If a control was already held, release it and try again. Esc cancels this step."
   }
 
@@ -881,9 +881,9 @@ class SettingsMenu {
     while (true) {
       var devices = Menu.controllers
       if (devices == null || devices.count == 0) {
-        var message = devices == null ? "USB HID controller support is unavailable." : "No USB joystick or gamepad was detected."
-        var help = "Connect a controller in USB HID mode, then reopen Controller Mapping. On the Logitech F310, select D with the underside switch."
-        if (devices == null) help = "This build needs HIDAPI or libusb support for native USB controllers."
+        var message = devices == null ? "Native controller support is unavailable." : "No USB joystick or gamepad was detected."
+        var help = "Connect a USB joystick or gamepad, then reopen Controller Mapping."
+        if (devices == null) help = "No native controller provider is available in this build."
         Alert.show(app, "Controller Mapping", message, help)
         return
       }

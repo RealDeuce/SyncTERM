@@ -9,7 +9,7 @@
 #if ST_CONTROLLER_DARWIN_HID
  #include <hidapi_darwin.h>
 #endif
-#include "st_time.h"
+
 #include "st_utf8.h"
 
 struct hid_interface {
@@ -22,7 +22,7 @@ struct hid_interface {
 };
 
 bool
-pad_native_init(struct st_controllers *hub)
+pad_hid_init(struct st_controllers *hub)
 {
 	(void)hub;
 	if (hid_init() != 0)
@@ -104,6 +104,11 @@ scan(struct st_controllers *hub)
 		if (!i->path || i->bus_type != HID_API_BUS_USB
 		    || (i->usage_page != 1 || (i->usage != 4 && i->usage != 5)))
 			continue;
+#if ST_CONTROLLER_XINPUT
+		/* XInput devices also have a compatibility HID collection on Windows. */
+		if (strstr(i->path, "&ig_") || strstr(i->path, "&IG_"))
+			continue;
+#endif
 		struct hid_interface *d = devices;
 		while (d && strcmp(d->path, i->path))
 			d = d->next;
@@ -119,14 +124,10 @@ scan(struct st_controllers *hub)
 }
 
 void
-pad_native_poll(struct st_controllers *hub, st_controller_emit emit, void *ctx)
+pad_hid_poll(struct st_controllers *hub, bool discover, st_controller_emit emit, void *ctx)
 {
-	uint64_t now = 0;
-	(void)st_time_monotonic_ms(&now);
-	if (!hub->next_scan || now >= hub->next_scan) {
+	if (discover)
 		scan(hub);
-		hub->next_scan = now + 1000;
-	}
 	struct hid_interface *devices = hub->interfaces;
 	for (struct hid_interface **link = &devices; *link;) {
 		struct hid_interface *d = *link;
@@ -150,7 +151,7 @@ pad_native_poll(struct st_controllers *hub, st_controller_emit emit, void *ctx)
 }
 
 void
-pad_native_close(struct st_controllers *hub)
+pad_hid_close(struct st_controllers *hub)
 {
 	while (hub->interfaces) {
 		struct hid_interface *d = hub->interfaces;

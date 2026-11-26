@@ -47,6 +47,9 @@ struct st_controllers {
 	char                    *directory;
 	const struct pad_driver *driver;
 	void                    *interfaces;
+	struct usb_provider     *usb;
+	struct evdev_provider   *evdev;
+	bool                     hid_ready;
 	uint64_t                 next_scan;
 	st_port_next             ports;
 };
@@ -70,7 +73,22 @@ bool           pad_attach(struct st_controllers *, struct st_pad *);
 void           pad_load_mapping(struct st_controllers *, struct st_pad *);
 struct st_pad *pad_parse(const uint8_t *, size_t, unsigned collection, unsigned *collection_count);
 void           pad_report(struct st_pad *, const uint8_t *, size_t, bool numbered);
-bool           pad_native_init(struct st_controllers *hub);
-void           pad_native_close(struct st_controllers *);
-void           pad_native_poll(struct st_controllers *, st_controller_emit, void *);
+struct st_pad *pad_xusb_attach(struct st_controllers *, unsigned vendor, unsigned product, const char *name,
+    bool guide);
+void           pad_xusb_report(struct st_pad *, const uint8_t *, size_t, st_controller_emit, void *);
+void pad_xusb_state(struct st_pad *, unsigned buttons, unsigned left, unsigned right, const int sticks[4],
+    st_controller_emit, void *);
+bool pad_evdev_init(struct st_controllers *);
+void pad_evdev_poll(struct st_controllers *, bool discover, st_controller_emit, void *);
+void pad_evdev_close(struct st_controllers *);
+bool pad_usb_init(struct st_controllers *);
+void pad_usb_poll(struct st_controllers *, bool scan, st_controller_emit, void *);
+void pad_usb_close(struct st_controllers *);
+bool pad_hid_init(struct st_controllers *);
+void pad_hid_poll(struct st_controllers *, bool scan, st_controller_emit, void *);
+void pad_hid_close(struct st_controllers *);
+void pad_xinput_poll(struct st_controllers *, bool scan, st_controller_emit, void *);
+bool pad_native_init(struct st_controllers *hub);
+void pad_native_close(struct st_controllers *);
+void pad_native_poll(struct st_controllers *, st_controller_emit, void *);
 #endif
