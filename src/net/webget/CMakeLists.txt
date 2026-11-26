@@ -17,8 +17,12 @@ if(NOT TARGET st_tls)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../tls"
 		"${CMAKE_CURRENT_BINARY_DIR}/tls")
 endif()
+if(NOT TARGET syncterm_string_util)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/ascii"
+		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
+endif()
 foreach(_st_component_path IN ITEMS io/filesystem config/ini base/io_error io/path
-	net/socket base/string_compat base/string_util net/tcp_client)
+	net/socket base/string_compat net/tcp_client)
 	get_filename_component(_dependency "${_st_component_path}" NAME)
 	if(NOT TARGET syncterm_${_dependency})
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../${_st_component_path}"

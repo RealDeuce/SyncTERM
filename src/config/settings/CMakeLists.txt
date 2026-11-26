@@ -9,7 +9,11 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	include(CTest)
 endif()
 
-foreach(_st_component_path IN ITEMS base/string_compat base/string_util base/name_value_list)
+if(NOT TARGET syncterm_string_util)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/ascii"
+		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
+endif()
+foreach(_st_component_path IN ITEMS base/string_compat base/name_value_list)
 	get_filename_component(_dependency "${_st_component_path}" NAME)
 	if(NOT TARGET syncterm_${_dependency})
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../${_st_component_path}"

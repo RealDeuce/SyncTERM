@@ -10,7 +10,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 if(NOT TARGET syncterm_string_util)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../string_util"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/ascii"
 		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
 endif()
 

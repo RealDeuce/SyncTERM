@@ -18,7 +18,7 @@ if(NOT TARGET syncterm_string_compat)
 		"${CMAKE_CURRENT_BINARY_DIR}/string_compat")
 endif()
 if(NOT TARGET syncterm_string_util)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../string_util"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/ascii"
 		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
 endif()
 if(NOT TARGET st_unicode_compare)

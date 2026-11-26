@@ -26,8 +26,12 @@ if(NOT TARGET syncterm_threads)
 	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/threads"
 		"${CMAKE_CURRENT_BINARY_DIR}/threads")
 endif()
+if(NOT TARGET syncterm_string_util)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/ascii"
+		"${CMAKE_CURRENT_BINARY_DIR}/string_util")
+endif()
 foreach(_st_component_path IN ITEMS base/array_list io/file_map io/filesystem config/ini
-	base/io_error io/path base/string_compat base/string_util)
+	base/io_error io/path base/string_compat)
 	get_filename_component(_dependency "${_st_component_path}" NAME)
 	if(NOT TARGET syncterm_${_dependency})
 		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../${_st_component_path}"

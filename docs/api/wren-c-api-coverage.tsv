@@ -168,18 +168,6 @@ src/base/string_compat/string_compat.h	function:syncterm_strlcat	32	size_t (char
 src/base/string_compat/string_compat.h	macro:strlcat	33	syncterm_strlcat	strings.native-storage
 src/base/string_compat/string_compat.h	function:syncterm_strtok_r	37	char *(char *, const char *, char **)	strings.native-storage
 src/base/string_compat/string_compat.h	macro:strtok_r	38	syncterm_strtok_r	strings.native-storage
-src/base/string_util/string_util.h	function:ascii_is_space	14	_Bool (unsigned char)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_is_printable	15	_Bool (unsigned char)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_is_digit	16	_Bool (unsigned char)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_to_lower	17	unsigned char (unsigned char)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_to_upper	18	unsigned char (unsigned char)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_case_compare	19	int (const char *, const char *)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_case_ncompare	20	int (const char *, const char *, size_t)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_case_starts_with	21	_Bool (const char *, const char *)	utility.ascii
-src/base/string_util/string_util.h	function:ascii_case_span_equal	22	_Bool (const char *, size_t, const char *)	utility.ascii
-src/base/string_util/string_util.h	function:string_trim_ascii	26	char *(char *)	utility.ascii
-src/base/string_util/string_util.h	function:string_ascii_trim_span	27	void (const char *, size_t, size_t *, size_t *)	utility.ascii
-src/base/string_util/string_util.h	function:string_span_is_printable_ascii	29	_Bool (const char *, size_t)	utility.ascii
 src/base/threads/st_threads.h	macro:ST_ONCE_FLAG_INIT	33	PTHREAD_ONCE_INIT | alternative: { NULL }	host.st_threads
 src/base/threads/st_threads.h	macro:ST_THREAD_STORAGE_DESTRUCTOR_ITERATIONS	35	PTHREAD_DESTRUCTOR_ITERATIONS | alternative: _POSIX_THREAD_DESTRUCTOR_ITERATIONS | alternative: 4 | alternative: 4	host.st_threads
 src/base/threads/st_threads.h	macro:ST_THREAD_LOCAL	62	_Thread_local	host.st_threads
@@ -2415,6 +2403,18 @@ src/terminal/term/st_term.h	function:st_term_session_release_wire	200	bool (st_t
 src/terminal/term/st_term.h	function:st_term_session_wire_owned	201	bool (st_term_session_t *)	term.controls
 src/terminal/term/st_term.h	function:st_term_session_wire_available	202	int (st_term_session_t *, const void *, size_t *)	term.controls
 src/terminal/term/st_term.h	function:st_term_session_read_wire	204	ssize_t (st_term_session_t *, const void *, void *, size_t, bool)	term.controls
+src/text/ascii/string_util.h	function:ascii_is_space	14	_Bool (unsigned char)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_is_printable	15	_Bool (unsigned char)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_is_digit	16	_Bool (unsigned char)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_to_lower	17	unsigned char (unsigned char)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_to_upper	18	unsigned char (unsigned char)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_case_compare	19	int (const char *, const char *)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_case_ncompare	20	int (const char *, const char *, size_t)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_case_starts_with	21	_Bool (const char *, const char *)	utility.ascii
+src/text/ascii/string_util.h	function:ascii_case_span_equal	22	_Bool (const char *, size_t, const char *)	utility.ascii
+src/text/ascii/string_util.h	function:string_trim_ascii	26	char *(char *)	utility.ascii
+src/text/ascii/string_util.h	function:string_ascii_trim_span	27	void (const char *, size_t, size_t *, size_t *)	utility.ascii
+src/text/ascii/string_util.h	function:string_span_is_printable_ascii	29	_Bool (const char *, size_t)	utility.ascii
 src/text/codepage/st_codepage.h	enum:ST_CODEPAGE_CP437	17	st_codepage	text.codepages
 src/text/codepage/st_codepage.h	enum:ST_CODEPAGE_CP1251	18	st_codepage	text.codepages
 src/text/codepage/st_codepage.h	enum:ST_CODEPAGE_CP1251_B	19	st_codepage	text.codepages

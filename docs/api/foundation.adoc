@@ -124,7 +124,7 @@ generated configuration chooses native declarations or narrow replacements.
 Tests: `string_compat` and optional `string_compat_fallback`.
 
 | `syncterm_string_util`
-| link:../src/base/string_util/string_util.h[string_util.h]
+| link:../src/text/ascii/string_util.h[string_util.h]
 | Locale-independent US-ASCII classification, case comparison, span checks,
 and in-place trimming.  These functions are for protocol/configuration ASCII,
 not Unicode user-visible comparison.  Test: `string_util`.

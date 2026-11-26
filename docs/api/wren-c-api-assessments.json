@@ -84,11 +84,6 @@
       "symbol_count": 10
     },
     {
-      "path": "src/base/string_util/string_util.h",
-      "status": "reviewed",
-      "symbol_count": 12
-    },
-    {
       "path": "src/base/threads/st_threads.h",
       "status": "reviewed",
       "symbol_count": 45
@@ -372,6 +367,11 @@
       "path": "src/terminal/term/st_term.h",
       "status": "reviewed",
       "symbol_count": 91
+    },
+    {
+      "path": "src/text/ascii/string_util.h",
+      "status": "reviewed",
+      "symbol_count": 12
     },
     {
       "path": "src/text/codepage/st_codepage.h",
@@ -750,7 +750,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/base/string_util/string_util.h",
+          "path": "src/text/ascii/string_util.h",
           "anchor": "ascii_case_span_equal"
         },
         {
