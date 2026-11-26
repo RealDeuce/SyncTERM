@@ -105,7 +105,7 @@ inspect_application(void *context, struct st_console_test_application *app)
 		st_console_test_number(app, "cterm.skypix_playing", sky->audio.playing);
 	}
 	cterm_big_inspect(st_term_session_big(owner->session), app);
-	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
+	const struct cterm_igs *igs = st_term_session_igs(owner->session);
 	if (igs != NULL) {
 		cterm_igs_audio_inspect(igs, app);
 		cterm_igs_music_inspect(igs, app);

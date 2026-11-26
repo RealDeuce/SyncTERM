@@ -14,7 +14,6 @@
 #include <string.h>
 
 #include "cterm.h"
-#include "cterm_igs_audio.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
 #include "cterm_vt52.h"
@@ -159,7 +158,7 @@ cterm_render_make_cell(struct cterminal *cterm, struct st_console_cell *cell, ui
 		flags |= ST_CONSOLE_CELL_BRIGHT;
 	if ((attribute & CTERM_ATTR_BLINK) != 0)
 		flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->device.sgr_palette != NULL || cterm->igs_engine != NULL)
+	if (cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0)
 		flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	*cell = (struct st_console_cell) {
 	    .foreground = foreground,
@@ -376,7 +375,7 @@ cterm_render_set_attribute(struct cterminal *cterm, int attribute)
 	}
 	if ((cterm->attr & CTERM_ATTR_BLINK) != 0)
 		style.flags |= ST_CONSOLE_CELL_BLINK;
-	if (cterm->device.sgr_palette != NULL || cterm->igs_engine != NULL)
+	if (cterm->device.sgr_palette != NULL || cterm->vt52_plane_mask != 0)
 		style.flags &= ~(ST_CONSOLE_CELL_BRIGHT | ST_CONSOLE_CELL_BLINK);
 	style.font      = font_identifier(cterm, cterm_render_attribute_font(cterm, cterm->attr));
 	style.hyperlink = cterm->screen.current_hyperlink;
@@ -405,7 +404,7 @@ cterm_render_set_cursor(struct cterminal *cterm, int cursor)
 {
 	struct st_console_custom_cursor custom;
 
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		cterm_vt52_render_cursor(cterm, cursor);
 		return;
 	}
@@ -444,8 +443,8 @@ cterm_render_set_custom_cursor(struct cterminal *cterm, const struct st_console_
 void
 cterm_render_beep(struct cterminal *cterm)
 {
-	if (cterm->igs_engine != NULL) {
-		cterm_render_record_error(cterm, cterm_igs_audio_console(cterm->igs_engine, false));
+	if (cterm->device.bell != NULL) {
+		cterm_render_record_error(cterm, cterm->device.bell(cterm->device.context));
 		return;
 	}
 	audio_engine_t *engine = NULL;
@@ -800,7 +799,7 @@ uint8_t
 cterm_render_attribute_font(struct cterminal *cterm, uint8_t attribute)
 {
 	/* IGS uses color-register bits, not ANSI intensity/blink font banks. */
-	if (cterm->igs_engine != NULL)
+	if (cterm->vt52_plane_mask != 0)
 		return (uint8_t)cterm->screen.selectors[1];
 	int      slot  = 1;
 	uint32_t flags = (uint32_t)cterm_render_get_video_flags(cterm);

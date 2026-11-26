@@ -75,7 +75,7 @@ provenance=dict(generator='src/tests/igs/generate_pie_vectors.py',shared_oracle=
     application_foreground='Wire C2,7 selects physical5 in low mode and logical1/active mask in medium/mono. Recolour zero-background runs to that independent pen result; XOR uses active mask.',
     safe_domain='Signed-radius coarse predicates, explicit pie-center append and ordered polygon closure. Host writes discarded after native border traversal. Wide overflow/radius extremes have literal tests; corrected angles use common whole-turn shifts into the native positive table domain.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_pie_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_pie_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,user=user,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'pie-vectors.json').write_text(encoded+'\n')

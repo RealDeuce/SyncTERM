@@ -50,7 +50,7 @@ for doubled in (False,True):
 lines+=['};','','const struct cterm_igs_font *','cterm_igs_font_for_points(int points)','{',
         '\tsize_t selected = 0;', '\tfor (size_t i = 1; i < sizeof(fonts)/sizeof(*fonts); ++i)',
         '\t\tif (points >= fonts[i].points) selected = i;', '\treturn &fonts[selected];','}']
-(root/'terminal/cterm/cterm_igs_fonts.c').write_text('\n'.join(lines)+'\n')
+(root/'terminal/igs/cterm_igs_fonts.c').write_text('\n'.join(lines)+'\n')
 provenance=dict(generator='src/tests/igs/generate_text_fonts.py',source='generated/tos104-fonts.json',
     source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),rom_sha256=hashlib.sha256((reference/'TOS/tos104.img').read_bytes()).hexdigest(),
     method='Decode original packed font forms using their original offset tables; cross-check every decoded row against the independent exported glyph arrays. Six native metric records include exact doubled top/ascent/half rules.',

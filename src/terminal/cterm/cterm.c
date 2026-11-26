@@ -43,7 +43,6 @@
 #include "cterm_cterm.h"
 #include "cterm_dec.h"
 #include "cterm_ecma48.h"
-#include "cterm_igs.h"
 #include "cterm_internal.h"
 #include "cterm_petscii.h"
 #include "cterm_prestel.h"
@@ -1437,7 +1436,7 @@ cterm_scrollup(struct cterminal *cterm)
 	int                    x, y;
 	struct st_console_cell fill;
 	cterm_render_make_current_cell(cterm, &fill, ' ', 0);
-	if (cterm->igs_engine != NULL)
+	if (cterm->vt52_plane_mask != 0)
 		fill.background = cterm_vt52_background_color(cterm);
 
 	cterm_coord_conv_xy(cterm, CTERM_COORD_TERM, CTERM_COORD_SCREEN, &minx, &miny);
@@ -2032,7 +2031,6 @@ void
 cterm_reset(struct cterminal *cterm)
 {
 	cterm_musicomm_cancel(cterm);
-	cterm_igs_reset(cterm->igs_engine);
 	cterm_dec_sixel_cancel(cterm);
 	(void)st_music_flush(cterm->music_player, 0);
 	/* Retained history and all three ring indices are session state;

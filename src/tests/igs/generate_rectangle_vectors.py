@@ -103,7 +103,7 @@ provenance = dict(generator='src/tests/igs/generate_rectangle_vectors.py',
     application_foreground='Wire C2,7 selects physical5 in low resolution and falls back to logical1/active mask in medium and mono. Zero-background run coverage is recoloured to that independent pen result; XOR uses the active mask.',
     native_hash='FNV-1a-64 over all32000 big-endian native bytes, each phase independently')
 root = Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_rectangle_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_rectangle_vectors.h').write_text('\n'.join(header)+'\n')
 # Keep numeric rows, coordinates and pixel runs on one line for review.
 encoded = json.dumps(dict(provenance=provenance,user=user,cases=application),indent=2)
 encoded = re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',

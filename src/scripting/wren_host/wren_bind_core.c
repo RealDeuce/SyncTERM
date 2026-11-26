@@ -1211,8 +1211,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit, bool w
 		/* Synchronous UI waits keep the owner from reaching the outer
 		 * terminal pump. Refill audio here without parsing remote input. */
 		st_term_session_t *session = poll_context != NULL ? poll_context->session : NULL;
-		bool               service =
-		    session != NULL ? st_term_session_device_paused(session) : st_cterm_input_paused(terminal);
+		bool               service = st_term_session_device_paused(session);
 		if (service) {
 			bool closed = poll_context->connection != NULL
 			              && !st_connection_is_connected(poll_context->connection);
@@ -1227,8 +1226,7 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit, bool w
 				return false;
 			}
 		}
-		service =
-		    session != NULL ? st_term_session_device_paused(session) : st_cterm_input_paused(terminal);
+		service = st_term_session_device_paused(session);
 		if (host->exit_requested && !at_exit) {
 			record = (struct st_wren_input_record) {
 			    .type                 = ST_WREN_INPUT_KEY,

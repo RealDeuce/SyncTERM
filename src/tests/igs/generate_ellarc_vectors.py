@@ -79,7 +79,7 @@ provenance=dict(generator='src/tests/igs/generate_ellarc_vectors.py',shared_orac
     correction='Widen degree multiplication/angle arithmetic and normalize only trig lookup. Corrected fixtures use a common whole-turn shift to derive native positive-domain expected geometry with the identical sweep; no pre-table ROM reads or signed-word angle overflow.',
     host_bounds='Preserve native coarse signed rejection and clip phase; discard host/status writes after traversal and keep the serial128-point limit separate from129 generated vertices.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_ellarc_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_ellarc_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'ellarc-vectors.json').write_text(encoded+'\n')

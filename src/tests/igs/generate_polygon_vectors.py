@@ -78,7 +78,7 @@ provenance=dict(generator='src/tests/igs/generate_polygon_vectors.py',shared_ora
     application_foreground='Wire C2,7 selects physical5 in low mode and logical1/active mask in medium/mono; XOR uses active mask.',
     safe_domain='One/two points, closure of already closed lists, repeated vertices, concave/self-crossing/reversed edges and up to128 simultaneous intersections; wide extremes tested literally.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_polygon_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_polygon_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,user=model.user,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'polygon-vectors.json').write_text(encoded+'\n')

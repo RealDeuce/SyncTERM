@@ -70,7 +70,7 @@ provenance=dict(generator='src/tests/igs/generate_ellipse_vectors.py',shared_ora
     application_foreground='Wire C2,7 selects physical5 in low mode and logical1/active mask in medium/mono. Recolour zero-background runs to that independent pen result; XOR uses active mask.',
     safe_domain='Signed-radius native predicates on non-wrapping inputs; host writes discarded after native border traversal. Wide overflow corrections and extreme words have separate literal tests.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_ellipse_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_ellipse_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,user=user,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'ellipse-vectors.json').write_text(encoded+'\n')

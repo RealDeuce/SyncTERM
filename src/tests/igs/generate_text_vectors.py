@@ -87,7 +87,7 @@ provenance=dict(generator='src/tests/igs/generate_text_vectors.py',oracle='src/t
     original_glyphs=768,direct_asset_cases=768,corrected_angle_cases=sum(c['rotation']<0 or c['rotation']==4 for c in cases),
     replacement_cases=sum(c['text_after'] for c in cases if c['app']))
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_text_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_text_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'text-vectors.json').write_text(encoded+'\n')

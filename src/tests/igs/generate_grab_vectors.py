@@ -73,7 +73,7 @@ for *fields, hashes in rows:
     header.append("\t{" + ",".join(map(str, fields)) + ",{UINT64_C(0x%016x),UINT64_C(0x%016x)}}," % tuple(hashes))
 header.append("};")
 root = Path(__file__).resolve().parents[2]
-(root / "terminal/cterm/tests/data/igs_grab_vectors.h").write_text("\n".join(header) + "\n")
+(root / "terminal/igs/tests/data/igs_grab_vectors.h").write_text("\n".join(header) + "\n")
 models = ("spec_tos104_software_copy.py", "spec_tos104_raster_forms.py", "verify_tos104_raster_forms.py")
 provenance = dict(generator="src/tests/igs/generate_grab_vectors.py",
                   references=["18-raster-transfer-commands.adoc", "70-native-raster-forms.adoc", "71-native-software-copy.adoc"],

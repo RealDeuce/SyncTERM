@@ -145,7 +145,7 @@ provenance=dict(generator='src/tests/igs/generate_box_vectors.py',references=['1
     application_foreground='Wire C2,7 selects physical5 in low resolution and falls back to logical1/active mask in medium/mono. Recolour zero-background run coverage to that independent pen result; XOR uses active mask.',
     safe_domain='Wide signed coordinates discard outside-canvas writes after native segment traversal; no adjacent-memory writes, wrapped radius/delta arithmetic or fault emulation.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_box_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_box_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,user=user,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'box-vectors.json').write_text(encoded+'\n')

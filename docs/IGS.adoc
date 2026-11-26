@@ -386,7 +386,7 @@ independent tests. link:IGS_IMPLEMENTATION.adoc[Implementation history]
 records detailed reset ordering, parser/numeric rules, image routes and
 native command composition. The complete 47 top-level / 16-selector
 inventory is link:../src/tests/igs/conformance.json[the command ledger].
-link:../src/terminal/cterm/cterm_igs.c[The command dispatcher] and its
+link:../src/terminal/igs/cterm_igs.c[The command dispatcher] and its
 neighboring console, image, input, audio and loop modules define the current
 executable behavior. Functional synthesis and headless tests do not establish
 physical MIDI, audible-device or cycle-accurate Atari equivalence.

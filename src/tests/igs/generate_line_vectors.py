@@ -120,6 +120,6 @@ provenance = dict(generator='src/tests/igs/generate_line_vectors.py',
     rom_sha256=hashlib.sha256((reference/'TOS/tos104.img').read_bytes()).hexdigest(),
     native_cases=len(cases), native_foreground='Physical 9 masked to the active depth; logical pen 10 retained across a mode change',
     native_hash='FNV-1a-64 over all 32000 big-endian native bytes, independently for initial zero/all-one planes')
-(root/'terminal/cterm/tests/data/igs_line_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_line_vectors.h').write_text('\n'.join(header)+'\n')
 (Path(__file__).parent/'line-vectors.json').write_text(json.dumps(dict(provenance=provenance,cases=application),indent=2)+'\n')
 print(f'Wrote {len(cases)} native cases and {len(application)} application cases.',flush=True)

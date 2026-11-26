@@ -26,7 +26,7 @@ header=['/* Original IGS 2.21 patch/pitch/factor words; see gist-vectors.json pr
 for words in ordered:header.append('\t{'+','.join('0x%04x'%(w&65535) for w in words)+'},')
 header+=['};','static const uint16_t gist_pitch[85] = {', '\t'+','.join(map(str,source['pitch_periods_notes_24_to_108'])),'};',
          'static const int16_t gist_factors[16] = {'+'\t'+','.join(map(str,source['volume_multipliers']))+'};']
-(root/'terminal/igs/st_igs_gist_data.h').write_text('\n'.join(header)+'\n')
+(root/'audio/atari_st/st_igs_gist_data.h').write_text('\n'.join(header)+'\n')
 
 
 def unpack(words):
@@ -93,7 +93,7 @@ for records,patch,args,expected,result,regs,after,writes in api_cases:
                    ','.join(row(r) for r in expected)+'},'+row(regs)+','+row(after)+','+str(len(writes))+',{' +
                    (','.join('{%d,%d}'%w for w in writes) or '{0,0}')+'}},')
 vectors.append('};')
-(root/'terminal/igs/tests/gist_vectors.h').write_text('\n'.join(vectors)+'\n')
+(root/'audio/atari_st/tests/gist_vectors.h').write_text('\n'.join(vectors)+'\n')
 provenance=dict(generator='src/tests/igs/generate_gist_vectors.py',
     references=['06-audio.adoc','56-gist-interrupt-voices.adoc','57-gist-caller-apis.adoc'],
     method='Original source patch/pitch/factor words plus the separate immutable-field integer oracle from verify_gist_tick.py. Explicit stable records, raw words and ordered register writes; no SyncTERM output, native instruction execution, CPU clocks or PCM matching.',

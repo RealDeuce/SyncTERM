@@ -230,13 +230,6 @@ struct st_cterm_config {
 	int                     log_level;
 	st_cterm_log_callback_t diagnostic;
 	void                   *diagnostic_context;
-	/* Checked between completed IGS loop commands. True returns control
-	 * to the owner to dispatch pending input or handle disconnection. */
-	bool  (*igs_loop_service_pending)(void *context);
-	void *igs_loop_service_context;
-	/* A connected transport handles backpressure, including configured serial
-	 * handshaking. Suppresses only emulator-generated IGS flow requests. */
-	bool transport_owns_flow_control;
 };
 
 /*
@@ -278,7 +271,6 @@ bool st_cterm_needs_poll(st_cterm_t *terminal);
 int st_cterm_poll(st_cterm_t *terminal);
 /* Owner-thread timing gate. The caller retains bytes after a write
  * consumed count while paused; no input suffix is queued by this API. */
-bool st_cterm_input_paused(st_cterm_t *terminal);
 /* After disconnect only: finish pending output and, without a status row,
  * scroll the whole terminal once to make room for a local notice. Dimensions
  * and status layout remain unchanged; capture completed history beforehand. */

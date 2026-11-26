@@ -95,7 +95,7 @@ provenance=dict(generator='src/tests/igs/generate_flood_vectors.py',references=[
  native_foreground='Retained logical fill pen7: physical5 masked to active depth',application_foreground='Wire C2,7: physical5 low, active mask medium/mono; grid boundaries physical1 from C2,2.',
  bounds='Stored bounds apply even with clipping disabled. Ordinary boxed grids isolate exactly the source component. Out-of-bound seeds retain last state; accepted seeds clear it. Perimeter ignored.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_flood_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_flood_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,user=model.user,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'flood-vectors.json').write_text(encoded+'\n')

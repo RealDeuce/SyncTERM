@@ -61,7 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('--check', action='store_true'); args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     header, metadata = generate(args.reference.resolve())
-    for path, text in ((root/'terminal/cterm/tests/data/igs_note_vectors.h', header),
+    for path, text in ((root/'terminal/igs/tests/data/igs_note_vectors.h', header),
                        (Path(__file__).with_name('note-vectors.json'), metadata)):
         if args.check:
             assert path.read_text() == text, path

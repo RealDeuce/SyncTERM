@@ -139,7 +139,7 @@ provenance=dict(generator='src/tests/igs/generate_round_box_vectors.py',referenc
     text_after='Marked overlay cases render the console glyph after graphics; remove runs covered by its cell, then compose the independent glyph raster.',
     safe_domain='Discard host/status writes after native traversal; widened safe geometry, no raw memory/word-wrap emulation.')
 root=Path(__file__).resolve().parents[2]
-(root/'terminal/cterm/tests/data/igs_round_box_vectors.h').write_text('\n'.join(header)+'\n')
+(root/'terminal/igs/tests/data/igs_round_box_vectors.h').write_text('\n'.join(header)+'\n')
 encoded=json.dumps(dict(provenance=provenance,cases=application),indent=2)
 encoded=re.sub(r'\[\s*(-?\d+(?:,\s*-?\d+)*)\s*\]',lambda m:'['+', '.join(re.findall(r'-?\d+',m.group(1)))+']',encoded)
 (Path(__file__).parent/'round-box-vectors.json').write_text(encoded+'\n')

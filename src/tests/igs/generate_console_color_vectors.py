@@ -38,7 +38,7 @@ for font in fonts[1:]:
         header.append('\t\t{'+','.join('0x%02x'%value for value in values)+'},')
     header.append('\t},')
 header.append('};')
-(Path(__file__).resolve().parents[2]/'terminal/cterm/tests/data/igs_console_color_glyphs.h').write_text('\n'.join(header)+'\n')
+(Path(__file__).resolve().parents[2]/'terminal/igs/tests/data/igs_console_color_glyphs.h').write_text('\n'.join(header)+'\n')
 data=dict(provenance=dict(generator='src/tests/igs/generate_console_color_vectors.py',
     references=['14-console-commands.adoc','66-native-console-pixels.adoc','195-delivery-console.adoc'],
     method='Literal original font rows and source-defined selector/raw-byte/persistent six-state console composition. Native and application tests use separate source-derived state interpreters; no SyncTERM output.',

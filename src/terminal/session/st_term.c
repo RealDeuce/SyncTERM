@@ -10,6 +10,7 @@
 
 #include "audio.h"
 #include "cterm_big.h"
+#include "cterm_igs.h"
 #include "cterm_skypix.h"
 #include "io_error.h"
 #include "st_ooii.h"
@@ -34,6 +35,7 @@ struct st_term_session {
 	st_cterm_t            *cterm;
 	struct cterm_big      *big;
 	struct cterm_skypix   *skypix;
+	struct cterm_igs      *igs;
 	st_ooii_t             *ooii;
 	struct st_utf8_decoder ooii_decoder;
 	struct st_term_rip3   *rip3;
@@ -100,7 +102,7 @@ st_term_session_device_paused(st_term_session_t *session)
 	return session != NULL
 	       && (cterm_big_paused(session->big)
 	           || (session->skypix != NULL && cterm_skypix_paused(session->skypix))
-	           || st_cterm_input_paused(st_term_session_cterm(session)));
+	           || cterm_igs_paused(session->igs));
 }
 
 int
@@ -109,6 +111,8 @@ st_term_session_poll_display(st_term_session_t *session)
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	int status = st_cterm_poll(st_term_session_cterm(session));
+	if (status == 0 && session->igs != NULL)
+		status = cterm_igs_poll(session->igs);
 	if (status == 0 && session->big != NULL)
 		status = cterm_big_poll(session->big);
 	if (status == 0 && session->skypix != NULL)
@@ -121,6 +125,8 @@ st_term_session_finish_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->igs != NULL)
+		return cterm_igs_finish_display(session->igs);
 	int status =
 	    session->skypix != NULL ? cterm_skypix_finish(session->skypix) : cterm_big_finish(session->big);
 	return status != 0 ? status : st_cterm_finish(st_term_session_cterm(session));
@@ -131,6 +137,8 @@ st_term_session_reset_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->igs != NULL)
+		return cterm_igs_reset_display(session->igs);
 	if (session->skypix != NULL) {
 		int status = cterm_skypix_finish(session->skypix);
 		if (status != 0)
@@ -144,6 +152,12 @@ struct cterm_big *
 st_term_session_big(st_term_session_t *session)
 {
 	return session == NULL ? NULL : session->big;
+}
+
+struct cterm_igs *
+st_term_session_igs(st_term_session_t *session)
+{
+	return session == NULL ? NULL : session->igs;
 }
 
 struct cterm_skypix *
@@ -183,9 +197,7 @@ finish(st_term_session_t *session)
 			return status;
 	}
 	st_term_rip3_cancel(session->rip3);
-	int status =
-	    session->skypix != NULL ? cterm_skypix_finish(session->skypix) : cterm_big_finish(session->big);
-	return status != 0 ? status : st_cterm_finish(session->cterm);
+	return st_term_session_finish_display(session);
 }
 
 bool
@@ -555,9 +567,6 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .output_context      = session,
 	    .size_changed        = cterm_size,
 	    .size_context        = session,
-	    .transport_owns_flow_control = true,
-	    .igs_loop_service_pending    = igs_loop_service_pending,
-	    .igs_loop_service_context    = session,
 	    .speed_query                 = cterm_speed_query,
 	    .speed_changed               = cterm_speed_changed,
 	    .speed_context               = session,
@@ -579,6 +588,9 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
 		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
+	else if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221)
+		status = cterm_igs_open(&session->igs, &session->cterm, &cterm_config, true,
+		    igs_loop_service_pending, session);
 	else if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
 	         || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
 		status = cterm_skypix_open(&session->skypix, &session->cterm, &cterm_config,
@@ -597,6 +609,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	}
 	status = update_connection_geometry(session);
 	if (status != 0) {
+		cterm_igs_destroy(session->igs);
 		cterm_skypix_destroy(session->skypix);
 		cterm_big_destroy(session->big);
 		st_cterm_destroy(&session->cterm);
@@ -612,6 +625,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	status = st_ooii_create(&session->ooii, &ooii_config);
 	if (status != 0) {
+		cterm_igs_destroy(session->igs);
 		cterm_skypix_destroy(session->skypix);
 		cterm_big_destroy(session->big);
 		st_cterm_destroy(&session->cterm);
@@ -679,6 +693,7 @@ st_term_session_destroy(st_term_session_t **session)
 	publish_history(*session);
 	st_ooii_destroy((*session)->ooii);
 	st_term_rip3_destroy((*session)->rip3);
+	cterm_igs_destroy((*session)->igs);
 	cterm_skypix_destroy((*session)->skypix);
 	cterm_big_destroy((*session)->big);
 	st_cterm_destroy(&(*session)->cterm);
@@ -1031,6 +1046,8 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 		return 0;
 	}
 	if (st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+		if (session->igs != NULL)
+			return cterm_igs_feed(session->igs, bytes, size, consumed);
 		if (session->big != NULL)
 			return cterm_big_feed(session->big, bytes, size, consumed);
 		if (session->skypix != NULL)
@@ -1756,7 +1773,8 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	}
 	if (timeout_ms > 1
 	    && (session->transfer != NULL || session->transfer_reserved || paused
-	        || cterm_big_needs_poll(session->big) || st_cterm_needs_poll(st_term_session_cterm(session))))
+	        || cterm_big_needs_poll(session->big) || cterm_igs_needs_poll(session->igs)
+	        || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
 	struct timespec deadline;
 	int status = timeout_ms == UINT32_MAX ? 0 : st_time_utc_deadline_after_ms(&deadline, timeout_ms);

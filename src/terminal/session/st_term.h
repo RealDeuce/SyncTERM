@@ -141,6 +141,8 @@ st_cterm_t *st_term_session_cterm(st_term_session_t *session);
 /* History is recorded in the physical display grid. */
 st_cterm_t *st_term_session_history_terminal(st_term_session_t *session);
 /* The RIPv3 indicator lives outside ANSI display state and screen contents. */
+struct cterm_igs;
+struct cterm_igs *st_term_session_igs(st_term_session_t *session);
 struct cterm_skypix;
 struct cterm_skypix *st_term_session_skypix(st_term_session_t *session);
 /* Load a completed native ILBM brush; NULL/zero cancels a pending request. */

@@ -9478,19 +9478,26 @@ exercise_key_click_setting(struct st_wren_host *host)
 	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 8};
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	const struct st_cterm_config config = {.console = console,
-	    .fonts                                      = fonts,
-	    .emulation                                  = ST_CTERM_ATARI_ST_VT52,
-	    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
-	    .codepage                                   = ST_CODEPAGE_ATARI_ST,
-	    .graphics_mode                              = ST_CTERM_GRAPHICS_IGS_221,
-	    .quiet                                      = true};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	const struct st_connection_transport_ops operations = {0};
+	struct st_connection                     connection = {.operations = &operations};
+	atomic_init(&connection.connected, true);
+	st_term_session_t          *session = NULL;
+	const struct st_term_config config  = {.console = console,
+	    .fonts                                     = fonts,
+	    .screen_mode                               = ST_SCREEN_MODE_ATARIST_80X25,
+	    .connection                                = &connection,
+	    .encoding                                  = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage                                  = ST_CODEPAGE_ATARI_ST,
+	    .graphics_mode                             = ST_CTERM_GRAPHICS_IGS_221,
+	    .hide_status                               = true};
+	CHECK(st_term_session_create(&session, &config) == 0);
+	terminal = st_term_session_cterm(session);
 	struct st_profile profile;
 	st_profile_init(&profile);
 	const struct st_wren_connected_config wren_config = {.host = host,
 	    .console                                               = console,
 	    .cterm                                                 = terminal,
+	    .session                                               = session,
 	    .profile                                               = &profile};
 	CHECK(st_wren_connected_create(&connected, &wren_config) == 0);
 	st_profile_dispose(&profile);
@@ -9512,7 +9519,7 @@ exercise_key_click_setting(struct st_wren_host *host)
 		  "if (settings.apply() != null) Fiber.abort(\"restore clicks\")\n")
 	      == WREN_RESULT_SUCCESS);
 	st_wren_connected_destroy(connected);
-	st_cterm_destroy(&terminal);
+	st_term_session_destroy(&session);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;

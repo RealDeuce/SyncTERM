@@ -35,7 +35,6 @@
 
 #include "cterm.h"
 #include "cterm_ecma48.h" /* cterm_accumulate_ecma_seq installed on ESC */
-#include "cterm_igs.h"
 #include "cterm_internal.h"
 #include "cterm_render.h"
 #include "cterm_vt52.h"
@@ -48,7 +47,7 @@ cterm_vt52_reset_console(struct cterminal *cterm)
 	cterm->vt52_background        = cterm->attr >> 4;
 	cterm->vt52_cursor_saved      = false;
 	cterm->vt52_cursor_hide_depth = 1;
-	if (cterm->igs_engine != NULL)
+	if (cterm->vt52_plane_mask != 0)
 		cterm->cursor = CTERM_CURSOR_HIDDEN;
 }
 
@@ -66,8 +65,8 @@ cterm_vt52_render_cursor(struct cterminal *cterm, int cursor)
 	    .range      = 1,
 	    .visible    = cursor != CTERM_CURSOR_HIDDEN && cterm->vt52_cursor_hide_depth == 0,
 	    .blink      = true,
-	    .index_base = CTERM_IGS_PALETTE_FIRST,
-	    .index_xor  = (uint16_t)cterm_igs_plane_mask(cterm->igs_engine->resolution),
+	    .index_base = cterm->screen.mode_palette[0],
+	    .index_xor  = (uint16_t)cterm->vt52_plane_mask,
 	};
 	(void)cterm_render_set_custom_cursor(cterm, &custom);
 }
@@ -172,7 +171,7 @@ static void
 cterm_vt52_reverse_lf(struct cterminal *cterm, int *speed) /* ESC I */
 {
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		int x, y;
 		CURR_XY(&x, &y);
 		if (y == CURR_MINY)
@@ -253,7 +252,7 @@ cterm_vt52_erase_to_end(struct cterminal *cterm, int *speed) /* ESC J */
 {
 	int x, y, i;
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		cterm_vt52_erase_screen(cterm, VT52_ERASE_TO_END);
 		return;
 	}
@@ -270,7 +269,7 @@ static void
 cterm_vt52_erase_eol(struct cterminal *cterm, int *speed) /* ESC K */
 {
 	(void)speed;
-	if (cterm->igs_engine != NULL)
+	if (cterm->vt52_plane_mask != 0)
 		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_END);
 	else
 		cterm_render_clear_line(cterm);
@@ -281,7 +280,7 @@ cterm_vt52_goto_xy(struct cterminal *cterm, int *speed) /* ESC Y row col */
 {
 	int x, y;
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		/* Native parameter subtraction is an unsigned word operation. Host
 		 * rows exclude a reserved status line, so clamp within that viewport. */
 		unsigned row = (uint16_t)(cterm->seq_param_int[0] - 32);
@@ -312,7 +311,7 @@ static void
 cterm_vt52_clear_screen(struct cterminal *cterm, int *speed) /* ESC E */
 {
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		cterm_vt52_erase_screen(cterm, VT52_ERASE_WHOLE);
 		return;
 	}
@@ -325,7 +324,7 @@ cterm_vt52_insert_line(struct cterminal *cterm, int *speed) /* ESC L */
 {
 	int x, y, x2, y2, maxx, maxy;
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		CURR_XY(NULL, &y);
 		cterm_vt52_scroll_rows(cterm, y, CURR_MINX, true);
 		return;
@@ -350,7 +349,7 @@ static void
 cterm_vt52_delete_line(struct cterminal *cterm, int *speed) /* ESC M */
 {
 	(void)speed;
-	if (cterm->igs_engine == NULL) {
+	if (cterm->vt52_plane_mask == 0) {
 		cterm_dellines(cterm, 1);
 		return;
 	}
@@ -401,7 +400,7 @@ cterm_vt52_clear_to_begin(struct cterminal *cterm, int *speed) /* ESC d */
 {
 	int x, y, i;
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		cterm_vt52_erase_screen(cterm, VT52_ERASE_TO_START);
 		return;
 	}
@@ -418,7 +417,7 @@ static void
 cterm_vt52_cursor_on(struct cterminal *cterm, int *speed) /* ESC e */
 {
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		if (cterm->vt52_cursor_hide_depth == 0)
 			return;
 		cterm->vt52_cursor_hide_depth = 0;
@@ -433,7 +432,7 @@ static void
 cterm_vt52_cursor_off(struct cterminal *cterm, int *speed) /* ESC f */
 {
 	(void)speed;
-	if (cterm->igs_engine != NULL && cterm->vt52_cursor_hide_depth < UINT16_MAX)
+	if (cterm->vt52_plane_mask != 0 && cterm->vt52_cursor_hide_depth < UINT16_MAX)
 		++cterm->vt52_cursor_hide_depth;
 	cterm->cursor = CTERM_CURSOR_HIDDEN;
 	cterm_render_set_cursor(cterm, cterm->cursor);
@@ -444,14 +443,14 @@ cterm_vt52_save_cursor(struct cterminal *cterm, int *speed) /* ESC j */
 {
 	(void)speed;
 	CURR_XY(&cterm->save_xpos, &cterm->save_ypos);
-	if (cterm->igs_engine != NULL)
+	if (cterm->vt52_plane_mask != 0)
 		cterm->vt52_cursor_saved = true;
 }
 
 static void
 cterm_vt52_restore_cursor(struct cterminal *cterm, int *speed) /* ESC k */
 {
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		/* TOS tests and clears the flag before using the stored words. */
 		bool saved               = cterm->vt52_cursor_saved;
 		cterm->vt52_cursor_saved = false;
@@ -476,7 +475,7 @@ cterm_vt52_clear_line(struct cterminal *cterm, int *speed) /* ESC l */
 {
 	int x, y;
 	(void)speed;
-	if (cterm->igs_engine != NULL) {
+	if (cterm->vt52_plane_mask != 0) {
 		cterm_vt52_erase_row(cterm, VT52_ERASE_WHOLE);
 		return;
 	}
@@ -490,7 +489,7 @@ static void
 cterm_vt52_clear_to_bol(struct cterminal *cterm, int *speed) /* ESC o */
 {
 	(void)speed;
-	if (cterm->igs_engine != NULL)
+	if (cterm->vt52_plane_mask != 0)
 		cterm_vt52_erase_row(cterm, VT52_ERASE_TO_START);
 	else
 		cterm_clear2bol(cterm);
@@ -606,7 +605,7 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 		return;
 	}
 
-	if (cterm->igs_engine != NULL && byte == 9) {
+	if (cterm->vt52_plane_mask != 0 && byte == 9) {
 		/* TOS moves to the next eight-cell boundary, clipping at the edge;
 		 * terminal tab stops and right-edge wrapping do not participate. */
 		int x, y;
@@ -642,7 +641,7 @@ cterm_dispatch_vt52(struct cterminal *cterm, unsigned char byte, int *speed)
 			cterm->print_buf[0] = 0;
 			cterm->print_pos    = cterm->print_buf;
 			cterm->accumulator =
-			    cterm->igs_engine != NULL ? accumulate_native : cterm_accumulate_ecma_seq;
+			    cterm->vt52_plane_mask != 0 ? accumulate_native : cterm_accumulate_ecma_seq;
 			cterm->sequence        = 1;
 			cterm->seq_phase       = SEQ_PHASE_C1;
 			cterm->seq_key         = SEQ_ESC;
