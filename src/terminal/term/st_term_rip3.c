@@ -5,6 +5,7 @@
 #include "st_term_rip3_pick_list.h"
 #include "st_term_rip3_view.h"
 #include "st_rip3_ports.h"
+#include "st_rip3_maf.h"
 #include "st_rip3_query.h"
 #include "st_rip3_session.h"
 #include "st_rip3_text_window.h"
@@ -2010,8 +2011,9 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	rip->framing_enabled = true;
 	rip->text_config.palette_mapping=NULL;rip->text_config.palette_override=NULL;
 	rip->output=text_config->output;rip->output_context=text_config->output_context;
-	uint32_t width,height;
+	uint32_t width,height,cell_width,cell_height;
 	int status=st_console_pixel_size(config->console,&width,&height);
+	if (status==0) status=st_console_cell_pixel_size(config->console,&cell_width,&cell_height);
 	if (status!=0) {st_term_rip3_destroy(rip);return status;}
 	rip->pixels=(size_t)width*height;
 	rip->damage=calloc(rip->pixels,1);
@@ -2062,7 +2064,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	const struct st_rip3_session_config session={
 	    .canvas=width==1024 ? ST_RIP3_CANVAS_1024_768 : width==800 ? ST_RIP3_CANVAS_800_600 : ST_RIP3_CANVAS_640_480,
 	    .device_width=width,.device_height=height,
-	    .default_text_font=0,.default_text_wrap=true,
+	    .default_text_font=cell_height==8 ? ST_RIP3_MAF_80X43 : ST_RIP3_MAF_80X25,
+	    .default_text_wrap=true,
 	    .encoding=ST_RIP3_TEXT_UTF8,.graphical_codepage_converted=config->encoding==ST_CTERM_ENCODING_CODEPAGE,
 	    .source={rip,now,next},
 	    .sink={.context=rip,.text=text,.reply=reply,.at_line_start=line_start,.diagnostic=diagnostic,

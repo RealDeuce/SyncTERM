@@ -172,6 +172,7 @@ def check_entry_modes(args):
     cases = (
         ("80x50", "", 640, 480, 30, 16),
         ("LCD80x25", "", 640, 400, 25, 16),
+        ("Custom", square_canvas(640, 480), 640, 480, 60, 8),
         ("Custom", custom + "CustomAspectWidth=32\nCustomAspectHeight=35\n", 640, 700, 50, 14),
         ("Custom", custom + "CustomAspectWidth=4\nCustomAspectHeight=3\n", 640, 480, 30, 16),
         ("Current", "ScreenMode=80x50\n", 640, 480, 30, 16),
@@ -187,6 +188,13 @@ def check_entry_modes(args):
             assert (m["plane_width"], m["plane_height"]) == (width, height)
             assert (m["columns"], m["rows"], m["cell_width"], m["cell_height"]) == (80, rows, 8, cell_height)
             assert abs(m["destination_width"] * height - m["destination_height"] * width) <= max(width, height)
+            window = query(b"$TWW$:$TWH$:$TWFONT$", at_cursor=True)
+            # TWFONT reports the stored index plus one.
+            default = b"80:43:1" if cell_height == 8 else b"80:25:3"
+            for reset in (query(b"$RESET(TW,0)$", at_cursor=True),
+                          b"\x01|*\r\n", query(b"$RESET(HARD)$", at_cursor=True)):
+                t.exchange(b"\x01|w0000030314\r\n" + window, b"4:4:5")
+                t.exchange(reset + window, default)
 
 
 if __name__=='__main__':

@@ -63,7 +63,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Connection mode and default MicroANSI font | Pending blocks cover text-window startup, reset and font selection. SyncTERM uses square-pixel entry modes. The remaining font work covers the documented mode #2 default, native-size MAF strikes and nominal cell metrics when the raster has no matching bank. The portable contract leaves the fallback face unspecified. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
+| Connection mode and default MicroANSI font | Pending blocks cover text-window startup, reset and font selection. SyncTERM uses square-pixel entry modes. The default comes from the entry mode’s font height. Remaining font work covers native-size MAF strikes and nominal cell metrics when the raster has no matching bank. The portable contract leaves the fallback face unspecified. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws
@@ -252,9 +252,11 @@ entry at 8:5 qualifies. A 640×400 entry at 4:3 opens at 640×480 (80×30).
 Custom uses the configured columns, rows, font height and aspect ratio.
 Current uses the active console raster and aspect.
 
-The engine accepts ordinary default fonts 0–4. The connection frontend
-currently supplies font 0 and enables wrap. Alternate startup-font vectors
-have native coverage only.
+SyncTERM uses the effective connection mode’s font height to choose its
+RIPv3 text-window default. An 8-pixel font selects MicroANSI mode 0 (80×43).
+The 14- and 16-pixel fonts select mode 2 (80×25). Wrap starts enabled.
+A host can select a different font for a window. Recreating the default window
+restores the choice derived from the connection mode.
 
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
@@ -6769,8 +6771,7 @@ represented native window state into an independently owned unprotected slot,
 including when its source is protected; `$CUR(TW,n)$` creates an unused slot with
 fresh full-screen ordinary geometry, normal attributes/cursors/margins and an
 empty explicit tab map. The session accepts a client default font/wrap policy;
-the current application supplies font 0 and wrap enabled. This does not change
-the entry raster, initial TTY grid or existing defined slots. Existing ANSI-BBS
+at this milestone the application supplied font 0 and enabled wrap. Existing ANSI-BBS
 tab behavior remains in use. Existing protected targets remain selectable and
 inactive wire clones remain inactive.
 
@@ -8788,8 +8789,7 @@ This is connected behavior for represented native fields, not acceptance of the
 entire fresh-state profile. G0/G1 designation/invocation, the larger ESC7/8
 snapshot and remaining per-window mode acceptance remain pending. Connection
 partial CSI preservation does not prove the missing larger snapshot. The
-frontend currently supplies default font 0; the user's deferred startup/default
-font policy remains unresolved. Broad clauses/vectors containing those fields
+frontend supplied default font 0 at this milestone. Broad clauses/vectors containing those fields
 stay pending. The 8608-unit queue now contains 2238 implemented, 1703 pending,
 3069 unreviewed, 1506 context, 67 excluded and 25 blocked. No ordinary ANSI/RIP1.54
 renderer, scrolling optimization, resident scene or damage tracking is changed;
