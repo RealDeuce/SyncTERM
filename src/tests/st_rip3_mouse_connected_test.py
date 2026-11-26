@@ -48,6 +48,10 @@ def run(args):
         t.case("rip3-mouse-coordinate-and-button-queries")
         values(b"$MSTAT$/$M$", b"YES/000")
         values(b"$WORLD(CUR,1280,960)$")
+        coordinates = b"$X$/$Y(DEVICE)$/$XY$/$XYM(DEVICE)$"
+        values(coordinates, b"0000/0000/0000:0000/0000:0000:000")
+        mouse(297,321,move=True)
+        values(coordinates, b"0594/0321/0594:0642/0297:0321:000")
         mouse(297,321,buttons=2|4)
         values(b"$X$/$Y(device)$/$M$/$XYM$/$XYM(DEVICE)$",
                b"0594/0321/011/0594:0642:011/0297:0321:011")

@@ -40,7 +40,7 @@ struct st_rip3_local_queries {
 	bool (*doorway_mode)(void *context);
 	void (*set_doorway_mode)(void *context, bool enabled);
 	/* Captured coordinates of this host/query event, not a fresh live-pointer
-	 * request. A missing capture is unsupported, independently of MSTAT. */
+	 * request. An absent sample supplies DEVICE (0,0), independently of MSTAT. */
 	const struct st_rip3_point *mouse_position;
 	const struct st_rip3_pointer_buttons *mouse_buttons;
 	/* Independent backend presence check, even before the first event. */

@@ -332,10 +332,12 @@ def check_host_directory(t, root, rip, values, encoding):
         assert not path.exists(), argument
     keep = rip / 'X.bmp'
     keep.write_bytes(b'keep')
-    for argument in (b'*.bmp', b'X?.bmp', rb'DIR\\X.bmp', b'X.bmp\\'):
+    for argument in (b'*.bmp', b'X?.bmp', rb'DIR\\X.bmp'):
         source = b'$FILEDEL(' + argument + b')$'
         values(source + b'ok', source + b'ok')
         assert keep.read_bytes() == b'keep'
+    values(rb'pre$FILEDEL(X.bmp\)$post', b'pre$FILEDEL(X.bmp)$post')
+    assert keep.read_bytes() == b'keep'
     values(b"$FILEDEL(AfterOff.ICN)$")
     assert (rip / "AfterOff.bmp").is_file()
     values(b"$HOSTDIR(Mix Ed)$$FILEDEL(Capture.bmp)$$HOSTDIR(Off)$")

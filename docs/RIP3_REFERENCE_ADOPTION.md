@@ -1810,3 +1810,11 @@ a stored button action retain the rejected span and execute the following
 source. The archive SHA-256 is
 `c2aa1b1e8b9f76fece39e37b9f57353727dcbf5c0e627f64ab032ea53103fc97`.
 [Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/5944d175b6cbefc7e97dc48a1e11eba2d704d2a6) · [PR #316](https://github.com/bbs-land/remote-imaging-protocol/pull/316)
+
+## Mouse coordinate capture and incomplete host arguments
+
+Stable revision `df95d80b2c58f500acc00c9ca26485fd1ee53f65` specifies the DEVICE origin fallback and the
+input sample for each host pass. It also distinguishes an exhausted dollar
+candidate from an explicit argument rejection. The Git archive SHA-256 is
+`32f5f9d566e6efe58da763163da5d4009e558cb9f9591d172802223a5cafa896`.
+[Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/df95d80b2c58f500acc00c9ca26485fd1ee53f65) · [PR #319](https://github.com/bbs-land/remote-imaging-protocol/pull/319) · [PR #320](https://github.com/bbs-land/remote-imaging-protocol/pull/320)

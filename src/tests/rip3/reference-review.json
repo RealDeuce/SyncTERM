@@ -1,24 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/316",
-  "revision": "5944d175b6cbefc7e97dc48a1e11eba2d704d2a6",
-  "previous_revision": "6bbd7dc1384e9c822a87f14132f272b9e80f4b93",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/320",
+  "revision": "df95d80b2c58f500acc00c9ca26485fd1ee53f65",
+  "previous_revision": "5944d175b6cbefc7e97dc48a1e11eba2d704d2a6",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PR #316.",
-  "archive_sha256": "c2aa1b1e8b9f76fece39e37b9f57353727dcbf5c0e627f64ab032ea53103fc97",
+  "upstream_state_at_adoption": "Fork stable incorporates PRs #319 and #320.",
+  "archive_sha256": "32f5f9d566e6efe58da763163da5d4009e558cb9f9591d172802223a5cafa896",
   "normative_scope": [
-    "Retain rejected ordinary dollar references, continue scanning each pass and preserve preceding and following effects."
+    "Mouse coordinate capture per ordinary pass and initial DEVICE origin.",
+    "One-byte recovery from exhausted ordinary dollar candidates and full-span recovery from explicit rejection."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/4.3-buttons.md",
     "version/3.0/ripscrip/5.0-host-commands.md",
-    "version/3.0/ripscrip/5.1-text-variables.md",
-    "version/3.0/ripscrip/5.5-file-transfer-and-queries.md"
+    "version/3.0/ripscrip/5.1-text-variables.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9686,
+  "matched_source_blocks": 9692,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -952,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 155,
+  "upstream_issue_resolutions": 157,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1142,7 +1141,7 @@
     },
     {
       "path": "version/3.0/research/issue-20-filedel-scope.md",
-      "sha256": "875f09013d4f670e4be7806f244dc3ab3217eac7b5901459aa0f069f6e250263",
+      "sha256": "2b7b51a6e6212b55d96c89bfc7bd2f8d6cfbe6b546628bca62f1f79568d7faff",
       "title": "Issue #20: FILEDEL directory scope, ownership and path handling",
       "role": "Primary-artifact derivation/probe provenance for normative pages; its intermediate research leads are not additional normative requirements."
     },
@@ -1874,9 +1873,21 @@
     },
     {
       "path": "version/3.0/research/issue-315-host-argument-rejection.md",
-      "sha256": "cf56cbca665a924640c0a252803fff8c9d846d78b5a46c20c625389dd52471f4",
+      "sha256": "5469c0f808d58c13b5cfa0e4761cc0b9eba2cc39399fc7ffe2dc38cc2b6bd49f",
       "title": "Issue #315 — Reached dollar-argument errors in ordinary host responses",
       "role": "Original ordinary scanner, callback refusal and two-pass sender."
+    },
+    {
+      "path": "version/3.0/research/issue-317-initial-mouse-query-point.md",
+      "sha256": "a1dce3597d804e15b3731686dfa2775bf9e34f4f29fc98fd9175c1da14d40b61",
+      "title": "Issue #317 — Coordinate queries before the first mouse sample",
+      "role": "Original coordinate capture and portable DEVICE origin fallback."
+    },
+    {
+      "path": "version/3.0/research/issue-318-rejected-dollar-span-quoting.md",
+      "sha256": "13a5a944586ac40e0342a58b7beabb341ed773def2f11ed2864e55d91d6cc8e9",
+      "title": "Issue #318 — Pass-two quoting and rejected dollar spans",
+      "role": "Original parser advances and outer quote handling on the second host pass."
     }
   ],
   "documents": [
@@ -2034,11 +2045,11 @@
     },
     {
       "path": "version/3.0/ripscrip/5.0-host-commands.md",
-      "sha256": "86449e625c131ed942e7dd671c3a5dce94a5e53b21cc2e5d0d22046fa0ee6070"
+      "sha256": "8096fb8ad1a414e33c2c1158090423ce67d074e7729b37b9b8a96db0a3660616"
     },
     {
       "path": "version/3.0/ripscrip/5.1-text-variables.md",
-      "sha256": "2501a5c9598daaa6e686336d0b8fa3fd53fb49b7edb723e364d1c42693faf63f"
+      "sha256": "f60e64b9dbfc613165845cf9d34625fa3bb8b18a9958731db05a5f74bba37d49"
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
@@ -2153,7 +2164,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "4e418349f9f24459721451f5e6dfbbebfa511652",
+  "previous_ledger_commit": "e631456c8a4727172ab444eed3b59759320f1a6c",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2230,12 +2241,11 @@
   "states_at_adoption": {
     "unreviewed": 1801,
     "context": 2283,
-    "implemented": 5290,
+    "implemented": 5316,
     "excluded": 266,
-    "pending": 55,
-    "blocked": 2
+    "pending": 43
   },
-  "source_blocks_at_adoption": 9697,
+  "source_blocks_at_adoption": 9709,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21548,6 +21558,102 @@
       },
       "reopened_source_units": [
         "version/3.0/ripscrip/5.2-templates-and-conditionals.md:154"
+      ]
+    },
+    {
+      "previous_revision": "5944d175b6cbefc7e97dc48a1e11eba2d704d2a6",
+      "revision": "df95d80b2c58f500acc00c9ca26485fd1ee53f65",
+      "archive_sha256": "32f5f9d566e6efe58da763163da5d4009e558cb9f9591d172802223a5cafa896",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/317",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/319",
+          "reviewed_head": "eb60a7eeae3f0e37154003e7dfd483963661a659",
+          "integration": "ce7074eab9e57a7b18ef0b3530e9c9493226da08"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/318",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/320",
+          "reviewed_head": "2bbe1baf35d86aba2b98f2126015526866e2a4ee",
+          "integration": "7d10b6cd77e37e67d093e698d66c74e50f25ab9d"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.0-host-commands.md",
+          "previous_sha256": "86449e625c131ed942e7dd671c3a5dce94a5e53b21cc2e5d0d22046fa0ee6070",
+          "sha256": "8096fb8ad1a414e33c2c1158090423ce67d074e7729b37b9b8a96db0a3660616"
+        },
+        {
+          "path": "version/3.0/ripscrip/5.1-text-variables.md",
+          "previous_sha256": "2501a5c9598daaa6e686336d0b8fa3fd53fb49b7edb723e364d1c42693faf63f",
+          "sha256": "f60e64b9dbfc613165845cf9d34625fa3bb8b18a9958731db05a5f74bba37d49"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-317-initial-mouse-query-point.md",
+          "sha256": "a1dce3597d804e15b3731686dfa2775bf9e34f4f29fc98fd9175c1da14d40b61",
+          "title": "Issue #317 — Coordinate queries before the first mouse sample",
+          "role": "Original coordinate capture and portable DEVICE origin fallback."
+        },
+        {
+          "path": "version/3.0/research/issue-318-rejected-dollar-span-quoting.md",
+          "sha256": "13a5a944586ac40e0342a58b7beabb341ed773def2f11ed2864e55d91d6cc8e9",
+          "title": "Issue #318 — Pass-two quoting and rejected dollar spans",
+          "role": "Original parser advances and outer quote handling on the second host pass."
+        }
+      ],
+      "changed_derivations": [
+        {
+          "path": "version/3.0/research/issue-20-filedel-scope.md",
+          "previous_sha256": "875f09013d4f670e4be7806f244dc3ab3217eac7b5901459aa0f069f6e250263",
+          "sha256": "2b7b51a6e6212b55d96c89bfc7bd2f8d6cfbe6b546628bca62f1f79568d7faff"
+        },
+        {
+          "path": "version/3.0/research/issue-315-host-argument-rejection.md",
+          "previous_sha256": "cf56cbca665a924640c0a252803fff8c9d846d78b5a46c20c625389dd52471f4",
+          "sha256": "5469c0f808d58c13b5cfa0e4761cc0b9eba2cc39399fc7ffe2dc38cc2b6bd49f"
+        }
+      ],
+      "moved_source_blocks": 1669,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:114",
+        "version/3.0/ripscrip/5.0-host-commands.md:118",
+        "version/3.0/ripscrip/5.0-host-commands.md:136",
+        "version/3.0/ripscrip/5.0-host-commands.md:138",
+        "version/3.0/ripscrip/5.0-host-commands.md:140",
+        "version/3.0/ripscrip/5.0-host-commands.md:142",
+        "version/3.0/ripscrip/5.0-host-commands.md:146",
+        "version/3.0/ripscrip/5.0-host-commands.md:148",
+        "version/3.0/ripscrip/5.0-host-commands.md:152",
+        "version/3.0/ripscrip/5.1-text-variables.md:131",
+        "version/3.0/ripscrip/5.1-text-variables.md:1179",
+        "version/3.0/ripscrip/5.1-text-variables.md:1181",
+        "version/3.0/ripscrip/5.1-text-variables.md:1183",
+        "version/3.0/ripscrip/5.1-text-variables.md:1185",
+        "version/3.0/ripscrip/5.1-text-variables.md:1189",
+        "version/3.0/ripscrip/5.1-text-variables.md:1222",
+        "version/3.0/ripscrip/5.1-text-variables.md:2490"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.0-host-commands.md:114",
+        "version/3.0/ripscrip/5.0-host-commands.md:118",
+        "version/3.0/ripscrip/5.1-text-variables.md:131",
+        "version/3.0/ripscrip/5.1-text-variables.md:1208",
+        "version/3.0/ripscrip/5.1-text-variables.md:2476"
+      ],
+      "states_after_update": {
+        "unreviewed": 1801,
+        "context": 2283,
+        "implemented": 5316,
+        "excluded": 266,
+        "pending": 43
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/5.1-text-variables.md:1208",
+        "version/3.0/ripscrip/5.1-text-variables.md:1274"
       ]
     }
   ],

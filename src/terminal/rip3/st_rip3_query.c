@@ -2,6 +2,7 @@
 #include "st_rip3_query_internal.h"
 #include "st_rip3_host_internal.h"
 #include "st_rip3_input.h"
+#include "st_rip3_local_variables.h"
 #include "st_rip3_refresh.h"
 #include "st_rip3_user_variables.h"
 #include "st_rip3_templates.h"
@@ -28,6 +29,8 @@ struct st_rip3_query {
 	size_t length, cursor, used, used_units, capacity;
 	uint64_t template_owner;
 	unsigned pass; /* 0 idle; 1/2 ordinary expansion; 3 next block; 4 angles. */
+	struct st_rip3_point pointer;
+	struct st_rip3_pointer_buttons buttons;
 	struct st_rip3_angle *angle;
 	bool allocation_failed, codepage_converted;
 	/* Non-NULL only for an operation begun by this query. */
@@ -71,17 +74,23 @@ static bool
 reference(const uint8_t *bytes, size_t length, bool users, bool converted, struct token *result)
 {
 	struct st_rip3_builtin_reference builtin;
-	if (st_rip3_builtin_reference_parse_encoded(&builtin,bytes,length,converted)==0
-	    && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
+	size_t rejected_span;
+	int status = st_rip3_builtin_reference_parse_encoded(&builtin, bytes, length, converted, &rejected_span);
+	if (status == 0 && st_rip3_builtin_known(builtin.name, strlen(builtin.name))) {
 		result->kind=REFERENCE;return true;
 	}
 	struct st_rip3_variable_reference user;
-	if (!users || st_rip3_variable_reference_parse(&user,bytes,length,false)!=0)
-		return false;
-	size_t name_length = strlen(user.name);
-	if (!st_rip3_bookmark_name(user.name, name_length) && st_rip3_builtin_known(user.name, name_length))
-		return false;
-	result->kind=USER_REFERENCE;return true;
+	if (users && st_rip3_variable_reference_parse(&user,bytes,length,false)==0) {
+		size_t name_length = strlen(user.name);
+		if (st_rip3_bookmark_name(user.name, name_length) || !st_rip3_builtin_known(user.name, name_length)) {
+			result->kind=USER_REFERENCE;return true;
+		}
+	}
+	if (status != 0 && rejected_span != 0) {
+		result->length = rejected_span;
+		return true;
+	}
+	return false;
 }
 
 static size_t
@@ -115,12 +124,8 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 			if (!templates) return false;
 			value.kind=TEMPLATE_REFERENCE;value.control=slot_number(bytes[2]);
 		}
-		else if (!reference(bytes,value.length,users,converted,&value)) {
-			const uint8_t *open = memchr(bytes + 1, '(', value.length - 1);
-			if (open == NULL || !st_rip3_builtin_known((const char *)bytes+1, (size_t)(open-bytes-1)))
-				return false;
-			/* Retain the complete rejected argument span as one literal. */
-		}
+		else if (!reference(bytes,value.length,users,converted,&value))
+			return false;
 	}
 	else if (bytes[0]=='\\' && pass==2) {
 		value.kind=ESCAPED;
@@ -475,6 +480,19 @@ st_rip3_query_pick_list_failed(struct st_rip3_query *query, int status)
 	diagnose(query,status==IO_ERROR_OUT_OF_MEMORY ? ST_RIP3_HOST_RESOURCE_FAILURE : ST_RIP3_HOST_OPERATION_FAILED);
 }
 
+/* Each ordinary pass takes its own input sample. Keep it across delays,
+ * prompts and nested local playback without changing the frontend's state. */
+static void
+begin_pass(struct st_rip3_query *query, unsigned pass)
+{
+	const struct st_rip3_local_queries *local = query->variables->local;
+	query->pass = pass;
+	query->pointer = local != NULL && local->mouse_position != NULL
+	    ? *local->mouse_position : (struct st_rip3_point){0};
+	query->buttons = local != NULL && local->mouse_buttons != NULL
+	    ? *local->mouse_buttons : (struct st_rip3_pointer_buttons){0};
+}
+
 /* The source was structurally preflighted. Composition/definitions precede any
  * ordinary expansion, and each resulting direct response gets its own passes. */
 static void
@@ -503,7 +521,8 @@ prepare_block(struct st_rip3_query *query)
 	uint8_t *copy=length==0 ? NULL : malloc(length);
 	if (length!=0 && copy==NULL) { operation_failed(query,IO_ERROR_OUT_OF_MEMORY,0);return; }
 	if (length!=0) memcpy(copy,feed,length);
-	query->bytes=copy;query->length=length;query->cursor=0;query->pass=1;
+	query->bytes=copy;query->length=length;query->cursor=0;
+	begin_pass(query, 1);
 }
 
 void
@@ -575,7 +594,17 @@ process_builtin(struct st_rip3_query *query, const struct st_rip3_host_sink *sin
 {
 	struct st_rip3_user_variables *user = query->variables->user_variables;
 	bool pending = st_rip3_user_variables_confirming_delete(user);
-	st_rip3_host_variables_process(query->variables, sink, bytes, length);
+	if (query->pass == 4)
+		st_rip3_host_variables_process(query->variables, sink, bytes, length);
+	else {
+		struct st_rip3_host_variables host = *query->variables;
+		struct st_rip3_local_queries local = host.local != NULL
+		    ? *host.local : (struct st_rip3_local_queries){0};
+		local.mouse_position = &query->pointer;
+		local.mouse_buttons = &query->buttons;
+		host.local = &local;
+		st_rip3_host_variables_process(&host, sink, bytes, length);
+	}
 	if (pending || !st_rip3_user_variables_confirming_delete(user))
 		return false;
 	query->active_user = user;
@@ -593,7 +622,7 @@ angle_reference(struct st_rip3_query *query, const struct st_rip3_condition_byte
 	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+start,reference->length-start);
 	size_t length=reference->length-start+1;
 	struct st_rip3_builtin_reference builtin;struct st_rip3_variable_reference user;
-	if (st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,length,query->codepage_converted)==0 && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
+	if (st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,length,query->codepage_converted,NULL)==0 && st_rip3_builtin_known(builtin.name,strlen(builtin.name))) {
 		struct angle_value value={0};const struct st_rip3_host_sink sink={&value,angle_reply,angle_diagnostic};
 		bool pending = process_builtin(query, &sink, ordinary, length);
 		const struct st_rip3_condition_bytes bytes={value.bytes,value.length};
@@ -685,7 +714,8 @@ settle(struct st_rip3_query *query)
 			return;
 		}
 		free(query->bytes);query->bytes=query->output;query->length=query->used;query->cursor=0;
-		query->output=NULL;query->used=query->used_units=query->capacity=0;query->pass=2;
+		query->output=NULL;query->used=query->used_units=query->capacity=0;
+		begin_pass(query, 2);
 	}
 }
 

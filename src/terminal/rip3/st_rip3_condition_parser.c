@@ -286,7 +286,7 @@ provider_reference_valid(const struct st_rip3_condition_bytes *reference, bool c
 	ordinary[0]='$';memcpy(ordinary+1,reference->bytes+2,reference->length-2);
 	struct st_rip3_builtin_reference builtin;
 	struct st_rip3_variable_reference user;
-	return st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,size,converted)==0
+	return st_rip3_builtin_reference_parse_encoded(&builtin,ordinary,size,converted, NULL)==0
 	    || st_rip3_variable_reference_parse(&user,reference->bytes,reference->length,false)==0;
 }
 

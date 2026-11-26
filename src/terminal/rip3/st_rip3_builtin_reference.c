@@ -235,11 +235,13 @@ argument_byte(uint8_t ch)
 
 int
 st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result,
-    const uint8_t *text, size_t length, bool converted)
+    const uint8_t *text, size_t length, bool converted, size_t *rejected_span)
 {
 	struct st_rip3_builtin_reference reference = {0};
 	size_t at = 1, name_length = 0, end;
 
+	if (rejected_span != NULL)
+		*rejected_span = 0;
 	if (result == NULL || text == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (length < 3 || text[0] != '$' || text[length - 1] != '$')
@@ -259,6 +261,8 @@ st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result
 	}
 	if (text[at] != '(')
 		return IO_ERROR_INVALID_FORMAT;
+	if (rejected_span != NULL)
+		*rejected_span = length;
 	/* Normalized arguments may occupy several UTF-8 bytes per wire byte.
 	 * HOSTDIR checks its protocol limit in the directory handler. */
 	bool host_directory = strcmp(reference.name, "HOSTDIR") == 0;
@@ -296,14 +300,16 @@ st_rip3_builtin_reference_parse_encoded(struct st_rip3_builtin_reference *result
 		reference.parameters[reference.count].text[stored++]=(char)ch;
 		quote=ch=='\\';
 	}
-	return IO_ERROR_INVALID_FORMAT; /* No unquoted closing parenthesis. */
+	if (rejected_span != NULL)
+		*rejected_span = 1; /* Exhausted the candidate without an unquoted closing parenthesis. */
+	return IO_ERROR_INVALID_FORMAT;
 }
 
 int
 st_rip3_builtin_reference_parse(struct st_rip3_builtin_reference *result,
     const uint8_t *text, size_t length)
 {
-	return st_rip3_builtin_reference_parse_encoded(result, text, length, false);
+	return st_rip3_builtin_reference_parse_encoded(result, text, length, false, NULL);
 }
 
 int

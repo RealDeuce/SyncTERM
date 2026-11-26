@@ -678,6 +678,9 @@ two_passes(void)
 		{"$TERMINFO(A\\$B)$","NONE"},
 		{"$RAND(\"bad\")$^m","$RAND(\"bad\")$\r"},
 		{"$RAND(A\\\\$^M)$^m","$RAND(A\\\\$^M)$\r"},
+		{"pre$RAND(\"a\\b^M\")$post","pre$RAND(\"a\\b^M\")$post"},
+		{"pre$RAND(bad^M$post","pre$RAND(bad\r$post"},
+		{"pre$FILEDEL(X.bmp\\)$post","pre$FILEDEL(X.bmp)$post"},
 		{"tail$^m","tail$\r"},
 		{"^$RESX$","^640"},{"[","["},{"[?]","[?]"},{"\\[?]","[?]"},
 	};
@@ -988,15 +991,19 @@ local_queries(void)
 	struct fixture f={0};CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0);
 	struct local_modifiers keys={.shift=true,.mouse=true};unsigned colors=256;
 	struct st_rip3_point position={0,0};
-	const struct st_rip3_local_queries local={.context=&keys,.modifiers=local_modifiers,.mouse_position=&position,
+	struct st_rip3_pointer_buttons buttons={.left=true};
+	const struct st_rip3_local_queries local={.context=&keys,.modifiers=local_modifiers,.mouse_position=&position,.mouse_buttons=&buttons,
 	    .mouse_present=local_mouse_present,.colors=&colors};f.variables.local=&local;
-	CHECK(st_rip3_frame_world(&f.frame,1280,960)==0);
-	CHECK(process(&f,"1\0330000$SHIFT$/$D(1)$$SHIFT$/$CTRL$/$MSTAT$/$COLORS$/$XY$",-1)==0
+	CHECK(st_rip3_frame_world(&f.frame,1280,960)==0 && bind_users(&f)==0);
+	const char deferred[]="$XYM(DEVICE)$";
+	CHECK(st_rip3_variables_set(f.session,"SECOND",6,(const uint8_t *)deferred,sizeof(deferred)-1)==0);
+	CHECK(process(&f,"1\0330000$SHIFT$/$D(1)$$SHIFT$/$CTRL$/$MSTAT$/$COLORS$/$XYM$/$&SECOND$",-1)==0
 	    && keys.calls==1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
 	CHECK(append(&f,"raw\r\n")==0);st_rip3_input_process(f.host.input,2048);CHECK(f.read==0);
 	keys.shift=false;keys.ctrl=true;keys.mouse=false;colors=16777216;position=(struct st_rip3_point){297,321};
+	buttons=(struct st_rip3_pointer_buttons){.right=true};
 	f.now=16666667;st_rip3_input_process(f.host.input,2048);
-	const char *expected="1/0/1/NO/16777216/0594:0642";
+	const char *expected="1/0/1/NO/16777216/0000:0000:100/0297:0321:001";
 	CHECK(keys.calls==3 && f.reply_length==strlen(expected) && memcmp(f.reply,expected,strlen(expected))==0
 	    && f.errors==0 && f.host_errors==0 && f.read==f.length && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0);
 	f.reply_length=0;

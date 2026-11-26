@@ -218,9 +218,9 @@ positions(enum st_rip3_canvas canvas)
 	host.frame=NULL;CHECK(query(&host,"$XY$","0594:0642",-1)==0);
 	tables.tables[ST_RIP3_TABLE_ENV].live=NULL;
 	CHECK(query(&host,"$XY$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0 && query(&host,"$XY(DEVICE)$","0297:0321",-1)==0);
-	local.mouse_position=NULL;CHECK(query(&host,"$XY(DEVICE)$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
+	local.mouse_position=NULL;CHECK(query(&host,"$XY(DEVICE)$","0000:0000",-1)==0);
 	CHECK(query(&host,"$M$","100",-1)==0);
-	CHECK(query(&host,"$XYM(DEVICE)$",NULL,ST_RIP3_HOST_UNSUPPORTED_REFERENCE)==0);
+	CHECK(query(&host,"$XYM(DEVICE)$","0000:0000:100",-1)==0);
 	st_rip3_environments_destroy(env);return 0;
 }
 

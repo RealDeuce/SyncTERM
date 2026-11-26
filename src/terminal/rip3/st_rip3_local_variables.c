@@ -283,8 +283,8 @@ st_rip3_local_variables_execute(const struct st_rip3_host_variables *host,
 		length = 3;
 	}
 	else {
-		if (local->mouse_position==NULL) return IO_ERROR_NOT_SUPPORTED;
-		struct st_rip3_point captured=*local->mouse_position;
+		struct st_rip3_point captured = local->mouse_position != NULL
+		    ? *local->mouse_position : (struct st_rip3_point){0};
 		int64_t x=captured.x,y=captured.y;int padding=4;
 		if (!device && !world && local->text_window_query) {
 			const struct st_rip3_query_cells *window=local->text_window;

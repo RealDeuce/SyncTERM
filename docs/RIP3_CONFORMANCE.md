@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-5944d175b6cbefc7e97dc48a1e11eba2d704d2a6](https://github.com/RealDeuce/remote-imaging-protocol/tree/5944d175b6cbefc7e97dc48a1e11eba2d704d2a6/version/3.0)
+df95d80b2c58f500acc00c9ca26485fd1ee53f65](https://github.com/RealDeuce/remote-imaging-protocol/tree/df95d80b2c58f500acc00c9ca26485fd1ee53f65/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -103,10 +103,10 @@ named RAND. An accepted XFER that subsequently fails in block mode issues
 only one request.
 [Upstream PR #316](https://github.com/bbs-land/remote-imaging-protocol/pull/316)
 
-The current scanner preserves every byte inside a parser-rejected span.
-The FILEDEL reference describes a different pass-two result for a backslash
-inside that span. PR #320 distinguishes a quoted closing parenthesis from
-an explicit argument error. Adoption of that clarification is pending.
+A backslash before FILEDEL's only closing parenthesis makes its argument
+list incomplete. The second pass removes the backslash and sends the
+literal expression. The file survives. A quote that explicitly rejects
+an argument preserves every byte of the rejected span.
 [Upstream PR #320](https://github.com/bbs-land/remote-imaging-protocol/pull/320)
 
 A local RIP file invoked by a field inherits its numeric identity. The
@@ -118,9 +118,9 @@ the outer handler's scope.
 The mouse and button review covers scaled face effects, descenders on
 stroke and outline labels, and suspended labels on the clipboard port.
 Custom-palette checkbox tests check dragging out, returning, committing once
-and restoring the displayed selection. Two coordinate-query entries await
-the wire response before the first pointer sample.
-[Upstream issue #317](https://github.com/bbs-land/remote-imaging-protocol/issues/317)
+and restoring the displayed selection. Before the first pointer sample, a coordinate query uses DEVICE (0,0).
+Each ordinary pass keeps its position and button sample across a delay.
+[Upstream PR #319](https://github.com/bbs-land/remote-imaging-protocol/pull/319)
 
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
