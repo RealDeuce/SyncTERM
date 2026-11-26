@@ -117,6 +117,12 @@ the outer handler's scope.
 
 The mouse and button review covers scaled face effects, descenders on
 stroke and outline labels, and suspended labels on the clipboard port.
+At 1024×768 and nominal size 22, a centered DEFAULT EX label moves up
+three pixels when descender fitting is enabled and it contains Q or g.
+U leaves the baseline unchanged. Triplex and Dixon lower the underline
+for Q and g. The exact nonzero stroke-font metrics remain under review.
+[Upstream issue #323](https://github.com/bbs-land/remote-imaging-protocol/issues/323)
+
 Custom-palette checkbox tests check dragging out, returning, committing once
 and restoring the displayed selection. Before the first pointer sample, a coordinate query uses DEVICE (0,0).
 Each ordinary pass keeps its position and button sample across a delay.

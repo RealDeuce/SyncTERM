@@ -11,6 +11,7 @@ from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
 from st_rip3_mouse_connected_test import field
 from st_rip3_connected_test import query,pixel
+from st_rip3_scroll_connected_test import plane_pixel
 from st_terminal_conformance_test import Terminal
 
 
@@ -76,27 +77,30 @@ def run(args,width,height):
 
             t.case("rip3-selected-font-hotkey-descenders")
             for font in (b"Y01000309", b"y00000W0M000000001a1a000000Dixon"):
-                # Four copies of Hgg separate the highlight from its underline
-                # on the first matching glyph. Each face has identical layout.
+                # Compare highlight-only and highlight-plus-underline on the
+                # same first match. The second matching glyph stays red.
                 commands = bytearray(b"\x01|"+font+b"\r\n")
-                for column, key in enumerate(b"HHGG"):
-                    x = 5+155*column
-                    commands += style(flags=256|1024|(2048 if column%2 else 0),
-                                      flags2=2, surface=3, foreground=12, underline=14)
-                    commands += button((x,180,x+150,260), b"<>Hgg<>", hotkey=key)
+                cases = ((180, b"Hgg", b"hhGG"), (270, b"UQQ", b"uuqq"))
+                for top, label, keys in cases:
+                    for column, key in enumerate(keys):
+                        x = 5+155*column
+                        commands += style(flags=256|1024|(2048 if column%2 else 0),
+                                          flags2=2, surface=3, foreground=12, underline=14)
+                        commands += button((x,top,x+150,top+80), b"<>"+label+b"<>", hotkey=key)
                 frame = t.exchange(bytes(commands))
-                def marks(column, color):
-                    return {(x,y) for x in range(150) for y in range(180,260)
+                def marks(top, column, color):
+                    return {(x,y) for x in range(150) for y in range(top,top+80)
                             if pixel(frame,5+155*column+x,y)==color}
-                h, g = marks(0,0xffff55), marks(2,0xffff55)
-                assert h and g and max(x for x,y in h) < min(x for x,y in g)
-                assert any(x>max(g)[0] for x,y in marks(2,0xff5555))
-                rows = []
-                for column, glyph in ((1,h),(3,g)):
-                    underline = marks(column,0xffff55) - glyph
-                    assert underline and len({y for x,y in underline})==1
-                    rows.append(next(iter(underline))[1])
-                assert rows[1]>rows[0], (font,rows)
+                for top, label, _ in cases:
+                    first, second = (marks(top,column,0xffff55) for column in (0,2))
+                    assert first and second and max(first)[0] < min(second)[0]
+                    assert any(x>max(second)[0] for x,y in marks(top,2,0xff5555))
+                    rows = []
+                    for column, glyph in ((1,first),(3,second)):
+                        underline = marks(top,column,0xffff55) - glyph
+                        assert underline and len({y for x,y in underline})==1
+                        rows.append(next(iter(underline))[1])
+                    assert rows[1]>rows[0], (font,label,rows)
                 values(b"$MKILL$")
             t.exchange(b"\x01|*\r\n")
             values(b"$WORLD(CUR,640,480)$")
@@ -212,12 +216,23 @@ def run(args,width,height):
             assert {x for x in range(140,230) if pixel(frame,x,327) == 0xffff55} == set(range(160,175))
             values(b"$WORLD(CUR,1024,768)$")
 
-            # With g in the label and descender fit enabled, 16+5 pixels
-            # center in the 40-pixel face at top 259 and baseline 275.
-            frame = t.exchange(b"\x01|Y00000209\r\n"
-                               + style(flags=256|1024|2048|8192, width=80, height=40, underline=14)
-                               + button((430,250,0,0), b"<>Ag<>", hotkey=ord("A")))
-            assert {x for x in range(430,510) if pixel(frame,x,278) == 0xffff55} == set(range(454,469))
+            # At nominal size 22 the baseline height is 16 and the descent
+            # is 5. Including the descent moves the centered baseline up
+            # three pixels. The hotkey A always underlines at baseline + 3.
+            cases = ((b"Ag", 8192, 278), (b"AQ", 8192, 278),
+                     (b"AU", 8192, 281), (b"AQ", 0, 281))
+            commands = bytearray(b"\x01|Y00000209\r\n")
+            for i, (label, fit, _) in enumerate(cases):
+                x = 430 + 100*i
+                commands += style(flags=256|1024|2048|fit, width=80, height=40, underline=14)
+                commands += button((x,250,0,0), b"<>"+label+b"<>", hotkey=ord("A"))
+            frame = t.exchange(bytes(commands))
+            for i, (label, fit, row) in enumerate(cases):
+                left = 430 + 100*i
+                for phase in ("primary", "alternate"):
+                    marks = {(x,y) for x in range(left,left+80) for y in range(250,290)
+                             if plane_pixel(frame,x,y,phase) == 0xffff55}
+                    assert marks == {(x,row) for x in range(left+24,left+39)}, (label,fit,phase,marks)
             t.exchange(b"\x01|1K|Y00000100\r\n")
 
             t.case("classic DEFAULT EX button justification and chisel margins")
@@ -639,6 +654,32 @@ def run(args,width,height):
                 assert pixel(frame,x,y)==(0xaa0000 if x<106 and y<52 else 0)
         values(b"$&PHASE$",b"draw")  # unselected redraw also runs its providers
         click(123,48)  # the original half-open hit boundary never grew
+
+        if width == 800:
+            t.case("rip3-chisel-inset-boundaries")
+            # Both sides of each height threshold on one DEVICE canvas.
+            bands = ((6,11,1,1), (12,24,3,3), (25,39,4,4), (40,74,6,6),
+                     (75,149,7,5), (150,199,8,6), (200,249,10,7),
+                     (250,299,11,8), (300,310,13,9))
+            values(b"$WORLD(CUR,800,600)$")
+            commands = bytearray(style(flags=256|8,surface=3))
+            faces = []
+            for short,tall,dx,dy in bands:
+                for h in (short,tall):
+                    left = 10 + len(faces)*43
+                    faces.append((left,h,dx,dy))
+                    commands += button((left,150,left+40,150+h))
+            frame = t.exchange(bytes(commands))
+            for left,h,dx,dy in faces:
+                # The two centerlines cross only the dark near and bright far
+                # strokes. All other pixels retain the plain face color.
+                horizontal = [pixel(frame,left+x,150+h//2) for x in range(40)]
+                vertical = [pixel(frame,left+20,150+y) for y in range(h)]
+                for line,inset in ((horizontal,dx),(vertical,dy)):
+                    expected = [0x00aaaa]*len(line)
+                    expected[inset] = 0x555555
+                    expected[-inset-1] = 0xffffff
+                    assert line == expected, (h,inset,line)
 
         frame=values(b"alive",b"alive")
         assert frame.application["connected"]==1
