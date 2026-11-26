@@ -25,6 +25,8 @@ struct st_console_test_state {
 	char    *clipboard, *url, *title;
 	st_console_test_application_reader reader;
 	void                              *reader_context;
+	st_console_test_controller_input   controller_input;
+	void                              *controller_context;
 	struct test_control               *control;
 };
 struct st_console_test_state *st_console_test_state(st_console_display_t *display);

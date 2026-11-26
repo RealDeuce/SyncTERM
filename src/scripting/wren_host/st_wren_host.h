@@ -53,6 +53,7 @@ struct st_wren_connected_config {
 };
 
 struct st_wren_host_config {
+	struct st_controllers *controllers;
 	st_console_display_t *display;
 	st_console_t         *console;
 	/* NULL retains the single-console compatibility path used by tests. */

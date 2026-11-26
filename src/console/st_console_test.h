@@ -55,6 +55,8 @@ struct st_console_test_capture {
 typedef void (*st_console_test_application_reader)(void *context, struct st_console_test_application *application);
 void st_console_test_number(struct st_console_test_application *application, const char *name, int64_t value);
 void st_console_test_text(struct st_console_test_application *application, const char *name, const char *value);
+typedef int  (*st_console_test_controller_input)(void *, const uint8_t *, size_t);
+void st_console_test_set_controller_input(st_console_display_t *, st_console_test_controller_input, void *);
 void st_console_test_set_application_reader(st_console_display_t *display,
     st_console_test_application_reader reader, void *context);
 int  st_console_test_capture(st_console_display_t *display, struct st_console_test_capture **result);

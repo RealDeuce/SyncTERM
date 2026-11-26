@@ -1,0 +1,3 @@
+/* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
+#cmakedefine01 ST_CONTROLLER_DARWIN_HID
+#cmakedefine01 ST_CONTROLLER_HAVE_LINUX_HIDRAW

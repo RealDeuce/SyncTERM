@@ -113,6 +113,12 @@ class Menu {
   foreign static parities
   // [minimumColorCount, sixteen mode-specific conio default colors].
   foreign static paletteDefaults(screenMode)
+  foreign static controllers
+  foreign static controllerFields(device)
+  foreign static controllerTargets(device, field)
+  foreign static armController(device)
+  foreign static controllerMotion(device)
+  foreign static bindController(device, field, target, inverted)
   foreign static amigaFonts
   foreign static installAmigaFont()
   foreign static removeAmigaFont(family)

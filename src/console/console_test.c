@@ -302,6 +302,17 @@ st_console_test_init(st_console_t *console)
 }
 
 void
+st_console_test_set_controller_input(st_console_display_t *display, st_console_test_controller_input input,
+    void *context)
+{
+	struct st_console_test_state *state = st_console_test_state(display);
+	if (state) {
+		state->controller_input   = input;
+		state->controller_context = context;
+	}
+}
+
+void
 st_console_test_set_application_reader(st_console_display_t *display, st_console_test_application_reader reader,
     void *context)
 {

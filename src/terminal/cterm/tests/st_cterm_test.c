@@ -1519,6 +1519,13 @@ st_cterm_test_main(void)
 	output.size      = 0;
 	output.responses = 0;
 
+	/* A standalone terminal has no controller provider. */
+	feed(terminal, "\x1b[=6h\x1b[=6$p", strlen("\x1b[=6h\x1b[=6$p"));
+	CHECK(output.responses == 1 && output.size == strlen("\x1b[=6;0$y")
+	      && memcmp(output.bytes, "\x1b[=6;0$y", output.size) == 0);
+	output.size      = 0;
+	output.responses = 0;
+
 	/* A truncated sequence produces exactly one decode-error glyph. */
 	feed(terminal, "\xf0\x9f", 2);
 	CHECK(rip_test_finish(terminal) == 0);

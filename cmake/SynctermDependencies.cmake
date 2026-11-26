@@ -193,6 +193,8 @@ function(syncterm_dependency)
 	if(mode STREQUAL "STATIC")
 		if(name STREQUAL "JXL")
 			list(APPEND DEP_DEFINITIONS -DJXL_STATIC_DEFINE -DJXL_THREADS_STATIC_DEFINE -DJXL_CMS_STATIC_DEFINE)
+		elseif(name STREQUAL "HIDAPI" AND WIN32)
+			list(APPEND DEP_DEFINITIONS -DHID_API_NO_EXPORT_DEFINE)
 		elseif(name STREQUAL "SDL2")
 			list(APPEND DEP_DEFINITIONS -DSDL_STATIC_LIB)
 		elseif(name STREQUAL "FLUIDSYNTH")
@@ -295,11 +297,11 @@ function(syncterm_dependency)
 			unset(include_dir)
 			if(root)
 				find_path(include_dir NAMES "${DEP_HEADER}" PATHS "${root}"
-					PATH_SUFFIXES include include/botan-3 include/SDL2 include/pipewire-0.3 include/ncursesw include/ncurses
+					PATH_SUFFIXES include include/botan-3 include/hidapi include/SDL2 include/pipewire-0.3 include/ncursesw include/ncurses
 					NO_DEFAULT_PATH NO_CACHE)
 			else()
 				find_path(include_dir NAMES "${DEP_HEADER}" HINTS ${hints} ${ST_PC_${name}_INCLUDE_DIRS}
-					PATH_SUFFIXES include include/botan-3 include/SDL2 include/pipewire-0.3 include/ncursesw include/ncurses NO_CACHE)
+					PATH_SUFFIXES include include/botan-3 include/hidapi include/SDL2 include/pipewire-0.3 include/ncursesw include/ncurses NO_CACHE)
 			endif()
 		endif()
 		set(libraries)

@@ -25,6 +25,7 @@
 #include "st_bbs_list.h"
 #include "st_builtin_fonts.h"
 #include "st_console.h"
+#include "st_controller.h"
 #include "st_crypto.h"
 #include "st_kdf.h"
 #include "st_music.h"
@@ -2973,6 +2974,143 @@ map_string(WrenVM *vm, const char *key, const char *value)
 	wrenSetMapValue(vm, 0, 1, 2);
 }
 
+static struct st_pad *
+mapper_pad(WrenVM *vm)
+{
+	int64_t id;
+	if (!slot_integer(vm, 1, 1, UINT32_MAX, &id))
+		return NULL;
+	struct st_controllers *hub = st_wren_host_from_vm(vm)->config.controllers;
+	st_controllers_poll(hub, NULL, NULL);
+	for (struct st_pad *p = st_controller_first(hub); p; p = st_controller_next(p))
+		if (st_controller_id(p) == (uint32_t)id)
+			return p;
+	wrenSetSlotNull(vm, 0);
+	return NULL;
+}
+
+static void
+fn_menu_controllers(WrenVM *vm)
+{
+	struct st_controllers *hub = st_wren_host_from_vm(vm)->config.controllers;
+	if (!st_controllers_available(hub)) {
+		wrenSetSlotNull(vm, 0);
+		return;
+	}
+	st_controllers_poll(hub, NULL, NULL);
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (struct st_pad *p = st_controller_first(hub); p; p = st_controller_next(p)) {
+		wrenSetSlotNewList(vm, 1);
+		wrenSetSlotDouble(vm, 2, st_controller_id(p));
+		wrenInsertInList(vm, 1, -1, 2);
+		char label[160];
+		snprintf(label, sizeof label, "#%" PRIu32 "  %s", st_controller_id(p), st_controller_name(p));
+		wrenSetSlotString(vm, 2, label);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+}
+
+static void
+fn_controller_fields(WrenVM *vm)
+{
+	struct st_pad *p = mapper_pad(vm);
+	if (!p)
+		return;
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_controller_fields(p); i++) {
+		bool inv;
+		int  binding = st_controller_binding(p, i, &inv);
+		int  value;
+		wrenSetSlotNewList(vm, 1);
+		wrenSetSlotString(vm, 2, st_controller_field(p, i));
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenSetSlotDouble(vm, 2, binding);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenSetSlotBool(vm, 2, inv);
+		wrenInsertInList(vm, 1, -1, 2);
+		if (st_controller_preview(p, i, &value))
+			wrenSetSlotDouble(vm, 2, value);
+		else
+			wrenSetSlotNull(vm, 2);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+}
+
+static void
+fn_controller_targets(WrenVM *vm)
+{
+	struct st_pad *p = mapper_pad(vm);
+	int64_t        index;
+	if (!p || !slot_integer(vm, 2, -1, (int64_t)st_controller_fields(p) - 1, &index))
+		return;
+	wrenEnsureSlots(vm, 3);
+	wrenSetSlotNewList(vm, 0);
+	for (size_t i = 0; i < st_controller_target_count(); i++) {
+		if (index >= 0 && !st_controller_compatible(p, (size_t)index, (int)i))
+			continue;
+		const struct st_control_target *t = st_controller_target(i);
+		wrenSetSlotNewList(vm, 1);
+		wrenSetSlotDouble(vm, 2, (double)i);
+		wrenInsertInList(vm, 1, -1, 2);
+		char label[96];
+		snprintf(label, sizeof label, "%s (%s)", t->label, t->name);
+		wrenSetSlotString(vm, 2, label);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenSetSlotDouble(vm, 2, t->kind);
+		wrenInsertInList(vm, 1, -1, 2);
+		wrenInsertInList(vm, 0, -1, 1);
+	}
+}
+
+static void
+fn_controller_arm(WrenVM *vm)
+{
+	struct st_pad *p = mapper_pad(vm);
+	if (p)
+		st_controller_arm(p);
+	wrenSetSlotNull(vm, 0);
+}
+
+static void
+fn_controller_motion(WrenVM *vm)
+{
+	struct st_pad *p = mapper_pad(vm);
+	if (!p)
+		return;
+	int value, field = st_controller_actuation(p, &value);
+	wrenEnsureSlots(vm, 2);
+	wrenSetSlotNewList(vm, 0);
+	wrenSetSlotDouble(vm, 1, field);
+	wrenInsertInList(vm, 0, -1, 1);
+	wrenSetSlotDouble(vm, 1, value);
+	wrenInsertInList(vm, 0, -1, 1);
+}
+
+static void
+fn_controller_bind(WrenVM *vm)
+{
+	struct st_pad *p = mapper_pad(vm);
+	int64_t        field, target;
+	if (!p || !slot_integer(vm, 2, 0, (int64_t)st_controller_fields(p) - 1, &field)
+	    || !slot_integer(vm, 3, -1, (int64_t)st_controller_target_count() - 1, &target))
+		return;
+	if (wrenGetSlotType(vm, 4) != WREN_TYPE_BOOL) {
+		st_wren_abort(vm, "Expected a Boolean inversion flag");
+		return;
+	}
+	struct st_wren_host *host   = st_wren_host_from_vm(vm);
+	int                  status = st_controller_bind(host->config.controllers, p, (size_t)field, (int)target,
+	    wrenGetSlotBool(vm, 4), !host->config.safe_mode);
+	if (status)
+		menu_error(vm, status, status, "Could not save this controller assignment.");
+	else
+		wrenSetSlotBool(vm, 0, true);
+}
+
 static void
 fn_menu_file_locations(WrenVM *vm)
 {
@@ -5335,6 +5473,12 @@ static const struct binding bindings[] = {
     {"Menu",               true,  "parities",                   fn_menu_parities                      },
     {"Menu",               true,  "paletteDefaults(_)",         fn_menu_palette_defaults              },
     {"Menu",               true,  "fontsCatalog",               fn_menu_fonts_catalog                 },
+    {"Menu",               true,  "controllers",                fn_menu_controllers                   },
+    {"Menu",               true,  "controllerFields(_)",        fn_controller_fields                  },
+    {"Menu",               true,  "controllerTargets(_,_)",     fn_controller_targets                 },
+    {"Menu",               true,  "armController(_)",           fn_controller_arm                     },
+    {"Menu",               true,  "controllerMotion(_)",        fn_controller_motion                  },
+    {"Menu",               true,  "bindController(_,_,_,_)",    fn_controller_bind                    },
     {"Menu",               true,  "amigaFonts",                 fn_menu_amiga_fonts                   },
     {"Menu",               true,  "installAmigaFont()",         fn_menu_install_amiga_font            },
     {"Menu",               true,  "removeAmigaFont(_)",         fn_menu_remove_amiga_font             },

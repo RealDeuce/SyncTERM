@@ -2029,6 +2029,7 @@ const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 void
 cterm_reset(struct cterminal *cterm)
 {
+	cterm_pad_mode(cterm, false);
 	cterm_dec_sixel_cancel(cterm);
 	(void)st_music_flush(cterm->music_player, 0);
 	/* Retained history and all three ring indices are session state;
@@ -2273,6 +2274,7 @@ cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcol
 	cterm->saved_accumulator = NULL;
 	cterm->lf_expand         = false;
 	cterm_reset(cterm);
+	cterm->pads = initial ? initial->pads : NULL;
 	if (cterm->scrollback != NULL) {
 		memset(cterm->scrollback, 0, cterm->backwidth * cterm->backlines * sizeof(*cterm->scrollback));
 	}

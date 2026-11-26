@@ -12,6 +12,7 @@ bool st_graphics_handle_codepage_key(st_cterm_t *, uint8_t byte);
 bool st_graphics_handle_doorway_key(st_cterm_t *, uint8_t scan);
 bool st_graphics_handle_mouse(st_cterm_t *, const struct st_console_event *);
 
+void st_graphics_handle_controller(st_cterm_t *, const struct st_controller_event *, bool consumed);
 void st_graphics_sync_mouse_buttons(st_cterm_t *, uint32_t buttons);
 
 #endif

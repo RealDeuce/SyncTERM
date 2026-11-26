@@ -2721,3 +2721,10 @@ cursor/image/pair/query/clipboard state and unavailable-binding recovery, while
 native port/table-host suites retain their existing coverage. This is a drawing
 viewport configuration change; CTerm ANSI parsing and RIP1.54 rendering are
 unchanged. Other RESET/HEADER and the full ESC7/8 snapshot remain unfinished.
+
+The controller input fixtures exercise HID report parsing and the Program
+Settings mapper, then send reports to a raw BBS peer through the connected
+Wren, graphics and CTerm paths. Both CP437 and UTF-8 fixtures assert the
+same ASCII report bytes. Synthetic HID reports cover hotplug, hats, button
+identity and scaled axes. Hardware and OS driver access require separate
+verification.

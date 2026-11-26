@@ -69,3 +69,13 @@ st_graphics_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons)
 	if (terminal != NULL && terminal->device.sync_mouse != NULL)
 		terminal->device.sync_mouse(terminal->device.context, buttons);
 }
+
+void
+st_graphics_handle_controller(st_cterm_t *terminal, const struct st_controller_event *event, bool consumed)
+{
+	if (!terminal || !event)
+		return;
+	if (!consumed && event->record == ST_PAD_VALUE && terminal->device.controller)
+		consumed |= terminal->device.controller(terminal->device.context, event);
+	st_cterm_pad_event(terminal, event, consumed);
+}

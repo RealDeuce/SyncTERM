@@ -3629,8 +3629,7 @@ set_physical_key(st_console_display_t *display, uint16_t evdev, bool pressed)
 static bool
 event_valid(const struct st_console_event *event)
 {
-	if (event == NULL || event->type < ST_CONSOLE_EVENT_KEY_CODE
-	    || event->type > ST_CONSOLE_EVENT_CODEPAGE_BYTE)
+	if (event == NULL || event->type < ST_CONSOLE_EVENT_KEY_CODE || event->type > ST_CONSOLE_EVENT_CONTROLLER)
 		return false;
 	switch (event->type) {
 		case ST_CONSOLE_EVENT_TEXT:
@@ -3640,6 +3639,7 @@ event_valid(const struct st_console_event *event)
 			       && event->data.mouse.action <= ST_CONSOLE_MOUSE_WHEEL;
 		case ST_CONSOLE_EVENT_RESIZE:
 			return event->data.resize.columns != 0 && event->data.resize.rows != 0;
+		case ST_CONSOLE_EVENT_CONTROLLER:
 		case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 		case ST_CONSOLE_EVENT_KEY_CODE:
 		case ST_CONSOLE_EVENT_PHYSICAL_KEY:

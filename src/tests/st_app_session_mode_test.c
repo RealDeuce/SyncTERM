@@ -152,7 +152,8 @@ check_log_policy(const struct st_wren_host_config *base, st_wren_host_t *safe_ho
 	profile.connection_type              = ST_CONNECTION_UNKNOWN;
 	profile.hide_popups                  = true;
 	enum st_term_disposition disposition = ST_TERM_RETURN_TO_PICKER;
-	CHECK(run_selected(host, display, console, &profile, paths, NULL, hyperlinks, NULL, &disposition) != 0);
+	CHECK(run_selected(host, display, console, &profile, paths, NULL, hyperlinks, NULL, &disposition, NULL)
+	      != 0);
 	CHECK(profile.calls == 1);
 	FILE *file = fopen(profile.log_path, "rb");
 	CHECK(file != NULL);
@@ -268,7 +269,8 @@ st_app_session_mode_test_main(void)
 	CHECK(st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_80X28) == 0);
 	CHECK(st_wren_host_begin_session_mode(host, (enum st_screen_mode) - 1) == IO_ERROR_INVALID_ARGUMENT);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
-	CHECK(run_selected(host, display, console, &profile, &paths, NULL, hyperlinks, NULL, &disposition) != 0);
+	CHECK(run_selected(host, display, console, &profile, &paths, NULL, hyperlinks, NULL, &disposition, NULL)
+	      != 0);
 	CHECK(check_mode(host, console, picker, ST_SCREEN_MODE_80X28, 80, 28, 14) == 0);
 	/* Component contract: restoring a non-ANSI mode restores its palette. */
 	CHECK(st_wren_host_set_screen_mode(host, ST_SCREEN_MODE_PRESTEL) == 0);

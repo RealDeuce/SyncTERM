@@ -27,6 +27,9 @@
 #endif
 #include "st_amiga_fonts.h"
 #include "st_console_test.h"
+#if ST_CONSOLE_TEST
+ #include "tests/controller_fixture.h"
+#endif
 #include "st_profile.h"
 #include "st_screen_mode.h"
 #include "st_session_history.h"
@@ -984,7 +987,8 @@ run_wren_capture_input(void *context, const char *bytes, size_t size, bool proto
 static int
 run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *console, struct st_profile *profile,
     const struct st_app_paths *paths, st_audio_runtime_t *audio, st_hyperlink_registry_t *hyperlinks,
-    st_session_history_t *history, enum st_term_disposition *disposition, const st_amiga_font_t *amiga_font)
+    st_session_history_t *history, enum st_term_disposition *disposition, const st_amiga_font_t *amiga_font,
+    struct st_controllers *controllers)
 {
 	const struct st_screen_mode_descriptor *mode;
 	enum st_screen_mode                     session_mode = st_term_profile_screen_mode(profile);
@@ -1125,6 +1129,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	    .rip_define               = run_rip_definition,
 	    .rip_choice               = run_rip_choice,
 	    .rip_choice_context       = host,
+	    .controllers              = controllers,
 	    .event_hook               = st_wren_connected_event_hook,
 	    .event_hook_context       = &connected,
 	    .wire_filter              = run_wren_wire_filter,
@@ -1288,7 +1293,8 @@ finished:
 static int
 run_selected(st_wren_host_t *host, st_console_display_t *display, st_console_t *console,
     struct st_profile *profile, const struct st_app_paths *paths, st_audio_runtime_t *audio,
-    st_hyperlink_registry_t *hyperlinks, st_session_history_t *history, enum st_term_disposition *disposition)
+    st_hyperlink_registry_t *hyperlinks, st_session_history_t *history, enum st_term_disposition *disposition,
+    struct st_controllers *controllers)
 {
 	const st_amiga_font_t *font = NULL;
 	int                    status;
@@ -1314,7 +1320,7 @@ run_selected(st_wren_host_t *host, st_console_display_t *display, st_console_t *
 
 	if (status == 0)
 		status = run_session(host, display, console, profile, paths, audio, hyperlinks, history,
-		    disposition, font);
+		    disposition, font, controllers);
 	/* Restore after disconnect notices and CTerm destruction, even when
 	 * connection setup failed or the session requested application exit. */
 	restore_status = st_wren_host_end_session_mode(host);
@@ -1329,6 +1335,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 {
 	struct st_command_line           command;
 	struct st_app_paths              paths = {0};
+	struct st_controllers           *controllers = NULL;
 	struct st_console_startup        startup;
 	struct st_console_display_config display_config;
 	struct st_console_config         picker_config;
@@ -1475,7 +1482,16 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 			goto finished;
 		}
 	}
+#if ST_CONSOLE_TEST
+	if (command.test_control) {
+		controllers = st_controller_fixture_create(paths.settings_file);
+		st_console_test_set_controller_input(display, st_controller_fixture_request, controllers);
+	}
+	else
+#endif
+		controllers = st_controllers_create(paths.settings_file, frontend ? frontend->controllers : NULL);
 	host_config = (struct st_wren_host_config) {
+	    .controllers       = controllers,
 	    .display           = display,
 	    .console           = console,
 	    .picker_console    = picker_console,
@@ -1545,7 +1561,7 @@ run_application(int argc, char **argv, const struct st_application_host *fronten
 		}
 		apply_profile_overrides(&selected, &command);
 		status = run_selected(host, display, console, &selected, &paths, audio_runtime, hyperlinks,
-		    session_history, &disposition);
+		    session_history, &disposition, controllers);
 		if (status != 0)
 			fprintf(stderr, "SyncTERM: session failed (%d)\n", status);
 		{
@@ -1579,6 +1595,7 @@ finished:
 	if (profile_initialized)
 		st_profile_dispose(&selected);
 	st_wren_host_destroy(host);
+	st_controllers_destroy(controllers);
 	st_audio_runtime_destroy(audio_runtime);
 	st_session_history_destroy(session_history);
 	st_hyperlink_registry_destroy(hyperlinks);

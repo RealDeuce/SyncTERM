@@ -45,6 +45,7 @@ static struct {
 	void     (*retro_set_video_refresh)(retro_video_refresh_t);
 	void     (*retro_set_audio_sample)(retro_audio_sample_t);
 	void     (*retro_set_audio_sample_batch)(retro_audio_sample_batch_t);
+	void     (*retro_set_controller_port_device)(unsigned, unsigned);
 	void     (*retro_set_input_poll)(retro_input_poll_t);
 	void     (*retro_set_input_state)(retro_input_state_t);
 	void     (*retro_get_system_info)(struct retro_system_info *);
@@ -64,7 +65,8 @@ static bool                           support_no_game, shutdown_requested;
 static bool                           menu_visible;
 static size_t                         video_frames, audio_frames, audio_batches, polls;
 static uint64_t                       last_hash;
-static bool                           press_escape;
+static bool                           press_escape, controller_info;
+static unsigned                       joypad_reads[4], analog_reads[4];
 
 static bool RETRO_CALLCONV
 environment(unsigned command, void *data)
@@ -75,6 +77,16 @@ environment(unsigned command, void *data)
 		case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME:
 			support_no_game = *(bool *)data;
 			return true;
+		case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+		{
+			const struct retro_controller_info *ports = data;
+			controller_info                           = true;
+			for (unsigned i = 0; i < 4; i++)
+				controller_info &= ports[i].num_types == 2
+				                   && ports[i].types[0].id == RETRO_DEVICE_JOYPAD
+				                   && ports[i].types[1].id == RETRO_DEVICE_ANALOG;
+			return controller_info && !ports[4].types;
+		}
 		case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
 			return accept_pixels && *(enum retro_pixel_format *)data == RETRO_PIXEL_FORMAT_XRGB8888;
 		case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
@@ -152,7 +164,10 @@ poll_input(void)
 static int16_t RETRO_CALLCONV
 input(unsigned port, unsigned device, unsigned index, unsigned id)
 {
-	(void)port;
+	if (port < 4 && device == RETRO_DEVICE_JOYPAD)
+		joypad_reads[port]++;
+	if (port < 4 && device == RETRO_DEVICE_ANALOG)
+		analog_reads[port]++;
 	(void)index;
 	return press_escape && (polls & 1) != 0 && device == RETRO_DEVICE_KEYBOARD && id == RETROK_ESCAPE ? 1 : 0;
 }
@@ -207,6 +222,7 @@ main(int argc, char **argv)
 	LOAD(retro_set_audio_sample);
 	LOAD(retro_set_audio_sample_batch);
 	LOAD(retro_set_input_poll);
+	LOAD(retro_set_controller_port_device);
 	LOAD(retro_set_input_state);
 	LOAD(retro_get_system_info);
 	LOAD(retro_get_system_av_info);
@@ -246,6 +262,8 @@ main(int argc, char **argv)
 	frontend = st_thread_current();
 	api.retro_set_environment(environment);
 	CHECK(support_no_game);
+	api.retro_set_controller_port_device(1, RETRO_DEVICE_ANALOG);
+	api.retro_set_controller_port_device(2, RETRO_DEVICE_NONE);
 	api.retro_set_video_refresh(video);
 	api.retro_set_audio_sample_batch(audio);
 	api.retro_set_input_poll(poll_input);
@@ -257,8 +275,10 @@ main(int argc, char **argv)
 	CHECK(!api.retro_load_game(&(struct retro_game_info) {0}));
 	struct retro_game_info game = {.path = ST_LIBRETRO_TEST_DIRECTORY "/test.lst"};
 	CHECK(api.retro_load_game(&game));
-	CHECK(wait_for_menu());
+	CHECK(controller_info && wait_for_menu());
 	run_frames(3);
+	CHECK(joypad_reads[0] && !analog_reads[0] && joypad_reads[1] && analog_reads[1] && !joypad_reads[2]
+	      && !analog_reads[2]);
 	CHECK(video_frames > 0 && last_hash != 0 && polls > 0);
 	CHECK(audio_frames > 0 && audio_batches > 1);
 	struct retro_system_av_info av;

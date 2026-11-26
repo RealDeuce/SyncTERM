@@ -1744,6 +1744,7 @@ class Hook {
       return false
     }
   }
+  foreign static onController(fn)
   foreign static onPhysicalKey(fn)
   foreign static onPhysicalKey(evdev, fn)
   // Exact post-transport bytes before CTerm classifies controls or text.

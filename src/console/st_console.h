@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <time.h>
 
+#include "st_controller_event.h"
 #include "st_pixels.h"
 
 typedef struct st_console          st_console_t;
@@ -381,6 +382,7 @@ enum st_console_event_type {
 	ST_CONSOLE_EVENT_CLOSE,
 	/* Direct numeric entry, resolved by the consumer's current encoding. */
 	ST_CONSOLE_EVENT_CODEPAGE_BYTE,
+	ST_CONSOLE_EVENT_CONTROLLER,
 };
 
 /* Normalized non-text keys; ASCII control keys retain their byte values. */
@@ -449,6 +451,7 @@ struct st_console_event {
 			uint32_t modifiers;
 		} text;
 
+		struct st_controller_event controller;
 		uint8_t codepage_byte;
 
 		struct {

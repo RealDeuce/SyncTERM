@@ -1,12 +1,12 @@
 import "syncterm" for Error
 import "syncterm" for Screen
-import "syncterm" for FilePickerOptions, Host, Key
+import "syncterm" for FilePickerOptions, Host, Key, KeyEvent, Input
 import "syncterm_menu" for Menu, MenuError, MenuEncryption, MenuFontSlot
 import "menu_ui" for ChoiceViewState, MenuUi
 import "ui_style" for Theme
 import "menu_bbs_editor" for BbsEditor
 import "menu_theme_editor" for ThemeEditor
-import "ui_popup" for Alert, Confirm
+import "ui_popup" for Alert, Confirm, PopStatus
 import "ui_help" for Help
 
 class SettingsMenu {
@@ -853,6 +853,139 @@ class SettingsMenu {
     return file == null ? null : file.path
   }
 
+  static controllerMapping(app) {
+    var devices = Menu.controllers
+    if (devices == null || devices.count == 0) {
+      Alert.show(app, "Controller Mapping", devices == null ? "USB HID controller support is unavailable." : "No controllers are attached.")
+      return
+    }
+    var device = MenuUi.choice(app, "Controller Mapping", devices, devices[0][0])
+    if (device == null) return
+    var targets = Menu.controllerTargets(device, -1)
+    if (targets == null) return
+    while (true) {
+      var fields = Menu.controllerFields(device)
+      if (fields == null) return
+      if (fields.count == 0) {
+        Alert.show(app, "Controller Mapping", "Configure this RetroPad in the libretro frontend.")
+        return
+      }
+      var rows = [[-1, "Identify a control…"], [-2, "Choose an input to assign…"]]
+      for (i in 0...fields.count) {
+        var binding = fields[i][1]
+        var name = binding < 0 ? "Unassigned" : targets[binding][1]
+        rows.add([i, "%(fields[i][0])   %(name)"])
+      }
+      var field = MenuUi.choice(app, "Controller Mapping", rows, -1)
+      if (field == null) return
+      var target = null
+      if (field == -2) {
+        target = MenuUi.choice(app, "Choose an input", targets, null)
+        if (target == null) continue
+      }
+      var movement = null
+      if (field < 0) {
+        movement = detectController_(app, device)
+        if (movement == null) continue
+        field = movement[0]
+      }
+      fields = Menu.controllerFields(device)
+      if (fields == null) return
+      var current = fields[field]
+      var allowed = Menu.controllerTargets(device, field)
+      if (allowed == null) return
+      if (target != null && !allowed.any {|t| t[0] == target }) {
+        Alert.show(app, "Controller Mapping", "%(current[0]) cannot supply %(targets[target][1]).")
+        continue
+      }
+      var inverted = current[2]
+      if (target == null) {
+        var label = current[1] < 0 ? "Unassigned" : targets[current[1]][1]
+        var choices = [[0, "Assign to an input…"], [1, "Clear assignment"], [2, "Preview movement"]]
+        if (current[1] >= 0 && [1, 2].contains(targets[current[1]][2])) {
+          choices.add([3, inverted ? "Restore axis direction" : "Invert axis direction"])
+        }
+        var physical = current[0]
+        if (movement != null && allowed.count > 0 && allowed[0][2] != 0) {
+          physical = "%(physical) %(movementValue_(allowed[0][2], movement[1]))"
+        }
+        var action = MenuUi.choice(app, "%(physical) — %(label)", choices, 0)
+        if (action == null) continue
+        if (action == 2) {
+          previewController_(app, device, field)
+          continue
+        }
+        if (action == 3) {
+          target = current[1]
+          inverted = !inverted
+        } else {
+          target = action == 1 ? -1 : MenuUi.choice(app, "Assign %(current[0])", allowed, current[1])
+          inverted = false
+        }
+        if (target == null) continue
+      }
+      var conflict = null
+      for (i in 0...fields.count) {
+        if (i != field && target >= 0 && fields[i][1] == target) conflict = fields[i][0]
+      }
+      if (conflict != null && !Confirm.show(app, "Move %(targets[target][1]) from %(conflict) to %(current[0])?")) continue
+      var saved = Menu.bindController(device, field, target, inverted)
+      if (saved == null) return
+      if (saved is MenuError) Alert.show(app, "Controller Mapping", saved.message)
+    }
+  }
+
+  static detectController_(app, device) {
+    Menu.armController(device)
+    var pane = PopStatus.show("Press a button, push a hat, or move an axis. Esc cancels.")
+    pane.title = "Identify a control"
+    app.pushModal(pane)
+    app.drawAll_()
+    var selected = null
+    while (true) {
+      var ev = Input.next(20)
+      if (ev is KeyEvent && (ev.key == Key.escape || ev.key == Key.quit)) break
+      var motion = Menu.controllerMotion(device)
+      if (motion == null) break
+      if (motion[0] >= 0) {
+        selected = motion
+        break
+      }
+    }
+    app.popModal()
+    return selected
+  }
+
+  static movementValue_(kind, value) {
+    if (value == null) return "Unknown"
+    if (kind != 3) return value
+    return value < 0 ? "Neutral" : ["Up", "Up-right", "Right", "Down-right", "Down", "Down-left", "Left", "Up-left"][value]
+  }
+
+  static previewController_(app, device, field) {
+    var targets = Menu.controllerTargets(device, field)
+    if (targets == null || targets.count == 0) return
+    var pane = null
+    var last = null
+    while (true) {
+      var fields = Menu.controllerFields(device)
+      if (fields == null) break
+      var current = fields[field]
+      var value = movementValue_(targets[0][2], current[3])
+      if (pane == null || last != value) {
+        if (pane != null) app.popModal()
+        pane = PopStatus.show("%(current[0])   %(value)   Esc closes")
+        pane.title = "Controller preview"
+        app.pushModal(pane)
+        app.drawAll_()
+        last = value
+      }
+      var ev = Input.next(25)
+      if (ev is KeyEvent && (ev.key == Key.escape || ev.key == Key.quit)) break
+    }
+    if (pane != null) app.popModal()
+  }
+
   static program_(app, connected) {
     var s = Menu.settings
     var changed = false
@@ -879,6 +1012,7 @@ class SettingsMenu {
       rows.add([13, settingsLine_("TERM For Shell", s.shellTerm)])
       rows.add([14, settingsLine_("Scaling", Menu.scalingModes[s.scalingMode])])
       rows.add([15, settingsLine_("Invert Mouse Wheel", yesNo_(s.invertWheel))])
+      rows.add([25, "Controller Mapping"])
       rows.add([21, settingsLine_("Colour Emoji", yesNo_(s.colorEmoji))])
       rows.add([16, settingsLine_("Key Derivation Shift", s.kdfShift)])
       rows.add([17, "Classic Theme Colours"])
@@ -896,6 +1030,8 @@ class SettingsMenu {
         if (command == "clear") {
           if (value == 19) s.tlsClientCert = ""
           if (value == 20) s.tlsClientKey = ""
+        } else if (value == 25) {
+          controllerMapping(app)
         } else if (value == 24) {
           var next = pickSetting_(app, "Main Interface", Menu.mainUiChoices, s.mainUi)
           if (next != null) s.mainUi = next

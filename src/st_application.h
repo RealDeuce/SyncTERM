@@ -7,10 +7,12 @@
 
 #include "st_audio_runtime.h"
 #include "st_console.h"
+#include "st_controller.h"
 
 struct st_application_host {
 	bool console_mode;
 	bool libretro;
+	st_port_next controllers;
 	/* Optional frontend-owned storage root, including scripts/cache/keys. */
 	const char *directory;
 	/* Called on the application worker. ready publishes borrowed handles;

@@ -93,7 +93,18 @@ enum st_cterm_log_level {
  * borrowed for the call; callbacks must not reenter the terminal. */
 typedef void (*st_cterm_log_callback_t)(void *context, enum st_cterm_log_level level, const char *message);
 
+struct st_cterm_pads {
+	struct st_cterm_pad *devices;
+	uint32_t             next_id;
+	bool                 enabled, paused;
+};
+
+void st_cterm_pad_event(st_cterm_t *, const struct st_controller_event *, bool consumed);
+void st_cterm_pad_pause(st_cterm_t *, bool paused);
+void st_cterm_pads_clear(struct st_cterm_pads *);
+
 struct st_cterm_config {
+	struct st_cterm_pads *pads;
 	/* Pointers are borrowed through destruction, except palette arrays which
 	 * are copied during creation. */
 	st_console_t            *console;

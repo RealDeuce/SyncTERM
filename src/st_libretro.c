@@ -35,6 +35,11 @@ static struct {
 	char                 *directory, *content;
 	bool                  keyboard_callback;
 	bool                  keys[RETROK_LAST];
+	unsigned              port_device[ST_CONTROLLER_PORTS], generation[ST_CONTROLLER_PORTS];
+	struct st_port_sample previous[ST_CONTROLLER_PORTS];
+	/* mutex protects pending samples consumed by the application worker. */
+	struct st_port_sample queued[256];
+	size_t                head, count;
 	uint16_t              modifiers;
 	uint32_t             *pixels;
 	size_t                pixel_capacity;
@@ -78,15 +83,65 @@ release(void *context)
 	(void)st_mutex_unlock(&core.mutex);
 }
 
+static bool
+next_controller(struct st_port_sample *sample)
+{
+	(void)st_mutex_lock(&core.mutex);
+	bool found = core.count != 0;
+	if (found) {
+		*sample   = core.queued[core.head];
+		core.head = (core.head + 1) % 256;
+		--core.count;
+	}
+	(void)st_mutex_unlock(&core.mutex);
+	return found;
+}
+
+static void
+poll_controllers(void)
+{
+	for (unsigned port = 0; port < ST_CONTROLLER_PORTS; port++) {
+		unsigned              device = core.port_device[port];
+		struct st_port_sample s      = {.port = port,
+		    .generation                  = core.generation[port],
+		    .present                     = device == RETRO_DEVICE_ANALOG || device == RETRO_DEVICE_JOYPAD,
+		    .analog                      = device == RETRO_DEVICE_ANALOG};
+		if (s.present)
+			for (unsigned i = 0; i < 16; i++)
+				if (input_state(port, RETRO_DEVICE_JOYPAD, 0, i))
+					s.buttons |= (uint16_t)(1u << i);
+		if (s.analog) {
+			for (unsigned i = 0; i < 4; i++)
+				s.sticks[i] = input_state(port, RETRO_DEVICE_ANALOG, i / 2, i % 2);
+			for (unsigned i = 0; i < 2; i++)
+				s.triggers[i] = input_state(port, RETRO_DEVICE_ANALOG,
+				    RETRO_DEVICE_INDEX_ANALOG_BUTTON, RETRO_DEVICE_ID_JOYPAD_L2 + i);
+		}
+		const struct st_port_sample *last = &core.previous[port];
+		if (s.generation == last->generation && s.present == last->present && s.buttons == last->buttons
+		    && !memcmp(s.sticks, last->sticks, sizeof s.sticks)
+		    && !memcmp(s.triggers, last->triggers, sizeof s.triggers))
+			continue;
+		(void)st_mutex_lock(&core.mutex);
+		if (core.count < 256) {
+			core.queued[(core.head + core.count) % 256] = s;
+			core.count++;
+			core.previous[port] = s;
+		}
+		(void)st_mutex_unlock(&core.mutex);
+	}
+}
+
 static int
 application_worker(void *context)
 {
 	const struct st_application_host host = {
-	    .libretro  = true,
-	    .ready     = ready,
-	    .release   = release,
-	    .stopping  = stopping,
-	    .directory = core.directory,
+	    .libretro    = true,
+	    .controllers = next_controller,
+	    .ready       = ready,
+	    .release     = release,
+	    .stopping    = stopping,
+	    .directory   = core.directory,
 	};
 	char  program[]        = "syncterm";
 	char  content_option[] = "-b";
@@ -138,6 +193,8 @@ static bool
 start_worker(void)
 {
 	core.stopping = core.finished = core.shutdown_sent = core.ready = false;
+	core.head = core.count = 0;
+	memset(core.previous, 0, sizeof core.previous);
 	core.mouse_x = core.mouse_y = 0;
 	core.mouse_buttons = core.modifiers = 0;
 	memset(core.keys, 0, sizeof(core.keys));
@@ -262,8 +319,11 @@ retro_set_environment(retro_environment_t cb)
 {
 	bool no_game = true;
 	environment  = cb;
-	if (cb != NULL)
+	if (cb != NULL) {
+		for (unsigned i = 0; i < ST_CONTROLLER_PORTS; i++)
+			core.port_device[i] = RETRO_DEVICE_JOYPAD;
 		(void)cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &no_game);
+	}
 }
 
 RETRO_API void
@@ -341,6 +401,17 @@ retro_get_system_av_info(struct retro_system_av_info *info)
 RETRO_API bool
 retro_load_game(const struct retro_game_info *info)
 {
+	static const struct retro_controller_description types[] = {
+	    {"RetroPad",                    RETRO_DEVICE_JOYPAD},
+            {"RetroPad with analog sticks", RETRO_DEVICE_ANALOG}
+        };
+	static const struct retro_controller_info ports[ST_CONTROLLER_PORTS + 1] = {
+	    {types, 2},
+            {types, 2},
+            {types, 2},
+            {types, 2},
+            {NULL,  0}
+        };
 	enum retro_pixel_format        format    = RETRO_PIXEL_FORMAT_XRGB8888;
 	struct retro_keyboard_callback callback  = {.callback = keyboard};
 	const char                    *directory = NULL;
@@ -349,6 +420,7 @@ retro_load_game(const struct retro_game_info *info)
 	retro_unload_game();
 	if (!environment(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &format))
 		return false;
+	(void)environment(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void *)ports);
 	core.keyboard_callback = environment(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &callback);
 	if (environment(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &directory) && directory != NULL
 	    && directory[0] != '\0') {
@@ -381,8 +453,10 @@ retro_run(void)
 		input_poll();
 	if (!core.keyboard_callback && input_state != NULL)
 		poll_keyboard();
-	if (input_state != NULL)
+	if (input_state != NULL) {
 		poll_mouse();
+		poll_controllers();
+	}
 	(void)st_mutex_lock(&core.mutex);
 	if (core.display != NULL && st_console_display_libretro_frame_size(core.display, &width, &height) == 0
 	    && width != 0 && height != 0 && width <= INT32_MAX && height <= INT32_MAX
@@ -480,8 +554,10 @@ retro_reset(void)
 RETRO_API void
 retro_set_controller_port_device(unsigned port, unsigned device)
 {
-	(void)port;
-	(void)device;
+	if (port < ST_CONTROLLER_PORTS && core.port_device[port] != device) {
+		core.port_device[port] = device;
+		++core.generation[port];
+	}
 }
 
 RETRO_API size_t

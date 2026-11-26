@@ -847,6 +847,9 @@ If `Pn` is 0, CTerm will reply with the sequence:
 
 |8
 |Physical key press/release reports are available
+
+|9
+|Joystick and gamepad reports are available, including when no device is attached
 |===
 
 === `CSI PN d` Line Position Absolute (`VPA`)
@@ -936,6 +939,58 @@ translation; they do not replace normal translated key input unless
 translated key suppression is also enabled.
 
 SOURCE: CTerm only.
+
+=== `CSI = 6 h` Enable Joystick and Gamepad Reports
+
+Enable with `CSI = 6 h` and disable with `CSI = 6 l`. Reporting starts disabled
+and a terminal reset disables it. Query with `CSI = 6 $ p`. The reply is
+`CSI = 6 ; Pm $ y`, where 0 means unavailable, 1 enabled, and 2 disabled.
+Repeated enable is idempotent. Disable has no acknowledgement. Discard the
+inventory on disable or reset. Enable again to request a fresh inventory.
+
+A controller report begins with ESC (0x1b), `[`, and `=`, and ends with
+uppercase `J`. All fields are unsigned ASCII decimal integers separated by
+semicolons, without whitespace or a line terminator. Keyboard press and
+release reports use the same prefix and end with `K` and `k`, respectively.
+A BBS can use both modes on the same connection.
+
+[cols="2,3"]
+|===
+| Report following `ESC[=` | Meaning
+
+|`1;device;class;sourceJ` | Device added. Class 1 is a joystick and 2 a
+gamepad. Source 1 is native USB HID and 2 a mapped libretro port.
+|`2;device;type;code;min;maxJ` | Named evdev control and its inclusive wire range.
+|`3;device;type;code;valueJ` | Known initial value or changed value.
+|`4;deviceJ` | End of frame. Apply this device's pending values together.
+|`5;deviceJ` | Device removed. Discard its capabilities, values and any pending frame.
+|`6J` | Initial inventory complete. This is the entire inventory for zero devices.
+|===
+
+Each device is announced with all capabilities, all known values, and a frame
+end, in that order. An absent initial value remains unknown until reported.
+Hotplug follows the same announcement order. Device IDs are positive and
+never reused during a connection. Reassigning a control removes the old
+device and announces its new capabilities under a fresh ID.
+
+* Type 1 (`EV_KEY`) uses literal 0 for released and 1 for pressed. Held
+  buttons do not repeat. A button-based D-pad uses `BTN_DPAD_*`.
+* Type 3 (`EV_ABS`) uses scaled signed values. Sticks range from −32768
+  through 32767 with zero at center. Triggers range from 0 through 32767
+  with zero at rest. Each hat has separate horizontal and vertical axes
+  ranging from −1 through 1. Positive X is right and positive Y is down.
+* Each axis minimum, maximum and value uses the same encoding. For a
+  nonnegative integer `n`, send `2n`. For a negative integer, send
+  `−2n−1`. For example, `ESC[=3;1;3;0;3J` moves device 1's X axis to −2.
+  A following `ESC[=4;1J` commits the change. SyncTERM reports changes in the scaled value. There is no gameplay dead zone.
+
+In Program Settings, open *Controller Mapping*. Choose *Identify a control*
+and actuate it, or choose a named input first and then actuate the physical
+control. Unknown button numbers remain unassigned until mapped. The mapper
+can preview movement, invert an axis, clear a binding, or move a binding
+between controls. Mappings are shared by devices with the same USB vendor,
+product, report descriptor and application collection. Each attached unit
+has a separate device ID. Configure RetroPad assignments in the libretro frontend.
 
 === `CSI = 2 h` Suppress Translated Key Input
 NON-STANDARD EXTENSION +

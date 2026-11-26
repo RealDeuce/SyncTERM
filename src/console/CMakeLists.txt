@@ -617,6 +617,7 @@ target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 		${ST_CONSOLE_X11_INCLUDE_DIRS} ${ST_CONSOLE_WAYLAND_INCLUDE_DIRS}
 		${_st_wl_dir})
 target_link_libraries(st_console PRIVATE ${_st_console_dependencies})
+target_include_directories(st_console PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../input/controller)
 target_link_libraries(st_console PUBLIC syncterm_io_error syncterm_threads
 	st_pixels syncterm_event PRIVATE syncterm_array_list syncterm_dynamic_library st_utf8
 	st_time st_unicode_width st_unicode_text st_codepage syncterm_string_compat)

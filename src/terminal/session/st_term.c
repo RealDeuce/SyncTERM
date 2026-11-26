@@ -13,6 +13,7 @@
 #include "cterm_igs.h"
 #include "cterm_skypix.h"
 #include "io_error.h"
+#include "st_controller.h"
 #include "st_graphics_input.h"
 #include "st_ooii.h"
 #include "st_rip154.h"
@@ -28,7 +29,7 @@
 struct local_input {
 	struct st_console_event event;
 	uint64_t                capture_token;
-	bool                    buttons_only;
+	bool                    buttons_only, controller_consumed;
 };
 
 struct deferred_event {
@@ -56,6 +57,8 @@ struct st_term_session {
 	bool                   remote_closed;
 	bool                   history_finalized;
 	bool                   auxiliary_active;
+	bool                   unfocused, controllers_started, controller_refresh;
+	struct st_cterm_pads   pads;
 	bool                   suspended;
 	bool                   mouse_disabled;
 	uint32_t               throttle_bps;
@@ -636,7 +639,9 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 		return IO_ERROR_INVALID_ARGUMENT;
 	}
 	st_screen_mode_profile_palette(mode, config->palette, config->palette_size, palette_override);
+	session->pads.next_id                     = 1;
 	const struct st_cterm_config cterm_config = {
+	    .pads             = st_controllers_available(config->controllers) ? &session->pads : NULL,
 	    .console          = config->console,
 	    .fonts            = config->fonts,
 	    .audio            = config->audio,
@@ -808,6 +813,8 @@ st_term_session_destroy(st_term_session_t **session)
 	cterm_skypix_destroy((*session)->skypix);
 	cterm_big_destroy((*session)->big);
 	st_cterm_destroy(&(*session)->cterm);
+	st_cterm_pads_clear(&(*session)->pads);
+	st_controllers_forget_listener((*session)->config.controllers);
 	free((*session)->returned_wire);
 	while ((*session)->deferred_head != NULL) {
 		struct deferred_event *event = (*session)->deferred_head;
@@ -909,6 +916,10 @@ st_term_session_set_suspended(st_term_session_t *session, bool suspended)
 		if (session->suspended != suspended)
 			session->throttle_last_ms = 0;
 		session->suspended = suspended;
+		if (suspended) {
+			session->controller_refresh = true;
+			st_cterm_pad_pause(st_term_session_cterm(session), true);
+		}
 		st_term_rip3_suspend_status(session->rip3, suspended);
 	}
 }
@@ -1531,7 +1542,14 @@ deliver_input(st_term_session_t *session, const struct local_input *input, bool 
 			else
 				sync_buttons(session, event->data.mouse.buttons);
 			return session->output_error;
+		case ST_CONSOLE_EVENT_CONTROLLER:
+			st_graphics_handle_controller(st_term_session_cterm(session), &event->data.controller,
+			    input->controller_consumed);
+			return session->output_error;
 		case ST_CONSOLE_EVENT_FOCUS:
+			session->unfocused = !event->data.focus.focused;
+			if (session->unfocused)
+				st_cterm_pad_pause(st_term_session_cterm(session), true);
 			if (!event->data.focus.focused)
 				st_term_rip3_mouse_cancel(session->rip3, true);
 			(void)st_cterm_handle_focus(st_term_session_cterm(session), event->data.focus.focused);
@@ -1665,6 +1683,12 @@ handle_event(st_term_session_t *session, const struct local_input *input, enum s
 		int status = session->config.event_hook(session->config.event_hook_context, event, &result);
 		if (status != 0)
 			return status;
+		if (result.consumed && event->type == ST_CONSOLE_EVENT_CONTROLLER) {
+			struct local_input filtered  = *input;
+			filtered.controller_consumed = true;
+			bool handled                 = false;
+			return forward_input(session, &filtered, &handled);
+		}
 		if (result.consumed)
 			return event->type == ST_CONSOLE_EVENT_MOUSE
 				   ? st_term_session_sync_mouse_buttons(session, result.mouse_buttons)
@@ -1678,6 +1702,62 @@ handle_event(st_term_session_t *session, const struct local_input *input, enum s
 	}
 	bool handled = false;
 	return forward_input(session, input, &handled);
+}
+
+/* Snapshot a poll before invoking user code. A Wren hook can enter the
+ * controller mapper and poll the same devices again. */
+struct controller_batch {
+	struct st_controller_event *records;
+	size_t                      count, capacity;
+	bool                        failed;
+};
+
+static void
+collect_controller(void *context, const struct st_controller_event *record)
+{
+	struct controller_batch *batch = context;
+	if (batch->failed)
+		return;
+	if (batch->count == batch->capacity) {
+		size_t                      capacity = batch->capacity ? batch->capacity * 2 : 32;
+		struct st_controller_event *records  = realloc(batch->records, capacity * sizeof(*records));
+		if (!records) {
+			batch->failed = true;
+			return;
+		}
+		batch->records  = records;
+		batch->capacity = capacity;
+	}
+	batch->records[batch->count++] = *record;
+}
+
+static int
+poll_controllers(st_term_session_t *session, enum st_term_disposition *disposition, bool *finished)
+{
+	if (session->unfocused) {
+		st_controllers_poll(session->config.controllers, NULL, NULL);
+		session->controller_refresh = true;
+		return 0;
+	}
+	if (session->controller_refresh || !session->controllers_started) {
+		/* Coalesce local activity while the session did not own input. */
+		st_controllers_poll(session->config.controllers, NULL, NULL);
+		session->controller_refresh = false;
+	}
+	struct controller_batch batch = {0};
+	st_controllers_poll(session->config.controllers, collect_controller, &batch);
+	int status = batch.failed ? IO_ERROR_OUT_OF_MEMORY : 0;
+	for (size_t i = 0; !status && !*finished && i < batch.count; i++) {
+		const struct local_input input = {
+		    .event = {.type = ST_CONSOLE_EVENT_CONTROLLER, .data.controller = batch.records[i]}
+                };
+		status = handle_event(session, &input, disposition, finished);
+	}
+	if (!status && !session->suspended && !session->unfocused && !session->deferred_head)
+		st_cterm_pad_pause(st_term_session_cterm(session), false);
+	session->did_work |= batch.count != 0;
+	free(batch.records);
+	return status;
 }
 
 int
@@ -1699,6 +1779,14 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		*disposition = session->exit_requested ? ST_TERM_EXIT_APPLICATION : ST_TERM_RETURN_TO_PICKER;
 		*finished    = true;
 		return 0;
+	}
+	/* Establish the local inventory before processing a BBS enable in its
+	 * first packet, including when the connection already has input. */
+	if (!session->controllers_started) {
+		status                       = poll_controllers(session, disposition, finished);
+		session->controllers_started = true;
+		if (status || *finished)
+			return status;
 	}
 	/* Local event dispatch leaves the wire suffix buffered and the
 	 * emulated serial clock running. */
@@ -1915,6 +2003,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 				return status;
 		}
 	}
+
 	/* Publish the consumed text batch before local keys/scripts inspect it. */
 	st_term_rip3_flush(session->rip3);
 	for (;;) {
@@ -1944,6 +2033,14 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	}
 	if (status != IO_ERROR_WOULD_BLOCK)
 		return status;
+	if (!session->suspended && !session->wire_owner && !session->transfer && !session->transfer_reserved
+	    && !session->musicomm && st_connection_is_connected(session->config.connection)) {
+		status = poll_controllers(session, disposition, finished);
+		if (status || *finished)
+			return status;
+	}
+	else
+		session->controller_refresh = true;
 	if (!session->suspended && session->returned_position == session->returned_size
 	    && !st_connection_is_connected(session->config.connection)
 	    && session->wire_position == session->wire_size
@@ -1996,6 +2093,9 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	        || cterm_big_needs_poll(session->big) || cterm_igs_needs_poll(session->igs)
 	        || session->musicomm != NULL || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
+	uint32_t controller_wait = st_controllers_wait_ms(session->config.controllers);
+	if (timeout_ms > controller_wait)
+		timeout_ms = controller_wait;
 	struct timespec deadline;
 	int status = timeout_ms == UINT32_MAX ? 0 : st_time_utc_deadline_after_ms(&deadline, timeout_ms);
 	if (status == 0)

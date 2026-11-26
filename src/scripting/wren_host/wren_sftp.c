@@ -91,6 +91,7 @@ struct st_wren_connected {
 #define ST_SFTP_HANDLE_MAGIC      UINT32_C(0x53544648)
 #define ST_WREN_REGEX_BUFFER_SIZE 4096
 #define ST_WREN_HOOK_MATCH        9
+#define ST_WREN_HOOK_CONTROLLER   10
 
 static jmp_buf re1_jump;
 static char    re1_error[256];
@@ -1369,6 +1370,12 @@ fn_hook_on_mouse_value(WrenVM *vm)
 }
 
 static void
+fn_hook_on_controller(WrenVM *vm)
+{
+	register_hook(vm, 1, ST_WREN_HOOK_CONTROLLER, -1);
+}
+
+static void
 fn_hook_on_physical_key(WrenVM *vm)
 {
 	register_hook(vm, 1, 5, -1);
@@ -1474,6 +1481,7 @@ static const struct sftp_binding bindings[] = {
     {"Hook",            true,  "onMatchClean(_,_)",  fn_hook_on_match_clean       },
     {"Hook",            true,  "onMouse(_)",         fn_hook_on_mouse             },
     {"Hook",            true,  "onMouse(_,_)",       fn_hook_on_mouse_value       },
+    {"Hook",            true,  "onController(_)",    fn_hook_on_controller        },
     {"Hook",            true,  "onPhysicalKey(_)",   fn_hook_on_physical_key      },
     {"Hook",            true,  "onPhysicalKey(_,_)", fn_hook_on_physical_key_value},
     {"Hook",            true,  "every(_,_)",         fn_hook_every                },
@@ -2199,6 +2207,37 @@ st_wren_connected_event_hook(void *context, const struct st_console_event *event
 	st_wren_connected_t *connected = *(st_wren_connected_t **)context;
 	if (connected == NULL)
 		return 0;
+	if (event->type == ST_CONSOLE_EVENT_CONTROLLER) {
+		const struct st_controller_event *e = &event->data.controller;
+		if (e->record != ST_PAD_VALUE)
+			return 0;
+		WrenVM *vm = connected->vm;
+		for (struct connected_hook *hook = connected->hooks; hook; hook = hook->next) {
+			if (hook->kind != ST_WREN_HOOK_CONTROLLER || !hook->function)
+				continue;
+			wrenEnsureSlots(vm, 5);
+			wrenSetSlotHandle(vm, 0, connected->context.hook_class);
+			wrenSetSlotHandle(vm, 1, hook->function);
+			wrenSetSlotNewMap(vm, 2);
+			const char *names[]  = {"device", "type", "code", "value"};
+			double      fields[] = {e->device, e->type, e->code, e->value};
+			for (size_t i = 0; i < 4; i++) {
+				wrenSetSlotString(vm, 3, names[i]);
+				wrenSetSlotDouble(vm, 4, fields[i]);
+				wrenSetMapValue(vm, 2, 3, 4);
+			}
+			uint64_t before = 0;
+			(void)st_time_monotonic_ms(&before);
+			WrenInterpretResult call = connected_call(connected, connected->context.hook_dispatch);
+			record_hook_runtime(hook, before);
+			if (call == WREN_RESULT_SUCCESS && wrenGetSlotType(vm, 0) == WREN_TYPE_BOOL
+			    && wrenGetSlotBool(vm, 0)) {
+				result->consumed = true;
+				break;
+			}
+		}
+		return 0;
+	}
 	if (event->type != ST_CONSOLE_EVENT_MOUSE)
 		return st_wren_connected_handle_event(connected, event, &result->consumed);
 

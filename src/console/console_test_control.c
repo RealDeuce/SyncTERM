@@ -691,6 +691,9 @@ command(st_console_display_t *display, const uint8_t *p, size_t n, struct test_b
 			free(text);
 			return status;
 		}
+		case 7: /* synthetic HID attach, report or remove, on the application thread */
+			return state->controller_input ? state->controller_input(state->controller_context, p, n)
+			                               : IO_ERROR_NOT_SUPPORTED;
 		case 6: /* driver-local presentation clock */
 			if (n != 8 || get32(p) > 1)
 				return IO_ERROR_INVALID_ARGUMENT;

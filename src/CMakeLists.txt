@@ -20,6 +20,10 @@ target_link_libraries(st_app_startup PUBLIC st_console st_profile st_settings
 set_target_properties(st_app_startup PROPERTIES
 	C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 
+if(ST_CONSOLE_TEST)
+	target_sources(st_controller PRIVATE input/controller/tests/controller_fixture.c)
+endif()
+
 add_library(st_application STATIC syncterm.c st_syncterm_icon.c st_terminfo.c)
 target_include_directories(st_application PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(st_application PROPERTIES
@@ -138,6 +142,12 @@ if(BUILD_TESTING)
 	if(ST_CONSOLE_TEST)
 		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 		if(Python3_Interpreter_FOUND)
+			foreach(_case CP437 UTF-8 mapper)
+				add_test(NAME syncterm_controller_${_case}
+					COMMAND Python3::Interpreter -B ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_controller_connected_test.py
+					$<TARGET_FILE:syncterm_app> ${_case})
+				set_tests_properties(syncterm_controller_${_case} PROPERTIES TIMEOUT 90 LABELS "terminal;conformance;input")
+			endforeach()
 			add_test(NAME syncterm_musicomm
 				COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/tests/st_musicomm_test.py
 				$<TARGET_FILE:syncterm_app> --reports ${CMAKE_BINARY_DIR}/reports/test-control)

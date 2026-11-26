@@ -52,6 +52,7 @@ struct st_term_event_result {
 };
 
 struct st_term_config {
+	struct st_controllers *controllers;
 	/* Borrowed for the session lifetime. */
 	st_console_t            *console;
 	st_connection_t         *connection;

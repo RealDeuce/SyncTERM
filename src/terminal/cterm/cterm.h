@@ -99,6 +99,7 @@ struct cterm_key;
 /* Events a session-owned device may observe while the emulation is active. */
 struct cterm_device_events {
 	void *context;
+	bool           (*controller)(void *, const struct st_controller_event *);
 	bool  (*key)(void *, const struct cterm_key *);
 	int   (*mouse_mode)(const void *);
 	bool           (*mouse)(void *, const struct st_console_event *, uint32_t changed);
@@ -293,6 +294,7 @@ struct cterminal {
 	int                    font_size;       // Bytes
 	int                    doorway_mode;
 	int                    doorway_char;    // Indicates next char is a "doorway" mode char
+	struct st_cterm_pads  *pads;
 	bool                   pk_mode;
 	bool                   suppress_translated_keys;
 	uint8_t                pk_reported[CTERM_PK_MAX_EVDEV / 8];
@@ -521,6 +523,7 @@ bool cterm_atascii_inverse(const struct cterminal *cterm);
 /* Emit a response back to the connected host via cterm's registered
  * response callback (set by the terminal app).  Silently drops if no
  * callback has been registered. */
+void cterm_pad_mode(struct cterminal *, bool enabled);
 void cterm_respond(struct cterminal *cterm, const char *data, size_t len);
 /* ================================================================
  * Foreground SFX playback.

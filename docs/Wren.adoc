@@ -1738,6 +1738,14 @@ wire-byte replacement, or `onInput` for Unicode text replacement.
 | Filtered: `fn(b)` fires only when the wire byte equals `byte`.
 | C1
 
+| `Hook.onController { \|ev\| ... }`
+| Receives mapped controller value changes before graphics and CTerm. The
+  Map has numeric `"device"` (local device ID), `"type"`, `"code"` (evdev),
+  and `"value"` (decoded button, axis, or hat value). Return true to consume.
+  A neutral transition clears a previously delivered held value. Reporting
+  to the BBS can be disabled while local scripts observe controllers.
+| C1
+
 | `Hook.onPhysicalKey { \|ev\| ... }`
 | `ev`: <<physicalkeyevent,`PhysicalKeyEvent`>> instance.  Registering this
   hook enables ciolib physical-key event delivery for the session on
@@ -5506,6 +5514,27 @@ duplicate platform-dependent enum tables:
   `download`, `cache`, `globalRip`, `keys`, `scripts`, and `themes` paths for display.  These
   Strings do not confer file-open authority.
 |===
+
+=== Controller mapping in `syncterm_menu`
+
+`Menu.controllers` lists attached devices as `[localId, label]` pairs. An empty
+list means zero devices and null means no provider. `Menu.controllerFields(id)`
+returns one row per physical control in descriptor order, containing its
+label, binding index (−1 if unassigned), inversion flag and current preview
+value (null if unknown). Libretro devices expose no editable fields.
+
+`Menu.controllerTargets(id, field)` lists compatible targets as
+`[bindingIndex, label, kind]`. Use field −1 for all targets. Kinds 0, 1, 2
+and 3 denote button, centered axis, one-way axis and hat respectively.
+`Menu.armController(id)` starts identification using the current baseline.
+`Menu.controllerMotion(id)` returns `[field, value]`, with field −1 until a
+new actuation. Hat preview and captured values are clockwise directions
+0..7 from up, with −1 for neutral.
+
+`Menu.bindController(id, field, target, inverted)` applies a binding. Target
+−1 clears it. Assigning an occupied target moves it to the selected field.
+The method returns true on success, null if the device disconnected, or a
+`MenuError` if saving failed. Safe mode applies the mapping in memory.
 
 === Menu Themes [[menu-themes]]
 

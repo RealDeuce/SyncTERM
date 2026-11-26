@@ -49,6 +49,7 @@ int main(void)
 endif()
 
 add_library(st_cterm STATIC
+	cterm_controller.c
 	cterm_key.c
 	cterm.c
 	cterm_apc.c
