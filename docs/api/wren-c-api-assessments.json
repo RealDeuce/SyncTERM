@@ -164,77 +164,77 @@
       "symbol_count": 25
     },
     {
-      "path": "src/media/amiga_font/st_amiga_font.h",
+      "path": "src/fonts/amiga/st_amiga_font.h",
       "status": "reviewed",
       "symbol_count": 26
     },
     {
-      "path": "src/media/amiga_font/st_amiga_fonts.h",
+      "path": "src/fonts/amiga/st_amiga_fonts.h",
       "status": "reviewed",
       "symbol_count": 17
     },
     {
-      "path": "src/media/audio/audio.h",
+      "path": "src/audio/audio.h",
       "status": "reviewed",
       "symbol_count": 52
     },
     {
-      "path": "src/media/audio/st_audio_runtime.h",
+      "path": "src/audio/st_audio_runtime.h",
       "status": "reviewed",
       "symbol_count": 12
     },
     {
-      "path": "src/media/audio_file/st_audio_file.h",
+      "path": "src/audio/file/st_audio_file.h",
       "status": "reviewed",
       "symbol_count": 5
     },
     {
-      "path": "src/media/audio_mixer/audio_mixer.h",
+      "path": "src/audio/mixer/audio_mixer.h",
       "status": "reviewed",
       "symbol_count": 24
     },
     {
-      "path": "src/media/console/st_console.h",
+      "path": "src/console/st_console.h",
       "status": "reviewed",
       "symbol_count": 380
     },
     {
-      "path": "src/media/font_catalog/st_font_catalog.h",
+      "path": "src/fonts/catalog/st_font_catalog.h",
       "status": "reviewed",
       "symbol_count": 21
     },
     {
-      "path": "src/media/fonts/st_builtin_fonts.h",
+      "path": "src/fonts/builtin/st_builtin_fonts.h",
       "status": "reviewed",
       "symbol_count": 6
     },
     {
-      "path": "src/media/fonts/st_emoji_fonts.h",
+      "path": "src/fonts/builtin/st_emoji_fonts.h",
       "status": "reviewed",
       "symbol_count": 3
     },
     {
-      "path": "src/media/fonts/st_presentation_font.h",
+      "path": "src/fonts/builtin/st_presentation_font.h",
       "status": "reviewed",
       "symbol_count": 4
     },
     {
-      "path": "src/media/fonts/st_unicode_fonts.h",
+      "path": "src/fonts/builtin/st_unicode_fonts.h",
       "status": "reviewed",
       "symbol_count": 2
     },
     {
-      "path": "src/media/music/st_music.h",
+      "path": "src/audio/music/st_music.h",
       "status": "reviewed",
       "symbol_count": 34
     },
     {
-      "path": "src/media/pixel_image/st_pixel_image.h",
+      "path": "src/graphics/image/st_pixel_image.h",
       "status": "reviewed",
       "symbol_count": 7
     },
     {
-      "path": "src/media/pixels/st_pixels.h",
+      "path": "src/graphics/pixels/st_pixels.h",
       "status": "reviewed",
       "symbol_count": 49
     },
@@ -1901,7 +1901,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/audio/audio.h",
+          "path": "src/audio/audio.h",
           "anchor": "audio_generate_tone"
         },
         {
@@ -1913,7 +1913,7 @@
           "anchor": "foreign static music"
         },
         {
-          "path": "src/media/music/st_music.h",
+          "path": "src/audio/music/st_music.h",
           "anchor": "st_music_queue_file"
         }
       ],
@@ -1927,11 +1927,11 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/audio/audio.h",
+          "path": "src/audio/audio.h",
           "anchor": "audio_engine_create_pull"
         },
         {
-          "path": "src/media/audio/st_audio_runtime.h",
+          "path": "src/audio/st_audio_runtime.h",
           "anchor": "st_audio_runtime_acquire"
         }
       ]
@@ -1951,7 +1951,7 @@
           "anchor": "foreign audioModes"
         },
         {
-          "path": "src/media/music/st_music.h",
+          "path": "src/audio/music/st_music.h",
           "anchor": "st_midi_backend_linkage"
         },
         {
@@ -1967,7 +1967,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/audio/st_audio_runtime.h",
+          "path": "src/audio/st_audio_runtime.h",
           "anchor": "st_audio_runtime_acquire"
         },
         {
@@ -1983,7 +1983,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/audio_file/st_audio_file.h",
+          "path": "src/audio/file/st_audio_file.h",
           "anchor": "st_audio_file_decode_memory"
         },
         {
@@ -2001,11 +2001,11 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/audio_mixer/audio_mixer.h",
+          "path": "src/audio/mixer/audio_mixer.h",
           "anchor": "audio_mixer_acknowledge"
         },
         {
-          "path": "src/media/audio/audio.h",
+          "path": "src/audio/audio.h",
           "anchor": "audio_stream_append"
         }
       ]
@@ -2037,11 +2037,11 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/pixels/st_pixels.h",
+          "path": "src/graphics/pixels/st_pixels.h",
           "anchor": "st_pixel_buffer_blit"
         },
         {
-          "path": "src/media/pixels/st_pixels.c",
+          "path": "src/graphics/pixels/st_pixels.c",
           "anchor": "if (destination == source)"
         },
         {
@@ -2067,7 +2067,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/pixels/st_pixels.h",
+          "path": "src/graphics/pixels/st_pixels.h",
           "anchor": "st_pixel_scaler_scale_region"
         },
         {
@@ -2103,7 +2103,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/pixel_image/st_pixel_image.h",
+          "path": "src/graphics/image/st_pixel_image.h",
           "anchor": "st_pixel_image_decode_cterm_ppm"
         }
       ]
@@ -2131,7 +2131,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/font_catalog/st_font_catalog.c",
+          "path": "src/fonts/catalog/st_font_catalog.c",
           "anchor": "catalog->codepages[selector] = codepage"
         },
         {
@@ -2158,7 +2158,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/font_catalog/st_font_catalog.h",
+          "path": "src/fonts/catalog/st_font_catalog.h",
           "anchor": "st_font_catalog_identifier"
         },
         {
@@ -2190,7 +2190,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/fonts/st_builtin_fonts.h",
+          "path": "src/fonts/builtin/st_builtin_fonts.h",
           "anchor": "st_builtin_font_broken_vertical"
         },
         {
@@ -2217,7 +2217,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/fonts/st_builtin_fonts.h",
+          "path": "src/fonts/builtin/st_builtin_fonts.h",
           "anchor": "st_builtin_font_get"
         }
       ]
@@ -2229,7 +2229,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/fonts/st_emoji_fonts.h",
+          "path": "src/fonts/builtin/st_emoji_fonts.h",
           "anchor": ""
         },
         {
@@ -2245,7 +2245,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/fonts/st_unicode_fonts.h",
+          "path": "src/fonts/builtin/st_unicode_fonts.h",
           "anchor": ""
         },
         {
@@ -2261,7 +2261,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/fonts/st_presentation_font.h",
+          "path": "src/fonts/builtin/st_presentation_font.h",
           "anchor": ""
         },
         {
@@ -2277,7 +2277,7 @@
       "vm": "all script VMs",
       "evidence": [
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "st_console_create_on_display"
         },
         {
@@ -2285,7 +2285,7 @@
           "anchor": "picker_console"
         },
         {
-          "path": "src/media/console/console_pixels.c",
+          "path": "src/console/console_pixels.c",
           "anchor": "This raster write supersedes pending text invalidation"
         }
       ]
@@ -2317,7 +2317,7 @@
       "vm": "menu, picker and connected; edits affect the addressed stored Cell only",
       "evidence": [
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "ST_CONSOLE_CELL_PUBLIC_FLAGS"
         },
         {
@@ -2364,11 +2364,11 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/console/console_text.c",
+          "path": "src/console/console_text.c",
           "anchor": "flags ^ console->video_flags) & ST_CONSOLE_VIDEO_EXPAND"
         },
         {
-          "path": "src/media/console/tests/st_console_test.c",
+          "path": "src/console/tests/st_console_test.c",
           "anchor": "flags & ~ST_CONSOLE_VIDEO_EXPAND"
         },
         {
@@ -2384,7 +2384,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "st_console_set_wrap"
         },
         {
@@ -2402,7 +2402,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "struct st_console_font {"
         },
         {
@@ -2444,7 +2444,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "st_console_physical_key_state"
         },
         {
@@ -2482,7 +2482,7 @@
       "vm": "menu, picker and connected",
       "evidence": [
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "ST_CONSOLE_CAP_CLIPBOARD"
         },
         {
@@ -3160,7 +3160,7 @@
           "anchor": "st_wren_screen_result(vm, st_console_blit_pixels"
         },
         {
-          "path": "src/media/console/st_console.h",
+          "path": "src/console/st_console.h",
           "anchor": "bool *restored"
         },
         {
@@ -3329,7 +3329,7 @@
       "vm": "same VM as the loading operation",
       "evidence": [
         {
-          "path": "src/media/font_catalog/st_font_catalog.c",
+          "path": "src/fonts/catalog/st_font_catalog.c",
           "anchor": "load_failure"
         },
         {
@@ -3438,7 +3438,7 @@
       "vm": "menu",
       "evidence": [
         {
-          "path": "src/media/amiga_font/st_amiga_fonts.h",
+          "path": "src/fonts/amiga/st_amiga_fonts.h",
           "anchor": "struct st_amiga_font_family_info"
         },
         {
@@ -3462,11 +3462,11 @@
       "vm": "native owner; menu family workflow and connected terminal protocol",
       "evidence": [
         {
-          "path": "src/media/amiga_font/st_amiga_font.h",
+          "path": "src/fonts/amiga/st_amiga_font.h",
           "anchor": "struct st_amiga_glyph"
         },
         {
-          "path": "src/media/amiga_font/st_amiga_font.c",
+          "path": "src/fonts/amiga/st_amiga_font.c",
           "anchor": "st_amiga_font_decode"
         },
         {
@@ -3482,7 +3482,7 @@
       "vm": "application/menu/terminal owners",
       "evidence": [
         {
-          "path": "src/media/amiga_font/st_amiga_fonts.c",
+          "path": "src/fonts/amiga/st_amiga_fonts.c",
           "anchor": "st_amiga_fonts_install"
         },
         {
@@ -3490,7 +3490,7 @@
           "anchor": "amiga_push"
         },
         {
-          "path": "src/media/amiga_font/tests/st_amiga_font_fault_test.c",
+          "path": "src/fonts/amiga/tests/st_amiga_font_fault_test.c",
           "anchor": "fault_rename"
         }
       ]
@@ -3502,11 +3502,11 @@
       "vm": "host terminal/session owner",
       "evidence": [
         {
-          "path": "src/media/music/st_music.h",
+          "path": "src/audio/music/st_music.h",
           "anchor": "st_music_create"
         },
         {
-          "path": "src/media/music/ansi_music.c",
+          "path": "src/audio/music/ansi_music.c",
           "anchor": "st_ansi_music_parse"
         },
         {
@@ -3514,7 +3514,7 @@
           "anchor": "st_ansi_music_parse"
         },
         {
-          "path": "src/media/music/music.c",
+          "path": "src/audio/music/music.c",
           "anchor": "st_music_destroy"
         }
       ]
@@ -3603,103 +3603,103 @@
       "reason": "External libretro frontend ABI, not script-owned process/rendering lifetime."
     },
     {
-      "path": "src/media/amiga_font/amiga_directory_internal.h",
+      "path": "src/fonts/amiga/amiga_directory_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/amiga_font/amiga_font_internal.h",
+      "path": "src/fonts/amiga/amiga_font_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/audio/audio_internal.h",
+      "path": "src/audio/audio_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/console/console_ansi_system.h",
+      "path": "src/console/console_ansi_system.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_color_rll.h",
+      "path": "src/console/console_color_rll.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_curses_locale.h",
+      "path": "src/console/console_curses_locale.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_internal.h",
+      "path": "src/console/console_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/console/console_posix_url.h",
+      "path": "src/console/console_posix_url.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_test_internal.h",
+      "path": "src/console/console_test_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/console/console_text_layout.h",
+      "path": "src/console/console_text_layout.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_wayland_loader.h",
+      "path": "src/console/console_wayland_loader.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_x11_keys.h",
+      "path": "src/console/console_x11_keys.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/console_x11_pixels.h",
+      "path": "src/console/console_x11_pixels.h",
       "reason": "Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays."
     },
     {
-      "path": "src/media/console/st_console_test.h",
+      "path": "src/console/st_console_test.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/media/console/tests/color_rll_fixture.h",
+      "path": "src/console/tests/color_rll_fixture.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/media/console/tests/pty_diagnostics.h",
+      "path": "src/console/tests/pty_diagnostics.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/media/fonts/st_builtin_fonts_internal.h",
+      "path": "src/fonts/builtin/st_builtin_fonts_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/music/adl_symbols.h",
+      "path": "src/audio/music/adl_symbols.h",
       "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
     },
     {
-      "path": "src/media/music/alsa_symbols.h",
+      "path": "src/audio/music/alsa_symbols.h",
       "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
     },
     {
-      "path": "src/media/music/fluid_symbols.h",
+      "path": "src/audio/music/fluid_symbols.h",
       "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
     },
     {
-      "path": "src/media/music/midi_file.h",
+      "path": "src/audio/music/midi_file.h",
       "reason": "Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h."
     },
     {
-      "path": "src/media/music/music_internal.h",
+      "path": "src/audio/music/music_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/pixels/pixels_internal.h",
+      "path": "src/graphics/pixels/pixels_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/pixels/st_scaler_internal.h",
+      "path": "src/graphics/pixels/st_scaler_internal.h",
       "reason": "Private component representation/callback plumbing behind the public component owner."
     },
     {
-      "path": "src/media/unifont/st_unifont.h",
+      "path": "src/fonts/unifont/st_unifont.h",
       "reason": "Optional native font-pack loader owned by rendering; script rich-font omissions are recorded separately."
     },
     {
@@ -4291,7 +4291,7 @@
       "aspect": "standard arbitrary-byte and Unicode String behavior"
     },
     {
-      "path": "src/media/console/tests/st_console_test.c",
+      "path": "src/console/tests/st_console_test.c",
       "anchor": "flags & ~ST_CONSOLE_VIDEO_EXPAND",
       "aspect": "native setter rejects expansion change"
     },
@@ -4476,17 +4476,17 @@
       "aspect": "Real ANSI UTF-8/CP437 and curses Unicode/CP437/ASCII menu commands: Find, repeat/wrap, Sort Profiles, Quick Connect and Ctrl+Q console fallback; private writable XDG paths and explicit child cleanup."
     },
     {
-      "path": "src/media/console/tests/st_console_x11_test.c",
+      "path": "src/console/tests/st_console_x11_test.c",
       "anchor": "{XK_f, 6, 33}",
       "aspect": "Private X11 display: exact Control-letter key/modifier events without duplicate text; physical Ctrl+grave edge."
     },
     {
-      "path": "src/media/console/tests/st_console_ansi_test.c",
+      "path": "src/console/tests/st_console_ansi_test.c",
       "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
       "aspect": "PTY byte-stream Control-letter identities, including flow-control bytes Ctrl+S/Q."
     },
     {
-      "path": "src/media/console/tests/st_console_ncurses_test.c",
+      "path": "src/console/tests/st_console_ncurses_test.c",
       "anchor": "shortcuts[] = {6, 19, 4, 7, 17}",
       "aspect": "Native curses PTY Control-letter identities, standalone Escape expiry, complete arrow sequences, split UTF-8 scalar/decomposed text, invalid-byte recovery, resize/window replacement and worker shutdown with an unfinished scalar; normal, CP437/C-locale and absent-wide-output configurations."
     },
@@ -4511,7 +4511,7 @@
       "aspect": "Connected modal acquisition, cleanup error/abort precedence and suspension restoration; ordinary scoped yield/shutdown regressions retained."
     },
     {
-      "path": "src/media/console/tests/st_console_test.c",
+      "path": "src/console/tests/st_console_test.c",
       "anchor": "CHECK(restored && first->cursor_x == saved_x);",
       "aspect": "Real native presentation failure after applied snapshot restore; rejected owner restore leaves output false."
     },
@@ -4595,12 +4595,12 @@
       "aspect": "Shared contract executes in menu, picker and connected VMs without querying capabilities. Both overloads preserve known/unknown native integer results, unchanged input/destination state and owned diagnostics through GC. Crafted foreign-payload probes reject wrong actual classes."
     },
     {
-      "path": "src/media/pixels/tests/st_pixels_test.c",
+      "path": "src/graphics/pixels/tests/st_pixels_test.c",
       "anchor": "st_pixels_test_fail_allocation",
       "aspect": "Actual native alternate-plane failure and each of three self-copy allocations leave pixels/ownership unchanged; successful self-copy cleanup and allocation-free repeated distinct-buffer blits are verified."
     },
     {
-      "path": "src/media/pixels/tests/st_pixels_test_impl.c",
+      "path": "src/graphics/pixels/tests/st_pixels_test_impl.c",
       "anchor": "#include \"../st_pixels.c\"",
       "aspect": "Test-only compilation of the real implementation with failing malloc/calloc; no production fault hooks or alternate algorithm."
     },
@@ -4710,7 +4710,7 @@
       "aspect": "Independent supplied ROM point/text reference data; no generated emulator oracle"
     },
     {
-      "path": "src/media/amiga_font/data/manifest.json",
+      "path": "src/fonts/amiga/data/manifest.json",
       "anchor": "b568f6a087b7ececb28d0b45edd38f70a6bf692d",
       "aspect": "Pinned upstream bitmap inputs and independently verified native baseline corrections"
     },
@@ -4720,7 +4720,7 @@
       "aspect": "Supported subset, independent sources, coherent captures and explicit verification limits"
     },
     {
-      "path": "src/media/font_catalog/tests/st_font_catalog_test.c",
+      "path": "src/fonts/catalog/tests/st_font_catalog_test.c",
       "anchor": "check_amiga_descenders",
       "aspect": "Literal Pearl g/p/y fixed-cell rows retain all descenders"
     },
@@ -4745,7 +4745,7 @@
       "aspect": "Shared ANSI CP437/UTF-8 pixel-ring snapshots, palette freezing, reset preservation, resize, overwrite and destruction"
     },
     {
-      "path": "src/media/console/tests/console_bitmap_test.c",
+      "path": "src/console/tests/console_bitmap_test.c",
       "anchor": "test_pixel_cursor_overlay",
       "aspect": "Literal RGB cursor overlay, clipping, raw phase exclusion, standard-cursor handoff and snapshot restoration; identical-cell clear followed by graphics and independent status-row invalidation retains literal pixels in both planes"
     },
@@ -4800,7 +4800,7 @@
       "aspect": "All 29 native codepage tables, both byte modes, all built-in flags, unavailable/replaced fonts, connected codepage/UTF-8 contexts and lifecycle cleanup"
     },
     {
-      "path": "src/media/amiga_font/tests/test_generate_fonts.py",
+      "path": "src/fonts/amiga/tests/test_generate_fonts.py",
       "anchor": "def test_legacy_text_defaults(self):",
       "aspect": "Build all pinned font sources under forced CP1252/ASCII text defaults and Windows newline conversion; explicit UTF-8/LF generation is deterministic."
     },
@@ -4875,7 +4875,7 @@
       "aspect": "Independent complete Build Options baseline and correspondence of every generated application row to the configure report; actual Wren host contract independently checks the runtime row schema and resolved feature booleans."
     },
     {
-      "path": "src/media/audio/tests/pipewire_link_test.c",
+      "path": "src/audio/tests/pipewire_link_test.c",
       "anchor": "pw_context_find_factory",
       "aspect": "Pinned PipeWire client module loading and event-loop shutdown without opening a server connection or audio device"
     }

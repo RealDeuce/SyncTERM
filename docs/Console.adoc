@@ -387,7 +387,7 @@ uses SyncTERM Unicode, derived from GNU Unifont with UNSCII overlaid on
 matching glyphs; disabling `SYNCTERM_ENABLE_UNIFONT` uses UNSCII 8x16 alone.
 SyncTERM Unicode is distributed under SIL OFL 1.1. Its copyright notices and
 full license are available under SyncTERM Settings > Licenses; see also
-`src/media/unifont/LICENSE.OFL-1.1` and `src/media/unifont/UPSTREAM.md`.
+`src/fonts/unifont/LICENSE.OFL-1.1` and `src/fonts/unifont/UPSTREAM.md`.
 
 The 8x8, 8x14, and 8x16 Unicode fallback fonts also include SyncTERM Emoji,
 rasterized from monochrome Noto Emoji under SIL OFL 1.1. They support
@@ -398,7 +398,7 @@ BBS fonts keep their native glyphs. Each console shares one fallback font per
 pixel size, reused across catalog reloads. Size-matched emoji remain available after
 mode changes and when Unifont is disabled. Read the copyright notice and
 full license under SyncTERM Settings > Licenses or in
-`src/media/fonts/LICENSE.NOTO-EMOJI`; see `src/media/fonts/UPSTREAM.md` for regeneration details.
+`src/fonts/builtin/LICENSE.NOTO-EMOJI`; see `src/fonts/builtin/UPSTREAM.md` for regeneration details.
 
 == Stateful Text Operations
 
@@ -589,5 +589,5 @@ minimum source presentation is an invalid backend state and returns
 `IO_ERROR_OUT_OF_RANGE`; the result argument is unchanged on every failure.
 
 Unresolved host capability detection is documented in
-`src/media/console/CAPABILITY_GAPS.md`.  Missing implementation work is not a
+`src/console/CAPABILITY_GAPS.md`.  Missing implementation work is not a
 host-capability gap.

@@ -41,7 +41,7 @@ Each profile exposes 35 native strikes. The supplied Topaz/8 and Sapphire/15
 and /18 occur only in SPF and are excluded; Pearl/8 comes from the actual
 native file in the local Amiga font drawer. The unsupported converted
 Topaz/9 entry is removed. The
-[native input manifest and provenance](../src/media/amiga_font/data/README.md)
+[native input manifest and provenance](../src/fonts/amiga/data/README.md)
 record all 65 original files and image identities. The verified 2.04 Fonts
 disk (`AmigaFonts2.0`) shares its stock fonts with the sampled 2.1/3.1 disks;
 those bytes cannot identify which release supplied the reporter's copy.

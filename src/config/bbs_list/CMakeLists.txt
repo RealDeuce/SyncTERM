@@ -19,7 +19,7 @@ foreach(_st_component_path IN ITEMS config/profile config/list_crypto config/app
 	endif()
 endforeach()
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR AND NOT TARGET st_fonts)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../media/fonts"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../fonts/builtin"
 		"${CMAKE_CURRENT_BINARY_DIR}/fonts")
 endif()
 if(NOT TARGET syncterm_threads)

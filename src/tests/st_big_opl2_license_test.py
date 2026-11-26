@@ -14,7 +14,7 @@ def body(frame):
 
 
 def run(executable, reports):
-    expected = (Path(__file__).resolve().parents[1] / "media" / "opl2" / "LICENSE.OPAL").read_text().split()
+    expected = (Path(__file__).resolve().parents[1] / "audio" / "opl2" / "LICENSE.OPAL").read_text().split()
     with fixture(executable, reports=reports) as (client, root):
         client.wait_text("Directory: Name")
         client.key("tab", SHIFT)

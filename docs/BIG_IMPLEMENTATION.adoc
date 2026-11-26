@@ -4388,7 +4388,7 @@ source has been imported or modified in this documentation step.
 
 == Native YM3812 core and visible MIT notice
 
-`src/media/opl2` now contains a bounded C17-only adaptation of MIT Opal at the
+`src/audio/opl2` now contains a bounded C17-only adaptation of MIT Opal at the
 reviewed commit. Its source manifest and retained notices are in UPSTREAM.md,
 LICENSE.OPAL, PUBLIC_DOMAIN_PROOF.txt and UPSTREAM_THIRD_PARTY_LICENSES.md.
 Only the core/header were adapted. No code from another emulator was copied,

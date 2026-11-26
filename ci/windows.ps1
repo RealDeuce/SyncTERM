@@ -102,7 +102,7 @@ $buildResult = $LASTEXITCODE
 if ($buildResult -ne 0 -and $Compiler -eq 'mingw') {
     $failedTests = Join-Path $env:CI_BUILD_DIR 'Testing/Temporary/LastTestsFailed.log'
     $testLog = Join-Path $reports 'test.log'
-    $pixelTest = Join-Path $env:CI_BUILD_DIR 'src/media/pixel_image/st_pixel_image_test.exe'
+    $pixelTest = Join-Path $env:CI_BUILD_DIR 'src/graphics/image/st_pixel_image_test.exe'
     $debugger = Join-Path $compilerBin 'gdb.exe'
     if ((Test-Path -LiteralPath $testLog) -and (Test-Path -LiteralPath $failedTests) -and
         (Select-String -LiteralPath $failedTests -Pattern '^[0-9]+:pixel_image$' -Quiet) -and

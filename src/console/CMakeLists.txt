@@ -3,17 +3,17 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermAtomics.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermAtomics.cmake")
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STConsole LANGUAGES C)
-	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
+	include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermCheckC17Source.cmake")
 find_package(PkgConfig QUIET)
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermDependencies.cmake")
 
 function(st_console_dependency name package header libraries default)
 	cmake_parse_arguments(PARSE_ARGV 5 API "REQUIRED" "" "SYMBOLS;HEADERS")
@@ -483,68 +483,68 @@ int main(void) { return fcntl(1, F_SETNOSIGPIPE, 1); }
 		message(FATAL_ERROR "ST_CONSOLE_TEST requires interruptible binary pipe transport support")
 	endif()
 endif()
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermConsoleDependencies.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermConsoleDependencies.cmake")
 configure_file(console_config.h.in console_config.h @ONLY)
 configure_file(st_console_test_config.h.in include/st_console_test_config.h @ONLY)
 
 if(NOT TARGET syncterm_io_error)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/io_error"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/io_error"
 		"${CMAKE_CURRENT_BINARY_DIR}/io_error")
 endif()
 if(NOT TARGET syncterm_threads)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/threads"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/threads"
 		"${CMAKE_CURRENT_BINARY_DIR}/threads")
 endif()
 if(NOT TARGET syncterm_event)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/event"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/event"
 		"${CMAKE_CURRENT_BINARY_DIR}/event")
 endif()
 if(NOT TARGET syncterm_array_list)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/array_list"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/array_list"
 		"${CMAKE_CURRENT_BINARY_DIR}/array_list")
 endif()
 if(NOT TARGET syncterm_dynamic_library)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/dynamic_library"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/dynamic_library"
 		"${CMAKE_CURRENT_BINARY_DIR}/dynamic_library")
 endif()
 if(NOT TARGET syncterm_string_compat)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/string_compat"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/string_compat"
 		"${CMAKE_CURRENT_BINARY_DIR}/string_compat")
 endif()
 if(NOT TARGET st_pixels)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../pixels"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../graphics/pixels"
 		"${CMAKE_CURRENT_BINARY_DIR}/pixels")
 endif()
 if(NOT TARGET st_utf8)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/utf8"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/utf8"
 		"${CMAKE_CURRENT_BINARY_DIR}/utf8")
 endif()
 if(NOT TARGET st_unicode_width)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/unicode_width"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/unicode_width"
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_width")
 endif()
 if(NOT TARGET st_unicode_normalization)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/unicode_normalization"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/unicode_normalization"
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_normalization")
 endif()
 if(NOT TARGET st_unicode_grapheme)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/unicode_grapheme"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/unicode_grapheme"
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_grapheme")
 endif()
 if(NOT TARGET st_unicode_text)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/unicode_text"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/unicode_text"
 		"${CMAKE_CURRENT_BINARY_DIR}/unicode_text")
 endif()
 if(NOT TARGET st_codepage)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/codepage"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/codepage"
 		"${CMAKE_CURRENT_BINARY_DIR}/codepage")
 endif()
 if(NOT TARGET st_time)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/time"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/time"
 		"${CMAKE_CURRENT_BINARY_DIR}/time")
 endif()
 if(WIN32 AND NOT TARGET st_windows_utf)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../text/windows_utf"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../text/windows_utf"
 		"${CMAKE_CURRENT_BINARY_DIR}/windows_utf")
 endif()
 
@@ -855,7 +855,7 @@ if(BUILD_TESTING)
 			syncterm_array_list)
 		if(test STREQUAL "scheduler")
 			target_include_directories(st_console_${test}_test PRIVATE
-				${CMAKE_CURRENT_SOURCE_DIR}/../../base/time)
+				${CMAKE_CURRENT_SOURCE_DIR}/../base/time)
 		endif()
 		syncterm_target_atomics(st_console_${test}_test)
 		set_target_properties(st_console_${test}_test PROPERTIES
@@ -1042,7 +1042,7 @@ if(BUILD_TESTING)
 	endif()
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermBuildFeatures.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermBuildFeatures.cmake")
 syncterm_export_configuration(st_console
 	ST_CONSOLE_TEST
 	ST_CONSOLE_HAVE_SDL

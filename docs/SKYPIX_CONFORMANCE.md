@@ -123,7 +123,7 @@ files and parses them with the same memory decoder as installed fonts. The
 Workbench 2.x+ strikes belong to the Kickstart 3.1 profile. Native Pearl/8
 and the supplied native Courier/30, /36 and Times/30, /36 are shared, yielding
 35 strikes per profile. Input SHA-256 identities, disk provenance and
-independent native glyph/metric hashes are in `src/media/amiga_font/data/`.
+independent native glyph/metric hashes are in `src/fonts/amiga/data/`.
 No converted font inputs or metric overrides are used.
 
 The 2026-11-08 RoF capture supplied two sessions with identical public welcome

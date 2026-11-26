@@ -116,7 +116,7 @@ def module(name, path):
 
 graphemes = module("emoji_graphemes", "src/text/unicode_grapheme/update_unicode_grapheme.py")
 widths = module("emoji_widths", "src/text/unicode_width/update_unicode_width.py")
-fonts = module("emoji_fonts", "src/media/fonts/update_fonts.py")
+fonts = module("emoji_fonts", "src/fonts/builtin/update_fonts.py")
 
 
 class Shaper:
@@ -356,7 +356,7 @@ def main():
                 if color is not None and color_source.getGlyphOrder()[color] not in color_source["CBDT"].strikeData[0]:
                     color = None
                 entries.append((text, columns, glyph, color))
-        path = args.root / "src/media/fonts/generated/st_emoji_data.c"
+        path = args.root / "src/fonts/builtin/generated/st_emoji_data.c"
         path.parent.mkdir(parents=True, exist_ok=True)
         write_source(path, entries, font, color_source)
     finally:

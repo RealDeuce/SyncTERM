@@ -3,22 +3,22 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermAtomics.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermAtomics.cmake")
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	project(STAudio LANGUAGES C)
-	include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCStandard.cmake")
+	include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermCStandard.cmake")
 	include(CTest)
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermCheckC17Source.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermCheckC17Source.cmake")
 find_package(PkgConfig QUIET)
 
 option(ST_AUDIO_BUILD_AUDIBLE_SMOKE_TEST
 	"Build the manually-run audible audio smoke test" OFF)
 
 if(NOT TARGET st_audio_mixer)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../audio_mixer"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/mixer"
 		"${CMAKE_CURRENT_BINARY_DIR}/audio_mixer")
 endif()
 function(st_audio_backend_option name default description)
@@ -52,7 +52,7 @@ set(_st_audio_sources audio.c audio_synthesis.c st_audio_weighting.c audio_backe
 	st_audio_runtime.c)
 set(_st_audio_runtime_loader FALSE)
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermDependencies.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermDependencies.cmake")
 function(st_audio_use_pkg_backend option prefix package header source variable)
 	set(name "${option}")
 	if(option STREQUAL "PULSE_AUDIO")
@@ -86,7 +86,7 @@ function(st_audio_use_pkg_backend option prefix package header source variable)
 	if(ST_AUDIO_${option} STREQUAL "ON" OR NOT ST_DEP_${name}_LINKAGE STREQUAL "AUTO" OR NOT ST_DEP_${name}_SOURCE STREQUAL "AUTO")
 		set(required REQUIRED)
 	endif()
-	include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../../cmake/dependencies/Recipes.cmake")
+	include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../cmake/dependencies/Recipes.cmake")
 	syncterm_dependency_recipe(${name})
 	syncterm_dependency(NAME ${name} PACKAGE ${package} HEADER ${header}
 		LIBRARIES ${recipe_libs} DEFAULT RUNTIME ${required} PROBE "${probe}")
@@ -286,7 +286,7 @@ endif()
 configure_file(audio_config.h.in audio_config.h @ONLY)
 
 if(_st_audio_runtime_loader AND NOT TARGET syncterm_dynamic_library)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/dynamic_library"
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/dynamic_library"
 		"${CMAKE_CURRENT_BINARY_DIR}/dynamic_library")
 endif()
 
@@ -359,7 +359,7 @@ if(BUILD_TESTING)
 		endif()
 	endif()
 	if(NOT TARGET st_md5)
-		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../base/md5"
+		add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../base/md5"
 			"${CMAKE_CURRENT_BINARY_DIR}/md5")
 	endif()
 	# Exercise the same PCM oracle with normal evaluation and, when supported,
@@ -399,7 +399,7 @@ if(ST_AUDIO_BUILD_AUDIBLE_SMOKE_TEST)
 	st_audio_warnings(st_audio_audible_smoke)
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermBuildFeatures.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/SynctermBuildFeatures.cmake")
 syncterm_export_configuration(st_audio
 	ST_AUDIO_HAVE_OSS
 	ST_AUDIO_HAVE_SDL

@@ -9,7 +9,7 @@ import sys
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(ROOT / "src/media/fonts"))
+sys.path.insert(0, str(ROOT / "src/fonts/builtin"))
 from box_drawing import match_cp437
 
 

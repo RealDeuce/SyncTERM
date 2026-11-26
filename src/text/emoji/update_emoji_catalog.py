@@ -10,12 +10,12 @@ import re
 ROOT = Path(__file__).resolve().parents[3]
 VERSION = "18.0.0"
 SOURCE_SHA256 = "8f3735cda1f92a779d78af67cf86066bb1f07143dc22f2ac29394d9bc57ab21a"
-MANIFEST = "src/media/fonts/generated/st_emoji_coverage.json"
+MANIFEST = "src/fonts/builtin/generated/st_emoji_coverage.json"
 OUTPUT = "src/text/emoji/generated/st_emoji_catalog_data.c"
 
 
 def font_coverage(root):
-    path = root / "src/media/fonts/generated/st_emoji_data.c"
+    path = root / "src/fonts/builtin/generated/st_emoji_data.c"
     # Git's Windows text checkout policy must not change the glyph fingerprint.
     data = path.read_bytes().replace(b"\r\n", b"\n")
     # All three raster banks use these same mappings. Check that contract too.

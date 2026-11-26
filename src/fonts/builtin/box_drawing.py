@@ -9,7 +9,7 @@ import unicodedata
 
 def cp437_boxes(root, height):
     """Borrow the actual project raster rather than another IBM font variant."""
-    source = (root / "src/media/fonts/st_builtin_font_data.c").read_text(
+    source = (root / "src/fonts/builtin/st_builtin_font_data.c").read_text(
         encoding="ascii")
     match = re.search(
         rf"static const uint8_t font_0_8x{height}\[\] = \{{(.*?)\}};",

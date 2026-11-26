@@ -37,7 +37,7 @@ def exclusion_reason(path):
     owners = {
         Path('src/terminal/cterm'): ('st_cterm.h', 'CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime.'),
         Path('src/terminal/ooii'): ('st_ooii.h', 'OOII immutable resource tables and private parser implementation behind st_ooii.h.'),
-        Path('src/media/console'): ('st_console.h', 'Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays.'),
+        Path('src/console'): ('st_console.h', 'Console backend, rasterizer and display-worker mechanisms behind st_console.h; not independent script displays.'),
         Path('src/net/sftp_client'): ('st_sftp.h', 'SSH/SFTP adapter machinery; st_sftp.h is the typed provider boundary assessed in the ledger.'),
         Path('src/scripting/wren_host'): ('st_wren_host.h', 'Foreign payloads, embedding and native hook plumbing; script declarations and dispatch are reviewed as evidence.')}
     if path.parent in owners:
@@ -45,14 +45,14 @@ def exclusion_reason(path):
         if path.name != public:
             return reason
     music_private = {
-        Path('src/media/music/adl_symbols.h'),
-        Path('src/media/music/alsa_symbols.h'),
-        Path('src/media/music/fluid_symbols.h'),
-        Path('src/media/music/midi_file.h'),
+        Path('src/audio/music/adl_symbols.h'),
+        Path('src/audio/music/alsa_symbols.h'),
+        Path('src/audio/music/fluid_symbols.h'),
+        Path('src/audio/music/midi_file.h'),
     }
     if path in music_private:
         return 'Private MIDI adapter symbol tables and checked file iterator, consumed only by the session music implementation/tests behind st_music.h.'
-    if path.parent == Path('src/media/unifont'):
+    if path.parent == Path('src/fonts/unifont'):
         return 'Optional native font-pack loader owned by rendering; script rich-font omissions are recorded separately.'
     explicit = {
         'libretro.h': 'External libretro frontend ABI, not script-owned process/rendering lifetime.',

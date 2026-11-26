@@ -58,7 +58,7 @@ resulting implementation; it supersedes the earlier open research choices.
 
 == Implementation
 
-`src/media/music` owns the ANSI interpreter, checked SMF/RMID iterator,
+`src/audio/music` owns the ANSI interpreter, checked SMF/RMID iterator,
 message decoder, adapters and per-terminal worker. CTerm supplies a borrowed
 audio runtime and owns the player through reset/disconnect/destruction. The
 application runtime holds the independent MIDI mask and shutdown state; no

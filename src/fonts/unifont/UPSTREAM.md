@@ -3,14 +3,14 @@
 `generated/st_unifont_data.c` is built from GNU Unifont 18.0.01 with UNSCII
 8x16 glyphs overlaid on matching codepoints. UNSCII wins on duplicates.
 Before the overlay, SyncTERM applies the CP437-compatible box drawing
-overrides described in `../fonts/UPSTREAM.md`. These retain their
+overrides described in `../builtin/UPSTREAM.md`. These retain their
 BSD-2-Clause copyright notice; the original CP437 font remains unchanged.
 The modified font's primary name is **SyncTERM Unicode**.
 
 GNU Unifont 18.0.01 offers the GNU GPL version 2 or later with the GNU font
 embedding exception, or the SIL Open Font License 1.1. SyncTERM selects the
 **SIL OFL 1.1** option for this modified font. The UNSCII overlay uses its
-upstream public-domain option; see `../fonts/LICENSE.UNSCII`.
+upstream public-domain option; see `../builtin/LICENSE.UNSCII`.
 
 `LICENSE.OFL-1.1` contains the font name, modification description, upstream
 copyright notice, and full OFL text. The copyright notice comes from the
@@ -27,5 +27,5 @@ disabled does not include this font or its catalog entry. The OFL applies
 to the font; original SyncTERM code remains under its existing BSD terms.
 
 Exact font input URLs, versions, and SHA-256 digests are in
-`src/media/fonts/update_fonts.py`. Regeneration retains the OFL identifier and notice
+`src/fonts/builtin/update_fonts.py`. Regeneration retains the OFL identifier and notice
 reference in the generated data header.

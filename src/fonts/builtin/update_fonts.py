@@ -166,20 +166,20 @@ def main():
     match_cp437(unscii16, args.root, 16)
     composite = dict(unifont)
     composite.update(unscii16)
-    generated = args.root / "src/media/fonts" / "generated"
+    generated = args.root / "src/fonts/builtin" / "generated"
     generated.mkdir(parents=True, exist_ok=True)
     write_font(generated / "st_unscii_8.c", "st_unscii_8_font", unscii8, 8,
-               "UNSCII data: public domain / CC0; see src/media/fonts/UPSTREAM.md",
+               "UNSCII data: public domain / CC0; see src/fonts/builtin/UPSTREAM.md",
                "st_unicode_fonts.h")
     write_font(generated / "st_unscii_16.c", "st_unscii_16_font", unscii16,
-               16, "UNSCII data: public domain / CC0; see src/media/fonts/UPSTREAM.md",
+               16, "UNSCII data: public domain / CC0; see src/fonts/builtin/UPSTREAM.md",
                "st_unicode_fonts.h")
-    generated = args.root / "src/media/unifont" / "generated"
+    generated = args.root / "src/fonts/unifont" / "generated"
     generated.mkdir(parents=True, exist_ok=True)
     write_font(generated / "st_unifont_data.c", "st_unifont_font",
                composite, 16,
                f"SyncTERM Unicode: GNU Unifont {UNIFONT_VERSION} modified in 2026 with an "
-               "UNSCII overlay; see src/media/unifont/LICENSE.OFL-1.1",
+               "UNSCII overlay; see src/fonts/unifont/LICENSE.OFL-1.1",
                "st_unifont.h", "OFL-1.1")
 
     # Keep picker names, variants and actual glyph coverage in step.

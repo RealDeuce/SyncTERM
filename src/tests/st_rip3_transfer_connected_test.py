@@ -302,7 +302,7 @@ def run(args):
         assert pixel(frame, 10, 10) == 0xff5555
         stored("paint.rip", scene.ljust(128, b"\x1a"))
 
-        fixture = Path(__file__).resolve().parents[1] / "media/pixel_image/tests/jpeg/gray.jpg"
+        fixture = Path(__file__).resolve().parents[1] / "graphics/image/tests/jpeg/gray.jpg"
         jpeg = fixture.read_bytes()
         send(query(b"$IFS(JPEG)$", at_cursor=True))
         supported = peer.recv(1)

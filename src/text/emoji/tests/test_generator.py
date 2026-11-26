@@ -40,8 +40,8 @@ class GeneratorTests(unittest.TestCase):
 
     def test_every_updater_checks_picker(self):
         paths = [*catalog.ROOT.glob('src/text/unicode_*/update_unicode_*.py'),
-                 catalog.ROOT / 'src/media/fonts/update_fonts.py',
-                 catalog.ROOT / 'src/media/fonts/update_emoji.py']
+                 catalog.ROOT / 'src/fonts/builtin/update_fonts.py',
+                 catalog.ROOT / 'src/fonts/builtin/update_emoji.py']
         self.assertEqual(len(paths), 6)
         for path in paths:
             with self.subTest(path=path.name):
@@ -59,7 +59,7 @@ class GeneratorTests(unittest.TestCase):
 
     def test_windows_font_line_endings(self):
         coverage = catalog.font_coverage(catalog.ROOT)
-        data = (catalog.ROOT / 'src/media/fonts/generated/st_emoji_data.c').read_bytes()
+        data = (catalog.ROOT / 'src/fonts/builtin/generated/st_emoji_data.c').read_bytes()
         with patch.object(Path, 'read_bytes', return_value=data.replace(b'\n', b'\r\n')):
             self.assertEqual(catalog.font_coverage(catalog.ROOT), coverage)
 

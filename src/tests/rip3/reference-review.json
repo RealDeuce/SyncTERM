@@ -6608,7 +6608,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6640,7 +6640,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6672,7 +6672,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6704,7 +6704,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6736,7 +6736,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6768,7 +6768,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6800,7 +6800,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6832,7 +6832,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -6864,7 +6864,7 @@
             "src/terminal/rip3/st_rip3_environment_host.c",
             "src/terminal/term/st_term_rip3.c",
             "src/scripting/wren_host/wren_links.c",
-            "src/media/console/st_console.h"
+            "src/console/st_console.h"
           ],
           "tests": [
             "rip3_button_create",
@@ -24217,7 +24217,7 @@
         "src/terminal/rip3/st_rip3_table_host.c",
         "src/terminal/term/st_term_rip3.c",
         "src/terminal/cterm/st_cterm_window_definition.c",
-        "src/media/console/console.c"
+        "src/console/console.c"
       ],
       "tests": [
         "rip3_session",

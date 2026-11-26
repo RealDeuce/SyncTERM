@@ -145,13 +145,13 @@ the SIL Open Font License 1.1. Configure with
 `-DSYNCTERM_ENABLE_UNIFONT=OFF` to omit that data. Original SyncTERM material
 remains under the two-clause BSD license. The font copyright notices and full
 license are available under SyncTERM Settings > Licenses and in
-`src/media/unifont/LICENSE.OFL-1.1`; see `LICENSE` and `src/media/unifont/UPSTREAM.md`.
+`src/fonts/unifont/LICENSE.OFL-1.1`; see `LICENSE` and `src/fonts/unifont/UPSTREAM.md`.
 
 All builds also include SyncTERM Emoji, rasterized from monochrome Noto Emoji
 for 8x8, 8x14, and 8x16 cells under SIL OFL 1.1. This covers skin-tone and
 joined sequences supported by the source font, as well as individual emoji,
 flags, keycaps, and presentation selectors. The attribution and full license
-are available in SyncTERM Settings > Licenses and `src/media/fonts/LICENSE.NOTO-EMOJI`.
+are available in SyncTERM Settings > Licenses and `src/fonts/builtin/LICENSE.NOTO-EMOJI`.
 
 == Running SyncTERM
 

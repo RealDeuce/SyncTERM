@@ -84,7 +84,10 @@ Libraries keep their own CMake targets, tests, licenses, and data under:
 | `src/text/` | ASCII operations, UTF-8, codepages, and Unicode processing
 | `src/io/` | Files, paths, locking, mappings, and serial devices
 | `src/net/` | Sockets, connections, TLS, downloads, SFTP, and transfer protocols
-| `src/media/` | Audio, pixels, console rendering, images, and fonts
+| `src/audio/` | Audio backends, mixing, music, and file playback
+| `src/graphics/` | Pixel operations and image codecs
+| `src/fonts/` | Font data, loaders, and catalog
+| `src/console/` | Console rendering, input, and display backends
 | `src/terminal/` | Emulation, terminal sessions, screen modes, history, and hyperlinks
 | `src/config/` | Profiles, settings, BBS lists, themes, and configuration storage
 | `src/scripting/` | Wren integration and its VM and regular-expression dependencies

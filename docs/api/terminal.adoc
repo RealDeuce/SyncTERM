@@ -9,7 +9,7 @@ the minimal connected loop.
 
 === Font catalog
 
-Header: link:../src/media/font_catalog/st_font_catalog.h[st_font_catalog.h].  A catalog
+Header: link:../src/fonts/catalog/st_font_catalog.h[st_font_catalog.h].  A catalog
 borrows exactly one console.  It registers all built-in fonts compatible with
 that console's cell dimensions and maps the legacy selectors 0 through 45 to
 console font identifiers.  Custom selectors begin at 46, contain exactly 256

@@ -185,21 +185,21 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/io/filesystem/filesystem.h[io/filesystem/filesystem.h] | 15 | 4 | 2 | 2 | 0 | +files.grants+, +files.link-metadata+, +files.mkdir-internal+, +files.rename-copy+, +files.truncate+
 | link:../src/io/path/path.h[io/path/path.h] | 0 | 10 | 0 | 0 | 0 | +paths.picker+
 | link:../src/io/serial/serial.h[io/serial/serial.h] | 12 | 0 | 8 | 5 | 0 | +serial.connection+, +serial.lines+, +serial.transport-owner+
-| link:../src/media/amiga_font/st_amiga_font.h[media/amiga_font/st_amiga_font.h] | 2 | 0 | 0 | 24 | 0 | +fonts.amiga-packages+, +fonts.amiga-renderer+
-| link:../src/media/amiga_font/st_amiga_fonts.h[media/amiga_font/st_amiga_fonts.h] | 13 | 0 | 0 | 4 | 0 | +fonts.amiga-packages+, +fonts.amiga-store-owner+
-| link:../src/media/audio/audio.h[media/audio/audio.h] | 12 | 0 | 34 | 6 | 0 | +audio.backends+, +audio.engine-owner+, +audio.playback+
-| link:../src/media/audio/st_audio_runtime.h[media/audio/st_audio_runtime.h] | 0 | 0 | 0 | 12 | 0 | +audio.runtime+
-| link:../src/media/audio_file/st_audio_file.h[media/audio_file/st_audio_file.h] | 0 | 0 | 5 | 0 | 0 | +audio.decode+
-| link:../src/media/audio_mixer/audio_mixer.h[media/audio_mixer/audio_mixer.h] | 0 | 0 | 0 | 24 | 0 | +audio.mixer+
-| link:../src/media/console/st_console.h[media/console/st_console.h] | 209 | 62 | 24 | 85 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
-| link:../src/media/font_catalog/st_font_catalog.h[media/font_catalog/st_font_catalog.h] | 15 | 0 | 0 | 6 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+, +fonts.load-errors+
-| link:../src/media/fonts/st_builtin_fonts.h[media/fonts/st_builtin_fonts.h] | 5 | 0 | 0 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
-| link:../src/media/fonts/st_emoji_fonts.h[media/fonts/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
-| link:../src/media/fonts/st_presentation_font.h[media/fonts/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
-| link:../src/media/fonts/st_unicode_fonts.h[media/fonts/st_unicode_fonts.h] | 0 | 0 | 0 | 2 | 0 | +fonts.st_unicode_fonts+
-| link:../src/media/music/st_music.h[media/music/st_music.h] | 12 | 0 | 8 | 14 | 0 | +audio.backends+, +audio.playback+, +music.session-owner+
-| link:../src/media/pixel_image/st_pixel_image.h[media/pixel_image/st_pixel_image.h] | 5 | 0 | 0 | 2 | 0 | +pixels.cterm-decode+, +pixels.decode+
-| link:../src/media/pixels/st_pixels.h[media/pixels/st_pixels.h] | 38 | 0 | 0 | 11 | 0 | +pixels.display-scaler+, +pixels.offscreen-blit+, +pixels.values+
+| link:../src/fonts/amiga/st_amiga_font.h[fonts/amiga/st_amiga_font.h] | 2 | 0 | 0 | 24 | 0 | +fonts.amiga-packages+, +fonts.amiga-renderer+
+| link:../src/fonts/amiga/st_amiga_fonts.h[fonts/amiga/st_amiga_fonts.h] | 13 | 0 | 0 | 4 | 0 | +fonts.amiga-packages+, +fonts.amiga-store-owner+
+| link:../src/audio/audio.h[audio/audio.h] | 12 | 0 | 34 | 6 | 0 | +audio.backends+, +audio.engine-owner+, +audio.playback+
+| link:../src/audio/st_audio_runtime.h[audio/st_audio_runtime.h] | 0 | 0 | 0 | 12 | 0 | +audio.runtime+
+| link:../src/audio/file/st_audio_file.h[audio/file/st_audio_file.h] | 0 | 0 | 5 | 0 | 0 | +audio.decode+
+| link:../src/audio/mixer/audio_mixer.h[audio/mixer/audio_mixer.h] | 0 | 0 | 0 | 24 | 0 | +audio.mixer+
+| link:../src/console/st_console.h[console/st_console.h] | 209 | 62 | 24 | 85 | 0 | +console.capabilities+, +console.cells+, +console.clipboard-url-caps+, +console.display-controls+, +console.focus-held+, +console.immutable-expand+, +console.input-events+, +console.operation-status+, +console.operations+, +console.owner+, +console.rich-font+, +console.style-bits+
+| link:../src/fonts/catalog/st_font_catalog.h[fonts/catalog/st_font_catalog.h] | 15 | 0 | 0 | 6 | 0 | +fonts.catalog+, +fonts.catalog-owner+, +fonts.codepage-loading+, +fonts.load-errors+
+| link:../src/fonts/builtin/st_builtin_fonts.h[fonts/builtin/st_builtin_fonts.h] | 5 | 0 | 0 | 1 | 0 | +fonts.builtin+, +fonts.raster-owner+, +fonts.vertical-compatibility+
+| link:../src/fonts/builtin/st_emoji_fonts.h[fonts/builtin/st_emoji_fonts.h] | 0 | 0 | 0 | 3 | 0 | +fonts.st_emoji_fonts+
+| link:../src/fonts/builtin/st_presentation_font.h[fonts/builtin/st_presentation_font.h] | 0 | 0 | 0 | 4 | 0 | +fonts.st_presentation_font+
+| link:../src/fonts/builtin/st_unicode_fonts.h[fonts/builtin/st_unicode_fonts.h] | 0 | 0 | 0 | 2 | 0 | +fonts.st_unicode_fonts+
+| link:../src/audio/music/st_music.h[audio/music/st_music.h] | 12 | 0 | 8 | 14 | 0 | +audio.backends+, +audio.playback+, +music.session-owner+
+| link:../src/graphics/image/st_pixel_image.h[graphics/image/st_pixel_image.h] | 5 | 0 | 0 | 2 | 0 | +pixels.cterm-decode+, +pixels.decode+
+| link:../src/graphics/pixels/st_pixels.h[graphics/pixels/st_pixels.h] | 38 | 0 | 0 | 11 | 0 | +pixels.display-scaler+, +pixels.offscreen-blit+, +pixels.values+
 | link:../src/net/connection/connection_shell_codec.h[net/connection/connection_shell_codec.h] | 0 | 0 | 0 | 16 | 0 | +transport.connection_shell_codec+
 | link:../src/net/connection/connection_stream.h[net/connection/connection_stream.h] | 0 | 0 | 0 | 18 | 0 | +transport.connection_stream+
 | link:../src/net/connection/connection_tcp.h[net/connection/connection_tcp.h] | 0 | 0 | 0 | 1 | 0 | +transport.connection_tcp+
@@ -354,7 +354,7 @@ reconstruction, potentially across a whole line or screen. Renderer bookkeeping
 remains host-owned; columns and pixelGraphics retain their existing inspection
 contracts. Partial describes this deliberate restriction, not unfinished work.
 
-Evidence: link:../src/media/console/st_console.h[native cell flags];
+Evidence: link:../src/console/st_console.h[native cell flags];
 link:../scripts/syncterm.wren[Cell and CellStyle];
 link:../src/scripting/wren_host/wren_bind_core.c[validated style access];
 link:../src/scripting/wren_host/tests/st_wren_cell_styles_test.c[independent native/raster fixtures];
@@ -380,7 +380,7 @@ direct/namespace access, read-only enforcement and zero operation callbacks.
 Known and unknown native failures remain errors rather than false; both getters
 also extend the existing native failure matrix.
 
-Evidence: link:../src/media/console/st_console.h[native capability bits]; link:../src/scripting/wren_host/wren_bind_core.c[SUPPORT_GETTER bindings]; link:../scripts/syncterm.wren[ScreenSupports declarations]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[controlled native capabilities and failure regressions].
+Evidence: link:../src/console/st_console.h[native capability bits]; link:../src/scripting/wren_host/wren_bind_core.c[SUPPORT_GETTER bindings]; link:../scripts/syncterm.wren[ScreenSupports declarations]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[controlled native capabilities and failure regressions].
 
 [[finding-connection-setup-result]]
 === Connection setup has no structured script result
@@ -428,7 +428,7 @@ does not widen native palette addressing. Local offscreen-object contracts and
 existing FontError/CTermError families remain
 separate. Existing glyph fallback decisions remain owner policy.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_core.c[console results and snapshots]; link:../src/scripting/wren_host/wren_bind_pixels.c[active pixel dispatch]; link:../src/scripting/wren_host/wren_bind_menu.c[trusted fixed-purpose menu results]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[native-boundary, UI and lifecycle regressions]; link:../src/media/console/tests/st_console_test.c[actual rejected/applied restore outcomes].
+Evidence: link:../src/scripting/wren_host/wren_bind_core.c[console results and snapshots]; link:../src/scripting/wren_host/wren_bind_pixels.c[active pixel dispatch]; link:../src/scripting/wren_host/wren_bind_menu.c[trusted fixed-purpose menu results]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[native-boundary, UI and lifecycle regressions]; link:../src/console/tests/st_console_test.c[actual rejected/applied restore outcomes].
 
 +cterm.operation-status+ (covered; connected; resolved).
 CTerm.write returns null/CTermError and CTerm.sendKey returns native Bool/
@@ -683,7 +683,7 @@ and cleanup. Ordinary native ownership/GC handles buffers, masks and descriptors
 calls retain no arguments. Native algorithms, existing screen/other pixel results
 and UI workflows are unchanged. The display scaler remains host-owned.
 
-Evidence: link:../src/media/pixels/st_pixels.h[native blit contract]; link:../src/media/pixels/st_pixels.c[native validation and allocation order]; link:../src/scripting/wren_host/wren_bind_pixels.c[PixelBuffer.blit and PixelError]; link:../scripts/pixel_vm_test.wren[shared offscreen contract and application composition]; link:../src/media/pixels/tests/st_pixels_test.c[native failure regressions].
+Evidence: link:../src/graphics/pixels/st_pixels.h[native blit contract]; link:../src/graphics/pixels/st_pixels.c[native validation and allocation order]; link:../src/scripting/wren_host/wren_bind_pixels.c[PixelBuffer.blit and PixelError]; link:../scripts/pixel_vm_test.wren[shared offscreen contract and application composition]; link:../src/graphics/pixels/tests/st_pixels_test.c[native failure regressions].
 
 [[finding-settings-transfer-timeouts]]
 === Transfer timeout Settings bindings (resolved)
@@ -869,13 +869,13 @@ link:../src/scripting/wren_host/tests/st_wren_host_test.c[upload/queue regressio
 
 Wren can select allowed audio backends through Settings.audioModes and trigger terminal-protocol music/OOII sound, but cannot directly synthesize tones/waves, beep, submit PCM, create streams, choose volume/ramp/fade/crossfade/loop, drain/clear or inspect stream idle/volume. Native functional audio availability is therefore not full script audio coverage. Whether a general playback API belongs in scope remains a policy decision. MIDI file/note queues, wait/busy/flush/volume and availability operations, and buffered-frame/latency queries remain unbound under this same decision. Existing Menu.midiModes, Settings.midiModes and MIDI Build Options already expose compiled enable/linkage policy; they do not probe runtime availability.
 
-Evidence: link:../src/media/audio/audio.h[src/media/audio/audio.h:148]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:124]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1295].
+Evidence: link:../src/audio/audio.h[src/audio/audio.h:148]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:124]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1295].
 
 +audio.decode+ (unmapped; all script VMs). Wren: no generic audio-file decode API.
 
 Terminal protocols can consume sounds internally, but no script format availability query or granted-file/byte decoding to PCM is exposed. Native stream/memory inputs are not mapped by the absence of an AudioFile object.
 
-Evidence: link:../src/media/audio_file/st_audio_file.h[src/media/audio_file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1872].
+Evidence: link:../src/audio/file/st_audio_file.h[src/audio/file/st_audio_file.h:22]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1872].
 
 +cterm.audio-fx+ (partial; same VM as the owning API). Wren: protocol-driven OOII/CTerm sound only.
 
@@ -929,7 +929,7 @@ Evidence: link:../scripts/syncterm.wren[Codepage declarations]; link:../src/scri
 
 Native wrap, blink mode, full-surface-scroll, fallback-font choice, explicit aspect ratio and fullscreen setters lack direct script control/query. Some are derived by emulation or selected screen mode and may properly stay host policy; that is a scope decision. Settings custom aspect configures a future/custom mode, not arbitrary live aspect changes. Native pointer-shape selection (default/text/link) is only used by the host hyperlink-hover owners; no generic script pointer-shape selector is exported.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:332].
+Evidence: link:../src/console/st_console.h[src/console/st_console.h:601]; link:../scripts/syncterm_menu.wren[scripts/syncterm_menu.wren:332].
 
 [[finding-cterm-live-encoding]]
 === Live terminal encoding mutation
@@ -985,7 +985,7 @@ invalid types/numbers abort. No live raster inference or resource ownership is
 introduced. Documentation corrects the old box-drawing-gap explanation: the
 compatibility bit concerns the broken-bar display glyph at byte 0x7C.
 
-Evidence: link:../src/media/fonts/st_builtin_fonts.h[native built-in compatibility query]; link:../scripts/syncterm.wren[Font.builtinBrokenVertical declaration]; link:../src/scripting/wren_host/tests/st_wren_codepage_test.c[all built-in flags and replacement independence]; link:Wren.adoc[authoritative metadata contract].
+Evidence: link:../src/fonts/builtin/st_builtin_fonts.h[native built-in compatibility query]; link:../scripts/syncterm.wren[Font.builtinBrokenVertical declaration]; link:../src/scripting/wren_host/tests/st_wren_codepage_test.c[all built-in flags and replacement independence]; link:Wren.adoc[authoritative metadata contract].
 
 [[finding-font-raster-model]]
 === Rich raster/font descriptors from script data
@@ -994,7 +994,7 @@ Evidence: link:../src/media/fonts/st_builtin_fonts.h[native built-in compatibili
 
 The native font descriptor can register arbitrary bitmap widths/glyph counts/strides, wide rasters, scalar and cluster mappings, coloured glyphs and fallback/decode-error glyphs. Wren only loads supported legacy font files; it cannot construct these descriptors from script data. Native mappings used by Cell text/rendering are not a general script font-builder API.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:175]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1083].
+Evidence: link:../src/console/st_console.h[src/console/st_console.h:175]; link:../scripts/syncterm.wren[scripts/syncterm.wren:1083].
 
 [[finding-generic-ini]]
 === General INI document manipulation
@@ -1021,7 +1021,7 @@ Evidence: link:../src/terminal/session_history/st_session_history.h[src/terminal
 
 Native focus state and physical-key held bitmap/query are not available to scripts. Tracking edges locally does not reconstruct initial held state or focus-loss recovery. Host/terminal handling does not constitute a public query/event API.
 
-Evidence: link:../src/media/console/st_console.h[src/media/console/st_console.h:732]; link:../scripts/syncterm.wren[scripts/syncterm.wren:612].
+Evidence: link:../src/console/st_console.h[src/console/st_console.h:732]; link:../scripts/syncterm.wren[scripts/syncterm.wren:612].
 
 [[finding-path-utilities]]
 === Pure path helpers outside the picker workflow

@@ -388,7 +388,7 @@ if(BUILD_TESTING)
 			tests/st_rip3_image_commands_fault_impl.c tests/st_rip3_jpeg_file_fault_impl.c
 			tests/st_rip3_image_fault_impl.c tests/st_rip3_wallpaper_fault_impl.c)
 		if(variant STREQUAL "disabled")
-			target_sources(st_rip3_image_commands_${variant}_test PRIVATE ../../media/pixel_image/st_pixel_image_jpeg.c)
+			target_sources(st_rip3_image_commands_${variant}_test PRIVATE ../../graphics/image/st_pixel_image_jpeg.c)
 		endif()
 		target_link_libraries(st_rip3_image_commands_${variant}_test PRIVATE st_rip3_commands
 			st_pixel_image syncterm_filesystem syncterm_path)
@@ -402,7 +402,7 @@ if(BUILD_TESTING)
 		add_test(NAME rip3_image_commands_${variant} COMMAND "${CMAKE_COMMAND}"
 			"-DTEST_PROGRAM=$<TARGET_FILE:st_rip3_image_commands_${variant}_test>"
 			"-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/image-commands-${variant}"
-			"-DJPEG_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}/../../media/pixel_image/tests/jpeg"
+			"-DJPEG_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}/../../graphics/image/tests/jpeg"
 			-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/image_commands.cmake")
 	endforeach()
 	add_executable(st_rip3_input_test tests/st_rip3_input_test.c)
@@ -908,7 +908,7 @@ if(BUILD_TESTING)
 		target_compile_options(st_rip3_image_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
 	endif()
 	add_test(NAME rip3_image COMMAND st_rip3_image_test
-		"${CMAKE_CURRENT_SOURCE_DIR}/../../media/pixel_image/tests/jpeg")
+		"${CMAKE_CURRENT_SOURCE_DIR}/../../graphics/image/tests/jpeg")
 	add_executable(st_rip3_number_test tests/st_rip3_number_test.c)
 	target_link_libraries(st_rip3_number_test PRIVATE st_rip3)
 	set_target_properties(st_rip3_number_test PROPERTIES

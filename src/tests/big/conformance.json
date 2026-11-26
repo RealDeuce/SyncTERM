@@ -4806,7 +4806,7 @@
       "Nuked OPL3": "LGPL-2.1.",
       "YM3812-LLE": "GPL-2.0."
     },
-    "verification": "The native YM3812 reduction and full MIT notice in the actual license UI now pass big_opl2 and syncterm_big_opl2_license. No other emulator code was imported. The goal is active; b/n/N playback, real X7 progress, ?2 availability, loudness calibration and final full regressions remain outstanding. See big-audio steps and src/media/opl2/UPSTREAM.md.",
+    "verification": "The native YM3812 reduction and full MIT notice in the actual license UI now pass big_opl2 and syncterm_big_opl2_license. No other emulator code was imported. The goal is active; b/n/N playback, real X7 progress, ?2 availability, loudness calibration and final full regressions remain outstanding. See big-audio steps and src/audio/opl2/UPSTREAM.md.",
     "selected_source": "https://github.com/RealBitdancer/opal",
     "initial_review_verification": "At initial review, only upstream sources/notices were read; no core had been imported or tested and the goal was paused. The user then resumed the goal and approved the original-code YM3812-only adaptation.",
     "implementation_commit": "099ab2c"

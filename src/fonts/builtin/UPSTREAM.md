@@ -84,7 +84,7 @@ or network access. To regenerate, install fontTools, Pillow with RAQM support an
 HarfBuzz shared library, then run:
 
 ```
-python3 src/media/fonts/update_emoji.py
+python3 src/fonts/builtin/update_emoji.py
 ```
 
 Use `--font /path/to/NotoEmoji.ttf` for a matching local font and
@@ -150,7 +150,7 @@ From the repository root:
 cmake -S . -B build-rll -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DST_CONSOLE_TEST=ON
 cmake --build build-rll --target st_emoji_rll_test st_console_color_glyph_test
 ctest --test-dir build-rll -R '^(emoji_rll|st_console_color_glyph)$' --output-on-failure
-build-rll/src/media/fonts/st_emoji_rll_test --benchmark
+build-rll/src/fonts/builtin/st_emoji_rll_test --benchmark
 ```
 
 The benchmark uses a headless 80x25 console, seven samples of forty frames,

@@ -54,6 +54,8 @@ with tempfile.TemporaryDirectory(prefix="syncterm-midi-cmake-") as directory:
         private = "midi_private" if name == "ALSA" else "midi_cpp"
         declarations, definitions = [], []
         text = (source / f"{symbols}_symbols.h").read_text()
+        # Parse logical C lines so wrapped X-macro entries reach the mock ABI.
+        text = text.replace("\\\n", "")
         for result, function, arguments in re.findall(r"\bX\(([^,]+),\s*(\w+),\s*\((.*?)\)\)", text):
             result = result.strip()
             declarations.append(f"{result} {function}({arguments});")

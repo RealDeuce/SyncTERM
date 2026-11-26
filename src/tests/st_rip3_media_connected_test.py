@@ -750,7 +750,7 @@ def run(args):
         client.key("enter")
         frame = t.input(b"local clip:alive")
         assert frame.application["connected"] == 1
-        fixture = Path(__file__).resolve().parents[1] / "media/pixel_image/tests/jpeg/gray.jpg"
+        fixture = Path(__file__).resolve().parents[1] / "graphics/image/tests/jpeg/gray.jpg"
         contents = fixture.read_bytes()
         (assets / "Gray.jpg").write_bytes(contents)
         (assets / "Progress.jpg").write_bytes(fixture.with_name("gray-progressive.jpg").read_bytes())
