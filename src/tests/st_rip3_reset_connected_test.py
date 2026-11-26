@@ -102,6 +102,15 @@ def run(args, width, height):
         receive(peer, b"RIPSCRIP030001", root / "replies.bin")
         if width == 640:
             default_palette(t, capture, values, width, height)
+        live_families = ('TW', 'BUT', 'STYLE', 'PORT', 'PAL', 'ENV')
+        saved_families = (*live_families, 'MOUSE', 'SCREEN')
+        current = ':'.join(f'$CUR({family})$' for family in live_families).encode()
+        protected = ''.join(f'$CUR({family},5)$$PROT({family},5)$' for family in live_families)
+        live_entries = ''.join(f'$INUSE({family},5)$' for family in live_families).encode()
+        saves = ''.join(f'$INUSE({family},{place})$' for place in ('BASE', 'S2', 'STACK')
+                        for family in saved_families).encode()
+        protections = ''.join(f'$ISPROT({family},S2)$' for family in saved_families).encode()
+        protect_slots = ''.join(f'$PROT({family},S2)$' for family in saved_families).encode()
         t.case(f"rip3-reset-protected-current-{width}x{height}")
         capture(scene(width, height) + b"\x01|w0000270O12\r\n"
                 + b"\x1b[3g\x1b[1;6H\x1bH\x01|2T50|w00000J0900\r\n"
@@ -121,9 +130,10 @@ def run(args, width, height):
                b"$-=KEPT=value$")
         values(b"[5:]held")
         capture(b"\x01|2Y60|c03|2Y50|k01|W1|S000F|N0\r\n")
-        values(b"$PROT(STYLE,5)$$COPY(PAL,TBL,BASE,S0,PUSH)$"
-               b"$COPY(PORT,TBL,BASE)$$COPY(STYLE,TBL,BASE)$$COPY(ENV,TBL,BASE)$"
-               b"$WORLD(CUR,0,0)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$")
+        values(b"$PROT(STYLE,5)$$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$$COPY(PAL,BASE,S0)$"
+               + protect_slots
+               + b"$WORLD(CUR,0,0)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$")
+        capture(b"\x01|h01000400\r\n")
         # Pending ordinary ANSI syntax survives SOFT and completes in TW0.
         frame = capture(b"\x1b[3\x01|* reset scene\r\n")
         black(frame)
@@ -136,7 +146,14 @@ def run(args, width, height):
                b"$INUSE(PORT,1)$$INUSE(PORT,5)$$INUSE(PORT,6)$$INUSE(PORT,7)$$INUSE(PAL,5)$", b"1101011101")
         values(b"$&KEPT$:$INUSE(PAL,BASE)$$INUSE(PAL,S0)$$INUSE(PAL,STACK)$$INUSE(PORT,BASE)$"
                b"$INUSE(STYLE,BASE)$$INUSE(ENV,BASE)$", b"value:111111")
+        values(saves + protections, b'1' * 32)
+        values(b"$OFFSCREEN(CLIP)$", b"1")
+        events = frame.metadata['events_dequeued']
+        client.text('k')
+        client.wait_for(lambda snap: snap.metadata['events_dequeued'] > events)
+        # A leaked key would arrive ahead of the host reply.
         values(b"[5]", b"held")
+        values(b"$RESET(KEYBOARD)$")
         frame = capture(b"1m\t")
         assert frame.application["cterm.attr"] == 4 and frame.application["cterm.x"] == 6
         frame = values(b"$CUR(TW,5)$")
@@ -201,14 +218,6 @@ def run(args, width, height):
         capture(b'\x01|h010000014305\r\n')
         values(b'$CUR(PAL)$:$INUSE(PAL,6)$:$ISPROT(PAL,5)$', b'6:0:1')
 
-        live_families = ('TW', 'BUT', 'STYLE', 'PORT', 'PAL', 'ENV')
-        saved_families = (*live_families, 'MOUSE', 'SCREEN')
-        current = ':'.join(f'$CUR({family})$' for family in live_families).encode()
-        protected = ''.join(f'$CUR({family},5)$$PROT({family},5)$' for family in live_families)
-        live_entries = ''.join(f'$INUSE({family},5)$' for family in live_families).encode()
-        saves = ''.join(f'$INUSE({family},{place})$' for place in ('BASE', 'S2', 'STACK')
-                        for family in saved_families).encode()
-        protections = ''.join(f'$ISPROT({family},S2)$' for family in saved_families).encode()
         variables = b'$?3$:$&N$:$&P$:$&EFFECT$'
         preserved = b':MEM:DISK:cold'
         for name, operation, expected in (
@@ -219,6 +228,9 @@ def run(args, width, height):
             capture(scene(width, height) + window((30,40,400,250),8,5,2,1)
                     + b'\x1b[31;46m\x1b[2;3H\x1b[s\x1bH\x1b(A\x1b)0\x1b[?25lANSI'
                     + b'\x01|v0000' + far + b'\r\n')
+            values(f'$CUR(STYLE,0)$$WORLD(CUR,{width},{height})$'.encode())
+            # At identity scale, two Fs in 90-point MARIN advance 100 pixels.
+            capture(b'\x01|y0000001Q000000001a00000000Marin|r010000FF\r\n', b'100\r')
             values(b'$DTW$$IMGSTYLE(0,1,1,5,5,ASPECT)$')
             capture(resident(4,b'$-=EFFECT=bad$fixed') + resident(2,b'$-=EFFECT=bad$floating')
                     + b'\x01|v00000000|2R0000$-=EFFECT=bad$refresh\r\n')
@@ -228,12 +240,15 @@ def run(args, width, height):
             values(b'$UNPROT(TW,5)$$ATW(5)$$PROT(TW,5)$$TWIN$', b'YES')
             capture(b'\x01|1C0A0A0C0C0\r\n')
             values(b'$OFFSCREEN(CLIP)$', b'1')
-            values(b'$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$'
-                   + ''.join(f'$PROT({family},S2)$' for family in saved_families).encode())
+            values(b'$SAVEALL$$SAVEALL(2)$$SAVEALL(PUSH)$' + protect_slots)
             values(current, b'5:5:5:5:5:5')
             values(saves + protections + live_entries + b'$MCURSOR(7)$', b'1' * 38)
-            capture(b'\x1b[31;44m\x1b[3;5H\x1b[s\x1bH\x1b(A\x1b)0\x1b[?7l\x1b7')
-            frame = capture(b'\x1b[31' + operation, expected)
+            values(b'$UNPROT(PORT,5)$')
+            before = capture(b'\x1b[31;44m\x1b[3;5H\x1b[s\x1bH\x1b(A\x1b)0\x1b[?7l\x1b7')
+            frame = capture(b'\x1b[31\x01|1T00000Z0Z66\r\npending')
+            assert xy(frame) == xy(before), (xy(frame), xy(before))
+            values(b'$PROT(PORT,5)$')
+            frame = capture(operation, expected)
             black(frame)
             assert frame.primary == frame.alternate
             assert xy(frame) == (1,1) and frame.application['cterm.attr'] == 7
@@ -252,7 +267,9 @@ def run(args, width, height):
             assert frame.application['connected'] == 1
             assert (frame.metadata['plane_width'], frame.metadata['plane_height']) == (width, height)
             black(capture(b'\x01|a0010\r\n'))
-            frame = capture(b'mZ\x1b8')
+            # The old column no longer claims incoming text. The pending CSI
+            # therefore completes in TW 0, and ESC 8 has no saved state to apply.
+            frame = capture(b'\x01|1A060000|r210000$TEXTDATA$\r\nmZ\x1b8', b'\r')
             assert xy(frame) == (2,1) and frame.application['cterm.attr'] == 4
             frame = capture(b'\x1b[u\t')
             assert xy(frame) == (1,2)  # Fresh CSI save and empty explicit tabs.

@@ -13,6 +13,53 @@ from st_terminal_conformance_test import Terminal
 from syncterm_fixture import receive
 
 
+def first_use_transition(t, capture, values, width):
+    t.case("rip3-window-first-use-from-styled-ordinary-window")
+    values(b"$RESET(HARD)$$CUR(PORT,5)$$CUR(STYLE,2)$$CUR(ENV,3)$")
+    # Font 2, twenty columns by ten rows. CUP addresses relative to
+    # the top margin after origin mode is set.
+    source = capture(b"\x01|w00000J0912\r\n"
+                     b"\x1b[3g\x1b[1;5H\x1bH\x1b[1;11H\x1bH\x1b[2;7r\x1b[?6h"
+                     b"\x1b[1;3H\x1b[s\x1b[4;8H\x1b[1;32;44m\x1b[2 q\x1b[?25l"
+                     b"\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m")
+    def source_state(frame):
+        app = frame.application
+        assert (app["cterm.x"], app["cterm.y"]) == (8, 5)
+        assert (app["cterm.top_margin"], app["cterm.bottom_margin"]) == (2, 7)
+        assert app["cterm.ext_attr.origin_mode"] and app["cterm.ext_attr.auto_wrap"]
+        assert not frame.metadata["pixel_cursor_visible"]
+
+    source_state(source)
+    clone = capture(b"\x01|2T30\r\n")
+    source_state(clone)
+    assert source.primary == clone.primary and source.alternate == clone.alternate
+    values(b"$TWW$:$TWH$:$TWFONT$:$ISPROT(TW,3)$:$CUR(PORT)$:$CUR(STYLE)$:$CUR(ENV)$",
+           b"20:10:3:0:5:2:3")
+    frame = capture(b"\x1b[u" + query(b"$CON$", at_cursor=True))
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (3, 2)
+    m = frame.metadata
+    cw, ch = {640: (8, 19), 800: (10, 24), 1024: (12, 30)}[width]
+    assert m["pixel_cursor_visible"] and (m["pixel_cursor_width"], m["pixel_cursor_height"]) == (cw, ch)
+    x, y = m["pixel_cursor_x"], m["pixel_cursor_y"]
+    frame = capture(b"F\t")
+    assert {pixel(frame, xx, yy) for yy in range(y, y+ch) for xx in range(x, x+cw)} == {0x0c2238, 0x412b15}
+    assert frame.application["cterm.x"] == 5
+    frame = capture(b"\t")
+    assert frame.application["cterm.x"] == 11
+    capture(b"\x1b[0;94m\x1b[3g\x1b[2;3H\x1bH\x1b[2;2H" + query(b"$PROT(TW,3)$", at_cursor=True))
+    source_state(capture(b"\x01|2T00\r\n"))
+    frame = capture(b"\x1b[u\t")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (5, 2)
+    frame = capture(b"\x1b[3" + query(b"$CUR(TW,3)$", at_cursor=True) + b"1m\t")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (3, 3)
+    assert frame.application["cterm.attr"] & 7 == 4  # The split SGR selected red in TW 3.
+    frame = values(b"$CUR(TW,4)$$ISPROT(TW,3)$:$TWIN$:$TWW$:$TWH$:$TWFONT$:$CURSOR$",
+                   b"1:YES:80:43:1:YES")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"], frame.application["cterm.attr"]) == (1, 1, 7)
+    assert (frame.metadata["pixel_cursor_width"], frame.metadata["pixel_cursor_height"]) == (width//80, 1)
+    assert frame.application["cterm.top_margin"] == 1 and frame.application["cterm.bottom_margin"] == 43
+
+
 def run(args, width, height):
     with connection(args.executable, args.reports, encoding=args.encoding,
                     options="ScreenMode=Custom\nRIP=RIPv3\n",
@@ -190,6 +237,7 @@ def run(args, width, height):
                     rgb = word if word & 0x80000000 else frame.palette[word]
                     expected = 0x123456 if x // cw in (0, 3) else 0x00aa00
                     assert rgb & 0xffffff == expected, (x, y, hex(rgb), hex(expected))
+        first_use_transition(t, capture, variables, width)
 
 
 def main():

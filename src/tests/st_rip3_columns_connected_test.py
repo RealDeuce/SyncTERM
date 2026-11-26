@@ -492,6 +492,17 @@ def run(args):
                                   + accent + b"\r\n\r\nA\r\n!|#\r\n")
         check_pixels(frame, (126, 72, 181, 110), [(130, 75, ACCENT, GREEN), (130, 95, CAPITAL_A, GREEN)])
 
+        terminal.case("Restoring text windows preserves the open article and its pending word")
+        # Save with no article selected. An RTW between two letters must
+        # leave both the pending prefix and the current column in place.
+        frame = terminal.exchange(query(b'$STW(8)$', at_cursor=True)
+                                  + commands(region((210, 435, 245, 467), 20, 20), b"1t0A")
+                                  + b"A" + query(b'$RTW(8)$', at_cursor=True)
+                                  + accent + b"\r\n" + commands(b"1E"))
+        check_pixels(frame, (208, 433, 246, 467),
+                     [(210, 435, CAPITAL_A, GREEN), (210, 445, CAPITAL_A, GREEN),
+                      (218, 445, ACCENT, GREEN)])
+
         terminal.case("Changing articles flushes the old article's pending text")
         frame = terminal.exchange(commands(region((130, 130, 153, 140), 1, 10)) + b"A\r\n"
                                   + commands(region((161, 130, 184, 140), 2, 11)) + accent + b"\r\n!|1E\r\n")

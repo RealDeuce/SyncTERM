@@ -124,6 +124,29 @@ def geometry_actions(t, values, width, height):
     values(b'$TWX0$:$TWY0$:$TWX1$:$TWY1$:$TWFONT$:$TWIN$', b'0:0:90:42:2:YES')
     t.exchange(b'\x01|*\r\n')
 
+    t.case('rip3-header-maximize-retains-font-binding-and-independent-saves')
+    values(b'$CUR(TW,1)$$CUR(STYLE,7)$')
+    old = t.exchange(b'\x01|w06040P0D12\r\n\x1b[2 q\x1b(A\x1b)0'
+                     b'\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m')
+    ox, oy, cw, ch = (old.metadata['pixel_cursor_' + k] for k in ('x', 'y', 'width', 'height'))
+    t.exchange(b'F\x1b[4;3H\x1b7\x1b[3;5H')
+    before = values(b'$STW(6)$')
+    frame = t.exchange(b'\x1b[2;' + text_header(2048) + b'3H')
+    assert xy(frame) == (3, 2)
+    assert frame.primary == before.primary and frame.alternate == before.alternate
+    values(b'$CUR(TW)$:$TWW$:$TWH$:$TWFONT$:$CUR(STYLE)$:$INUSE(TW,S6)$', b'1:80:25:3:7:1')
+    assert (frame.application['cterm.rip3_g0'], frame.application['cterm.rip3_g1']) == (ord('A'), ord('0'))
+    frame = t.exchange(b'\x1b[HF')
+    glyph = [pixel(frame, x, y) for y in range(ch) for x in range(cw)]
+    assert set(glyph) == {0x0c2238, 0x412b15}
+    assert glyph == [pixel(frame, ox+x, oy+y) for y in range(ch) for x in range(cw)]
+    frame = t.exchange(b'\x1b8')
+    assert xy(frame) == (3, 4)
+    values(b'$TWW$:$TWH$', b'20:10')
+    frame = values(b'$RTW(6)$$CUR(TW)$:$TWW$:$TWH$', b'1:20:10')
+    assert xy(frame) == (5, 3)
+    t.exchange(b'\x01|*\r\n')
+
 
 def port_actions(t, values, wire, width, height):
     def coords(*values):

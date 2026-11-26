@@ -131,6 +131,16 @@ queries and copy rectangles. Restoring it leaves the visible screen intact.
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
 
+On a connected session, first use of wire `2T` copies the current window's
+direct colors, cursor request and explicit tab stops. First use through
+`$CUR(TW,n)$` creates a fresh window. HEADER maximization preserves the
+font binding, ESC snapshot and whole-table backup. Restoring a text-window
+backup during an article preserves the partially received word.
+
+The engine accepts ordinary default fonts 0–4. The connection frontend
+currently supplies font 0 and enables wrap. Alternate startup-font vectors
+have native coverage only.
+
 The connection owner supplies ordinary ANSI text rendering, automatic replies,
 nonblocking input and continuation pumping, delays, bundled classic/outline
 fonts, live ENV/STYLE/PAL/PORT/BUT/TW tables and backups, TW entry copying and live reset, bitmap/clipboard operations and remembered-pair PCB paste,
