@@ -1,21 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/328",
-  "revision": "defe4e8d5a3af7453d1bba3aac8fffc10affd32e",
-  "previous_revision": "e6ee96af96a3eefafe1d2a6d555cf15819b2c928",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/332",
+  "revision": "8875443b50eb40f9bac243019cdacfe55438b32a",
+  "previous_revision": "defe4e8d5a3af7453d1bba3aac8fffc10affd32e",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PR #328.",
-  "archive_sha256": "2ef8e242988f06b8470a7246bded9a23cc293fea09f7ab188c1c054d41c4c66a",
+  "upstream_state_at_adoption": "Fork stable incorporates PRs #331 and #332.",
+  "archive_sha256": "125fcdeebff0442a5beb4b5aeb26ea79d439f71f4fa5540e12d55bfed27e9f7c",
   "normative_scope": [
-    "Command summaries for e, *, and 1c now reflect their existing detailed chapters."
+    "Clarifies SWITCH_PORT widths, mouse cursor reserve omission and FILE_QUERY filename preparation.",
+    "Clarifies scene and article routing, unescaped line endings and the encoded-stream command."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/9.0-command-reference.md"
+    "version/3.0/ripscrip/6.0-writing-rip-files.md",
+    "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9730,
+  "matched_source_blocks": 9726,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -949,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 161,
+  "upstream_issue_resolutions": 163,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1910,6 +1912,18 @@
       "sha256": "19ab513b2e0cf77208981a4e0e7df3695cfb791620542ba9f5c82cc7709657ed",
       "title": "Issue #327 — Command summaries for erase, reset and pointer selection",
       "role": "Reconciles the command index with its existing detailed erase, reset and cursor contracts."
+    },
+    {
+      "path": "version/3.0/research/issue-329-authoring-guide-port-and-names.md",
+      "sha256": "59d0b26f229d24a72afd73cce71e797e0f127498368eb79552b8c19c11871286",
+      "title": "Issue #329 — Authoring examples for port switches and filenames",
+      "role": "Clarifies SWITCH_PORT widths, mouse cursor reserve omission and FILE_QUERY filename preparation."
+    },
+    {
+      "path": "version/3.0/research/issue-330-authoring-guide-framing.md",
+      "sha256": "135777d56550623d18dd9bfa29e71c9972898f461cabb3c221c4e19cbf18cddd",
+      "title": "Issue #330 — Scene framing in the authoring guide",
+      "role": "Clarifies scene and article routing, unescaped line endings and the encoded-stream command."
     }
   ],
   "documents": [
@@ -2091,7 +2105,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
-      "sha256": "bd842108b39aa98638a65d96d6f80cb41fd8e9efae922af7bb3106afa8633b27"
+      "sha256": "07d49d3c176852689d94638651155c8ed5f5e5842015876d7f6294311fea81b8"
     },
     {
       "path": "version/3.0/ripscrip/6.1-content-file-roles.md",
@@ -2099,7 +2113,7 @@
     },
     {
       "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
-      "sha256": "da5a4bff5a555007deae89c3e461ac1e948e1e2bdcbe775bf089495c771e20f9"
+      "sha256": "524c670c76b4a8a1619e2bf524867f5bad66cfaac3ab2045e161d207c89b92b3"
     },
     {
       "path": "version/3.0/ripscrip/7.0-drawing-ports.md",
@@ -2186,7 +2200,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "76834f930b19faecb2d946734a8bf847c73807b1",
+  "previous_ledger_commit": "e5edfaf5376d6982ec9fb8d636f4e2ebfb01a236",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2263,10 +2277,9 @@
   "states_at_adoption": {
     "unreviewed": 987,
     "context": 2797,
-    "implemented": 5664,
+    "implemented": 5669,
     "excluded": 272,
-    "pending": 8,
-    "blocked": 5
+    "pending": 8
   },
   "source_blocks_at_adoption": 9733,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
@@ -21987,6 +22000,88 @@
         "version/3.0/ripscrip/9.0-command-reference.md:49",
         "version/3.0/ripscrip/9.0-command-reference.md:58",
         "version/3.0/ripscrip/9.0-command-reference.md:186"
+      ]
+    },
+    {
+      "previous_revision": "defe4e8d5a3af7453d1bba3aac8fffc10affd32e",
+      "revision": "8875443b50eb40f9bac243019cdacfe55438b32a",
+      "archive_sha256": "125fcdeebff0442a5beb4b5aeb26ea79d439f71f4fa5540e12d55bfed27e9f7c",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/329",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/331",
+          "reviewed_head": "a3515050735eef10fca4f8ecb3e660d1996b8033",
+          "integration": "529e9d5129f4c7017884ba7cafc4bb4f74f717d6"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/330",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/332",
+          "reviewed_head": "8d95528e1597187e6d49fb2b5897d4edd86905a8",
+          "integration": "89b5cde8b7774de11ff4c5a692d2078dcc4746ba"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/6.0-writing-rip-files.md",
+          "previous_sha256": "bd842108b39aa98638a65d96d6f80cb41fd8e9efae922af7bb3106afa8633b27",
+          "sha256": "07d49d3c176852689d94638651155c8ed5f5e5842015876d7f6294311fea81b8"
+        },
+        {
+          "path": "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md",
+          "previous_sha256": "da5a4bff5a555007deae89c3e461ac1e948e1e2bdcbe775bf089495c771e20f9",
+          "sha256": "524c670c76b4a8a1619e2bf524867f5bad66cfaac3ab2045e161d207c89b92b3"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-329-authoring-guide-port-and-names.md",
+          "sha256": "59d0b26f229d24a72afd73cce71e797e0f127498368eb79552b8c19c11871286",
+          "title": "Issue #329 — Authoring examples for port switches and filenames",
+          "role": "Clarifies SWITCH_PORT widths, mouse cursor reserve omission and FILE_QUERY filename preparation."
+        },
+        {
+          "path": "version/3.0/research/issue-330-authoring-guide-framing.md",
+          "sha256": "135777d56550623d18dd9bfa29e71c9972898f461cabb3c221c4e19cbf18cddd",
+          "title": "Issue #330 — Scene framing in the authoring guide",
+          "role": "Clarifies scene and article routing, unescaped line endings and the encoded-stream command."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 0,
+      "new_source_units": [
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:34",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:40",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:60",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:69",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:145",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:152",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:80"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:34",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:40",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:60",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:69",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:145",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:152",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:80"
+      ],
+      "states_after_update": {
+        "unreviewed": 987,
+        "context": 2797,
+        "implemented": 5669,
+        "excluded": 272,
+        "pending": 8
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:34",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:40",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:60",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:69",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:145",
+        "version/3.0/ripscrip/6.0-writing-rip-files.md:152",
+        "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:80"
       ]
     }
   ],

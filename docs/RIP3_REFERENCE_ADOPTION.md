@@ -1844,3 +1844,10 @@ Stable commit `defe4e8d5a3af7453d1bba3aac8fffc10affd32e` incorporates
 [PR #328](https://github.com/bbs-land/remote-imaging-protocol/pull/328).
 The three corrected rows describe the behavior covered by the connected
 text-window erase, palette reset and pointer tests.
+
+## Scene authoring, port fields and resource names
+
+Stable commit `8875443b50eb40f9bac243019cdacfe55438b32a` incorporates the two authoring-guide corrections.
+The first reconciles port switches, cursor reserves and FILE_QUERY name preparation.
+The second reconciles TXT and COL framing, line endings and the encoded-stream handler
+with their detailed command chapters. [PR #331](https://github.com/bbs-land/remote-imaging-protocol/pull/331) · [PR #332](https://github.com/bbs-land/remote-imaging-protocol/pull/332)
