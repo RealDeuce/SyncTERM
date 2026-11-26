@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #define CHECK(expression) do { \
 	if (!(expression)) { \
@@ -765,6 +766,13 @@ template_queries(enum st_rip3_canvas canvas)
 	struct fixture f={0};
 	CHECK(create(&f,canvas)==0 && bind_users(&f)==0 && st_rip3_templates_create(&f.templates.slots, false)==0);
 	f.templates.context=&f;f.templates.selection_required=selection_required;f.variables.templates=&f.templates;
+	const struct tm example_date = {.tm_year = 93, .tm_mon = 6, .tm_mday = 18, .tm_wday = 0, .tm_yday = 198};
+	f.variables.local_time = &example_date;
+	CHECK(process(&f, "1\0330000[1:]The day is $DOW$^m[2:]The time is $TIME$^m"
+	    "[3:]The date is $DATE$^m$?1$^m[]HELLO THERE^m($?3$)($?4$)($?1$)", -1) == 0);
+	const char dated[] = "HELLO THERE\r(The date is 07/18/93\rThe day is $DOW$^m\r)()(The day is Sunday\r)";
+	CHECK(f.reply_length == sizeof(dated) - 1 && memcmp(f.reply, dated, sizeof(dated) - 1) == 0);
+	f.reply_length = 0;
 	/* Compose the complete chain before callbacks. The unused feed and the
 	 * first template's D are discarded by the marker-free final template. */
 	CHECK(process(&f,"1\0330000[3:]$D(1)$[4:]FOUR[34]$-=FLAG=bad$",-1)==0);

@@ -1,23 +1,21 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/332",
-  "revision": "8875443b50eb40f9bac243019cdacfe55438b32a",
-  "previous_revision": "defe4e8d5a3af7453d1bba3aac8fffc10affd32e",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/335",
+  "revision": "090ed549c59b0157130e123a3b2ffb6009055779",
+  "previous_revision": "8875443b50eb40f9bac243019cdacfe55438b32a",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PRs #331 and #332.",
-  "archive_sha256": "125fcdeebff0442a5beb4b5aeb26ea79d439f71f4fa5540e12d55bfed27e9f7c",
+  "upstream_state_at_adoption": "Fork stable incorporates #335.",
+  "archive_sha256": "eb1c0730df8f933cad6eafe590a95bac289ca361f9a90d84a7c0a28311b5fd9d",
   "normative_scope": [
-    "Clarifies SWITCH_PORT widths, mouse cursor reserve omission and FILE_QUERY filename preparation.",
-    "Clarifies scene and article routing, unescaped line endings and the encoded-stream command."
+    "Specifies the 76 response bytes for the nested date/day template with slot 4 empty."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/6.0-writing-rip-files.md",
-    "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md"
+    "version/3.0/ripscrip/5.2-templates-and-conditionals.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9726,
+  "matched_source_blocks": 9730,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +949,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 163,
+  "upstream_issue_resolutions": 164,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1924,6 +1922,12 @@
       "sha256": "135777d56550623d18dd9bfa29e71c9972898f461cabb3c221c4e19cbf18cddd",
       "title": "Issue #330 — Scene framing in the authoring guide",
       "role": "Clarifies scene and article routing, unescaped line endings and the encoded-stream command."
+    },
+    {
+      "path": "version/3.0/research/issue-333-template-example-bytes.md",
+      "sha256": "d175b980ba3425a06babdaf08b75b0aee499420f28420fb5d14e43f5599cdd86",
+      "title": "Issue #333 — Exact nested template example bytes",
+      "role": "Specifies the 76 response bytes for the nested date/day template with slot 4 empty."
     }
   ],
   "documents": [
@@ -2089,7 +2093,7 @@
     },
     {
       "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
-      "sha256": "1c5badff17418600629dc3cb8b2efe785511be5fea007e4adf58b778f303ace0"
+      "sha256": "993d53004a16877e9bae66c7f25aa01fffa7e895e4f884b304e6a613e3c623a9"
     },
     {
       "path": "version/3.0/ripscrip/5.3-local-playback.md",
@@ -2200,7 +2204,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "e5edfaf5376d6982ec9fb8d636f4e2ebfb01a236",
+  "previous_ledger_commit": "9b649831384692f488a8008f1581aab82e434ab6",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2275,13 +2279,14 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 987,
-    "context": 2797,
-    "implemented": 5669,
-    "excluded": 272,
-    "pending": 8
+    "unreviewed": 643,
+    "context": 2984,
+    "implemented": 5817,
+    "excluded": 273,
+    "pending": 8,
+    "blocked": 9
   },
-  "source_blocks_at_adoption": 9733,
+  "source_blocks_at_adoption": 9734,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -22082,6 +22087,63 @@
         "version/3.0/ripscrip/6.0-writing-rip-files.md:145",
         "version/3.0/ripscrip/6.0-writing-rip-files.md:152",
         "version/3.0/ripscrip/6.2-asset-delivery-and-storage.md:80"
+      ]
+    },
+    {
+      "previous_revision": "8875443b50eb40f9bac243019cdacfe55438b32a",
+      "revision": "090ed549c59b0157130e123a3b2ffb6009055779",
+      "archive_sha256": "eb1c0730df8f933cad6eafe590a95bac289ca361f9a90d84a7c0a28311b5fd9d",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/333",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/335",
+          "reviewed_head": "33057bf05e809999f795324754736fb0b71523a3",
+          "integration": "fc9b37339b3ae49b2af20f103057c1981881c93c"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/5.2-templates-and-conditionals.md",
+          "previous_sha256": "1c5badff17418600629dc3cb8b2efe785511be5fea007e4adf58b778f303ace0",
+          "sha256": "993d53004a16877e9bae66c7f25aa01fffa7e895e4f884b304e6a613e3c623a9"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-333-template-example-bytes.md",
+          "sha256": "d175b980ba3425a06babdaf08b75b0aee499420f28420fb5d14e43f5599cdd86",
+          "title": "Issue #333 — Exact nested template example bytes",
+          "role": "Specifies the 76 response bytes for the nested date/day template with slot 4 empty."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 136,
+      "new_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:831",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:833",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:835",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:839"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:831",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:833",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:841"
+      ],
+      "states_after_update": {
+        "unreviewed": 643,
+        "context": 2984,
+        "implemented": 5817,
+        "excluded": 273,
+        "pending": 8,
+        "blocked": 9
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:822",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:831",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:833",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:835",
+        "version/3.0/ripscrip/5.2-templates-and-conditionals.md:839"
       ]
     }
   ],

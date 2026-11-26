@@ -1851,3 +1851,8 @@ Stable commit `8875443b50eb40f9bac243019cdacfe55438b32a` incorporates the two au
 The first reconciles port switches, cursor reserves and FILE_QUERY name preparation.
 The second reconciles TXT and COL framing, line endings and the encoded-stream handler
 with their detailed command chapters. [PR #331](https://github.com/bbs-land/remote-imaging-protocol/pull/331) · [PR #332](https://github.com/bbs-land/remote-imaging-protocol/pull/332)
+
+## Nested template example with an empty fourth slot
+
+Stable commit `090ed549c59b0157130e123a3b2ffb6009055779` incorporates #335.
+The updated example preserves its original input and specifies every transmitted byte. The native query test fixes the day and date and compares the complete response. [PR #335](https://github.com/bbs-land/remote-imaging-protocol/pull/335)

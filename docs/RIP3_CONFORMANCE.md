@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-8875443b50eb40f9bac243019cdacfe55438b32a](https://github.com/RealDeuce/remote-imaging-protocol/tree/8875443b50eb40f9bac243019cdacfe55438b32a/version/3.0)
+090ed549c59b0157130e123a3b2ffb6009055779](https://github.com/RealDeuce/remote-imaging-protocol/tree/090ed549c59b0157130e123a3b2ffb6009055779/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -72,10 +72,9 @@ encoded-stream handling. [PR #331](https://github.com/bbs-land/remote-imaging-pr
 Connected template tests cover repeated chaining, a self-reference that remains
 literal after the second pass, and assignments in discarded feeds. A button
 captures an angle reference at click time and evaluates its ordinary variable
-on later use. The nested date/time example reads an undefined slot and gives
-inconsistent CR and parenthesis positions. The fixture checks the documented
-pass rules with fixed values while the example awaits correction.
-[Issue #333](https://github.com/bbs-land/remote-imaging-protocol/issues/333)
+on later use. With July 18, 1993 as the test clock, the original template now matches
+all 76 bytes in the corrected example, including the literal `$DOW$^m` and
+the empty middle parentheses. [PR #335](https://github.com/bbs-land/remote-imaging-protocol/pull/335)
 
 A connected entry handler plays one menu scene for two different fields.
 Its graphics-text argument uses FIELDID to choose the message, and the rendered
