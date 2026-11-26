@@ -51,9 +51,14 @@ pad_load_mapping(struct st_controllers *hub, struct st_pad *pad)
 	if (!hub->directory || path_join_alloc(&path, hub->directory, pad->profile) != 0)
 		return;
 	if (fs_open(&file, path, "rb") == 0) {
-		unsigned char *rows = malloc(pad->count * 4);
-		if (rows && fread(rows, 4, pad->count, file) == pad->count && fgetc(file) == EOF && !ferror(file))
-			(void)apply(pad, rows);
+		unsigned char *rows = calloc(pad->count, 4);
+		if (rows) {
+			size_t bytes = fread(rows, 1, pad->count * 4, file);
+			/* Older profiles end before the optional hat direction bindings. */
+			if ((bytes == pad->count * 4 || bytes == pad->descriptor_fields * 4) && fgetc(file) == EOF
+			    && !ferror(file))
+				(void)apply(pad, rows);
+		}
 		free(rows);
 		fclose(file);
 	}

@@ -3067,11 +3067,24 @@ fn_controller_targets(WrenVM *vm)
 }
 
 static void
+fn_controller_hat_button(WrenVM *vm)
+{
+	struct st_pad *p = mapper_pad(vm);
+	int64_t        field, direction;
+	if (!p || !slot_integer(vm, 2, 0, (int64_t)st_controller_fields(p) - 1, &field)
+	    || !slot_integer(vm, 3, -1, 7, &direction))
+		return;
+	wrenSetSlotDouble(vm, 0, st_controller_hat_button(p, (size_t)field, (int)direction));
+}
+
+static void
 fn_controller_arm(WrenVM *vm)
 {
 	struct st_pad *p = mapper_pad(vm);
-	if (p)
-		st_controller_arm(p);
+	int64_t        target;
+	if (!p || !slot_integer(vm, 2, -1, (int64_t)st_controller_target_count() - 1, &target))
+		return;
+	st_controller_arm(p, (int)target);
 	wrenSetSlotNull(vm, 0);
 }
 
@@ -5476,7 +5489,8 @@ static const struct binding bindings[] = {
     {"Menu",               true,  "controllers",                fn_menu_controllers                   },
     {"Menu",               true,  "controllerFields(_)",        fn_controller_fields                  },
     {"Menu",               true,  "controllerTargets(_,_)",     fn_controller_targets                 },
-    {"Menu",               true,  "armController(_)",           fn_controller_arm                     },
+    {"Menu",               true,  "controllerHatButton(_,_,_)", fn_controller_hat_button              },
+    {"Menu",               true,  "armController(_,_)",         fn_controller_arm                     },
     {"Menu",               true,  "controllerMotion(_)",        fn_controller_motion                  },
     {"Menu",               true,  "bindController(_,_,_,_)",    fn_controller_bind                    },
     {"Menu",               true,  "amigaFonts",                 fn_menu_amiga_fonts                   },

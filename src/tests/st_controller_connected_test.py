@@ -113,6 +113,17 @@ def choose(client, text):
     click_text(client, shot, text)
 
 
+def scroll_to(client, label):
+    client.key("home")
+    for _ in range(48):
+        shot = client.capture()
+        if label in shot.text:
+            click_text(client, shot, label)
+            return
+        client.key("down")
+    raise AssertionError(f"Missing {label!r} in controller inputs")
+
+
 def mapper(executable, reports):
     with fixture(executable, reports=reports) as (client, root):
         def enter(c):
@@ -140,11 +151,8 @@ def mapper(executable, reports):
         choose(client, "Bottom face button")
         client.wait_text("Choose control for Bottom face button")
         check_help("Release held buttons")
-        client.wait_text("Press the button you want to use")
+        client.wait_text("Press a button or push one direction")
         report(client, 0, axis=255)
-        client.wait_text("cannot send Bottom face button")
-        client.key("enter")
-        client.wait_text("Esc cancels")
         report(client, 0, button=64)
         client.wait_for(lambda s: any("Button 7" in row and "Bottom face button" in row for row in s.text.splitlines()))
 
@@ -180,7 +188,60 @@ def mapper(executable, reports):
         client.wait_text("Move Bottom face button")
         client.key("escape")
         client.wait_for(lambda s: any("Button 7" in row and "Bottom face button" in row for row in s.text.splitlines()))
+        report(client, 0, axis=0)
+        scroll_to(client, "Left trigger button")
+        client.wait_text("Choose control for Left trigger button")
+        report(client, 0, button=2, axis=128)
+        client.wait_for(lambda s: any("Button 2" in row and "Left trigger button" in row for row in s.lines))
+        report(client, 0, axis=0)
+        scroll_to(client, "Left trigger axis")
+        client.wait_text("Choose control for Left trigger axis")
+        # Button 2 precedes the axis in the very same report.
+        report(client, 0, button=2, axis=128)
+        client.wait_for(lambda s: any("X axis" in row and "Left trigger axis" in row for row in s.lines))
+        scroll_to(client, "D-pad down")
+        client.wait_text("Choose control for D-pad down")
+        report(client, 0, hat=3)  # Wait for a single direction before assigning.
+        report(client, 0, hat=4)
+        client.wait_for(lambda s: any("D-pad down" in row and "Hat 1 down" in row for row in s.lines))
+        report(client, 0)
+        scroll_to(client, "Press a control to assign")
+        client.wait_text("Esc cancels")
+        report(client, 0, hat=2)
+        client.wait_text("Send Hat 1 (Right) to the BBS as")
+        scroll_to(client, "D-pad right")
+        client.wait_for(lambda s: any("D-pad right" in row and "Hat 1 right" in row for row in s.lines))
         client.close()
+
+        # Use the saved UI assignments in a fresh connected session.
+        with listener() as server:
+            (root / "syncterm.lst").write_text(
+                f"[Gamepad]\nConnectionType=Raw\nAddress=127.0.0.1\nPort={server.getsockname()[1]}\n")
+            with application(executable, root, reports=reports) as session:
+                session.wait_text("Gamepad")
+                session.key("enter")
+                with server.accept()[0] as peer:
+                    peer.settimeout(5)
+                    session.wait_for(lambda s: s.application.get("connected") == 1)
+                    peer.sendall(b"\x1b[=6h")
+                    exact(peer, records((6,)))
+                    session.request(7, b"\x01\x00" + DESCRIPTOR)
+                    caps = [(1,312,0,1), (1,304,0,1), (3,2,0,65534), (3,16,1,2),
+                            (3,17,1,2), (1,544,0,1), (1,547,0,1), (1,545,0,1)]
+                    exact(peer, records((1,1,2,1), *((2,1,*cap) for cap in caps), (4,1)))
+                    report(session, 0, axis=0)
+                    exact(peer, records(*((3,1,t,code,0) for t,code,_,_ in caps), (4,1)))
+                    report(session, 0, button=2, axis=128, hat=3)
+                    exact(peer, records((3,1,1,312,1), (3,1,3,2,32896), (3,1,3,16,2),
+                                        (3,1,3,17,2), (3,1,1,547,1), (3,1,1,545,1), (4,1)))
+                    report(session, 0, button=2, axis=255, hat=4)
+                    exact(peer, records((3,1,3,2,65534), (3,1,3,16,0), (3,1,1,547,0), (4,1)))
+                    report(session, 0, axis=0)
+                    exact(peer, records((3,1,1,312,0), (3,1,3,2,0), (3,1,3,17,0), (3,1,1,545,0), (4,1)))
+
+        # Earlier profiles contain only the ten descriptor fields.
+        profile, = (root / "controllers").glob("*.map")
+        profile.write_bytes(profile.read_bytes()[:10 * 4])
         with application(executable, root, reports=reports) as second:
             second.request(7, b"\x01\x00" + DESCRIPTOR)
             enter(second)

@@ -7,11 +7,12 @@ struct pad_field {
 	char                 label[64];
 	enum st_control_kind kind;
 	unsigned             report, bit, width;
+	size_t               hat_buttons;
 	unsigned             array_slots, array_fields;
 	int64_t              first_selector;
 	bool                 selected, signed_selector;
 	int64_t              minimum, maximum, raw, baseline;
-	bool                 known, armed, inverted;
+	bool                 known, inverted;
 	int                  target;
 };
 
@@ -28,9 +29,9 @@ struct st_pad {
 	uint16_t          payload_bytes[256];
 	char              name[128], profile[96];
 	struct pad_field *fields;
-	size_t            count;
+	size_t            count, descriptor_fields;
 	struct pad_value *reported;
-	int               actuation, actuated_value;
+	int               capture_target, actuation, actuated_value;
 };
 
 struct pad_driver {

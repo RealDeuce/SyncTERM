@@ -1224,6 +1224,9 @@ Select a BBS input such as *Bottom face button*, then press the physical
 button you want to use. Its name appears beside the BBS input. To start with
 a physical control, choose *Press a control to assign*, move it, and pick
 what it should send. *Browse physical controls* lets you select it by name.
+To map a directional hat, select *D-pad up* and push up, then repeat for
+the other directions. Diagonals press both mapped buttons. For an analog
+trigger, select its axis row. For a digital trigger, select its button row.
 Select an assigned input to preview it, replace or clear it, or invert an
 axis. F1 opens help. Assignments are saved as you make them, except in safe
 mode, where they apply only in memory.

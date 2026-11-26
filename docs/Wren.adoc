@@ -5521,12 +5521,18 @@ duplicate platform-dependent enum tables:
 list means zero devices and null means no provider. `Menu.controllerFields(id)`
 returns one row per physical control in descriptor order, containing its
 label, binding index (−1 if unassigned), inversion flag and current preview
-value (null if unknown). Libretro devices expose no editable fields.
+value (null if unknown). Each physical hat also has four button fields appended
+after the descriptor fields, one per cardinal direction. A diagonal presses
+both adjacent directions. Libretro devices expose no editable fields.
 
 `Menu.controllerTargets(id, field)` lists compatible targets as
 `[bindingIndex, label, kind]`. Use field −1 for all targets. Kinds 0, 1, 2
 and 3 denote button, centered axis, one-way axis and hat respectively.
+`Menu.controllerHatButton(id, field, direction)` returns the button field
+for a cardinal direction of a hat, or −1 for a non-hat, diagonal or neutral.
 `Menu.armController(id)` starts identification using the current baseline.
+`Menu.armController(id, target)` captures only fields assignable to that
+target. Pass −1 to capture any control.
 `Menu.controllerMotion(id)` returns `[field, value]`, with field −1 until a
 new actuation. Hat preview and captured values are clockwise directions
 0..7 from up, with −1 for neutral.

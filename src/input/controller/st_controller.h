@@ -53,10 +53,11 @@ uint32_t                        st_controller_id(const struct st_pad *);
 const char                     *st_controller_name(const struct st_pad *);
 size_t                          st_controller_fields(const struct st_pad *);
 const char                     *st_controller_field(const struct st_pad *, size_t index);
+int                             st_controller_hat_button(const struct st_pad *, size_t field, int direction);
 int                             st_controller_binding(const struct st_pad *, size_t index, bool *inverted);
 bool                            st_controller_compatible(const struct st_pad *, size_t index, int target);
 bool                            st_controller_preview(const struct st_pad *, size_t index, int *value);
-void                            st_controller_arm(struct st_pad *);
+void                            st_controller_arm(struct st_pad *, int target);
 int                             st_controller_actuation(const struct st_pad *, int *value);
 int st_controller_bind(struct st_controllers *, struct st_pad *, size_t field, int target, bool invert,
     bool persist);

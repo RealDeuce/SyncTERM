@@ -863,6 +863,8 @@ class SettingsMenu {
         "Its device name (such as Button 7) appears next to Bottom face button.\n\n" +
         "To start with the controller, select Press a control to assign, move it, then choose its BBS input. " +
         "Browse physical controls lets you select it by name instead.\n\n" +
+        "For a D-pad button, select its row and push the hat in one direction. Map each direction you want to send. " +
+        "The Hat rows send both axes of the whole hat.\n\n" +
         "Select an assigned input to test it, change the control, clear it, or reverse an axis. " + saving +
         " Identical controller models with the same report layout share their assignments."
   }
@@ -871,6 +873,7 @@ class SettingsMenu {
     return "# Detect a physical control\n\n" +
         "Release held buttons and let the sticks rest. Press one button, push the directional hat, pull a trigger, or move a stick along one axis. " +
         "For a horizontal axis, move left or right. For a vertical axis, move up or down. " +
+        "For a trigger axis, the controller must report how far you pull it. The Logitech F310 reports trigger presses as buttons in D mode. " +
         "If a control was already held, release it and try again. Esc cancels this step."
   }
 
@@ -933,7 +936,7 @@ class SettingsMenu {
     if (target < 0) {
       var motion = null
       if (target == -1) {
-        motion = detectController_(app, device, "Identify a physical control", "Press a button or move a hat, stick or trigger.")
+        motion = detectController_(app, device, -1, "Identify a physical control", "Press a button or move a hat, stick or trigger.")
         if (motion == null) return null
         field = motion[0]
       } else {
@@ -949,6 +952,16 @@ class SettingsMenu {
         label = "%(label) (%(movementValue_(allowed[0][2], motion[1])))"
       }
       var options = allowed.toList
+      var hatButton = -1
+      if (motion != null && allowed.count > 0 && allowed[0][2] == 3) {
+        hatButton = Menu.controllerHatButton(device, field, motion[1])
+        if (hatButton == null) return null
+        if (hatButton >= 0) {
+          var buttons = Menu.controllerTargets(device, hatButton)
+          if (buttons == null) return null
+          options.addAll(buttons)
+        }
+      }
       options.add([-1, "Preview this physical control..."])
       var current = fields[field][1] < 0 ? null : fields[field][1]
       target = MenuUi.choice(app, "Send %(label) to the BBS as", options, current,
@@ -958,6 +971,7 @@ class SettingsMenu {
         previewController_(app, device, field)
         return null
       }
+      if (hatButton >= 0 && targets[target][2] == 0) field = hatButton
       inverted = target == fields[field][1] && fields[field][2]
     } else {
       var label = targets[target][1].split(" (")[0]
@@ -977,19 +991,13 @@ class SettingsMenu {
         if (action == 2) target = -1
         if (action == 3) inverted = !fields[field][2]
       }
-      var gestures = ["Press the button you want to use.", "Move the stick or axis you want to use.",
-          "Pull the trigger or move the axis you want to use.", "Push the directional hat in any direction."]
-      while (field == null) {
+      var gestures = ["Press a button or push one direction on the hat.", "Move the stick or axis you want to use.",
+          "Pull an analog trigger or move an axis.", "Push the directional hat in any direction."]
+      if (field == null) {
         var gesture = gestures[targets[target][2]]
-        var motion = detectController_(app, device, "Choose control for %(label)", gesture)
+        var motion = detectController_(app, device, target, "Choose control for %(label)", gesture)
         if (motion == null) return null
-        var allowed = Menu.controllerTargets(device, motion[0])
-        if (allowed == null) return null
-        if (allowed.any {|t| t[0] == target }) {
-          field = motion[0]
-        } else {
-          Alert.show(app, "Choose control for %(label)", "%(fields[motion[0]][0]) cannot send %(label). %(gesture)", captureHelp_())
-        }
+        field = motion[0]
       }
     }
 
@@ -1003,8 +1011,8 @@ class SettingsMenu {
     return saved == true ? target : null
   }
 
-  static detectController_(app, device, title, gesture) {
-    Menu.armController(device)
+  static detectController_(app, device, target, title, gesture) {
+    Menu.armController(device, target)
     var pane = PopStatus.show("%(gesture) F1 help  Esc cancels")
     pane.title = title
     app.pushModal(pane)
@@ -1015,7 +1023,7 @@ class SettingsMenu {
       if (ev is KeyEvent && (ev.key == Key.escape || ev.key == Key.quit)) break
       if (ev is KeyEvent && ev.key == Key.f1) {
         Help.show(app, "Controller help", captureHelp_())
-        Menu.armController(device)
+        Menu.armController(device, target)
         app.drawAll_()
         continue
       }

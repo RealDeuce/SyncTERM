@@ -116,7 +116,9 @@ class Menu {
   foreign static controllers
   foreign static controllerFields(device)
   foreign static controllerTargets(device, field)
-  foreign static armController(device)
+  foreign static controllerHatButton(device, field, direction)
+  static armController(device) { armController(device, -1) }
+  foreign static armController(device, target)
   foreign static controllerMotion(device)
   foreign static bindController(device, field, target, inverted)
   foreign static amigaFonts

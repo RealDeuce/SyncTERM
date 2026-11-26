@@ -131,6 +131,35 @@ add_button_array(struct st_pad *pad, const struct globals *g, unsigned bit, cons
 	return true;
 }
 
+/* Append the four button views so descriptor field indices in saved maps stay stable. */
+static bool
+add_hat_buttons(struct st_pad *pad)
+{
+	static const char *const directions[] = {"up", "right", "down", "left"};
+	pad->descriptor_fields                = pad->count;
+	size_t hats                           = 0;
+	for (size_t i = 0; i < pad->descriptor_fields; ++i)
+		hats += pad->fields[i].kind == ST_HAT;
+	if (!hats)
+		return true;
+
+	struct pad_field *fields = realloc(pad->fields, (pad->count + 4 * hats) * sizeof(*fields));
+	if (!fields)
+		return false;
+	pad->fields = fields;
+	for (size_t i = 0; i < pad->descriptor_fields; ++i) {
+		if (fields[i].kind != ST_HAT)
+			continue;
+		fields[i].hat_buttons = pad->count;
+		for (unsigned j = 0; j < 4; ++j) {
+			struct pad_field button = {.kind = ST_BUTTON, .maximum = 1, .target = -1};
+			snprintf(button.label, sizeof button.label, "%.48s %s", fields[i].label, directions[j]);
+			fields[pad->count++] = button;
+		}
+	}
+	return true;
+}
+
 struct st_pad *
 pad_parse(const uint8_t *data, size_t len, unsigned wanted, unsigned *collections)
 {
@@ -266,6 +295,8 @@ pad_parse(const uint8_t *data, size_t len, unsigned wanted, unsigned *collection
 				pad->fields[j].target = -1;
 			}
 	}
+	if (!add_hat_buttons(pad))
+		goto invalid;
 	return pad;
 invalid:
 	free(pad->fields);
@@ -290,7 +321,7 @@ pad_report(struct st_pad *p, const uint8_t *bytes, size_t size, bool numbered)
 	unsigned id = numbered ? *bytes++ : 0;
 	if (size - numbered < p->payload_bytes[id])
 		return;
-	for (size_t i = 0; i < p->count; i++) {
+	for (size_t i = 0; i < p->descriptor_fields; i++) {
 		struct pad_field *f = p->fields + i;
 		if (f->report != id)
 			continue;

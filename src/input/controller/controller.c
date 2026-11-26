@@ -43,8 +43,8 @@ static const struct st_control_target targets[] = {
     {"Left stick vertical",    "ABS_Y",          ST_STICK,   1  },
     {"Right stick horizontal", "ABS_RX",         ST_STICK,   3  },
     {"Right stick vertical",   "ABS_RY",         ST_STICK,   4  },
-    {"Left trigger",           "ABS_Z",          ST_TRIGGER, 2  },
-    {"Right trigger",          "ABS_RZ",         ST_TRIGGER, 5  },
+    {"Left trigger axis",      "ABS_Z",          ST_TRIGGER, 2  },
+    {"Right trigger axis",     "ABS_RZ",         ST_TRIGGER, 5  },
     {"Throttle",               "ABS_THROTTLE",   ST_TRIGGER, 6  },
     {"Rudder",                 "ABS_RUDDER",     ST_STICK,   7  },
     {"Wheel",                  "ABS_WHEEL",      ST_STICK,   8  },
@@ -102,12 +102,28 @@ pad_scale(const struct pad_field *f, enum st_control_kind kind)
 }
 
 static int
-hat_direction(const struct pad_field *f)
+pad_hat_direction(const struct pad_field *f)
 {
 	int64_t n = f->raw - f->minimum, count = f->maximum - f->minimum + 1;
 	if (n < 0 || n >= count || (count != 4 && count != 8))
 		return -1;
 	return (int)(count == 4 ? n * 2 : n);
+}
+
+static int
+pad_hat_axis(int direction, unsigned axis)
+{
+	static const int hat[8][2] = {
+	    {0,  -1},
+            {1,  -1},
+            {1,  0 },
+            {1,  1 },
+            {0,  1 },
+            {-1, 1 },
+            {-1, 0 },
+            {-1, -1}
+        };
+	return direction < 0 ? 0 : hat[direction][axis];
 }
 
 void
@@ -120,12 +136,31 @@ pad_value(struct st_pad *pad, size_t index, int64_t raw)
 	bool known = f->known;
 	f->raw     = raw;
 	f->known   = true;
+	if (f->hat_buttons) {
+		int  direction = pad_hat_direction(f);
+		int  x = pad_hat_axis(direction, 0), y = pad_hat_axis(direction, 1);
+		bool pressed[] = {y < 0, x > 0, y > 0, x < 0};
+		for (unsigned j = 0; j < 4; ++j) {
+			struct pad_field *button = &pad->fields[f->hat_buttons + j];
+			button->known            = true;
+			button->raw              = pressed[j];
+		}
+		/* A diagonal presses two buttons but cannot identify a single binding. */
+		if (known && pad->actuation < 0 && pad->capture_target >= 0
+		    && st_controller_compatible(pad, f->hat_buttons, pad->capture_target)) {
+			int button = st_controller_hat_button(pad, index, direction);
+			if (button >= 0) {
+				pad->actuation      = button;
+				pad->actuated_value = 1;
+			}
+		}
+	}
+
 	if (!known) {
 		f->baseline = raw;
-		f->armed    = true;
 		return;
 	}
-	if (!f->armed || pad->actuation >= 0)
+	if (pad->actuation >= 0 || !st_controller_compatible(pad, index, pad->capture_target))
 		return;
 	bool active = false;
 	switch (f->kind) {
@@ -133,7 +168,7 @@ pad_value(struct st_pad *pad, size_t index, int64_t raw)
 			active = raw != f->minimum;
 			break;
 		case ST_HAT:
-			active = hat_direction(f) >= 0;
+			active = pad_hat_direction(f) >= 0;
 			break;
 		default:
 		{
@@ -141,6 +176,8 @@ pad_value(struct st_pad *pad, size_t index, int64_t raw)
 			int64_t rest      = f->minimum + (f->maximum - f->minimum + 1) / 2;
 			if (f->target >= 0 && targets[f->target].kind == ST_TRIGGER)
 				rest = f->inverted ? f->maximum : f->minimum;
+			else if (pad->capture_target >= 0 && targets[pad->capture_target].kind == ST_TRIGGER)
+				rest = f->baseline;
 			/* Releasing an already tilted stick toward center is not an actuation. */
 			bool directed = f->target >= 0;
 			bool leaving =
@@ -206,17 +243,7 @@ pad_publish(struct st_pad *pad, st_controller_emit emit, void *ctx)
 			event.type                             = target->kind == ST_BUTTON ? 1 : 3;
 			event.minimum = target->kind == ST_STICK ? -32768 : target->kind == ST_HAT ? -1 : 0;
 			event.maximum = target->kind == ST_BUTTON || target->kind == ST_HAT ? 1 : 32767;
-			int              direction = target->kind == ST_HAT ? hat_direction(f) : -1;
-			static const int hat[8][2] = {
-			    {0,  -1},
-                            {1,  -1},
-                            {1,  0 },
-                            {1,  1 },
-                            {0,  1 },
-                            {-1, 1 },
-                            {-1, 0 },
-                            {-1, -1}
-                        };
+			int direction = target->kind == ST_HAT ? pad_hat_direction(f) : -1;
 			for (unsigned j = 0; j < (target->kind == ST_HAT ? 2u : 1u); ++j) {
 				event.code = target->code + j;
 				if (!pass) {
@@ -225,8 +252,7 @@ pad_publish(struct st_pad *pad, st_controller_emit emit, void *ctx)
 				}
 				else {
 					int value = target->kind != ST_HAT ? pad_scale(f, target->kind)
-					            : direction < 0        ? 0
-					                                   : hat[direction][j];
+					                                   : pad_hat_axis(direction, j);
 					publish_value(pad, 2 * (size_t)f->target + j, &event, f->known, value,
 					    emit, ctx, &changed);
 				}
@@ -247,8 +273,9 @@ pad_attach(struct st_controllers *hub, struct st_pad *pad)
 	pad->reported = calloc(2 * TARGET_COUNT, sizeof(*pad->reported));
 	if (!pad->reported)
 		return false;
-	pad->id        = hub->next_id++;
-	pad->actuation = -1;
+	pad->id             = hub->next_id++;
+	pad->capture_target = -1;
+	pad->actuation      = -1;
 	if (pad->source == 1)
 		pad_load_mapping(hub, pad);
 	struct st_pad **tail = &hub->pads;
@@ -456,6 +483,14 @@ st_controller_field(const struct st_pad *p, size_t i)
 }
 
 int
+st_controller_hat_button(const struct st_pad *p, size_t field, int direction)
+{
+	if (field >= p->count || !p->fields[field].hat_buttons || direction < 0 || direction > 6 || direction % 2)
+		return -1;
+	return (int)p->fields[field].hat_buttons + direction / 2;
+}
+
+int
 st_controller_binding(const struct st_pad *p, size_t i, bool *inv)
 {
 	*inv = p->fields[i].inverted;
@@ -481,19 +516,18 @@ st_controller_preview(const struct st_pad *p, size_t i, int *v)
 	const struct pad_field *f = p->fields + i;
 	if (!f->known)
 		return false;
-	*v = f->kind == ST_HAT ? hat_direction(f)
+	*v = f->kind == ST_HAT ? pad_hat_direction(f)
 	                       : pad_scale(f, f->target >= 0 ? targets[f->target].kind : f->kind);
 	return true;
 }
 
 void
-st_controller_arm(struct st_pad *p)
+st_controller_arm(struct st_pad *p, int target)
 {
-	p->actuation = -1;
-	for (size_t i = 0; i < p->count; i++) {
+	p->actuation      = -1;
+	p->capture_target = target;
+	for (size_t i = 0; i < p->count; i++)
 		p->fields[i].baseline = p->fields[i].raw;
-		p->fields[i].armed    = p->fields[i].known;
-	}
 }
 
 int

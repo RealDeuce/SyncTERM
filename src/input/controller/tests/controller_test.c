@@ -63,14 +63,15 @@ mapping(void)
 	CHECK(pad_attach_collections(hub, &a, descriptor, sizeof descriptor, 10, 20, "Test"));
 	CHECK(pad_attach_collections(hub, &b, descriptor, sizeof descriptor, 10, 20, "Test"));
 	struct st_pad *p = a.pads[0], *twin = b.pads[0];
-	CHECK(p->count == 4 && p->id != twin->id && p->fields[0].target == -1 && p->fields[1].target == -1);
+	CHECK(p->descriptor_fields == 4 && p->count == 8 && p->id != twin->id && p->fields[0].target == -1
+	      && p->fields[1].target == -1);
 	struct events out = {0};
 	pad_publish(p, record, &out);
 	CHECK(out.count == 5 && out.records[0].record == ST_PAD_ADD && out.records[4].record == ST_PAD_FRAME);
 	uint8_t sample[] = {3, 1, 128, 8};
 	pad_input_collections(&a, sample, sizeof sample, record, &out);
 	CHECK(out.count == 9 && out.records[5].value == 0 && out.records[8].record == ST_PAD_FRAME);
-	st_controller_arm(p);
+	st_controller_arm(p, -1);
 	int value;
 	sample[2] = 132;
 	pad_report(p, sample, sizeof sample, true);
@@ -86,15 +87,15 @@ mapping(void)
 	CHECK(out.records[2].type == 1 && out.records[2].code == 304);
 	CHECK(st_controller_bind(hub, p, 0, south, false, false) == 0 && twin->fields[1].target == -1);
 	CHECK(st_controller_bind(hub, p, 0, pad_target(3, 0), false, false) < 0);
-	st_controller_arm(p);
+	st_controller_arm(p, -1);
 	sample[3] = 3;
 	pad_report(p, sample, sizeof sample, true);
 	CHECK(st_controller_actuation(p, &value) == 3 && value == 3);
-	st_controller_arm(p);
+	st_controller_arm(p, -1);
 	sample[2] = 255;
 	pad_report(p, sample, sizeof sample, true);
 	CHECK(st_controller_actuation(p, &value) == 2 && value == 32767);
-	st_controller_arm(p);
+	st_controller_arm(p, -1);
 	sample[2] = 128;
 	pad_report(p, sample, sizeof sample, true);
 	CHECK(st_controller_actuation(p, &value) == -1);

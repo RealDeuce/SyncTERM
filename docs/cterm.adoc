@@ -974,7 +974,9 @@ never reused during a connection. Reassigning a control removes the old
 device and announces its new capabilities under a fresh ID.
 
 * Type 1 (`EV_KEY`) uses literal 0 for released and 1 for pressed. Held
-  buttons do not repeat. A button-based D-pad uses `BTN_DPAD_*`.
+  buttons do not repeat. A button-based D-pad uses `BTN_DPAD_*`. Individual
+  directions of a hat can also be assigned to these buttons. A diagonal
+  presses both adjacent directions, independently of the hat axis reports.
 * Type 3 (`EV_ABS`) uses scaled signed values. Sticks range from −32768
   through 32767 with zero at center. Triggers range from 0 through 32767
   with zero at rest. Each hat has separate horizontal and vertical axes
