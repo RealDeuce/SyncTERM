@@ -122,17 +122,17 @@ pipeline(enum st_rip3_canvas canvas)
 	CHECK(f.read == strlen("before\r\n!|3D0001|") && f.reads == f.read);
 	CHECK(f.text_length == 8 && memcmp(f.text,"before\r\n",8) == 0);
 	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.base_math == 36);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16000000);
 	CHECK(append(&f,"after \xb3\r\n\xe2\x98\x83\r\n!|3D0|J1S\r") == 0);
-	f.now = 16666666;
+	f.now = 15999999;
 	st_rip3_input_process(f.host.input,1024);
 	CHECK(f.read == strlen("before\r\n!|3D0001|") && f.reads == f.read);
 	f.now++;
 	st_rip3_input_process(f.host.input,1024);
 	CHECK(f.read == strlen("before\r\n!|3D0001|J1S|3D0001|"));
 	CHECK(st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.base_math == 64);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667);
-	f.now += 16666667;
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16000000);
+	f.now += 16000000;
 	st_rip3_input_process(f.host.input,1024);
 	const char expected[] = "before\r\nafter \xb3\r\n\xe2\x98\x83\r\n";
 	CHECK(f.read == f.length && f.errors == 0 && st_rip3_input_wait_ns(f.host.input) == 0);
@@ -152,9 +152,9 @@ fields(void)
 	CHECK(st_rip3_environments_set_playback_rate(f.host.environments, 2399) == 0);
 	environment.graphics_style = 7; environment.port = 9;
 	const struct { unsigned radix; const char *command; uint64_t duration; } cases[] = {
-		{36,"3D0",0},{36,"3D0000",0},{36,"3D1",16666667},{36,"3D0001 tail",16666667},
-		{36,"3D001O",1000000000},{36,"3D002D",1416666667},
-		{36,"3DZZZZ",27993583333334},{64,"3Da",600000000},
+		{36,"3D0",0},{36,"3D0000",0},{36,"3D1",16000000},{36,"3D0001 tail",16000000},
+		{36,"3D001O",1000000000},{36,"3D002D",1416000000},
+		{36,"3DZZZZ",27993583000000},{64,"3Da",600000000},
 		{64,"3D&&&&",279620250000000},
 	};
 	for (size_t i = 0; i < sizeof(cases)/sizeof(cases[0]); i++) {
@@ -193,7 +193,7 @@ recovery(void)
 	CHECK(append(&f,"!|J1S\r") == 0);
 	st_rip3_input_process(f.host.input,1024);
 	CHECK(f.read < f.length);
-	f.now = 16666667;
+	f.now = 16000000;
 	st_rip3_input_process(f.host.input,1024);
 	CHECK(f.read == f.length && st_rip3_environments_get(f.host.environments,0,&environment) == 0 && environment.base_math == 64);
 	CHECK(append(&f,"!|3D003m|J10\r") == 0); /* 240 ticks in base 64. */

@@ -44,9 +44,9 @@ st_rip3_input_delay(struct st_rip3_input *input, uint32_t ticks)
 {
 	if (input == NULL) return;
 	input->blocked = NULL;
-	/* UINT32_MAX * 1e9 + 59 fits uint64_t. All decoded four-digit fields
-	 * fit uint32_t, while the typed service supports its complete range. */
-	input->duration = ((uint64_t)ticks*UINT64_C(1000000000)+59)/60;
+	/* Both RIP_DELAY and $D use whole milliseconds, truncated after scaling. */
+	uint64_t milliseconds = (uint64_t)ticks * 1000 / 60;
+	input->duration = milliseconds * UINT64_C(1000000);
 	if (input->duration != 0) input->started = input->source.now_ns(input->source.context);
 }
 

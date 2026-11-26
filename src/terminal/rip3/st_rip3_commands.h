@@ -386,7 +386,7 @@ struct st_rip3_command_sink {
  * respecting record protection and preserving all other values/references.
  * Playback pacing and reset persistence require future playback orchestration.
  * 3D validates one to four current-radix tick digits and starts the bound input
- * gate for ticks/60 seconds. It reads ENV without editing even protected records.
+ * gate for floor(ticks * 1000 / 60) milliseconds. ENV is read without edits.
  * The gate stops subsequent queued RIP/text delivery without blocking this call;
  * the owner pumps its source when ready. No gate binding means unsupported.
  * Immediate 1ESC mode zero uses the bound owned evaluator with zero reserved

@@ -65,10 +65,10 @@ queue_test(void)
 	CHECK(f.reads == 0 && f.count == 0);
 	st_rip3_input_process(f.input,32);
 	CHECK(f.read == 2 && f.count == 2 && f.reads == 2);
-	CHECK(st_rip3_input_wait_ns(f.input) == 16666667);
+	CHECK(st_rip3_input_wait_ns(f.input) == 16000000);
 	/* More arrivals stay owned by the source, with no read-ahead. */
 	f.queue[f.length++] = 'd';
-	f.now += 16666666;
+	f.now += 15999999;
 	st_rip3_input_process(f.input,32);
 	CHECK(f.reads == 2 && f.count == 2 && st_rip3_input_wait_ns(f.input) == 1);
 	f.now++;
@@ -86,8 +86,8 @@ timing(void)
 {
 	struct fixture f = {0};
 	const struct { uint32_t ticks; uint64_t duration; } cases[] = {
-		{0,0},{1,16666667},{2,33333334},{3,50000000},{60,1000000000},
-		{85,1416666667},{16777215,279620250000000},
+		{0,0},{1,16000000},{2,33000000},{3,50000000},{60,1000000000},
+		{85,1416000000},{3900,65000000000},{3901,65016000000},{16777215,279620250000000},
 		{UINT32_MAX,71582788250000000},
 	};
 	CHECK(create(&f) == 0);
@@ -106,8 +106,8 @@ timing(void)
 	f.now = UINT64_MAX-4;
 	st_rip3_input_delay(f.input,1);
 	f.now = 5;
-	CHECK(st_rip3_input_wait_ns(f.input) == 16666657);
-	f.now = 16666662;
+	CHECK(st_rip3_input_wait_ns(f.input) == 15999990);
+	f.now = 15999995;
 	CHECK(st_rip3_input_wait_ns(f.input) == 0);
 	st_rip3_input_delay(f.input,60);
 	CHECK(st_rip3_input_wait_ns(f.input) == 1000000000);

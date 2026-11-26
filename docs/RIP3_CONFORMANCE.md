@@ -2030,11 +2030,11 @@ the three inherited file descriptors in both new fixtures. All 93 frozen files
 and 41 legacy helper definitions remain unchanged, as do the pin, 6548 source
 blocks and 62 document identities. Temporary verification logs were removed.
 
-`3D` now decodes one to four current-radix digits and starts an explicitly bound
-input gate for ticks/60 seconds. The duration rounds upward to nanoseconds, with
-zero acting immediately. ENV is read without edits, including protected records;
-malformed/commented or unbound commands recover through the existing void
-processor. The distinct macro D variable and baud-rate pacing remain separate.
+`3D` decodes one to four current-radix digits. Both `3D` and `$D(n)$`
+hold subsequent input for `floor(ticks × 1000 / 60)` milliseconds. One tick
+targets 16 ms, 60 ticks target one second, and 3,901 ticks target 65,016 ms.
+Zero resumes immediately. The wire command reads the current ENV settings
+and handles malformed input inside the parser.
 
 `st_rip3_input` is a nonblocking, budgeted source pump owned by one session thread.
 The client owns the receive/file queue and retains bytes until the pump takes

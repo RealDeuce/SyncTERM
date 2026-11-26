@@ -239,10 +239,10 @@ prompts_and_delays(void)
 	CHECK(st_rip3_session_create(&f.session,&options)==0);
 	CHECK(append(&f,"!|1\0330000a$D(1)$$*=NEW$z|c0C|X0202\rraw\r\n")==0 && pump(&f)==0);
 	size_t stopped=f.read;unsigned reads=f.reads;
-	CHECK(st_rip3_session_pending(f.session) && f.reply_length==0 && st_rip3_session_wait_ns(f.session)==16666667);
+	CHECK(st_rip3_session_pending(f.session) && f.reply_length==0 && st_rip3_session_wait_ns(f.session)==16000000);
 	struct st_rip3_session_prompt prompt;
 	CHECK(!st_rip3_session_prompt(f.session,&prompt) && pump(&f)==0 && f.reads==reads);
-	f.now=16666667;CHECK(pump(&f)==0 && f.read==stopped && st_rip3_session_prompt(f.session,&prompt)
+	f.now=16000000;CHECK(pump(&f)==0 && f.read==stopped && st_rip3_session_prompt(f.session,&prompt)
 	    && strcmp(prompt.reference->name,"NEW")==0 && prompt.initial->length==0);
 	st_rip3_session_respond(f.session,NULL,0,true);
 	CHECK(st_rip3_session_prompt(f.session,&prompt) && f.errors==1 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
@@ -2100,7 +2100,7 @@ hard_reset_lifetime(void)
 	CHECK(st_rip3_session_mouse(f.session,20,20,true) && pump(&f)==0);
 	CHECK(st_rip3_session_mouse(f.session,20,20,false) && pump(&f)==0);
 	CHECK(st_rip3_session_pending(f.session) && f.reply_length==0);
-	f.now+=UINT64_C(16666667);
+	f.now+=UINT64_C(16000000);
 	CHECK(pump(&f)==0 && f.reply_length==10 && memcmp(f.reply,"GROUP:7::7",10)==0 && f.errors==0);
 	CHECK(!st_rip3_session_mouse_active(f.session));
 	CHECK(query(&f,"$?2$","")==0);

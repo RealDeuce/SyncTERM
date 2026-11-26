@@ -36,8 +36,7 @@ int st_rip3_input_create(struct st_rip3_input **result,
 void st_rip3_input_destroy(struct st_rip3_input *input);
 /* Cancel the gate only. The borrowed queue/parser are neither read nor reset. */
 void st_rip3_input_reset(struct st_rip3_input *input);
-/* Replace the gate with ticks/60 seconds starting at the current clock value.
- * Nanosecond duration rounds upward, so a command cannot resume early. Zero
+/* Replace the gate with floor(ticks * 1000 / 60) milliseconds from now. Zero
  * clears the gate. Consecutive in-stream commands cannot overlap: the pump
  * checks the gate before taking the next byte. */
 void st_rip3_input_delay(struct st_rip3_input *input, uint32_t ticks);

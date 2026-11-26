@@ -185,10 +185,10 @@ pipeline(enum st_rip3_canvas canvas, const char *width)
 	CHECK(create(&f,canvas) == 0);
 	CHECK(append(&f,first) == 0 && append(&f,"J1S|1\0330000$RESX$|1\0330000$D(60)$|1\0330000$TERMINFO(NAME)$\r") == 0);
 	st_rip3_input_process(f.host.input,2048);
-	CHECK(f.read == strlen(first) && f.reply_length == 0 && st_rip3_input_wait_ns(f.host.input) == 16666667);
+	CHECK(f.read == strlen(first) && f.reply_length == 0 && st_rip3_input_wait_ns(f.host.input) == 16000000);
 	CHECK(append(&f,"raw \xb3\r\n\xe2\x98\x83\r\n") == 0);
 	unsigned reads = f.reads;
-	f.now = 16666666; st_rip3_input_process(f.host.input,2048);
+	f.now = 15999999; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.reads == reads && f.reply_length == 0);
 	f.now++;
 	st_rip3_input_process(f.host.input,2048);
@@ -213,13 +213,13 @@ fields(void)
 	struct fixture f = {0};
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480) == 0);
 	const struct { const char *text; uint64_t duration; } valid[] = {
-		{"$D(1)$",16666667},{"$d(2)$",33333334},{"$D(3)$",50000000},
+		{"$D(1)$",16000000},{"$d(2)$",33000000},{"$D(3)$",50000000},
 		{"$D(60)$",1000000000},{"$D(000000000060)$",1000000000},
-		{"$D(65535)$",1092250000000},{"$D(65536)$",1092266666667},
-		{"$D(0)$",0},{"$D(1.0)$",16666667},{"$D(1A)$",16666667},
+		{"$D(65535)$",1092250000000},{"$D(65536)$",1092266000000},
+		{"$D(0)$",0},{"$D(1.0)$",16000000},{"$D(1A)$",16000000},
 		/* Leading zeros count against the documented 20-byte argument slot,
 		 * not the old decoder's artificial twelve-byte ceiling. */
-		{"$D(0000000000001)$",16666667},{"$D(00000000000000000001)$",16666667},
+		{"$D(0000000000001)$",16000000},{"$D(00000000000000000001)$",16000000},
 	};
 	for (size_t i = 0; i < sizeof(valid)/sizeof(valid[0]); i++) {
 		CHECK(reference(&f,valid[i].text,-1) == 0 && st_rip3_input_wait_ns(f.host.input) == valid[i].duration);
@@ -241,7 +241,7 @@ fields(void)
 	CHECK(st_rip3_builtin_reference_parse(&decoded,(const uint8_t *)"$D(1)$",6) == 0);
 	CHECK(st_rip3_host_variables_execute(&f.variables,&decoded,&output,0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(output == 'K' && st_rip3_input_wait_ns(f.host.input) == 1000000000);
-	CHECK(reference(&f,"$D(1)$",-1) == 0 && st_rip3_input_wait_ns(f.host.input) == 16666667);
+	CHECK(reference(&f,"$D(1)$",-1) == 0 && st_rip3_input_wait_ns(f.host.input) == 16000000);
 	st_rip3_input_reset(f.host.input);
 	CHECK(reference(&f,"$TERMINFO(NAME)$",-1) == 0 && f.reply_length == 7 && memcmp(f.reply,"Fixture",7) == 0);
 	destroy(&f);
@@ -297,12 +297,12 @@ recovery(void)
 	CHECK(f.errors == 0);
 	CHECK(f.host_errors == 0);
 	CHECK(f.replies == 0 && f.reply_length == 0);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667 && f.read < f.length);
-	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16000000 && f.read < f.length);
+	f.now = 16000000; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.errors == 0 && f.host_errors == 1 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(f.replies == 1 && f.reply_length == 7 && memcmp(f.reply,"Fixture",7) == 0);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667 && f.read < f.length);
-	f.now += 16666667; st_rip3_input_process(f.host.input,2048);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16000000 && f.read < f.length);
+	f.now += 16000000; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read == f.length && f.replies == 2 && f.reply_length == 10 && memcmp(f.reply,"Fixture640",10) == 0);
 	destroy(&f);
 	return 0;
@@ -317,13 +317,13 @@ compound(enum st_rip3_canvas canvas, const char *width)
 	st_rip3_input_process(f.host.input,2048);
 	const size_t stopped = f.read;
 	CHECK(f.reply_length == 0 && st_rip3_query_pending(f.host.query));
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667);
-	f.now = 16666666; st_rip3_input_process(f.host.input,2048);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16000000);
+	f.now = 15999999; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read == stopped && f.reply_length == 0);
 	f.now++; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read == stopped && f.reply_length == 0);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 33333334);
-	f.now += 33333333; st_rip3_input_process(f.host.input,2048);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 33000000);
+	f.now += 32999999; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read == stopped && st_rip3_query_pending(f.host.query));
 	f.now++; st_rip3_input_process(f.host.input,2048);
 	const uint8_t tail[] = {'c','^','@',13,'`','^',7,27,'[','A',27,'[','K'};
@@ -347,19 +347,19 @@ owned_and_recovery(void)
 	CHECK(process(&f,query,-1) == 0 && st_rip3_query_pending(f.host.query));
 	memset(query,'?',sizeof(query)-1); /* The caller's body can be reused immediately. */
 	CHECK(process(&f,"1\0330000replace",ST_RIP3_COMMAND_OPERATION_FAILED) == 0);
-	CHECK(f.reply_length == 0 && st_rip3_input_wait_ns(f.host.input) == 16666667);
+	CHECK(f.reply_length == 0 && st_rip3_input_wait_ns(f.host.input) == 16000000);
 	CHECK(append(&f,"later\r\n") == 0);
-	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
+	f.now = 16000000; st_rip3_input_process(f.host.input,2048);
 	const char expected[] = "owned \xb3 \xe2\x98\x83" "end";
 	CHECK(f.reply_length==0 && f.host_errors==1 && f.host_kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(st_rip3_query_pending(f.host.query) && f.read==0);
-	CHECK(st_rip3_input_wait_ns(f.host.input)==16666667); /* Final delay precedes transmission too. */
-	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	CHECK(st_rip3_input_wait_ns(f.host.input)==16000000); /* Final delay precedes transmission too. */
+	f.now+=16000000;st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read==f.length && f.text_length==7 && !st_rip3_query_pending(f.host.query));
 	CHECK(f.reply_length==sizeof(expected)-1 && memcmp(f.reply,expected,sizeof(expected)-1)==0);
 	CHECK(process(&f,"1\0330000$D(1)$cancelled",-1) == 0);
 	st_rip3_query_cancel(f.host.query);
-	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667);
+	CHECK(st_rip3_input_wait_ns(f.host.input) == 16000000);
 	st_rip3_input_reset(f.host.input);
 	f.reply_length = 0;
 	CHECK(process(&f,"1\0330000after",-1) == 0 && f.reply_length == 5 && memcmp(f.reply,"after",5) == 0);
@@ -387,8 +387,8 @@ active_order(void)
 	CHECK(append(&f,"!|1\0330000$BASEMATH(CUR,64)$$D(1)$$BASEMATH$$BASEMATH(CUR,36)$$BASEMATH$|J1S\r") == 0);
 	st_rip3_input_process(f.host.input,2048);
 	CHECK(st_rip3_environments_get(f.host.environments,0,&value) == 0 && value.base_math == 64);
-	CHECK(f.reply_length == 0 && st_rip3_input_wait_ns(f.host.input) == 16666667);
-	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
+	CHECK(f.reply_length == 0 && st_rip3_input_wait_ns(f.host.input) == 16000000);
+	f.now = 16000000; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.reply_length == 4 && memcmp(f.reply,"6436",4) == 0 && f.read == f.length);
 	CHECK(st_rip3_environments_get(f.host.environments,0,&value) == 0 && value.base_math == 64);
 	CHECK(f.errors == 0 && f.host_errors == 0);
@@ -575,8 +575,8 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	st_rip3_query_process(f.host.query,1);
 	CHECK(st_rip3_query_pending(f.host.query) && f.reply_length==0);
 	st_rip3_query_process(f.host.query,64);
-	CHECK(f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
-	f.now+=16666667;st_rip3_query_process(f.host.query,64);
+	CHECK(f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16000000);
+	f.now+=16000000;st_rip3_query_process(f.host.query,64);
 	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==1 && f.reply[0]==13);
 	f.reply_length=0;
 	/* Delays, prompts and subsequent source bytes share one ordered pump. */
@@ -585,7 +585,7 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	size_t stopped=f.read;unsigned reads=f.reads;
 	CHECK(f.reply_length==0 && st_rip3_query_pending(f.host.query));
 	CHECK(st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
-	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	f.now+=16000000;st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read==stopped && f.reads==reads && strcmp(st_rip3_user_variables_prompt(f.variables.user_variables)->name,"NEW")==0);
 	st_rip3_input_process(f.host.input,2048);
 	CHECK(f.reads==reads && f.reply_length==0);
@@ -595,8 +595,8 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	st_rip3_user_variables_respond(f.variables.user_variables,NULL,0,false);
 	st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read==stopped && f.reads==reads && f.reply_length==0
-	    && user_value(f.session,"NEW","")==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
-	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	    && user_value(f.session,"NEW","")==0 && st_rip3_input_wait_ns(f.host.input)==16000000);
+	f.now+=16000000;st_rip3_input_process(f.host.input,2048);
 	CHECK(f.read==f.length && f.reply_length==6+strlen(width) && memcmp(f.reply,"aNULLz",6)==0 && memcmp(f.reply+6,width,strlen(width))==0
 	    && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0 && !st_rip3_query_pending(f.host.query));
 	struct st_rip3_environment environment;
@@ -794,7 +794,7 @@ template_queries(enum st_rip3_canvas canvas)
 	memset(owned,'?',sizeof(owned)-1);
 	CHECK(append(&f,"post\r\n")==0);unsigned reads=f.reads;
 	st_rip3_input_process(f.host.input,2048);CHECK(f.reads==reads && f.reply_length==0);
-	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	f.now+=16000000;st_rip3_input_process(f.host.input,2048);
 	CHECK(!st_rip3_query_pending(f.host.query) && f.reply_length==5 && memcmp(f.reply,"after",5)==0
 	    && template_value(&f,3,"after")==0 && f.text_length==6 && memcmp(f.text,"post\r\n",6)==0);
 	f.reply_length=0;errors=f.host_errors;st_rip3_templates_test_fail=true;
@@ -870,8 +870,8 @@ embedding_limits(enum st_rip3_canvas canvas)
 	 * one final X before D later frees its own six source bytes. */
 	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"ABCDE",5)==0);
 	memcpy(bytes,"$?3$$D(1)$",10);memset(bytes+10,'X',4086);
-	CHECK(capped_query(&f,bytes,4096)==0 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
-	f.now+=16666667;st_rip3_query_process(f.host.query,64);
+	CHECK(capped_query(&f,bytes,4096)==0 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16000000);
+	f.now+=16000000;st_rip3_query_process(f.host.query,64);
 	CHECK(f.reply_length==4090 && memcmp(f.reply,"ABCDE",5)==0);
 	for (size_t i=5; i<f.reply_length; i++) CHECK(f.reply[i]=='X');
 	/* Second-pass insertion, and permanent loss after later shrinking. */
@@ -998,11 +998,11 @@ local_queries(void)
 	const char deferred[]="$XYM(DEVICE)$";
 	CHECK(st_rip3_variables_set(f.session,"SECOND",6,(const uint8_t *)deferred,sizeof(deferred)-1)==0);
 	CHECK(process(&f,"1\0330000$SHIFT$/$D(1)$$SHIFT$/$CTRL$/$MSTAT$/$COLORS$/$XYM$/$&SECOND$",-1)==0
-	    && keys.calls==1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16666667);
+	    && keys.calls==1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==16000000);
 	CHECK(append(&f,"raw\r\n")==0);st_rip3_input_process(f.host.input,2048);CHECK(f.read==0);
 	keys.shift=false;keys.ctrl=true;keys.mouse=false;colors=16777216;position=(struct st_rip3_point){297,321};
 	buttons=(struct st_rip3_pointer_buttons){.right=true};
-	f.now=16666667;st_rip3_input_process(f.host.input,2048);
+	f.now=16000000;st_rip3_input_process(f.host.input,2048);
 	const char *expected="1/0/1/NO/16777216/0000:0000:100/0297:0321:001";
 	CHECK(keys.calls==3 && f.reply_length==strlen(expected) && memcmp(f.reply,expected,strlen(expected))==0
 	    && f.errors==0 && f.host_errors==0 && f.read==f.length && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0);
@@ -1175,7 +1175,7 @@ allocation_and_budget(void)
 	CHECK(process(&f,"1\0330000$D(1)$$TERMINFO(NAME)$",-1) == 0);
 	const struct st_rip3_terminal_identity later = {"Later","Vendor","Version"};
 	f.variables.identity = &later;
-	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
+	f.now = 16000000; st_rip3_input_process(f.host.input,2048);
 	CHECK(f.reply_length == 135 && memcmp(f.reply+130,"Later",5) == 0 && !st_rip3_query_pending(f.host.query));
 	destroy(&f);
 	st_rip3_query_cancel(NULL); st_rip3_query_process(NULL,1); st_rip3_query_destroy(NULL);
@@ -1219,9 +1219,9 @@ angle_queries(enum st_rip3_canvas canvas, const char *width)
 	CHECK(!st_rip3_query_pending(f.host.query) && st_rip3_user_variables_state(f.variables.user_variables)==ST_RIP3_USER_VARIABLE_IDLE
 	    && user_value(f.session,"UNFINISHED",NULL)==0 && f.reply_length==0);
 	f.reply_length=0;CHECK(process(&f,"1\0330000<<D(1)>><<TERMINFO(NAME)>>",-1)==0
-	    && st_rip3_input_wait_ns(f.host.input)==16666667 && st_rip3_query_pending(f.host.query));
+	    && st_rip3_input_wait_ns(f.host.input)==16000000 && st_rip3_query_pending(f.host.query));
 	const struct st_rip3_terminal_identity later={"Later","Tests","0"};f.variables.identity=&later;
-	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
+	f.now+=16000000;st_rip3_input_process(f.host.input,2048);
 	CHECK(f.reply_length==5 && memcmp(f.reply,"Later",5)==0 && !st_rip3_query_pending(f.host.query));
 	unsigned errors=f.host_errors;f.reply_length=0;
 	CHECK(process(&f,"1\0330000$-=FLAG=wrong$<<IF N>>",-1)==0 && f.host_errors==errors+1
