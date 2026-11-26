@@ -566,6 +566,14 @@ def run(args):
                            + query(b"alive", at_cursor=True), b"alive")
         assert frame.primary == before.primary and frame.alternate == before.alternate
 
+        t.case("rip3-counted-polygon-continuation-keeps-the-declared-vertex-count")
+        frame = t.exchange(line(b"E", b"S0102", b"N00", b"p040A0A2S0A2S0M0A\\\r\n0M",
+                                b"S0104", b"p04000A000A0M0M2S0M2S000A00\\\r\n0A",
+                                b"c0F", b"X2T0G") + query(b"alive", at_cursor=True), b"alive")
+        assert pixel(frame, 50, 16) == 0x00aa00
+        assert pixel(frame, 101, 16) == 0xffffff
+        assert all(pixel(frame, x, y) != 0xaa0000 for y in range(24) for x in range(102))
+
         t.case("rip3-typed-bezier-continuation-and-recovery")
         frame = t.exchange(line(b"c02", b"t02.\\\r\n0." + number(131, 2) + b"0"
                                 + number(14, 2) + number(131, 2) + b"\\",

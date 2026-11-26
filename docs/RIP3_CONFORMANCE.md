@@ -89,6 +89,13 @@ six prompts. A required, positioned prompt using the reserved PASSWORD name
 returns empty. The editable example uses TESTCODE instead.
 [PR #338](https://github.com/bbs-land/remote-imaging-protocol/pull/338)
 
+Connected header tests split a malformed three-segment header across writes.
+The final invalid digit prevents its HARD reset and button deletion. A query
+chained after the error observes the original slots. The valid header prunes
+only the unprotected button and selects environment zero. Continued polygon
+tests check both four complete vertices and excess coordinate digits, with a
+subsequent point confirming parser recovery.
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask

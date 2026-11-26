@@ -397,6 +397,19 @@ def run(args, width, height):
             values(b'$TWW$:$TWH$:$TWFONT$entry', b'80:43:entry')
             assert frame.metadata['plane_width'] == width and frame.metadata['plane_height'] == height
         wire(b'*')
+        if width == 640:
+            t.case('rip3-mixed-header-validates-all-segments-before-reset-or-deletion')
+            values(b'$CUR(ENV,9)$$COORDSIZE(0,3)$$CUR(BUT,4)$$PROT(BUT,4)$$CUR(BUT,5)$')
+            # A malformed final RGB digit rejects even the preceding HARD flag.
+            send(b'\x01|h0100010300107015000')
+            frame = t.exchange(b'20?\\|1\x1b0000$CUR(ENV)$:$COORDSIZE(0)$:$CUR(BUT)$:$INUSE(BUT,5)$\r\n',
+                               b'9:3:5:1')
+            assert frame.application['connected'] == 1
+            # The published three-segment example prunes buttons and switches
+            # environments. Its coordinate-width and RGB operands are unused.
+            wire(b'h01000003001070150002028')
+            values(b'$CUR(ENV)$:$COORDSIZE$:$CUR(BUT)$:$INUSE(BUT,4)$:$INUSE(BUT,5)$', b'0:3:0:1:0')
+            values(b'$UNPROT(BUT,4)$$COORDSIZE(CUR,2)$')
         t.case(f'rip3-header-global-and-segment-order-{width}x{height}')
         values(b'$CUR(ENV,4)$$BASEMATH(CUR,64)$$CUR(TW,3)$$CUR(PAL,7)$$CUR(PORT,8)$$CUR(STYLE,9)$$CUR(BUT,6)$')
         wire(b'h0100080150002220')
@@ -475,7 +488,7 @@ def run(args, width, height):
         click(1)
         click(0)
         values(b'alive-while-locked', b'alive-while-locked')
-        frame = wire(b'# end scene', b'\n')
+        frame = wire(b'# end scene|#|#', b'\n')
         assert frame.metadata['pointer_shape'] == 0
         click(1)
         click(0)
