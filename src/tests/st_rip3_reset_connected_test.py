@@ -16,6 +16,16 @@ from syncterm_fixture import receive
 
 
 def default_palette(t, capture, values, width, height):
+    t.case('rip3-soft-and-hard-palette-selection')
+    palette = b'$CUR(PAL)$:$INUSE(PAL,5)$'
+    for reset, expected in ((b'*', b'5:0'), (b'h01000200', b'5:0'),
+                            (b'h01000A00', b'0:0')):
+        capture(b'\x01|2A500|a0104|' + reset + b'\r\n'
+                + query(palette, at_cursor=True), expected)
+        capture(b'\x01|2A500\r\n' + query(palette + b':$PALENTRY(5,1)$', at_cursor=True),
+                b'5:1:6;0:0:42')
+    values(b'$RESET(HARD)$' + palette, b'0:0')
+
     t.case('rip3-live-default-drawing-palette')
     # Six-bit components from the reference table. The cube is indexed with
     # blue varying fastest, including entries 254 and 255 on the final row.

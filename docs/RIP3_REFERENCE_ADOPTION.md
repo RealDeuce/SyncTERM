@@ -1826,3 +1826,14 @@ The existing connected three-digit UltraNum fixture covers the published
 32768 × 65535 example and rejection of 65536 on either axis. The Git
 archive SHA-256 is `aa09d89b27339941b28b75fc231325f572eba9e4d8928a3cf8bdc5e9c3bb0f60`.
 [Stable revision](https://github.com/RealDeuce/remote-imaging-protocol/tree/43c3d91162b0573f06e1e17e3db861f535455fe6) · [PR #322](https://github.com/bbs-land/remote-imaging-protocol/pull/322)
+
+## Classic stroke labels and palette selection
+
+Stable commit `e6ee96af96a3eefafe1d2a6d555cf15819b2c928` incorporates
+[PR #325](https://github.com/bbs-land/remote-imaging-protocol/pull/325) and
+[PR #326](https://github.com/bbs-land/remote-imaging-protocol/pull/326).
+The first specifies placement and hotkey metrics for classic CHR button labels.
+The second resolves the palette selection after a drawing reset. The ledger
+tracks the CHR implementation separately from the historical font tables.
+Connected reset tests exercise the specified slot-5 example and the explicit
+HEADER selection of slot zero.

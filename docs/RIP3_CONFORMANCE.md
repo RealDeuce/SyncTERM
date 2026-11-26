@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-43c3d91162b0573f06e1e17e3db861f535455fe6](https://github.com/RealDeuce/remote-imaging-protocol/tree/43c3d91162b0573f06e1e17e3db861f535455fe6/version/3.0)
+e6ee96af96a3eefafe1d2a6d555cf15819b2c928](https://github.com/RealDeuce/remote-imaging-protocol/tree/e6ee96af96a3eefafe1d2a6d555cf15819b2c928/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -59,6 +59,7 @@ commands reach the same implementation.
 | Work group | Behavior to settle together |
 | --- | --- |
 | Connection mode and default MicroANSI font | Eight Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
+| Classic stroke-font button labels | Apply creation-WORLD CHR metrics to placement, strokes and hotkey decoration. Verify the Triplex baseline and underline examples on unequal WORLD and DEVICE heights. |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
@@ -120,8 +121,9 @@ stroke and outline labels, and suspended labels on the clipboard port.
 At 1024×768 and nominal size 22, a centered DEFAULT EX label moves up
 three pixels when descender fitting is enabled and it contains Q or g.
 U leaves the baseline unchanged. Triplex and Dixon lower the underline
-for Q and g. The exact nonzero stroke-font metrics remain under review.
-[Upstream issue #323](https://github.com/bbs-land/remote-imaging-protocol/issues/323)
+for Q and g. The reference now specifies the CHR calculations and identifies
+the old 640×350 scan-line tables as historical.
+[Upstream PR #325](https://github.com/bbs-land/remote-imaging-protocol/pull/325)
 
 Custom-palette checkbox tests check dragging out, returning, committing once
 and restoring the displayed selection. Before the first pointer sample, a coordinate query uses DEVICE (0,0).
@@ -153,9 +155,10 @@ Palette resets publish the selected slot’s stored colors after resetting
 the requested entries. This also applies when a table reset skips the
 protected selected slot. A rejected master-palette block can leave a
 stored prefix that becomes visible on that later upload. Connected captures
-check both blink phases and all 64 master colors. The switch-palette
-chapter still conflicts with the established SOFT selection rule.
-[Upstream issue #324](https://github.com/bbs-land/remote-imaging-protocol/issues/324)
+check both blink phases and all 64 master colors. With slot 5 selected,
+`*` and HEADER bit 2 leave slot 5 selected and undefined. Reselecting
+it restores its default colors. HARD and HEADER bit 8 select slot zero.
+[Upstream PR #326](https://github.com/bbs-land/remote-imaging-protocol/pull/326)
 
 A fresh drawing style has zero stored fill rows and a zero user line mask.
 Its selected solid brush and pen cover every pixel. Wire `s` sets the eight

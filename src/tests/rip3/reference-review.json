@@ -1,21 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/322",
-  "revision": "43c3d91162b0573f06e1e17e3db861f535455fe6",
-  "previous_revision": "df95d80b2c58f500acc00c9ca26485fd1ee53f65",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/326",
+  "revision": "e6ee96af96a3eefafe1d2a6d555cf15819b2c928",
+  "previous_revision": "43c3d91162b0573f06e1e17e3db861f535455fe6",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PR #322.",
-  "archive_sha256": "aa09d89b27339941b28b75fc231325f572eba9e4d8928a3cf8bdc5e9c3bb0f60",
+  "upstream_state_at_adoption": "Fork stable incorporates PRs #325 and #326.",
+  "archive_sha256": "c42cfa7340e087a3a08354ff822c0e7462b9089ce79ca7f2f629d4ca5188ad97",
   "normative_scope": [
-    "World-frame dimensions from 0 through 65535 and atomic rejection of an oversized axis."
+    "Classic stroke-font button metrics, positioning and hotkey decoration.",
+    "SOFT, HARD and HEADER palette selection."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.2-math-and-coordinates.md"
+    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+    "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+    "version/3.0/ripscrip/4.3-buttons.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9705,
+  "matched_source_blocks": 9708,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -949,7 +952,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 158,
+  "upstream_issue_resolutions": 160,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1892,6 +1895,18 @@
       "sha256": "e46e21a7f96085a1a67082f3e4f4eaf633f801aea9c29e4987015be1c4e4922e",
       "title": "Issue #321 — World-frame limits and numeric field capacity",
       "role": "Documents unsigned wire comparisons and the boundary sequence for the world-frame setter."
+    },
+    {
+      "path": "version/3.0/research/issue-323-classic-button-stroke-metrics.md",
+      "sha256": "6f5c0bfc6a4ec035634ca55688819cba74a0cb334dfe4c9739a93b9c88a25c65",
+      "title": "Issue #323 — Classic stroke-font metrics on button labels",
+      "role": "CHR button placement and underline metrics."
+    },
+    {
+      "path": "version/3.0/research/issue-324-palette-reset-selection.md",
+      "sha256": "1fcbae89dfc8268215fdc6344a9cf3846e0acb08de4871a0f7a6ffced8c2077f",
+      "title": "Issue #324 — Palette selection after a drawing reset",
+      "role": "Palette selection for SOFT, HARD and HEADER resets."
     }
   ],
   "documents": [
@@ -2001,7 +2016,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-      "sha256": "ac3c416008d6f01c09a3a9e5ec5d0db354f0e183c1f016aa7d915990b31f375c"
+      "sha256": "c1187c19d391a4367f6a39b0107448d6f49bc2bfedc2d168f6188764a2ec4da1"
     },
     {
       "path": "version/3.0/ripscrip/2.1-lines.md",
@@ -2017,7 +2032,7 @@
     },
     {
       "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-      "sha256": "c80e4f601966b35cae2f4e2760fb999635d30c95c415cf61c3463521abcdbc0c"
+      "sha256": "2c95bc8a052a16b019e60e0cf3f53276f293ef392b4d6678a13cdcddbc60f102"
     },
     {
       "path": "version/3.0/ripscrip/3.1-column-text-system.md",
@@ -2037,7 +2052,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.3-buttons.md",
-      "sha256": "b3965c4af4fd051c3bf4a81857dee8296d0cadbc3feebb70bfda56b0d468fc79"
+      "sha256": "feb54100e3d66ee6320d8df9b2064f0b49830dc5048d6643a2a4ca4abe7d1cc3"
     },
     {
       "path": "version/3.0/ripscrip/4.4-tone-and-sound-generation.md",
@@ -2168,7 +2183,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "4d82c8b90cff81de03555ad0482f2ec5fa08da32",
+  "previous_ledger_commit": "eb1093408fd14eefc5c1e4fb831b299aceeb8e64",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2243,14 +2258,13 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 1281,
-    "context": 2538,
-    "implemented": 5519,
+    "unreviewed": 1159,
+    "context": 2714,
+    "implemented": 5570,
     "excluded": 266,
-    "pending": 8,
-    "blocked": 101
+    "pending": 24
   },
-  "source_blocks_at_adoption": 9713,
+  "source_blocks_at_adoption": 9733,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -21717,6 +21731,204 @@
       },
       "resolved_source_units": [
         "version/3.0/ripscrip/1.2-math-and-coordinates.md:166"
+      ]
+    },
+    {
+      "previous_revision": "43c3d91162b0573f06e1e17e3db861f535455fe6",
+      "revision": "e6ee96af96a3eefafe1d2a6d555cf15819b2c928",
+      "archive_sha256": "c42cfa7340e087a3a08354ff822c0e7462b9089ce79ca7f2f629d4ca5188ad97",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/323",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/325",
+          "reviewed_head": "da96fcf75d058a13443f83cc153081fddeb73331",
+          "integration": "1af0b25f136aaf26aa30e064d08842bc405aec80"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/324",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/326",
+          "reviewed_head": "c6093f8852830c9cfad50e5628faf2688c17d794",
+          "integration": "2bfd6e79935eea159258fbd8dc569884f1aaef5d"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
+          "previous_sha256": "ac3c416008d6f01c09a3a9e5ec5d0db354f0e183c1f016aa7d915990b31f375c",
+          "sha256": "c1187c19d391a4367f6a39b0107448d6f49bc2bfedc2d168f6188764a2ec4da1"
+        },
+        {
+          "path": "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
+          "previous_sha256": "c80e4f601966b35cae2f4e2760fb999635d30c95c415cf61c3463521abcdbc0c",
+          "sha256": "2c95bc8a052a16b019e60e0cf3f53276f293ef392b4d6678a13cdcddbc60f102"
+        },
+        {
+          "path": "version/3.0/ripscrip/4.3-buttons.md",
+          "previous_sha256": "b3965c4af4fd051c3bf4a81857dee8296d0cadbc3feebb70bfda56b0d468fc79",
+          "sha256": "feb54100e3d66ee6320d8df9b2064f0b49830dc5048d6643a2a4ca4abe7d1cc3"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-323-classic-button-stroke-metrics.md",
+          "sha256": "6f5c0bfc6a4ec035634ca55688819cba74a0cb334dfe4c9739a93b9c88a25c65",
+          "title": "Issue #323 — Classic stroke-font metrics on button labels",
+          "role": "CHR button placement and underline metrics."
+        },
+        {
+          "path": "version/3.0/research/issue-324-palette-reset-selection.md",
+          "sha256": "1fcbae89dfc8268215fdc6344a9cf3846e0acb08de4871a0f7a6ffced8c2077f",
+          "title": "Issue #324 — Palette selection after a drawing reset",
+          "role": "Palette selection for SOFT, HARD and HEADER resets."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 438,
+      "new_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:566",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:568",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:214",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:279",
+        "version/3.0/ripscrip/4.3-buttons.md:281",
+        "version/3.0/ripscrip/4.3-buttons.md:283",
+        "version/3.0/ripscrip/4.3-buttons.md:284",
+        "version/3.0/ripscrip/4.3-buttons.md:285",
+        "version/3.0/ripscrip/4.3-buttons.md:286",
+        "version/3.0/ripscrip/4.3-buttons.md:287",
+        "version/3.0/ripscrip/4.3-buttons.md:288",
+        "version/3.0/ripscrip/4.3-buttons.md:289",
+        "version/3.0/ripscrip/4.3-buttons.md:291",
+        "version/3.0/ripscrip/4.3-buttons.md:293",
+        "version/3.0/ripscrip/4.3-buttons.md:295",
+        "version/3.0/ripscrip/4.3-buttons.md:297",
+        "version/3.0/ripscrip/4.3-buttons.md:299",
+        "version/3.0/ripscrip/4.3-buttons.md:300",
+        "version/3.0/ripscrip/4.3-buttons.md:301",
+        "version/3.0/ripscrip/4.3-buttons.md:302",
+        "version/3.0/ripscrip/4.3-buttons.md:303",
+        "version/3.0/ripscrip/4.3-buttons.md:304",
+        "version/3.0/ripscrip/4.3-buttons.md:308",
+        "version/3.0/ripscrip/4.3-buttons.md:527"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:566",
+        "version/3.0/ripscrip/3.0-text-output-and-fonts.md:214",
+        "version/3.0/ripscrip/4.3-buttons.md:229",
+        "version/3.0/ripscrip/4.3-buttons.md:279",
+        "version/3.0/ripscrip/4.3-buttons.md:498"
+      ],
+      "states_after_update": {
+        "unreviewed": 1159,
+        "context": 2714,
+        "implemented": 5570,
+        "excluded": 266,
+        "pending": 24
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:566",
+        "version/3.0/ripscrip/2.0-color-modes-and-palettes.md:568",
+        "version/3.0/ripscrip/4.3-buttons.md:381",
+        "version/3.0/ripscrip/4.3-buttons.md:382",
+        "version/3.0/ripscrip/4.3-buttons.md:383",
+        "version/3.0/ripscrip/4.3-buttons.md:384",
+        "version/3.0/ripscrip/4.3-buttons.md:385",
+        "version/3.0/ripscrip/4.3-buttons.md:386",
+        "version/3.0/ripscrip/4.3-buttons.md:387",
+        "version/3.0/ripscrip/4.3-buttons.md:388",
+        "version/3.0/ripscrip/4.3-buttons.md:389",
+        "version/3.0/ripscrip/4.3-buttons.md:390",
+        "version/3.0/ripscrip/4.3-buttons.md:396",
+        "version/3.0/ripscrip/4.3-buttons.md:397",
+        "version/3.0/ripscrip/4.3-buttons.md:398",
+        "version/3.0/ripscrip/4.3-buttons.md:399",
+        "version/3.0/ripscrip/4.3-buttons.md:400",
+        "version/3.0/ripscrip/4.3-buttons.md:401",
+        "version/3.0/ripscrip/4.3-buttons.md:402",
+        "version/3.0/ripscrip/4.3-buttons.md:403",
+        "version/3.0/ripscrip/4.3-buttons.md:404",
+        "version/3.0/ripscrip/4.3-buttons.md:405",
+        "version/3.0/ripscrip/4.3-buttons.md:411",
+        "version/3.0/ripscrip/4.3-buttons.md:412",
+        "version/3.0/ripscrip/4.3-buttons.md:413",
+        "version/3.0/ripscrip/4.3-buttons.md:414",
+        "version/3.0/ripscrip/4.3-buttons.md:415",
+        "version/3.0/ripscrip/4.3-buttons.md:416",
+        "version/3.0/ripscrip/4.3-buttons.md:417",
+        "version/3.0/ripscrip/4.3-buttons.md:418",
+        "version/3.0/ripscrip/4.3-buttons.md:419",
+        "version/3.0/ripscrip/4.3-buttons.md:420",
+        "version/3.0/ripscrip/4.3-buttons.md:426",
+        "version/3.0/ripscrip/4.3-buttons.md:427",
+        "version/3.0/ripscrip/4.3-buttons.md:428",
+        "version/3.0/ripscrip/4.3-buttons.md:429",
+        "version/3.0/ripscrip/4.3-buttons.md:430",
+        "version/3.0/ripscrip/4.3-buttons.md:431",
+        "version/3.0/ripscrip/4.3-buttons.md:432",
+        "version/3.0/ripscrip/4.3-buttons.md:433",
+        "version/3.0/ripscrip/4.3-buttons.md:434",
+        "version/3.0/ripscrip/4.3-buttons.md:435",
+        "version/3.0/ripscrip/4.3-buttons.md:441",
+        "version/3.0/ripscrip/4.3-buttons.md:442",
+        "version/3.0/ripscrip/4.3-buttons.md:443",
+        "version/3.0/ripscrip/4.3-buttons.md:444",
+        "version/3.0/ripscrip/4.3-buttons.md:445",
+        "version/3.0/ripscrip/4.3-buttons.md:446",
+        "version/3.0/ripscrip/4.3-buttons.md:447",
+        "version/3.0/ripscrip/4.3-buttons.md:448",
+        "version/3.0/ripscrip/4.3-buttons.md:449",
+        "version/3.0/ripscrip/4.3-buttons.md:450",
+        "version/3.0/ripscrip/4.3-buttons.md:456",
+        "version/3.0/ripscrip/4.3-buttons.md:457",
+        "version/3.0/ripscrip/4.3-buttons.md:458",
+        "version/3.0/ripscrip/4.3-buttons.md:459",
+        "version/3.0/ripscrip/4.3-buttons.md:460",
+        "version/3.0/ripscrip/4.3-buttons.md:461",
+        "version/3.0/ripscrip/4.3-buttons.md:462",
+        "version/3.0/ripscrip/4.3-buttons.md:463",
+        "version/3.0/ripscrip/4.3-buttons.md:464",
+        "version/3.0/ripscrip/4.3-buttons.md:465",
+        "version/3.0/ripscrip/4.3-buttons.md:471",
+        "version/3.0/ripscrip/4.3-buttons.md:472",
+        "version/3.0/ripscrip/4.3-buttons.md:473",
+        "version/3.0/ripscrip/4.3-buttons.md:474",
+        "version/3.0/ripscrip/4.3-buttons.md:475",
+        "version/3.0/ripscrip/4.3-buttons.md:476",
+        "version/3.0/ripscrip/4.3-buttons.md:477",
+        "version/3.0/ripscrip/4.3-buttons.md:478",
+        "version/3.0/ripscrip/4.3-buttons.md:479",
+        "version/3.0/ripscrip/4.3-buttons.md:480",
+        "version/3.0/ripscrip/4.3-buttons.md:486",
+        "version/3.0/ripscrip/4.3-buttons.md:487",
+        "version/3.0/ripscrip/4.3-buttons.md:488",
+        "version/3.0/ripscrip/4.3-buttons.md:489",
+        "version/3.0/ripscrip/4.3-buttons.md:490",
+        "version/3.0/ripscrip/4.3-buttons.md:491",
+        "version/3.0/ripscrip/4.3-buttons.md:492",
+        "version/3.0/ripscrip/4.3-buttons.md:493",
+        "version/3.0/ripscrip/4.3-buttons.md:494",
+        "version/3.0/ripscrip/4.3-buttons.md:495",
+        "version/3.0/ripscrip/4.3-buttons.md:501",
+        "version/3.0/ripscrip/4.3-buttons.md:502",
+        "version/3.0/ripscrip/4.3-buttons.md:503",
+        "version/3.0/ripscrip/4.3-buttons.md:504",
+        "version/3.0/ripscrip/4.3-buttons.md:505",
+        "version/3.0/ripscrip/4.3-buttons.md:506",
+        "version/3.0/ripscrip/4.3-buttons.md:507",
+        "version/3.0/ripscrip/4.3-buttons.md:508",
+        "version/3.0/ripscrip/4.3-buttons.md:509",
+        "version/3.0/ripscrip/4.3-buttons.md:510",
+        "version/3.0/ripscrip/4.3-buttons.md:516",
+        "version/3.0/ripscrip/4.3-buttons.md:517",
+        "version/3.0/ripscrip/4.3-buttons.md:518",
+        "version/3.0/ripscrip/4.3-buttons.md:519",
+        "version/3.0/ripscrip/4.3-buttons.md:520",
+        "version/3.0/ripscrip/4.3-buttons.md:521",
+        "version/3.0/ripscrip/4.3-buttons.md:522",
+        "version/3.0/ripscrip/4.3-buttons.md:523",
+        "version/3.0/ripscrip/4.3-buttons.md:524",
+        "version/3.0/ripscrip/4.3-buttons.md:525"
       ]
     }
   ],
