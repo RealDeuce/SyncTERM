@@ -18,6 +18,7 @@
 #include "st_connection.h"
 #include "st_event.h"
 #include "st_profile.h"
+#include "st_term.h"
 #include "st_time.h"
 #include "st_unicode_text.h"
 #include "st_utf8.h"
@@ -2188,6 +2189,25 @@ st_wren_connected_handle_event(st_wren_connected_t *connected, const struct st_c
 	if (connected == NULL || event == NULL || consumed == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	status = st_wren_input_dispatch_console_event(connected->vm, event, consumed);
+	return status;
+}
+
+int
+st_wren_connected_event_hook(void *context, const struct st_console_event *event,
+    struct st_term_event_result *result)
+{
+	st_wren_connected_t *connected = *(st_wren_connected_t **)context;
+	if (connected == NULL)
+		return 0;
+	if (event->type != ST_CONSOLE_EVENT_MOUSE)
+		return st_wren_connected_handle_event(connected, event, &result->consumed);
+
+	bool                         claimed = false;
+	struct st_term_event_result *outer   = connected->context.dispatch_mouse;
+	connected->context.dispatch_mouse    = result;
+	int status                           = st_wren_connected_handle_event(connected, event, &claimed);
+	connected->context.dispatch_mouse    = outer;
+	result->consumed |= claimed;
 	return status;
 }
 

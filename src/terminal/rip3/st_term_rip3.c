@@ -2319,19 +2319,13 @@ st_term_rip3_mouse_cancel(struct st_term_rip3 *rip, bool keyboard_focus_lost)
 }
 
 void
-st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event)
+st_term_rip3_sync_mouse_buttons(struct st_term_rip3 *rip, uint32_t buttons)
 {
-	if (rip == NULL || event->type != ST_CONSOLE_EVENT_MOUSE)
+	if (rip == NULL)
 		return;
-	mouse_button_state(rip, event->data.mouse.buttons);
-	if (rip->pick_list != NULL) {
-		st_term_rip3_pick_list_disarm(rip->pick_list);
-		return;
-	}
-	mouse_capture(rip, event->data.mouse.pixel_x, event->data.mouse.pixel_y);
-	(void)st_rip3_session_mouse(rip->session, -1, -1,
-	    (event->data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) != 0);
-	st_rip3_session_pointer_boundary(rip->session);
+	mouse_button_state(rip, buttons);
+	st_term_rip3_pick_list_disarm(rip->pick_list);
+	st_rip3_session_sync_mouse_button(rip->session, rip->mouse_buttons.left);
 }
 
 void

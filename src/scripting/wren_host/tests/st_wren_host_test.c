@@ -4261,11 +4261,6 @@ rip_transfer_request(void *context, const struct st_cterm_rip_transfer_request *
 	return st_wren_connected_rip_transfer(*(st_wren_connected_t **)context, request);
 }
 
-static int
-rip_transfer_event(void *context, const struct st_console_event *event, bool *consumed)
-{
-	return st_wren_connected_handle_event(*(st_wren_connected_t **)context, event, consumed);
-}
 
 static bool
 rip_confirmation_ready(st_console_t *console)
@@ -4330,7 +4325,7 @@ exercise_rip_transfer(st_wren_host_t *host)
 		    .rip_transfer_context = &connected,
 		    .wire_filter          = auto_transfer_filter,
 		    .wire_filter_context  = &connected,
-		    .event_hook           = rip_transfer_event,
+		    .event_hook           = st_wren_connected_event_hook,
 		    .event_hook_context   = &connected,
 		    .wire_capture         = capture_rip_wire,
 		    .capture_context      = &wire};

@@ -3,6 +3,7 @@
 #include "cterm_igs_music.h"
 #include "cterm_render.h"
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 static uint8_t           keys[4096], replies[128];
 static size_t            key_count, reply_count;
 static struct cterm_igs *live;
@@ -25,7 +26,7 @@ output(const char *bytes, size_t size, void *context)
 			live->input.enabled  = 0;
 		}
 		if (callback_action == 2)
-			st_cterm_sync_mouse_buttons(live->terminal, 0);
+			st_graphics_sync_mouse_buttons(live->terminal, 0);
 		if (callback_action == 3)
 			cterm_igs_reset(live);
 	}
@@ -74,7 +75,7 @@ mouse(struct fixture *f, unsigned buttons)
 	event.data.mouse.y            = 1;
 	event.data.mouse.pixel_x      = 8;
 	event.data.mouse.pixel_y      = 8;
-	return st_cterm_handle_mouse(f->terminal, &event);
+	return st_graphics_handle_mouse(f->terminal, &event);
 }
 
 static void
@@ -191,7 +192,7 @@ stores(void)
 	/* Separately received local Ctrl-C/X wait through X3's raw service;
 	 * they never become a raw-reader abort or an immediate remote send. */
 	feed(&f, "G#X 3,2,0,0,2:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && st_cterm_handle_codepage_key(f.terminal, 24));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0) && st_graphics_handle_codepage_key(f.terminal, 24));
 	CHECK(key_count == 0 && igs->input.key_count == 2);
 	CHECK(write_bytes(&f, "AB!", 3) == 3 && m->bytes[0] == 'A' && m->bytes[1] == 'B' && !m->loading);
 	CHECK(key_count == 2 && keys[0] == 3 && keys[1] == 24 && igs->input.key_count == 0);
@@ -249,10 +250,10 @@ holds(void)
 	CHECK(mouse(&f, 1) && m->held);
 	CHECK(mouse(&f, 5) && m->held);
 	CHECK(write_bytes(&f, "G#X 10,91,92:", 13) == 0 && igs->draw_x != 91);
-	CHECK(st_cterm_handle_text_key(f.terminal, 0xe9));
-	CHECK(st_cterm_handle_text_key(f.terminal, 0x212b));
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 0xff));
-	CHECK(st_cterm_handle_key(f.terminal, 'a', 0));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0xe9));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0x212b));
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 0xff));
+	CHECK(st_graphics_handle_key(f.terminal, 'a', 0));
 	CHECK(key_count == 4 && igs->input.key_count == 4);
 	release(&f);
 	CHECK(key_count == 10 && memcmp(keys + 4, (uint8_t[]) {0xc3, 0xa9, 0xc3, 0x85, 0xff, 'a'}, 6) == 0
@@ -261,11 +262,11 @@ holds(void)
 	CHECK(igs->draw_x == 91);
 	key_count = 0;
 	/* Suppressed/UI presses don't become late clicks at command completion. */
-	st_cterm_sync_mouse_buttons(f.terminal, 4);
+	st_graphics_sync_mouse_buttons(f.terminal, 4);
 	feed(&f, "G#X 10,93,94:");
 	CHECK(key_count == 0);
 	CHECK(!mouse(&f, 4));
-	st_cterm_sync_mouse_buttons(f.terminal, 0);
+	st_graphics_sync_mouse_buttons(f.terminal, 0);
 	/* Sample while a raw command is active; consume its suffix after release. */
 	feed(&f, "G#X 3,2,1,0,1:");
 	CHECK(mouse(&f, 4) && key_count == 0);
@@ -284,7 +285,7 @@ holds(void)
 	outside.data.mouse.y            = 1000;
 	outside.data.mouse.pixel_x      = 10000;
 	outside.data.mouse.pixel_y      = 10000;
-	CHECK(st_cterm_handle_mouse(f.terminal, &outside) && !m->held);
+	CHECK(st_graphics_handle_mouse(f.terminal, &outside) && !m->held);
 	key_count = 0;
 	/* Pending button samples wait through an existing q pause. */
 	feed(&f, "G#q 1:");
@@ -345,7 +346,7 @@ codepage_replay(void)
 	CHECK(st_cterm_set_encoding(f.terminal, ST_CTERM_ENCODING_CODEPAGE, ST_CODEPAGE_CP437) == 0);
 	load(&f, 1, 0, 1, (uint8_t[]) {'a', 'b'}, 2);
 	CHECK(mouse(&f, 4) && key_count == 1 && keys[0] == 'a');
-	CHECK(st_cterm_handle_text_key(f.terminal, 0x212b) && key_count == 1);
+	CHECK(st_graphics_handle_text_key(f.terminal, 0x212b) && key_count == 1);
 	release(&f);
 	CHECK(key_count == 2 && keys[1] == 0x8f); /* ANGSTROM SIGN -> A RING -> CP437. */
 	destroy(&f);

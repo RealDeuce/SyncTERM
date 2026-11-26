@@ -4322,10 +4322,10 @@ are excluded; there is no synthesized old-device scheduling.
 A query owns mouse activity, shared parser suspension and original queued
 keys. Its clicks do not run outer X3/X6. Preserve exact serial suffix/chain;
 reply before returning unused keys, and keep keys behind a remaining chain.
-Observe native pointer state before hooks/forwarding gates without starting
-an action; initial position is0,0 until a valid sample. Ignore cell-only pixel
+Observe pointer coordinates after local hooks pass the event. The initial
+position is 0,0 until a valid sample. Ignore cell-only pixel
 positions and UI/status/outside presses; preserve suppression until release.
-Synchronized release updates the latest valid coordinates too. Cleanup on
+A synchronized release uses the latest forwarded coordinates. Cleanup on
 success/EOF/reset/error erases the marker or restores GEM save-under, prior
 writing mode and prior host pointer visibility. Dynamic viewport/status clipping
 prevents old save-under from overwriting a newly reserved UI row. EOF cancels
@@ -4338,7 +4338,7 @@ variants.768 original form/depth/status/alignment/edge cases compare complete
 dual-phase pixels against a separate per-pixel oracle from original74-byte
 MFORM inputs. Check marker timing, endpoints, prior mode/visibility, X3/X6
 ownership, queued/chained keys, synchronized release, reentrant response reset
-and status-row cleanup. syncterm_igs_query adds864 coherent captures over the
+and status-row cleanup. syncterm_igs_query covers 882 coherent captures over the
 same18 profiles: independent glyph/palette/index/RGB/state, all eight forms,
 exact real replies, character motion, press/release pointer differences,
 queued Unicode keys and pointer-visible EOF/fresh reconnect. Physical audio/

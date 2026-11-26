@@ -786,10 +786,10 @@ test_remote_speed_transition(enum st_cterm_encoding encoding, bool close_early)
 }
 
 static int
-count_test_key(void *context, const struct st_console_event *event, bool *consumed)
+count_test_key(void *context, const struct st_console_event *event, struct st_term_event_result *result)
 {
-	*consumed = event->type == ST_CONSOLE_EVENT_KEY_CODE && event->data.key.code == 'K';
-	if (*consumed)
+	result->consumed = event->type == ST_CONSOLE_EVENT_KEY_CODE && event->data.key.code == 'K';
+	if (result->consumed)
 		++*(unsigned *)context;
 	return 0;
 }

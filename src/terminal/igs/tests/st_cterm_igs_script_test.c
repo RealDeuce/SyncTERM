@@ -3,6 +3,7 @@
 #include "cterm_igs_music.h"
 #include "cterm_igs_script.h"
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 #include "st_igs_image.h"
 
 static unsigned          responses;
@@ -374,19 +375,19 @@ waits_and_keys(void)
 	 * during the explicit Ctrl-S pause cannot replace its Ctrl-Q release. */
 	upload(&f, "G#q 1:AG#M 4:");
 	feed(&f, "G#X 9,1:");
-	CHECK(st_cterm_handle_key(f.terminal, 19, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 19, 0));
 	local_ms += 34;
 	CHECK(cterm_igs_poll(f.igs) == 0 && cterm_igs_poll(f.igs) == 0 && igs->script.paused);
 	size_t cursor = igs->script.cursor;
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	CHECK(cterm_igs_poll(f.igs) == 0);
 	CHECK(igs->script.paused && igs->script.cursor == cursor);
-	CHECK(st_cterm_handle_key(f.terminal, 17, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 17, 0));
 	CHECK(cterm_igs_poll(f.igs) == 0);
 	CHECK(!igs->script.active && igs->attributes.writing_mode == 4 && user_count == 0);
 	upload(&f, "G#q 1:AG#M 1:");
 	feed(&f, "G#X 9,1:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	local_ms += 34;
 	CHECK(cterm_igs_poll(f.igs) == 0 && cterm_igs_poll(f.igs) == 0);
 	CHECK(!igs->script.active && igs->attributes.writing_mode == 4 && user_count == 0);
@@ -395,7 +396,7 @@ waits_and_keys(void)
 	upload(&f, "G#<>1,0,0:q 1:");
 	feed(&f, "G#X 9,1:");
 	CHECK(igs->collect.active && igs->script.active);
-	CHECK(st_cterm_handle_key(f.terminal, 'Z', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'Z', 0));
 	CHECK(cterm_igs_poll(f.igs) == 0 && igs->wait_deadline != 0 && user_count == 0);
 	local_ms += 34;
 	CHECK(cterm_igs_poll(f.igs) == 0 && cterm_igs_poll(f.igs) == 0);
@@ -627,7 +628,7 @@ mouse(struct fixture *f, int x, int y, unsigned buttons)
 	e.data.mouse.x            = x / 8;
 	e.data.mouse.y            = y / 8;
 	e.data.mouse.buttons      = buttons;
-	return st_cterm_handle_mouse(f->terminal, &e);
+	return st_graphics_handle_mouse(f->terminal, &e);
 }
 
 static void
@@ -643,7 +644,7 @@ asynchronous_owners(void)
 	upload(&f, "G#?>2,1:M 3:");
 	feed(&f, "G#X 9,1:");
 	CHECK(igs->query.active && igs->script.active);
-	CHECK(st_cterm_handle_text_key(f.terminal, 'a'));
+	CHECK(st_graphics_handle_text_key(f.terminal, 'a'));
 	CHECK(mouse(&f, 20, 30, 1) && mouse(&f, 40, 50, 0));
 	for (unsigned i = 0; i < 5 && igs->script.active; ++i)
 		CHECK(cterm_igs_poll(f.igs) == 0);
@@ -796,7 +797,7 @@ cooperative_sources(void)
 	CHECK(cterm_igs_feed(f.igs, wire, size, &used) == 0 && used < size);
 	offset += used;
 	CHECK(igs->script.starting && igs->script.cooperative);
-	CHECK(st_cterm_handle_key(f.terminal, 'a', 0) && user_count == 0 && igs->input.key_count == 1);
+	CHECK(st_graphics_handle_key(f.terminal, 'a', 0) && user_count == 0 && igs->input.key_count == 1);
 	for (unsigned pass = 0; pass < 8 && (offset < size || cterm_igs_paused(igs)); ++pass) {
 		CHECK(cterm_igs_poll(f.igs) == 0);
 		if (!cterm_igs_paused(igs) && offset < size) {

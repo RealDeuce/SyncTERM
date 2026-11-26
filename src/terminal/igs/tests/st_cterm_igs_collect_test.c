@@ -1,6 +1,7 @@
 /* Independent < collection, echo, mouse zones and deferred-reply cases. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 static uint8_t           output[2048];
 static size_t            output_count;
 static struct cterm_igs *live;
@@ -67,7 +68,7 @@ mouse(struct fixture *f, int x, int y, unsigned buttons)
 	e.data.mouse.x            = x / 8;
 	e.data.mouse.y            = y / 8;
 	e.data.mouse.buttons      = buttons;
-	return st_cterm_handle_mouse(f->terminal, &e);
+	return st_graphics_handle_mouse(f->terminal, &e);
 }
 
 static void
@@ -117,7 +118,7 @@ keyboard_cases(void)
 		key(&f, ignored[i]);
 		CHECK(igs->collect.active && output_count == 0);
 	}
-	CHECK(st_cterm_handle_text_key(f.terminal, 0x10041));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0x10041));
 	CHECK(igs->collect.count == 0);
 	key(&f, 'A');
 	key(&f, 13);
@@ -126,11 +127,11 @@ keyboard_cases(void)
 	feed(&f, "G#< 0,1,0:");
 	key(&f, 'A');
 	key(&f, 'B');
-	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_DELETE, 0));
+	CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_DELETE, 0));
 	CHECK(igs->collect.count == 1);
-	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_DELETE, ST_CONSOLE_MODIFIER_CONTROL));
+	CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_DELETE, ST_CONSOLE_MODIFIER_CONTROL));
 	CHECK(igs->collect.count == 1);
-	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_DELETE, ST_CONSOLE_MODIFIER_SHIFT));
+	CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_DELETE, ST_CONSOLE_MODIFIER_SHIFT));
 	CHECK(igs->collect.count == 0);
 	key(&f, 13);
 	expect("", 0);
@@ -232,7 +233,7 @@ chains_and_lifetime(void)
 	feed(&f, "G#<>1,0,0:");
 	key(&f, 'C');
 	feed(&f, "? 2,1:");
-	CHECK(st_cterm_handle_text_key(f.terminal, 'z'));
+	CHECK(st_graphics_handle_text_key(f.terminal, 'z'));
 	CHECK(output_count == 0);
 	CHECK(mouse(&f, 20, 20, 1));
 	CHECK(mouse(&f, 21, 21, 0));
@@ -321,7 +322,7 @@ zones(void)
 			CHECK(mouse(&f, 70, 70, 0));
 			CHECK(igs->collect.active && !igs->collect.release && output_count == 0
 			      && igs->attributes.writing_mode == 3);
-			CHECK(st_cterm_handle_text_key(f.terminal, 'q'));
+			CHECK(st_graphics_handle_text_key(f.terminal, 'q'));
 			CHECK(igs->collect.active);
 			/* A transport callback must not drain queued keys between reply bytes. */
 			live        = igs;
@@ -364,11 +365,11 @@ zones(void)
 			unchanged(&f);
 			/* Locally claimed press remains suppressed through held movement. */
 			feed(&f, "G#< 0,2,0:");
-			st_cterm_sync_mouse_buttons(f.terminal, 1);
+			st_graphics_sync_mouse_buttons(f.terminal, 1);
 			CHECK(mouse(&f, 2, 5, 1) && !igs->collect.release);
-			st_cterm_sync_mouse_buttons(f.terminal, 0);
+			st_graphics_sync_mouse_buttons(f.terminal, 0);
 			CHECK(mouse(&f, 2, 5, 1) && igs->collect.release);
-			st_cterm_sync_mouse_buttons(f.terminal, 0);
+			st_graphics_sync_mouse_buttons(f.terminal, 0);
 			expect((uint8_t[]) {0, 0}, 2);
 			unchanged(&f);
 			/* Reversed bounds do not match; zero-length zones can still append CR. */

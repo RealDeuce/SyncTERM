@@ -369,18 +369,16 @@ int st_cterm_copy_scrollback_rows(const st_cterm_t *terminal, struct st_console_
 /* Normalized console keys, including event-time modifiers. Encoded bytes
  * have ST_CTERM_OUTPUT_USER origin; true also includes local-only actions. */
 bool st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code, uint32_t modifiers);
-/* Unicode keyboard text: RIP hotkeys first, then codepage and emulation
+/* Unicode keyboard text uses the codepage and emulation
  * keyboard mappings. False leaves semantic transmission (UTF-8 text or an
  * unmappable character) to the session. Not for paste or scripted sends. */
 bool st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint);
 /* An explicitly entered byte in the terminal's current codepage. */
 bool st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte);
-/* RIP hotkeys may consume printable text before it is sent to the wire. */
+/* A DoorWay scan code from the console. */
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);
 bool st_cterm_handle_physical_keys(st_cterm_t *terminal, const struct st_console_event *events, size_t count);
 bool st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event);
-/* Observe native pointer state before local hooks/forwarding gates. */
-void st_cterm_observe_mouse(st_cterm_t *, const struct st_console_event *);
 /* Synchronize a locally handled or disabled button event without reporting. */
 void st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons);
 bool st_cterm_handle_focus(st_cterm_t *terminal, bool focused);

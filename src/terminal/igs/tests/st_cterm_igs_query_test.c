@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_mouse_form_inputs.h"
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 static uint8_t           replies[4096], keys[64];
 static size_t            count, key_count;
 static struct cterm_igs *live;
@@ -66,7 +67,7 @@ mouse(struct fixture *f, int x, int y, unsigned buttons)
 	event.data.mouse.x            = x / 8;
 	event.data.mouse.y            = y / 8;
 	event.data.mouse.buttons      = buttons;
-	return st_cterm_handle_mouse(f->terminal, &event);
+	return st_graphics_handle_mouse(f->terminal, &event);
 }
 
 static void
@@ -129,7 +130,7 @@ replies_and_cursor(void)
 	CHECK(f.terminal->xpos == 5 && f.terminal->ypos == 4 && count == 0);
 	CHECK(mouse(&f, 49, 90, 5) && igs->query.release);
 	CHECK(f.terminal->xpos == 4 && f.terminal->ypos == 3);
-	CHECK(st_cterm_handle_text_key(f.terminal, 'k') && key_count == 0);
+	CHECK(st_graphics_handle_text_key(f.terminal, 'k') && key_count == 0);
 	CHECK(mouse(&f, 200, 180, 0));
 	expect((uint8_t[]) {35, 34, 35}, 3);
 	CHECK(key_count == 1 && keys[0] == 'k' && !cterm_igs_paused(igs));
@@ -284,17 +285,17 @@ boundaries_and_reset(void)
 	igs->input.buttons = 0;
 	/* Query keyboard ownership extends through a remaining graphics chain. */
 	feed(&f, "G#?>1,1:");
-	CHECK(st_cterm_handle_key(f.terminal, 'q', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'q', 0));
 	CHECK(mouse(&f, 20, 30, 1) && mouse(&f, 20, 30, 0));
 	expect((uint8_t[]) {34, 34, 33}, 3);
 	CHECK(key_count == 0);
 	feed(&f, "M 2:");
 	CHECK(key_count == 1 && keys[0] == 'q');
 	key_count = 0;
-	st_cterm_sync_mouse_buttons(f.terminal, 1);
+	st_graphics_sync_mouse_buttons(f.terminal, 1);
 	feed(&f, "G#? 2,1:");
 	CHECK(igs->query.active && !igs->query.release);
-	st_cterm_sync_mouse_buttons(f.terminal, 0);
+	st_graphics_sync_mouse_buttons(f.terminal, 0);
 	CHECK(!igs->query.release && count == 0);
 	CHECK(mouse(&f, 20, 30, 1) && mouse(&f, 20, 30, 0));
 	expect("20,30,1:", 8);
@@ -303,21 +304,17 @@ boundaries_and_reset(void)
 	CHECK(!mouse(&f, -1, -1, 1));
 	CHECK(mouse(&f, 100, 100, 1) && !igs->query.release);
 	CHECK(mouse(&f, 100, 100, 0) && igs->query.active);
-	st_cterm_sync_mouse_buttons(f.terminal, 1);
+	st_graphics_sync_mouse_buttons(f.terminal, 1);
 	CHECK(mouse(&f, 100, 100, 1) && !igs->query.release);
-	st_cterm_sync_mouse_buttons(f.terminal, 0);
+	st_graphics_sync_mouse_buttons(f.terminal, 0);
 	CHECK(mouse(&f, 100, 100, 1));
 	CHECK(mouse(&f, 101, 101, 0));
 	expect("101,101,1:", 10);
 	(void)mouse(&f, 100, 100, 0);
 	feed(&f, "G#? 2,3:");
 	CHECK(mouse(&f, 110, 110, 1));
-	struct st_console_event claimed = {.type = ST_CONSOLE_EVENT_MOUSE};
-	claimed.data.mouse.pixel_x      = 120;
-	claimed.data.mouse.pixel_y      = 130;
-	st_cterm_observe_mouse(f.terminal, &claimed);
-	st_cterm_sync_mouse_buttons(f.terminal, 0);
-	expect("120,130,1:", 10);
+	st_graphics_sync_mouse_buttons(f.terminal, 0);
+	expect("110,110,1:", 10);
 	CHECK(!igs->query.active);
 	(void)mouse(&f, 100, 100, 0);
 	feed(&f, "G#? 2,5:");

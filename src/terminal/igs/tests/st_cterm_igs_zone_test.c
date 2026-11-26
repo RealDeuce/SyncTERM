@@ -1,6 +1,7 @@
 /* X4: independent literal zones, incremental stores and raw ownership. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 static uint8_t           keys[128], replies[128];
 static size_t            key_count, reply_count;
 static struct cterm_igs *live;
@@ -190,7 +191,7 @@ stores(void)
 	}
 	CHECK(!input->zone_loading && input->zones[5].bytes[0] == ' ' && input->zones[5].bytes[1] == ' ');
 	feed(&f, "G#X 4,5,1,2,3,4,2:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && st_cterm_handle_codepage_key(f.terminal, 24));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0) && st_graphics_handle_codepage_key(f.terminal, 24));
 	CHECK(key_count == 0 && input->key_count == 2);
 	CHECK(write_bytes(&f, "AB!", 3) == 3);
 	CHECK(key_count == 2 && keys[0] == 3 && keys[1] == 24 && !input->zone_loading
@@ -247,15 +248,15 @@ macro_coexistence(void)
 	event.data.mouse.y            = 1;
 	event.data.mouse.pixel_x      = 8;
 	event.data.mouse.pixel_y      = 8;
-	CHECK(st_cterm_handle_mouse(f.terminal, &event) && key_count == 0);
-	CHECK(st_cterm_handle_text_key(f.terminal, 'k') && igs->input.key_count == 1);
+	CHECK(st_graphics_handle_mouse(f.terminal, &event) && key_count == 0);
+	CHECK(st_graphics_handle_text_key(f.terminal, 'k') && igs->input.key_count == 1);
 	const char wire[] = "ABG#X 10,19,17:";
 	CHECK(write_bytes(&f, wire, sizeof(wire) - 1) == 2 && igs->input.held && igs->input.suspended);
 	CHECK(key_count == 2 && memcmp(keys, "Z\r", 2) == 0 && !igs->input.zone_loading
 	      && igs->input.zones[0].bytes[0] == 'A');
 	CHECK(write_bytes(&f, wire + 2, sizeof(wire) - 3) == 0);
 	event.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(f.terminal, &event));
+	CHECK(st_graphics_handle_mouse(f.terminal, &event));
 	CHECK(key_count == 3 && keys[2] == 'k' && !cterm_igs_paused(igs));
 	CHECK(write_bytes(&f, wire + 2, sizeof(wire) - 3) == sizeof(wire) - 3 && igs->draw_x == 19
 	      && igs->draw_y == 17);

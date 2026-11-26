@@ -8,6 +8,7 @@
 #include "cterm_big_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_graphics_input.h"
 #define CHECK(x)                                                                \
 	do {                                                                    \
 		if (!(x)) {                                                     \
@@ -324,7 +325,7 @@ readiness_budget_and_retry(void)
 	local_ns += UINT64_C(1000000000000);
 	poll(&f);
 	CHECK(cterm_big_paused(f.big) && clocks == before && f.ready_calls == 2);
-	CHECK(st_cterm_handle_key(f.terminal, 'K', 0) && f.size == 1
+	CHECK(st_graphics_handle_key(f.terminal, 'K', 0) && f.size == 1
 	      && f.output[0] == 'K'); /* Query has no key cancellation. */
 	f.block_ready = false;
 	poll(&f);

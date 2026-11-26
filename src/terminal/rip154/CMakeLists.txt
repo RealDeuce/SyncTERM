@@ -188,7 +188,7 @@ if(BUILD_TESTING)
 	add_test(NAME cterm_rip_raster COMMAND st_terminal_tests st_cterm_rip_raster_test)
 
 	syncterm_add_test_case(st_terminal_tests st_cterm_rip_live_test tests/st_cterm_rip_live_test.c)
-	target_link_libraries(st_cterm_rip_live_test PRIVATE st_rip154)
+	target_link_libraries(st_cterm_rip_live_test PRIVATE st_graphics_input st_rip154)
 	set_target_properties(st_cterm_rip_live_test PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 		C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

@@ -2728,9 +2728,8 @@ The indexed framebuffer remains authoritative. Small dual-phase save-under
 restores GEM pixels; raw v_pmarker preserves the P endpoint. Cleanup restores
 the actual prior writing mode and host pointer visibility on success, EOF,
 reset or error. It clips to the current drawable viewport, preserving newly
-reserved UI rows. Frontend pixel state is observed before local hooks/gates,
-without arming gestures; UI/disabled presses stay suppressed and synchronized
-release takes the latest usable position. Position defaults to0,0 until the
+reserved UI rows. Forwarded mouse events update the pixel position. UI and disabled presses
+stay suppressed, and a synchronized release uses the last forwarded position. Position defaults to0,0 until the
 first native viewport sample; cell-only events do not invent pixel positions.
 
 Explicit bug corrections follow the goal: seed character-motion baseline
@@ -2748,7 +2747,7 @@ and54 scaling variants. All768 form/depth/status/alignment/edge cases compare
 both phases to a separate per-pixel oracle using original74-byte MFORM test
 inputs. Tests also cover marker timing, endpoint/mode/visibility restoration,
 chained keys, query-owned X3/X6 clicks, synchronized release coordinates and
-status-row reservation during cancellation. `syncterm_igs_query` adds864
+status-row reservation during cancellation. `syncterm_igs_query` covers 882
 coherent all-mode/encoding/status captures with independent glyph/palette/
 index/RGB/state expectations, all eight pointer forms, exact real replies,
 character motion, press/release semantics, Unicode keys and pointer-visible

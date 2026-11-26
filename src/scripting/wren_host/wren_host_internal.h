@@ -197,6 +197,7 @@ struct st_wren_context {
 	struct st_wren_font_state     fonts;
 	uint64_t                      mouse_events;
 	uint32_t                      mouse_buttons;
+	struct st_term_event_result  *dispatch_mouse;
 	struct st_wren_mouse_gesture  mouse_gestures[5];
 	struct st_wren_input_record  *pending_input;
 	size_t                        pending_input_head;

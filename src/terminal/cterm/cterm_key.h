@@ -18,6 +18,8 @@ struct cterm_key {
 	int                 local;
 };
 
-/* Caller suppresses recapture and checks deferred reset after each event. */
+int cterm_mapped_key(uint16_t key, uint32_t modifiers);
+
+/* Deliver a released graphics key directly to emulation. */
 int cterm_key_replay(struct cterminal *, const struct cterm_key *);
 #endif

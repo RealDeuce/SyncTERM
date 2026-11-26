@@ -15,7 +15,6 @@ struct cterm_key;
 struct st_console_event;
 bool cterm_big_pointer_active(const struct cterm_big *);
 bool cterm_big_mouse(struct cterm_big *, const struct st_console_event *);
-void cterm_big_mouse_observe(struct cterm_big *, const struct st_console_event *);
 void cterm_big_mouse_sync(struct cterm_big *, uint32_t buttons);
 bool cterm_big_handle_key(struct cterm_big *, const struct cterm_key *);
 struct st_console_test_application;

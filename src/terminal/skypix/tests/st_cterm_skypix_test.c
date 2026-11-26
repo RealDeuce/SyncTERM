@@ -10,6 +10,7 @@
 #include "io_error.h"
 #include "st_builtin_fonts.h"
 #include "st_cterm.h"
+#include "st_graphics_input.h"
 #include "st_session_history.h"
 #include "st_time.h"
 #define CHECK(x)                                                                \
@@ -629,24 +630,24 @@ mouse_tests(struct cterm_skypix *sky)
 		CHECK(st_cterm_mouse_mode(terminal) == 2 && !st_cterm_mouse_sgr_pixels(terminal));
 		st_cterm_sync_mouse_buttons(terminal, 0);
 		output.size = 0;
-		CHECK(st_cterm_handle_mouse(terminal, &event));
+		CHECK(st_graphics_handle_mouse(terminal, &event));
 		const char report[] = "\x1b[21;1;317;143!";
 		CHECK(output.origin == ST_CTERM_OUTPUT_USER && output.size == sizeof(report) - 1
 		      && memcmp(output.bytes, report, output.size) == 0);
 		output.size = 0;
-		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		CHECK(!st_graphics_handle_mouse(terminal, &event));
 		event.data.mouse.action = ST_CONSOLE_MOUSE_MOVE;
-		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		CHECK(!st_graphics_handle_mouse(terminal, &event));
 		event.data.mouse.action  = ST_CONSOLE_MOUSE_WHEEL;
 		event.data.mouse.wheel_y = 1;
-		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		CHECK(!st_graphics_handle_mouse(terminal, &event));
 		event.data.mouse.action  = ST_CONSOLE_MOUSE_BUTTON;
 		event.data.mouse.buttons = 0;
-		CHECK(!st_cterm_handle_mouse(terminal, &event));
+		CHECK(!st_graphics_handle_mouse(terminal, &event));
 		for (uint32_t button = ST_CONSOLE_MOUSE_BUTTON_MIDDLE; button <= ST_CONSOLE_MOUSE_BUTTON_RIGHT;
 		    button <<= 1) {
 			event.data.mouse.buttons = button;
-			CHECK(!st_cterm_handle_mouse(terminal, &event));
+			CHECK(!st_graphics_handle_mouse(terminal, &event));
 		}
 		CHECK(output.size == 0);
 		event.data.mouse.buttons     = ST_CONSOLE_MOUSE_BUTTON_LEFT;
@@ -660,18 +661,18 @@ mouse_tests(struct cterm_skypix *sky)
 			st_cterm_sync_mouse_buttons(terminal, 0);
 			event.data.mouse.pixel_x = positions[i][0];
 			event.data.mouse.pixel_y = positions[i][1];
-			CHECK(!st_cterm_handle_mouse(terminal, &event) && output.size == 0);
+			CHECK(!st_graphics_handle_mouse(terminal, &event) && output.size == 0);
 		}
 		st_cterm_sync_mouse_buttons(terminal, 0);
 		event.data.mouse.pixel_x = 0;
 		event.data.mouse.pixel_y = 0;
-		CHECK(st_cterm_handle_mouse(terminal, &event));
+		CHECK(st_graphics_handle_mouse(terminal, &event));
 		CHECK(output.size == 11 && memcmp(output.bytes, "\x1b[21;1;0;0!", 11) == 0);
 		st_cterm_sync_mouse_buttons(terminal, 0);
 		output.size              = 0;
 		event.data.mouse.pixel_x = 639;
 		event.data.mouse.pixel_y = 199;
-		CHECK(st_cterm_handle_mouse(terminal, &event));
+		CHECK(st_graphics_handle_mouse(terminal, &event));
 		CHECK(output.size == sizeof(report) - 1
 		      && memcmp(output.bytes, "\x1b[21;1;639;199!", output.size) == 0);
 		event.data.mouse.pixel_x = 317;

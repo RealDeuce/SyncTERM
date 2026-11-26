@@ -39,7 +39,7 @@ bool st_term_rip3_mouse(struct st_term_rip3 *rip, const struct st_console_event 
 bool st_term_rip3_keyboard_locked(const struct st_term_rip3 *rip);
 bool st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event);
 void st_term_rip3_mouse_cancel(struct st_term_rip3 *rip, bool keyboard_focus_lost);
-void st_term_rip3_mouse_ignore(struct st_term_rip3 *rip, const struct st_console_event *event);
+void st_term_rip3_sync_mouse_buttons(struct st_term_rip3 *rip, uint32_t buttons);
 bool st_term_rip3_status_visible(const struct st_term_rip3 *rip);
 void st_term_rip3_suspend_status(struct st_term_rip3 *rip, bool suspended);
 

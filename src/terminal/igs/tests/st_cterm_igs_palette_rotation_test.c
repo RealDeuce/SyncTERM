@@ -1,6 +1,7 @@
 /* X8 palette cycling: independent palette algebra and local-deadline events. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 #include "st_igs_image.h"
 
 struct palette {
@@ -390,7 +391,7 @@ keys_and_lifetime(void)
 		static const int counts[] = {1, 32766, 32767};
 		for (size_t i = 0; i < sizeof(counts) / sizeof(*counts); ++i) {
 			request(&f, 1, 3, counts[i], 9999);
-			CHECK(st_cterm_handle_key(f.terminal, 'a', 0) && igs->palette_rotation.key);
+			CHECK(st_graphics_handle_key(f.terminal, 'a', 0) && igs->palette_rotation.key);
 			/* A key shortens the post-pass delay, never a preceding Vsync. */
 			uint64_t due = igs->wait_deadline;
 			CHECK(cterm_igs_poll(f.igs) == 0 && igs->wait_deadline == due);
@@ -409,16 +410,16 @@ keys_and_lifetime(void)
 			CHECK(cterm_igs_poll(f.igs) == 0);
 		}
 		CHECK(igs->palette_rotation.delaying);
-		CHECK(st_cterm_handle_text_key(f.terminal, 0x1f642) && igs->palette_rotation.key);
+		CHECK(st_graphics_handle_text_key(f.terminal, 0x1f642) && igs->palette_rotation.key);
 		CHECK(cterm_igs_poll(f.igs) == 0 && !igs->palette_rotation.active && !cterm_igs_paused(f.igs));
 		request(&f, 1, 3, 1, 0);
-		CHECK(st_cterm_handle_codepage_key(f.terminal, 0));
+		CHECK(st_graphics_handle_codepage_key(f.terminal, 0));
 		finish(&f);
 		request(&f, 1, 3, 1, 0);
-		CHECK(st_cterm_handle_doorway_key(f.terminal, 0));
+		CHECK(st_graphics_handle_doorway_key(f.terminal, 0));
 		finish(&f);
 		CHECK(sent_keys == 0);
-		CHECK(st_cterm_handle_key(f.terminal, 'a', 0) && sent_keys == 1);
+		CHECK(st_graphics_handle_key(f.terminal, 'a', 0) && sent_keys == 1);
 		sent_keys = 0;
 		/* A palette query is retained over its wait even if a different
 		 * local consumer changes that source register in the meantime. */

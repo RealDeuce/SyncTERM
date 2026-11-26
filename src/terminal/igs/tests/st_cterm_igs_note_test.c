@@ -3,6 +3,7 @@
 #include "cterm_igs_audio.h"
 #include "igs_test_fixture.h"
 #include "st_audio_runtime.h"
+#include "st_graphics_input.h"
 
 extern size_t          st_igs_test_calls;
 extern int             st_igs_test_arguments[4];
@@ -187,41 +188,41 @@ waits_and_keys(void)
 		bool consumed;
 		switch (which) {
 			case 0:
-				consumed = st_cterm_handle_key(f.terminal, 0, 0);
+				consumed = st_graphics_handle_key(f.terminal, 0, 0);
 				break;
 			case 1:
-				consumed = st_cterm_handle_key(f.terminal, 3, 0);
+				consumed = st_graphics_handle_key(f.terminal, 3, 0);
 				break;
 			case 2:
-				consumed = st_cterm_handle_key(f.terminal, 24, 0);
+				consumed = st_graphics_handle_key(f.terminal, 24, 0);
 				break;
 			case 3:
-				consumed = st_cterm_handle_codepage_key(f.terminal, 255);
+				consumed = st_graphics_handle_codepage_key(f.terminal, 255);
 				break;
 			case 4:
-				consumed = st_cterm_handle_text_key(f.terminal, 0x1f600);
+				consumed = st_graphics_handle_text_key(f.terminal, 0x1f600);
 				break;
 			case 5:
-				consumed = st_cterm_handle_doorway_key(f.terminal, 59);
+				consumed = st_graphics_handle_doorway_key(f.terminal, 59);
 				break;
 			default:
-				consumed = st_cterm_handle_key(f.terminal, '+', 0);
+				consumed = st_graphics_handle_key(f.terminal, '+', 0);
 				break;
 		}
 		CHECK(consumed && igs->note.key && forwarded == 0);
 		CHECK(cterm_igs_poll(f.igs) == 0 && !igs->note.active && igs->loop_mode == 1);
 		CHECK(st_igs_test_stop_count == 1 && st_igs_test_stops[0] == 2);
-		CHECK(st_cterm_handle_codepage_key(f.terminal, 'a') && forwarded == 1);
+		CHECK(st_graphics_handle_codepage_key(f.terminal, 'a') && forwarded == 1);
 	}
 	/* An event pending on the final iteration is consumed even at the deadline. */
 	clear(&f);
 	request(&f, (int[]) {125, 0, 0, 0, 1, 0});
 	local_ms = igs->wait_deadline;
-	CHECK(st_cterm_handle_key(f.terminal, 'x', 0) && forwarded == 0);
+	CHECK(st_graphics_handle_key(f.terminal, 'x', 0) && forwarded == 0);
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->note.active);
 	clear(&f);
 	request(&f, (int[]) {125, 0, 0, 0, 0, 0});
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 'x') && forwarded == 1);
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 'x') && forwarded == 1);
 	igs->loop_mode = 0;
 	destroy(&f);
 	st_audio_runtime_destroy(runtime);
@@ -382,7 +383,7 @@ partitions_and_errors(void)
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->note.active);
 	clear(&f);
 	request(&f, (int[]) {2, 0, 15, 60, 1, 2});
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	clock_error = IO_ERROR_IO;
 	CHECK(cterm_igs_poll(f.igs) == IO_ERROR_IO && igs->note.key);
 	clock_error = 0;
@@ -392,7 +393,7 @@ partitions_and_errors(void)
 	request(&f, (int[]) {125, 0, 0, 0, 32767, 0});
 	CHECK(igs->wait_deadline == UINT64_MAX);
 	++local_ms;
-	CHECK(st_cterm_handle_key(f.terminal, 0, 0) && cterm_igs_poll(f.igs) == 0 && !igs->note.active);
+	CHECK(st_graphics_handle_key(f.terminal, 0, 0) && cterm_igs_poll(f.igs) == 0 && !igs->note.active);
 	local_ms = 1000;
 	destroy(&f);
 	st_audio_runtime_destroy(runtime);
@@ -478,7 +479,7 @@ queued_loop_note(void)
 	igs->flow_mode        = 0;
 	feed(&f, "G#& 0,1,1,0,n,6,");
 	for (unsigned i = 0; i < 7; ++i)
-		CHECK(st_cterm_handle_key(f.terminal, (uint16_t)('a' + i), 0));
+		CHECK(st_graphics_handle_key(f.terminal, (uint16_t)('a' + i), 0));
 	feed(&f, "0,2,15,60,100,2:");
 	CHECK(igs->loop.run && igs->note.active && igs->input.key_count == 1 && st_igs_test_calls == 1);
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->note.active && igs->input.key_count == 0);

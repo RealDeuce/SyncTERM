@@ -51,9 +51,7 @@ cterm_igs_forward_keys(struct cterm_igs *igs)
 	while (m->key_count != 0) {
 		struct cterm_key key = m->keys[m->key_first];
 		(void)cterm_igs_take_key(igs);
-		m->replaying = true;
 		int status   = cterm_key_replay(igs->terminal, &key);
-		m->replaying = false;
 		if (status != 0)
 			return status;
 		if (igs->reset_pending)
@@ -324,7 +322,7 @@ sample(struct cterm_igs *igs, uint32_t buttons)
 		cterm_render_record_error(igs->terminal, cterm_igs_poll(igs));
 }
 
-void
+static void
 cterm_igs_mouse_observe(struct cterm_igs *igs, const struct st_console_event *event)
 {
 	igs->input.buttons = tos_buttons(event->data.mouse.buttons);

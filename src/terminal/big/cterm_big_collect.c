@@ -320,6 +320,5 @@ cterm_big_collect_cancel(struct cterm_big *big)
 	int      status     = pointer_end(big);
 	uint64_t generation = big->collect.generation + 1u;
 	big->collect        = (struct cterm_big_collect) {.generation = generation};
-	big->mouse.pending  = false;
 	return status;
 }

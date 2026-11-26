@@ -920,17 +920,6 @@ remember_hostkey(void *context, const uint8_t fingerprint[32], bool explicit_upd
 	return st_wren_host_remember_ssh_key(ui->host, ui->profile, fingerprint);
 }
 
-static int
-run_wren_event_hook(void *context, const struct st_console_event *event, bool *consumed)
-{
-	st_wren_connected_t *connected = *(st_wren_connected_t **)context;
-
-	if (connected == NULL) {
-		*consumed = false;
-		return 0;
-	}
-	return st_wren_connected_handle_event(connected, event, consumed);
-}
 
 static int
 run_wren_skypix_transfer(void *context, unsigned mode, unsigned width, unsigned height, const uint8_t *name,
@@ -1136,7 +1125,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	    .rip_define               = run_rip_definition,
 	    .rip_choice               = run_rip_choice,
 	    .rip_choice_context       = host,
-	    .event_hook               = run_wren_event_hook,
+	    .event_hook               = st_wren_connected_event_hook,
 	    .event_hook_context       = &connected,
 	    .wire_filter              = run_wren_wire_filter,
 	    .wire_filter_active       = wren_wire_filter_active,

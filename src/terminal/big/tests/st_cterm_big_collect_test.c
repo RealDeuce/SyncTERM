@@ -8,6 +8,7 @@
 #include "cterm_big_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_graphics_input.h"
 #define CHECK(x)                                                                \
 	do {                                                                    \
 		if (!(x)) {                                                     \
@@ -128,7 +129,7 @@ one_key(void)
 	struct cterm_big *b = f.big;
 	string(&f, "I#< 1,0,0:");
 	CHECK(cterm_big_paused(f.big) && b->control.input.pending == 1 && b->control.input.count == 0);
-	CHECK(st_cterm_handle_key(f.terminal, 'A', 0) && cterm_big_poll(f.big) == 0);
+	CHECK(st_graphics_handle_key(f.terminal, 'A', 0) && cterm_big_poll(f.big) == 0);
 	CHECK(!cterm_big_paused(f.big) && f.size == 2 && memcmp(f.output, "A\r", 2) == 0);
 	destroy(&f);
 }
@@ -136,7 +137,7 @@ one_key(void)
 static void
 key(struct fixture *f, int code)
 {
-	CHECK(st_cterm_handle_key(f->terminal, code, 0));
+	CHECK(st_graphics_handle_key(f->terminal, code, 0));
 	CHECK(cterm_big_poll(f->big) == 0);
 	for (unsigned i = 0; i < 16 && !f->big->collect.active && cterm_big_paused(f->big); ++i)
 		CHECK(cterm_big_poll(f->big) == 0);
@@ -150,8 +151,7 @@ mouse(struct fixture *f, int x, int y, uint32_t buttons, enum st_console_mouse_a
 	    .data.mouse =
 		{.action = action, .pixel_x = x, .pixel_y = y, .x = x / 8, .y = y / 14, .buttons = buttons}
         };
-	st_cterm_observe_mouse(f->terminal, &e);
-	return st_cterm_handle_mouse(f->terminal, &e);
+	return st_graphics_handle_mouse(f->terminal, &e);
 }
 
 static void
@@ -222,7 +222,7 @@ keyboard_echo_and_replay(void)
 	string(&f, "\033[10;10HI#< 0,1,1:");
 	const int keys[] = {'A', 'B', 8, 'C', 13, 'Z'};
 	for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
-		CHECK(st_cterm_handle_key(f.terminal, keys[i], 0));
+		CHECK(st_graphics_handle_key(f.terminal, keys[i], 0));
 	CHECK(cterm_big_poll(f.big) == 0 && f.size == 3 && memcmp(f.output, "ACZ", 3) == 0);
 	CHECK(f.terminal->xpos == 13 && f.terminal->ypos == 10 && b->control.input.count == 2);
 	struct st_console_cell       cells[3];
@@ -259,7 +259,7 @@ keyboard_raw_bounds_sources_and_reset(void)
 	CHECK(f.size == 129);
 	f.size = 0;
 	string(&f, "I#< 1,+1,0:");
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 255));
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 255));
 	CHECK(cterm_big_poll(f.big) == 0 && f.size == 1 && f.output[0] == 13);
 	f.size = 0;
 	string(&f, "I#< 0,0,0:");
@@ -278,7 +278,7 @@ keyboard_raw_bounds_sources_and_reset(void)
 	string(&f, "I#< 0,1,0:");
 	key(&f, 127);
 	key(&f, 127);
-	CHECK(st_cterm_handle_key(f.terminal, 'B', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'B', 0));
 	CHECK(cterm_big_poll(f.big) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
 	      && b->control.input.count == 65535 && !b->collect.active && !b->control.input.pending);
 	string(&f, "I#< 0,1,0:");
@@ -313,7 +313,7 @@ hybrid_pointer(void)
 	canvas(&f, true, 318, 98);
 	CHECK(mouse(&f, 100, 60, 0, ST_CONSOLE_MOUSE_MOVE));
 	canvas(&f, true, 100, 60);
-	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_RIGHT, 0));
+	CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_RIGHT, 0));
 	CHECK(mouse(&f, 100, 60, ST_CONSOLE_MOUSE_BUTTON_LEFT, ST_CONSOLE_MOUSE_BUTTON));
 	CHECK(b->collect.x == 112 && b->collect.y == 60 && b->collect.armed);
 	canvas(&f, true, 112, 60);
@@ -335,26 +335,24 @@ mouse_suppression_and_confirmation(void)
 	struct cterm_big *b = f.big;
 	string(&f, "I#X 4,47,0,0,0,0,1:A!I#T 1,2,1:I#< 0,2,0:");
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON) && b->collect.armed);
-	st_cterm_sync_mouse_buttons(f.terminal, 0);
+	st_graphics_sync_mouse_buttons(f.terminal, 0);
 	CHECK(cterm_big_poll(f.big) == 0 && b->collect.active && !b->collect.armed);
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.active);
 	CHECK(mouse(&f, 50, 340, 1, ST_CONSOLE_MOUSE_BUTTON) && !b->collect.armed);
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON) && !b->collect.armed);
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.active);
-	const struct st_console_event ui = {
-	    .type       = ST_CONSOLE_EVENT_MOUSE,
-	    .data.mouse = {.action = ST_CONSOLE_MOUSE_BUTTON, .pixel_x = 70, .pixel_y = 70, .buttons = 1}
-        };
-	st_cterm_observe_mouse(f.terminal, &ui);
+	st_graphics_sync_mouse_buttons(f.terminal, 1);
 	CHECK(cterm_big_poll(f.big) == 0 && !b->collect.armed);
 	CHECK(mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.active);
+	/* The passed release supplies x=70. Right advances by 12. */
 	key(&f, ST_CONSOLE_KEY_RIGHT);
-	CHECK(b->collect.x == 62);
+	CHECK(b->collect.x == 82);
 	CHECK(mouse(&f, -1, -1, 1, ST_CONSOLE_MOUSE_BUTTON));
-	CHECK(mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.x == 62 && !b->collect.armed);
+	CHECK(mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.x == 82 && !b->collect.armed);
 	CHECK(!mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_WHEEL));
-	CHECK(st_cterm_handle_key(f.terminal, 13, 0) && st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_RIGHT, 0));
-	CHECK(cterm_big_poll(f.big) == 0 && !b->collect.active && b->collect.x == 62 && f.size == 1
+	CHECK(st_graphics_handle_key(f.terminal, 13, 0)
+	      && st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_RIGHT, 0));
+	CHECK(cterm_big_poll(f.big) == 0 && !b->collect.active && b->collect.x == 82 && f.size == 1
 	      && f.output[0] == 'A');
 	canvas(&f, false, 0, 0);
 	CHECK(!mouse(&f, -1, -1, 0, ST_CONSOLE_MOUSE_MOVE));
@@ -410,13 +408,13 @@ early_key_and_mouse_overflow(void)
 	create(&f, false, false);
 	struct cterm_big *b = f.big;
 	string(&f, "I#< 1,");
-	CHECK(st_cterm_handle_key(f.terminal, 'P', 0) && f.size == 0 && b->input.count == 1);
+	CHECK(st_graphics_handle_key(f.terminal, 'P', 0) && f.size == 0 && b->input.count == 1);
 	string(&f, "0,0:");
 	CHECK(f.size == 2 && memcmp(f.output, "P\r", 2) == 0);
 	f.size = 0;
 	string(&f, "I#X 4,47,0,0,0,0,1:A!I#T 1,2,1:I#< 0,2,0:");
 	for (unsigned i = 0; i < CTERM_BIG_INPUT_KEYS; ++i)
-		CHECK(st_cterm_handle_key(f.terminal, 'x', 0));
+		CHECK(st_graphics_handle_key(f.terminal, 'x', 0));
 	b->feeding = true;
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON));
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON));

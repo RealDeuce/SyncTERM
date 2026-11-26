@@ -29,6 +29,7 @@ struct st_profile;
 struct st_session_history;
 struct st_connection;
 struct st_term_session;
+struct st_term_event_result;
 
 struct st_wren_connected_config {
 	st_wren_host_t          *host;
@@ -170,6 +171,8 @@ int  st_wren_connected_skypix_transfer(st_wren_connected_t *connected, unsigned 
 int  st_wren_connected_rip_transfer(st_wren_connected_t *connected,
     const struct st_cterm_rip_transfer_request         *request);
 bool st_wren_connected_auxiliary_active(const st_wren_connected_t *connected);
+int  st_wren_connected_event_hook(void *context, const struct st_console_event *event,
+    struct st_term_event_result *result);
 int  st_wren_connected_handle_event(st_wren_connected_t *connected, const struct st_console_event *event,
     bool *consumed);
 int  st_wren_connected_filter_wire_byte(st_wren_connected_t *connected, uint8_t byte, bool *consumed,

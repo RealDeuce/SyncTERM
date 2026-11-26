@@ -12,6 +12,7 @@
 #include "cterm_rip_fonts.h"
 #include "rip_test_terminal.h"
 #include "st_cterm.h"
+#include "st_graphics_input.h"
 #include "st_pixels.h"
 
 #define CHECK(expression)                                                                \
@@ -616,10 +617,10 @@ click_pixel(st_cterm_t *terminal, struct st_console_event *mouse, int x, int y)
 	mouse->data.mouse.pixel_x = x;
 	mouse->data.mouse.pixel_y = y;
 	mouse->data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	if (!st_cterm_handle_mouse(terminal, mouse))
+	if (!st_graphics_handle_mouse(terminal, mouse))
 		return 1;
 	mouse->data.mouse.buttons = 0;
-	return st_cterm_handle_mouse(terminal, mouse) ? 0 : 1;
+	return st_graphics_handle_mouse(terminal, mouse) ? 0 : 1;
 }
 
 /* Full-frame colours for these streams were captured from SyncTERM v1.10a. */
@@ -829,9 +830,9 @@ st_cterm_rip_live_test_main(void)
 			     .action  = ST_CONSOLE_MOUSE_BUTTON,
 			     },
 	};
-	CHECK(st_cterm_handle_mouse(terminal, &world_click));
+	CHECK(st_graphics_handle_mouse(terminal, &world_click));
 	world_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &world_click));
+	CHECK(st_graphics_handle_mouse(terminal, &world_click));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	output.user_size = 0;
 	CHECK(feed(terminal, "!|*\r\n", 5) == 0);
@@ -853,9 +854,9 @@ st_cterm_rip_live_test_main(void)
 			     .action  = ST_CONSOLE_MOUSE_BUTTON,
 			     },
 	};
-	(void)st_cterm_handle_mouse(terminal, &query_click);
+	(void)st_graphics_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == 2 && memcmp(output.user_bytes, "G\r", 2) == 0);
 	output.user_size = 0;
 	query =
@@ -863,9 +864,9 @@ st_cterm_rip_live_test_main(void)
 	    "2000T^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	(void)st_cterm_handle_mouse(terminal, &query_click);
+	(void)st_graphics_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == 4 && memcmp(output.user_bytes, "T\rG\r", 4) == 0);
 	output.user_size = 0;
 	query =
@@ -873,9 +874,9 @@ st_cterm_rip_live_test_main(void)
 	    "1000$XYM$^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	(void)st_cterm_handle_mouse(terminal, &query_click);
+	(void)st_graphics_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == strlen("T\r0190:00c8:100\r")
 	      && memcmp(output.user_bytes, "T\r0190:00c8:100\r", output.user_size) == 0);
 	output.user_size = 0;
@@ -888,9 +889,9 @@ st_cterm_rip_live_test_main(void)
 	    "2000$XYM$^M\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	(void)st_cterm_handle_mouse(terminal, &query_click);
+	(void)st_graphics_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == strlen("32:19:100\rG\r")
 	      && memcmp(output.user_bytes, "32:19:100\rG\r", output.user_size) == 0);
 	output.user_size = 0;
@@ -901,7 +902,7 @@ st_cterm_rip_live_test_main(void)
 	query_click.data.mouse.action  = ST_CONSOLE_MOUSE_MOVE;
 	query_click.data.mouse.pixel_x = 401;
 	query_click.data.mouse.pixel_y = 201;
-	CHECK(!st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(!st_graphics_handle_mouse(terminal, &query_click));
 	query =
 	    "!|1\x1b"
 	    "0000$XY$^M\r";
@@ -919,9 +920,9 @@ st_cterm_rip_live_test_main(void)
 	    "F^M\r";
 	CHECK(feed(terminal, field, strlen(field)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	query_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == 2 && memcmp(output.user_bytes, "F\r", 2) == 0);
 	output.user_size = 0;
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
@@ -930,9 +931,9 @@ st_cterm_rip_live_test_main(void)
 	    "1000$OFF$\r";
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	query_click.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	(void)st_cterm_handle_mouse(terminal, &query_click);
+	(void)st_graphics_handle_mouse(terminal, &query_click);
 	query_click.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &query_click));
+	CHECK(st_graphics_handle_mouse(terminal, &query_click));
 	CHECK(output.user_size == 2 && memcmp(output.user_bytes, "T\r", 2) == 0);
 	output.user_size = 0;
 	/* RIP's post-command suppression consumes this LF, not UTF-8 input. */
@@ -1003,27 +1004,27 @@ st_cterm_rip_live_test_main(void)
 		struct st_pixel_buffer      *cleared = NULL;
 
 		CHECK(st_console_get_pixels(&before, console, &focus, false) == 0);
-		CHECK(st_cterm_handle_key(terminal, '\t', 0));
+		CHECK(st_graphics_handle_key(terminal, '\t', 0));
 		CHECK(st_console_get_pixels(&highlight, console, &focus, false) == 0);
 		CHECK(memcmp(before->primary, highlight->primary, 64 * sizeof(uint32_t)) != 0);
 		output.user_size = 0;
-		CHECK(st_cterm_handle_key(terminal, '\r', 0));
+		CHECK(st_graphics_handle_key(terminal, '\r', 0));
 		CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 		CHECK(st_console_get_pixels(&cleared, console, &focus, false) == 0);
 		CHECK(memcmp(before->primary, cleared->primary, 64 * sizeof(uint32_t)) == 0);
 		st_pixel_buffer_destroy(cleared);
-		CHECK(st_cterm_handle_key(terminal, '\t', 0));
+		CHECK(st_graphics_handle_key(terminal, '\t', 0));
 		CHECK(feed(terminal, "!|$TABOFF$\r", 11) == 0);
 		CHECK(st_console_get_pixels(&cleared, console, &focus, false) == 0);
 		CHECK(memcmp(before->primary, cleared->primary, 64 * sizeof(uint32_t)) == 0);
 		st_pixel_buffer_destroy(cleared);
 		CHECK(feed(terminal, "!|$TABON$\r", 10) == 0);
 		output.user_size = 0;
-		CHECK(st_cterm_handle_key(terminal, '\t', ST_CONSOLE_MODIFIER_SHIFT));
-		CHECK(st_cterm_handle_key(terminal, '\r', 0));
+		CHECK(st_graphics_handle_key(terminal, '\t', ST_CONSOLE_MODIFIER_SHIFT));
+		CHECK(st_graphics_handle_key(terminal, '\r', 0));
 		CHECK(output.user_size == 1 && output.user_bytes[0] == '\x0e');
-		CHECK(st_cterm_handle_key(terminal, '\t', 0));
-		(void)st_cterm_handle_doorway_key(terminal, 0x48);
+		CHECK(st_graphics_handle_key(terminal, '\t', 0));
+		(void)st_graphics_handle_doorway_key(terminal, 0x48);
 		CHECK(st_console_get_pixels(&cleared, console, &focus, false) == 0);
 		CHECK(memcmp(before->primary, cleared->primary, 64 * sizeof(uint32_t)) == 0);
 		st_pixel_buffer_destroy(cleared);
@@ -1045,19 +1046,19 @@ st_cterm_rip_live_test_main(void)
 			     .action  = ST_CONSOLE_MOUSE_BUTTON,
 			     },
 	};
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(st_console_get_pixels(&pixels, console, &reset_pixel, false) == 0);
 	CHECK(pixels->primary[0] != original);
 	st_pixel_buffer_destroy(pixels);
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(st_console_get_pixels(&pixels, console, &reset_pixel, false) == 0);
 	CHECK(pixels->primary[0] == original);
 	st_pixel_buffer_destroy(pixels);
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(!st_graphics_handle_mouse(terminal, &mouse));
 	const char *button_wire =
 	    "\r!|1B140A0200ZK0300080F080700000707000000"
 	    "|1U1O1E00002G00<>EXIT<>^M\r";
@@ -1078,28 +1079,28 @@ st_cterm_rip_live_test_main(void)
 	mouse.data.mouse.pixel_x = 61;
 	mouse.data.mouse.pixel_y = 51;
 	mouse.data.mouse.buttons = 0;
-	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(!st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(feed(terminal, "!|$SMF$\r", 8) == 0);
 	CHECK(feed(terminal, "!|$MKILL$\r", 10) == 0);
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(!st_graphics_handle_mouse(terminal, &mouse));
 	mouse.data.mouse.buttons = 0;
-	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(!st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(feed(terminal, "!|$RMF$\r", 8) == 0);
 	CHECK(feed(terminal, "!|$SAVEALL$\r", 12) == 0);
 	CHECK(feed(terminal, "!|$MKILL$\r", 10) == 0);
 	CHECK(feed(terminal, "!|$RESTOREALL$\r", 15) == 0);
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
 	output.user_size         = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(!st_graphics_handle_mouse(terminal, &mouse));
 	mouse.data.mouse.buttons = 0;
-	CHECK(!st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(!st_graphics_handle_mouse(terminal, &mouse));
 	const char *bevel_button =
 	    "\r!|1B140A0201DU0100080F080700000707000000"
 	    "|1U2S2800000000<>EDGE<>^M\r";
@@ -1111,12 +1112,12 @@ st_cterm_rip_live_test_main(void)
 	mouse.data.mouse.pixel_x = 101;
 	mouse.data.mouse.pixel_y = 81;
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(st_console_get_pixels(&pixels, console, &bevel_corner, false) == 0);
 	CHECK(pixels->primary[0] != bevel_before);
 	st_pixel_buffer_destroy(pixels);
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(st_console_get_pixels(&pixels, console, &bevel_corner, false) == 0);
 	CHECK(pixels->primary[0] == bevel_before);
 	st_pixel_buffer_destroy(pixels);
@@ -1163,12 +1164,12 @@ st_cterm_rip_live_test_main(void)
 	mouse.data.mouse.pixel_x = 100;
 	mouse.data.mouse.pixel_y = 80;
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(sample_pixel(console, 100, 80, &clipboard_pressed) == 0);
 	CHECK(clipboard_pressed != clipboard_normal);
 	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	const char *icon_button =
@@ -1180,12 +1181,12 @@ st_cterm_rip_live_test_main(void)
 	mouse.data.mouse.pixel_x = 120;
 	mouse.data.mouse.pixel_y = 80;
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(sample_pixel(console, 120, 80, &icon_pressed) == 0);
 	CHECK(icon_pressed != icon_normal);
 	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	const char *hot_icon_button =
@@ -1200,7 +1201,7 @@ st_cterm_rip_live_test_main(void)
 	mouse.data.mouse.pixel_x                       = 160;
 	mouse.data.mouse.pixel_y                       = 80;
 	mouse.data.mouse.buttons                       = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(st_console_get_pixels(&hot_button_pixels, console, &hot_button_rect, false) == 0);
 	CHECK(st_console_get_pixels(&hot_icon_pixels, console, &hot_icon_rect, false) == 0);
 	CHECK(memcmp(hot_button_pixels->primary, hot_icon_pixels->primary, 22 * 17 * sizeof(uint32_t)) == 0);
@@ -1208,7 +1209,7 @@ st_cterm_rip_live_test_main(void)
 	st_pixel_buffer_destroy(hot_button_pixels);
 	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	const char *autostamp_buttons =
@@ -1221,12 +1222,12 @@ st_cterm_rip_live_test_main(void)
 	mouse.data.mouse.pixel_x = 200;
 	mouse.data.mouse.pixel_y = 80;
 	mouse.data.mouse.buttons = ST_CONSOLE_MOUSE_BUTTON_LEFT;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(sample_pixel(console, 200, 80, &autostamp_pressed) == 0);
 	CHECK(autostamp_pressed != autostamp_normal);
 	output.user_size         = 0;
 	mouse.data.mouse.buttons = 0;
-	CHECK(st_cterm_handle_mouse(terminal, &mouse));
+	CHECK(st_graphics_handle_mouse(terminal, &mouse));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|1K\r", 5) == 0);
 	const char *extended_seed = "\r!|c0E|X2S2S\r";

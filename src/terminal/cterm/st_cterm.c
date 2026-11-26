@@ -2110,8 +2110,8 @@ st_cterm_copy_scrollback_rows(const st_cterm_t *terminal, struct st_console_cell
 	return (int)row_count;
 }
 
-static int
-mapped_key(uint16_t key, uint32_t modifiers)
+int
+cterm_mapped_key(uint16_t key, uint32_t modifiers)
 {
 	bool shift   = (modifiers & ST_CONSOLE_MODIFIER_SHIFT) != 0;
 	bool control = (modifiers & ST_CONSOLE_MODIFIER_CONTROL) != 0;
@@ -2180,13 +2180,7 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code, uint32_t modifiers)
 
 	if (terminal == NULL)
 		return false;
-	if (terminal->device.key != NULL
-	    && terminal->device.key(terminal->device.context, &(struct cterm_key) {.kind = CTERM_KEY_NORMAL,
-								  .value                 = key_code,
-								  .modifiers             = modifiers,
-								  .local = mapped_key(key_code, modifiers)}))
-		return true;
-	doorway_key = mapped_key(key_code, modifiers);
+	doorway_key = cterm_mapped_key(key_code, modifiers);
 	if (doorway_key >= 0 && doorway_key < 32
 	    && (modifiers & (ST_CONSOLE_MODIFIER_CONTROL | ST_CONSOLE_MODIFIER_ALT | ST_CONSOLE_MODIFIER_GUI)) == 0
 	    && terminal->wire_encoding == ST_CTERM_ENCODING_CODEPAGE) {
@@ -2206,10 +2200,6 @@ st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
 {
 	if (terminal == NULL)
 		return false;
-	if (terminal->device.key != NULL
-	    && terminal->device.key(terminal->device.context,
-		&(struct cterm_key) {.kind = CTERM_KEY_CODEPAGE, .value = byte, .local = byte}))
-		return true;
 	(void)cterm_handle_key(terminal, byte);
 	return true;
 }
@@ -2221,10 +2211,6 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 
 	if (terminal == NULL)
 		return false;
-	if (terminal->device.key != NULL
-	    && terminal->device.key(terminal->device.context,
-		&(struct cterm_key) {.kind = CTERM_KEY_TEXT, .value = codepoint, .local = (int)codepoint}))
-		return true;
 	if (terminal->wire_encoding == ST_CTERM_ENCODING_UTF8) {
 		if (codepoint >= 0x80)
 			return false;
@@ -2241,10 +2227,6 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 bool
 st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
-	if (terminal != NULL && terminal->device.key != NULL
-	    && terminal->device.key(terminal->device.context,
-		&(struct cterm_key) {.kind = CTERM_KEY_DOORWAY, .value = scan_code, .local = (int)scan_code << 8}))
-		return true;
 	return terminal != NULL && cterm_handle_key(terminal, (int)scan_code << 8) == CTERM_KEY_HANDLED;
 }
 
@@ -2287,8 +2269,17 @@ append_mouse_utf8(char *buffer, size_t offset, uint32_t value)
 bool
 st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event)
 {
-	uint16_t modes;
-	uint32_t changed;
+	if (terminal == NULL || event == NULL || event->type != ST_CONSOLE_EVENT_MOUSE)
+		return false;
+	uint32_t changed = terminal->api_mouse_buttons ^ event->data.mouse.buttons;
+	terminal->api_mouse_buttons = event->data.mouse.buttons;
+	return cterm_report_mouse(terminal, event, changed);
+}
+
+bool
+cterm_report_mouse(st_cterm_t *terminal, const struct st_console_event *event, uint32_t changed)
+{
+	uint16_t modes = terminal->api_mouse_modes;
 	uint32_t button = 0;
 	uint32_t x;
 	uint32_t y;
@@ -2298,19 +2289,6 @@ st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event
 	char     sequence[96];
 	int      length;
 
-	if (terminal == NULL || event == NULL || event->type != ST_CONSOLE_EVENT_MOUSE)
-		return false;
-	modes                       = terminal->api_mouse_modes;
-	changed                     = terminal->api_mouse_buttons ^ event->data.mouse.buttons;
-	terminal->api_mouse_buttons = event->data.mouse.buttons;
-	if (terminal->device.mouse != NULL) {
-		bool owned   = terminal->device.owns_mouse
-		               || (!terminal->device.mouse_passthrough && terminal->device.mouse_mode != NULL
-		                   && terminal->device.mouse_mode(terminal->device.context) != 0);
-		bool handled = terminal->device.mouse(terminal->device.context, event, changed);
-		if (owned || handled)
-			return handled;
-	}
 	if (event->data.mouse.action == ST_CONSOLE_MOUSE_WHEEL) {
 		if ((modes & (MOUSE_X10 | MOUSE_NORMAL | MOUSE_BUTTON | MOUSE_ANY)) == 0
 		    && (modes & MOUSE_ALT_SCROLL) != 0) {
@@ -2392,22 +2370,10 @@ st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event
 }
 
 void
-st_cterm_observe_mouse(st_cterm_t *terminal, const struct st_console_event *event)
-{
-	if (terminal != NULL && event != NULL && event->type == ST_CONSOLE_EVENT_MOUSE) {
-		if (terminal->device.observe_mouse != NULL)
-			terminal->device.observe_mouse(terminal->device.context, event);
-	}
-}
-
-void
 st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons)
 {
-	if (terminal != NULL) {
+	if (terminal != NULL)
 		terminal->api_mouse_buttons = buttons;
-		if (terminal->device.sync_mouse != NULL)
-			terminal->device.sync_mouse(terminal->device.context, buttons);
-	}
 }
 
 bool

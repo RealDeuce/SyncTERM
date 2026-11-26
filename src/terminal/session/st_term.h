@@ -45,6 +45,12 @@ enum st_term_disposition {
 typedef int (*st_term_wire_filter_t)(void *context, uint8_t byte, bool *consumed, uint8_t *replacement,
     size_t capacity, size_t *replacement_size);
 
+struct st_term_event_result {
+	bool consumed;
+	/* A modal hook may read further mouse events before returning. */
+	uint32_t mouse_buttons;
+};
+
 struct st_term_config {
 	/* Borrowed for the session lifetime. */
 	st_console_t            *console;
@@ -102,8 +108,9 @@ struct st_term_config {
 	void                            *rip_choice_context;
 	st_cterm_rip_transfer_callback_t rip_transfer;
 	void                            *rip_transfer_context;
-	/* Called before built-in event handling; true consumes the event. */
-	int   (*event_hook)(void *context, const struct st_console_event *event, bool *consumed);
+	/* Called before built-in event handling. The hook sets result->consumed. */
+	int (
+	    *event_hook)(void *context, const struct st_console_event *event, struct st_term_event_result *result);
 	void *event_hook_context;
 	/* Exact received bytes, before RIP/CTerm parsing. Replacement bytes are
 	 * reclassified by CTerm in order, without revisiting this filter. */
@@ -205,6 +212,8 @@ int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);
 int            st_term_session_reserve_rip_transfer(st_term_session_t *session);
 void           st_term_session_cancel_rip_transfer(st_term_session_t *session);
 const uint8_t *st_term_session_prestel_frame(st_term_session_t *session, size_t *size);
+/* Reconcile buttons after a local gesture consumed its own console events. */
+int st_term_session_sync_mouse_buttons(st_term_session_t *session, uint32_t buttons);
 /* Effective protocol, including the separate RIP3 mouse-field owner. */
 int st_term_session_mouse_mode(st_term_session_t *session);
 /* RIP3's native pointer preference for restoring link-hover presentation.
@@ -231,8 +240,8 @@ int st_term_session_pump(st_term_session_t *session, enum st_term_disposition *d
 /* Forward one native keyboard event through terminal keyboard policy and
  * wire encoding. Does not dispatch script hooks or local session commands.
  * handled reports whether the terminal accepted the key (including local
- * terminal actions); an output error is returned separately. Mouse/window
- * events are invalid. The event's text, modifiers, and physical edge are
+ * terminal actions or queuing behind a RIP3 continuation). Output errors are
+ * returned separately. Mouse/window events are invalid. The event's text, modifiers, and physical edge are
  * preserved; CODEPAGE_BYTE is resolved using the session wire encoding. */
 int st_term_session_send_key(st_term_session_t *session, const struct st_console_event *event, bool *handled);
 /* Combined RIP3 gate for local shortcuts that submit terminal data. */

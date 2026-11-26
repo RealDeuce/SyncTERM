@@ -91,6 +91,9 @@ enum prestel_prog_states {
 #define PRESTEL_MEM_SLOT_SIZE 16
 
 
+/* The input dispatcher has already recorded this button transition. */
+bool cterm_report_mouse(struct cterminal *, const struct st_console_event *, uint32_t changed);
+
 struct cterm_key;
 
 /* Events a session-owned device may observe while the emulation is active. */
@@ -99,7 +102,6 @@ struct cterm_device_events {
 	bool  (*key)(void *, const struct cterm_key *);
 	int   (*mouse_mode)(const void *);
 	bool           (*mouse)(void *, const struct st_console_event *, uint32_t changed);
-	void  (*observe_mouse)(void *, const struct st_console_event *);
 	void  (*sync_mouse)(void *, uint32_t);
 	void  (*yield_fx)(void *);
 	int            (*hide_cursor)(void *);

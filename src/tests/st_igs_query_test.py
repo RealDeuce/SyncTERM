@@ -11,6 +11,16 @@ from syncterm_fixture import check_pixel_planes, cell_at
 from st_igs_macro_test import SCRIPT
 
 FORMS = json.loads((Path(__file__).parent/'igs/mouse-forms.json').read_text())
+QUERY_SCRIPT = SCRIPT + r'''
+import "syncterm" for Input, Mouse, KeyEvent
+Hook.onKey(Key.f7) {|event| CTerm.sendKey(KeyEvent.text("X")) }
+Input.enableMouseEvent(Mouse.button1Press)
+Hook.onMouse(Mouse.button1Press) {|event|
+  if (event.endPixelX != 123 || event.endPixelY != 107) return false
+  Conn.sendBytes("claimed")
+  return true
+}
+'''
 CAPTURES = 0
 
 
@@ -25,7 +35,7 @@ def run(executable, reports, resolution, encoding, status):
         entries = ('[IGS queries]\nConnectionType=Raw\nAddress=127.0.0.1\n'
                    f'Port={listener.getsockname()[1]}\nGraphics=IGS (2.21)\nScreenMode={screen}\n'
                    f'Font=Atari ST\nEncoding={encoding}\nNoStatus={str(not status).lower()}\n')
-        with fixture(executable,entries=entries,script=SCRIPT,settings='AudioModes=0\nMidiModes=0\nBlockyScaling=true\n',
+        with fixture(executable,entries=entries,script=QUERY_SCRIPT,settings='AudioModes=0\nMidiModes=0\nBlockyScaling=true\n',
                      reports=reports,quiet=False) as (client,root):
             client.wait_text('IGS queries'); client.key('enter'); marker=1000
 
@@ -113,6 +123,11 @@ def run(executable, reports, resolution, encoding, status):
                 scene(peer,b'G#? 0:',b'2.21'); scene(peer,b'G#? 3:',f'{resolution}:'.encode())
                 scene(peer,b'G#? 1,0:',bytes((36,34,32)))
                 mouse(100,100); scene(peer,b'G#? 2,0:',b'100,100,0:')
+                # A real Wren hook owns this press. IGS retains its last
+                # forwarded position while the held button is synchronized.
+                mouse(123,107,1); read(peer,b'claimed')
+                scene(peer,b'G#? 2,0:',b'100,100,1:')
+                mouse(100,100,0)
                 # All8 original AES forms; move once after press too, since
                 # GEM remains live while the release coordinates are acquired.
                 for form in range(8):
@@ -137,9 +152,10 @@ def run(executable, reports, resolution, encoding, status):
                 inspect(frame,True)
                 frame=mouse(150,150); inspect(frame,True,cursor=(6,4))
                 frame=mouse(140,140,5); inspect(frame,True,cursor=(5,3))
-                client.text('é'); client.wait_for(lambda f:f.application.get('cterm.igs_music_keys')==1)
+                client.text('é'); client.key('f7')
+                client.wait_for(lambda f:f.application.get('cterm.igs_music_keys')==2)
                 mouse(170,170,0)
-                scene(peer,reply=bytes((36,34,35))+(b'\xc3\xa9' if encoding=='UTF-8' else b'\x82'))
+                scene(peer,reply=bytes((36,34,35))+(b'\xc3\xa9' if encoding=='UTF-8' else b'\x82')+b'X')
                 # Incomplete interactive work is cancelled without a reply and
                 # its visible pointer is restored before session teardown.
                 mouse(100,100); send(peer,b'G#? 2,4:')
@@ -157,5 +173,5 @@ if __name__=='__main__':
     for resolution in range(3):
         for encoding in ('ATARI-ST','CP437','UTF-8'):
             for status in (False,True): run(args.executable,args.reports,resolution,encoding,status)
-    assert CAPTURES==864,CAPTURES
+    assert CAPTURES == 3 * 3 * 2 * 49, CAPTURES
     print(f'{CAPTURES} coherent query captures',flush=True)

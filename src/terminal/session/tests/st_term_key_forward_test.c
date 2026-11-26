@@ -68,16 +68,21 @@ render_prompt(void *context, const char *question, const char *initial, size_t w
 }
 
 static char observed_order[8];
+static st_term_session_t *forward_session;
 
 static int
-observe_event(void *context, const struct st_console_event *event, bool *consumed)
+observe_event(void *context, const struct st_console_event *event, struct st_term_event_result *result)
 {
 	unsigned *calls = context;
-	(void)event;
 	++*calls;
 	if (event->type == ST_CONSOLE_EVENT_TEXT && *calls <= sizeof(observed_order))
 		observed_order[*calls - 1] = (char)event->data.text.codepoint;
-	*consumed = true;
+	result->consumed = event->type == ST_CONSOLE_EVENT_TEXT && event->data.text.codepoint == '!';
+	if (event->type == ST_CONSOLE_EVENT_TEXT && event->data.text.codepoint == 'b') {
+		struct st_console_event replacement = {.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = 'X'};
+		CHECK(st_term_session_send_key(forward_session, &replacement, &result->consumed) == 0
+		      && result->consumed);
+	}
 	return 0;
 }
 
@@ -148,6 +153,7 @@ st_term_key_forward_test_main(void)
 		    .rip_prompt_context = &graphical_prompt,
 		};
 		CHECK(st_term_session_create(&session, &config) == 0);
+		forward_session               = session;
 		struct st_console_event event = {
 		    .type      = ST_CONSOLE_EVENT_TEXT,
 		    .data.text = {.codepoint = 0xe9,
@@ -260,16 +266,35 @@ st_term_key_forward_test_main(void)
 			event.data.text.codepoint = 'b';
 			CHECK(st_console_post_event(console, &event) == 0);
 			CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished
-			      && hook_calls == 0);
+			      && hook_calls == 2);
+			event.data.text.codepoint = 'Y';
+			CHECK(st_term_session_send_key(session, &event, &handled) == 0 && handled);
 			CHECK(connection.output.count == 0);
 			graphical_prompt.ready = true;
 			CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished
 			      && hook_calls == 2);
-			/* The text continuation paints once, then later wire bytes and the
-			 * saved event resume through their original owners. */
+			/* Wire continuation, RIP hotkey, hook replacement, then direct forwarding. */
 			CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && !finished
 			      && hook_calls == 2);
-			CHECK(expect_output(&connection, "after", 5) == 0 && memcmp(observed_order, "ab", 2) == 0);
+			CHECK(expect_output(&connection, "afterHXY", 8) == 0
+			      && memcmp(observed_order, "ab", 2) == 0);
+			hook_calls = 0;
+		}
+		if (mode == 0) {
+			enum st_term_disposition disposition;
+			bool                     finished;
+			CHECK(st_term_session_start_musicomm(session) == 0);
+			event =
+			    (struct st_console_event) {.type = ST_CONSOLE_EVENT_TEXT, .data.text.codepoint = '!'};
+			CHECK(st_console_post_event(console, &event) == 0);
+			CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
+			CHECK(hook_calls == 1 && st_term_session_musicomm_state(session) == ST_MUSICOMM_WAITING);
+			event.data.text.codepoint = 'k';
+			CHECK(st_console_post_event(console, &event) == 0);
+			CHECK(st_term_session_service(session, &disposition, &finished) == 0 && !finished);
+			CHECK(hook_calls == 2 && st_term_session_musicomm_state(session) == ST_MUSICOMM_END_DRAIN);
+			CHECK(expect_output(&connection, "\xff\xff\xff", 3) == 0);
+			CHECK(st_term_session_reset_display(session) == 0);
 			hook_calls = 0;
 		}
 		connection.output.stopped = true;
@@ -298,7 +323,8 @@ st_term_key_forward_test_main(void)
                         };
 			CHECK(st_console_post_event(console, &event) == 0);
 			CHECK(st_term_session_pump(session, &disposition, &finished) == 0 && finished
-			      && disposition == ST_TERM_EXIT_APPLICATION && hook_calls == 0);
+			      && disposition == ST_TERM_EXIT_APPLICATION && hook_calls == 2);
+			hook_calls = 0;
 		}
 		st_term_session_destroy(&session);
 		connection.output.stopped = false;

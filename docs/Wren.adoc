@@ -4454,12 +4454,13 @@ assignment when selecting an existing font; loading only registers a new font.
 | Forward a `KeyEvent` or `PhysicalKeyEvent` through the current terminal's
   native keyboard path, preserving the source type and modifiers. Returns
   Bool on native success or `CTermError` on native failure. The Bool reports
-  acceptance (including local-only actions), not delivery. Unsupported mappings
-  and the native WireLease exclusion return `false`. Check for Error before
-  interpreting the Bool; Error values are truthy. Invalid arguments abort.
-  Hook dispatch is not
-  re-entered. For example, `CTerm.sendKey(KeyEvent.new(Key.enter))` injects Return
-  through this path.
+  acceptance, including local-only actions and queuing behind suspended RIP3
+  drawing. Immediate dispatch returns `false` for unsupported mappings.
+  An active native WireLease also returns `false`. Check for Error before
+  interpreting the Bool. Error values are truthy. Invalid arguments abort.
+  Forwarded keys enter the same graphics and emulation path as keys passed by
+  input hooks, in order, without re-entering the hooks. For example,
+  `CTerm.sendKey(KeyEvent.new(Key.enter))` forwards Return.
 
 | `CTerm.keyboardLocked`
 | Bool. Reports whether the current RIP3 text window's ANSI mode 2 or
@@ -4473,8 +4474,8 @@ assignment when selecting an existing font; loading only registers a new font.
   aborts. It finishes pending terminal output and replaces channel-0 music.
   The sender must handshake with byte 02 and pace note toggles in real time;
   no terminal escape sequence activates it. An available configured MIDI
-  destination takes precedence over the Atari ST speaker fallback. Any local
-  key aborts and is consumed before connected key hooks. Reset/EOF/destruction
+  destination takes precedence over the Atari ST speaker fallback. A key passed by the connected input hooks or forwarded by
+  `CTerm.sendKey` aborts playback and is consumed. Reset/EOF/destruction
   cancel it. See `docs/MUSICOMM.md` for protocol, guard intervals and coverage.
 
 | `CTerm.reset()`

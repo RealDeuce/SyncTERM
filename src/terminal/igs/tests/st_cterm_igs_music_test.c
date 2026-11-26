@@ -4,6 +4,7 @@
 #include "cterm_igs_music.h"
 #include "igs_test_fixture.h"
 #include "music_internal.h"
+#include "st_graphics_input.h"
 #include "st_threads.h"
 #include "st_time.h"
 
@@ -131,7 +132,7 @@ loads(void)
 	/* A local abort follows the first store, leaves the raw suffix unread and
 	 * does not interpret a payload Ctrl-C/X as a key. */
 	feed(&f, "G#N 0,5:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	const uint8_t abort_data[] = {24, 'A', 'B', 'C', 'D'};
 	CHECK(write_bytes(&f, abort_data, sizeof(abort_data)) == sizeof(abort_data));
 	CHECK(m->count == 0 && m->bytes[0] == 24 && m->bytes[1] == 1 && m->script_length == 37);
@@ -227,20 +228,20 @@ keyboard(void)
 	feed(&f, "G#N 5:");
 	/* Ctrl-C in the inner delay shortens it; the second queued Ctrl-X is
 	 * consumed by the next outer poll and stops before triggering record 2. */
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && igs->note.key);
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 24) && igs->input.key_count == 1);
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0) && igs->note.key);
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 24) && igs->input.key_count == 1);
 	CHECK(cterm_igs_poll(f.igs) == 0 && !m->playing && st_igs_test_calls == 1);
 	flow_pair();
 	CHECK(m->count == 18 && igs->audio->gist.voice[0].parameters[0] > 0 && key_count == 0);
 	/* A + used by the inner note does not shift its next record. */
 	feed(&f, "G#N 5:");
-	CHECK(st_cterm_handle_text_key(f.terminal, '+'));
+	CHECK(st_graphics_handle_text_key(f.terminal, '+'));
 	CHECK(cterm_igs_poll(f.igs) == 0 && igs->note.active && igs->note.voice == 1);
-	CHECK(st_cterm_handle_doorway_key(f.terminal, 59));
+	CHECK(st_graphics_handle_doorway_key(f.terminal, 59));
 	CHECK(cterm_igs_poll(f.igs) == 0 && igs->note.active && igs->note.voice == 2);
 	/* Events unused after the final inner wait return through their source. */
-	CHECK(st_cterm_handle_text_key(f.terminal, 0x1f600));
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 'x'));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0x1f600));
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 'x'));
 	CHECK(cterm_igs_poll(f.igs) == 0 && !m->playing && key_count == 1 && keys[0] == 'x');
 	flow_pair();
 	/* A second + queued behind an inner key shifts the NEXT record by one
@@ -248,7 +249,7 @@ keyboard(void)
 	 * (2,9,67,20,0,0), including one old byte beyond the loaded count. */
 	st_igs_test_calls = 0;
 	feed(&f, "G#N 5:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && st_cterm_handle_text_key(f.terminal, '+'));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0) && st_graphics_handle_text_key(f.terminal, '+'));
 	CHECK(cterm_igs_poll(f.igs) == 0 && !m->playing && m->index == 19 && st_igs_test_calls == 3);
 	CHECK(memcmp(st_igs_test_arguments, (int[]) {2, 15, 20, 7}, sizeof(st_igs_test_arguments)) == 0);
 	CHECK(memcmp(m->bytes, records, sizeof(records)) == 0 && m->count == 18);
@@ -476,7 +477,7 @@ midi(void)
 	/* A key during MIDI delay waits for the NEXT outer poll, never shortens
 	 * the current delay. Abort emits no MIDI all-notes-off. */
 	feed(&f, "G#N 2:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	CHECK(cterm_igs_poll(f.igs) == 0 && m->playing && m->delaying);
 	poll_due(&f);
 	CHECK(!m->playing && m->count == (int)sizeof(pairs));
@@ -488,7 +489,7 @@ midi(void)
 	/* + changes byte alignment rather than skipping a MIDI message. */
 	load(&f, 0, (uint8_t[]) {0xf8, 1, 0xfa, 0, 0xfc, 0}, 6);
 	feed(&f, "G#N 2:");
-	CHECK(st_cterm_handle_text_key(f.terminal, '+'));
+	CHECK(st_graphics_handle_text_key(f.terminal, '+'));
 	poll_due(&f);
 	CHECK(m->index == 4 && m->delaying && igs->wait_deadline == local_ms + 0xfc * 5);
 	poll_due(&f);
@@ -538,7 +539,7 @@ backpressure(void)
 	feed(&f, "G#N 2:");
 	CHECK(m->playing && !m->delaying && m->index == 1 && m->checked);
 	/* A pending key cannot bypass readiness after this pair's key poll. */
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	CHECK(cterm_igs_poll(f.igs) == 0 && m->playing && m->index == 1 && igs->input.key_count == 1);
 	st_mutex_lock(&log.mutex);
 	log.block = false;

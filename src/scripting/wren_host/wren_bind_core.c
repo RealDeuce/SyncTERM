@@ -1172,6 +1172,8 @@ queue_console_event(struct st_wren_context *context, const struct st_console_eve
 			break;
 		}
 		case ST_CONSOLE_EVENT_MOUSE:
+			if (context->dispatch_mouse != NULL)
+				context->dispatch_mouse->mouse_buttons = event->data.mouse.buttons;
 			return queue_mouse_events(context, event);
 		default:
 			return 0;
@@ -1796,8 +1798,8 @@ st_wren_input_dispatch_console_event(WrenVM *vm, const struct st_console_event *
 				if (claimed)
 					*consumed = true;
 			}
-			/* A drag hook may have consumed a later release while running. */
-			if (*consumed)
+			/* Connected dispatch synchronizes the final button state in event order. */
+			if (*consumed && context->session == NULL)
 				st_cterm_sync_mouse_buttons(context->cterm, context->mouse_buttons);
 			return 0;
 		}

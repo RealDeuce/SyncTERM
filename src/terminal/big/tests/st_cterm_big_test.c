@@ -8,6 +8,7 @@
 #include "cterm_big_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_graphics_input.h"
 #define CHECK(x)                                                                \
 	do {                                                                    \
 		if (!(x)) {                                                     \
@@ -549,12 +550,12 @@ local_keys(void)
 			struct cterm_big *b = f.big;
 			CHECK(f.resizes == 1); /* Initial BIG profile installation. */
 			key_loop(&f);
-			CHECK(st_cterm_handle_key(f.terminal, cancel ? 24 : 3, ST_CONSOLE_MODIFIER_CONTROL));
-			CHECK(st_cterm_handle_text_key(f.terminal, 0x212b)); /* NFC becomes U+00c5. */
-			CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
-			CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_F3, ST_CONSOLE_MODIFIER_CONTROL));
-			CHECK(st_cterm_handle_doorway_key(f.terminal, 0x50));
-			CHECK(st_cterm_handle_codepage_key(f.terminal, 0xff));
+			CHECK(st_graphics_handle_key(f.terminal, cancel ? 24 : 3, ST_CONSOLE_MODIFIER_CONTROL));
+			CHECK(st_graphics_handle_text_key(f.terminal, 0x212b)); /* NFC becomes U+00c5. */
+			CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
+			CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_F3, ST_CONSOLE_MODIFIER_CONTROL));
+			CHECK(st_graphics_handle_doorway_key(f.terminal, 0x50));
+			CHECK(st_graphics_handle_codepage_key(f.terminal, 0xff));
 			CHECK(f.output_size == 0 && b->numeric.loop.active == 1);
 			CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.active == 0);
 			CHECK(b->numeric.loop.current == 1 && b->state.application.marker == 7 && f.resizes == 1);
@@ -568,7 +569,7 @@ local_keys(void)
 			for (size_t i = 0; i < size; ++i)
 				CHECK(f.origins[i] == ST_CTERM_OUTPUT_USER);
 			CHECK(cterm_big_poll(f.big) == 0 && f.output_size == size);
-			CHECK(st_cterm_handle_key(f.terminal, 'z', 0) && f.output_size == size + 1
+			CHECK(st_graphics_handle_key(f.terminal, 'z', 0) && f.output_size == size + 1
 			      && f.output[size] == 'z');
 			destroy(&f);
 		}
@@ -581,23 +582,23 @@ local_key_bytes(void)
 	create(&f, true, false);
 	struct cterm_big *b = f.big;
 	key_loop(&f);
-	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
+	CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1 && b->numeric.loop.active == 1
 	      && f.output_size == 0);
 	/* The first getch returns zero; its pending scan byte is not a new
 	 * BIOS key. A later real key admits the scan read before that key. */
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1);
-	CHECK(st_cterm_handle_text_key(f.terminal, 3));
+	CHECK(st_graphics_handle_text_key(f.terminal, 3));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 3 && b->numeric.loop.active == 0);
 	CHECK(f.output_size == 0);
 	key_loop(&f);
 	/* Unicode is converted to local CP437, never truncated to a C0 byte. */
-	CHECK(st_cterm_handle_text_key(f.terminal, 0x1f603));
-	CHECK(st_cterm_handle_text_key(f.terminal, 0xe9));
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 0));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0x1f603));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0xe9));
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 0));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 3 && b->numeric.loop.active == 1
 	      && f.output_size == 0);
-	CHECK(st_cterm_handle_codepage_key(f.terminal, 24));
+	CHECK(st_graphics_handle_codepage_key(f.terminal, 24));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 4 && b->numeric.loop.active == 0
 	      && f.output_size == 0);
 	destroy(&f);
@@ -610,29 +611,29 @@ local_key_lifecycle(void)
 	create(&f, true, false);
 	struct cterm_big *b = f.big;
 	key_loop(&f);
-	CHECK(st_cterm_handle_key(f.terminal, 'a', 0));
-	CHECK(st_cterm_handle_text_key(f.terminal, 0x1f603));
+	CHECK(st_graphics_handle_key(f.terminal, 'a', 0));
+	CHECK(st_graphics_handle_text_key(f.terminal, 0x1f603));
 	CHECK(cterm_big_finish(f.big) == 0 && cterm_big_poll(f.big) == 0 && f.output_size == 0);
 	key_loop(&f);
-	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
+	CHECK(st_graphics_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1);
 	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	key_loop(&f);
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1 && f.output_size == 0);
 	/* A reset from the first replayed key discards the unread suffix. */
 	key_loop(&f);
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
-	CHECK(st_cterm_handle_key(f.terminal, 'A', 0) && st_cterm_handle_key(f.terminal, 'B', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'A', 0) && st_graphics_handle_key(f.terminal, 'B', 0));
 	b->control.frame.did_loop = 0;
 	f.reset_output            = true;
 	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 1 && f.output[0] == 'A' && !f.reset_output);
 	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 1);
 	/* Saturation must never leak local input to the BBS. */
 	key_loop(&f);
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	for (unsigned i = 0; i < 100; ++i)
-		CHECK(st_cterm_handle_key(f.terminal, 'Q', 0));
+		CHECK(st_graphics_handle_key(f.terminal, 'Q', 0));
 	CHECK(f.output_size == 1);
 	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 64);
 	for (size_t i = 1; i < f.output_size; ++i)
@@ -654,19 +655,19 @@ local_key_return(void)
 	b->control.input.count      = 1;
 	b->control.input.payload[1] = '!';
 	f.block_output              = true;
-	CHECK(st_cterm_handle_text_key(f.terminal, 'A') && st_cterm_handle_text_key(f.terminal, 'B'));
+	CHECK(st_graphics_handle_text_key(f.terminal, 'A') && st_graphics_handle_text_key(f.terminal, 'B'));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.active == 0 && b->footer_active && f.output_size == 0);
-	CHECK(st_cterm_handle_key(f.terminal, 'C', 0) && f.output_size == 0);
+	CHECK(st_graphics_handle_key(f.terminal, 'C', 0) && f.output_size == 0);
 	f.block_output = false;
 	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 3 && memcmp(f.output, "!BC", 3) == 0);
 	/* An inherited loop flag outside the interpreter cannot claim keys. */
 	b->numeric.loop.active = 1;
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && f.output_size == 4 && f.output[3] == 3);
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0) && f.output_size == 4 && f.output[3] == 3);
 	CHECK(cterm_big_finish(f.big) == 0);
 	/* Noncanonical active values supply zero without a local checkpoint. */
 	string(&f, "I#");
 	b->numeric.loop.active = 2;
-	CHECK(st_cterm_handle_key(f.terminal, 'D', 0) && f.output_size == 5 && f.output[4] == 'D');
+	CHECK(st_graphics_handle_key(f.terminal, 'D', 0) && f.output_size == 5 && f.output[4] == 'D');
 	CHECK(cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
@@ -781,7 +782,7 @@ wire_setup_keys(void)
 		create(&f, false, false);
 		struct cterm_big *b = f.big;
 		string(&f, late ? "I#& 0,2,1,0,I@2,1" : "I#& 0,2,1,0,I@2");
-		CHECK(st_cterm_handle_key(f.terminal, late ? 24 : 3, 0) && f.output_size == 0);
+		CHECK(st_graphics_handle_key(f.terminal, late ? 24 : 3, 0) && f.output_size == 0);
 		string(&f, late ? ":Z" : ",Z");
 		CHECK(b->numeric.loop.words[0] == late && b->numeric.loop.words[1] == 0);
 		CHECK(b->numeric.loop.active == 0 && b->numeric.loop.current == 2 && f.terminal->xpos == 2);
@@ -795,7 +796,7 @@ wire_setup_keys(void)
 	size_t            used;
 	CHECK(cterm_big_feed(f.big, "I#& 0,1000,1,100,I@1,1:", 23, &used) == IO_ERROR_IN_PROGRESS && used == 23);
 	CHECK(b->numeric.loop.current == 0 && f.output_size == 0);
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && st_cterm_handle_text_key(f.terminal, 'k'));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0) && st_graphics_handle_text_key(f.terminal, 'k'));
 	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1 && b->numeric.loop.active == 0);
 	CHECK(f.output_size == 1 && memcmp(f.output, "k", 1) == 0);
 	destroy(&f);
@@ -820,7 +821,7 @@ wire_setup_flow_lifecycle(void)
 	static const char *partial[] = {"I#& 7,", "I#& 0,1,1,0,", "I#& 0,1,1,0,>ABC", "I#& 0,1,1,0,I@2,1:"};
 	for (size_t i = 0; i < sizeof(partial) / sizeof(partial[0]); ++i) {
 		string(&f, partial[i]);
-		CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+		CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 		CHECK(cterm_big_finish(f.big) == 0 && b->setup.phase == CTERM_BIG_SETUP_OFF
 		      && b->numeric.loop.active == 0);
 		CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 0 && b->text.active == 0);

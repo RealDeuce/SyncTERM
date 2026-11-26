@@ -232,6 +232,7 @@ void     st_rip3_session_mouse_move(struct st_rip3_session *session, int32_t x, 
 bool     st_rip3_session_key(struct st_rip3_session *session, uint8_t byte);
 bool     st_rip3_session_navigation(struct st_rip3_session *session, uint8_t key, bool backward);
 uint64_t st_rip3_session_press_token(const struct st_rip3_session *session);
+void     st_rip3_session_sync_mouse_button(struct st_rip3_session *session, bool left);
 void     st_rip3_session_mouse_cancel(struct st_rip3_session *session);
 /* Pointer-delivery boundary, distinct from capture-only cancellation. */
 void st_rip3_session_pointer_boundary(struct st_rip3_session *session);

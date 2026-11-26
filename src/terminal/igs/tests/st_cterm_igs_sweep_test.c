@@ -1,6 +1,7 @@
 /* X15: independent primitive compositions, exclusive bounds and local waits. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_pixel_test_helpers.h"
+#include "st_graphics_input.h"
 #include "st_igs_image.h"
 
 struct sweep_case {
@@ -257,7 +258,7 @@ waits_and_bounds(void)
 	igs->attributes.line_width = 1;
 	request(&f, (int[9]) {30000, 30000, 30008, 30000, 0, 30002, 1, 3, 1});
 	uint64_t due = igs->wait_deadline;
-	CHECK(st_cterm_handle_key(f.terminal, 'a', 0) && keys == 1 && igs->wait_deadline == due
+	CHECK(st_graphics_handle_key(f.terminal, 'a', 0) && keys == 1 && igs->wait_deadline == due
 	      && igs->sweep.active);
 	CHECK(cterm_igs_finish_display(f.igs) == 0 && !igs->sweep.active && !cterm_igs_paused(f.igs));
 	position(igs, (int[4]) {30000, 30000, 30002, 30000});

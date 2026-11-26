@@ -2051,12 +2051,6 @@ device_mouse(void *context, const struct st_console_event *event, uint32_t chang
 }
 
 static void
-device_observe(void *context, const struct st_console_event *event)
-{
-	cterm_igs_mouse_observe(context, event);
-}
-
-static void
 device_sync(void *context, uint32_t buttons)
 {
 	cterm_igs_mouse_sync(context, buttons);
@@ -2139,7 +2133,6 @@ create(struct cterm_igs **result, struct cterminal *terminal, bool transport_own
 	    .key                                                  = device_key,
 	    .mouse_mode                                           = device_mouse_mode,
 	    .mouse                                                = device_mouse,
-	    .observe_mouse                                        = device_observe,
 	    .sync_mouse                                           = device_sync,
 	    .reset                                                = device_reset,
 	    .bell                                                 = device_bell,
@@ -2249,8 +2242,6 @@ cterm_igs_paused(const struct cterm_igs *igs)
 bool
 cterm_igs_handle_key(struct cterm_igs *igs, const struct cterm_key *key)
 {
-	if (igs != NULL && igs->input.replaying)
-		return false;
 	if (igs != NULL && !igs->terminal->quiet)
 		cterm_render_record_error(igs->terminal, cterm_igs_audio_console(igs, true));
 	if (igs != NULL && igs->note.active && !igs->note.key) {

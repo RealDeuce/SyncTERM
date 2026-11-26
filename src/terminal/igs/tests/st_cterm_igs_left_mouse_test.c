@@ -1,6 +1,7 @@
 /* X6: literal byte modes and owner-driven left/right/key/serial ordering. */
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 static uint8_t           keys[2048];
 static size_t            count;
 static struct cterm_igs *live;
@@ -23,7 +24,7 @@ output(const char *bytes, size_t size, void *context)
 		if (action == 4)
 			cterm_igs_reset(live);
 		if (action == 5)
-			st_cterm_sync_mouse_buttons(live->terminal, 0);
+			st_graphics_sync_mouse_buttons(live->terminal, 0);
 	}
 }
 
@@ -49,7 +50,7 @@ mouse(struct fixture *f, unsigned buttons)
 	event.data.mouse.y            = 1;
 	event.data.mouse.pixel_x      = 8;
 	event.data.mouse.pixel_y      = 8;
-	return st_cterm_handle_mouse(f->terminal, &event);
+	return st_graphics_handle_mouse(f->terminal, &event);
 }
 
 static size_t
@@ -148,7 +149,7 @@ ownership(void)
 	mode(&f, 2);
 	CHECK(mouse(&f, 1) && count == 0);
 	CHECK(write_bytes(&f, "G#X 6,0:", 8) == 0 && m->left_mode == 2);
-	CHECK(st_cterm_handle_text_key(f.terminal, 0xe9) && m->key_count == 1 && count == 0);
+	CHECK(st_graphics_handle_text_key(f.terminal, 0xe9) && m->key_count == 1 && count == 0);
 	CHECK(mouse(&f, 5) && count == 4 && memcmp(keys, "\r\n\xc3\xa9", 4) == 0 && !m->left_held && !m->held
 	      && m->buttons == 3);
 	(void)mouse(&f, 0);
@@ -187,17 +188,17 @@ ownership(void)
 	count = 0;
 	CHECK(write_bytes(&f, enable + 8, sizeof(enable) - 9) == sizeof(enable) - 9 && igs->draw_x == 31);
 	/* Claimed/disabled/UI presses cannot become a late activation. */
-	st_cterm_sync_mouse_buttons(f.terminal, 1);
+	st_graphics_sync_mouse_buttons(f.terminal, 1);
 	feed(&f, "G#X 10,33,34:");
 	CHECK(!m->left_held && count == 0);
 	CHECK(!mouse(&f, 1));
-	st_cterm_sync_mouse_buttons(f.terminal, 0);
+	st_graphics_sync_mouse_buttons(f.terminal, 0);
 	CHECK(mouse(&f, 1));
 	struct st_console_event outside = {.type = ST_CONSOLE_EVENT_MOUSE};
 	outside.data.mouse.action       = ST_CONSOLE_MOUSE_BUTTON;
 	outside.data.mouse.x = outside.data.mouse.y = 1000;
 	outside.data.mouse.pixel_x = outside.data.mouse.pixel_y = 10000;
-	CHECK(st_cterm_handle_mouse(f.terminal, &outside) && !m->left_held && count == 2);
+	CHECK(st_graphics_handle_mouse(f.terminal, &outside) && !m->left_held && count == 2);
 	count = 0;
 	/* Mode is reloaded AFTER CR. A reset interrupts LF and later branches. */
 	for (action = 1; action <= 5; ++action) {
@@ -219,7 +220,7 @@ ownership(void)
 	count = 0;
 	mode(&f, 2);
 	CHECK(mouse(&f, 1));
-	CHECK(st_cterm_handle_key(f.terminal, 'x', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'x', 0));
 	CHECK(cterm_igs_finish_display(f.igs) == 0 && !m->left_held && m->left_mode == 2 && m->key_count == 0
 	      && count == 0);
 	destroy(&f);

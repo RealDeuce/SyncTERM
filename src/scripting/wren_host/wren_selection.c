@@ -418,10 +418,16 @@ st_wren_mouse_drag_select(struct st_wren_context *context, bool rectangular)
 		}
 		else if (event.data.mouse.action == ST_CONSOLE_MOUSE_BUTTON
 		         && (event.data.mouse.buttons & ST_CONSOLE_MOUSE_BUTTON_LEFT) == 0) {
-			st_cterm_sync_mouse_buttons(context->session == NULL
-							? context->cterm
-							: st_term_session_cterm(context->session),
-			    event.data.mouse.buttons);
+			if (context->session == NULL)
+				st_cterm_sync_mouse_buttons(context->cterm, event.data.mouse.buttons);
+			else if (context->dispatch_mouse != NULL) {
+				/* The outer dispatch reconciles this release in FIFO order. */
+				context->dispatch_mouse->consumed      = true;
+				context->dispatch_mouse->mouse_buttons = event.data.mouse.buttons;
+			}
+			else
+				result =
+				    st_term_session_sync_mouse_buttons(context->session, event.data.mouse.buttons);
 			selection_end(&selection, event.data.mouse.x, event.data.mouse.y, event.data.mouse.pixel_x,
 			    event.data.mouse.pixel_y);
 			gesture->end_x       = event.data.mouse.x;

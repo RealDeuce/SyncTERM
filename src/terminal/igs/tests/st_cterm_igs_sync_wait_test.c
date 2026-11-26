@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 
 static int    clock_error;
 static size_t keys;
@@ -165,7 +166,7 @@ lifetime_and_errors(void)
 		struct cterm_igs *igs = f.igs;
 		feed(&f, "\033bG#q 9995:");
 		keys = 0;
-		CHECK(st_cterm_handle_key(t, 'x', 0) && keys == 1 && cterm_igs_paused(f.igs));
+		CHECK(st_graphics_handle_key(t, 'x', 0) && keys == 1 && cterm_igs_paused(f.igs));
 		finish_wait(&f);
 		CHECK(t->accumulator != NULL);
 		feed(&f, "A");

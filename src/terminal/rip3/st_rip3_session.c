@@ -2556,6 +2556,13 @@ st_rip3_session_mouse(struct st_rip3_session *session, int32_t x, int32_t y, boo
 }
 
 void
+st_rip3_session_sync_mouse_button(struct st_rip3_session *session, bool left)
+{
+	st_rip3_mouse_boundary(session->commands.mouse);
+	st_rip3_mouse_observe_button(session->commands.mouse, left);
+}
+
+void
 st_rip3_session_mouse_move(struct st_rip3_session *session, int32_t x, int32_t y)
 {
 	if (session != NULL && !session->mouse_locked)

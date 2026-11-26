@@ -8,6 +8,15 @@ command arguments and escape sequences. BIG, IGS, OO][, RIP 1.54, RIP 3 and
 SkyPix have their own parsers under `src/terminal`. Their ordinary text reaches
 CTerm for emulation and console presentation.
 
+Connected console input reaches Wren claims and hooks first. Keys passed by
+Wren go through local session controls, graphics and then CTerm. A script
+can forward a replacement with `CTerm.sendKey` at the graphics stage. Both
+paths preserve input order when RIP3 suspends drawing. The `term_key_forward`
+test checks hook timing, replacement, hotkey activation and exact wire order
+on CP437 and UTF-8 connections. Claimed mouse events synchronize held buttons
+so a local gesture cannot appear later as a fresh guest press. Graphics
+receives pointer coordinates only for forwarded events.
+
 `cterm` and the connected ANSI margins suites cover screen-clear history bounds
 for ED2 and FF, with origin mode on/off, and preserved rows outside the cleared
 window. Native cases also position the terminal within a larger console.

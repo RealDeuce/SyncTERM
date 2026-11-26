@@ -1103,7 +1103,6 @@ drive(struct cterm_big *big, const void *data, size_t size, size_t *used)
 	if (big->feeding)
 		return IO_ERROR_BUSY;
 	big->feeding = true;
-	cterm_big_mouse_flush(big);
 	const uint8_t                 *bytes         = data;
 	struct st_graphics_parser_sink sink          = callbacks(big);
 	size_t                         output_budget = 64, body_budget = 64;
@@ -1605,12 +1604,6 @@ mouse_event(void *context, const struct st_console_event *event, uint32_t change
 }
 
 static void
-observe_mouse(void *context, const struct st_console_event *event)
-{
-	cterm_big_mouse_observe(context, event);
-}
-
-static void
 sync_mouse(void *context, uint32_t buttons)
 {
 	cterm_big_mouse_sync(context, buttons);
@@ -1696,7 +1689,6 @@ cterm_big_create(struct cterm_big **result, struct cterminal *t)
 	    .key                                           = key_event,
 	    .mouse_mode                                    = mouse_mode,
 	    .mouse                                         = mouse_event,
-	    .observe_mouse                                 = observe_mouse,
 	    .sync_mouse                                    = sync_mouse,
 	    .yield_fx                                      = yield_fx};
 	t->fixed_geometry = true;

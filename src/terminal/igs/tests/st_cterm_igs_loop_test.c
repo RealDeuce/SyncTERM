@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "cterm_igs_music.h"
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 static uint8_t           output[8192], keys[128];
 static size_t            output_count, key_count;
 static struct cterm_igs *live;
@@ -368,7 +369,7 @@ line_execution(void)
 		if (cases[n].key) {
 			CHECK(igs->loop.cooperative && igs->loop.index == 0 && igs->draw_x == 319);
 			CHECK(cterm_igs_poll(f.igs) == 0 && igs->draw_y == 7);
-			CHECK(st_cterm_handle_key(f.terminal, cases[n].key, 0));
+			CHECK(st_graphics_handle_key(f.terminal, cases[n].key, 0));
 			f.igs->service_pending = NULL;
 			CHECK(cterm_igs_poll(f.igs) == 0);
 		}
@@ -414,8 +415,8 @@ waits_keys_and_cleanup(void)
 	/* A key waking the first coordinate completes the line from stored
 	 * operands. The next wire bytes still belong to the next command. */
 	feed(&f, "G#& 0,199,1,10,L,4,0,x,319,x:");
-	CHECK(igs->loop.waiting && st_cterm_handle_key(f.terminal, 24, 0));
-	CHECK(st_cterm_handle_key(f.terminal, 'q', 0));
+	CHECK(igs->loop.waiting && st_graphics_handle_key(f.terminal, 24, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'q', 0));
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->loop.run && igs->draw_x == 319 && igs->draw_y == 0);
 	feed(&f, "G#X 10,19,23:");
 	flow();
@@ -472,14 +473,15 @@ inner_key_owners(void)
 	struct cterm_igs *igs = f.igs;
 	feed(&f, "G#& 0,1,1,0,t,1,30:");
 	CHECK(igs->timed_pause && igs->loop.run);
-	CHECK(st_cterm_handle_key(f.terminal, 'x', 0) && igs->pause_key && igs->input.key_count == 0);
+	CHECK(st_graphics_handle_key(f.terminal, 'x', 0) && igs->pause_key && igs->input.key_count == 0);
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->timed_pause);
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->loop.run && key_count == 0);
 	CHECK(output_count == 4 && memcmp(output, "\x13\x13\x11\x11", 4) == 0);
 	output_count = 0;
 	feed(&f, "G#& 0,1,1,0,X,5,8,0,1,2,100:");
 	CHECK(igs->palette_rotation.active && igs->loop.run);
-	CHECK(st_cterm_handle_key(f.terminal, 'x', 0) && igs->palette_rotation.key && igs->input.key_count == 0);
+	CHECK(
+	    st_graphics_handle_key(f.terminal, 'x', 0) && igs->palette_rotation.key && igs->input.key_count == 0);
 	for (unsigned i = 0; i < 12 && igs->loop.run; ++i) {
 		local_ms += 20;
 		CHECK(cterm_igs_poll(f.igs) == 0);
@@ -489,7 +491,7 @@ inner_key_owners(void)
 	/* Header loading queues local keys. Numeric polls consume one per call;
 	 * the remaining key belongs to the inner helper once it starts. */
 	feed(&f, "G#& 0,1,1,0,t,1,");
-	CHECK(st_cterm_handle_key(f.terminal, 'a', 0) && st_cterm_handle_key(f.terminal, 'b', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'a', 0) && st_graphics_handle_key(f.terminal, 'b', 0));
 	feed(&f, "30:");
 	CHECK(igs->timed_pause && igs->input.key_count == 1);
 	CHECK(cterm_igs_poll(f.igs) == 0 && !igs->timed_pause && igs->input.key_count == 0);
@@ -498,7 +500,7 @@ inner_key_owners(void)
 	output_count = 0;
 	feed(&f, "G#& 0,1,1,0,X,5,");
 	for (unsigned i = 0; i < 6; ++i)
-		CHECK(st_cterm_handle_key(f.terminal, (uint16_t)('a' + i), 0));
+		CHECK(st_graphics_handle_key(f.terminal, (uint16_t)('a' + i), 0));
 	feed(&f, "8,0,1,2,100:");
 	CHECK(igs->palette_rotation.active && igs->input.key_count == 1);
 	CHECK(cterm_igs_poll(f.igs) == 0 && igs->palette_rotation.key && igs->input.key_count == 0);
@@ -521,7 +523,7 @@ mouse(struct fixture *f, int x, int y, unsigned buttons)
 	e.data.mouse.x            = x / 8;
 	e.data.mouse.y            = y / 8;
 	e.data.mouse.buttons      = buttons;
-	return st_cterm_handle_mouse(f->terminal, &e);
+	return st_graphics_handle_mouse(f->terminal, &e);
 }
 
 static void
@@ -532,7 +534,7 @@ mouse_bodies(void)
 	struct cterm_igs *igs = f.igs;
 	feed(&f, "G#& 0,1,1,0,?,2,2,1:");
 	CHECK(igs->loop.run && igs->query.active);
-	CHECK(st_cterm_handle_text_key(f.terminal, 'q') && key_count == 0);
+	CHECK(st_graphics_handle_text_key(f.terminal, 'q') && key_count == 0);
 	CHECK(mouse(&f, 20, 30, 1) && mouse(&f, 40, 50, 0));
 	CHECK(!igs->loop.run && !igs->query.active && output_count == 10
 	      && memcmp(output,

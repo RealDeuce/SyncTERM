@@ -1,5 +1,6 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "igs_test_fixture.h"
+#include "st_graphics_input.h"
 
 struct replies {
 	struct fixture *fixture;
@@ -134,16 +135,16 @@ cancellation_and_flow(void)
 		bool consumed = false;
 		switch (which) {
 			case 0:
-				consumed = st_cterm_handle_key(f.terminal, 3, 0);
+				consumed = st_graphics_handle_key(f.terminal, 3, 0);
 				break;
 			case 1:
-				consumed = st_cterm_handle_codepage_key(f.terminal, 255);
+				consumed = st_graphics_handle_codepage_key(f.terminal, 255);
 				break;
 			case 2:
-				consumed = st_cterm_handle_text_key(f.terminal, 0x1f600);
+				consumed = st_graphics_handle_text_key(f.terminal, 0x1f600);
 				break;
 			case 3:
-				consumed = st_cterm_handle_doorway_key(f.terminal, 59);
+				consumed = st_graphics_handle_doorway_key(f.terminal, 59);
 				break;
 		}
 		CHECK(consumed && r.keys == 0 && cterm_igs_paused(f.igs));
@@ -152,7 +153,7 @@ cancellation_and_flow(void)
 	}
 	r.count = 0;
 	feed(&f, "G#t 0:");
-	CHECK(st_cterm_handle_key(f.terminal, 'x', 0) && r.keys == 0);
+	CHECK(st_graphics_handle_key(f.terminal, 'x', 0) && r.keys == 0);
 	CHECK(cterm_igs_poll(f.igs) == 0 && r.count == 2);
 	for (unsigned mode = 0; mode < 3; ++mode) {
 		r.count        = 0;
@@ -166,7 +167,7 @@ cancellation_and_flow(void)
 	CHECK(clock_reads >= 2);
 	igs->loop_mode = 1;
 	feed(&f, "G#t 30:");
-	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
+	CHECK(st_graphics_handle_key(f.terminal, 3, 0));
 	CHECK(cterm_igs_poll(f.igs) == 0 && igs->loop_mode == 1 && r.count == 0);
 	igs->loop_mode = 1;
 	feed(&f, "G#t 0:");
@@ -216,7 +217,7 @@ partitions_and_errors(void)
 			offset += used;
 			if (cterm_igs_paused(f.igs)) {
 				CHECK(r.count == 1);
-				CHECK(st_cterm_handle_key(f.terminal, 'x', 0));
+				CHECK(st_graphics_handle_key(f.terminal, 'x', 0));
 				CHECK(cterm_igs_poll(f.igs) == 0);
 			}
 			CHECK(used != 0 || offset == size);
@@ -254,8 +255,8 @@ partitions_and_errors(void)
 	CHECK(cterm_igs_finish_display(f.igs) == 0 && !cterm_igs_paused(f.igs));
 	CHECK(r.count == 2);
 	feed(&f, "G#t 30:");
-	CHECK(st_cterm_handle_key(f.terminal, 'x', 0));
-	CHECK(st_cterm_handle_key(f.terminal, 'z', 0) && r.keys == 1);
+	CHECK(st_graphics_handle_key(f.terminal, 'x', 0));
+	CHECK(st_graphics_handle_key(f.terminal, 'z', 0) && r.keys == 1);
 	clock_error = IO_ERROR_IO;
 	CHECK(cterm_igs_poll(f.igs) == 0 && !cterm_igs_paused(f.igs));
 	clock_error = 0;

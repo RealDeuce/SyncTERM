@@ -13,6 +13,7 @@
 #include "cterm_igs.h"
 #include "cterm_skypix.h"
 #include "io_error.h"
+#include "st_graphics_input.h"
 #include "st_ooii.h"
 #include "st_rip154.h"
 #include "st_term.h"
@@ -22,13 +23,17 @@
 #include "st_unicode_text.h"
 #include "st_utf8.h"
 
-/* Physical event order is retained while a graphical provider suspends.
+/* Preserve post-hook input order while a graphical provider suspends.
  * Ordinary ANSI/RIP1 and completed RIP3 output do not use this queue. */
-struct deferred_event {
+struct local_input {
 	struct st_console_event event;
-	struct deferred_event  *next;
 	uint64_t                capture_token;
-	bool                    embedded;
+	bool                    buttons_only;
+};
+
+struct deferred_event {
+	struct local_input     input;
+	struct deferred_event *next;
 };
 
 struct st_term_session {
@@ -42,8 +47,7 @@ struct st_term_session {
 	struct st_utf8_decoder wire_decoder;
 	struct st_term_rip3   *rip3;
 	struct deferred_event *deferred_head, *deferred_tail;
-	struct deferred_event  modal_tail;
-	bool                   modal_tail_queued;
+	struct local_input     modal_tail;
 	int                    output_error;
 	bool                   end_requested;
 	bool                   igs_dispatch_pending;
@@ -78,19 +82,11 @@ static void
 retain_prompt_tail(void *context, uint64_t token, const struct st_console_event *event)
 {
 	st_term_session_t *session = context;
-	/* A single physical gesture has one terminal release/cancel. Later UI
-	 * clicks are filtered by RIP3; queued input cannot start another capture
-	 * until this node drains. Embedding it makes this handoff allocation-free. */
-	if (session->modal_tail_queued)
-		return;
-	struct deferred_event *saved = &session->modal_tail;
-	*saved = (struct deferred_event) {.event = *event, .capture_token = token, .embedded = true};
-	if (session->deferred_tail != NULL)
-		session->deferred_tail->next = saved;
-	else
-		session->deferred_head = saved;
-	session->deferred_tail     = saved;
-	session->modal_tail_queued = true;
+	/* The modal editor can read the original gesture's release while Wren
+	 * is on the stack. Offer it to the connected hooks as soon as they
+	 * can run again, ahead of the next console event. */
+	if (session->modal_tail.capture_token == 0)
+		session->modal_tail = (struct local_input) {.event = *event, .capture_token = token};
 }
 
 void
@@ -816,8 +812,7 @@ st_term_session_destroy(st_term_session_t **session)
 	while ((*session)->deferred_head != NULL) {
 		struct deferred_event *event = (*session)->deferred_head;
 		(*session)->deferred_head    = event->next;
-		if (!event->embedded)
-			free(event);
+		free(event);
 	}
 	free(*session);
 	*session = NULL;
@@ -1443,15 +1438,12 @@ musicomm_stop_key(st_term_session_t *session, const struct st_console_event *eve
 	       && st_musicomm_stop(session->musicomm);
 }
 
-int
-st_term_session_send_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
+static int
+deliver_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
 {
-	if (session == NULL || event == NULL || handled == NULL)
-		return IO_ERROR_INVALID_ARGUMENT;
-	*handled = false;
 	if (session->wire_owner != NULL)
 		return 0;
-	if (musicomm_stop_key(session, event) || st_term_rip3_key(session->rip3, event)) {
+	if (st_term_rip3_key(session->rip3, event)) {
 		*handled = true;
 		return session->output_error;
 	}
@@ -1459,7 +1451,7 @@ st_term_session_send_key(st_term_session_t *session, const struct st_console_eve
 		case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
 			if (session->config.encoding == ST_CTERM_ENCODING_CODEPAGE
 			    && st_cterm_encoding(st_term_session_cterm(session)) == ST_CTERM_ENCODING_CODEPAGE) {
-				*handled = st_cterm_handle_codepage_key(st_term_session_cterm(session),
+				*handled = st_graphics_handle_codepage_key(st_term_session_cterm(session),
 				    event->data.codepage_byte);
 				return session->output_error;
 			}
@@ -1481,20 +1473,20 @@ st_term_session_send_key(st_term_session_t *session, const struct st_console_eve
 				return IO_ERROR_INVALID_ENCODING;
 			ptrdiff_t size = st_utf8_encode_one(utf8, sizeof(utf8), codepoint);
 			*handled       = true;
-			if (st_cterm_handle_text_key(st_term_session_cterm(session), codepoint))
+			if (st_graphics_handle_text_key(st_term_session_cterm(session), codepoint))
 				return session->output_error;
 			return size < 0 ? IO_ERROR_INVALID_ENCODING
 			                : st_term_session_send_text(session, utf8, (size_t)size);
 		}
 		case ST_CONSOLE_EVENT_KEY_CODE:
-			*handled = st_cterm_handle_key(st_term_session_cterm(session), event->data.key.code,
+			*handled = st_graphics_handle_key(st_term_session_cterm(session), event->data.key.code,
 			    event->data.key.modifiers);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_PHYSICAL_KEY:
 			*handled = st_cterm_handle_physical_keys(st_term_session_cterm(session), event, 1);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_DOORWAY_KEY:
-			*handled = st_cterm_handle_doorway_key(st_term_session_cterm(session),
+			*handled = st_graphics_handle_doorway_key(st_term_session_cterm(session),
 			    event->data.doorway_key.scan_code);
 			return session->output_error;
 		default:
@@ -1502,27 +1494,24 @@ st_term_session_send_key(st_term_session_t *session, const struct st_console_eve
 	}
 }
 
-static int
-handle_event(st_term_session_t *session, const struct st_console_event *event,
-    enum st_term_disposition *disposition, bool *finished)
+static void
+sync_buttons(st_term_session_t *session, uint32_t buttons)
 {
-	if (musicomm_stop_key(session, event))
-		return session->output_error;
-	st_cterm_observe_mouse(st_term_session_cterm(session), event);
-	if (event->type == ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
-		st_term_rip3_mouse_cancel(session->rip3, true);
-	if (session->config.event_hook != NULL) {
-		bool consumed;
-		int  status = session->config.event_hook(session->config.event_hook_context, event, &consumed);
+	st_term_rip3_sync_mouse_buttons(session->rip3, buttons);
+	st_graphics_sync_mouse_buttons(st_term_session_cterm(session), buttons);
+}
 
-		if (status != 0 || consumed) {
-			st_term_rip3_mouse_ignore(session->rip3, event);
-			return status;
-		}
+static int
+deliver_input(st_term_session_t *session, const struct local_input *input, bool *handled)
+{
+	const struct st_console_event *event = &input->event;
+	if (input->buttons_only) {
+		sync_buttons(session, event->data.mouse.buttons);
+		return session->output_error;
 	}
-	if (local_command(session->config.console, event, disposition)) {
-		*finished = true;
-		return 0;
+	if (input->capture_token != 0) {
+		st_term_rip3_captured_input(session->rip3, input->capture_token, event);
+		return session->output_error;
 	}
 	switch (event->type) {
 		case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
@@ -1530,25 +1519,21 @@ handle_event(st_term_session_t *session, const struct st_console_event *event,
 		case ST_CONSOLE_EVENT_KEY_CODE:
 		case ST_CONSOLE_EVENT_PHYSICAL_KEY:
 		case ST_CONSOLE_EVENT_DOORWAY_KEY:
-		{
-			bool handled;
-			return st_term_session_send_key(session, event, &handled);
-		}
+			return deliver_key(session, event, handled);
 		case ST_CONSOLE_EVENT_MOUSE:
 			if (!session->mouse_disabled) {
 				if (!st_term_rip3_mouse(session->rip3, event))
-					(void)st_cterm_handle_mouse(st_term_session_cterm(session), event);
+					(void)st_graphics_handle_mouse(st_term_session_cterm(session), event);
 				else
 					st_cterm_sync_mouse_buttons(st_term_session_cterm(session),
 					    event->data.mouse.buttons);
 			}
-			else {
-				st_term_rip3_mouse_ignore(session->rip3, event);
-				st_cterm_sync_mouse_buttons(st_term_session_cterm(session),
-				    event->data.mouse.buttons);
-			}
+			else
+				sync_buttons(session, event->data.mouse.buttons);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_FOCUS:
+			if (!event->data.focus.focused)
+				st_term_rip3_mouse_cancel(session->rip3, true);
 			(void)st_cterm_handle_focus(st_term_session_cterm(session), event->data.focus.focused);
 			return session->output_error;
 		case ST_CONSOLE_EVENT_RESIZE:
@@ -1579,6 +1564,120 @@ handle_event(st_term_session_t *session, const struct st_console_event *event,
 		default:
 			return 0;
 	}
+}
+
+static int
+deliver_deferred(st_term_session_t *session)
+{
+	struct deferred_event *saved = session->deferred_head;
+	struct local_input     input = saved->input;
+	session->deferred_head       = saved->next;
+	if (session->deferred_head == NULL)
+		session->deferred_tail = NULL;
+	free(saved);
+
+	bool handled = false;
+	return deliver_input(session, &input, &handled);
+}
+
+static int
+forward_input(st_term_session_t *session, const struct local_input *input, bool *handled)
+{
+	if (session->deferred_head == NULL && !st_term_rip3_graphical_pending(session->rip3))
+		return deliver_input(session, input, handled);
+
+	struct deferred_event *saved = malloc(sizeof(*saved));
+	if (saved == NULL) {
+		/* Drop the graphical continuation under memory pressure. Deliver
+		 * earlier events first, including any new continuation they start. */
+		while (session->deferred_head != NULL) {
+			if (st_term_rip3_graphical_pending(session->rip3))
+				st_term_rip3_graphical_failure(session->rip3);
+			int status = deliver_deferred(session);
+			if (status != 0)
+				return status;
+		}
+		if (st_term_rip3_graphical_pending(session->rip3))
+			st_term_rip3_graphical_failure(session->rip3);
+		return deliver_input(session, input, handled);
+	}
+	*saved = (struct deferred_event) {.input = *input};
+	st_term_rip3_note_queued_input(session->rip3, &input->event);
+	if (session->deferred_tail != NULL)
+		session->deferred_tail->next = saved;
+	else
+		session->deferred_head = saved;
+	session->deferred_tail = saved;
+	*handled = true;
+	return 0;
+}
+
+int
+st_term_session_send_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
+{
+	if (session == NULL || event == NULL || handled == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*handled = false;
+	switch (event->type) {
+		case ST_CONSOLE_EVENT_TEXT:
+			if (!st_unicode_scalar_valid(event->data.text.codepoint))
+				return IO_ERROR_INVALID_ENCODING;
+			break;
+		case ST_CONSOLE_EVENT_KEY_CODE:
+		case ST_CONSOLE_EVENT_CODEPAGE_BYTE:
+		case ST_CONSOLE_EVENT_DOORWAY_KEY:
+		case ST_CONSOLE_EVENT_PHYSICAL_KEY:
+			break;
+		default:
+			return IO_ERROR_INVALID_ARGUMENT;
+	}
+	if (session->wire_owner != NULL)
+		return 0;
+	if (musicomm_stop_key(session, event)) {
+		*handled = true;
+		return session->output_error;
+	}
+	return forward_input(session, &(struct local_input) {.event = *event}, handled);
+}
+
+int
+st_term_session_sync_mouse_buttons(st_term_session_t *session, uint32_t buttons)
+{
+	if (session == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	const struct local_input input = {
+	    .buttons_only = true,
+	    .event        = {.type = ST_CONSOLE_EVENT_MOUSE, .data.mouse.buttons = buttons}
+        };
+	bool handled = false;
+	return forward_input(session, &input, &handled);
+}
+
+static int
+handle_event(st_term_session_t *session, const struct local_input *input, enum st_term_disposition *disposition,
+    bool *finished)
+{
+	const struct st_console_event *event = &input->event;
+	if (session->config.event_hook != NULL) {
+		struct st_term_event_result result = {0};
+		if (event->type == ST_CONSOLE_EVENT_MOUSE)
+			result.mouse_buttons = event->data.mouse.buttons;
+		int status = session->config.event_hook(session->config.event_hook_context, event, &result);
+		if (status != 0)
+			return status;
+		if (result.consumed)
+			return event->type == ST_CONSOLE_EVENT_MOUSE
+				   ? st_term_session_sync_mouse_buttons(session, result.mouse_buttons)
+				   : 0;
+	}
+	if (musicomm_stop_key(session, event))
+		return session->output_error;
+	if (local_command(session->config.console, event, disposition)) {
+		*finished = true;
+		return 0;
+	}
+	bool handled = false;
+	return forward_input(session, input, &handled);
 }
 
 int
@@ -1819,69 +1918,21 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	/* Publish the consumed text batch before local keys/scripts inspect it. */
 	st_term_rip3_flush(session->rip3);
 	for (;;) {
-		if (session->musicomm == NULL && st_term_rip3_graphical_pending(session->rip3)) {
-			/* Reserve before removing the next event. Allocation failure can
-			 * abandon rendering and drain the original FIFO without losing a
-			 * release/cancel or turning resource failure into disconnection. */
-			struct deferred_event *saved = malloc(sizeof(*saved));
-			if (saved == NULL) {
-				st_term_rip3_graphical_failure(session->rip3);
-				if (st_term_rip3_graphical_pending(session->rip3))
-					return session->output_error;
-				continue;
-			}
-			status = st_console_event_try(session->config.console, &saved->event);
-			if (status != 0) {
-				free(saved);
-				break;
-			}
-			session->did_work = true;
-			if (saved->event.type == ST_CONSOLE_EVENT_CLOSE
-			    || local_command(session->config.console, &saved->event, disposition)) {
-				event = saved->event;
-				free(saved);
-				if (event.type != ST_CONSOLE_EVENT_CLOSE) {
-					*finished = true;
-					return 0;
-				}
-			}
-			else {
-				saved->next          = NULL;
-				saved->capture_token = 0;
-				saved->embedded      = false;
-				st_term_rip3_note_queued_input(session->rip3, &saved->event);
-				if (session->deferred_tail != NULL)
-					session->deferred_tail->next = saved;
-				else
-					session->deferred_head = saved;
-				session->deferred_tail = saved;
-				continue;
-			}
+		if (session->modal_tail.capture_token != 0) {
+			struct local_input input          = session->modal_tail;
+			session->modal_tail.capture_token = 0;
+			status                            = handle_event(session, &input, disposition, finished);
 		}
-		else if (session->deferred_head != NULL) {
-			struct deferred_event *saved = session->deferred_head;
-			session->did_work            = true;
-			event                        = saved->event;
-			uint64_t token               = saved->capture_token;
-			session->deferred_head       = saved->next;
-			if (session->deferred_head == NULL)
-				session->deferred_tail = NULL;
-			if (saved->embedded)
-				session->modal_tail_queued = false;
-			else
-				free(saved);
-			if (token != 0) {
-				st_term_rip3_captured_input(session->rip3, token, &event);
-				continue;
-			}
-		}
+		else if (session->deferred_head != NULL && !st_term_rip3_graphical_pending(session->rip3))
+			status = deliver_deferred(session);
 		else {
 			status = st_console_event_try(session->config.console, &event);
 			if (status != 0)
 				break;
+			status =
+			    handle_event(session, &(struct local_input) {.event = event}, disposition, finished);
 		}
 		session->did_work = true;
-		status            = handle_event(session, &event, disposition, finished);
 		if (status != 0 || *finished)
 			return status;
 		if (session->end_requested) {

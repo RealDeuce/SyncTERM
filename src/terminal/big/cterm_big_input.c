@@ -40,9 +40,8 @@ cterm_big_input_push(struct cterm_big *big, const struct cterm_big_event *event)
 bool
 cterm_big_handle_key(struct cterm_big *big, const struct cterm_key *key)
 {
-	if (big == NULL || big->input.replaying)
+	if (big == NULL)
 		return false;
-	cterm_big_mouse_flush(big);
 	if (!cterm_big_input_owned(big) && big->input.count == 0)
 		return false;
 	const struct cterm_big_event event = {.data.key = *key};
@@ -146,9 +145,7 @@ cterm_big_input_forward(struct cterm_big *big)
 		(void)cterm_big_input_take(big, &event);
 		if (event.mouse)
 			continue;
-		input->replaying = true;
 		int status       = cterm_key_replay(big->terminal, &event.data.key);
-		input->replaying = false;
 		if (big->reset_pending)
 			return IO_ERROR_INTERRUPTED;
 		if (status != 0)

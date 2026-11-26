@@ -8,6 +8,7 @@
 #include "cterm_big_internal.h"
 #include "io_error.h"
 #include "st_cterm.h"
+#include "st_graphics_input.h"
 #define CHECK(x)                                                                \
 	do {                                                                    \
 		if (!(x)) {                                                     \
@@ -620,9 +621,9 @@ zone_chain_and_key_ownership(void)
 	/* Raw loading itself never claims local keys. Previously admitted loop
 	 * events stay queued until the body/footer has finished. */
 	CHECK(!cterm_big_input_owned(b));
-	CHECK(st_cterm_handle_key(f.terminal, 'z', 0) && f.size == 2 && f.output[1] == 'z');
+	CHECK(st_graphics_handle_key(f.terminal, 'z', 0) && f.size == 2 && f.output[1] == 'z');
 	b->numeric.loop.active = 1;
-	CHECK(st_cterm_handle_key(f.terminal, 'a', 0) && b->input.count == 1 && f.size == 2);
+	CHECK(st_graphics_handle_key(f.terminal, 'a', 0) && b->input.count == 1 && f.size == 2);
 	b->numeric.loop.active = 0;
 	CHECK(cterm_big_poll(f.big) == 0 && b->input.count == 1 && f.size == 2);
 	string(&f, "B!");

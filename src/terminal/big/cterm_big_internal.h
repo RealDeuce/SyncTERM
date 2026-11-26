@@ -201,7 +201,7 @@ struct cterm_big_input {
 	struct cterm_big_event events[CTERM_BIG_INPUT_KEYS];
 	size_t                 first, count;
 	uint8_t                scan;
-	bool                   scan_pending, replaying, overflow;
+	bool                   scan_pending, overflow;
 };
 
 struct cterm_big_collect {
@@ -216,10 +216,9 @@ struct cterm_big_collect {
 };
 
 struct cterm_big_mouse {
-	int32_t  x, y, known_x, known_y;
+	int32_t  known_x, known_y;
 	uint32_t buttons;
-	uint64_t generation;
-	bool     observed, pending, owned, known;
+	bool     known;
 };
 
 struct cterm_big {
@@ -296,7 +295,6 @@ struct cterm_big {
 
 bool    cterm_big_input_push(struct cterm_big *, const struct cterm_big_event *);
 bool    cterm_big_input_take(struct cterm_big *, struct cterm_big_event *);
-void    cterm_big_mouse_flush(struct cterm_big *);
 uint8_t cterm_big_key_byte(const struct cterm_key *, uint8_t *scan, bool *extended);
 int     cterm_big_collect_begin(struct cterm_big *, const struct st_graphics_command_view *);
 int     cterm_big_collect_poll(struct cterm_big *, size_t *budget, bool *complete);

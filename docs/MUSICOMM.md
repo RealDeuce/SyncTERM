@@ -3,7 +3,7 @@
 Choose **Start Musicomm (any key stops)** in the connected session's online
 menu when the BBS asks you to activate its Musicomm accessory. SyncTERM waits
 for the sender's start byte; nothing is recognized automatically in ordinary
-terminal text. Any local key aborts, including while waiting for start.
+terminal text. Any key passed through by connected input hooks aborts, including while waiting for start.
 
 While armed, Musicomm takes exclusive ownership of application bytes from the
 connection at the same point as a file transfer. Detection, text decoding and
