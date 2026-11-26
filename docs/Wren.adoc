@@ -7109,8 +7109,9 @@ Fiber.new {
 ----
 
 The built-in upload/download flows are available through Alt-U, Alt-D and the
-online menu. ZMODEM startup detection validates the header CRC before taking
-over the connection. Downloads use the configured download directory;
+online menu. ZMODEM auto-start watches the incoming bytes for Ctrl-X followed by
+`B00` (download) or `B01` (upload). Each byte reaches normal terminal processing
+as it arrives. The transfer engine checks the complete header CRC. Downloads use the configured download directory;
 unsafe roots and existing non-file destinations are rejected. Existing files
 can be overwritten, skipped, or renamed. ZMODEM resumes a partial file only
 after checking its prefix CRC against the sender.

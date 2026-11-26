@@ -37,6 +37,12 @@ backspace, a raw escape operand, UTF-8 private-use input and the original TOS
 Fuji raster in both pixel phases. Native tests exercise clear/home, every input split,
 a logo wrapped across the right margin and the Atari ST codepage round trip for every byte.
 
+`syncterm_control_transfer` checks ZMODEM detection over a live TCP connection.
+The peer waits for each asterisk and each partial startup byte to reach the
+terminal before sending the next. The four-byte upload and download triggers
+open the file picker and start the receiver respectively. The test also checks
+that terminal output resumes after the batch.
+
 Per-BBS graphics caches retain the legacy `RIP/` and `SkyPix/` subdirectories;
 APC uses the BBS cache root. The RIP interaction suites check icon writes,
 file queries and playback isolation in CP437 and UTF-8. `syncterm_skypix_cache`

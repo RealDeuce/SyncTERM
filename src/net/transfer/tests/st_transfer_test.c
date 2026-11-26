@@ -98,25 +98,16 @@ static int test_batch_terminator(const char *file)
 static int test_detector(void)
 {
 	struct st_transfer_detector detector = {0};
-	const uint8_t header[] = "**\030B00000000000000";
-	uint8_t output[33]; size_t size;
-	for (size_t i = 0; i < sizeof(header) - 1; ++i) {
-		int event = st_transfer_detect(&detector, header[i], output, &size);
-		CHECK(event == (i == sizeof(header) - 2 ? 1 : 0));
-		if (i == 1) CHECK(size == 1 && output[0] == '*');
-		else if (event == 0) CHECK(size == 0);
-		else CHECK(size == 17 && memcmp(output, header + 1, 17) == 0);
+	const uint8_t noise[] = "*X**B00\030A01\030B11\030B02";
+	for (size_t i = 0; i < sizeof(noise) - 1; ++i)
+		CHECK(st_transfer_detect(&detector, noise[i]) == 0);
+	for (unsigned type = 0; type <= 1; ++type) {
+		const uint8_t prefix[] = {0x18, 'B', '0'};
+		for (size_t i = 0; i < sizeof(prefix); ++i)
+			CHECK(st_transfer_detect(&detector, prefix[i]) == 0);
+		CHECK(st_transfer_detect(&detector, '0' + type) == (int)(1 + type));
+		CHECK(st_transfer_detect(&detector, '0') == 0);
 	}
-	uint8_t invalid[sizeof(header)]; memcpy(invalid, header, sizeof(header));
-	invalid[sizeof(header) - 2] = '1';
-	uint8_t literal[64]; size_t used = 0;
-	for (size_t i = 0; i < sizeof(header) - 1; ++i) {
-		CHECK(st_transfer_detect(&detector, invalid[i], output, &size) == 0);
-		memcpy(literal + used, output, size); used += size;
-	}
-	CHECK(used == sizeof(header) - 1 && memcmp(literal, invalid, used) == 0);
-	CHECK(st_transfer_detect(&detector, '*', output, &size) == 0 && size == 0);
-	CHECK(st_transfer_detect(&detector, 'X', output, &size) == 0 && size == 2 && memcmp(output, "*X", 2) == 0);
 	return 0;
 }
 static void feed_cet(st_transfer_t *t, const char *block, bool corrupt)

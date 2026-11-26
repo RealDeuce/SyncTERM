@@ -15,7 +15,7 @@ import threading
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "testing"))
 from syncterm_control import ALT, SHIFT, Cell, Client, CommandError, ProtocolError, Snapshot
-from syncterm_fixture import application, environment, fixture, click_text, receive, check_pixel_planes
+from syncterm_fixture import application, environment, fixture, click_text, listener, receive, check_pixel_planes
 
 
 def basic(executable):
@@ -308,7 +308,46 @@ def protocol(executable):
                     stream.close()
 
 
+def automatic_zmodem(executable):
+    with listener() as server:
+        entry = ("[Transfer peer]\nConnectionType=Raw\nAddress=127.0.0.1\n"
+                 f"Port={server.getsockname()[1]}\nEncoding=CP437\nRIP=Off\nNoStatus=true\nHidePopups=true\n")
+        def prepare(root):
+            with (root / "syncterm.lst").open("a") as profile:
+                profile.write(f"DownloadPath={root / 'downloads'}\n")
+        with fixture(executable, entries=entry, prepare=prepare) as (client, root):
+            client.wait_text("Transfer peer")
+            client.key("enter")
+            with server.accept()[0] as peer:
+                # Observe each partial write before allowing its successor onto the wire.
+                peer.sendall(b"prompt*")
+                client.wait_text("prompt*")
+                peer.sendall(b"*")
+                client.wait_text("prompt**")
+                peer.sendall(b"\x18")
+                client.wait_text("prompt**↑")
+                peer.sendall(b"B")
+                client.wait_text("prompt**↑B")
+                peer.sendall(b"0")
+                client.wait_text("prompt**↑B0")
+                peer.sendall(b"X")
+                client.wait_text("prompt**↑B0X")
+                # The four-byte upload trigger has neither padding nor a header CRC.
+                peer.sendall(b"\x18B01")
+                client.wait_text("Pick a file")
+                client.key("escape")
+                receive(peer, b"\x18" * 8)
+                peer.sendall(b"\x18B00")
+                receive(peer, b"**\x18B01")
+                # Finish the triggering header, then end the batch and resume text.
+                peer.sendall(b"000000000000\r\n**\x18B0800000000022d\r\n")
+                receive(peer, b"**\x18B08")
+                peer.sendall(b"OORESUMED*")
+                client.wait_text("RESUMED*")
+
+
 def transfer(executable):
+    automatic_zmodem(executable)
     # Real receivers wait for input: inspection/cancellation needs no timer race.
     for kind, action in (("xmodem-crc", "cancel"), ("xmodem-g", "cancel"),
                          ("xmodem-g", "success"), ("xmodem-g", "corrupt")):

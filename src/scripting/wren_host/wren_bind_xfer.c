@@ -99,8 +99,7 @@ static bool transfer_text(WrenVM *vm, int slot, const char **text)
 struct st_wren_transfer {
 	st_transfer_t *worker;
 	struct st_transfer_detector detector;
-	uint8_t prefix[33];
-	size_t prefix_size;
+	uint8_t zmodem_type_digit;
 	int automatic;
 	bool upload, inline_upload;
 	char *rip_directory, *rip_filename, *rip_cache_root;
@@ -170,8 +169,12 @@ static int start(struct st_wren_context *context, struct st_transfer_config *con
 	s->upload = config->upload;
 	s->inline_upload = config->protocol == ST_TRANSFER_ASCII || config->protocol == ST_TRANSFER_RAW
 	    || inline_receive;
-	if (s->prefix_size != 0) {
-		(void)st_transfer_feed(s->worker, s->prefix, s->prefix_size); s->prefix_size = 0;
+	if (s->zmodem_type_digit != 0) {
+		/* The worker reads a framed header. Supply ZPAD and the four
+		 * observed bytes before the unread flags and CRC from the peer. */
+		const uint8_t prefix[] = {'*', 0x18, 'B', '0', s->zmodem_type_digit};
+		(void)st_transfer_feed(s->worker, prefix, sizeof(prefix));
+		s->zmodem_type_digit = 0;
 	}
 	if (config->protocol == ST_TRANSFER_CET && context->session != NULL) {
 		size_t size;
@@ -727,7 +730,7 @@ static void finish(struct st_wren_context *context)
 	free(s->skypix_bytes); s->skypix_bytes=NULL; s->skypix_size=0;
 	rip_clear_paths(s);
 	s->rip_upload_pending = false; s->inline_upload = false; s->cancel_remaining = 0;
-	s->automatic = 0; s->prefix_size = 0; s->detector.size = 0;
+	s->automatic = 0; s->zmodem_type_digit = 0; s->detector.matched = 0;
 }
 void st_wren_transfer_dispose(struct st_wren_context *context)
 {
@@ -742,32 +745,25 @@ bool st_wren_transfer_detect_enabled(const struct st_wren_context *context)
 	return context != NULL && context->connection != NULL && context->session != NULL
 	    && in_band_transfer_allowed(context->host, context->profile);
 }
-int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
-	bool *consumed, uint8_t *replacement, size_t capacity, size_t *size)
+int st_wren_transfer_observe(struct st_wren_context *context, uint8_t byte)
 {
 	if (!st_wren_transfer_detect_enabled(context)) return 0;
 	struct st_wren_transfer *s = state(context);
 	if (s == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	if (s->worker != NULL || s->automatic != 0 || s->rip_directory != NULL || s->skypix_directory != NULL || s->cancel_remaining != 0) return 0;
-	uint8_t output[33]; size_t count;
-	int event = st_transfer_detect(&s->detector, byte, output, &count);
-	if (event != 0) {
-		if (download_root(context) == NULL && event == 1) {
-			/* Keep literal bytes when downloads cannot be offered. */
-			event = 0;
-		} else {
-			memcpy(s->prefix, output, count); s->prefix_size = count; s->automatic = event;
-			if (event == 1) {
-				struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM};
-				int status = start(context, &config, false, false);
-				if (status != 0) { s->automatic = 0; s->prefix_size = 0; return status; }
-			} else st_term_session_reserve_transfer(context->session, true);
-			*consumed = true; *size = 0; return 0;
+	int event = st_transfer_detect(&s->detector, byte);
+	if (event == 0 || (event == 1 && download_root(context) == NULL)) return 0;
+	s->automatic = event;
+	s->zmodem_type_digit = byte;
+	if (event == 1) {
+		struct st_transfer_config config = {.protocol = ST_TRANSFER_ZMODEM};
+		int status = start(context, &config, false, false);
+		if (status != 0) {
+			s->automatic = 0;
+			s->zmodem_type_digit = 0;
+			return status;
 		}
-	}
-	if (count == 1 && output[0] == byte && s->detector.size == 0) return 0;
-	if (count > capacity) return IO_ERROR_OUT_OF_RANGE;
-	memcpy(replacement, output, count); *size = count; *consumed = true;
+	} else st_term_session_reserve_transfer(context->session, true);
 	return 0;
 }
 static st_transfer_t *get_worker(WrenVM *vm)
@@ -953,8 +949,8 @@ static void cancel_automatic(WrenVM *vm)
 		s->rip_upload_pending = false; s->automatic = 0;
 		rip_clear_paths(s);
 		s->cancel_remaining = 10; s->cancel_next_ms = 0;
-	} else if (s != NULL && s->worker == NULL && (s->automatic != 0 || s->prefix_size != 0)) {
-		s->automatic = 0; s->prefix_size = 0;
+	} else if (s != NULL && s->worker == NULL && (s->automatic != 0 || s->zmodem_type_digit != 0)) {
+		s->automatic = 0; s->zmodem_type_digit = 0;
 		st_term_session_reserve_transfer(context->session, false);
 		static const uint8_t cancel[] = {24,24,24,24,24,24,24,24};
 		if (context->connection != NULL) (void)st_connection_send(context->connection, cancel, sizeof(cancel), 100);

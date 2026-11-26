@@ -363,8 +363,7 @@ void st_wren_transfer_pump(struct st_wren_context *context);
 int st_wren_send_pump(struct st_wren_context *context);
 void st_wren_send_dispose(struct st_wren_context *context);
 bool st_wren_transfer_detect_enabled(const struct st_wren_context *context);
-int st_wren_transfer_filter(struct st_wren_context *context, uint8_t byte,
-	bool *consumed, uint8_t *replacement, size_t capacity, size_t *size);
+int st_wren_transfer_observe(struct st_wren_context *context, uint8_t byte);
 bool st_wren_download_directory_allowed(const char *path);
 WrenForeignClassMethods st_wren_session_bind_class(const char *class_name);
 int st_wren_status_render(WrenVM *vm, bool enabled);
