@@ -102,7 +102,9 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 simple mouse fields, host execution, captured coordinates, deletion and native
 text/graphics press feedback and the adopted PR #115 gesture/identity policy.
 The bitmap backend records the URI from a clicked `$GOTOURL$` field and the
-clipboard fallback for a URI with an unsupported scheme.
+clipboard fallback for a URI with an unsupported scheme. Direct and hover
+requests exercise the URL confirmation dialog, including cancellation,
+acceptance, and dismissal before a clipboard write.
 `syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise
 plain `1U` buttons, native clipboard faces (including inactive/protected reads
 and partial-viewport padding), classic/Dixon labels, pointer

@@ -12,9 +12,10 @@ level-9 `G` descriptor at RVA `0x81bd0` invokes `ripWebBrowser` from
 `0x252aa` in the catalogued 3.0.7 DLL and is excluded.
 
 `$GOTOURL(name)$` resolves the named RIP user variable and passes its stored
-URL to the connected hyperlink handler when the user activates a RIP field
-or button by click or keyboard. The handler applies the same scheme,
-safe-mode, and clipboard rules as a terminal hyperlink click.
+URL to the connected hyperlink handler. A click or key activation follows the
+link directly. Other requests, including a BBS command or a hover, display
+the URL and require confirmation. Cancel is selected initially. In safe mode
+or for an unsupported scheme, the dialog offers to copy the URL instead.
 
 ## Acceptance scope
 

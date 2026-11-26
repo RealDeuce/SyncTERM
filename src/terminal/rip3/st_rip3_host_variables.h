@@ -107,7 +107,7 @@ struct st_rip3_host_variables {
 	void                                *status_bar_context;
 	void                                 (*status_bar_changed)(void *context, bool enabled);
 	const struct st_rip3_host_directory *directory;
-	void (*follow_link)(void *context, const char *uri);
+	void (*follow_link)(void *context, const char *uri, bool user_activated);
 	void *link_context;
 	void                                *transfer_context;
 	int (*transfer)(void *context, bool upload, unsigned protocol, unsigned type, const char *filenames);

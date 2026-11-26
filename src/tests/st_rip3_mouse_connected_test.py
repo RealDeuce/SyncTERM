@@ -245,12 +245,31 @@ def run(args):
         values(b"$WORLD(CUR,640,480)$")
         t.exchange(field((10, 10, 60, 30), b"ID=1:$-=WEBURL=" + url.encode() + b"$$GOTOURL(weburl)$clicked"))
         serial = client.capture().metadata["url_serial"]
-        # A remote query and a resident mouse-enter handler both run without activation.
-        values(b"$-=OTHER=https://example.invalid/passive$$GOTOURL(OTHER)$alive", b"alive")
+        passive = "https://example.invalid/passive"
+        clipboard = client.capture().clipboard
+        send(query(b"$-=OTHER=" + passive.encode() + b"$$GOTOURL(OTHER)$alive", at_cursor=True))
+        prompt = client.wait_text(passive)
+        assert "Open this URL?" in prompt.text and prompt.metadata["url_serial"] == serial
+        client.key("enter")  # Cancel is selected by default.
+        declined = t.input(b"alive")
+        assert declined.metadata["url_serial"] == serial and declined.clipboard == clipboard
+
         t.exchange(b"\x01|1\x1b5000$GOTOURL(OTHER)$hover\r\n")
         mouse(20, 20, move=True)
+        prompt = client.wait_text(passive)
+        assert "Open this URL?" in prompt.text and prompt.metadata["url_serial"] == serial
+        client.key("down")
+        client.key("enter")
         hovered = t.input(b"hover")
-        assert hovered.metadata["url_serial"] == serial
+        serial += 1
+        assert hovered.url == passive and hovered.metadata["url_serial"] == serial
+
+        send(query(b"$-=LOCAL=file:///declined$$GOTOURL(LOCAL)$done", at_cursor=True))
+        prompt = client.wait_text("file:///declined")
+        assert "Copy this URL?" in prompt.text
+        client.key("escape")
+        dismissed = t.input(b"done")
+        assert dismissed.clipboard == clipboard and dismissed.metadata["url_serial"] == serial
         t.exchange(b"\x01|1\x1b5000$OFF$\r\n")
         opened = click(20, 20, b"clicked")
         assert opened.url == url and opened.metadata["url_serial"] == serial + 1

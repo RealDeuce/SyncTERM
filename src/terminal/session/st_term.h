@@ -73,7 +73,7 @@ struct st_term_config {
 	const char *rip3_data_directory;
 	void        (*rip3_alert)(void *context, const char *title, const char *message);
 	void       *rip3_alert_context;
-	void (*follow_link)(void *context, const char *uri);
+	void (*follow_link)(void *context, const char *uri, bool user_activated);
 	void *link_context;
 	const char *amiga_font_directory;
 	/* Default strike is borrowed through destruction; NULL selects Pearl 8. */

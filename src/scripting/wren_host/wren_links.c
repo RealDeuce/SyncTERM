@@ -168,9 +168,15 @@ st_wren_hover_uri(struct st_wren_context *context)
 
 void
 st_wren_host_follow_link(st_wren_host_t *host, st_console_t *console, const struct st_profile *profile,
-    const char *uri)
+    const char *uri, bool user_activated)
 {
-	if (host->config.safe_mode || !st_wren_uri_openable(uri) || st_console_open_url(console, uri) != 0) {
+	bool can_open = !host->config.safe_mode && st_wren_uri_openable(uri);
+	if (!user_activated) {
+		const char *choices[] = {"Cancel", can_open ? "Open" : "Copy"};
+		if (st_wren_host_choice(host, can_open ? "Open this URL?" : "Copy this URL?", uri, choices, 2) != 1)
+			return;
+	}
+	if (!can_open || st_console_open_url(console, uri) != 0) {
 		int copied = st_console_set_clipboard_text(console, uri);
 		if (!profile->hide_popups)
 			(void)st_wren_host_alert(host,
@@ -239,7 +245,7 @@ st_wren_link_mouse(struct st_wren_context *context, const struct st_wren_input_r
 	if (uri == NULL)
 		return false;
 	context->link_gesture = true;
-	st_wren_host_follow_link(context->host, context->console, context->profile, uri);
+	st_wren_host_follow_link(context->host, context->console, context->profile, uri, true);
 	free(uri);
 	return true;
 }

@@ -760,10 +760,10 @@ connection_alert(void *context, const char *title, const char *message)
 }
 
 static void
-connection_follow_link(void *context, const char *uri)
+connection_follow_link(void *context, const char *uri, bool user_activated)
 {
 	struct connection_ui *ui = context;
-	st_wren_host_follow_link(ui->host, ui->console, ui->profile, uri);
+	st_wren_host_follow_link(ui->host, ui->console, ui->profile, uri, user_activated);
 }
 
 static char *

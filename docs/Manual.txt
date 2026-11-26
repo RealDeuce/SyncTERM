@@ -1350,6 +1350,11 @@ Even without OSC 8 markup, kbd:[Ctrl+Click] on plain-text URLs
 `www.`) will detect and open the URL directly. This also works
 in the scrollback viewer.
 
+In an RIPv3 session, clicking a field or activating its hotkey can also
+open a link. If the BBS requests a URL directly or on hover, SyncTERM shows
+the destination and asks before opening it. Cancel is selected by default.
+In safe mode or for an unsupported scheme, the dialog offers to copy the URL.
+
 On platforms where opening a browser is not possible, the URL is
 copied to the clipboard instead.
 

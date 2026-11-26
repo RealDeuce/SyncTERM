@@ -500,11 +500,12 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		int status = st_rip3_user_variables_get(host->user_variables, name->text, name->length, &uri);
 		if (status != 0 && status != IO_ERROR_NOT_FOUND)
 			return status;
-		if (status == 0 && uri.length && host->field_context && host->field_context->active
-		    && st_rip3_mouse_user_activated(host->mouse)) {
+		if (status == 0 && uri.length) {
 			if (memchr(uri.bytes, 0, uri.length))
 				return IO_ERROR_INVALID_FORMAT;
-			host->follow_link(host->link_context, (const char *)uri.bytes);
+			bool user_activated = host->field_context && host->field_context->active
+			                      && st_rip3_mouse_user_activated(host->mouse);
+			host->follow_link(host->link_context, (const char *)uri.bytes, user_activated);
 		}
 		result[0] = 0;
 		return 0;
