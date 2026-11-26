@@ -60,7 +60,8 @@ add_field(struct st_pad *p, const struct globals *g, unsigned bit, uint32_t usag
 				f.target = pad_target(3, id - 0x30);
 		}
 		else {
-			snprintf(f.label, sizeof f.label, "Usage %04X:%04X", page, id);
+			snprintf(f.label, sizeof f.label, "%s %04X:%04X", page >= 0xff00 ? "Vendor" : "Usage",
+			    page, id);
 			if (page == 2 && f.kind != ST_BUTTON) {
 				switch (id) {
 					case 0xba:
@@ -283,17 +284,23 @@ pad_parse(const uint8_t *data, size_t len, unsigned wanted, unsigned *collection
 	pad->numbered = numbered;
 	for (unsigned i = 0; i < 256; i++)
 		pad->payload_bytes[i] = (uint16_t)((offsets[i] + 7) / 8);
-	/* Identically named usages in different physical collections may
-	 * have different purposes. Leave ambiguous defaults for the mapper. */
+	/* Equal usages can describe independent controls. Number repeated labels in
+	 * descriptor order and leave ambiguous default bindings for the mapper. */
 	for (size_t i = 0; i < pad->count; i++) {
-		int target = pad->fields[i].target;
-		if (target < 0)
-			continue;
-		for (size_t j = i + 1; j < pad->count; j++)
-			if (pad->fields[j].target == target) {
-				pad->fields[i].target = -1;
-				pad->fields[j].target = -1;
-			}
+		struct pad_field *first      = &pad->fields[i];
+		int               target     = first->target;
+		size_t            length     = strlen(first->label);
+		unsigned          occurrence = 1;
+		for (size_t j = i + 1; j < pad->count; j++) {
+			struct pad_field *other = &pad->fields[j];
+			if (strcmp(first->label, other->label) == 0)
+				snprintf(other->label + length, sizeof other->label - length, " #%u",
+				    ++occurrence);
+			if (target >= 0 && other->target == target)
+				first->target = other->target = -1;
+		}
+		if (occurrence > 1)
+			snprintf(first->label + length, sizeof first->label - length, " #1");
 	}
 	if (!add_hat_buttons(pad))
 		goto invalid;

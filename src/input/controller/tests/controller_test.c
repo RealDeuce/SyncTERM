@@ -65,6 +65,9 @@ mapping(void)
 	struct st_pad *p = a.pads[0], *twin = b.pads[0];
 	CHECK(p->descriptor_fields == 4 && p->count == 8 && p->id != twin->id && p->fields[0].target == -1
 	      && p->fields[1].target == -1);
+	CHECK(strcmp(st_controller_field(p, 0), "Button 7 #1") == 0);
+	CHECK(strcmp(st_controller_field(p, 1), "Button 7 #2") == 0);
+	CHECK(strcmp(st_controller_field(p, 2), "X axis") == 0);
 	struct events out = {0};
 	pad_publish(p, record, &out);
 	CHECK(out.count == 5 && out.records[0].record == ST_PAD_ADD && out.records[4].record == ST_PAD_FRAME);
@@ -134,6 +137,31 @@ composite(void)
 }
 
 static int
+repeated_vendor_usage(void)
+{
+	/* The F310's D-mode descriptor assigns FF00:0001 to sixteen one-bit inputs. */
+	static const uint8_t desc[] = {5, 1, 9, 4, 0xa1, 1, 6, 0, 0xff, 0x15, 0, 0x25, 1, 0x75, 1, 0x95, 16, 9, 1,
+	    0x81, 2, 0xc0};
+	unsigned             collections;
+	struct st_pad       *p = pad_parse(desc, sizeof desc, 0, &collections);
+	CHECK(p && collections == 1 && st_controller_fields(p) == 16);
+
+	const uint8_t report[] = {0x01, 0x80};
+	pad_report(p, report, sizeof report, false);
+	for (size_t i = 0; i < 16; ++i) {
+		char label[64];
+		snprintf(label, sizeof label, "Vendor FF00:0001 #%zu", i + 1);
+		CHECK(strcmp(st_controller_field(p, i), label) == 0);
+		int value;
+		CHECK(st_controller_preview(p, i, &value) && value == (i == 0 || i == 15));
+	}
+
+	free(p->fields);
+	free(p);
+	return 0;
+}
+
+static int
 button_array(void)
 {
 	/* Two selector slots, button usages 0 (empty) through 5, trailing padding. */
@@ -198,5 +226,5 @@ ports(void)
 int
 main(void)
 {
-	return scaling() || mapping() || composite() || button_array() || ports();
+	return scaling() || mapping() || composite() || repeated_vendor_usage() || button_array() || ports();
 }
