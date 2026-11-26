@@ -859,8 +859,8 @@ class SettingsMenu {
     return "# Controller Mapping\n\n" +
         "Choose what a BBS receives when you use your controller. " +
         "Each row shows a BBS input and the physical control assigned to it. An unassigned input sends nothing.\n\n" +
-        "**Example:** Select Bottom face button, then press the button you want to use. " +
-        "Its device name (such as Button 7) appears next to Bottom face button.\n\n" +
+        "Action pad south is the lowest button in the four-button diamond (A on a Logitech F310). Select that row and press the button you want to use. " +
+        "Its device name (such as Button 7) appears next to Action pad south.\n\n" +
         "To start with the controller, select Press a control to assign, move it, then choose its BBS input. " +
         "Browse physical controls lets you select it by name instead.\n\n" +
         "For a D-pad button, select its row and push the hat in one direction. Map each direction you want to send. " +

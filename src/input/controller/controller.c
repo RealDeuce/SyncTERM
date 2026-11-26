@@ -8,10 +8,10 @@
 #include "st_time.h"
 
 static const struct st_control_target targets[] = {
-    {"Bottom face button",     "BTN_SOUTH",      ST_BUTTON,  304},
-    {"Right face button",      "BTN_EAST",       ST_BUTTON,  305},
-    {"Top face button",        "BTN_NORTH",      ST_BUTTON,  307},
-    {"Left face button",       "BTN_WEST",       ST_BUTTON,  308},
+    {"Action pad south",       "BTN_SOUTH",      ST_BUTTON,  304},
+    {"Action pad east",        "BTN_EAST",       ST_BUTTON,  305},
+    {"Action pad north",       "BTN_NORTH",      ST_BUTTON,  307},
+    {"Action pad west",        "BTN_WEST",       ST_BUTTON,  308},
     {"C button",               "BTN_C",          ST_BUTTON,  306},
     {"Z button",               "BTN_Z",          ST_BUTTON,  309},
     {"Left shoulder",          "BTN_TL",         ST_BUTTON,  310},

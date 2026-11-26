@@ -1220,7 +1220,8 @@ You can insert and delete items using the normal menu commands.
 ==== Program Settings
 
 Controller Mapping::
-Select a BBS input such as *Bottom face button*, then press the physical
+The action pad is the four-button diamond. *Action pad south* is its lowest
+button (A on a Logitech F310). Select a BBS input and press the physical
 button you want to use. Its name appears beside the BBS input. To start with
 a physical control, choose *Press a control to assign*, move it, and pick
 what it should send. *Browse physical controls* lets you select it by name.
