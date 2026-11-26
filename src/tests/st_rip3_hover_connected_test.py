@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
-from st_rip3_connected_test import query
+from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
 from st_rip3_buttons_connected_test import style,button
 from st_rip3_button_styles_connected_test import number
@@ -143,6 +143,24 @@ def run(args,width,height):
         move(30,30);move(90,90)
         values(b'$FIELDID$')  # unavailable between callback scopes
         values(b'$&LIVE$',b'Done')
+        if width == 640:
+            t.case('rip3-shared-hover-scene-draws-the-message-for-each-field')
+            shared = root / 'RIP'
+            shared.mkdir(exist_ok=True)
+            def draw(x, message):
+                return b'\x01|@' + number(x, 2) + number(200, 2) + message + b'\r\n'
+            (shared / 'Menu.ent').write_bytes(draw(200, b'$&MSG<<FIELDID>>$'))
+            values(b'$-=MSG7=A$$-=MSG8=III$')
+            t.exchange(resident(5, b'$>Menu.ent$done:$FIELDID$;'))
+            for x, field_id, message in ((15, b'7', b'A'), (70, b'8', b'III')):
+                t.exchange(b'\x01|E|c0F\r\n' + draw(300, message))
+                frame = move(x, 30, b'done:' + field_id + b';')
+                def ink(left):
+                    return {(dx, dy) for dx in range(40) for dy in range(24)
+                            if pixel(frame, left + dx, 200 + dy) == 0xffffff}
+                reference = ink(300)
+                assert reference and ink(200) == reference, field_id
+                move(90, 90)
         values(b'alive',b'alive')
         assert client.capture().application['connected']==1
 

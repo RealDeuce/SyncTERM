@@ -8,6 +8,7 @@ import time
 
 from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
+from st_rip3_buttons_connected_test import style
 from st_rip3_connected_test import pixel, query
 from st_rip3_mouse_connected_test import field
 from st_rip3_scroll_connected_test import plane_pixel
@@ -743,6 +744,18 @@ def run(args):
         frame = t.input(b"release")
         assert pixel(frame, 140, 150) == (0x454545 if supported == b"1" else 0)
         client.physical_key(42, False)
+
+        t.case("A photo button uses the image style in force at click time")
+        t.exchange(style(flags=256|1024, width=86, height=22)
+                   + b"\x01|1U0A0A00003200<>View photo<>$(Gray.JPG$shown\r\n")
+        frame = values(b"$IMGSTYLE(CUR,210,150,229,169)$")
+        assert pixel(frame, 210, 150) == 0
+        mouse(45, 20, 1)
+        mouse(45, 20, 0)
+        frame = t.input(b"shown")
+        assert pixel(frame, 210, 150) == (0x454545 if supported == b"1" else 0)
+        assert pixel(frame, 228, 168) == (0xbababa if supported == b"1" else 0)
+        assert pixel(frame, 229, 169) == 0
 
         t.case("Playback bounds count decoded wire bytes rather than normalized storage")
         label = "é" * (19 if args.encoding == "CP437" else 9)

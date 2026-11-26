@@ -77,6 +77,13 @@ inconsistent CR and parenthesis positions. The fixture checks the documented
 pass rules with fixed values while the example awaits correction.
 [Issue #333](https://github.com/bbs-land/remote-imaging-protocol/issues/333)
 
+A connected entry handler plays one menu scene for two different fields.
+Its graphics-text argument uses FIELDID to choose the message, and the rendered
+ink matches the corresponding literal label. A separate photo-button click
+checks that local JPEG playback uses the image style selected after button
+creation. Three host-response index entries still need reconciliation with the
+detailed chapters. [Issue #334](https://github.com/bbs-land/remote-imaging-protocol/issues/334)
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask
