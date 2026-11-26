@@ -9,6 +9,40 @@ from st_rip3_connected_test import query,pixel
 from st_rip3_button_styles_connected_test import number
 
 
+def reset_port_state(t, values, wire, width, height):
+    world = f'$WORLD(CUR,{width},{height})$'.encode()
+    ports = (0, 5, 6, 7)
+    def coords(x, y):
+        return number(x, 2) + number(y, 2)
+
+    for command, hard in ((b'*', False), (b'h01000200', False), (b'h01000100', True)):
+        t.case(f'rip3-port-image-and-copy-state-after-{command.decode()}')
+        values(b'$RESET(HARD)$' + world)
+        values(b'$CUR(PORT,5)$$CUR(PORT,6)$$CUR(PORT,7)$$CUR(PORT,0)$')
+        for i, port in enumerate(ports):
+            x = 20 + 10*i
+            wire(b'2C0' + coords(x, 20) + coords(x+1, 21) + number(port, 1)
+                 + coords(x+80, 20) + coords(x+81, 21) + b'0')
+            values(f'$IMGSTYLE({port},2,3,12,13,ASPECT)$'.encode())
+        values(b'$PROT(PORT,5,6)$$CUR(PORT,5)$')
+        wire(command)
+        values(b'$CUR(PORT)$:$ISPROT(PORT,5)$:$ISPROT(PORT,6)$:$INUSE(PORT,7)$',
+               b'0:-1:-1:0' if hard else b'0:1:1:0')
+        values(world)
+        if hard:
+            values(b'$CUR(PORT,5)$$CUR(PORT,6)$')
+        values(b'$CUR(PORT,7)$$CUR(PORT,0)$')
+        values(b'$IMGSTYLE(0)$:$IMGSTYLE(5)$:$IMGSTYLE(6)$:$IMGSTYLE(7)$',
+               b':'.join((b'-1:-1:-1:-1:0', b'-1:-1:-1:-1:0',
+                          b'-1:-1:-1:-1:0' if hard else b'2:3:13:14:1', b'-1:-1:-1:-1:0')))
+        # Paint the remembered destinations after the reset. PCB reverses a
+        # surviving pair into its original source on port zero.
+        wire(b'c04|' + b'|'.join(b'X' + coords(x, 20) for x in (100, 110, 120, 130)))
+        frame = values(b'$PCB(0)$$PCB(5)$$PCB(6)$$PCB(7)$')
+        assert [pixel(frame, x, 20) for x in (20, 30, 40, 50)] == (
+            [0, 0, 0, 0] if hard else [0, 0xaa0000, 0xaa0000, 0])
+
+
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -94,6 +128,7 @@ def run(args,width,height):
         values(b'$CUR(PORT,9)$$RESET(PORT)$$CUR(PORT)$:$INUSE(PORT,9)$',b'0:0')
         values(b'$RESET(PORT,ALL)$$INUSE(PORT,8)$:$ISPROT(PORT,7)$:$INUSE(PORT,BASE)$:'
                b'$INUSE(PORT,STACK)$:$INUSE(PORT,S3)$',b'0:1:0:0:1')
+        reset_port_state(t, values, wire, width, height)
         assert client.capture().application['connected']==1
 
 

@@ -31,6 +31,16 @@ def check_autosense(t):
     assert frame.lines[7].startswith("!|m0B0B")
     t.exchange(b"\x1b[1!\x1b[2!\x01|m0C0C\r\n" + query(b"$TEXTXY$", at_cursor=True), b"12:12")
 
+    t.case("rip3-disable-suppresses-port-and-style-switches")
+    t.exchange(query(b"$CUR(PORT,3)$$CUR(STYLE,3)$$DVP(3)$", at_cursor=True))
+    switches = b"\x01|2s505|2Y505\r\n"
+    state = query(b"$CUR(PORT)$:$ISPROT(PORT,3)$:$ISPROT(PORT,5)$:"
+                  b"$CUR(STYLE)$:$ISPROT(STYLE,3)$:$ISPROT(STYLE,5)$", at_cursor=True)
+    t.exchange(b"\x1b[1!" + switches + b"\x1b[2!" + state, b"3:0:-1:3:0:-1")
+    t.exchange(switches + state, b"5:1:1:5:1:1")
+    t.exchange(query(b"$UNPROT(PORT,3,5)$$UNPROT(STYLE,3,5)$$CUR(PORT,0)$$CUR(STYLE,0)$",
+                     at_cursor=True))
+
     t.case("rip3-autosense-obeys-ansi-and-rip-input-boundaries")
     t.exchange(b"\x1b\x1b[!\x1b[12\x1b[!\x1b[12\x18\x1b[!"
                b"\x1b[12\x1a\x1b[!", ident + ident)

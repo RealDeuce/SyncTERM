@@ -15,6 +15,27 @@ def colors(frame,plane):
     return [v&0xffffff if v&0x80000000 else frame.palette[v] for v in plane]
 
 
+def protection_aggregates(t, values):
+    t.case('rip3-any-all-live-protection')
+    values(b'$RESET(HARD)$')
+    for family in ('TW', 'PORT', 'BUT', 'STYLE', 'PAL', 'ENV'):
+        def check(expected):
+            values(f'$ISPROT({family},ANY)$:$ISPROT({family},ALL)$:$ISPROT({family},35)$'.encode(),
+                   expected)
+        check(b'0:0:-1')
+        # PROT(ALL) skips undefined entries. Protecting the other 34 leaves
+        # ALL false until the last nonzero entry is both defined and protected.
+        values((''.join(f'$CUR({family},{n})$' for n in range(1, 35))
+                + f'$PROT({family},ALL)$').encode())
+        check(b'1:0:-1')
+        values(f'$CUR({family},35)$'.encode())
+        check(b'1:0:0')
+        values(f'$PROT({family},35)$'.encode())
+        check(b'1:1:1')
+        values(f'$UNPROT({family},ALL)$'.encode())
+        check(b'0:0:0')
+
+
 def run(args,width,height):
     with connection(args.executable,args.reports,encoding=args.encoding,
                     options='ScreenMode=Custom\nRIP=RIPv3\n',
@@ -99,6 +120,8 @@ def run(args,width,height):
         values(b'$SAVEALL(3)$$RESTOREALL(3)$');used('S3',b'00000000')
         values(b'$SAVEALL(10)$', b'$SAVEALL(10)$');values(b'$RESTOREALL(PUSH)$', b'$RESTOREALL(PUSH)$')
         values(b'$RESTOREALL(9)$');values(b'$WORLD$:alive',f'{width}:{height}:alive'.encode())
+        if width == 640:
+            protection_aggregates(t, values)
         assert client.capture().application['connected']==1
 
 

@@ -122,6 +122,12 @@ and restoring the displayed selection. Before the first pointer sample, a coordi
 Each ordinary pass keeps its position and button sample across a delay.
 [Upstream PR #319](https://github.com/bbs-land/remote-imaging-protocol/pull/319)
 
+A soft reset clears the protected old current port’s image style and keeps
+its remembered copy rectangles. Other protected ports retain both. A hard
+reset discards those definitions. Saving the port table with no assigned
+clipboard still captures the selected screen port, offscreen pixels, resident
+queries and copy rectangles. Restoring it leaves the visible screen intact.
+
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
 

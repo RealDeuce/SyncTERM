@@ -243,7 +243,11 @@ static int producers_and_backups(void)
 	struct st_rip3_port_copy_pair survivor;CHECK(st_rip3_ports_copy_pair(p,7,&survivor)==0 && survivor.set);
 	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,p)==0 && pair(p,1,true,a,b)==0);
 	CHECK(pair(p,6,false,a,b)==0 && pair(p,7,true,survivor.source,survivor.destination)==0 && cb.set && cb.port==1);
-	CHECK(st_rip3_ports_protect(p,1,true)==0 && st_rip3_ports_reset(p,false)==0);
+	CHECK(st_rip3_ports_copy_device(p,0,&c,1,&d,ST_RIP3_TRANSFER_COPY,NULL)==0 && pair(p,1,true,c,d)==0);
+	CHECK(st_rip3_backup_restore(backup,ST_RIP3_BACKUP_BASE,0,p)==0 && pair(p,1,true,a,b)==0);
+	CHECK(st_rip3_ports_protect(p,1,true)==0);
+	CHECK(st_rip3_clipboard_capture(p,&cb,&button,10000)==IO_ERROR_PERMISSION_DENIED && pair(p,1,true,a,b)==0);
+	CHECK(st_rip3_ports_reset(p,false)==0);
 	CHECK(pair(p,1,true,a,b)==0 && pair(p,7,true,survivor.source,survivor.destination)==0);
 	CHECK(pair(p,0,false,a,b)==0);
 	CHECK(st_rip3_ports_protect(p,1,false)==0);
@@ -251,7 +255,9 @@ static int producers_and_backups(void)
 	CHECK(st_rip3_clipboard_capture(p,&cb,&area,10000)==0 && pair(p,1,false,a,b)==0);
 	CHECK(st_rip3_clipboard_duplicate(p,&cb,5,&area,10000)==0);
 	CHECK(pair(p,5,true,a,(struct st_rip3_copy_extent){0,0,3,3})==0);
-	CHECK(st_rip3_ports_delete(p,5)==0 && pair(p,5,false,a,b)==0);
+	CHECK(st_rip3_clipboard_duplicate(p,&cb,5,&area,0)==IO_ERROR_OUT_OF_MEMORY);
+	CHECK(pair(p,5,false,a,b)==0);
+	CHECK(st_rip3_ports_define(p,5,&full,true)==0 && pair(p,5,false,a,b)==0);
 	st_rip3_backup_destroy(backup);st_rip3_ports_destroy(p);return 0;
 }
 struct observed {unsigned replies,errors;};

@@ -1427,6 +1427,42 @@ static int store_query(struct fixture *f,unsigned mode,char number,const char *s
 	CHECK(append(f,wire)==0 && pump(f)==0 && f->errors==before+(error ? 1 : 0) && f->reply_length==0);
 	return 0;
 }
+static int
+port_backup_without_clipboard(void)
+{
+	struct fixture f = {0};
+	struct st_rip3_session_config options = config(&f, ST_RIP3_CANVAS_640_480);
+	const uint64_t budget = 1024;
+	options.offscreen_pixel_budget = &budget;
+	CHECK(st_rip3_session_create(&f.session, &options) == 0);
+	CHECK(query(&f, "$WORLD(CUR,640,480)$$CUR(PORT,1)$$CUR(PORT,2)$", "") == 0);
+	CHECK(append(&f, "!|2P3000002021|2s300|c04|X0101|2s200\r") == 0 && pump(&f) == 0);
+	CHECK(store_query(&f, 1, '0', "floating", false) == 0);
+	CHECK(store_query(&f, 3, '2', "fixed", false) == 0);
+	CHECK(query(&f, "$SCB$$CUR(PORT)$:$OFFSCREEN(CLIP)$", "2:-1") == 0);
+	for (unsigned i = 0; i < 2; ++i) {
+		CHECK(store_query(&f, 1, '0', "changed", false) == 0);
+		CHECK(store_query(&f, 3, '2', "changed", false) == 0);
+		CHECK(query(&f, "$CUR(PORT,4)$", "") == 0);
+		CHECK(append(&f, "!|2s000|c01|X0L0K|1C000001010|2s300|c02|X0101|2p2000\r") == 0 && pump(&f) == 0);
+		CHECK(query(&f, "$OFFSCREEN(CLIP)$:$INUSE(PORT,2)$", "5:0") == 0);
+		CHECK(query(&f, "$RCB$$CUR(PORT)$:$OFFSCREEN(CLIP)$:$INUSE(PORT,5)$", "2:-1:0") == 0);
+		CHECK(resident_value(&f, 1, 0, "floating") == 0 && resident_value(&f, 3, 2, "fixed") == 0);
+		/* A screen mark survives RCB. Copy out one saved offscreen pixel
+		 * beside it so the restored bitmap is observable through the wire. */
+		CHECK(append(&f, "!|2C30101020200K0K0L0L0\r") == 0 && pump(&f) == 0);
+		struct st_rip3_session_capture capture = {0};
+		CHECK(st_rip3_session_capture(f.session, &capture) == 0);
+		CHECK(capture.pixels->primary[20*640 + 20] == (ST_PIXEL_COLOR_RGB_TAG | 0xaa0000));
+		CHECK(capture.pixels->primary[20*640 + 21] == (ST_PIXEL_COLOR_RGB_TAG | 0x0000aa));
+		st_rip3_session_capture_dispose(&capture);
+		CHECK(append(&f, "!|c01|X0K0K\r") == 0 && pump(&f) == 0);
+	}
+	CHECK(f.errors == 0);
+	st_rip3_session_destroy(f.session);
+	return 0;
+}
+
 static int stored_queries(void)
 {
 	struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
@@ -2590,6 +2626,7 @@ main(void)
 	CHECK(sound_reset() == 0);
 	CHECK(scene_header_geometry_failure()==0 && scene_header_port_state()==0 && maximize_window_list()==0);
 	CHECK(scene_header_port_zero_queries()==0 && scene_header_palette_upload()==0 && hard_reset_lifetime()==0);
+	CHECK(port_backup_without_clipboard() == 0);
 	CHECK(text_entry_copies()==0 && text_backups()==0 && stored_queries()==0 && resident_query_resets()==0 && screen_backups()==0);
 	CHECK(keyboard_buttons()==0);
 	CHECK(enclosed_fields()==0);
