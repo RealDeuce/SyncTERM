@@ -1,3 +1,4 @@
+#include "tests/rip_test_terminal.h"
 /* Reference APC command effects, framing, and owned state. */
 /* Copyright (c) 2026 Stephen Hurd
  * SPDX-License-Identifier: BSD-2-Clause
@@ -80,7 +81,7 @@ open_fixture_with(struct fixture *fixture, const char *directory, enum st_cterm_
 	    .apc                 = unknown,
 	    .apc_context         = &fixture->output,
 	};
-	CHECK(st_cterm_create(&fixture->terminal, &config) == 0);
+	CHECK(rip_test_create(&fixture->terminal, &config) == 0);
 }
 
 static void
@@ -92,7 +93,7 @@ open_fixture(struct fixture *fixture)
 static void
 close_fixture(struct fixture *fixture)
 {
-	st_cterm_destroy(&fixture->terminal);
+	rip_test_destroy(&fixture->terminal);
 	st_font_catalog_destroy(fixture->fonts);
 	st_console_destroy(fixture->console);
 }
@@ -101,7 +102,7 @@ static void
 feed(struct fixture *fixture, const void *bytes, size_t size)
 {
 	size_t consumed;
-	CHECK(st_cterm_write(fixture->terminal, bytes, size, &consumed) == 0 && consumed == size);
+	CHECK(rip_test_write(fixture->terminal, bytes, size, &consumed) == 0 && consumed == size);
 }
 
 static void
@@ -343,7 +344,7 @@ check_graphics(struct fixture *fixture)
 	apc(fixture, "SyncTERM:P;Copy;B=0;W=3;H=2");
 	CHECK(state->images[0] != NULL && state->images[0]->width == 3 && state->images[0]->height == 2);
 	struct st_pixel_buffer *saved = state->images[0];
-	CHECK(st_cterm_reset_terminal(fixture->terminal) == 0);
+	CHECK(rip_test_reset(fixture->terminal) == 0);
 	CHECK(state->images[0] == saved && state->mask != NULL);
 	st_pixel_buffer_destroy(background);
 }

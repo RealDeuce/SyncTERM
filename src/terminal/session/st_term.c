@@ -14,6 +14,7 @@
 #include "cterm_skypix.h"
 #include "io_error.h"
 #include "st_ooii.h"
+#include "st_rip154.h"
 #include "st_term.h"
 #include "st_term_rip3.h"
 #include "st_threads.h"
@@ -36,6 +37,7 @@ struct st_term_session {
 	struct cterm_big      *big;
 	struct cterm_skypix   *skypix;
 	struct cterm_igs      *igs;
+	struct st_rip154      *rip154;
 	st_ooii_t             *ooii;
 	struct st_utf8_decoder ooii_decoder;
 	struct st_term_rip3   *rip3;
@@ -125,6 +127,11 @@ st_term_session_finish_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->rip154 != NULL) {
+		int status = st_rip154_finish(session->rip154);
+		if (status != 0)
+			return status;
+	}
 	if (session->igs != NULL)
 		return cterm_igs_finish_display(session->igs);
 	int status =
@@ -137,6 +144,8 @@ st_term_session_reset_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->rip154 != NULL)
+		return st_rip154_reset(session->rip154);
 	if (session->igs != NULL)
 		return cterm_igs_reset_display(session->igs);
 	if (session->skypix != NULL) {
@@ -152,6 +161,12 @@ struct cterm_big *
 st_term_session_big(st_term_session_t *session)
 {
 	return session == NULL ? NULL : session->big;
+}
+
+struct st_rip154 *
+st_term_session_rip154(st_term_session_t *session)
+{
+	return session == NULL ? NULL : session->rip154;
 }
 
 struct cterm_igs *
@@ -548,7 +563,6 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .rip3_session_owner     = config->graphics_mode == ST_CTERM_GRAPHICS_RIP_3,
 	    .rip3_autosense         = rip3_autosense,
 	    .rip3_autosense_context = session,
-	    .rip_directory          = config->rip_directory,
 
 	    .apc_directory       = config->apc_directory,
 	    .application_version = config->application_version,
@@ -570,12 +584,6 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .speed_query                 = cterm_speed_query,
 	    .speed_changed               = cterm_speed_changed,
 	    .speed_context               = session,
-	    .rip_prompt                  = config->rip_prompt,
-	    .rip_prompt_context          = config->rip_prompt_context,
-	    .rip_choice                  = config->rip_choice,
-	    .rip_choice_context          = config->rip_choice_context,
-	    .rip_transfer                = config->rip_transfer,
-	    .rip_transfer_context        = config->rip_transfer_context,
 	    .input_filter                = config->input_filter,
 	    .input_filter_active         = config->input_filter_active,
 	    .input_filter_context        = config->input_filter_context,
@@ -588,6 +596,15 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
 		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
+	else if (config->graphics_mode == ST_CTERM_GRAPHICS_RIP_1)
+		status = st_rip154_open(&session->rip154, &session->cterm, &cterm_config,
+		    &(struct st_rip154_services) {.rip_directory = config->rip_directory,
+			.rip_prompt                              = config->rip_prompt,
+			.rip_prompt_context                      = config->rip_prompt_context,
+			.rip_choice                              = config->rip_choice,
+			.rip_choice_context                      = config->rip_choice_context,
+			.rip_transfer                            = config->rip_transfer,
+			.rip_transfer_context                    = config->rip_transfer_context});
 	else if (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221)
 		status = cterm_igs_open(&session->igs, &session->cterm, &cterm_config, true,
 		    igs_loop_service_pending, session);
@@ -609,6 +626,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	}
 	status = update_connection_geometry(session);
 	if (status != 0) {
+		st_rip154_destroy(session->rip154);
 		cterm_igs_destroy(session->igs);
 		cterm_skypix_destroy(session->skypix);
 		cterm_big_destroy(session->big);
@@ -625,6 +643,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	status = st_ooii_create(&session->ooii, &ooii_config);
 	if (status != 0) {
+		st_rip154_destroy(session->rip154);
 		cterm_igs_destroy(session->igs);
 		cterm_skypix_destroy(session->skypix);
 		cterm_big_destroy(session->big);
@@ -693,6 +712,7 @@ st_term_session_destroy(st_term_session_t **session)
 	publish_history(*session);
 	st_ooii_destroy((*session)->ooii);
 	st_term_rip3_destroy((*session)->rip3);
+	st_rip154_destroy((*session)->rip154);
 	cterm_igs_destroy((*session)->igs);
 	cterm_skypix_destroy((*session)->skypix);
 	cterm_big_destroy((*session)->big);
@@ -1046,6 +1066,8 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 		return 0;
 	}
 	if (st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+		if (session->rip154 != NULL)
+			return st_rip154_feed(session->rip154, bytes, size, consumed);
 		if (session->igs != NULL)
 			return cterm_igs_feed(session->igs, bytes, size, consumed);
 		if (session->big != NULL)

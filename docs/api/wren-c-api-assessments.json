@@ -3883,43 +3883,43 @@
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_asset.h",
+      "path": "src/terminal/rip154/cterm_rip_asset.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_asset_lookup.h",
+      "path": "src/terminal/rip154/cterm_rip_asset_lookup.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_engine.h",
+      "path": "src/terminal/rip154/cterm_rip_engine.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_file_query.h",
+      "path": "src/terminal/rip154/cterm_rip_file_query.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_fonts.h",
+      "path": "src/terminal/rip154/cterm_rip_fonts.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_icon_file.h",
+      "path": "src/terminal/rip154/cterm_rip_icon_file.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_icons.h",
+      "path": "src/terminal/rip154/cterm_rip_icons.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_parser.h",
+      "path": "src/terminal/rip154/cterm_rip_parser.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_raster.h",
+      "path": "src/terminal/rip154/cterm_rip_raster.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/cterm_rip_time.h",
+      "path": "src/terminal/rip154/cterm_rip_time.h",
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
@@ -3947,95 +3947,95 @@
       "reason": "CTerm parser/RIP/SkyPix protocol internals; st_cterm.h and term session own parsing, resources and lifetime."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_beziers_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_beziers_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_buttons_bevel_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_buttons_bevel_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_buttons_colors_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_buttons_colors_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_buttons_labels_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_buttons_labels_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_buttons_plain_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_buttons_plain_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_buttons_sizes_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_buttons_sizes_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_ellipses_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_ellipses_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_floodfill_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_floodfill_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_lines_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_lines_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_patterns_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_patterns_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_pies_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_pies_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_polygons_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_polygons_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_rects_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_rects_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_surfer1_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_surfer1_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_xor_ellipse_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_xor_ellipse_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/legacy_xor_expected.h",
+      "path": "src/terminal/rip154/tests/data/legacy_xor_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/test01b_ellipse_sweep_expected.h",
+      "path": "src/terminal/rip154/tests/data/test01b_ellipse_sweep_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/test10_edges_expected.h",
+      "path": "src/terminal/rip154/tests/data/test10_edges_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/test11_lines_expected.h",
+      "path": "src/terminal/rip154/tests/data/test11_lines_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/test12_fillpoly_expected.h",
+      "path": "src/terminal/rip154/tests/data/test12_fillpoly_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/test13_thick_xor_expected.h",
+      "path": "src/terminal/rip154/tests/data/test13_thick_xor_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/v110a_gl_morfr_expected.h",
+      "path": "src/terminal/rip154/tests/data/v110a_gl_morfr_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
-      "path": "src/terminal/cterm/tests/data/v110a_surfer1_expected.h",
+      "path": "src/terminal/rip154/tests/data/v110a_surfer1_expected.h",
       "reason": "Test fixtures/control and expected-result helpers, not production script capabilities."
     },
     {
@@ -4615,7 +4615,7 @@
       "aspect": "CP437/UTF-8 direct reset preserves completed history and text, resets modes/margins, recovers partial escape/decoder state, retains encoding, and propagates actual flush failure before reset and render rejection after mode changes."
     },
     {
-      "path": "src/terminal/cterm/tests/st_cterm_rip_variables_test.c",
+      "path": "src/terminal/rip154/tests/st_cterm_rip_variables_test.c",
       "anchor": "pending command through its native prompt",
       "aspect": "Buffered RIP_DEFINE is completed through its prompt before reconstruction, persisted values reload, and a real callback failure propagates unchanged with safe teardown."
     },

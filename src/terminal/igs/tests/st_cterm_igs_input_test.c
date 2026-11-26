@@ -82,7 +82,7 @@ create(struct fixture *f, unsigned mode, bool utf8, bool status)
 	    .input_filter_context = f,
 	};
 	CHECK(cterm_igs_open(&f->igs, &f->terminal, &config, false, NULL, NULL) == 0);
-	CHECK(f->igs != NULL && f->terminal->rip_engine == NULL);
+	CHECK(f->igs != NULL && f->terminal->device.context == f->igs);
 	CHECK(f->igs->resolution == mode);
 	f->igs->now_ms = now_ms;
 }

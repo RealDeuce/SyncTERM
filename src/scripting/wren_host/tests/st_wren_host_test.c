@@ -17,7 +17,6 @@
 #include "connection_internal.h"
 #include "console_internal.h"
 #include "cterm.h"
-#include "cterm_rip_engine.h"
 #include "cterm_skypix.h"
 #include "filesystem.h"
 #include "io_error.h"
@@ -37,6 +36,7 @@
 #include "st_pixel_image.h"
 #include "st_pixels.h"
 #include "st_profile.h"
+#include "st_rip154_internal.h"
 #include "st_session_history.h"
 #include "st_settings.h"
 #include "st_term.h"
@@ -4358,7 +4358,8 @@ exercise_rip_transfer(st_wren_host_t *host)
 				fprintf(stderr, "RIP mode %u: %s\n", mode,
 				    st_wren_connected_last_error(connected));
 			CHECK(st_wren_connected_last_error(connected) == NULL);
-			if (cterm->rip_engine->scene_depth != 0 && cterm->rip_engine->commands_seen > 1)
+			if (st_term_session_rip154(session)->engine.scene_depth != 0
+			    && st_term_session_rip154(session)->engine.commands_seen > 1)
 				streamed = true;
 			/* Retain the peer's pre-approval silence interval, and wait for
 			 * the actual input owner rather than guessing UI startup time. */
@@ -4371,7 +4372,7 @@ exercise_rip_transfer(st_wren_host_t *host)
 		if (!finished || st_connection_binary_mode(connection) != binary) {
 			fprintf(stderr, "RIP mode %u: finished=%d binary=%d/%d commands=%zu, wire:\n", mode,
 			    finished, st_connection_binary_mode(connection), binary,
-			    cterm->rip_engine->commands_seen);
+			    st_term_session_rip154(session)->engine.commands_seen);
 		}
 		CHECK(finished && st_connection_binary_mode(connection) == binary);
 		CHECK(
@@ -4380,16 +4381,16 @@ exercise_rip_transfer(st_wren_host_t *host)
 			"import \"transfer_pick\" for TransferFlow\n"
 			"if (Transfer.active || TransferFlow.busy || CTerm.suspended) Fiber.abort(\"RIP cleanup\")\n")
 		    == 0);
-		CHECK(cterm->rip_engine->scene_depth == 0);
+		CHECK(st_term_session_rip154(session)->engine.scene_depth == 0);
 		if (streamed != (mode == 0 || mode == 5))
 			fprintf(stderr, "RIP mode %u: streamed=%d commands=%zu bytes=%zu\n", mode, streamed,
-			    cterm->rip_engine->commands_seen, wire.size);
+			    st_term_session_rip154(session)->engine.commands_seen, wire.size);
 		CHECK(streamed == (mode == 0 || mode == 5));
 		if (mode == 0 || mode == 5) {
 			struct st_pixel_buffer      *pixels = NULL;
 			const struct st_console_rect rect   = {100, 100, 1, 1};
 			CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
-			CHECK(pixels->primary[0] == cterm->rip_engine->raster.palette[4]);
+			CHECK(pixels->primary[0] == st_term_session_rip154(session)->engine.raster.palette[4]);
 			st_pixel_buffer_destroy(pixels);
 		}
 		CHECK(wire.size >= 30 && memcmp(wire.bytes, "!|9\033", 4) == 0);
@@ -4413,8 +4414,8 @@ exercise_rip_transfer(st_wren_host_t *host)
 			CHECK(fs_get_info(&info, ST_WREN_TEST_DIRECTORY "/rip-cache/asset.icn") == 0);
 			size_t      consumed;
 			const char *load = "\r\n!|*|1I141400010ASSET.ICN\r";
-			CHECK(
-			    st_cterm_write(cterm, load, strlen(load), &consumed) == 0 && consumed == strlen(load));
+			CHECK(st_rip154_feed(st_term_session_rip154(session), load, strlen(load), &consumed) == 0
+			      && consumed == strlen(load));
 			struct st_pixel_buffer      *pixels = NULL;
 			const struct st_console_rect rect   = {40, 40, 1, 1};
 			CHECK(st_console_get_pixels(&pixels, console, &rect, false) == 0);
@@ -4976,12 +4977,13 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 	    .capture_active       = connected_capture_active,
 	    .capture_context      = &connected,
 	};
-	CHECK(st_cterm_create(&cterm, &terminal_config) == 0);
-	CHECK(st_cterm_write(cterm, "!|$SBARON$\r", 11, &consumed) == 0);
+	struct st_rip154 *rip = NULL;
+	CHECK(st_rip154_open(&rip, &cterm, &terminal_config, NULL) == 0);
+	CHECK(st_rip154_feed(rip, "!|$SBARON$\r", 11, &consumed) == 0);
 	CHECK(consumed == 11 && st_cterm_status_display(cterm) == 1);
 	CHECK(st_cterm_size(cterm, &width, &height) == 0);
 	for (uint32_t row = 0; row < height + 3; ++row) {
-		CHECK(st_cterm_write(cterm, "X\r\n", 3, &consumed) == 0);
+		CHECK(st_rip154_feed(rip, "X\r\n", 3, &consumed) == 0);
 		CHECK(consumed == 3);
 	}
 	struct st_wren_connected_config connected_config = {
@@ -5093,7 +5095,7 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 		  "import \"syncterm\" for Hook\n"
 		  "Hook.onInput(233, Fn.new {|scalar| \"X\" })\n")
 	      == 0);
-	CHECK(st_cterm_write(cterm, "\x1b[H\xc3\xa9", 5, &consumed) == 0 && consumed == 5);
+	CHECK(st_rip154_feed(rip, "\x1b[H\xc3\xa9", 5, &consumed) == 0 && consumed == 5);
 	struct st_console_rect filtered_cell = {0, 0, 1, 1};
 	struct st_console_cell filtered_value;
 	CHECK(st_console_read_cells(console, &filtered_cell, &filtered_value, 1) == 0
@@ -5190,10 +5192,10 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 		"if (bad.error == null) Fiber.abort(\"unanchored pattern accepted\")\n")
 	    == 0);
 	const char *coloured_match = "W\x1b[1;33melcome";
-	CHECK(st_cterm_write(cterm, coloured_match, strlen(coloured_match), &consumed) == 0
+	CHECK(st_rip154_feed(rip, coloured_match, strlen(coloured_match), &consumed) == 0
 	      && consumed == strlen(coloured_match));
 	CHECK(st_cterm_music_mode(cterm) == 2);
-	CHECK(st_cterm_write(cterm, "foo", 3, &consumed) == 0 && consumed == 3);
+	CHECK(st_rip154_feed(rip, "foo", 3, &consumed) == 0 && consumed == 3);
 	CHECK(st_cterm_music_mode(cterm) == 1);
 	CHECK(st_wren_connected_interpret(connected, "match_unicode",
 		  "import \"syncterm\" for Hook, CTerm\n"
@@ -5204,16 +5206,16 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 		  "  CTerm.music = 1\n"
 		  "})\n")
 	      == 0);
-	CHECK(st_cterm_write(cterm, "\xe4\xb8", 2, &consumed) == 0 && consumed == 2);
+	CHECK(st_rip154_feed(rip, "\xe4\xb8", 2, &consumed) == 0 && consumed == 2);
 	CHECK(st_cterm_music_mode(cterm) == 1);
-	CHECK(st_cterm_write(cterm, "\x96", 1, &consumed) == 0 && consumed == 1);
+	CHECK(st_rip154_feed(rip, "\x96", 1, &consumed) == 0 && consumed == 1);
 	CHECK(st_cterm_music_mode(cterm) == 2);
-	CHECK(st_cterm_write(cterm, "bar", 3, &consumed) == 0 && consumed == 3);
+	CHECK(st_rip154_feed(rip, "bar", 3, &consumed) == 0 && consumed == 3);
 	CHECK(st_cterm_music_mode(cterm) == 1);
 	CHECK(st_wren_connected_interpret(connected, "match_reset_music",
 		  "import \"syncterm\" for CTerm\nCTerm.music = 0\n")
 	      == 0);
-	CHECK(st_cterm_write(cterm, "bar", 3, &consumed) == 0 && consumed == 3);
+	CHECK(st_rip154_feed(rip, "bar", 3, &consumed) == 0 && consumed == 3);
 	CHECK(st_cterm_music_mode(cterm) == 0);
 	FILE *plain        = tmpfile();
 	char  captured[32] = {0};
@@ -5227,15 +5229,15 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 		  "Capture.resume()\n")
 	      == 0);
 	CHECK(st_wren_connected_capture_wire(connected, (const uint8_t *)"A\x1b[31m\xc3\xa9", 8) == 0);
-	CHECK(st_cterm_write(cterm, "A\x1b[31m\xc3\xa9", 8, &consumed) == 0 && consumed == 8);
+	CHECK(st_rip154_feed(rip, "A\x1b[31m\xc3\xa9", 8, &consumed) == 0 && consumed == 8);
 	CHECK(st_wren_connected_interpret(connected, "capture_pause",
 		  "import \"syncterm\" for Capture\nCapture.pause()\n")
 	      == 0);
-	CHECK(st_cterm_write(cterm, "B", 1, &consumed) == 0);
+	CHECK(st_rip154_feed(rip, "B", 1, &consumed) == 0);
 	CHECK(st_wren_connected_interpret(connected, "capture_resume",
 		  "import \"syncterm\" for Capture\nCapture.resume()\n")
 	      == 0);
-	CHECK(st_cterm_write(cterm, "C", 1, &consumed) == 0);
+	CHECK(st_rip154_feed(rip, "C", 1, &consumed) == 0);
 	CHECK(fflush(plain) == 0 && fseek(plain, 0, SEEK_SET) == 0);
 	CHECK(fread(captured, 1, 3, plain) == 3);
 	CHECK(memcmp(captured, "AXC", 3) == 0);
@@ -5249,20 +5251,21 @@ exercise_connected_scrollback(st_wren_host_t *host, st_console_t *console, struc
 	CHECK(st_wren_connected_capture_start(connected, raw, true) == 0);
 	st_wren_connected_capture_pause(connected);
 	CHECK(st_wren_connected_capture_wire(connected, (const uint8_t *)"H", 1) == 0);
-	CHECK(st_cterm_write(cterm, "H", 1, &consumed) == 0 && consumed == 1);
+	CHECK(st_rip154_feed(rip, "H", 1, &consumed) == 0 && consumed == 1);
 	st_wren_connected_capture_resume(connected);
 	static const char raw_input[] = "D\x1b[32m\xc3\xa9\xff\xef\xbf\xbd\x00\xc3";
 	for (size_t i = 0; i < sizeof(raw_input) - 1; ++i) {
 		CHECK(st_wren_connected_capture_wire(connected, (const uint8_t *)raw_input + i, 1) == 0);
-		CHECK(st_cterm_write(cterm, raw_input + i, 1, &consumed) == 0 && consumed == 1);
+		CHECK(st_rip154_feed(rip, raw_input + i, 1, &consumed) == 0 && consumed == 1);
 	}
-	CHECK(st_cterm_finish(cterm) == 0);
+	CHECK(st_rip154_finish(rip) == 0 && st_cterm_finish(cterm) == 0);
 	CHECK(st_cterm_write_utf8(cterm, "injected", 8, &consumed) == 0 && consumed == 8);
 	CHECK(fflush(raw) == 0 && fseek(raw, 0, SEEK_SET) == 0);
 	CHECK(fread(captured, 1, sizeof(captured), raw) == sizeof(raw_input) - 1);
 	CHECK(memcmp(captured, raw_input, sizeof(raw_input) - 1) == 0);
 	st_wren_connected_destroy(connected);
 	connected = NULL;
+	st_rip154_destroy(rip);
 	st_cterm_destroy(&cterm);
 	terminal_config.encoding      = ST_CTERM_ENCODING_CODEPAGE;
 	terminal_config.graphics_mode = ST_CTERM_GRAPHICS_OFF;

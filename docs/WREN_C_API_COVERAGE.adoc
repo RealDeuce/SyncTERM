@@ -475,7 +475,7 @@ RIP tests retain callback failure and safe teardown. Errors own their diagnostic
 without retaining a terminal/session. Native reset algorithms and protocol RIS
 semantics are unchanged.
 
-Evidence: link:../src/terminal/cterm/st_cterm.c[native reset order]; link:../src/scripting/wren_host/wren_bind_session.c[reset binding and error operation discriminator]; link:../src/terminal/cterm/tests/st_cterm_test.c[native direct-reset tests]; link:../src/terminal/cterm/tests/st_cterm_rip_variables_test.c[pending callback and persisted reload]; link:../src/tests/st_migrated_control_test.py[application reset captures].
+Evidence: link:../src/terminal/cterm/st_cterm.c[native reset order]; link:../src/scripting/wren_host/wren_bind_session.c[reset binding and error operation discriminator]; link:../src/terminal/cterm/tests/st_cterm_test.c[native direct-reset tests]; link:../src/terminal/rip154/tests/st_cterm_rip_variables_test.c[pending callback and persisted reload]; link:../src/tests/st_migrated_control_test.py[application reset captures].
 
 [[finding-digest-algorithms]]
 === Digest input and algorithms (resolved)

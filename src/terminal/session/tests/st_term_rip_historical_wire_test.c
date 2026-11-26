@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../cterm/tests/data/v110a_surfer1_expected.h"
+#include "../../rip154/tests/data/v110a_surfer1_expected.h"
 #include "st_pixels.h"
 #include "st_term.h"
 

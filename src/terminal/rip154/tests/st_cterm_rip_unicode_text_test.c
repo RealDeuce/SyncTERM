@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "rip_test_terminal.h"
 #include "st_cterm.h"
 #include "st_pixels.h"
 
@@ -24,7 +25,7 @@ feed(st_cterm_t *terminal, const char *wire)
 {
 	size_t size = strlen(wire);
 	size_t consumed;
-	int    status = st_cterm_write(terminal, wire, size, &consumed);
+	int    status = rip_test_write(terminal, wire, size, &consumed);
 
 	return status == 0 && consumed == size ? 0 : 1;
 }
@@ -62,7 +63,7 @@ st_cterm_rip_unicode_text_test_main(void)
 		    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 		    .codepage      = ST_CODEPAGE_CP437,
 		};
-		CHECK(st_cterm_create(&terminal[i], &config) == 0);
+		CHECK(rip_test_create(&terminal[i], &config) == 0);
 		CHECK(feed(terminal[i], "!|c0F\r\n") == 0);
 	}
 	CHECK(feed(terminal[0], "!|@1E1E\x82\r\n") == 0);
@@ -101,7 +102,7 @@ st_cterm_rip_unicode_text_test_main(void)
 	CHECK(painted != 0);
 	for (size_t i = 0; i < 2; i++) {
 		st_pixel_buffer_destroy(pixels[i]);
-		st_cterm_destroy(&terminal[i]);
+		rip_test_destroy(&terminal[i]);
 		st_font_catalog_destroy(fonts[i]);
 		st_console_destroy(console[i]);
 	}

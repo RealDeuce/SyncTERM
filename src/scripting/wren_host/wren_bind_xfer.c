@@ -12,6 +12,7 @@
 #include "st_app_paths.h"
 #include "st_bbs_list.h"
 #include "st_connection.h"
+#include "st_rip154.h"
 #include "st_rip3_resources.h"
 #include "st_term.h"
 #include "st_time.h"
@@ -806,18 +807,19 @@ st_wren_transfer_pump(struct st_wren_context *context)
 		switch (event.kind) {
 			case ST_TRANSFER_RECEIVE_BEGIN:
 				if (s->rip_file_type == 0 || rip_extension(event.filename, ".rip")) {
-					status       = st_cterm_rip_receive_begin(context->cterm);
+					status = st_rip154_receive_begin(st_term_session_rip154(context->session));
 					s->rip_scene = status == 0;
 				}
 				break;
 			case ST_TRANSFER_RECEIVE_DATA:
 				if (s->rip_scene)
-					status =
-					    st_cterm_rip_receive_data(context->cterm, event.bytes, event.size);
+					status = st_rip154_receive_data(st_term_session_rip154(context->session),
+					    event.bytes, event.size);
 				break;
 			case ST_TRANSFER_RECEIVE_END:
 				if (s->rip_scene)
-					status = st_cterm_rip_receive_end(context->cterm, event.success);
+					status = st_rip154_receive_end(st_term_session_rip154(context->session),
+					    event.success);
 				s->rip_scene = false;
 				break;
 		}
@@ -826,7 +828,7 @@ st_wren_transfer_pump(struct st_wren_context *context)
 			snprintf(log.text, sizeof(log.text), "RIP received scene failed (%d)", status);
 			log_entry(context, &log);
 			(void)st_transfer_request_abort(s->worker);
-			(void)st_cterm_rip_receive_end(context->cterm, false);
+			(void)st_rip154_receive_end(st_term_session_rip154(context->session), false);
 			s->rip_scene = false;
 		}
 	}
@@ -842,7 +844,7 @@ finish(struct st_wren_context *context)
 		(void)st_transfer_join(s->worker);
 		st_wren_transfer_pump(context);
 		if (s->rip_scene)
-			(void)st_cterm_rip_receive_end(context->cterm, false);
+			(void)st_rip154_receive_end(st_term_session_rip154(context->session), false);
 		s->rip_scene = false;
 		(void)st_term_session_end_transfer(context->session);
 		if (s->skypix_directory != NULL)

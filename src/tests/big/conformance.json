@@ -517,7 +517,7 @@
           ],
           "references": [
             "User decisions in this thread: share glyph drawing and current font data; retain historical data only with artwork evidence.",
-            "src/terminal/cterm/cterm_rip_fonts.c before extraction",
+            "src/terminal/rip154/cterm_rip_fonts.c before extraction",
             "28-text-fonts-and-native-reuse.adoc (format/layout operators; historical font-version data superseded)",
             "53-text-and-line-style-command-acceptance.adoc",
             "62-graphical-text-command-acceptance.adoc"

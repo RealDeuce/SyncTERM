@@ -24,9 +24,6 @@ typedef struct cterminal st_cterm_t;
 /* Owner-thread streaming of validated received RIP scene bytes. begin/end
  * isolate file parsing from the live wire parser. end(false) discards an
  * unfinished command after cancellation or an invalid transfer. */
-int st_cterm_rip_receive_begin(st_cterm_t *terminal);
-int st_cterm_rip_receive_data(st_cterm_t *terminal, const uint8_t *bytes, size_t size);
-int st_cterm_rip_receive_end(st_cterm_t *terminal, bool success);
 
 enum st_cterm_emulation {
 	ST_CTERM_ANSI_BBS,
@@ -91,38 +88,6 @@ typedef void (*st_cterm_output_callback_t)(void *context, enum st_cterm_output_o
 typedef void (*st_cterm_apc_callback_t)(void *context, const char *text, size_t size);
 typedef void (*st_cterm_size_callback_t)(void *context, uint32_t columns, uint32_t rows, uint32_t pixel_width,
     uint32_t pixel_height);
-/* Called synchronously for RIP_DEFINE. Return zero and a NULL result to
- * cancel, or a malloc-owned string to accept. A nonzero return is an error. */
-typedef int (*st_cterm_rip_prompt_callback_t)(void *context, const char *question, const char *initial,
-    size_t field_width, bool reject_blank, char **result);
-
-struct st_cterm_rip_choice {
-	const char *label;
-	uint32_t    hotkey; /* Unicode scalar, zero when no hotkey is specified. */
-};
-
-/* Synchronous, borrowed UTF-8 labels. Do not reenter the terminal. Set
- * selected to -1 for optional cancellation, or an index in [0,count).
- * Required lists ignore ordinary dismissal; close/error returns nonzero. */
-typedef int (*st_cterm_rip_choice_callback_t)(void *context, const char *question,
-    const struct st_cterm_rip_choice *choices, size_t count, bool required, int *selected);
-
-struct st_cterm_rip_transfer_request {
-	bool        upload;
-	unsigned    protocol, file_type;
-	const char *directory, *filename;
-	/* RIPv3 supplies the BBS RIP root and hands off the optional LF.
-	 * RIPv1 always hands off at CR. */
-	const char *cache_root;
-	bool        skip_lf;
-};
-
-/* Runs synchronously on the terminal owner at the terminating CR. Accepting
- * must claim the connection before returning; borrowed strings cannot escape
- * this callback. Protocol I/O and UI run outside the RIP parser. */
-typedef int (
-    *st_cterm_rip_transfer_callback_t)(void *context, const struct st_cterm_rip_transfer_request *request);
-
 #define ST_CTERM_INPUT_REPLACEMENT_CAPACITY 256
 /* Decoded Unicode scalar from received terminal text, including controls.
  * Protocol payloads and sequence parameters belong to their byte parser and
@@ -157,10 +122,7 @@ struct st_cterm_config {
 	st_hyperlink_registry_t *hyperlinks;
 	enum st_cterm_emulation  emulation;
 	enum st_cterm_encoding   encoding;
-	/* Graphics require a bitmap console. RIP/SkyPix/BIG require ANSI-BBS; IGS
-	 * requires Atari ST VT52 and native ST geometry. RIP needs at least
-	 * 640x350 pixels; BIG defaults to 640x350 with 8x14 console cells; SkyPix
-	 * uses the selected canvas and wire encoding. */
+	/* Identity reported to scripts and diagnostics. Graphics devices are owned by the session. */
 	enum st_cterm_graphics_mode graphics_mode;
 	/* st_term owns the independent RIP3 engine and feeds only its ordinary
 	 * text into this CTerm. Keep the public mode identity, without creating
@@ -170,8 +132,6 @@ struct st_cterm_config {
 	 * callback must not write to or replace the CTerm during notification. */
 	void  (*rip3_autosense)(void *context, uint16_t selector);
 	void *rip3_autosense_context;
-	/* Optional per-BBS RIP asset directory; borrowed for terminal lifetime. */
-	const char *rip_directory;
 	/* Enables built-in SyncTERM APC commands independently of RIP. Both
 	 * strings are borrowed through destruction; version is NUL-terminated.
 	 * NULL directory retains callback-only handling. CTSV maps UTF-8 alpha/beta
@@ -212,13 +172,6 @@ struct st_cterm_config {
 	uint32_t (*speed_query)(void *context);
 	void     (*speed_changed)(void *context, uint32_t bps);
 	void    *speed_context;
-	/* Without a callback, interactive RIP_DEFINE leaves the variable unchanged. */
-	st_cterm_rip_prompt_callback_t   rip_prompt;
-	void                            *rip_prompt_context;
-	st_cterm_rip_choice_callback_t   rip_choice;
-	void                            *rip_choice_context;
-	st_cterm_rip_transfer_callback_t rip_transfer;
-	void                            *rip_transfer_context;
 	st_cterm_input_filter_t          input_filter;
 	bool                             (*input_filter_active)(void *context);
 	void                            *input_filter_context;
@@ -269,8 +222,6 @@ bool st_cterm_needs_poll(st_cterm_t *terminal);
  * serialized owner as write(), even when no input arrives. Responses use
  * the synchronous output callback. NULL is IO_ERROR_INVALID_ARGUMENT. */
 int st_cterm_poll(st_cterm_t *terminal);
-/* Owner-thread timing gate. The caller retains bytes after a write
- * consumed count while paused; no input suffix is queued by this API. */
 /* After disconnect only: finish pending output and, without a status row,
  * scroll the whole terminal once to make room for a local notice. Dimensions
  * and status layout remain unchanged; capture completed history beforehand. */
@@ -491,7 +442,6 @@ bool st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint);
 /* An explicitly entered byte in the terminal's current codepage. */
 bool st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte);
 /* RIP hotkeys may consume printable text before it is sent to the wire. */
-bool st_cterm_handle_rip_text(st_cterm_t *terminal, uint32_t codepoint);
 bool st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code);
 bool st_cterm_handle_physical_keys(st_cterm_t *terminal, const struct st_console_event *events, size_t count);
 bool st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event);

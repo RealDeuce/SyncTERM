@@ -14,6 +14,7 @@
 #include "filesystem.h"
 #include "io_error.h"
 #include "path.h"
+#include "rip_test_terminal.h"
 #include "st_cterm.h"
 #include "st_pixels.h"
 
@@ -76,7 +77,7 @@ feed(st_cterm_t *terminal, const char *wire)
 {
 	size_t consumed;
 	size_t size   = strlen(wire);
-	int    status = st_cterm_write(terminal, wire, size, &consumed);
+	int    status = rip_test_write(terminal, wire, size, &consumed);
 
 	return status == 0 && consumed == size ? 0 : 1;
 }
@@ -115,10 +116,10 @@ st_cterm_rip_assets_test_main(void)
 	    .encoding       = ST_CTERM_ENCODING_CODEPAGE,
 	    .graphics_mode  = ST_CTERM_GRAPHICS_RIP_3,
 	    .codepage       = ST_CODEPAGE_CP437,
-	    .rip_directory  = RIP_ASSET_TEST_DIRECTORY,
 	    .output         = capture_response,
 	    .output_context = &response,
 	};
+	struct st_rip154_services services        = {.rip_directory = RIP_ASSET_TEST_DIRECTORY};
 	st_console_t          *console         = NULL;
 	st_font_catalog_t     *fonts           = NULL;
 	st_cterm_t            *terminal        = NULL;
@@ -145,7 +146,7 @@ st_cterm_rip_assets_test_main(void)
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	terminal_config.console = console;
 	terminal_config.fonts   = fonts;
-	CHECK(st_cterm_create(&terminal, &terminal_config) == 0);
+	CHECK(rip_test_open(&terminal, &terminal_config, &services) == 0);
 	CHECK(feed(terminal, "!|c0F|X0A0A\r") == 0);
 	CHECK(feed(terminal, "!|1C0A0A0A0A00\r") == 0);
 	CHECK(feed(terminal, "!|1W0SAVED.ICN\r") == 0);
@@ -249,7 +250,7 @@ st_cterm_rip_assets_test_main(void)
 	CHECK(pixel(console, 40, 40, &colour) == 0 && colour == 0x1f);
 	CHECK(feed(terminal, "!|1W0../ESCAPE.ICN\r") == 0);
 	CHECK(fs_get_link_info(&info, escaped) == IO_ERROR_NOT_FOUND);
-	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(rip_test_reset(terminal) == 0);
 	CHECK(feed(terminal, "!|1I141400010SAVED.ICN\r") == 0);
 	CHECK(pixel(console, 40, 40, &colour) == 0 && colour == 0x1f);
 	/* The scene's final command has no terminator; its graphics state
@@ -353,14 +354,14 @@ st_cterm_rip_assets_test_main(void)
 		size_t                       painted         = 0;
 
 		CHECK(fs_replace_file(scene, cp437_scene, sizeof(cp437_scene) - 1) == 0);
-		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		CHECK(rip_test_reset(terminal) == 0);
 		CHECK(feed(terminal, "!|1R00000000CHILD.RIP\r") == 0);
 		CHECK(st_console_get_pixels(&codepage_pixels, console, &rect, false) == 0);
 		for (size_t i = 0; i < (size_t)rect.width * rect.height; i++)
 			painted += codepage_pixels->primary[i] != codepage_pixels->primary[0];
 		CHECK(painted != 0);
 		CHECK(st_cterm_set_encoding(terminal, ST_CTERM_ENCODING_UTF8, ST_CODEPAGE_CP437) == 0);
-		CHECK(st_cterm_reset_terminal(terminal) == 0);
+		CHECK(rip_test_reset(terminal) == 0);
 		CHECK(feed(terminal, "!|1R00000000CHILD.RIP\r") == 0);
 		CHECK(st_console_get_pixels(&unicode_pixels, console, &rect, false) == 0);
 		CHECK(memcmp(codepage_pixels->primary, unicode_pixels->primary,
@@ -369,7 +370,7 @@ st_cterm_rip_assets_test_main(void)
 		st_pixel_buffer_destroy(unicode_pixels);
 		st_pixel_buffer_destroy(codepage_pixels);
 	}
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	free(escaped);

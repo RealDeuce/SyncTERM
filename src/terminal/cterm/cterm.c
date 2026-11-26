@@ -2215,9 +2215,7 @@ cterm_init(int height, int width, int xpos, int ypos, int backlines, int backcol
 		cterm->api_log_level          = initial->log_level;
 		cterm->api_diagnostic         = initial->diagnostic;
 		cterm->api_diagnostic_context = initial->diagnostic_context;
-		if (initial->force_lcf
-		    || (initial->graphics_mode == ST_CTERM_GRAPHICS_RIP_1
-		        || initial->graphics_mode == ST_CTERM_GRAPHICS_RIP_3))
+		if (initial->force_lcf || initial->rip3_session_owner)
 			cterm->last_column_flag = CTERM_LCF_FORCED | CTERM_LCF_ENABLED;
 		cterm->yellow_is_yellow = initial->yellow_is_yellow;
 		if (initial->palette_override != NULL) {

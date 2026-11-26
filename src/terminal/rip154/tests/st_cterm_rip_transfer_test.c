@@ -9,6 +9,7 @@
 #include "cterm_rip_engine.h"
 #include "filesystem.h"
 #include "io_error.h"
+#include "rip_test_terminal.h"
 #include "st_cterm.h"
 #ifdef ST_RIP_TRANSFER_TEST_POSIX
  #include <unistd.h>
@@ -57,7 +58,7 @@ feed(st_cterm_t *terminal, const char *wire)
 	/* Commands may arrive one byte at a time, including the terminator. */
 	for (; *wire; ++wire) {
 		size_t consumed;
-		int    status = st_cterm_write(terminal, wire, 1, &consumed);
+		int    status = rip_test_write(terminal, wire, 1, &consumed);
 		if (status != 0 || consumed != 1)
 			return 1;
 	}
@@ -80,18 +81,20 @@ st_cterm_rip_transfer_test_main(void)
 	    .pixel_height                                         = 350};
 	CHECK(st_console_create(&console, &display, &screen) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
-	struct st_cterm_config config = {.emulation = ST_CTERM_ANSI_BBS,
-	    .encoding                               = ST_CTERM_ENCODING_CODEPAGE,
-	    .codepage                               = ST_CODEPAGE_CP437,
-	    .graphics_mode                          = ST_CTERM_GRAPHICS_RIP_3,
-	    .rip_directory                          = RIP_TRANSFER_TEST_DIRECTORY,
-	    .fonts                                  = fonts,
-	    .console                                = console,
-	    .output                                 = output,
-	    .output_context                         = &capture,
-	    .rip_transfer                           = request,
-	    .rip_transfer_context                   = &capture};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	struct st_cterm_config config = {
+	    .emulation      = ST_CTERM_ANSI_BBS,
+	    .encoding       = ST_CTERM_ENCODING_CODEPAGE,
+	    .codepage       = ST_CODEPAGE_CP437,
+	    .graphics_mode  = ST_CTERM_GRAPHICS_RIP_3,
+	    .fonts          = fonts,
+	    .console        = console,
+	    .output         = output,
+	    .output_context = &capture,
+	};
+	struct st_rip154_services services = {.rip_directory = RIP_TRANSFER_TEST_DIRECTORY,
+	    .rip_transfer                                    = request,
+	    .rip_transfer_context                            = &capture};
+	CHECK(rip_test_open(&terminal, &config, &services) == 0);
 	for (unsigned protocol = 0; protocol < 8; ++protocol) {
 		char wire[100];
 		if (protocol == 4)
@@ -169,29 +172,29 @@ st_cterm_rip_transfer_test_main(void)
 	      && capture.cancellations == cancellations + 10 * sizeof(invalid) / sizeof(invalid[0]));
 	/* A file's parser survives arbitrary transfer-block splits, and cannot
 	 * recursively seize the network. A failed file never flushes its tail. */
-	CHECK(st_cterm_rip_receive_begin(terminal) == 0);
-	CHECK(st_cterm_rip_receive_begin(terminal) == IO_ERROR_BUSY);
+	CHECK(st_rip154_receive_begin(rip_test_device(terminal)) == 0);
+	CHECK(st_rip154_receive_begin(rip_test_device(terminal)) == IO_ERROR_BUSY);
 	const char *nested =
 	    "!|9\x1b"
 	    "07010000<>\r\n";
-	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)nested, strlen(nested)) == 0);
+	CHECK(st_rip154_receive_data(rip_test_device(terminal), (const uint8_t *)nested, strlen(nested)) == 0);
 	CHECK(capture.requests == before);
-	size_t commands = terminal->rip_engine->commands_seen;
-	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)"!|c", 3) == 0);
-	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)"04\r", 3) == 0);
-	CHECK(terminal->rip_engine->commands_seen == commands + 1);
-	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)"!|c02", 5) == 0);
-	CHECK(st_cterm_rip_receive_end(terminal, false) == 0);
-	CHECK(terminal->rip_engine->commands_seen == commands + 1);
+	size_t commands = rip_test_device(terminal)->engine.commands_seen;
+	CHECK(st_rip154_receive_data(rip_test_device(terminal), (const uint8_t *)"!|c", 3) == 0);
+	CHECK(st_rip154_receive_data(rip_test_device(terminal), (const uint8_t *)"04\r", 3) == 0);
+	CHECK(rip_test_device(terminal)->engine.commands_seen == commands + 1);
+	CHECK(st_rip154_receive_data(rip_test_device(terminal), (const uint8_t *)"!|c02", 5) == 0);
+	CHECK(st_rip154_receive_end(rip_test_device(terminal), false) == 0);
+	CHECK(rip_test_device(terminal)->engine.commands_seen == commands + 1);
 	CHECK(feed(terminal,
 		  "!|9\x1b"
 		  "07000000<>\r")
 	          == 0
 	      && capture.requests == before + 1);
-	CHECK(st_cterm_rip_receive_begin(terminal) == 0);
-	CHECK(st_cterm_rip_receive_data(terminal, (const uint8_t *)"!|c03", 5) == 0);
-	CHECK(st_cterm_rip_receive_end(terminal, true) == 0);
-	CHECK(terminal->rip_engine->commands_seen == commands + 3);
+	CHECK(st_rip154_receive_begin(rip_test_device(terminal)) == 0);
+	CHECK(st_rip154_receive_data(rip_test_device(terminal), (const uint8_t *)"!|c03", 5) == 0);
+	CHECK(st_rip154_receive_end(rip_test_device(terminal), true) == 0);
+	CHECK(rip_test_device(terminal)->engine.commands_seen == commands + 3);
 	/* The same path rules apply to transfer I/O and later icon/scene reads. */
 	CHECK(fs_create_directories(RIP_TRANSFER_TEST_DIRECTORY) == 0);
 	char *path = NULL, *resolved = NULL;
@@ -230,7 +233,7 @@ st_cterm_rip_transfer_test_main(void)
 #endif
 	CHECK(fs_remove_file(path) == 0);
 	free(path);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;

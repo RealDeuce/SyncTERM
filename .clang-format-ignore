@@ -5,7 +5,7 @@ src/fonts/unifont/generated/**
 src/scripting/wren_vm/**/*.wren.inc
 src/st_syncterm_icon.c
 src/terminal/igs/cterm_igs_fonts.c
-src/terminal/cterm/tests/data/**
+src/terminal/rip154/tests/data/**
 src/terminal/igs/tests/data/**
 src/audio/atari_st/tests/gist_vectors.h
 src/terminal/ooii/ooii_sounds.c

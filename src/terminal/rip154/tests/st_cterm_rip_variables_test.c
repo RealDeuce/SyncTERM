@@ -13,6 +13,7 @@
 #include "ini.h"
 #include "io_error.h"
 #include "path.h"
+#include "rip_test_terminal.h"
 #include "st_cterm.h"
 #include "st_pixels.h"
 
@@ -101,7 +102,7 @@ feed(st_cterm_t *terminal, const char *wire)
 {
 	size_t consumed;
 	size_t size   = strlen(wire);
-	int    status = st_cterm_write(terminal, wire, size, &consumed);
+	int    status = rip_test_write(terminal, wire, size, &consumed);
 
 	return status == 0 && consumed == size ? 0 : 1;
 }
@@ -209,14 +210,14 @@ test_host_commands(enum st_cterm_encoding encoding)
 	    .emulation          = ST_CTERM_ANSI_BBS,
 	    .encoding           = encoding,
 	    .graphics_mode      = ST_CTERM_GRAPHICS_RIP_1,
-	    .rip_directory      = RIP_VARIABLES_TEST_DIRECTORY,
 	    .codepage           = ST_CODEPAGE_CP437,
 	    .output             = output,
 	    .output_context     = &capture,
-	    .rip_choice         = choose,
-	    .rip_choice_context = &capture,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	struct st_rip154_services services = {.rip_directory = RIP_VARIABLES_TEST_DIRECTORY,
+	    .rip_choice                                      = choose,
+	    .rip_choice_context                              = &capture};
+	CHECK(rip_test_open(&terminal, &config, &services) == 0);
 	CHECK(host_query(terminal, &capture, "[0:]S FORUM1 $?$^m", "") == 0);
 	CHECK(host_query(terminal, &capture, "[0]HELLO", "S FORUM1 HELLO\r") == 0);
 	CHECK(host_query(terminal, &capture, "[1:]<$?$>", "") == 0);
@@ -256,7 +257,7 @@ test_host_commands(enum st_cterm_encoding encoding)
 		size_t consumed;
 
 		capture.size = 0;
-		CHECK(st_cterm_write(terminal, failed, sizeof(failed) - 1, &consumed) == 0);
+		CHECK(rip_test_write(terminal, failed, sizeof(failed) - 1, &consumed) == 0);
 		CHECK(consumed == sizeof(failed) - 1);
 		CHECK(capture.size == 0);
 	}
@@ -269,7 +270,7 @@ test_host_commands(enum st_cterm_encoding encoding)
 		size_t consumed;
 
 		capture.size = 0;
-		CHECK(st_cterm_write(terminal, cancelled, sizeof(cancelled) - 1, &consumed) == 0);
+		CHECK(rip_test_write(terminal, cancelled, sizeof(cancelled) - 1, &consumed) == 0);
 		CHECK(consumed == sizeof(cancelled) - 1);
 		CHECK(capture.size == 0);
 	}
@@ -288,7 +289,7 @@ test_host_commands(enum st_cterm_encoding encoding)
 		expected[sizeof(expected) - 1] = '\0';
 		CHECK(host_query(terminal, &capture, large, expected) == 0);
 	}
-	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(rip_test_reset(terminal) == 0);
 	CHECK(host_query(terminal, &capture, "[0]FRESH", "FRESH") == 0);
 	/* Preselected radio definitions and keyboard activation share group state. */
 	CHECK(feed(terminal,
@@ -296,10 +297,10 @@ test_host_commands(enum st_cterm_encoding encoding)
 		  "|1U2S2S00001T10<>A<>[1:]A|1U3C2S00001U00<>B<>[1:]B\r\n")
 	      == 0);
 	CHECK(host_query(terminal, &capture, "$?1$", "A") == 0);
-	CHECK(st_cterm_handle_rip_text(terminal, 'b'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'b'));
 	CHECK(host_query(terminal, &capture, "$?1$", "B") == 0);
 	CHECK(feed(terminal, "\r!|$SMF$|$MKILL$|$RMF$\r\n") == 0);
-	CHECK(st_cterm_handle_rip_text(terminal, 'a'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'a'));
 	CHECK(host_query(terminal, &capture, "$?1$", "A") == 0);
 	/* Checkbox aggregates retain creation order, including saved field state. */
 	CHECK(feed(terminal,
@@ -308,26 +309,26 @@ test_host_commands(enum st_cterm_encoding encoding)
 	      == 0);
 	CHECK(host_query(terminal, &capture, "$?2$", "AB") == 0);
 	CHECK(feed(terminal, "\r!|$SMF$\r\n") == 0);
-	CHECK(st_cterm_handle_rip_text(terminal, 'a'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'a'));
 	CHECK(host_query(terminal, &capture, "$?2$", "B") == 0);
 	CHECK(feed(terminal, "\r!|$RMF$\r\n") == 0);
-	CHECK(st_cterm_handle_rip_text(terminal, 'b'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'b'));
 	CHECK(host_query(terminal, &capture, "$?2$", "A") == 0);
 	/* Deleting the active field must not leave the command using its strings. */
 	CHECK(feed(terminal,
 		  "\r!|*|1B140A0200ZK0300080F080702010707000000"
 		  "|1U2S2S00001T00<>A<>$MKILL$[1:]SAFE\r\n")
 	      == 0);
-	CHECK(st_cterm_handle_rip_text(terminal, 'a'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'a'));
 	CHECK(host_query(terminal, &capture, "$?1$", "SAFE") == 0);
 	/* A consumer without popup UI cancels the list without leaking its syntax. */
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	struct st_cterm_config no_ui = config;
 
-	no_ui.rip_choice = NULL;
-	CHECK(st_cterm_create(&terminal, &no_ui) == 0);
+	services.rip_choice = NULL;
+	CHECK(rip_test_open(&terminal, &no_ui, &services) == 0);
 	CHECK(host_query(terminal, &capture, "A((Pick?::a,b))Z", "AZ") == 0);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
@@ -367,14 +368,14 @@ st_cterm_rip_variables_test_main(void)
 	    .emulation          = ST_CTERM_ANSI_BBS,
 	    .encoding           = ST_CTERM_ENCODING_UTF8,
 	    .graphics_mode      = ST_CTERM_GRAPHICS_RIP_1,
-	    .rip_directory      = RIP_VARIABLES_TEST_DIRECTORY,
 	    .codepage           = ST_CODEPAGE_CP437,
 	    .output             = output,
 	    .output_context     = &capture,
-	    .rip_prompt         = prompt,
-	    .rip_prompt_context = &capture,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	struct st_rip154_services services = {.rip_directory = RIP_VARIABLES_TEST_DIRECTORY,
+	    .rip_prompt                                      = prompt,
+	    .rip_prompt_context                              = &capture};
+	CHECK(rip_test_open(&terminal, &config, &services) == 0);
 	CHECK(query(terminal, &capture, "TWIN", "YES\r") == 0);
 	CHECK(query(terminal, &capture, "TWFONT", "1\r") == 0);
 	CHECK(query(terminal, &capture, "TWW", "80\r") == 0);
@@ -462,7 +463,7 @@ st_cterm_rip_variables_test_main(void)
 	 * then reconstructs the engine and reloads the saved NAME variable. */
 	CHECK(feed(terminal, "!|1D00100PENDING,5:?Question?Start") == 0);
 	CHECK(capture.prompts == 0);
-	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(rip_test_reset(terminal) == 0);
 	CHECK(capture.prompts == 1);
 	CHECK(query(terminal, &capture, "PENDING", "Typed\r") == 0);
 	CHECK(query(terminal, &capture, "NAME", "Two\r") == 0);
@@ -474,8 +475,8 @@ st_cterm_rip_variables_test_main(void)
 	CHECK(capture.prompts == 3);
 	CHECK(query(terminal, &capture, "ACCENT", "\xc3\xa9\r") == 0);
 	CHECK(read_values(path, "ACCENT", "\xc3\xa9") == 0);
-	st_cterm_destroy(&terminal);
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	rip_test_destroy(&terminal);
+	CHECK(rip_test_open(&terminal, &config, &services) == 0);
 	CHECK(query(terminal, &capture, "fresh", "Typed\r") == 0);
 	CHECK(query(terminal, &capture, "accent", "\xc3\xa9\r") == 0);
 	{
@@ -575,8 +576,8 @@ st_cterm_rip_variables_test_main(void)
 	 * and destruction still complete normally. */
 	capture.prompt_status = IO_ERROR_IO;
 	CHECK(feed(terminal, "!|1D00000FAILED,5:?Question?Start") == 0);
-	CHECK(st_cterm_reset_terminal(terminal) == 0);
-	st_cterm_destroy(&terminal);
+	CHECK(rip_test_reset(terminal) == 0);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	free(path);

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "st_pixels.h"
+#include "st_rip154.h"
 #include "st_term.h"
 
 static int
@@ -56,10 +57,10 @@ transport_size(FILE *stream, size_t *result)
 }
 
 static int
-feed(st_cterm_t *terminal, const void *bytes, size_t size)
+feed(struct st_rip154 *rip, const void *bytes, size_t size)
 {
 	size_t consumed;
-	int    status = st_cterm_write(terminal, bytes, size, &consumed);
+	int    status = st_rip154_feed(rip, bytes, size, &consumed);
 
 	return status == 0 && consumed == size ? 0 : 1;
 }
@@ -88,6 +89,7 @@ compare_file(const char *path)
 	static const uint8_t         trailer[]   = "\n!|#\r\n";
 	st_console_t                *console[2]  = {NULL, NULL};
 	st_font_catalog_t           *fonts[2]    = {NULL, NULL};
+	struct st_rip154            *rip[2]      = {NULL, NULL};
 	st_cterm_t                  *terminal[2] = {NULL, NULL};
 	struct st_pixel_buffer      *pixels[2]   = {NULL, NULL};
 	uint32_t                     palette[2][256];
@@ -114,7 +116,7 @@ compare_file(const char *path)
 		    .graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
 		    .codepage      = ST_CODEPAGE_CP437,
 		};
-		if (st_cterm_create(&terminal[i], &config) != 0)
+		if (st_rip154_open(&rip[i], &terminal[i], &config, NULL) != 0)
 			goto done;
 	}
 	if (path != NULL) {
@@ -145,21 +147,22 @@ compare_file(const char *path)
 
 		if (size != chunk)
 			goto done;
-		if (feed(terminal[0], wire, size) != 0
+		if (feed(rip[0], wire, size) != 0
 		    || st_term_rip_wire_to_utf8(unicode, sizeof(unicode), &converted, wire, size,
 			   ST_CODEPAGE_CP437)
 		           != 0
-		    || feed(terminal[1], unicode, converted) != 0) {
+		    || feed(rip[1], unicode, converted) != 0) {
 			fprintf(stderr, "%s: feed failed\n", label);
 			goto done;
 		}
 		remaining -= size;
 	}
-	if (feed(terminal[0], trailer, sizeof(trailer) - 1) != 0
+	if (feed(rip[0], trailer, sizeof(trailer) - 1) != 0
 	    || st_term_rip_wire_to_utf8(unicode, sizeof(unicode), &converted, trailer, sizeof(trailer) - 1,
 		   ST_CODEPAGE_CP437)
 	           != 0
-	    || feed(terminal[1], unicode, converted) != 0 || st_cterm_finish(terminal[0]) != 0
+	    || feed(rip[1], unicode, converted) != 0 || st_rip154_finish(rip[0]) != 0
+	    || st_rip154_finish(rip[1]) != 0 || st_cterm_finish(terminal[0]) != 0
 	    || st_cterm_finish(terminal[1]) != 0)
 		goto done;
 	for (size_t i = 0; i < 2; i++) {
@@ -196,6 +199,7 @@ done:
 		fclose(stream);
 	for (size_t i = 0; i < 2; i++) {
 		st_pixel_buffer_destroy(pixels[i]);
+		st_rip154_destroy(rip[i]);
 		st_cterm_destroy(&terminal[i]);
 		if (fonts[i] != NULL)
 			st_font_catalog_destroy(fonts[i]);

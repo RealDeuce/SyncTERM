@@ -19,8 +19,8 @@ inherit_interpreter(st_cterm_t *destination, const st_cterm_t *source, bool pres
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (destination->emulation != CTERM_EMULATION_ANSI_BBS || source->emulation != CTERM_EMULATION_ANSI_BBS
 	    || destination->graphics_mode != ST_CTERM_GRAPHICS_RIP_3
-	    || source->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || destination->rip_engine != NULL
-	    || source->rip_engine != NULL)
+	    || source->graphics_mode != ST_CTERM_GRAPHICS_RIP_3 || !destination->rip3_session_owner
+	    || !source->rip3_session_owner)
 		return IO_ERROR_NOT_SUPPORTED;
 	/* These optional media/download payloads carry resources beyond ordinary
 	 * ANSI syntax. Retain their existing owner rather than copying half a
@@ -156,7 +156,7 @@ st_cterm_rip3_ansi_reset(st_cterm_t *terminal, bool active)
 	if (terminal == NULL || terminal->input_depth != 0 || !terminal->started || terminal->width < 1)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (terminal->emulation != CTERM_EMULATION_ANSI_BBS || terminal->graphics_mode != ST_CTERM_GRAPHICS_RIP_3
-	    || terminal->rip_engine != NULL)
+	    || !terminal->rip3_session_owner)
 		return IO_ERROR_NOT_SUPPORTED;
 	size_t count = (size_t)(terminal->width - 1) / 8 + 1;
 	if (count > SIZE_MAX / sizeof(int))

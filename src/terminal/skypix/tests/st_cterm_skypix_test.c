@@ -1117,7 +1117,7 @@ engine_tests(bool status_line, enum st_cterm_graphics_mode graphics)
 	feed(sky, "\x1b[?25l");
 	struct st_cterm_state state;
 	CHECK(st_cterm_state(t, &state) == 0 && state.skypix && state.graphics_mode == graphics);
-	CHECK(t->rip_engine == NULL && sky != NULL);
+	CHECK(t->device.context == sky && sky != NULL);
 	CHECK(sky->colours == 16);
 	mouse_tests(sky);
 	gadget_tests(sky);

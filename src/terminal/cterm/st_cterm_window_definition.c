@@ -55,7 +55,7 @@ valid_terminal(const st_cterm_t *terminal)
 {
 	return terminal != NULL && terminal->input_depth == 0 && terminal->started && terminal->width > 0
 	       && terminal->height > 0 && terminal->emulation == CTERM_EMULATION_ANSI_BBS
-	       && terminal->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && terminal->rip_engine == NULL;
+	       && terminal->graphics_mode == ST_CTERM_GRAPHICS_RIP_3 && terminal->rip3_session_owner;
 }
 
 static int

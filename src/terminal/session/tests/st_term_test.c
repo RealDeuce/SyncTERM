@@ -13,6 +13,7 @@
 #include "cterm_apc.h"
 #include "io_error.h"
 #include "st_pixels.h"
+#include "st_rip154.h"
 #include "st_term.h"
 #include "st_threads.h"
 #include "st_time.h"
@@ -1163,9 +1164,9 @@ test_shell_rip_cp437_boundary(void)
 	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	CHECK(st_cterm_create(&reference_terminal, &reference_config) == 0);
-	CHECK(st_cterm_write(reference_terminal, raw, sizeof(raw) - 1, &consumed) == 0
-	      && consumed == sizeof(raw) - 1);
+	struct st_rip154 *reference_rip = NULL;
+	CHECK(st_rip154_open(&reference_rip, &reference_terminal, &reference_config, NULL) == 0);
+	CHECK(st_rip154_feed(reference_rip, raw, sizeof(raw) - 1, &consumed) == 0 && consumed == sizeof(raw) - 1);
 	CHECK(st_console_get_pixels(&expected, reference, &glyph, false) == 0);
 	CHECK(st_console_get_palette(reference, 0, expected_palette, 256) == 0);
 	bool painted = false;
@@ -1211,6 +1212,7 @@ test_shell_rip_cp437_boundary(void)
 	CHECK(matched);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
+	st_rip154_destroy(reference_rip);
 	st_cterm_destroy(&reference_terminal);
 	st_pixel_buffer_destroy(expected);
 	st_profile_dispose(&profile);

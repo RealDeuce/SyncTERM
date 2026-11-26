@@ -6,7 +6,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermTestRunner.cmake")
 add_library(st_term STATIC st_term.c st_term_rip3.c st_term_rip3_view.c st_term_rip3_pick_list.c)
 target_include_directories(st_term PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_term PUBLIC st_connection st_cterm st_font_catalog st_transfer
-	st_session_history st_skypix st_igs_terminal PRIVATE st_big_terminal st_audio st_ooii st_unicode_text st_utf8 st_time
+	st_session_history st_skypix st_rip154 st_igs_terminal PRIVATE st_big_terminal st_audio st_ooii st_unicode_text st_utf8 st_time
 	st_rip3_commands st_rip3_storage st_pixel_image st_fonts st_unicode_compare
 	syncterm_filesystem syncterm_path
 	syncterm_threads
@@ -86,14 +86,14 @@ if(BUILD_TESTING)
 	configure_file(tests/term-fixture.sh term-fixture.sh @ONLY)
 
 	if(NOT WIN32
-		AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../cterm/tests/data/legacy_surfer1.rip"
-		AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../cterm/tests/data/v110a_surfer1_expected.h")
+		AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../rip154/tests/data/legacy_surfer1.rip"
+		AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/../rip154/tests/data/v110a_surfer1_expected.h")
 		# Byte-exact v1.10a pixels through the connection and term boundary.
 		syncterm_add_test_case(st_terminal_tests st_term_rip_historical_wire_test
 			tests/st_term_rip_historical_wire_test.c)
 		target_link_libraries(st_term_rip_historical_wire_test PRIVATE st_term)
 		target_compile_definitions(st_term_rip_historical_wire_test PRIVATE
-			RIP_SURFER1_PATH="${CMAKE_CURRENT_LIST_DIR}/../cterm/tests/data/legacy_surfer1.rip")
+			RIP_SURFER1_PATH="${CMAKE_CURRENT_LIST_DIR}/../rip154/tests/data/legacy_surfer1.rip")
 		set_target_properties(st_term_rip_historical_wire_test PROPERTIES
 			C_STANDARD ${SYNCTERM_C_STANDARD} C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 		target_compile_options(st_term_rip_historical_wire_test PRIVATE

@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "st_cterm.h"
+struct st_cterm_rip_transfer_request;
 #include "st_hyperlink.h"
 #include "st_profile.h"
 #include "st_sftp.h"

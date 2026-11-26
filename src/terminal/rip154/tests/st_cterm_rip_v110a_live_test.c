@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "data/v110a_gl_morfr_expected.h"
+#include "rip_test_terminal.h"
 #include "st_cterm.h"
 #include "st_pixels.h"
 
@@ -77,7 +78,7 @@ st_cterm_rip_v110a_live_test_main(void)
 	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	CHECK(rip_test_create(&terminal, &config) == 0);
 	CHECK(st_pixel_buffer_create(&initial, 640, 350, false) == 0);
 	CHECK(st_pixel_buffer_fill(initial, 4, 0) == 0);
 	CHECK(st_console_blit_pixels(console, initial, NULL, &initial_blit) == 0);
@@ -90,7 +91,7 @@ st_cterm_rip_v110a_live_test_main(void)
 
 		if (size == 0)
 			break;
-		CHECK(st_cterm_write(terminal, bytes, size, &consumed) == 0);
+		CHECK(rip_test_write(terminal, bytes, size, &consumed) == 0);
 		CHECK(consumed == size);
 	}
 	CHECK(ferror(stream) == 0);
@@ -137,7 +138,7 @@ st_cterm_rip_v110a_live_test_main(void)
 		fprintf(stderr, "%zu RIP pixels differ\n", differences);
 	CHECK(differences == 0);
 	st_pixel_buffer_destroy(pixels);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;

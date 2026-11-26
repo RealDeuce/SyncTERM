@@ -16,6 +16,7 @@
 #include "st_cterm.h"
 #include "st_font_catalog.h"
 #include "st_profile.h"
+#include "st_rip_host.h"
 #include "st_session_history.h"
 #include "st_skypix.h"
 #include "st_transfer.h"
@@ -141,6 +142,8 @@ st_cterm_t *st_term_session_cterm(st_term_session_t *session);
 /* History is recorded in the physical display grid. */
 st_cterm_t *st_term_session_history_terminal(st_term_session_t *session);
 /* The RIPv3 indicator lives outside ANSI display state and screen contents. */
+struct st_rip154;
+struct st_rip154 *st_term_session_rip154(st_term_session_t *session);
 struct cterm_igs;
 struct cterm_igs *st_term_session_igs(st_term_session_t *session);
 struct cterm_skypix;

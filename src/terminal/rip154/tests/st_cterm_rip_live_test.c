@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "cterm_rip_fonts.h"
+#include "rip_test_terminal.h"
 #include "st_cterm.h"
 #include "st_pixels.h"
 
@@ -25,7 +26,7 @@ static int
 feed(st_cterm_t *terminal, const void *bytes, size_t size)
 {
 	size_t consumed;
-	int    status = st_cterm_write(terminal, bytes, size, &consumed);
+	int    status = rip_test_write(terminal, bytes, size, &consumed);
 
 	return status == 0 && consumed == size ? 0 : 1;
 }
@@ -81,7 +82,7 @@ test_introducer_cursor_splits(enum st_cterm_encoding encoding)
 			uint32_t                palette[32];
 			uint32_t                expected = cases[index].draw ? 0xffffff : 0;
 
-			CHECK(st_cterm_create(&terminal, &config) == 0);
+			CHECK(rip_test_create(&terminal, &config) == 0);
 			/* Reset preserves drawing styles; choose white explicitly. */
 			CHECK(feed(terminal, "\r!|*|c0F\r\n", 10) == 0);
 			if (split <= size) {
@@ -92,7 +93,7 @@ test_introducer_cursor_splits(enum st_cterm_encoding encoding)
 				for (size_t byte = 0; byte < size; byte++)
 					CHECK(feed(terminal, cases[index].wire + byte, 1) == 0);
 			}
-			CHECK(st_cterm_finish(terminal) == 0);
+			CHECK(rip_test_finish(terminal) == 0);
 			CHECK(st_console_get_pixels(&pixels, console, &point, false) == 0);
 			CHECK(st_console_get_palette(console, 0, palette, 32) == 0);
 			if (pixels->primary[0] >= 32 || palette[pixels->primary[0]] != expected) {
@@ -106,7 +107,7 @@ test_introducer_cursor_splits(enum st_cterm_encoding encoding)
 			CHECK(pixels->alternate != NULL);
 			CHECK(pixels->alternate[0] < 32 && palette[pixels->alternate[0]] == expected);
 			st_pixel_buffer_destroy(pixels);
-			st_cterm_destroy(&terminal);
+			rip_test_destroy(&terminal);
 		}
 	}
 	st_font_catalog_destroy(fonts);
@@ -150,12 +151,12 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	terminal_config.console = console;
 	terminal_config.fonts   = fonts;
-	CHECK(st_cterm_create(&terminal, &terminal_config) == 0);
+	CHECK(rip_test_create(&terminal, &terminal_config) == 0);
 	CHECK(feed(terminal, "\r!|*\r\n", 6) == 0);
 	memset(line, 'A', sizeof(line));
 	CHECK(feed(terminal, line, sizeof(line)) == 0);
 	CHECK(feed(terminal, "\r\nB", 3) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &expected, &cell, 1) == 0);
 	CHECK(
 	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
@@ -169,7 +170,7 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 	CHECK(st_console_get_position(console, &cursor_x, &cursor_y) == 0);
 	CHECK(cursor_x == 79 && cursor_y == 0);
 	CHECK(feed(terminal, "B", 1) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &expected, &cell, 1) == 0);
 	CHECK(
 	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
@@ -184,14 +185,14 @@ test_rip_deferred_wrap(enum st_cterm_encoding encoding)
 		CHECK(feed(terminal, "\xc3", 1) == 0);
 		CHECK(feed(terminal, "\xa9", 1) == 0);
 		CHECK(feed(terminal, "B", 1) == 0);
-		CHECK(st_cterm_finish(terminal) == 0);
+		CHECK(rip_test_finish(terminal) == 0);
 		CHECK(st_console_read_cells(console, &expected, &cell, 1) == 0);
 		CHECK(
 		    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required)
 		    == 0);
 		CHECK(required == 1 && text[0] == 'B');
 	}
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
@@ -232,7 +233,7 @@ test_text_window_reinit_wrap(void)
 	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	CHECK(rip_test_create(&terminal, &config) == 0);
 	const struct st_pixel_blit blit = {
 	    .width   = 640,
 	    .height  = 350,
@@ -252,7 +253,7 @@ test_text_window_reinit_wrap(void)
 	st_pixel_buffer_destroy(sample);
 	sample = NULL;
 	CHECK(feed(terminal, stream, strlen(stream)) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &rect, cells, 2) == 0);
 	CHECK(
 	    st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph, text, sizeof(text), &required)
@@ -273,7 +274,7 @@ test_text_window_reinit_wrap(void)
 	memset(long_line, 'A', 80);
 	long_line[80] = 'B';
 	CHECK(feed(terminal, long_line, sizeof(long_line)) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	const struct st_console_rect last  = {79, 0, 1, 1};
 	const struct st_console_rect below = {0, 1, 1, 1};
 
@@ -287,7 +288,7 @@ test_text_window_reinit_wrap(void)
 	    st_console_font_glyph_text(console, cells[0].glyph_font, cells[0].glyph, text, sizeof(text), &required)
 	    == 0);
 	CHECK(required == 1 && text[0] == 'B');
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
@@ -330,7 +331,7 @@ test_text_window_reinit_keeps_start_state(void)
 	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	CHECK(rip_test_create(&terminal, &config) == 0);
 	CHECK(st_pixel_buffer_create(&initial, 640, 350, false) == 0);
 	CHECK(st_pixel_buffer_fill(initial, 4, 0) == 0);
 	CHECK(st_console_blit_pixels(console, initial, NULL, &blit) == 0);
@@ -345,7 +346,7 @@ test_text_window_reinit_keeps_start_state(void)
 	CHECK(st_console_get_pixels(&sample, console, &point, false) == 0);
 	CHECK(sample->primary[0] == 4);
 	st_pixel_buffer_destroy(sample);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
@@ -387,9 +388,9 @@ test_rip3_reset_default_font(void)
 	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_3,
 	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	CHECK(rip_test_create(&terminal, &config) == 0);
 	CHECK(feed(terminal, "!|*\r\nX", 6) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	CHECK(st_console_size(console, &width, &height) == 0);
 	CHECK(width == 80 && height == 25);
 	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
@@ -412,7 +413,7 @@ test_rip3_reset_default_font(void)
 	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 8 && cell_height == 8);
 	CHECK(feed(terminal, "\r!|*\r\nY", 7) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	CHECK(st_console_cell_pixel_size(console, &cell_width, &cell_height) == 0);
 	CHECK(cell_width == 8 && cell_height == 14);
 	CHECK(st_console_read_cells(console, &text_rect, cells, 80) == 0);
@@ -428,7 +429,7 @@ test_rip3_reset_default_font(void)
 		break;
 	}
 	CHECK(found);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
@@ -495,7 +496,7 @@ test_rip_text_video_mode(void)
 		    .size_changed  = capture_mode,
 		    .size_context  = &capture,
 		};
-		CHECK(st_cterm_create(&terminal, &config) == 0);
+		CHECK(rip_test_create(&terminal, &config) == 0);
 		CHECK(feed(terminal, "\r", 1) == 0);
 		struct st_pixel_buffer *seed = NULL;
 		CHECK(st_pixel_buffer_create(&seed, 640, 350, true) == 0);
@@ -536,7 +537,7 @@ test_rip_text_video_mode(void)
 		CHECK(st_console_pixel_size(console, &width, &height) == 0);
 		CHECK(width == 1280 && height == 800);
 		st_pixel_buffer_destroy(seed);
-		st_cterm_destroy(&terminal);
+		rip_test_destroy(&terminal);
 		st_font_catalog_destroy(fonts);
 		st_console_destroy(console);
 	}
@@ -653,7 +654,7 @@ test_v110a_flood(const char *stream, bool patterned)
 	    .graphics_mode = ST_CTERM_GRAPHICS_RIP_1,
 	    .codepage      = ST_CODEPAGE_CP437,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	CHECK(rip_test_create(&terminal, &config) == 0);
 	CHECK(feed(terminal, stream, strlen(stream)) == 0);
 	CHECK(st_console_get_pixels(&pixels, console, &full, false) == 0);
 	CHECK(st_console_get_palette(console, 0, palette, 256) == 0);
@@ -677,7 +678,7 @@ test_v110a_flood(const char *stream, bool patterned)
 		}
 	}
 	st_pixel_buffer_destroy(pixels);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
@@ -735,10 +736,9 @@ st_cterm_rip_live_test_main(void)
 	    .font_selector      = 0,
 	    .output             = capture_output,
 	    .output_context     = &output,
-	    .rip_prompt         = capture_prompt,
-	    .rip_prompt_context = &prompt,
 	};
-	CHECK(st_cterm_create(&terminal, &config) == 0);
+	struct st_rip154_services services = {.rip_prompt = capture_prompt, .rip_prompt_context = &prompt};
+	CHECK(rip_test_open(&terminal, &config, &services) == 0);
 	const char *definition = "!|1D00000NAME,30:?Your name?Alice\r\n";
 	CHECK(feed(terminal, definition, strlen(definition)) == 0);
 	CHECK(prompt.calls == 1 && strcmp(prompt.question, "Your name") == 0);
@@ -942,12 +942,12 @@ st_cterm_rip_live_test_main(void)
 	CHECK(feed(terminal, query, strlen(query)) == 0);
 	CHECK(feed(terminal, "\xc3", 1) == 0);
 	CHECK(feed(terminal, "\xa9", 1) == 0);
-	CHECK(st_cterm_finish(terminal) == 0);
+	CHECK(rip_test_finish(terminal) == 0);
 	CHECK(st_console_read_cells(console, &cell_rect, &cell, 1) == 0);
 	CHECK(
 	    st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required) == 0);
 	CHECK(required == 2 && memcmp(text, "\xc3\xa9", 2) == 0);
-	CHECK(st_cterm_reset_terminal(terminal) == 0);
+	CHECK(rip_test_reset(terminal) == 0);
 	CHECK(feed(terminal, "!|X2T2T\r", 8) == 0);
 	const struct st_console_rect reset_pixel = {101, 101, 1, 1};
 	CHECK(st_console_get_pixels(&pixels, console, &reset_pixel, false) == 0);
@@ -1063,17 +1063,17 @@ st_cterm_rip_live_test_main(void)
 	    "|1U1O1E00002G00<>EXIT<>^M\r";
 	CHECK(feed(terminal, button_wire, strlen(button_wire)) == 0);
 	output.user_size = 0;
-	CHECK(st_cterm_handle_rip_text(terminal, 'x'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'x'));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|$HKEYOFF$\r", 12) == 0);
-	CHECK(!st_cterm_handle_rip_text(terminal, 'X'));
+	CHECK(!st_rip154_text_key(rip_test_device(terminal), 'X'));
 	CHECK(feed(terminal, "!|$HKEYON$\r", 11) == 0);
 	output.user_size = 0;
-	CHECK(st_cterm_handle_rip_text(terminal, 'X'));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 'X'));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	CHECK(feed(terminal, "!|1U1O1E00003M00<>ACCENT<>^M\r", 29) == 0);
 	output.user_size = 0;
-	CHECK(st_cterm_handle_rip_text(terminal, 0x00e9));
+	CHECK(st_rip154_text_key(rip_test_device(terminal), 0x00e9));
 	CHECK(output.user_size == 1 && output.user_bytes[0] == '\r');
 	mouse.data.mouse.pixel_x = 61;
 	mouse.data.mouse.pixel_y = 51;
@@ -1281,7 +1281,7 @@ st_cterm_rip_live_test_main(void)
 	CHECK(feed(terminal, copy_region, strlen(copy_region)) == 0);
 	CHECK(sample_pixel(console, 100, 100, &original) == 0);
 	CHECK(original == 0x1b);
-	st_cterm_destroy(&terminal);
+	rip_test_destroy(&terminal);
 	st_font_catalog_destroy(fonts);
 	st_console_destroy(console);
 	return 0;
