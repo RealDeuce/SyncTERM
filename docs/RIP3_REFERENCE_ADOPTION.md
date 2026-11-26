@@ -1866,3 +1866,8 @@ The revised chapters specify immediate and stored query behavior, literal contro
 
 Stable commit `bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553` incorporates #341, #342.
 [PR #341](https://github.com/bbs-land/remote-imaging-protocol/pull/341) gives the exact polygon continuation exercised through the connected parser. [PR #342](https://github.com/bbs-land/remote-imaging-protocol/pull/342) corrects the Small stroke font annotation in both copies of the introductory scene.
+
+## Wire bitmap geometry and host-variable consumer index
+
+Stable commit `f61a957b96880f45e22aca0d4638ad7dc9c64c52` incorporates #345, #346.
+[PR #345](https://github.com/bbs-land/remote-imaging-protocol/pull/345) reconciles the index with chapters 5.1 and 5.2. [PR #346](https://github.com/bbs-land/remote-imaging-protocol/pull/346) defines ordered, projected bitmap bounds, the two zero decisions, collapsed follow-on effects and missing-image placement.

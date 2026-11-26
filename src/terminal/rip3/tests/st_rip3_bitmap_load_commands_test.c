@@ -231,12 +231,12 @@ scene(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const char *d
 		for (size_t i = 0; i < strlen(body); i++) st_rip3_stream_process(stream,(const uint8_t *)body+i,1);
 		const uint8_t separator = '|'; st_rip3_stream_process(stream,&separator,1);
 	}
-	form(body,"00030506",'1',0,"01","00","Tile.BMP"); /* Same explicit duplicate is ignored. */
+	form(body,"00030607",'1',0,"01","00","Tile.BMP"); /* Same explicit duplicate is ignored. */
 	CHECK(process(&f,body,-1) == 0);
 	form(body,"0A030000",'0',0,"08","0C","Tile"); CHECK(process(&f,body,-1) == 0);
 	form(body,"0F030000",'0',4,"0A","0C","Color.BMP"); CHECK(process(&f,body,-1) == 0);
 	form(body,"1A000000",'0',0,"00","00","Tile"); CHECK(process(&f,body,-1) == 0); /* x=46, edge clips last source column. */
-	form(body,"0009000C",'0',0,"00","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"0009010D",'0',0,"00","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	CHECK(f.errors == 0 && f.prompts == 0);
 	struct st_rip3_palette palette;
 	struct st_pixel_buffer *capture = NULL;
@@ -356,12 +356,12 @@ dithering(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const cha
 	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0
 	    && st_rip3_palettes_rgb(f.host.palettes,0,8,colors,256) == 0
 	    && st_rip3_palettes_protect(f.host.palettes,1,true) == 0);
-	form(body,"00000707",'0',0,"04","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"00000808",'0',0,"04","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	/* True-colour ignores adoption but still dithers; palette protection
 	 * must not turn this into an attempted table edit. */
-	form(body,"0A000H07",'0',0,"06","00","Color.BMP"); CHECK(process(&f,body,-1) == 0);
-	form(body,"000A070H",'0',0,"0C","0C","Tile"); CHECK(process(&f,body,-1) == 0);
-	form(body,"0A0A0H0H",'0',4,"0E","00","Color.BMP"); CHECK(process(&f,body,-1) == 0);
+	form(body,"0A000I08",'0',0,"06","00","Color.BMP"); CHECK(process(&f,body,-1) == 0);
+	form(body,"000A080I",'0',0,"0C","0C","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"0A0A0I0I",'0',4,"0E","00","Color.BMP"); CHECK(process(&f,body,-1) == 0);
 	CHECK(f.errors == 0 && f.prompts == 0 && st_rip3_palettes_get(f.host.palettes,1,&palette) == 0);
 	CHECK(memcmp(palette.rgb,colors,sizeof(colors)) == 0);
 	CHECK(st_rip3_bitmap_capture(&capture,f.host.ports,0,NULL,&palette) == 0);
@@ -449,13 +449,13 @@ duplication(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const c
 	form(body,"1A0H0000",'3',4,"09","0C","Tile"); CHECK(process(&f,body,-1) == 0);
 	const uint8_t bottom[] = {252,85,85,252,85,85};
 	CHECK(duplicate_pixels(&f,3,3,2,bottom) == 0);
-	form(body,"00030506",'3',0,"09","0C","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"00030607",'3',0,"09","0C","Tile"); CHECK(process(&f,body,-1) == 0);
 	const uint8_t stretched[] = {3,3,85,85,48,48,3,3,85,85,48,48,
 	    192,192,0,0,255,255,192,192,0,0,255,255};
 	CHECK(duplicate_pixels(&f,3,6,4,stretched) == 0);
 	uint32_t colors[256] = {0}; colors[1] = 0xffffff;
 	CHECK(st_rip3_palettes_protect(f.host.palettes,1,false) == 0 && st_rip3_palettes_rgb(f.host.palettes,0,8,colors,256) == 0);
-	form(body,"00000707",'4',0,"05","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"00000808",'4',0,"05","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	const char *const rows[] = {"10000000","00000000","00000010","00000000",
 	    "01000111","11100111","01000111","11100111"};
 	uint8_t dithered[64];
@@ -663,7 +663,7 @@ numeric(const char *directory)
 		    && st_rip3_environments_select(f.host.environments,2) == 0
 		    && st_rip3_environments_protect(f.host.environments,2,true) == 0);
 		const uint64_t native[] = {2,3,0,0}, scaled[] = {10,3,12,4};
-		const uint8_t expected[] = {3,3,12,48,48,192,192,0,255,255,192,192,0,255,255};
+		const uint8_t expected[] = {3,12,12,48,85,192,0,0,255,85,85,85,85,85,85};
 		for (size_t i = 0; i < 4; i++) CHECK(st_rip3_number_encode(coordinates+i*width,width,native[i],width,radix) == 0);
 		/* Unused duplicate/transparency fields are ignored even above 35/255. */
 		form(body,coordinates,radix == 64 ? '&' : 'Z',0,"00",radix == 64 ? "&&" : "ZZ","Tile");
@@ -706,7 +706,7 @@ numeric(const char *directory)
 	form(body,"0000100001&&&&&&&&&&",'0',0,"00","00","Missing");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 1);
 	CHECK(f.last_area.x0 == 640 && f.last_area.y0 == 480
-	    && f.last_area.x1 == INT64_C(687194766720) && f.last_area.y1 == INT64_C(515396075040));
+	    && f.last_area.x1 == INT64_C(687194766719) && f.last_area.y1 == INT64_C(515396075039));
 	form(body,"0000000000&&&&&&&&&&",'0',0,"00","00","Tile");
 	CHECK(process(&f,body,-1) == 0);
 	for (int32_t y = 1; y <= 18; y++) for (int32_t x = 2; x <= 49; x++) {
@@ -724,9 +724,10 @@ errors(const char *directory)
 	form(body,"01020304",'0',0,"00","00","Missing.BMP");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 1 && f.area_present);
 	CHECK(strcmp(f.last_name,"Missing.BMP") == 0 && f.last_port == 1 && f.last_area.x0 == 1
-	    && f.last_area.y0 == 2 && f.last_area.x1 == 3 && f.last_area.y1 == 4);
+	    && f.last_area.y0 == 2 && f.last_area.x1 == 2 && f.last_area.y1 == 3);
 	form(body,"01020000",'0',0,"00","00","Missing");
-	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 2 && !f.area_present);
+	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 2 && f.area_present && f.natural_size
+	    && f.last_area.x0 == 1 && f.last_area.y0 == 2);
 	form(body,"00000000",'0',0,"00","00","Compressed");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 3);
 	const char *const unsupported[] = {"1S","ZZ"};
@@ -741,7 +742,7 @@ errors(const char *directory)
 	form(body,"00000000",'0',5,"00","00","Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',0,"00","00",""); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',0,"00","00","Tile"); body[19] = '?'; CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
-	form(body,"02000101",'0',0,"00","00","Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
+	form(body,"02000101",'0',0,"00","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	form(body,"00000000",'0',0,"08","ZZ","Tile"); CHECK(process(&f,body,ST_RIP3_COMMAND_INVALID) == 0);
 	form(body,"00000000",'0',0,"00","00","Tile");
 	st_rip3_bitmap_file_test_fail_allocate = true;
@@ -811,11 +812,15 @@ duplicate_routes(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, co
 	/* The documented outside 4x2 image still replaces explicit targets with
 	 * 4x2 clear pixels, and the clipboard route allocates 5x3 clear pixels. */
 	const uint8_t clear_explicit[8] = {0}, clear_clipboard[15] = {0};
-	form(body,"1E001H01",'4',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"1E001I02",'4',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	CHECK(duplicate_pixels(&f,4,4,2,clear_explicit) == 0);
 	f.selection = (struct st_rip3_clipboard_selection){true,2};
-	form(body,"1E001H01",'0',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
+	form(body,"1E001I02",'0',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	CHECK(duplicate_pixels(&f,2,5,3,clear_clipboard) == 0 && f.selection.set && f.selection.port == 2);
+	form(body,"0A030A05",'0',0,"0H","00","Tile");
+	CHECK(process(&f,body,-1) == 0 && duplicate_pixels(&f,2,1,3,clear_clipboard) == 0);
+	struct st_rip3_port_copy_pair pair;
+	CHECK(st_rip3_ports_copy_pair(f.host.ports,2,&pair) == 0 && !pair.set);
 	f.selection = (struct st_rip3_clipboard_selection){true,3};
 	form(body,"00000000",'3',0,"01","00","Tile"); CHECK(process(&f,body,-1) == 0);
 	const uint8_t tile[] = {3,12,48,192,0,255};
@@ -1056,6 +1061,11 @@ keyed_depths(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, const 
 	form(body,"00000000",'0',0,"08","00","MissingMask.BMM");
 	CHECK(process(&f,body,ST_RIP3_COMMAND_OPERATION_FAILED) == 0 && f.prompts == 7
 	    && strcmp(f.last_name,"MissingMask.BMM") == 0 && f.selection.set && f.selection.port == 9);
+	/* A collapsed fit does not disable source-format checks or the marker. */
+	form(body,"0A030A05",'9',0,"0P","00","Key16.BMP");
+	CHECK(process(&f,body,ST_RIP3_COMMAND_UNSUPPORTED) == 0 && f.prompts == 8
+	    && f.natural_size && f.last_area.x0 == 10 && f.last_area.y0 == 3);
+	CHECK(duplicate_pixels(&f,9,3,2,prior) == 0);
 	/* Ordinary RGB555 succeeds through the same file loader. */
 	form(body,"000G0000",'0',0,"00","ZZ","Key16.BMP"); CHECK(process(&f,body,-1) == 0);
 	const uint8_t ordinary[] = {131,0,255,16};

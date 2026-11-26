@@ -179,11 +179,12 @@ draw_bitmap(struct st_rip3_ports *ports,
 	int status;
 
 	if (ports == NULL || destination == NULL || mode < ST_RIP3_TRANSFER_COPY || mode > ST_RIP3_TRANSFER_INVERT
-	    || colors < ST_RIP3_BITMAP_MATCH || colors > ST_RIP3_BITMAP_DITHER
-	    || destination->x0 > destination->x1 || destination->y0 > destination->y1)
+	    || colors < ST_RIP3_BITMAP_MATCH || colors > ST_RIP3_BITMAP_DITHER)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (destination->x0 < -limit || destination->x1 > limit || destination->y0 < -limit || destination->y1 > limit)
+	if (destination->x0 < -limit || destination->x0 > limit || destination->y0 < -limit || destination->y0 > limit
+	    || destination->x1 < -limit-1 || destination->x1 > limit || destination->y1 < -limit-1 || destination->y1 > limit)
 		return IO_ERROR_OUT_OF_RANGE;
+	if (destination->x1+1 < destination->x0 || destination->y1+1 < destination->y0) return IO_ERROR_INVALID_ARGUMENT;
 	if (confined_clip == NULL) {
 		struct st_rip3_port_info info;
 		unsigned current;
@@ -196,7 +197,8 @@ draw_bitmap(struct st_rip3_ports *ports,
 	/* The shipped color-key mask creator rejects RGB555 before staging or
 	 * drawing. Ordinary 16-bit loads still reach the common RGB painter. */
 	if (transparent_color != NULL && bitmap != NULL && bitmap->bit_depth == 16) return IO_ERROR_NOT_SUPPORTED;
-	if (visible.x0 > visible.x1 || visible.y0 > visible.y1 || destination->x0 > visible.x1
+	if (destination->x1 < destination->x0 || destination->y1 < destination->y0
+	    || visible.x0 > visible.x1 || visible.y0 > visible.y1 || destination->x0 > visible.x1
 	    || destination->y0 > visible.y1 || destination->x1 < visible.x0 || destination->y1 < visible.y0)
 		return 0;
 	if (destination->x0 > visible.x0) visible.x0 = (int32_t)destination->x0;

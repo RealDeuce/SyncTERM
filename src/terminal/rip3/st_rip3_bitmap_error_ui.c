@@ -55,6 +55,19 @@ contrasting(const struct st_rip3_palette *palette, uint8_t background)
 	return result;
 }
 
+static bool
+visible_area(const struct st_rip3_bitmap_destination *area, const struct st_rip3_rect *clip,
+    struct st_rip3_rect *visible)
+{
+	int64_t x0 = area->x0 > clip->x0 ? area->x0 : clip->x0;
+	int64_t y0 = area->y0 > clip->y0 ? area->y0 : clip->y0;
+	int64_t x1 = area->x1 < clip->x1 ? area->x1 : clip->x1;
+	int64_t y1 = area->y1 < clip->y1 ? area->y1 : clip->y1;
+	if (x0 > x1 || y0 > y1) return false;
+	*visible = (struct st_rip3_rect){(int32_t)x0,(int32_t)y0,(int32_t)x1,(int32_t)y1};
+	return true;
+}
+
 void
 st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
     const struct st_rip3_bitmap_destination *requested, bool natural_size)
@@ -84,27 +97,27 @@ st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
 	}
 	if (st_rip3_bitmap_text_measure(font,&style,1,&metrics) != 0) return;
 	area = requested != NULL ? *requested : (struct st_rip3_bitmap_destination){0};
-	if (natural_size || requested == NULL) {
-		if (area.x0 < -limit || area.x0 > limit || area.y0 < -limit || area.y0 > limit)
-			return;
-		size_t columns = length < 18 ? 18 : length > 32 ? 32 : length;
-		area.x1 = area.x0+(int64_t)columns*font->width+5;
-		area.y1 = area.y0+(int64_t)font->height*2+6;
+	bool framed = requested != NULL && !natural_size;
+	if (area.x0 < -limit || area.x0 > limit || area.y0 < -limit || area.y0 > limit)
+		return;
+	if (framed) {
+		if (area.x1 < area.x0 || area.y1 < area.y0 || area.x1 > limit || area.y1 > limit) return;
+		area.x0++;
+		area.y0++;
 	}
-	if (area.x0 > area.x1 || area.y0 > area.y1 || area.x0 < -limit || area.x1 > limit
-	    || area.y0 < -limit || area.y1 > limit) return;
-	int64_t max_x = info.viewport.x1-info.viewport.x0, max_y = info.viewport.y1-info.viewport.y0;
-	if (area.x0 > max_x || area.y0 > max_y || area.x1 < 0 || area.y1 < 0) return;
-	int32_t x0 = area.x0 < 0 ? 0 : (int32_t)area.x0, y0 = area.y0 < 0 ? 0 : (int32_t)area.y0;
-	int32_t x1 = area.x1 > max_x ? (int32_t)max_x : (int32_t)area.x1;
-	int32_t y1 = area.y1 > max_y ? (int32_t)max_y : (int32_t)area.y1;
-	size_t width = (size_t)(x1-x0)+1, height = (size_t)(y1-y0)+1;
-	if (height > SIZE_MAX/width) return;
+	size_t columns = length < 18 ? 18 : length > 32 ? 32 : length;
+	area.x1 = area.x0+(int64_t)columns*font->width+5;
+	area.y1 = area.y0+(int64_t)font->height*2+6;
+	struct st_rip3_rect visible = {0,0,-1,-1};
+	(void)visible_area(&area,&info.clip,&visible);
+	int32_t x0 = visible.x0, y0 = visible.y0;
+	size_t width = (size_t)((int64_t)visible.x1-x0+1), height = (size_t)((int64_t)visible.y1-y0+1);
+	if (width != 0 && height > SIZE_MAX/width) return;
 	if (st_rip3_palettes_current_palette(ui->palettes,&palette) != 0
 	    || st_rip3_palette_color(&palette,true,0,&background) != 0) return;
 	uint8_t foreground = contrasting(&palette,background);
-	uint8_t *pixels = malloc(width*height);
-	if (pixels == NULL) return;
+	uint8_t *pixels = width == 0 ? NULL : malloc(width*height);
+	if (width != 0 && pixels == NULL) return;
 	int64_t box_width = area.x1-area.x0+1, box_height = area.y1-area.y0+1;
 	for (size_t y = 0; y < height; y++) for (size_t x = 0; x < width; x++) {
 		int64_t dx = (int64_t)x0+(int64_t)x-area.x0, dy = (int64_t)y0+(int64_t)y-area.y0;
@@ -124,6 +137,13 @@ st_rip3_bitmap_error_show(void *context, const char *name, unsigned port,
 			}
 		}
 		pixels[y*width+x] = ink ? foreground : background;
+	}
+	if (framed && visible_area(requested,&info.clip,&visible)) {
+		(void)st_rip3_ports_fill(ui->ports,&visible,foreground,ST_RIP3_COPY);
+		struct st_rip3_bitmap_destination interior = {
+		    requested->x0+1,requested->y0+1,requested->x1-1,requested->y1-1};
+		if (visible_area(&interior,&info.clip,&visible))
+			(void)st_rip3_ports_fill(ui->ports,&visible,background,ST_RIP3_COPY);
 	}
 	for (size_t y = 0; y < height; y++) for (size_t x = 0; x < width; x++)
 		(void)st_rip3_ports_plot(ui->ports,x0+(int32_t)x,y0+(int32_t)y,pixels[y*width+x],ST_RIP3_COPY);

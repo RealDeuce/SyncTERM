@@ -51,7 +51,8 @@ int st_rip3_bitmap_translate_key(const struct st_rip3_palette *palette,
  * duplication after the initial paint using the shared clipboard service.
  *
  * Disabled image style does not disable stamping. Inactive viewports succeed
- * before bitmap access. Empty coverage succeeds after the keyed-16-bit rejection
+ * before bitmap access. A far edge one below the near edge denotes an empty axis.
+ * Empty coverage succeeds after the keyed-16-bit rejection
  * check. Complete validation and scratch allocation precede drawing; protection allows
  * contents to change. One session thread owns source, ports and invocation.
  * Status belongs to the owning parser, never a terminal/session error path. */

@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553](https://github.com/RealDeuce/remote-imaging-protocol/tree/bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553/version/3.0)
+f61a957b96880f45e22aca0d4638ad7dc9c64c52](https://github.com/RealDeuce/remote-imaging-protocol/tree/f61a957b96880f45e22aca0d4638ad7dc9c64c52/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -103,6 +103,12 @@ and `RESET(PAL, CUR, 30, BASE, S5)` examples. It checks both live entries and
 all three saved areas, then restores the original table from protected slot S4.
 BUT selects zero after its current-entry reset. PAL keeps its selected index
 even though that entry becomes undefined.
+
+Wire bitmap fitting uses exclusive far edges after WORLD projection. The
+connected STRIP6 example repeats at 320×17 pixels on a 640×480 display. A
+collapsed source draws no bitmap pixels, can allocate a clear clipboard, and
+can delete an explicit duplicate. Missing resources use the original request
+for marker placement. [Bitmap geometry](https://github.com/bbs-land/remote-imaging-protocol/pull/346)
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination

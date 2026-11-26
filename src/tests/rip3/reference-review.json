@@ -1,23 +1,23 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/342",
-  "revision": "bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553",
-  "previous_revision": "6458ebcb7dcfc2a9acfe8563cae1c776f94f9d3c",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/346",
+  "revision": "f61a957b96880f45e22aca0d4638ad7dc9c64c52",
+  "previous_revision": "bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates #341, #342.",
-  "archive_sha256": "4e0a59cd88b17efe1a0ab2a46795253521e49b6249b22589eee37b8eb336c702",
+  "upstream_state_at_adoption": "Fork stable incorporates #345, #346.",
+  "archive_sha256": "84e22104385ae7b83bb2eb2fe42c4191da633a931fb66796d90c2608e4be9e8c",
   "normative_scope": [
-    "Supplies a valid continued four-vertex filled polygon.",
-    "Decodes the Small stroke face, direction, 3:1 scale and left/top alignment in both copies of the example."
+    "Reconciles the six user-variable directives, conditional prompts and playback consumer permissions in the index.",
+    "Defines the wire bitmap fitter, half-open device geometry, collapsed outputs and local failure marker."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md",
-    "version/3.0/ripscrip/6.0-writing-rip-files.md"
+    "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+    "version/3.0/ripscrip/9.1-text-variable-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9736,
+  "matched_source_blocks": 9730,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +951,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 168,
+  "upstream_issue_resolutions": 170,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1954,6 +1954,18 @@
       "sha256": "03ea3988dd59b3e28552565f3db2de5a530339450448ded01040d8df36ce48f8",
       "title": "Issue #340 — Minimal scene's classic font selection",
       "role": "Decodes the Small stroke face, direction, 3:1 scale and left/top alignment in both copies of the example."
+    },
+    {
+      "path": "version/3.0/research/issue-343-variable-consumer-index.md",
+      "sha256": "817c2521e02a8db304852c2ed15baefc6de78d5be4deefb13f7e8689f403ef7a",
+      "title": "Issue #343 — User-variable and playback index",
+      "role": "Reconciles the six user-variable directives, conditional prompts and playback consumer permissions in the index."
+    },
+    {
+      "path": "version/3.0/research/issue-344-wire-bitmap-geometry.md",
+      "sha256": "fe42e07e2f1bee7470cd8c8b7c8546b6bb0d0e568983c9dd318b00b37b13e38f",
+      "title": "Issue #344 — Wire bitmap destination geometry",
+      "role": "Defines the wire bitmap fitter, half-open device geometry, collapsed outputs and local failure marker."
     }
   ],
   "documents": [
@@ -2087,7 +2099,7 @@
     },
     {
       "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
-      "sha256": "0e358ea61176f91c627d26a2a047003414b047105ddbb370ebad86d865a3233d"
+      "sha256": "45f1fa210fc03187757885e8de25ba83712cea64382a00c44e4fc3eb00431935"
     },
     {
       "path": "version/3.0/ripscrip/4.1-jpeg-images.md",
@@ -2163,7 +2175,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
-      "sha256": "68d3161d32b68d7d66006c27ed4b63a1cde231b07ea651263c73b6edb0bc28c5"
+      "sha256": "c654670e42c604f22af995a61f45542e95f5370c60c36959a37ba2201d7bc0d2"
     },
     {
       "path": "version/3.0/ripscrip/9.2-versions.md",
@@ -2230,7 +2242,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "78581ab7b30137d038d4cdce33fcb811061744c9",
+  "previous_ledger_commit": "3b863b5e963c26ccd9d36cac4646c0f42f24aee4",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2305,13 +2317,13 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "context": 3059,
-    "implemented": 5878,
-    "unreviewed": 524,
-    "excluded": 273,
+    "context": 3148,
+    "implemented": 5957,
+    "unreviewed": 376,
+    "excluded": 274,
     "pending": 8
   },
-  "source_blocks_at_adoption": 9742,
+  "source_blocks_at_adoption": 9763,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -22362,6 +22374,157 @@
         "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:400",
         "version/3.0/ripscrip/1.1-protocol-and-command-hierarchy.md:406",
         "version/3.0/ripscrip/6.0-writing-rip-files.md:129"
+      ]
+    },
+    {
+      "previous_revision": "bc50d16a6f7ba3ce1a6faa317f7133e6ed0b8553",
+      "revision": "f61a957b96880f45e22aca0d4638ad7dc9c64c52",
+      "archive_sha256": "84e22104385ae7b83bb2eb2fe42c4191da633a931fb66796d90c2608e4be9e8c",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/343",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/345",
+          "reviewed_head": "a506dfeacb0daf69ba6b7063cb1f7e29ee76fe5d",
+          "integration": "873939cce476b420f408f424b404ee053e9d613e"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/344",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/346",
+          "reviewed_head": "967be78073f31f1122f7605a795fa95f06d2d65a",
+          "integration": "d52c12fca698106913a679561536ea75c194902b"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/4.0-icons-and-bitmaps.md",
+          "previous_sha256": "0e358ea61176f91c627d26a2a047003414b047105ddbb370ebad86d865a3233d",
+          "sha256": "45f1fa210fc03187757885e8de25ba83712cea64382a00c44e4fc3eb00431935"
+        },
+        {
+          "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
+          "previous_sha256": "68d3161d32b68d7d66006c27ed4b63a1cde231b07ea651263c73b6edb0bc28c5",
+          "sha256": "c654670e42c604f22af995a61f45542e95f5370c60c36959a37ba2201d7bc0d2"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-343-variable-consumer-index.md",
+          "sha256": "817c2521e02a8db304852c2ed15baefc6de78d5be4deefb13f7e8689f403ef7a",
+          "title": "Issue #343 — User-variable and playback index",
+          "role": "Reconciles the six user-variable directives, conditional prompts and playback consumer permissions in the index."
+        },
+        {
+          "path": "version/3.0/research/issue-344-wire-bitmap-geometry.md",
+          "sha256": "fe42e07e2f1bee7470cd8c8b7c8546b6bb0d0e568983c9dd318b00b37b13e38f",
+          "title": "Issue #344 — Wire bitmap destination geometry",
+          "role": "Defines the wire bitmap fitter, half-open device geometry, collapsed outputs and local failure marker."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 135,
+      "new_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:271",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:287",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:294",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:296",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:298",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:299",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:300",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:301",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:302",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:303",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:304",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:306",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:307",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:308",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:309",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:313",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:315",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:319",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:321",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:368",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:11",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:250",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:251",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:252",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:253",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:254",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:258",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:262",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:263",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:264",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:265"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:271",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:330",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:11",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:250",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:251",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:252",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:253",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:254",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:260",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:261",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:262",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:263"
+      ],
+      "states_after_update": {
+        "context": 3148,
+        "implemented": 5957,
+        "unreviewed": 376,
+        "excluded": 274,
+        "pending": 8
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:271",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:287",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:289",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:294",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:296",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:298",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:299",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:300",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:301",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:302",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:303",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:304",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:305",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:306",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:307",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:308",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:309",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:313",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:315",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:319",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:321",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:368",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:374",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:376",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:377",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:378",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:379",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:380",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:381",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:382",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:383",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:384",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:385",
+        "version/3.0/ripscrip/4.0-icons-and-bitmaps.md:387",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:11",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:250",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:251",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:252",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:253",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:254",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:258",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:262",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:263",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:264",
+        "version/3.0/ripscrip/9.1-text-variable-reference.md:265"
       ]
     }
   ],

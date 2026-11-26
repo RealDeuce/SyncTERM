@@ -218,8 +218,10 @@ boundaries(void)
 	destination.x1 = limit+1;
 	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_OUT_OF_RANGE);
 	destination.x1 = limit; destination.x0 = limit+1;
+	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_OUT_OF_RANGE);
+	destination.x0 = limit; destination.x1 = limit-2;
 	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == IO_ERROR_INVALID_ARGUMENT);
-	destination.x0 = -limit;
+	destination.x0 = -limit; destination.x1 = limit;
 	CHECK(st_rip3_draw_bitmap(ports,&bitmap,&destination,&palette,ST_RIP3_BITMAP_MATCH,ST_RIP3_TRANSFER_COPY,NULL) == 0);
 	for (int32_t y = 0; y < 2; y++) for (int32_t x = 0; x < 4; x++) {
 		uint8_t actual;

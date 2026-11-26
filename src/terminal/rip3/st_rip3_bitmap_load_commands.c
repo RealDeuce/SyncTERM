@@ -155,8 +155,15 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0) return status;
 	if (fields.remaining == 0) return IO_ERROR_INVALID_FORMAT;
 	if (mode > 4 || flags > 63 || ((flags&8) != 0 && transparent > 255)) return IO_ERROR_OUT_OF_RANGE;
-	bool verbatim = positions[2] == 0 && positions[3] == 0;
-	if (!verbatim && (positions[0] > positions[2] || positions[1] > positions[3])) return IO_ERROR_INVALID_FORMAT;
+	if (positions[2] != 0 || positions[3] != 0) {
+		for (size_t axis = 0; axis < 2; axis++) {
+			if (positions[axis] > positions[axis + 2]) {
+				uint64_t far = positions[axis];
+				positions[axis] = positions[axis + 2];
+				positions[axis + 2] = far;
+			}
+		}
+	}
 	if (host->ports == NULL) return IO_ERROR_NOT_SUPPORTED;
 	status = st_rip3_ports_current(host->ports,&port);
 	if (status == 0) status = st_rip3_ports_info(host->ports,port,&info);
@@ -175,6 +182,11 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	area.y0 = (int64_t)(positions[1]*frame.device_height/frame.world_height);
 	area.x1 = (int64_t)(positions[2]*frame.device_width/frame.world_width);
 	area.y1 = (int64_t)(positions[3]*frame.device_height/frame.world_height);
+	bool native_size = area.x1 == 0 && area.y1 == 0;
+	/* The error marker uses the wire rectangle before the renderer fills in
+	 * either missing far coordinate. Its sink accepts inclusive bounds. */
+	const struct st_rip3_bitmap_destination requested = {area.x0,area.y0,area.x1-1,area.y1-1};
+	bool natural_marker = requested.x1 < requested.x0 || requested.y1 < requested.y0;
 	char *name = bitmap_name(fields.bytes, fields.remaining);
 	if (name == NULL) return IO_ERROR_OUT_OF_MEMORY;
 	*operation = true;
@@ -182,14 +194,28 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 	if (status != 0) {
 		/* Invalid names have not passed the UTF-8 namespace contract. */
 		if (file_failure(status))
-			host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area,false);
+			host->bitmap_errors->show(host->bitmap_errors->context,name,port,&requested,natural_marker);
 		goto done;
 	}
 	bool adopt = (flags&2) != 0 && bitmap->palette_size != 0;
-	if (verbatim) {
-		area.x1 = area.x0+bitmap->pixels->width-1;
-		area.y1 = area.y0+bitmap->pixels->height-1;
+	if (native_size) {
+		area.x1 = area.x0 + bitmap->pixels->width;
+		area.y1 = area.y0 + bitmap->pixels->height;
 	}
+	else {
+		/* Only a zero absolute far edge requests that axis's projected
+		 * image dimension. Raster and duplicate operations take local coordinates. */
+		if (area.x1 + info.bounds.x0 + info.viewport.x0 == 0)
+			area.x1 = area.x0 + (int64_t)bitmap->pixels->width * frame.device_width / frame.world_width;
+		if (area.y1 + info.bounds.y0 + info.viewport.y0 == 0)
+			area.y1 = area.y0 + (int64_t)bitmap->pixels->height * frame.device_height / frame.world_height;
+	}
+	bool empty = area.x0 == area.x1 || area.y0 == area.y1;
+	/* The renderer returns exclusive edges. The stamp and wallpaper helpers
+	 * use inclusive bounds, while the duplication helper uses half-open bounds. */
+	const struct st_rip3_clipboard_area capture = {area.x0,area.y0,area.x1,area.y1};
+	area.x1--;
+	area.y1--;
 	status = st_rip3_palettes_current(host->palettes,&number);
 	if (status == 0) status = st_rip3_palettes_current_palette(host->palettes,&palette);
 	uint8_t transparent_color = (uint8_t)transparent;
@@ -221,7 +247,7 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 			st_rip3_ports_bind_drawing_palette(host->ports, published);
 	}
 	if (status != 0) {
-		if (file_failure(status)) host->bitmap_errors->show(host->bitmap_errors->context,name,port,verbatim ? NULL : &area,false);
+		if (file_failure(status)) host->bitmap_errors->show(host->bitmap_errors->context,name,port,&requested,natural_marker);
 		goto done;
 	}
 	/* No callbacks run between palette preflight, staging/painting and this
@@ -232,13 +258,12 @@ st_rip3_bitmap_load_commands_execute(const struct st_rip3_command_host *host,
 		status = st_rip3_palettes_rgb(host->palettes,0,8,bitmap->palette,bitmap->palette_size);
 	if (status != 0) goto done;
 	if (duplicating) {
-		const struct st_rip3_clipboard_area capture = {area.x0,area.y0,area.x1+1,area.y1+1};
 		status = st_rip3_clipboard_duplicate(host->ports,host->clipboard,(unsigned)duplicate,&capture,*host->offscreen_pixel_budget);
 		/* Only explicit deletion rejection exits before wallpaper. Allocation
 		 * failure and the clipboard route retain their separate state effects. */
 		if (duplicate != 0 && status == IO_ERROR_PERMISSION_DENIED) goto done;
 	}
-	if ((flags&16) != 0) {
+	if ((flags&16) != 0 && !empty) {
 		/* Shared clipboard capture may have changed the live current port. */
 		int wallpaper_status = st_rip3_wallpaper(host->ports,&area,(flags&32) != 0,&palette);
 		if (status == 0) status = wallpaper_status;

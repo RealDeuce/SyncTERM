@@ -72,6 +72,7 @@ capture(struct st_rip3_ports *ports,
 	}
 	status = st_rip3_ports_current(ports,&source);
 	if (status != 0) return status;
+	if (area->left == area->right || area->top == area->bottom) return 0;
 	/* Saturation preserves intersection with any representable viewport.
 	 * Empty/trim/copy failures retain the newly installed clear allocation. */
 	const struct st_rip3_rect from = {bounded(area->left),bounded(area->top),
@@ -112,7 +113,7 @@ st_rip3_clipboard_duplicate(struct st_rip3_ports *ports,
 
 	if (number == 0) return st_rip3_clipboard_capture(ports,selection,area,pixel_budget);
 	if (ports == NULL || selection == NULL || area == NULL
-	    || area->left >= area->right || area->top >= area->bottom
+	    || area->left > area->right || area->top > area->bottom
 	    || area->left < -limit || area->right > limit || area->top < -limit || area->bottom > limit)
 		return IO_ERROR_INVALID_ARGUMENT;
 	if (number > 35) return 0;

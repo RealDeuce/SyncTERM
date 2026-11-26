@@ -21,7 +21,7 @@ struct st_rip3_bitmap_error_ui {
 
 /* Assign directly to st_rip3_bitmap_error_sink.show, with the above context.
  * Explicit inclusive device boxes retain their full geometry before viewport
- * clipping. Natural sizing places the local marker at the requested anchor.
+ * clipping and place the native marker one device pixel inside. Natural sizing places the local marker at the requested anchor.
  * NULL area places it at the viewport origin. Text is CP437 with one '?' for
  * each unmappable Unicode scalar. The active palette's nearest black and
  * most contrasting entry supply background and ink.

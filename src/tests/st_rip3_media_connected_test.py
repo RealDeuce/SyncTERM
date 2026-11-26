@@ -16,21 +16,21 @@ from st_terminal_conformance_test import Terminal, cell_at
 from syncterm_control import SHIFT
 
 
-def bitmap_row(depth, row, palette=b"", *, width=2):
+def bitmap_file(depth, raster, palette=b"", *, width=2, height=1):
     offset = 54 + len(palette)
-    file_header = struct.pack("<2sIHHI", b"BM", offset + len(row), 0, 0, offset)
-    info_header = struct.pack("<IiiHHIIiiII", 40, width, 1, 1, depth, 0, len(row), 0, 0, 0, 0)
-    return file_header + info_header + palette + row
+    file_header = struct.pack("<2sIHHI", b"BM", offset + len(raster), 0, 0, offset)
+    info_header = struct.pack("<IiiHHIIiiII", 40, width, height, 1, depth, 0, len(raster), 0, 0, 0, 0)
+    return file_header + info_header + palette + raster
 
 
 def check_bitmap(t, assets, values, encoding):
     red, blue, green = 0xaa0000, 0x0000aa, 0x00aa00
     local_palette = b"\x00\x00\xaa\x00\xaa\x00\x00\x00"
-    solid = bitmap_row(1, bytes(4), local_palette)
+    solid = bitmap_file(1, bytes(4), local_palette)
     (assets / "Solid.BMP").write_bytes(solid)
-    (assets / "Split.BMM").write_bytes(bitmap_row(1, b"\x40" + bytes(3), local_palette))
-    (assets / "Direct.BMP").write_bytes(bitmap_row(24, b"\x00\x00\xaa" * 2 + bytes(2)))
-    (assets / "Shade.BMP").write_bytes(bitmap_row(1, b"\x40" + bytes(3),
+    (assets / "Split.BMM").write_bytes(bitmap_file(1, b"\x40" + bytes(3), local_palette))
+    (assets / "Direct.BMP").write_bytes(bitmap_file(24, b"\x00\x00\xaa" * 2 + bytes(2)))
+    (assets / "Shade.BMP").write_bytes(bitmap_file(1, b"\x40" + bytes(3),
         b"\x29\x63\x93\x00\xfd\x86\x09\x00"))
     (assets / "Truncated.BMP").write_bytes(solid[:-1])
 
@@ -112,7 +112,7 @@ def check_bitmap(t, assets, values, encoding):
 
     t.case("Wire icon and bitmap commands normalize legacy extensions before lookup")
     reset()
-    converted = bitmap_row(24, b"\xaa\x00\x00" * 2 + bytes(2))
+    converted = bitmap_file(24, b"\xaa\x00\x00" * 2 + bytes(2))
     for i, (alias, bitmap) in enumerate((("Legacy.iCn", "legacy.BMP"),
                                         ("Legacy.hIc", "legacy.BMH"),
                                         ("Legacy.mSk", "legacy.BMM"))):
@@ -122,13 +122,13 @@ def check_bitmap(t, assets, values, encoding):
         (assets / bitmap).write_bytes(converted)
         x = 210 + 3*i
         frame = wire(b"1I" + coords(x, 30) + b".0.0." + alias.encode()
-                     + b"|1b" + coords(x, 31, x+1, 31) + b"....000Z" + alias.encode())
+                     + b"|1b" + coords(x, 31, x+2, 32) + b"....000Z" + alias.encode())
         assert tint(frame, x, 30, 2, 2) == [[blue, blue], [blue, blue]]
         assert (assets / alias).read_bytes() == solid
 
     (assets / "Raw.icn").write_bytes(solid)
     frame = wire(b"1I" + coords(250, 30) + b"00000Raw.icn"
-                 + b"|1b" + coords(250, 31, 251, 31) + b"0000000000Raw.icn")
+                 + b"|1b" + coords(250, 31, 252, 32) + b"0000000000Raw.icn")
     assert tint(frame, 250, 30, 2, 2) == [[0xffffff, 0xffffff]] * 2
     assert (assets / "Raw.icn").read_bytes() == solid
     assert not (assets / "Raw.BMP").exists()
@@ -155,31 +155,31 @@ def check_bitmap(t, assets, values, encoding):
     assert set(backgrounds) == {0x112233, 0xaabbcc}
     # The mask's first bit matches key zero. Its other pixel is blue.
     # The icon has two red pixels. Global drawing mode has no effect on either.
-    frame = wire(b"W4|1b" + coords(0, 1, 1, 1) + b"0108000000Split.BMM"
+    frame = wire(b"W4|1b" + coords(0, 1, 2, 2) + b"0108000000Split.BMM"
                  + b"|1I" + coords(3, 1) + b"02000Solid.BMP"
-                 + b"|1b" + coords(6, 1, 7, 1) + b"0300000000Solid.BMP")
+                 + b"|1b" + coords(6, 1, 8, 2) + b"0300000000Solid.BMP")
     for phase, dest in zip(phases, backgrounds):
         observed = [plane_pixel(frame, x, 1, phase) for x in (0, 1, 3, 6, 8)]
         assert observed == [dest, dest ^ blue, dest | red, dest & red, dest], (phase, observed)
     # Explicit duplicates contain the completed stamp, including native
     # pixels visible through the mask. Use a steady background for readback.
     t.exchange(b"\x1b[H\x1b[0;48;2;17;34;51m    ")
-    wire(b"1b" + coords(0, 1, 1, 1) + b"5109000000Split.BMM")
+    wire(b"1b" + coords(0, 1, 2, 2) + b"5109000000Split.BMM")
     frame = wire(b"2C5" + coords(0, 0, 2, 1) + b"0" + coords(50, 20, 52, 21) + b"0")
     assert tint(frame, 50, 20, 2, 1) == [[0x112233, 0x112233 ^ blue]]
 
     # The BMM palette makes bit zero white and bit one black. With no key,
     # both samples participate in AND even though one file index is zero.
-    (assets / "Mask.BMM").write_bytes(bitmap_row(1, b"\x40" + bytes(3),
+    (assets / "Mask.BMM").write_bytes(bitmap_file(1, b"\x40" + bytes(3),
         b"\xff\xff\xff\x00" + bytes(4)))
-    frame = wire(b"1b" + coords(4, 1, 5, 1) + b"0300000000Mask.BMM")
+    frame = wire(b"1b" + coords(4, 1, 6, 2) + b"0300000000Mask.BMM")
     assert tint(frame, 4, 1, 2, 1) == [[0x112233, 0]]
     frame = t.exchange(b"\x1b[H\x1b[5;38;2;17;34;51;48;2;170;187;204m" + glyph * 4)
     backgrounds = tuple(plane_pixel(frame, 9, 1, phase) for phase in phases)
     assert set(backgrounds) == {0x112233, 0xaabbcc}
     # Adopt red at index zero, which was black. The source of XOR must
     # already use the adopted palette when the destination is native RGB.
-    frame = wire(b"1b" + coords(9, 1, 10, 1) + b"0102000000Solid.BMP")
+    frame = wire(b"1b" + coords(9, 1, 11, 2) + b"0102000000Solid.BMP")
     for phase, dest in zip(phases, backgrounds):
         assert plane_pixel(frame, 9, 1, phase) == dest ^ red
     values(b"alive", b"alive")
@@ -191,7 +191,7 @@ def check_bitmap(t, assets, values, encoding):
     phases = ("primary", "alternate")
     retained = tuple(plane_pixel(frame, 1, 1, phase) for phase in phases)
     assert set(retained) == {0x112233, 0xaabbcc}, retained
-    frame = wire(b"v" + coords(0, 0, 9, 5) + b"|1b" + coords(1, 1, 2, 1)
+    frame = wire(b"v" + coords(0, 0, 9, 5) + b"|1b" + coords(1, 1, 3, 2)
                  + b"00" + number(8 | 16, 2) + b"000000Split.BMM")
     for phase, rgb in zip(phases, retained):
         for y in range(6):
@@ -199,12 +199,60 @@ def check_bitmap(t, assets, values, encoding):
             assert actual == [blue, rgb] * 5, (phase, y, actual)
         assert plane_pixel(frame, 10, 1, phase) == 0
 
+    t.case("Wire bitmap wallpaper uses the projected 320 by 17 tile")
+    reset()
+    values(b"$WORLD(CUR,1280,960)$")
+    # Bottom-up 1-bit rows. The blue first column and first row mark both periods.
+    rows = (bytes([0x80]) + bytes(39)) * 16 + bytes([0xff]) * 40
+    (assets / "STRIP6.BMP").write_bytes(bitmap_file(1, rows, local_palette, width=320, height=17))
+    frame = wire(b"1b0000HS0Y000G000000STRIP6.BMP")
+    for y in (0, 1, 16, 17, 18, 34):
+        for x in (0, 1, 319, 320, 321, 639):
+            assert pixel(frame, x, y) == (blue if x % 320 == 0 or y % 17 == 0 else red), (x, y)
+
+    t.case("Wire bitmap fit orders corners and resolves zero device edges")
+    (assets / "Eight.BMP").write_bytes(bitmap_file(1, bytes(24), local_palette, width=8, height=6))
+    # WORLD corners, frame divisor, viewport origin and the half-open DEVICE result.
+    for corners, divisor, origin, expected in (
+            ((44, 32, 40, 30), 1, (0, 0), (40, 30, 44, 32)),
+            ((20, 30, 0, 40), 1, (0, 0), (0, 30, 20, 40)),
+            ((0, 30, 0, 40), 1, (0, 0), (0, 30, 8, 40)),
+            ((40, 30, 40, 32), 1, (0, 0), (40, 30, 40, 32)),
+            ((80, 60, 81, 64), 2, (0, 0), (40, 30, 40, 32)),
+            ((40, 30, 44, 30), 1, (0, 0), (40, 30, 44, 30)),
+            ((0, 6, 1, 10), 2, (0, 0), (0, 3, 4, 5)),
+            ((0, 6, 1, 10), 2, (5, 7), (5, 10, 5, 12)),
+            ((0, 0, 1, 1), 2, (5, 7), (5, 7, 13, 13)),
+            ((8, 6, 0, 0), 2, (0, 0), (4, 3, 12, 9))):
+        reset()
+        wire(b"v" + coords(*origin, 63, 47))
+        values(f"$WORLD(CUR,{640*divisor},{480*divisor})$".encode())
+        frame = wire(b"1b" + coords(*corners) + b"0000000000Eight.BMP")
+        left, top, right, bottom = expected
+        for y in range(48):
+            for x in range(64):
+                assert pixel(frame, x, y) == (red if left <= x < right and top <= y < bottom else 0), (
+                    corners, divisor, origin, x, y)
+
+    t.case("A collapsed keyed bitmap can replace the clipboard and delete an explicit duplicate")
+    values(b"$RESET(HARD)$$WORLD(CUR,640,480)$")
+    # Assign the clipboard and check that the zero-width capture allocates a
+    # clear 1x3 backing. Wallpaper has no seed pixels to repeat.
+    before = wire(b"2P7" + coords(0, 0, 3, 3) + b"1")
+    frame = wire(b"1b" + coords(40, 30, 40, 32) + b"00" + number(1 | 8 | 16, 2) + b"000000Eight.BMP")
+    assert (frame.primary, frame.alternate) == (before.primary, before.alternate)
+    values(b"$OFFSCREEN(CLIP)$:$PORTW(1,PORT,DEVICE)$:$PORTH(1,PORT,DEVICE)$", b"1:1:3")
+    values(b"$INUSE(PORT,7)$", b"1")
+    frame = wire(b"1b" + coords(40, 30, 40, 32) + b"70" + number(1 | 16, 2) + b"000000Eight.BMP")
+    assert (frame.primary, frame.alternate) == (before.primary, before.alternate)
+    values(b"$INUSE(PORT,7)$:$CUR(PORT)$", b"0:0")
+
     t.case("Wallpaper skips samples outside the screen backing in both blink phases")
     reset()
     # The first two samples are red and blue. The other two lie beyond X=639.
-    (assets / "Edge.BMP").write_bytes(bitmap_row(1, b"\x50" + bytes(3), local_palette, width=4))
+    (assets / "Edge.BMP").write_bytes(bitmap_file(1, b"\x50" + bytes(3), local_palette, width=4))
     before = t.exchange(b"\x1b[?25l\x1b[5;38;2;17;34;51;48;2;170;187;204m" + glyph)
-    frame = wire(b"v" + coords(0, 0, 641, 3) + b"|1b" + coords(638, 1, 641, 1)
+    frame = wire(b"v" + coords(0, 0, 641, 3) + b"|1b" + coords(638, 1, 642, 2)
                  + b"00" + number(16 | 32, 2) + b"000000Edge.BMP")
     for phase in phases:
         for y in range(4):
@@ -288,7 +336,7 @@ def check_host_directory(t, root, rip, values, encoding):
 
     def store(directory, color):
         directory.mkdir(parents=True, exist_ok=True)
-        (directory / "Override.bmp").write_bytes(bitmap_row(24, color * 2 + bytes(2)))
+        (directory / "Override.bmp").write_bytes(bitmap_file(24, color * 2 + bytes(2)))
 
     t.case("HOSTDIR selects, queries and clears named cache directories")
     wire(b"*")
