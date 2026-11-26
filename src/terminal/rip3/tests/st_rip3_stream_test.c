@@ -119,9 +119,9 @@ boundaries(void)
 	EXAMPLE("raw\x02|n2\r", "raw", "n2\0", 1);
 	EXAMPLE("\x01oops\x02?\r!|J10\r", "\x01oops\x02?\r", "J10\0", 1);
 	EXAMPLE("\\!|J10\r!|J10\r", "\\!|J10\r", "J10\0", 1);
-	EXAMPLE("\\\x01|J10\r!|J10\r", "\\\x01|J10\r", "J10\0", 1);
-	EXAMPLE("x\v!|J10\r", "x\v", "J10\0", 1);
-	EXAMPLE("x\0!|J10\r", "x\0", "J10\0", 1);
+	EXAMPLE("\\\x01|J10\r\\\x02|n2\r", "\\\\", "J10\0n2\0", 2);
+	EXAMPLE("x\v!|J10\r", "x\v!|J10\r", "", 0);
+	EXAMPLE("x\0!|J10\r", "x\0!|J10\r", "", 0);
 	EXAMPLE("!|1\0335000$OFF$\0ignored|1\0336000exit\0ignored\r\ntext", "text",
 	    "1\0335000$OFF$\0ignored\0" "1\0336000exit\0ignored\0", 2);
 	EXAMPLE("!|||\r!|\r!|n2||J10|\r", "", "n2\0J10\0", 2);

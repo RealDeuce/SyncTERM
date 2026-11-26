@@ -197,6 +197,16 @@ def run(args):
                            + query(b'alive', at_cursor=True), b'alive')
         assert pixel(frame, 42, 42) == 0x00aa00 and pixel(frame, 43, 43) == 0xff5555
         assert frame.application['connected'] == 1
+        t.case('rip3-command-starts-between-raw-text-bytes')
+        frame = t.exchange(b'\x1b[12;5HX\0!|n3\r\n' + query(b'$COORDSIZE$', at_cursor=True)
+                           + b'X\\' + query(b'SOH', at_cursor=True)
+                           + b'Y\\\x02|1\x1b0000STX\r\n', b'2SOHSTX')
+        assert frame.application['connected'] == 1
+        t.case('rip3-deep-key-and-corrupt-line-recover-at-chaining-pipe')
+        frame = t.exchange(b'\x01|123L00000000|c02|X1818|1234567891X1919|L00\x1b[!|c0C|X1A1A\r\n'
+                           + query(b'alive', at_cursor=True), b'alive')
+        assert pixel(frame, 44, 44) == 0x00aa00 and pixel(frame, 46, 46) == 0xff5555
+        assert pixel(frame, 45, 45) == 0 and frame.application['connected'] == 1
         t.case('rip3-early-numeric-terminator-with-live-coordinate-width')
         frame = t.exchange(b'\x01|n3|c2<|L18<19<1B<19<|X19<1A<|n2\r\n'
                            + query(b'$COORDSIZE$:alive', at_cursor=True), b'2:alive')

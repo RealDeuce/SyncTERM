@@ -1473,16 +1473,21 @@ The [connected palette commands](#connected-drawing-palette-commands) now
 follow the verified original wire behavior.
 
 `rip3_stream` adds incremental byte framing independent of the legacy parser.
-It recognizes line-start ! and anywhere SOH/STX, uses an optional text-window
-cursor callback after raw output, preserves bogus/escaped introducers as text,
-and buffers complete opaque command spans across arbitrary packet splits.
+In idle framing, SOH and STX can start a command even immediately after a
+raw backslash. A bang can start one after CR, LF or form feed, or when the
+active text window reports column one. NUL and vertical tab have no special
+framing meaning. If the following byte is not a pipe, both bytes go to the
+text window. Command state survives arbitrary packet splits.
 Unquoted pipes chain commands. CR, LF and form feed terminate a command,
 and an odd final backslash continues it across physical lines. A backslash
 before SOH, STX or a pipe in a text parameter is consumed by the framer,
 which delivers the quoted byte as data. Other quotes pass through to the
 argument or expansion parser.
-The framer does not adjudicate the unresolved level-depth or ESC/query priority
-rules under #7. Comments use their documented any-pipe boundary and bypass
+The framer collects up to nine level digits and discards an unsupported key
+or malformed numeric field through the next delimiter. Connected tests in
+both encodings check that a chained color and pixel still execute and that
+an ESC inside the rejected command produces no version reply.
+Comments use their documented any-pipe boundary and bypass
 variable expansion in the command adapter. Terminal grouping begin/end are
 stateless no-ops, including nested or unmatched groups.
 
@@ -1493,7 +1498,7 @@ A test-local allocator shim exercises initial/growth failures, recovery and
 reset without adding production allocation hooks. There is no fixed line limit;
 a split million-byte command exercises geometric buffer growth. Reset and
 destruction discard partial commands without callbacks or accidental execution.
-[File EOF delimiter policy is unresolved under #7](https://github.com/bbs-land/remote-imaging-protocol/issues/7#issuecomment-6920771540).
+Local scene playback drops an unfinished command at EOF.
 
 Literal transcripts test every split and byte-at-a-time input, CR/LF behavior,
 backslash parity, comments, raw ANSI/CP437/UTF-8 byte preservation and cursor-based

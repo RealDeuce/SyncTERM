@@ -19,7 +19,7 @@ struct st_rip3_stream {
 	enum record_list records;
 	unsigned base_math, coordinate_width, field_digits, level_digits;
 	bool direct_rgb, strict_prefix;
-	uint8_t introducer, previous_text;
+	uint8_t introducer;
 	bool active, line_start, quoted, comment, discard_tail, continued, dropping, skip_lf;
 	bool last_backslash, prior_backslash, numeric_continuation;
 };
@@ -213,8 +213,7 @@ raw(struct st_rip3_stream *stream, uint8_t byte)
 {
 	if (stream->sink.text != NULL)
 		stream->sink.text(stream->sink.context, &byte, 1);
-	stream->previous_text = byte;
-	stream->line_start = line_end(byte) || byte == 0 || byte == '\v';
+	stream->line_start = line_end(byte);
 }
 
 static void
@@ -306,7 +305,6 @@ st_rip3_stream_reset(struct st_rip3_stream *stream)
 		return;
 	clear_command(stream);
 	stream->introducer = 0;
-	stream->previous_text = 0;
 	stream->active = false;
 	stream->skip_lf = false;
 	stream->line_start = true;
@@ -367,7 +365,6 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 				dispatch(stream);
 				stream->active = false;
 				stream->line_start = true;
-				stream->previous_text = byte;
 				continue;
 			}
 			stream->continued = false;
@@ -437,10 +434,9 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 			raw(stream, byte);
 			continue;
 		}
-		if (stream->previous_text != '\\'
-		    && (byte == 1 || byte == 2 || (byte == '!'
+		if (byte == 1 || byte == 2 || (byte == '!'
 		    && (stream->line_start || (stream->sink.at_line_start != NULL
-		    && stream->sink.at_line_start(stream->sink.context))))))
+		    && stream->sink.at_line_start(stream->sink.context)))))
 			stream->introducer = byte;
 		else
 			raw(stream, byte);
