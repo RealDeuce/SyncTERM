@@ -27,6 +27,20 @@ struct st_rip3_chr_text_matrix {
 	double xx, xy, yx, yy;
 };
 
+/* Button CHR strokes are first truncated at the captured size in WORLD,
+ * then projected to DEVICE relative to the port/viewport origin. */
+struct st_rip3_chr_label_projection {
+	struct st_rip3_frame frame;
+	int numerator, denominator;
+	int64_t offset_x, offset_y;
+};
+
+int st_rip3_draw_chr_label(struct st_rip3_ports *ports,
+	const struct st_rip3_chr *font, const uint8_t *text, size_t length,
+	const struct st_rip3_text_position *world_baseline,
+	const struct st_rip3_chr_label_projection *projection,
+	bool shadow, uint32_t foreground, uint32_t background);
+
 /* Explicit CP437 span, including zero. Missing glyphs have zero advance/ink.
  * Widths are accumulated before any scaling, avoiding per-character drift. */
 int st_rip3_chr_text_measure(const struct st_rip3_chr *font,

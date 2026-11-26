@@ -53,6 +53,32 @@ def run(args,width,height):
             return t.input(expected) if expected else t.exchange()
 
         if width==640:
+            t.case("rip3-triplex-button-baseline-and-hotkey-in-creation-world")
+            for world_height, sy in ((480, 1), (240, 2)):
+                for adjust, baseline, underline in ((0, 130, 137), (8192, 128, 135)):
+                    values(f"$MKILL$$WORLD(CUR,640,{world_height})$".encode())
+                    # The vertical, right/baseline, shadowed Y selection is
+                    # deliberately different from the button's upright label.
+                    frame = t.exchange(b"\x01|Y0101014I\r\n"
+                                       + style(flags=256|1024|2048|adjust, surface=3,
+                                               underline=14, foreground=12)
+                                       + button((100,100,180,140), b"<>UQ<>", hotkey=ord('Q')))
+                    rows = {(x,y) for y in range(100*sy,140*sy) for x in range(100,180)
+                            if pixel(frame,x,y)==0xffff55}
+                    assert rows == {(x,underline*sy) for x in range(141,151)}
+                    # The bottom stroke of U reaches its baseline.
+                    assert max(y for y in range(100*sy,140*sy) for x in range(128,141)
+                               if pixel(frame,x,y)==0xff5555) == baseline*sy
+            values(b"$MKILL$$WORLD(CUR,320,480)$")
+            for orientation, x, y in ((0,141,101), (1,81,137), (3,201,137), (4,141,170)):
+                frame = t.exchange(b"\x01|E\r\n"
+                                   + style(flags=256|1024|2048|8192, orientation=orientation,
+                                           surface=3, underline=14, foreground=12)
+                                   + button((100,100,180,140), b"<>UQ<>", hotkey=ord('Q')))
+                assert all(pixel(frame,dx,y)==0xffff55 for dx in range(2*x,2*x+20))
+                assert all(pixel(frame,dx,y)!=0xffff55 for dx in (2*x-1,2*x+20))
+            t.exchange(b"\x01|*\r\n")
+            values(b"$WORLD(CUR,640,480)$")
             t.case("rip3-combined-button-effects-in-device-coordinates")
             values(b"$WORLD(CUR,1280,480)$")
             # X scales by one half, Y by one. A six-unit bevel is three

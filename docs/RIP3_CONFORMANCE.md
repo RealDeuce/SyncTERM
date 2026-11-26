@@ -59,7 +59,6 @@ commands reach the same implementation.
 | Work group | Behavior to settle together |
 | --- | --- |
 | Connection mode and default MicroANSI font | Eight Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
-| Classic stroke-font button labels | Apply creation-WORLD CHR metrics to placement, strokes and hotkey decoration. Verify the Triplex baseline and underline examples on unequal WORLD and DEVICE heights. |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
@@ -121,8 +120,12 @@ stroke and outline labels, and suspended labels on the clipboard port.
 At 1024×768 and nominal size 22, a centered DEFAULT EX label moves up
 three pixels when descender fitting is enabled and it contains Q or g.
 U leaves the baseline unchanged. Triplex and Dixon lower the underline
-for Q and g. The reference now specifies the CHR calculations and identifies
-the old 640×350 scan-line tables as historical.
+for Q and g. Classic CHR button labels now use upright strokes measured in
+the button’s creation WORLD. For the centered Triplex `UQ` example, the
+baseline and Q underline are at Y=130 and 137. With flag 8192 they move
+to 128 and 135. Connected captures exercise both vertical scales and
+check the one-row underline on every side of the face. The 640×350
+ALPHA 4 scan-line tables are historical.
 [Upstream PR #325](https://github.com/bbs-land/remote-imaging-protocol/pull/325)
 
 Custom-palette checkbox tests check dragging out, returning, committing once

@@ -73,8 +73,17 @@ stroke_count(const struct st_rip3_chr *font, const uint8_t *text,
 
 static struct st_rip3_vector
 transform(const struct st_rip3_text_position *origin,
-    const struct st_rip3_chr_text_matrix *matrix, size_t advance, int x, int y)
+    const struct st_rip3_chr_text_matrix *matrix, const struct st_rip3_chr_label_projection *label,
+    size_t advance, int x, int y)
 {
+	if (label != NULL) {
+		double glyph_x = trunc((double)advance * label->numerator / label->denominator);
+		double wx = origin->x + glyph_x + (int64_t)x * label->numerator / label->denominator;
+		double wy = origin->y - (int64_t)y * label->numerator / label->denominator;
+		return (struct st_rip3_vector){
+		    trunc(wx * label->frame.device_width / label->frame.world_width) - label->offset_x,
+		    trunc(wy * label->frame.device_height / label->frame.world_height) - label->offset_y};
+	}
 	double u = (double)advance + x;
 
 	return (struct st_rip3_vector){origin->x + matrix->xx * u + matrix->xy * y,
@@ -85,7 +94,8 @@ static int
 stroke_build(const struct st_rip3_chr *font, const uint8_t *text,
     size_t length, const struct st_rip3_text_position *origin,
     const struct st_rip3_chr_text_matrix *matrix,
-    struct st_rip3_vector *vertices, struct st_rip3_vector_run *runs, size_t capacity)
+    const struct st_rip3_chr_label_projection *label, struct st_rip3_vector *vertices,
+    struct st_rip3_vector_run *runs, size_t capacity)
 {
 	size_t advance = 0, next = 0;
 
@@ -106,8 +116,8 @@ stroke_build(const struct st_rip3_chr *font, const uint8_t *text,
 			if (record.operation == ST_RIP3_CHR_DRAW) {
 				if (next >= capacity)
 					return IO_ERROR_INVALID_FORMAT;
-				vertices[2 * next] = transform(origin, matrix, advance, last_x, last_y);
-				vertices[2 * next + 1] = transform(origin, matrix, advance, record.x, record.y);
+				vertices[2 * next] = transform(origin, matrix, label, advance, last_x, last_y);
+				vertices[2 * next + 1] = transform(origin, matrix, label, advance, record.x, record.y);
 				runs[next] = (struct st_rip3_vector_run){2 * next, 2};
 				next++;
 			}
@@ -122,11 +132,11 @@ stroke_build(const struct st_rip3_chr *font, const uint8_t *text,
 	return next == capacity ? 0 : IO_ERROR_INVALID_FORMAT;
 }
 
-int
-st_rip3_draw_chr_text(struct st_rip3_ports *ports,
+static int
+draw_chr(struct st_rip3_ports *ports,
     const struct st_rip3_chr *font, const uint8_t *text, size_t length,
     const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
-    bool shadow, uint32_t foreground, uint32_t background,
+    const struct st_rip3_chr_label_projection *label, bool shadow, uint32_t foreground, uint32_t background,
     enum st_rip3_write_mode mode)
 {
 	struct st_rip3_chr_text_metrics metrics;
@@ -138,15 +148,10 @@ st_rip3_draw_chr_text(struct st_rip3_ports *ports,
 	unsigned current;
 	int status;
 
-	if (ports == NULL || origin == NULL || matrix == NULL
-	    || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
+	if (ports == NULL || origin == NULL || mode < ST_RIP3_COPY || mode > ST_RIP3_NOT)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (!isfinite(matrix->xx) || !isfinite(matrix->xy)
-	    || !isfinite(matrix->yx) || !isfinite(matrix->yy)
-	    || !isfinite(origin->x) || !isfinite(origin->y)
-	    || fabs(origin->x) > 1024.0*INT32_MAX || fabs(origin->y) > 1024.0*INT32_MAX
-	    || fabs(matrix->xx) > INT32_MAX || fabs(matrix->xy) > INT32_MAX
-	    || fabs(matrix->yx) > INT32_MAX || fabs(matrix->yy) > INT32_MAX)
+	if (!isfinite(origin->x) || !isfinite(origin->y)
+	    || fabs(origin->x) > 1024.0*INT32_MAX || fabs(origin->y) > 1024.0*INT32_MAX)
 		return IO_ERROR_OUT_OF_RANGE;
 	status = st_rip3_chr_text_measure(font, text, length, &metrics);
 	if (status != 0 || length == 0)
@@ -168,7 +173,7 @@ st_rip3_draw_chr_text(struct st_rip3_ports *ports,
 		status = IO_ERROR_OUT_OF_MEMORY;
 		goto done;
 	}
-	status = stroke_build(font, text, length, origin, matrix, vertices, runs, count);
+	status = stroke_build(font, text, length, origin, matrix, label, vertices, runs, count);
 	if (status != 0)
 		goto done;
 	status = st_rip3_stroke_vectors(ports, vertices, 2 * count, runs, count, 1, &ink);
@@ -192,4 +197,31 @@ done:
 	free(vertices);
 	free(runs);
 	return status;
+}
+
+int
+st_rip3_draw_chr_text(struct st_rip3_ports *ports,
+    const struct st_rip3_chr *font, const uint8_t *text, size_t length,
+    const struct st_rip3_text_position *origin, const struct st_rip3_chr_text_matrix *matrix,
+    bool shadow, uint32_t foreground, uint32_t background,
+    enum st_rip3_write_mode mode)
+{
+	if (matrix == NULL) return IO_ERROR_INVALID_ARGUMENT;
+	if (!isfinite(matrix->xx) || !isfinite(matrix->xy) || !isfinite(matrix->yx) || !isfinite(matrix->yy)
+	    || fabs(matrix->xx) > INT32_MAX || fabs(matrix->xy) > INT32_MAX
+	    || fabs(matrix->yx) > INT32_MAX || fabs(matrix->yy) > INT32_MAX)
+		return IO_ERROR_OUT_OF_RANGE;
+	return draw_chr(ports, font, text, length, origin, matrix, NULL, shadow, foreground, background, mode);
+}
+
+int
+st_rip3_draw_chr_label(struct st_rip3_ports *ports, const struct st_rip3_chr *font,
+    const uint8_t *text, size_t length, const struct st_rip3_text_position *world_baseline,
+    const struct st_rip3_chr_label_projection *projection, bool shadow, uint32_t foreground, uint32_t background)
+{
+	if (projection == NULL || projection->frame.world_width == 0 || projection->frame.world_height == 0
+	    || projection->numerator < 1 || projection->denominator < 1)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return draw_chr(ports, font, text, length, world_baseline, NULL, projection, shadow,
+	    foreground, background, ST_RIP3_COPY);
 }
