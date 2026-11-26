@@ -842,13 +842,20 @@ cterm_cterm_osc_finish(struct cterminal *cterm)
 /* Invalid captures are discarded before any queue or state change. */
 static const char *musicchars = "aAbBcCdDeEfFgGlLmMnNoOpPsStT0123456789.-+#<> ";
 
+struct st_music *
+st_cterm_music_player(st_cterm_t *cterm, bool create)
+{
+	if (cterm == NULL)
+		return NULL;
+	if (create && cterm->music_player == NULL && cterm->screen.audio != NULL)
+		(void)st_music_create(&cterm->music_player, cterm->screen.audio, &cterm->music_stream);
+	return cterm->music_player;
+}
+
 bool
 cterm_music_ensure(struct cterminal *cterm)
 {
-	if (cterm->quiet || cterm->screen.audio == NULL)
-		return false;
-	return cterm->music_player != NULL
-	       || st_music_create(&cterm->music_player, cterm->screen.audio, &cterm->music_stream) == 0;
+	return !cterm->quiet && cterm->screen.audio != NULL && st_cterm_music_player(cterm, true) != NULL;
 }
 
 static void

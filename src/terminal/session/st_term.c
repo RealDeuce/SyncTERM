@@ -63,6 +63,8 @@ struct st_term_session {
 	uint8_t                wire_pending[4096];
 	size_t                 wire_position;
 	size_t                 wire_size;
+	struct st_musicomm    *musicomm;
+	bool                   musicomm_was_binary;
 	st_transfer_t         *transfer;
 	bool                   transfer_reserved, transfer_was_binary, wire_replaying;
 	bool                   transfer_skip_lf;
@@ -112,6 +114,10 @@ st_term_session_poll_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	if (session->musicomm != NULL) {
+		st_musicomm_poll(session->musicomm);
+		return 0;
+	}
 	int status = st_cterm_poll(st_term_session_cterm(session));
 	if (status == 0 && session->igs != NULL)
 		status = cterm_igs_poll(session->igs);
@@ -132,12 +138,25 @@ finish_wire_character(st_term_session_t *session)
 	return event.kind == ST_UTF8_DECODE_EVENT_MALFORMED ? write_malformed(session, &event) : 0;
 }
 
+static int
+release_musicomm(st_term_session_t *session)
+{
+	if (session->musicomm == NULL)
+		return 0;
+	st_musicomm_destroy(&session->musicomm);
+	if (!st_connection_is_connected(session->config.connection))
+		return 0;
+	return st_connection_set_binary_mode(session->config.connection, session->musicomm_was_binary);
+}
+
 int
 st_term_session_finish_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	int pending = finish_wire_character(session);
+	int pending = release_musicomm(session);
+	if (pending == 0)
+		pending = finish_wire_character(session);
 	if (pending != 0)
 		return pending;
 	if (session->rip154 != NULL) {
@@ -157,7 +176,9 @@ st_term_session_reset_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	int pending = finish_wire_character(session);
+	int pending = release_musicomm(session);
+	if (pending == 0)
+		pending = finish_wire_character(session);
 	if (pending != 0)
 		return pending;
 	if (session->rip154 != NULL)
@@ -212,7 +233,8 @@ st_term_session_skypix_load_sample(st_term_session_t *session, const void *bytes
 static bool
 input_paused(st_term_session_t *session)
 {
-	return st_term_rip3_paused(session->rip3) || st_term_session_device_paused(session);
+	return session->musicomm == NULL
+	       && (st_term_rip3_paused(session->rip3) || st_term_session_device_paused(session));
 }
 
 static int
@@ -364,9 +386,9 @@ send_all(st_connection_t *connection, const uint8_t *bytes, size_t size)
 }
 
 static void
-cterm_output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
+session_output(st_term_session_t *session, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size,
+    bool text)
 {
-	st_term_session_t *session = context;
 	if (session->wire_owner != NULL)
 		return;
 	if (origin == ST_CTERM_OUTPUT_RESPONSE
@@ -377,7 +399,8 @@ cterm_output(void *context, enum st_cterm_output_origin origin, const uint8_t *b
 		return;
 	if (size != 0)
 		session->did_work = true;
-	if ((session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_1
+	if (text
+	    && (session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_1
 	        || session->config.graphics_mode == ST_CTERM_GRAPHICS_RIP_3)
 	    && session->config.encoding == ST_CTERM_ENCODING_CODEPAGE)
 		session->output_error = st_term_session_send_text(session, (const char *)bytes, size);
@@ -387,6 +410,68 @@ cterm_output(void *context, enum st_cterm_output_origin origin, const uint8_t *b
 	    || (session->output_error == IO_ERROR_NOT_CONNECTED
 	        && st_connection_auxiliary_alive(session->config.connection)))
 		session->output_error = 0;
+}
+
+static void
+cterm_output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
+{
+	session_output(context, origin, bytes, size, true);
+}
+
+static void
+musicomm_reply(void *context, const uint8_t *bytes, size_t size)
+{
+	session_output(context, ST_CTERM_OUTPUT_RESPONSE, bytes, size, false);
+}
+
+static void
+musicomm_warning(void *context, const char *message)
+{
+	st_term_session_t *session = context;
+	if (session->config.cterm_diagnostic != NULL && session->config.cterm_log_level >= ST_CTERM_LOG_WARNING)
+		session->config.cterm_diagnostic(session->config.cterm_diagnostic_context, ST_CTERM_LOG_WARNING,
+		    message);
+}
+
+enum st_musicomm_state
+st_term_session_musicomm_state(const st_term_session_t *session)
+{
+	return session == NULL ? ST_MUSICOMM_OFF : st_musicomm_state(session->musicomm);
+}
+
+int
+st_term_session_start_musicomm(st_term_session_t *session)
+{
+	if (session == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (st_term_session_wire_owned(session) || session->transfer != NULL || session->transfer_reserved
+	    || session->input_dispatching)
+		return IO_ERROR_BUSY;
+	int status = finish_wire_character(session);
+	if (status != 0)
+		return status;
+	st_term_rip3_flush(session->rip3);
+	st_cterm_t *display = st_term_session_cterm(session);
+	status = st_cterm_finish(display);
+	if (status != 0)
+		return status;
+	session->musicomm_was_binary = st_connection_binary_mode(session->config.connection);
+	status                       = st_connection_set_binary_mode(session->config.connection, true);
+	if (status != 0)
+		return status;
+	/* A RIP text window can be replaced while the connection is live. Stop
+	 * any music it was playing and borrow the session root's channel 0. */
+	if (display != session->cterm)
+		(void)st_music_flush(st_cterm_music_player(display, false), 0);
+	const struct st_musicomm_config config = {.audio = session->config.audio,
+	    .player                                      = st_cterm_music_player(session->cterm, true),
+	    .reply                                       = musicomm_reply,
+	    .warning                                     = musicomm_warning,
+	    .context                                     = session};
+	status                                 = st_musicomm_start(&session->musicomm, &config);
+	if (status != 0)
+		(void)st_connection_set_binary_mode(session->config.connection, session->musicomm_was_binary);
+	return status;
 }
 
 static bool
@@ -1075,16 +1160,14 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 		*consumed = size;
 		return 0;
 	}
-	if (st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
-		if (session->rip154 != NULL)
-			return st_rip154_feed(session->rip154, bytes, size, consumed);
-		if (session->igs != NULL)
-			return cterm_igs_feed(session->igs, bytes, size, consumed);
-		if (session->big != NULL)
-			return cterm_big_feed(session->big, bytes, size, consumed);
-		if (session->skypix != NULL)
-			return cterm_skypix_feed(session->skypix, bytes, size, consumed);
-	}
+	if (session->rip154 != NULL)
+		return st_rip154_feed(session->rip154, bytes, size, consumed);
+	if (session->igs != NULL)
+		return cterm_igs_feed(session->igs, bytes, size, consumed);
+	if (session->big != NULL)
+		return cterm_big_feed(session->big, bytes, size, consumed);
+	if (session->skypix != NULL)
+		return cterm_skypix_feed(session->skypix, bytes, size, consumed);
 	return st_cterm_write(session->cterm, bytes, size, consumed);
 }
 
@@ -1096,8 +1179,7 @@ write_terminal_wire(st_term_session_t *session, const uint8_t *bytes, size_t siz
 	size_t consumed;
 	int    status;
 
-	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
-	    || (session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
+	if ((session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
 	        && session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_3)
 	    || session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		status = write_protocol(session, bytes, size, &consumed);
@@ -1187,8 +1269,7 @@ write_character(st_term_session_t *session, const struct st_utf8_decode_event *e
 		return status;
 
 	if (session->config.graphics_mode == ST_CTERM_GRAPHICS_OFF
-	    && session->config.encoding == ST_CTERM_ENCODING_UTF8
-	    && st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+	    && session->config.encoding == ST_CTERM_ENCODING_UTF8) {
 		size_t used;
 		status = st_cterm_write_decoded(session->cterm, event, original, length, &used);
 		return status == 0 && used != length ? IO_ERROR_IO : status;
@@ -1292,8 +1373,6 @@ write_wire_filtered(st_term_session_t *session, const uint8_t *bytes, size_t siz
 		if (status != 0)
 			return status;
 	}
-	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF)
-		return write_terminal_wire(session, bytes, size);
 	if (session->config.wire_filter == NULL
 	    || (session->config.wire_filter_active != NULL
 	        && !session->config.wire_filter_active(session->config.wire_filter_context)))
@@ -1354,6 +1433,16 @@ st_term_session_keyboard_locked(const st_term_session_t *session)
 	return session != NULL && st_term_rip3_keyboard_locked(session->rip3);
 }
 
+static bool
+musicomm_stop_key(st_term_session_t *session, const struct st_console_event *event)
+{
+	return session->musicomm != NULL
+	       && (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE || event->type == ST_CONSOLE_EVENT_TEXT
+	           || event->type == ST_CONSOLE_EVENT_KEY_CODE || event->type == ST_CONSOLE_EVENT_DOORWAY_KEY
+	           || (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY && event->data.physical_key.pressed))
+	       && st_musicomm_stop(session->musicomm);
+}
+
 int
 st_term_session_send_key(st_term_session_t *session, const struct st_console_event *event, bool *handled)
 {
@@ -1362,7 +1451,7 @@ st_term_session_send_key(st_term_session_t *session, const struct st_console_eve
 	*handled = false;
 	if (session->wire_owner != NULL)
 		return 0;
-	if (st_term_rip3_key(session->rip3, event)) {
+	if (musicomm_stop_key(session, event) || st_term_rip3_key(session->rip3, event)) {
 		*handled = true;
 		return session->output_error;
 	}
@@ -1417,13 +1506,8 @@ static int
 handle_event(st_term_session_t *session, const struct st_console_event *event,
     enum st_term_disposition *disposition, bool *finished)
 {
-	if (st_cterm_musicomm_state(st_term_session_cterm(session)) != ST_CTERM_MUSICOMM_OFF
-	    && (event->type == ST_CONSOLE_EVENT_CODEPAGE_BYTE || event->type == ST_CONSOLE_EVENT_TEXT
-	        || event->type == ST_CONSOLE_EVENT_KEY_CODE || event->type == ST_CONSOLE_EVENT_DOORWAY_KEY
-	        || (event->type == ST_CONSOLE_EVENT_PHYSICAL_KEY && event->data.physical_key.pressed))) {
-		if (st_cterm_musicomm_stop(st_term_session_cterm(session)))
-			return 0;
-	}
+	if (musicomm_stop_key(session, event))
+		return session->output_error;
 	st_cterm_observe_mouse(st_term_session_cterm(session), event);
 	if (event->type == ST_CONSOLE_EVENT_FOCUS && !event->data.focus.focused)
 		st_term_rip3_mouse_cancel(session->rip3, true);
@@ -1524,12 +1608,14 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	/* A stopped transport has no recipient for asynchronous reports.
 	 * Still drain its received bytes and take the normal disconnect path. */
 	if (st_connection_is_connected(session->config.connection)) {
-		st_term_rip3_poll(session->rip3);
+		if (session->musicomm == NULL)
+			st_term_rip3_poll(session->rip3);
 		status = st_term_session_poll_display(session);
 		if (status != 0 || session->output_error != 0)
 			return status != 0 ? status : session->output_error;
 	}
-	if (!session->suspended && session->transfer == NULL && session->throttle_bps != 0) {
+	if (!session->suspended && session->transfer == NULL && session->musicomm == NULL
+	    && session->throttle_bps != 0) {
 		uint64_t now;
 		bool parser_wait = parser_was_waiting || (!session->igs_dispatch_pending && input_paused(session));
 		/* Credits are BPS*milliseconds: ten bits per character makes
@@ -1580,7 +1666,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		if (read_size > space)
 			read_size = space;
 	}
-	if ((!session->suspended || protocol_input) && read_size != 0
+	if ((!session->suspended || protocol_input || session->musicomm != NULL) && read_size != 0
 	    && session->returned_position == session->returned_size
 	    && session->wire_position == session->wire_size) {
 		received = st_connection_receive(session->config.connection, session->wire_pending, read_size, 0);
@@ -1608,7 +1694,8 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	/* A detector can claim the stream midway through this read. Recheck
 	 * ownership after each ordinary byte, retaining any suffix on backpressure. */
 	while (session->wire_owner == NULL && (!input_paused(session) || protocol_input)
-	       && (!session->suspended || protocol_input) && !session->transfer_reserved
+	       && (!session->suspended || protocol_input || session->musicomm != NULL)
+	       && !session->transfer_reserved
 	       && (session->returned_position < session->returned_size
 	           || session->wire_position < session->wire_size)) {
 		bool     replay   = session->returned_position < session->returned_size;
@@ -1618,29 +1705,42 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		protocol_input    = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 		if (session->transfer != NULL && st_transfer_done(session->transfer))
 			break;
-		if (protocol_input) {
-			size_t count = size - *position, space = st_transfer_input_space(session->transfer);
-			bool   skip = session->transfer_skip_lf && bytes[*position] == '\n';
+		if (protocol_input || session->musicomm != NULL) {
+			size_t count = size - *position;
+			bool   skip  = protocol_input && session->transfer_skip_lf && bytes[*position] == '\n';
 			if (skip)
 				count = 1;
-			if (!skip && count > space)
-				count = space;
+			else if (protocol_input) {
+				size_t space = st_transfer_input_space(session->transfer);
+				if (count > space)
+					count = space;
+			}
 			if (count == 0)
 				break;
 			session->transfer_skip_lf = false;
-			if (!replay && session->config.wire_capture != NULL
-			    && (session->config.capture_active == NULL
-			        || session->config.capture_active(session->config.capture_context))) {
-				status = session->config.wire_capture(session->config.capture_context,
-				    bytes + *position, count);
-				if (status != 0)
-					return status;
+			const uint8_t *input      = bytes + *position;
+			if (session->config.capture_active == NULL
+			    || session->config.capture_active(session->config.capture_context)) {
+				if (!replay && session->config.wire_capture != NULL) {
+					status = session->config.wire_capture(session->config.capture_context,
+					    input, count);
+					if (status != 0)
+						return status;
+				}
+				if (session->musicomm != NULL && session->config.capture != NULL) {
+					status = session->config.capture(session->config.capture_context,
+					    (const char *)input, count, true);
+					if (status != 0)
+						return status;
+				}
 			}
-			size_t consumed =
-			    skip ? count : st_transfer_feed(session->transfer, bytes + *position, count);
-			if (consumed == 0)
+			if (session->musicomm != NULL)
+				st_musicomm_feed(session->musicomm, input, count);
+			else if (!skip)
+				count = st_transfer_feed(session->transfer, input, count);
+			if (count == 0)
 				break;
-			*position += consumed;
+			*position += count;
 			session->did_work = true;
 			continue;
 		}
@@ -1684,8 +1784,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		/* Inspect only original bytes. A banner can end mid-read; deliver its
 		 * last byte through the hooks before the next byte enters OO][ mode. */
 		bool banner = false;
-		if (st_ooii_mode(session->ooii) == 0
-		    && st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+		if (st_ooii_mode(session->ooii) == 0) {
 			for (size_t i = 0; i < count; ++i) {
 				if (st_ooii_detect(session->ooii, bytes[*position + i])) {
 					count  = i + 1;
@@ -1707,15 +1806,20 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		session->did_work = true;
 		protocol_input    = session->transfer != NULL && st_transfer_needs_input(session->transfer);
 	}
-	if (!session->suspended && session->wire_owner == NULL && session->transfer == NULL
-	    && !session->transfer_reserved && session->wire_position == session->wire_size
+	if (session->musicomm != NULL && session->wire_position == session->wire_size
 	    && session->returned_position == session->returned_size
-	    && st_connection_pending_raw(session->config.connection) == 0)
-		st_cterm_musicomm_idle(session->cterm);
+	    && st_connection_pending_raw(session->config.connection) == 0) {
+		st_musicomm_idle(session->musicomm);
+		if (st_musicomm_state(session->musicomm) == ST_MUSICOMM_OFF) {
+			status = release_musicomm(session);
+			if (status != 0)
+				return status;
+		}
+	}
 	/* Publish the consumed text batch before local keys/scripts inspect it. */
 	st_term_rip3_flush(session->rip3);
 	for (;;) {
-		if (st_term_rip3_graphical_pending(session->rip3)) {
+		if (session->musicomm == NULL && st_term_rip3_graphical_pending(session->rip3)) {
 			/* Reserve before removing the next event. Allocation failure can
 			 * abandon rendering and drain the original FIFO without losing a
 			 * release/cancel or turning resource failure into disconnection. */
@@ -1839,7 +1943,7 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	if (timeout_ms > 1
 	    && (session->transfer != NULL || session->transfer_reserved || paused
 	        || cterm_big_needs_poll(session->big) || cterm_igs_needs_poll(session->igs)
-	        || st_cterm_needs_poll(st_term_session_cterm(session))))
+	        || session->musicomm != NULL || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
 	struct timespec deadline;
 	int status = timeout_ms == UINT32_MAX ? 0 : st_time_utc_deadline_after_ms(&deadline, timeout_ms);
@@ -1890,7 +1994,7 @@ st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transf
 {
 	if (session == NULL || transfer == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (session->transfer != NULL || session->wire_owner != NULL)
+	if (session->transfer != NULL || st_term_session_wire_owned(session))
 		return IO_ERROR_BUSY;
 	session->transfer_was_binary = st_connection_binary_mode(session->config.connection);
 	int status                   = st_transfer_needs_input(transfer)
@@ -1954,7 +2058,7 @@ int
 st_term_session_reserve_transfer(st_term_session_t *session, bool reserved)
 {
 	if (session != NULL) {
-		if (reserved && session->wire_owner != NULL)
+		if (reserved && st_term_session_wire_owned(session))
 			return IO_ERROR_BUSY;
 		session->transfer_reserved = reserved;
 		if (!reserved)
@@ -1967,7 +2071,7 @@ int
 st_term_session_reserve_rip_transfer(st_term_session_t *session)
 {
 	if (session != NULL) {
-		if (session->wire_owner != NULL)
+		if (st_term_session_wire_owned(session))
 			return IO_ERROR_BUSY;
 		session->transfer_reserved = true;
 		session->transfer_skip_lf  = true;
@@ -1997,7 +2101,7 @@ st_term_session_claim_wire(st_term_session_t *session, const void *owner)
 {
 	if (session == NULL || owner == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (session->wire_owner != NULL || session->transfer != NULL || session->transfer_reserved
+	if (st_term_session_wire_owned(session) || session->transfer != NULL || session->transfer_reserved
 	    || session->input_dispatching)
 		return IO_ERROR_BUSY;
 	session->wire_owner = owner;
@@ -2016,7 +2120,7 @@ st_term_session_release_wire(st_term_session_t *session, const void *owner)
 bool
 st_term_session_wire_owned(st_term_session_t *session)
 {
-	return session != NULL && session->wire_owner != NULL;
+	return session != NULL && (session->wire_owner != NULL || session->musicomm != NULL);
 }
 
 int

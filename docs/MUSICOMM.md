@@ -5,6 +5,11 @@ menu when the BBS asks you to activate its Musicomm accessory. SyncTERM waits
 for the sender's start byte; nothing is recognized automatically in ordinary
 terminal text. Any local key aborts, including while waiting for start.
 
+While armed, Musicomm takes exclusive ownership of application bytes from the
+connection at the same point as a file transfer. Detection, text decoding and
+graphics resume after the end drain. Musicomm requests binary transport mode
+and restores the previous mode when it releases the connection.
+
 SyncTERM uses an available output enabled by `MidiModes` first. If none opens,
 it renders the accessory's Atari ST PSG preset through the regular audio
 runtime and channel-0 music volume. `AudioModes=0` disables physical speaker
@@ -100,7 +105,7 @@ PSG allocation and pitch lookup are `$08D2`–`$0AB6`. The original binary and
 song files are not bundled. No original FoReM sender, song-file format,
 physical MIDI device or Atari hardware playback was tested.
 
-`cterm_musicomm` checks exact serial/MIDI bytes, every note-input split,
+`musicomm` checks exact serial/MIDI bytes, every note-input split,
 control/high-byte boundaries, drains, held pitches, stolen voices, PSG PCM,
 dirty inherited pan/pitch/modulation/expression/pedals, repeated clean startup,
 abort/reset/EOF/destruction and runtime shutdown with recording/pull outputs.
@@ -112,5 +117,5 @@ with the installed FluidSynth renderer and loud effect sends, without opening
 an audio device; only its integer dither floor may remain after reset.
 `syncterm_musicomm` exercises real local-menu activation, handshake, all 128
 notes, abort, disconnect and return to text using coherent bitmap captures in
-CP437 and UTF-8, with ANSI and Atari ST/IGS sessions. Physical audio and MIDI
+CP437 and UTF-8, with ANSI, RIP 1.54, RIP 3 and Atari ST/IGS sessions. Physical audio and MIDI
 are disabled in those application fixtures.

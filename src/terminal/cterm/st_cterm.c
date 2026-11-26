@@ -19,7 +19,6 @@
 #include "cterm_dec.h"
 #include "cterm_internal.h"
 #include "cterm_key.h"
-#include "cterm_musicomm.h"
 #include "cterm_vt52.h"
 #include "filesystem.h"
 #include "ini.h"
@@ -626,7 +625,6 @@ st_cterm_destroy(st_cterm_t **terminal)
 	if (terminal == NULL || *terminal == NULL)
 		return;
 	scrollback = (*terminal)->scrollback;
-	cterm_musicomm_destroy(*terminal);
 	(void)st_cterm_finish(*terminal);
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
 	destroy_status_sub(*terminal);
@@ -1102,8 +1100,7 @@ st_cterm_input_bytes_pending(st_cterm_t *terminal)
 	/* A lone ESC rejects a high byte and replays it as ordinary UTF-8. */
 	bool bare_escape = target->accumulator == cterm_accumulate_ecma_seq && target->seq_phase == SEQ_PHASE_C1
 	                   && target->seq_key == SEQ_ESC && target->saved_accumulator == NULL;
-	return (target->accumulator != NULL && !bare_escape)
-	       || st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF;
+	return target->accumulator != NULL && !bare_escape;
 }
 
 int
@@ -1146,16 +1143,6 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size, size_t *con
 		*consumed = 0;
 	if (terminal == NULL || consumed == NULL || (bytes == NULL && size != 0))
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF) {
-		if (capture_enabled(terminal)) {
-			int status = terminal->api_capture(terminal->api_capture_context, bytes, size, true);
-			if (status != 0)
-				return status;
-		}
-		cterm_musicomm_feed(terminal, bytes, size);
-		*consumed = size;
-		return 0;
-	}
 	return write_plain(terminal, bytes, size, consumed, false);
 }
 
@@ -1164,8 +1151,6 @@ st_cterm_needs_poll(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return false;
-	if (st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF)
-		return true;
 	if (terminal->apc != NULL) {
 		for (size_t i = 0; i < sizeof(terminal->apc->notify) / sizeof(terminal->apc->notify[0]); ++i)
 			if (terminal->apc->notify[i])
@@ -1179,7 +1164,6 @@ st_cterm_poll(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	cterm_musicomm_poll(terminal);
 	cterm_apc_poll(terminal);
 	return 0;
 }
@@ -1223,7 +1207,6 @@ st_cterm_finish(st_cterm_t *terminal)
 
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	cterm_musicomm_cancel(terminal);
 	status = cterm_text_boundary(terminal);
 	if (status == 0 && terminal->status_sub != NULL)
 		status = cterm_text_boundary(terminal->status_sub);
@@ -2197,8 +2180,6 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code, uint32_t modifiers)
 
 	if (terminal == NULL)
 		return false;
-	if (st_cterm_musicomm_stop(terminal))
-		return true;
 	if (terminal->device.key != NULL
 	    && terminal->device.key(terminal->device.context, &(struct cterm_key) {.kind = CTERM_KEY_NORMAL,
 								  .value                 = key_code,
@@ -2225,8 +2206,6 @@ st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
 {
 	if (terminal == NULL)
 		return false;
-	if (st_cterm_musicomm_stop(terminal))
-		return true;
 	if (terminal->device.key != NULL
 	    && terminal->device.key(terminal->device.context,
 		&(struct cterm_key) {.kind = CTERM_KEY_CODEPAGE, .value = byte, .local = byte}))
@@ -2242,8 +2221,6 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 
 	if (terminal == NULL)
 		return false;
-	if (st_cterm_musicomm_stop(terminal))
-		return true;
 	if (terminal->device.key != NULL
 	    && terminal->device.key(terminal->device.context,
 		&(struct cterm_key) {.kind = CTERM_KEY_TEXT, .value = codepoint, .local = (int)codepoint}))
@@ -2264,8 +2241,6 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 bool
 st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
-	if (st_cterm_musicomm_stop(terminal))
-		return true;
 	if (terminal != NULL && terminal->device.key != NULL
 	    && terminal->device.key(terminal->device.context,
 		&(struct cterm_key) {.kind = CTERM_KEY_DOORWAY, .value = scan_code, .local = (int)scan_code << 8}))
@@ -2282,9 +2257,6 @@ st_cterm_handle_physical_keys(st_cterm_t *terminal, const struct st_console_even
 		if (events[i].type != ST_CONSOLE_EVENT_PHYSICAL_KEY)
 			return false;
 	}
-	for (size_t i = 0; i < count; ++i)
-		if (events[i].data.physical_key.pressed && st_cterm_musicomm_stop(terminal))
-			return true;
 	return cterm_pk_events(terminal, events, count);
 }
 

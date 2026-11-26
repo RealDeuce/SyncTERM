@@ -4469,7 +4469,7 @@ assignment when selecting an existing font; loading only registers a new font.
 | `CTerm.startMusicomm()`, `CTerm.musicomm`
 | Locally arm the Musicomm receiver and read whether it still owns received
   bytes (including startup/end drains). Start returns null on success or
-  `CTermError` on failure, including Busy if already armed. A missing terminal
+  `CTermError` on failure, including Busy while another receiver owns the connection. A missing session
   aborts. It finishes pending terminal output and replaces channel-0 music.
   The sender must handshake with byte 02 and pace note toggles in real time;
   no terminal escape sequence activates it. An available configured MIDI

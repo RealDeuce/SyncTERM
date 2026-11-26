@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm.h"
-#include "cterm_musicomm.h"
+#include "io_error.h"
 #include "music_internal.h"
+#include "st_musicomm_internal.h"
 #include "st_time.h"
 
 #define CHECK(e)                                                   \
@@ -78,18 +78,10 @@ send_midi(void *context, const uint8_t *bytes, size_t size)
 }
 
 static void
-reply(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, size_t size)
+reply(void *context, const uint8_t *bytes, size_t size)
 {
 	(void)context;
-	CHECK(origin == ST_CTERM_OUTPUT_RESPONSE);
 	(void)send_midi(&replies, bytes, size);
-}
-
-static void
-feed(st_cterm_t *t, const void *bytes, size_t size)
-{
-	size_t used;
-	CHECK(st_cterm_write(t, bytes, size, &used) == 0 && used == size);
 }
 
 static void
@@ -100,26 +92,14 @@ expect_reply(const char *bytes, size_t size)
 }
 
 static void
-exercise(bool utf8, bool midi)
+exercise(bool stop_runtime, bool midi)
 {
-	st_console_t                          *console;
-	st_font_catalog_t                     *fonts;
-	st_audio_runtime_t                    *audio;
-	st_cterm_t                            *t;
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
-	CHECK(st_console_create(&console, &display, &geometry) == 0);
-	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	struct st_musicomm *receiver = NULL;
+	st_audio_runtime_t *audio;
+	st_music_t         *player = NULL;
+	audio_stream_t     *stream = NULL;
 	CHECK(st_audio_runtime_create_pull(&audio) == 0);
 	st_audio_runtime_set_midi_allowed(audio, 0);
-	const struct st_cterm_config config = {.console = console,
-	    .fonts                                      = fonts,
-	    .audio                                      = audio,
-	    .emulation                                  = ST_CTERM_ANSI_BBS,
-	    .encoding = utf8 ? ST_CTERM_ENCODING_UTF8 : ST_CTERM_ENCODING_CODEPAGE,
-	    .codepage = ST_CODEPAGE_CP437,
-	    .output   = reply};
-	CHECK(st_cterm_create(&t, &config) == 0);
 	struct recording r = {.bank_msb = 1,
 	    .bank_lsb                   = 2,
 	    .program                    = 81,
@@ -130,33 +110,35 @@ exercise(bool utf8, bool midi)
 	    .sustain                    = 127};
 	if (midi) {
 		const struct st_midi_sink sink = {.state = &r, .send = send_midi};
-		CHECK(st_music_create_with_sink(&t->music_player, audio, &t->music_stream, &sink) == 0);
+		CHECK(st_music_create_with_sink(&player, audio, &stream, &sink) == 0);
 	}
-	feed(t, "A", 1);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	CHECK(st_cterm_musicomm_start(t) == IO_ERROR_BUSY);
-	CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_WAITING);
-	feed(t, "\xff\r\n\0", 4);
+	else
+		CHECK(st_music_create(&player, audio, &stream) == 0);
+	const struct st_musicomm_config config = {.audio = audio, .player = player, .reply = reply};
+	CHECK(st_musicomm_start(&receiver, &config) == 0);
+	CHECK(st_musicomm_start(&receiver, &config) == IO_ERROR_BUSY);
+	CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_WAITING);
+	st_musicomm_feed(receiver, "\xff\r\n\0", 4);
 	expect_reply("", 0);
 	/* Queued startup bytes, even in separate writes, are drained. */
-	feed(t, "\x02\x3c", 2);
+	st_musicomm_feed(receiver, "\x02\x3c", 2);
 	expect_reply("\x02", 1);
-	feed(t, "\x40", 1);
-	CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_START_DRAIN);
-	st_cterm_musicomm_idle(t);
-	CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_PLAYING);
+	st_musicomm_feed(receiver, "\x40", 1);
+	CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_START_DRAIN);
+	st_musicomm_idle(receiver);
+	CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_PLAYING);
 	const uint8_t notes[] = {60, 64, 60, 64, 0, 0, 2, 2, 10, 10, 13, 13, 17, 17, 19, 19, 127, 127};
 	for (size_t split = 0; split <= sizeof(notes); ++split) {
-		feed(t, notes, split);
-		feed(t, notes + split, sizeof(notes) - split);
+		st_musicomm_feed(receiver, notes, split);
+		st_musicomm_feed(receiver, notes + split, sizeof(notes) - split);
 		/* The sender owns timing; don't saturate the bounded worker FIFO
 		 * while replaying every split in this one artificial burst. */
 		if (midi)
-			CHECK(st_music_wait(t->music_player) == 0);
+			CHECK(st_music_wait(player) == 0);
 	}
-	CHECK(st_music_wait(t->music_player) == 0);
+	CHECK(st_music_wait(player) == 0);
 	if (midi) {
-		CHECK(t->musicomm->midi && !t->musicomm->physical && t->music_stream == NULL);
+		CHECK(receiver->midi && !receiver->physical && stream == NULL);
 		/* Initial channel gain controllers are sink policy; find the first
 		 * note, then require every event's exact status, pitch and velocity. */
 		size_t first = 0;
@@ -176,8 +158,8 @@ exercise(bool utf8, bool midi)
 		}
 	}
 	else {
-		CHECK(!t->musicomm->midi);
-		feed(t, "\x3c", 1);
+		CHECK(!receiver->midi);
+		st_musicomm_feed(receiver, "\x3c", 1);
 		int16_t pcm[2048];
 		CHECK(st_audio_runtime_pull(audio, pcm, 1024) == 0);
 		bool nonzero = false;
@@ -187,7 +169,7 @@ exercise(bool utf8, bool midi)
 		CHECK(nonzero);
 	}
 	size_t before_end = r.size;
-	feed(t, "\x80LOST", 5);
+	st_musicomm_feed(receiver, "\x80LOST", 5);
 	expect_reply("\xff\xff\xff", 3);
 	if (midi) {
 		while (before_end < r.size && r.bytes[before_end] != 0x90)
@@ -199,31 +181,28 @@ exercise(bool utf8, bool midi)
 			CHECK(r.bytes[before_end + 3 * n + 1] == n && r.bytes[before_end + 3 * n + 2] == 0);
 		}
 	}
-	feed(t, "LOST", 4);
-	st_cterm_musicomm_idle(t);
-	CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_OFF);
-	CHECK(!st_music_busy(t->music_player));
-	feed(t, "Z", 1);
-	struct st_cterm_state state;
-	CHECK(st_cterm_state(t, &state) == 0 && state.x == 3 && state.y == 1);
+	st_musicomm_feed(receiver, "LOST", 4);
+	st_musicomm_idle(receiver);
+	CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_OFF);
+	CHECK(!st_music_busy(player));
 	for (unsigned end = 128; end < 256; ++end) {
-		CHECK(st_cterm_musicomm_start(t) == 0);
-		feed(t, "\x02", 1);
-		st_cterm_musicomm_idle(t);
+		CHECK(st_musicomm_start(&receiver, &config) == 0);
+		st_musicomm_feed(receiver, "\x02", 1);
+		st_musicomm_idle(receiver);
 		uint8_t byte = (uint8_t)end;
-		feed(t, &byte, 1);
+		st_musicomm_feed(receiver, &byte, 1);
 		expect_reply("\x02\xff\xff\xff", 4);
-		st_cterm_musicomm_idle(t);
+		st_musicomm_idle(receiver);
 		r.size = 0;
 	}
 	if (!midi) {
-		CHECK(st_cterm_musicomm_start(t) == 0);
-		feed(t, "\x02", 1);
-		st_cterm_musicomm_idle(t);
+		CHECK(st_musicomm_start(&receiver, &config) == 0);
+		st_musicomm_feed(receiver, "\x02", 1);
+		st_musicomm_idle(receiver);
 		expect_reply("\x02", 1);
 		const uint8_t chord[] = {0, 24, 108, 127};
-		feed(t, chord, sizeof(chord));
-		struct cterm_musicomm *m = t->musicomm;
+		st_musicomm_feed(receiver, chord, sizeof(chord));
+		struct st_musicomm *m = receiver;
 		CHECK(m->on[0] && m->on[24] && m->on[108] && m->on[127]);
 		CHECK(m->channel[0] == 0 && m->channel[24] == 1 && m->channel[108] == 2 && m->channel[127] == 2);
 		/* Literal periods from the accessory's $2652 table. Note 127 folds
@@ -232,7 +211,7 @@ exercise(bool utf8, bool midi)
 		CHECK(m->gist.voice[2].parameters[1] == 40);
 		/* Release the stolen note: the original channel association releases
 		 * its replacement while the replacement's logical flag stays set. */
-		feed(t, "\x6c", 1);
+		st_musicomm_feed(receiver, "\x6c", 1);
 		CHECK(!m->on[108] && m->on[127] && m->gist.voice[2].control == -1);
 		int16_t pcm[882 * 2];
 		for (unsigned i = 0; i < 100; ++i)
@@ -240,54 +219,42 @@ exercise(bool utf8, bool midi)
 		/* Held pitches inhibit the preset countdown in the actual binary. */
 		CHECK(m->gist.voice[0].parameters[0] == 200 && m->gist.voice[1].parameters[0] == 200);
 		CHECK(m->gist.voice[2].parameters[0] == 0);
-		CHECK(st_cterm_musicomm_stop(t));
+		CHECK(st_musicomm_stop(receiver));
 		expect_reply("\xff\xff\xff", 3);
-		st_cterm_musicomm_idle(t);
+		st_musicomm_idle(receiver);
 	}
-	/* Abort before start, Unicode/local raw/doorway input, reset and EOF. */
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	CHECK(st_cterm_handle_text_key(t, 0x1f600));
+	/* A local abort also completes while waiting for the handshake. */
+	CHECK(st_musicomm_start(&receiver, &config) == 0);
+	CHECK(st_musicomm_stop(receiver));
 	expect_reply("\xff\xff\xff", 3);
-	st_cterm_musicomm_idle(t);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	CHECK(st_cterm_handle_key(t, 'x', 0));
-	expect_reply("\xff\xff\xff", 3);
-	st_cterm_musicomm_idle(t);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	CHECK(st_cterm_handle_codepage_key(t, 0));
-	expect_reply("\xff\xff\xff", 3);
-	st_cterm_musicomm_idle(t);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	CHECK(st_cterm_handle_doorway_key(t, 1));
-	expect_reply("\xff\xff\xff", 3);
-	st_cterm_musicomm_idle(t);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	feed(t, "\x02", 1);
-	st_cterm_musicomm_idle(t);
+	st_musicomm_idle(receiver);
+	CHECK(st_musicomm_start(&receiver, &config) == 0);
+	st_musicomm_feed(receiver, "\x02", 1);
+	st_musicomm_idle(receiver);
 	expect_reply("\x02", 1);
-	feed(t, "\x3c", 1);
-	CHECK(st_cterm_reset_terminal(t) == 0);
-	CHECK(!st_music_busy(t->music_player));
-	CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_OFF);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	feed(t, "\x02", 1);
-	st_cterm_musicomm_idle(t);
+	st_musicomm_feed(receiver, "\x3c", 1);
+	st_musicomm_cancel(receiver);
+	CHECK(!st_music_busy(player));
+	CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_OFF);
+	CHECK(st_musicomm_start(&receiver, &config) == 0);
+	st_musicomm_feed(receiver, "\x02", 1);
+	st_musicomm_idle(receiver);
 	expect_reply("\x02", 1);
-	feed(t, "\x3c", 1);
-	CHECK(st_cterm_finish(t) == 0);
-	CHECK(!st_music_busy(t->music_player));
-	CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_OFF);
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	feed(t, "\x02", 1);
-	st_cterm_musicomm_idle(t);
+	st_musicomm_feed(receiver, "\x3c", 1);
+	st_musicomm_cancel(receiver);
+	CHECK(!st_music_busy(player));
+	CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_OFF);
+	CHECK(st_musicomm_start(&receiver, &config) == 0);
+	st_musicomm_feed(receiver, "\x02", 1);
+	st_musicomm_idle(receiver);
 	expect_reply("\x02", 1);
-	feed(t, "\x3c", 1);
-	if (utf8)
+	st_musicomm_feed(receiver, "\x3c", 1);
+	if (stop_runtime)
 		st_audio_runtime_stop(audio);
-	st_cterm_destroy(&t);
+	st_musicomm_destroy(&receiver);
+	st_music_destroy(player);
+	audio_stream_destroy(stream);
 	st_audio_runtime_destroy(audio);
-	st_font_catalog_destroy(fonts);
-	st_console_destroy(console);
 }
 
 static int
@@ -324,26 +291,15 @@ consume(void *context)
 static void
 software_session(void)
 {
-	st_console_t                          *console;
-	st_font_catalog_t                     *fonts;
-	st_cterm_t                            *t;
-	st_audio_runtime_t                    *audio;
-	const struct st_console_display_config display = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-	const struct st_console_config geometry = {.columns = 80, .rows = 25, .cell_width = 8, .cell_height = 16};
-	CHECK(st_console_create(&console, &display, &geometry) == 0);
-	CHECK(st_font_catalog_create(&fonts, console) == 0);
+	struct st_musicomm *receiver = NULL;
+	st_audio_runtime_t *audio;
+	st_music_t         *player = NULL;
+	audio_stream_t     *stream = NULL;
 	CHECK(st_audio_runtime_create_pull(&audio) == 0);
-	const struct st_cterm_config config = {.console = console,
-	    .fonts                                      = fonts,
-	    .audio                                      = audio,
-	    .emulation                                  = ST_CTERM_ANSI_BBS,
-	    .encoding                                   = ST_CTERM_ENCODING_UTF8,
-	    .codepage                                   = ST_CODEPAGE_CP437,
-	    .output                                     = reply};
-	CHECK(st_cterm_create(&t, &config) == 0);
 	struct recording          r = {.pan = 0, .pitch = 16383, .modulation = 127, .sustain = 127, .tail = 1000};
 	const struct st_midi_sink sink = {.state = &r, .send = send_midi, .render = render_midi};
-	CHECK(st_music_create_with_sink(&t->music_player, audio, &t->music_stream, &sink) == 0);
+	CHECK(st_music_create_with_sink(&player, audio, &stream, &sink) == 0);
+	const struct st_musicomm_config config = {.audio = audio, .player = player, .reply = reply};
 	/* This private pull consumer supplies completion acknowledgments while
 	 * the serialized terminal owner performs its blocking abort/reset. It
 	 * owns no terminal state; stop and join it before destroying audio. */
@@ -352,102 +308,81 @@ software_session(void)
 	st_thread_t thread;
 	CHECK(st_thread_create(&thread, consume, &c) == ST_THREAD_SUCCESS);
 	for (unsigned pass = 0; pass < 5; ++pass) {
-		CHECK(st_music_volume(t->music_player, -3, -18, 0) == 0);
-		CHECK(st_cterm_musicomm_start(t) == 0);
+		CHECK(st_music_volume(player, -3, -18, 0) == 0);
+		CHECK(st_musicomm_start(&receiver, &config) == 0);
 		float left, right;
-		CHECK(st_music_get_volume(t->music_player, &left, &right) == 0 && left == -12 && right == -12);
-		feed(t, "\x02", 1);
-		st_cterm_musicomm_idle(t);
+		CHECK(st_music_get_volume(player, &left, &right) == 0 && left == -12 && right == -12);
+		st_musicomm_feed(receiver, "\x02", 1);
+		st_musicomm_idle(receiver);
 		expect_reply("\x02", 1);
-		feed(t, "\x3c\x40\x43", 3);
-		CHECK(st_music_wait(t->music_player) == 0 && st_music_busy(t->music_player));
+		st_musicomm_feed(receiver, "\x3c\x40\x43", 3);
+		CHECK(st_music_wait(player) == 0 && st_music_busy(player));
 		if (pass < 3) {
-			CHECK(st_cterm_handle_key(t, 'x', 0));
+			CHECK(st_musicomm_stop(receiver));
 			expect_reply("\xff\xff\xff", 3);
-			st_cterm_musicomm_idle(t);
+			st_musicomm_idle(receiver);
 		}
-		else if (pass == 3)
-			CHECK(st_cterm_finish(t) == 0);
 		else
-			CHECK(st_cterm_reset_terminal(t) == 0);
-		CHECK(st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_OFF);
-		CHECK(!st_music_busy(t->music_player) && audio_stream_buffered_frames(t->music_stream) == 0);
+			st_musicomm_cancel(receiver);
+		CHECK(st_musicomm_state(receiver) == ST_MUSICOMM_OFF);
+		CHECK(!st_music_busy(player) && audio_stream_buffered_frames(stream) == 0);
 		CHECK(!r.held && r.tail == 0 && r.cached == 0);
 		int16_t pcm[1024 * AUDIO_CHANNELS];
 		CHECK(st_audio_runtime_pull(audio, pcm, 1024) == 0);
 		for (size_t i = 0; i < 1024 * AUDIO_CHANNELS; ++i)
 			CHECK(pcm[i] == 0);
 	}
-	CHECK(st_cterm_musicomm_start(t) == 0);
-	feed(t, "\x02", 1);
-	st_cterm_musicomm_idle(t);
+	CHECK(st_musicomm_start(&receiver, &config) == 0);
+	st_musicomm_feed(receiver, "\x02", 1);
+	st_musicomm_idle(receiver);
 	expect_reply("\x02", 1);
-	feed(t, "\x3c", 1);
-	st_cterm_destroy(&t);
+	st_musicomm_feed(receiver, "\x3c", 1);
+	st_musicomm_destroy(&receiver);
+	st_music_destroy(player);
+	audio_stream_destroy(stream);
 	CHECK(!r.held && r.tail == 0 && r.cached == 0);
 	atomic_store(&c.stop, true);
 	CHECK(st_thread_join(thread, NULL) == ST_THREAD_SUCCESS);
 	st_audio_runtime_destroy(audio);
-	st_font_catalog_destroy(fonts);
-	st_console_destroy(console);
 }
 
 static void
 unavailable(void)
 {
 	for (unsigned mode = 0; mode < 3; ++mode) {
-		st_console_t                          *console;
-		st_font_catalog_t                     *fonts;
-		st_cterm_t                            *t;
-		st_audio_runtime_t                    *audio    = NULL;
-		const struct st_console_display_config display  = {.backend = ST_CONSOLE_BACKEND_HEADLESS};
-		const struct st_console_config         geometry = {.columns = 80,
-		    .rows                                                   = 25,
-		    .cell_width                                             = 8,
-		    .cell_height                                            = 16};
-		CHECK(st_console_create(&console, &display, &geometry) == 0);
-		CHECK(st_font_catalog_create(&fonts, console) == 0);
+		struct st_musicomm *receiver = NULL;
+		st_audio_runtime_t *audio    = NULL;
 		if (mode != 0)
 			CHECK(st_audio_runtime_create(&audio, 0) == 0);
 		if (mode == 2)
 			st_audio_runtime_stop(audio);
-		const struct st_cterm_config config = {.console = console,
-		    .fonts                                      = fonts,
-		    .audio                                      = audio,
-		    .emulation                                  = ST_CTERM_ANSI_BBS,
-		    .encoding                                   = ST_CTERM_ENCODING_CODEPAGE,
-		    .codepage                                   = ST_CODEPAGE_CP437,
-		    .output                                     = reply};
-		CHECK(st_cterm_create(&t, &config) == 0);
-		CHECK(st_cterm_musicomm_start(t) == 0);
-		feed(t, "\x02", 1);
-		st_cterm_musicomm_idle(t);
+		const struct st_musicomm_config config = {.audio = audio, .reply = reply};
+		CHECK(st_musicomm_start(&receiver, &config) == 0);
+		st_musicomm_feed(receiver, "\x02", 1);
+		st_musicomm_idle(receiver);
 		expect_reply("\x02", 1);
-		feed(t, "\x3c", 1);
-		CHECK(t->musicomm->on[60] && !t->musicomm->physical && !t->musicomm->midi);
+		st_musicomm_feed(receiver, "\x3c", 1);
+		CHECK(receiver->on[60] && !receiver->physical && !receiver->midi);
 		/* Local muted time advances envelopes without opening an output. */
-		t->musicomm->local_ms -= 2000;
-		CHECK(st_cterm_poll(t) == 0);
-		CHECK(t->musicomm->gist.voice[0].parameters[0] == 200);
-		CHECK(t->musicomm->gist.voice[0].parameters[4] == 3);
-		CHECK(st_cterm_musicomm_stop(t));
-		CHECK(st_cterm_musicomm_stop(t));
+		receiver->local_ms -= 2000;
+		st_musicomm_poll(receiver);
+		CHECK(receiver->gist.voice[0].parameters[0] == 200);
+		CHECK(receiver->gist.voice[0].parameters[4] == 3);
+		CHECK(st_musicomm_stop(receiver));
+		CHECK(st_musicomm_stop(receiver));
 		expect_reply("\xff\xff\xff", 3);
-		st_cterm_musicomm_idle(t);
-		feed(t, "Z", 1);
-		st_cterm_destroy(&t);
+		st_musicomm_idle(receiver);
+		st_musicomm_destroy(&receiver);
 		st_audio_runtime_destroy(audio);
-		st_font_catalog_destroy(fonts);
-		st_console_destroy(console);
 	}
 }
 
 int
-st_cterm_musicomm_test_main(void)
+st_musicomm_test_main(void)
 {
-	for (unsigned utf8 = 0; utf8 < 2; ++utf8)
+	for (unsigned stopped = 0; stopped < 2; ++stopped)
 		for (unsigned midi = 0; midi < 2; ++midi)
-			exercise(utf8, midi);
+			exercise(stopped, midi);
 	unavailable();
 	software_session();
 	return 0;

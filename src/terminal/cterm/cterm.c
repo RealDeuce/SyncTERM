@@ -32,7 +32,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm_musicomm.h"
 #if defined(_WIN32)
  #include <malloc.h> /* alloca() on Win32 */
 #endif
@@ -2030,7 +2029,6 @@ const size_t cterm_ansi_dispatch_len = SEQ_ARRAY_SIZE(cterm_ansi_dispatch);
 void
 cterm_reset(struct cterminal *cterm)
 {
-	cterm_musicomm_cancel(cterm);
 	cterm_dec_sixel_cancel(cterm);
 	(void)st_music_flush(cterm->music_player, 0);
 	/* Retained history and all three ring indices are session state;

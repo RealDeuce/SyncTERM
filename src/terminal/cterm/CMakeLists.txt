@@ -51,7 +51,6 @@ endif()
 add_library(st_cterm STATIC
 	cterm_key.c
 	cterm.c
-	cterm_musicomm.c
 	cterm_apc.c
 	cterm_apc_audio.c
 	cterm_apc_cache.c
@@ -69,7 +68,7 @@ add_library(st_cterm STATIC
 target_include_directories(st_cterm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_cterm PUBLIC st_console st_codepage st_font_catalog st_hyperlink
 	st_audio st_music st_base64 st_time st_utf8 st_unicode_text st_session_history)
-target_link_libraries(st_cterm PRIVATE st_atari_st_audio st_fonts syncterm_threads
+target_link_libraries(st_cterm PRIVATE st_fonts syncterm_threads
 	st_audio_file st_pixel_image st_md5 st_hex
 	syncterm_string_compat syncterm_string_util syncterm_filesystem
 	syncterm_path syncterm_ini)
@@ -143,18 +142,6 @@ if(BUILD_TESTING)
 	endif()
 	add_test(NAME cterm_music_render COMMAND st_terminal_tests st_cterm_music_render_test)
 	set_tests_properties(cterm_music_render PROPERTIES TIMEOUT 60)
-	syncterm_add_test_case(st_terminal_tests st_cterm_musicomm_test tests/st_cterm_musicomm_test.c)
-	target_link_libraries(st_cterm_musicomm_test PRIVATE st_cterm st_atari_st_audio)
-	syncterm_target_atomics(st_cterm_musicomm_test)
-	set_target_properties(st_cterm_musicomm_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
-	if(MSVC)
-		target_compile_options(st_cterm_musicomm_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
-	else()
-		target_compile_options(st_cterm_musicomm_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
-	endif()
-	add_test(NAME cterm_musicomm COMMAND st_terminal_tests st_cterm_musicomm_test)
-	set_tests_properties(cterm_musicomm PROPERTIES TIMEOUT 30)
-
 	syncterm_add_test_case(st_terminal_tests st_cterm_midi_test tests/st_cterm_midi_test.c)
 	target_link_libraries(st_cterm_midi_test PRIVATE st_cterm syncterm_filesystem syncterm_threads st_time)
 	target_compile_definitions(st_cterm_midi_test PRIVATE ST_MIDI_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}/midi-cache")

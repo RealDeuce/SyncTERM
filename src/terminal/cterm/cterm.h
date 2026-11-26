@@ -277,7 +277,6 @@ struct cterminal {
 	int                    musicfore;
 	audio_stream_t        *music_stream;
 	st_music_t            *music_player;
-	struct cterm_musicomm *musicomm;
 	audio_stream_t        *fx_stream;
 	int                    backpos;     // Position where new lines will be added
 	int                    backstart;   // First line of scrollback

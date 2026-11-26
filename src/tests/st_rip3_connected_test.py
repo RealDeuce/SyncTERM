@@ -31,8 +31,8 @@ def pixel(frame, x, y):
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
 
 
-def check_default_text(frame, text, *, row=0, column=0, foreground=0xa8a8a8, background=0, bank_key=None):
-    """Compare rendered cells with the original MicroANSI mode 0 bitmap for these 8×8 entry modes."""
+def check_default_text(frame, text, *, row=0, column=0, foreground=0xa8a8a8, background=0, bank_key=None, mode=0):
+    """Compare rendered cells with the selected native MicroANSI bitmap."""
     w, h = frame.metadata["plane_width"], frame.metadata["plane_height"]
     data = (Path(__file__).resolve().parents[1] / "terminal/rip3/assets/fonts/RIPscrip.maf").read_bytes()
     directory, = struct.unpack_from("<I", data, 42)
@@ -48,7 +48,7 @@ def check_default_text(frame, text, *, row=0, column=0, foreground=0xa8a8a8, bac
                       for y in range(ch) for x in range(cw)}
             assert colors == ({background} if code == 32 else {background, foreground}), (code, x_cell, row)
         return
-    font, = struct.unpack_from("<I", data, bank + 4)
+    font, = struct.unpack_from("<I", data, bank + 4 + 4*mode)
     fw, fh = struct.unpack_from("<HH", data, font)
     stride = (fw+7)//8
     for x_cell, code in enumerate(text, column):

@@ -72,7 +72,7 @@ checks legacy `SkyPix/` cache hits and new uploads for both SkyPix variants,
 encodings and status-row choices.
 
 [Musicomm](MUSICOMM.md) has explicit local activation and raw-byte note
-ownership independent of text emulation. `cterm_musicomm` checks literal
+ownership independent of text emulation. `musicomm` checks literal
 handshake/MIDI/end bytes, split input, queue drains, PSG fallback/voice stealing,
 held pitches, abort and lifecycle cleanup without physical devices. MIDI
 session boundaries reset inherited pan/pitch/pedals/controllers, clear software
@@ -81,7 +81,7 @@ synth effects and cached DSP output, and drain backend-reported PCM latency.
 session boundaries; the optional FluidSynth `--reset` probe checks actual
 renderer tails separately without physical output.
 `syncterm_musicomm` checks the connected menu, all low bytes, recovery and
-coherent blank-scene/cursor captures in ANSI and Atari ST/IGS sessions, CP437
+coherent blank-scene/cursor captures in ANSI, RIP 1.54, RIP 3 and Atari ST/IGS sessions, CP437
 and UTF-8. Audio and MIDI are disabled in the application fixtures. This does
 not claim physical MIDI, original sender timing or Atari hardware validation.
 

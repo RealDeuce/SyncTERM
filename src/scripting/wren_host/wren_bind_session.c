@@ -1217,18 +1217,18 @@ static void
 fn_cterm_musicomm(WrenVM *vm)
 {
 	wrenSetSlotBool(vm, 0,
-	    st_cterm_musicomm_state(st_wren_context_from_vm(vm)->cterm) != ST_CTERM_MUSICOMM_OFF);
+	    st_term_session_musicomm_state(st_wren_context_from_vm(vm)->session) != ST_MUSICOMM_OFF);
 }
 
 static void
 fn_cterm_start_musicomm(WrenVM *vm)
 {
-	st_cterm_t *t = st_wren_context_from_vm(vm)->cterm;
-	if (t == NULL) {
+	st_term_session_t *session = st_wren_context_from_vm(vm)->session;
+	if (session == NULL) {
 		st_wren_abort(vm, "CTerm.startMusicomm requires an active terminal");
 		return;
 	}
-	int status = st_cterm_musicomm_start(t);
+	int status = st_term_session_start_musicomm(session);
 	if (status != 0)
 		push_cterm_error(vm, status, CTERM_ERROR_MUSICOMM, 0, false);
 	else

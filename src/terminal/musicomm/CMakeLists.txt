@@ -1,0 +1,27 @@
+# Copyright (c) 2026 Stephen Hurd
+# SPDX-License-Identifier: BSD-2-Clause
+include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/SynctermTestRunner.cmake")
+
+add_library(st_musicomm STATIC st_musicomm.c)
+target_include_directories(st_musicomm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(st_musicomm PUBLIC st_music PRIVATE st_atari_st_audio st_time syncterm_threads)
+set_target_properties(st_musicomm PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+if(MSVC)
+	target_compile_options(st_musicomm PRIVATE /W4)
+else()
+	target_compile_options(st_musicomm PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(BUILD_TESTING)
+	syncterm_add_test_case(st_terminal_tests st_musicomm_test tests/st_musicomm_test.c)
+	target_link_libraries(st_musicomm_test PRIVATE st_musicomm st_atari_st_audio st_time syncterm_threads)
+	syncterm_target_atomics(st_musicomm_test)
+	set_target_properties(st_musicomm_test PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+	if(MSVC)
+		target_compile_options(st_musicomm_test PRIVATE /W4 $<$<CONFIG:Debug>:/WX>)
+	else()
+		target_compile_options(st_musicomm_test PRIVATE -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-Werror>)
+	endif()
+	add_test(NAME musicomm COMMAND st_terminal_tests st_musicomm_test)
+	set_tests_properties(musicomm PROPERTIES TIMEOUT 30)
+endif()

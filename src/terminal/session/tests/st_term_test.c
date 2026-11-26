@@ -577,6 +577,40 @@ test_wire_capture(enum st_cterm_encoding encoding, bool rip)
 }
 
 static int
+check_musicomm_ownership(st_term_session_t *session, st_connection_t *connection)
+{
+	const struct st_console_event keys[] = {
+	    {.type = ST_CONSOLE_EVENT_TEXT,          .data.text.codepoint = 0x1f600   },
+	    {.type = ST_CONSOLE_EVENT_CODEPAGE_BYTE, .data.codepage_byte = 0          },
+	    {.type = ST_CONSOLE_EVENT_KEY_CODE,      .data.key.code = 'x'             },
+	    {.type = ST_CONSOLE_EVENT_PHYSICAL_KEY,  .data.physical_key.pressed = true},
+	    {.type = ST_CONSOLE_EVENT_DOORWAY_KEY,   .data.doorway_key.scan_code = 1  }
+        };
+	CHECK(st_term_session_reserve_transfer(session, true) == 0);
+	CHECK(st_term_session_start_musicomm(session) == IO_ERROR_BUSY);
+	CHECK(st_term_session_reserve_transfer(session, false) == 0);
+	CHECK(st_term_session_claim_wire(session, keys) == 0);
+	CHECK(st_term_session_start_musicomm(session) == IO_ERROR_BUSY);
+	CHECK(st_term_session_release_wire(session, keys));
+	for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+		bool original = i % 2 != 0;
+		CHECK(st_connection_set_binary_mode(connection, original) == 0);
+		CHECK(st_term_session_start_musicomm(session) == 0 && st_connection_binary_mode(connection));
+		CHECK(st_term_session_claim_wire(session, keys) == IO_ERROR_BUSY);
+		CHECK(st_term_session_reserve_transfer(session, true) == IO_ERROR_BUSY);
+		CHECK(st_term_session_reserve_rip_transfer(session) == IO_ERROR_BUSY);
+		bool handled;
+		CHECK(st_term_session_send_key(session, &keys[i], &handled) == 0 && handled);
+		CHECK(st_term_session_musicomm_state(session) == ST_MUSICOMM_END_DRAIN);
+		CHECK((i % 2 ? st_term_session_reset_display(session) : st_term_session_finish_display(session))
+		      == 0);
+		CHECK(st_term_session_musicomm_state(session) == ST_MUSICOMM_OFF);
+		CHECK(st_connection_binary_mode(connection) == original);
+	}
+	return 0;
+}
+
+static int
 test_shell_wire_filter(void)
 {
 	const struct st_console_display_config display = {
@@ -642,6 +676,7 @@ test_shell_wire_filter(void)
 	    st_console_font_glyph_text(console, cells[2].glyph_font, cells[2].glyph, text, sizeof(text), &required)
 	    == 0);
 	CHECK(required == 1 && text[0] == ' ');
+	CHECK(check_musicomm_ownership(session, connection) == 0);
 	st_term_session_destroy(&session);
 	CHECK(st_connection_close(connection) == 0);
 	st_profile_dispose(&profile);

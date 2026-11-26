@@ -15,6 +15,7 @@
 #include "st_connection.h"
 #include "st_cterm.h"
 #include "st_font_catalog.h"
+#include "st_musicomm.h"
 #include "st_profile.h"
 #include "st_rip_host.h"
 #include "st_session_history.h"
@@ -195,6 +196,8 @@ void st_term_session_set_suspended(st_term_session_t *session, bool suspended);
 void st_term_session_observe_prompt_input(st_term_session_t *session, const struct st_console_event *event);
 /* Owner-only handoff. The session remains the sole transport reader and
  * feeds protocol input while a modal UI suspends ordinary terminal display. */
+int                    st_term_session_start_musicomm(st_term_session_t *session);
+enum st_musicomm_state st_term_session_musicomm_state(const st_term_session_t *session);
 int st_term_session_begin_transfer(st_term_session_t *session, st_transfer_t *transfer);
 int st_term_session_end_transfer(st_term_session_t *session);
 int st_term_session_reserve_transfer(st_term_session_t *session, bool reserved);

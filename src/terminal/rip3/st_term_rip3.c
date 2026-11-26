@@ -2287,8 +2287,6 @@ st_term_rip3_key(struct st_term_rip3 *rip, const struct st_console_event *event)
 	}
 	else
 		return false;
-	if (st_cterm_musicomm_stop(st_term_rip3_text(rip)))
-		return true;
 	bool half_duplex = rip->config.rip3_half_duplex;
 	if (half_duplex)
 		echo_backspace(rip);

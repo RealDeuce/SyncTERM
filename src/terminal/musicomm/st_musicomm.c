@@ -3,9 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cterm.h"
-#include "cterm_musicomm.h"
 #include "io_error.h"
+#include "st_musicomm_internal.h"
 #include "st_time.h"
 
 _Static_assert(ST_IGS_PSG_RATE == AUDIO_SAMPLE_RATE, "Musicomm PSG rate");
@@ -26,7 +25,7 @@ write_psg(void *context, unsigned reg, uint8_t value)
 /* Caller holds mutex. The original timer advances envelopes at 200 Hz;
  * this credit expresses the same intervals in local PCM frames. */
 static void
-advance(struct cterm_musicomm *m, int32_t *pcm, uint64_t count)
+advance(struct st_musicomm *m, int32_t *pcm, uint64_t count)
 {
 	while (count != 0) {
 		if (pcm == NULL && !st_igs_gist_active(&m->gist)) {
@@ -57,7 +56,7 @@ advance(struct cterm_musicomm *m, int32_t *pcm, uint64_t count)
 static size_t
 source(void *context, int32_t *pcm, size_t count)
 {
-	struct cterm_musicomm *m = context;
+	struct st_musicomm *m = context;
 	if (st_mutex_lock(&m->mutex) != ST_THREAD_SUCCESS)
 		return 0;
 	advance(m, pcm, count);
@@ -66,33 +65,32 @@ source(void *context, int32_t *pcm, size_t count)
 }
 
 static bool
-allowed(st_cterm_t *t)
+allowed(struct st_musicomm *m)
 {
-	st_audio_runtime_t *r = t->screen.audio;
+	st_audio_runtime_t *r = m->config.audio;
 	return r != NULL && !st_audio_runtime_stopped(r)
 	       && (st_audio_runtime_is_pull(r) || st_audio_runtime_allowed(r) != 0);
 }
 
 static void
-fallback(st_cterm_t *t)
+fallback(struct st_musicomm *m)
 {
-	struct cterm_musicomm *m = t->musicomm;
 	m->midi                  = false;
-	bool output              = allowed(t);
-	int  status = t->music_player == NULL ? IO_ERROR_NOT_SUPPORTED
-	                                      : st_music_set_pcm_source(t->music_player, source, m, output);
+	bool output              = allowed(m);
+	int  status = m->config.player == NULL ? IO_ERROR_NOT_SUPPORTED
+	                                       : st_music_set_pcm_source(m->config.player, source, m, output);
 	m->physical = status == 0 && output;
 	if (status != 0 && !m->warned) {
 		m->warned = true;
-		cterm_log(t, ST_CTERM_LOG_WARNING, "Musicomm audio unavailable; continuing muted");
+		if (m->config.warning != NULL)
+			m->config.warning(m->config.context, "Musicomm audio unavailable; continuing muted");
 	}
 }
 
 void
-cterm_musicomm_poll(st_cterm_t *t)
+st_musicomm_poll(struct st_musicomm *m)
 {
-	struct cterm_musicomm *m = t->musicomm;
-	if (m == NULL || m->state == ST_CTERM_MUSICOMM_OFF || m->state == ST_CTERM_MUSICOMM_END_DRAIN)
+	if (m == NULL || m->state == ST_MUSICOMM_OFF || m->state == ST_MUSICOMM_END_DRAIN)
 		return;
 	uint64_t now;
 	if (st_time_monotonic_ms(&now) != 0)
@@ -100,9 +98,9 @@ cterm_musicomm_poll(st_cterm_t *t)
 	if (m->physical) {
 		m->local_ms = now;
 		m->fraction = 0;
-		if (allowed(t) && st_music_pcm_source_active(t->music_player, m))
+		if (allowed(m) && st_music_pcm_source_active(m->config.player, m))
 			return;
-		(void)st_music_clear_pcm_source(t->music_player, m);
+		(void)st_music_clear_pcm_source(m->config.player, m);
 		m->physical = false;
 	}
 	uint64_t elapsed = now >= m->local_ms ? now - m->local_ms : 0;
@@ -115,47 +113,45 @@ cterm_musicomm_poll(st_cterm_t *t)
 	(void)st_mutex_lock(&m->mutex);
 	advance(m, NULL, frames / 1000);
 	(void)st_mutex_unlock(&m->mutex);
-	if (m->midi && !st_music_available(t->music_player)) {
-		(void)st_music_flush(t->music_player, 0);
-		fallback(t);
+	if (m->midi && !st_music_available(m->config.player)) {
+		(void)st_music_flush(m->config.player, 0);
+		fallback(m);
 	}
-	else if (!m->midi && allowed(t))
-		fallback(t);
+	else if (!m->midi && allowed(m))
+		fallback(m);
 }
 
-enum st_cterm_musicomm_state
-st_cterm_musicomm_state(const st_cterm_t *t)
+enum st_musicomm_state
+st_musicomm_state(const struct st_musicomm *m)
 {
-	return t == NULL || t->musicomm == NULL ? ST_CTERM_MUSICOMM_OFF : t->musicomm->state;
+	return m == NULL ? ST_MUSICOMM_OFF : m->state;
 }
 
 int
-st_cterm_musicomm_start(st_cterm_t *t)
+st_musicomm_start(struct st_musicomm **receiver, const struct st_musicomm_config *config)
 {
-	if (t == NULL)
+	if (receiver == NULL || config == NULL || config->reply == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
-	if (st_cterm_musicomm_state(t) != ST_CTERM_MUSICOMM_OFF)
+	if (st_musicomm_state(*receiver) != ST_MUSICOMM_OFF)
 		return IO_ERROR_BUSY;
-	int status = st_cterm_finish(t);
+	uint64_t now;
+	int      status = st_time_monotonic_ms(&now);
 	if (status != 0)
 		return status;
-	if (t->musicomm == NULL) {
-		struct cterm_musicomm *m = calloc(1, sizeof(*m));
+	struct st_musicomm *m = *receiver;
+	if (m == NULL) {
+		m = calloc(1, sizeof(*m));
 		if (m == NULL)
 			return IO_ERROR_OUT_OF_MEMORY;
 		if (st_mutex_init(&m->mutex, ST_MUTEX_PLAIN) != ST_THREAD_SUCCESS) {
 			free(m);
 			return IO_ERROR_IO;
 		}
-		t->musicomm = m;
+		*receiver = m;
 	}
-	struct cterm_musicomm *m = t->musicomm;
-	status                   = st_time_monotonic_ms(&m->local_ms);
-	if (status != 0)
-		return status;
-	(void)st_music_flush(t->music_player, 0);
-	if (t->music_player == NULL && t->screen.audio != NULL)
-		(void)st_music_create(&t->music_player, t->screen.audio, &t->music_stream);
+	m->config   = *config;
+	m->local_ms = now;
+	(void)st_music_flush(m->config.player, 0);
 	memset(m->on, 0, sizeof(m->on));
 	m->credit = m->fraction = 0;
 	m->warned               = false;
@@ -163,49 +159,49 @@ st_cterm_musicomm_start(st_cterm_t *t)
 	st_igs_psg_init(&m->psg);
 	m->gist.write   = write_psg;
 	m->gist.context = &m->psg;
-	m->state        = ST_CTERM_MUSICOMM_WAITING;
+	m->state        = ST_MUSICOMM_WAITING;
 	/* Musicomm owns its own session defaults rather than inheriting a
 	 * previous file's pan, pedals, pitch, gain or renderer effect tails. */
-	if (t->music_player != NULL)
-		(void)st_music_volume(t->music_player, -12, -12, 0);
-	m->midi = st_music_available(t->music_player);
+	if (m->config.player != NULL)
+		(void)st_music_volume(m->config.player, -12, -12, 0);
+	m->midi = st_music_available(m->config.player);
 	if (m->midi)
-		m->midi = st_music_reset_midi(t->music_player) == 0;
+		m->midi = st_music_reset_midi(m->config.player) == 0;
 	if (m->midi) {
 		/* Select a square lead explicitly: software MIDI calibration leaves
 		 * the ANSI sawtooth voice selected. Queue before any note events. */
 		const uint8_t instrument[] = {0xb0, 0, 0, 0xb0, 32, 0, 0xc0, 80};
-		if (st_music_queue_midi(t->music_player, instrument, sizeof(instrument)) != 0)
+		if (st_music_queue_midi(m->config.player, instrument, sizeof(instrument)) != 0)
 			m->midi = false;
 	}
 	if (!m->midi) {
-		fallback(t);
-		if (t->music_player != NULL)
-			(void)st_music_volume(t->music_player, -12, -12, 0);
+		fallback(m);
+		if (m->config.player != NULL)
+			(void)st_music_volume(m->config.player, -12, -12, 0);
 	}
 	return 0;
 }
 
 static void
-silence(st_cterm_t *t)
+silence(struct st_musicomm *m)
 {
-	struct cterm_musicomm *m = t->musicomm;
 	if (m->midi) {
-		(void)st_music_flush(t->music_player, 0);
+		(void)st_music_flush(m->config.player, 0);
 		uint8_t bytes[128 * 3];
 		for (unsigned n = 0; n < 128; ++n) {
 			bytes[3 * n]     = 0x90;
 			bytes[3 * n + 1] = (uint8_t)n;
 			bytes[3 * n + 2] = 0;
 		}
-		if (st_music_queue_midi(t->music_player, bytes, sizeof(bytes)) == 0)
-			(void)st_music_wait(t->music_player);
-		(void)st_music_reset_midi(t->music_player);
+		if (st_music_queue_midi(m->config.player, bytes, sizeof(bytes)) == 0)
+			(void)st_music_wait(m->config.player);
+		(void)st_music_reset_midi(m->config.player);
 	}
 	else {
-		(void)st_music_clear_pcm_source(t->music_player, m);
-		if (t->music_stream != NULL)
-			(void)audio_stream_drain(t->music_stream);
+		(void)st_music_clear_pcm_source(m->config.player, m);
+		audio_stream_t *stream = st_music_pcm_stream(m->config.player);
+		if (stream != NULL)
+			(void)audio_stream_drain(stream);
 	}
 	m->midi = m->physical = false;
 	(void)st_mutex_lock(&m->mutex);
@@ -216,65 +212,66 @@ silence(st_cterm_t *t)
 }
 
 bool
-st_cterm_musicomm_stop(st_cterm_t *t)
+st_musicomm_stop(struct st_musicomm *m)
 {
-	enum st_cterm_musicomm_state state = st_cterm_musicomm_state(t);
-	if (state == ST_CTERM_MUSICOMM_OFF)
+	enum st_musicomm_state state = st_musicomm_state(m);
+	if (state == ST_MUSICOMM_OFF)
 		return false;
-	if (state == ST_CTERM_MUSICOMM_END_DRAIN)
+	if (state == ST_MUSICOMM_END_DRAIN)
 		return true;
-	t->musicomm->state = ST_CTERM_MUSICOMM_END_DRAIN;
-	cterm_respond(t, "\xff\xff\xff", 3);
-	silence(t);
+	m->state = ST_MUSICOMM_END_DRAIN;
+	m->config.reply(m->config.context, (const uint8_t *)"\xff\xff\xff", 3);
+	silence(m);
 	return true;
 }
 
 void
-cterm_musicomm_cancel(st_cterm_t *t)
+st_musicomm_cancel(struct st_musicomm *m)
 {
-	if (st_cterm_musicomm_state(t) == ST_CTERM_MUSICOMM_OFF)
+	if (st_musicomm_state(m) == ST_MUSICOMM_OFF)
 		return;
-	t->musicomm->state = ST_CTERM_MUSICOMM_OFF;
-	silence(t);
+	m->state = ST_MUSICOMM_OFF;
+	silence(m);
 }
 
 void
-cterm_musicomm_destroy(st_cterm_t *t)
+st_musicomm_destroy(struct st_musicomm **receiver)
 {
-	if (t->musicomm == NULL)
+	if (receiver == NULL || *receiver == NULL)
 		return;
-	cterm_musicomm_cancel(t);
-	st_mutex_destroy(&t->musicomm->mutex);
-	free(t->musicomm);
-	t->musicomm = NULL;
+	struct st_musicomm *m = *receiver;
+	st_musicomm_cancel(m);
+	st_mutex_destroy(&m->mutex);
+	free(m);
+	*receiver = NULL;
 }
 
 void
-st_cterm_musicomm_idle(st_cterm_t *t)
+st_musicomm_idle(struct st_musicomm *m)
 {
-	enum st_cterm_musicomm_state state = st_cterm_musicomm_state(t);
-	if (state == ST_CTERM_MUSICOMM_START_DRAIN)
-		t->musicomm->state = ST_CTERM_MUSICOMM_PLAYING;
-	if (state == ST_CTERM_MUSICOMM_END_DRAIN)
-		t->musicomm->state = ST_CTERM_MUSICOMM_OFF;
+	enum st_musicomm_state state = st_musicomm_state(m);
+	if (state == ST_MUSICOMM_START_DRAIN)
+		m->state = ST_MUSICOMM_PLAYING;
+	if (state == ST_MUSICOMM_END_DRAIN)
+		m->state = ST_MUSICOMM_OFF;
 }
 
 void
-cterm_musicomm_feed(st_cterm_t *t, const uint8_t *bytes, size_t size)
+st_musicomm_feed(struct st_musicomm *m, const void *data, size_t size)
 {
-	struct cterm_musicomm *m = t->musicomm;
-	cterm_musicomm_poll(t);
+	const uint8_t *bytes = data;
+	st_musicomm_poll(m);
 	for (size_t i = 0; i < size; ++i) {
 		uint8_t n = bytes[i];
-		if (m->state == ST_CTERM_MUSICOMM_WAITING) {
+		if (m->state == ST_MUSICOMM_WAITING) {
 			if (n == 2) {
-				m->state = ST_CTERM_MUSICOMM_START_DRAIN;
-				cterm_respond(t, "\x02", 1);
+				m->state = ST_MUSICOMM_START_DRAIN;
+				m->config.reply(m->config.context, (const uint8_t *)"\x02", 1);
 			}
 		}
-		else if (m->state == ST_CTERM_MUSICOMM_PLAYING) {
+		else if (m->state == ST_MUSICOMM_PLAYING) {
 			if (n >= 128) {
-				(void)st_cterm_musicomm_stop(t);
+				(void)st_musicomm_stop(m);
 				continue;
 			}
 			m->on[n] = !m->on[n];
@@ -286,9 +283,9 @@ cterm_musicomm_feed(st_cterm_t *t, const uint8_t *bytes, size_t size)
 			(void)st_mutex_unlock(&m->mutex);
 			if (m->midi) {
 				const uint8_t event[] = {0x90, n, m->on[n] ? 64 : 0};
-				if (st_music_queue_midi(t->music_player, event, sizeof(event)) != 0) {
-					(void)st_music_flush(t->music_player, 0);
-					fallback(t);
+				if (st_music_queue_midi(m->config.player, event, sizeof(event)) != 0) {
+					(void)st_music_flush(m->config.player, 0);
+					fallback(m);
 				}
 			}
 		}
