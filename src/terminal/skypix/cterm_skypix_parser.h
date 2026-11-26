@@ -37,6 +37,7 @@ struct cterm_skypix_sink {
 	int  (*begin_command)(void *);
 };
 
+bool cterm_skypix_parser_owns_bytes(const struct cterm_skypix_parser *);
 int cterm_skypix_parser_feed(struct cterm_skypix_parser *, const struct cterm_skypix_sink *, const uint8_t *,
     size_t, size_t *);
 int cterm_skypix_parser_finish(struct cterm_skypix_parser *, const struct cterm_skypix_sink *);

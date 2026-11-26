@@ -79,6 +79,9 @@ void st_unicode_presentation_set_scalar_filter(st_unicode_presentation_t *presen
     st_unicode_presentation_scalar_filter_t filter, void *context);
 void st_unicode_presentation_destroy(st_unicode_presentation_t **presentation);
 void st_unicode_presentation_reset(st_unicode_presentation_t *presentation);
+struct st_utf8_decode_event;
+/* Accept an already decoded wire character, including its original error bytes. */
+int  st_unicode_presentation_decoded(st_unicode_presentation_t *, const struct st_utf8_decode_event *);
 int  st_unicode_presentation_feed(st_unicode_presentation_t *presentation, const void *bytes, size_t size,
     size_t *consumed);
 /*

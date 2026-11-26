@@ -955,9 +955,9 @@ cterm_input_decode_error(struct cterminal *terminal)
 	return terminal->screen.capture_decode_error ? capture_scalar(input_owner(terminal), UINT32_C(0xfffd)) : 0;
 }
 
-int
-cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size, size_t *consumed,
-    enum cterm_input_source source)
+static int
+write_input(struct cterminal *terminal, const void *bytes, size_t size, size_t *consumed,
+    enum cterm_input_source source, const struct st_utf8_decode_event *decoded)
 {
 	const uint8_t *input = bytes;
 	st_cterm_t    *owner;
@@ -1053,19 +1053,12 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size, si
 				status = target->device.wire_backspace(target->device.context);
 		}
 		else {
-			char        decoded[4];
-			const void *text      = &byte;
-			size_t      text_size = 1;
-			size_t      used;
-			if (!utf8) {
-				ptrdiff_t encoded = st_utf8_encode_one(decoded, sizeof(decoded),
-				    st_codepage_to_unicode(target->screen.codepage, byte, true));
-				if (encoded < 0) {
-					status = IO_ERROR_INVALID_ENCODING;
-					break;
-				}
-				text      = decoded;
-				text_size = (size_t)encoded;
+			struct st_utf8_decode_event        cp;
+			const struct st_utf8_decode_event *character = *consumed == 0 ? decoded : NULL;
+			if (character == NULL && !utf8) {
+				cp.kind        = ST_UTF8_DECODE_EVENT_SCALAR;
+				cp.data.scalar = st_codepage_to_unicode(target->screen.codepage, byte, true);
+				character      = &cp;
 			}
 			status = cterm_text_create(target);
 			if (status != 0)
@@ -1074,11 +1067,17 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size, si
 			st_unicode_presentation_set_scalar_filter(target->screen.unicode,
 			    hooks ? present_filtered_scalar : NULL, owner);
 			++target->input_depth;
-			status = cterm_text_feed(target, text, text_size, &used);
+			if (character != NULL) {
+				status = st_unicode_presentation_decoded(target->screen.unicode, character);
+				*consumed += character == decoded ? size : 1;
+			}
+			else {
+				size_t used = 0;
+				status      = cterm_text_feed(target, &byte, 1, &used);
+				*consumed += used;
+			}
 			st_unicode_presentation_set_scalar_filter(target->screen.unicode, NULL, NULL);
 			--target->input_depth;
-			if (used == text_size)
-				++*consumed;
 		}
 		input_cleanup(owner);
 		if (status == 0)
@@ -1094,6 +1093,35 @@ cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size, si
 		cterm_render_set_position(terminal, x, y);
 	}
 	return status;
+}
+
+bool
+st_cterm_input_bytes_pending(st_cterm_t *terminal)
+{
+	if (terminal == NULL)
+		return false;
+	st_cterm_t *target = input_display(input_owner(terminal));
+	/* A lone ESC rejects a high byte and replays it as ordinary UTF-8. */
+	bool bare_escape = target->accumulator == cterm_accumulate_ecma_seq && target->seq_phase == SEQ_PHASE_C1
+	                   && target->seq_key == SEQ_ESC && target->saved_accumulator == NULL;
+	return (target->accumulator != NULL && !bare_escape)
+	       || st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF;
+}
+
+int
+st_cterm_write_decoded(st_cterm_t *terminal, const struct st_utf8_decode_event *event, const uint8_t *original,
+    size_t size, size_t *consumed)
+{
+	if (event == NULL || event->kind == ST_UTF8_DECODE_EVENT_NONE || size == 0 || size > 4)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return write_input(terminal, original, size, consumed, CTERM_INPUT_WIRE, event);
+}
+
+int
+cterm_input_write(struct cterminal *terminal, const void *bytes, size_t size, size_t *consumed,
+    enum cterm_input_source source)
+{
+	return write_input(terminal, bytes, size, consumed, source, NULL);
 }
 
 static int

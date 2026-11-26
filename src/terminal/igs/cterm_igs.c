@@ -2938,6 +2938,12 @@ cterm_igs_set_resolution(struct cterm_igs *igs, unsigned resolution)
 }
 
 bool
+cterm_igs_owns_bytes(const struct cterm_igs *igs)
+{
+	return igs != NULL && (igs->script.active || igs->loop.run || st_graphics_parser_in_command(igs->parser));
+}
+
+bool
 cterm_igs_needs_poll(const struct cterm_igs *igs)
 {
 	return igs != NULL && (igs->input_deadline != 0 || igs->text_deadline != 0 || igs->bitmap_deadline != 0);

@@ -163,6 +163,7 @@ void cterm_igs_reset(struct cterm_igs *);
 int  cterm_igs_feed(struct cterm_igs *, const void *, size_t, size_t *);
 int  cterm_igs_finish_display(struct cterm_igs *);
 int  cterm_igs_reset_display(struct cterm_igs *);
+bool cterm_igs_owns_bytes(const struct cterm_igs *);
 bool cterm_igs_needs_poll(const struct cterm_igs *);
 int  cterm_igs_finish(struct cterm_igs *);
 int  cterm_igs_poll(struct cterm_igs *);

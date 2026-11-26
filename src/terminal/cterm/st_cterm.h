@@ -204,6 +204,11 @@ void st_cterm_destroy(st_cterm_t **terminal);
  * RIP/IGS/BIG command rejections warn and continue with the unread stream;
  * they do not return command/parser errors to the session owner.
  */
+struct st_utf8_decode_event;
+/* Supply one decoded wire character and its original spelling. Open escape and
+ * binary consumers retain the original bytes; text consumes the scalar. */
+int  st_cterm_write_decoded(st_cterm_t *, const struct st_utf8_decode_event *, const uint8_t *, size_t, size_t *);
+bool st_cterm_input_bytes_pending(st_cterm_t *);
 int st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size, size_t *consumed);
 /* Direct semantic UTF-8 input, bypassing RIP and wire-byte filters and
  * independent of the configured wire encoding. */

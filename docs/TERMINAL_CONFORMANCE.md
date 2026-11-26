@@ -1,5 +1,13 @@
 # Terminal conformance coverage
 
+The connected receive path lives in `src/terminal/session`. A transfer that
+has taken ownership receives its wire bytes directly. During terminal input,
+protocol detection observes the original bytes. The session decodes text for
+glyph-based graphics commands and preserves the original octets for binary
+command arguments and escape sequences. BIG, IGS, OO][, RIP 1.54, RIP 3 and
+SkyPix have their own parsers under `src/terminal`. Their ordinary text reaches
+CTerm for emulation and console presentation.
+
 `cterm` and the connected ANSI margins suites cover screen-clear history bounds
 for ED2 and FF, with origin mode on/off, and preserved rows outside the cleared
 window. Native cases also position the terminal within a larger console.

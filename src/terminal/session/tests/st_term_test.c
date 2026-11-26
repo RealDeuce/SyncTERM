@@ -952,8 +952,8 @@ test_shell_utf8_boundary(void)
 	st_connection_t         *connection = NULL;
 	st_font_catalog_t       *fonts      = NULL;
 	st_term_session_t       *session    = NULL;
-	struct st_console_rect   one        = {6, 0, 1, 1};
-	struct st_console_cell   cell;
+	struct st_console_rect   range      = {6, 0, 5, 1};
+	struct st_console_cell   cells[5];
 	enum st_term_disposition disposition;
 	bool                     finished;
 	uint32_t                 columns;
@@ -992,14 +992,23 @@ test_shell_utf8_boundary(void)
 	do {
 		status = st_term_session_pump(session, &disposition, &finished);
 		CHECK(status == 0);
-		CHECK(st_console_read_cells(console, &one, &cell, 1) == 0);
-		if (st_console_font_glyph_text(console, cell.glyph_font, cell.glyph, text, sizeof(text), &required)
+		CHECK(st_console_read_cells(console, &range, cells, 5) == 0);
+		if (st_console_font_glyph_text(console, cells[4].glyph_font, cells[4].glyph, text, sizeof(text),
+			&required)
 		        == 0
-		    && required == 2 && memcmp(text, "\xc3\xa9", 2) == 0)
+		    && required == 1 && text[0] == 'Z')
 			found = true;
 		CHECK(st_time_monotonic_ms(&now) == 0);
 	} while (!found && now - start < 3000);
 	CHECK(found);
+	for (size_t i = 0; i <= 2; i += 2) {
+		CHECK(st_console_font_glyph_text(console, cells[i].glyph_font, cells[i].glyph, text, sizeof(text),
+			  &required)
+		          == 0
+		      && required == 2 && memcmp(text, "\xc3\xa9", 2) == 0);
+	}
+	uint32_t error_glyph;
+	CHECK(st_console_font_lookup_decode_error(console, &error_glyph) == 0 && cells[3].glyph == error_glyph);
 	CHECK(resize.posted);
 	CHECK(st_console_size(console, &columns, &rows) == 0);
 	CHECK(columns == 90 && rows == 30);

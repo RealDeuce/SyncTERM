@@ -1523,6 +1523,14 @@ cterm_big_poll(struct cterm_big *big)
 }
 
 bool
+cterm_big_owns_bytes(const struct cterm_big *big)
+{
+	return big != NULL
+	       && (body_pending(big) || big->pair_wait || big->gang_selecting
+	           || st_graphics_parser_in_command(big->parser));
+}
+
+bool
 cterm_big_needs_poll(const struct cterm_big *big)
 {
 	return big != NULL

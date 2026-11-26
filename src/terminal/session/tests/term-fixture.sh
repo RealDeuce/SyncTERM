@@ -55,7 +55,7 @@ utf8)
 	printf '%s:' "$MM_CHARSET"
 	printf '\303'
 	sleep 1
-	printf '\251'
+	printf '\251\033\303\251\360\237\033[32mZ'
 	sleep 2
 	;;
 capture)

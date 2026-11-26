@@ -265,6 +265,39 @@ st_unicode_presentation_reset(st_unicode_presentation_t *presentation)
 	discard_cluster(presentation);
 }
 
+static int
+deliver(st_unicode_presentation_t *presentation, const struct st_utf8_decode_event *event)
+{
+	if (presentation == NULL || event == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	if (event->kind == ST_UTF8_DECODE_EVENT_MALFORMED)
+		return decode_error(presentation, event);
+	if (event->kind != ST_UTF8_DECODE_EVENT_SCALAR)
+		return 0;
+	bool filtered = false;
+	int  status   = 0;
+	if (presentation->scalar_filter != NULL)
+		status = presentation->scalar_filter(presentation->scalar_context, event->data.scalar, &filtered);
+	return status != 0 || filtered ? status : accept(presentation, event->data.scalar);
+}
+
+int
+st_unicode_presentation_decoded(st_unicode_presentation_t *presentation, const struct st_utf8_decode_event *event)
+{
+	if (presentation == NULL || event == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	/* A local byte writer may have left a partial scalar before this source
+	 * resumed. Preserve its error bytes without breaking a complete cluster. */
+	if (st_utf8_decoder_incomplete(&presentation->decoder)) {
+		struct st_utf8_decode_event partial;
+		st_utf8_decoder_flush(&presentation->decoder, &partial);
+		int status = deliver(presentation, &partial);
+		if (status != 0)
+			return status;
+	}
+	return deliver(presentation, event);
+}
+
 int
 st_unicode_presentation_feed(st_unicode_presentation_t *presentation, const void *bytes, size_t size,
     size_t *consumed)
@@ -284,17 +317,7 @@ st_unicode_presentation_feed(st_unicode_presentation_t *presentation, const void
 		offset += used;
 		if (status != 0)
 			break;
-		if (event.kind == ST_UTF8_DECODE_EVENT_SCALAR) {
-			bool filtered = false;
-
-			if (presentation->scalar_filter != NULL)
-				status = presentation->scalar_filter(presentation->scalar_context,
-				    event.data.scalar, &filtered);
-			if (status == 0 && !filtered)
-				status = accept(presentation, event.data.scalar);
-		}
-		else if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED)
-			status = decode_error(presentation, &event);
+		status = deliver(presentation, &event);
 		if (status != 0)
 			break;
 	}

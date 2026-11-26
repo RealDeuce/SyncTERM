@@ -39,7 +39,7 @@ struct st_term_session {
 	struct cterm_igs      *igs;
 	struct st_rip154      *rip154;
 	st_ooii_t             *ooii;
-	struct st_utf8_decoder ooii_decoder;
+	struct st_utf8_decoder wire_decoder;
 	struct st_term_rip3   *rip3;
 	struct deferred_event *deferred_head, *deferred_tail;
 	struct deferred_event  modal_tail;
@@ -122,11 +122,24 @@ st_term_session_poll_display(st_term_session_t *session)
 	return status;
 }
 
+static int write_malformed(st_term_session_t *, const struct st_utf8_decode_event *);
+
+static int
+finish_wire_character(st_term_session_t *session)
+{
+	struct st_utf8_decode_event event;
+	st_utf8_decoder_flush(&session->wire_decoder, &event);
+	return event.kind == ST_UTF8_DECODE_EVENT_MALFORMED ? write_malformed(session, &event) : 0;
+}
+
 int
 st_term_session_finish_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	int pending = finish_wire_character(session);
+	if (pending != 0)
+		return pending;
 	if (session->rip154 != NULL) {
 		int status = st_rip154_finish(session->rip154);
 		if (status != 0)
@@ -144,6 +157,9 @@ st_term_session_reset_display(st_term_session_t *session)
 {
 	if (session == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
+	int pending = finish_wire_character(session);
+	if (pending != 0)
+		return pending;
 	if (session->rip154 != NULL)
 		return st_rip154_reset(session->rip154);
 	if (session->igs != NULL)
@@ -199,18 +215,12 @@ input_paused(st_term_session_t *session)
 	return st_term_rip3_paused(session->rip3) || st_term_session_device_paused(session);
 }
 
-static int write_malformed(st_term_session_t *session, const struct st_utf8_decode_event *event);
-
 static int
 finish(st_term_session_t *session)
 {
-	struct st_utf8_decode_event event;
-	st_utf8_decoder_flush(&session->ooii_decoder, &event);
-	if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
-		int status = write_malformed(session, &event);
-		if (status != 0)
-			return status;
-	}
+	int status = finish_wire_character(session);
+	if (status != 0)
+		return status;
 	st_term_rip3_cancel(session->rip3);
 	return st_term_session_finish_display(session);
 }
@@ -1166,67 +1176,99 @@ st_term_session_set_ooii_mode(st_term_session_t *session, int mode)
 }
 
 static int
-write_malformed(st_term_session_t *session, const struct st_utf8_decode_event *event)
+write_character(st_term_session_t *session, const struct st_utf8_decode_event *event, const uint8_t *original,
+    size_t length)
 {
 	bool consumed;
-	int  status = st_ooii_character(session->ooii, 0xfffd, &consumed);
+	bool     malformed = event->kind == ST_UTF8_DECODE_EVENT_MALFORMED;
+	uint32_t scalar    = malformed ? UINT32_C(0xfffd) : event->data.scalar;
+	int      status    = st_ooii_character(session->ooii, scalar, &consumed);
 	if (status != 0 || consumed)
 		return status;
 
-	status = write_terminal_wire(session, event->data.malformed.bytes, event->data.malformed.size);
-	if (status != 0)
-		return status;
-	/* The byte that terminated this prefix may belong to OO][. Complete the
-	 * text decoder's error before it sees unrelated bytes after the command. */
-	st_term_rip3_flush(session->rip3);
-	return st_cterm_text_boundary(st_term_session_cterm(session));
+	if (session->config.graphics_mode == ST_CTERM_GRAPHICS_OFF
+	    && session->config.encoding == ST_CTERM_ENCODING_UTF8
+	    && st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+		size_t used;
+		status = st_cterm_write_decoded(session->cterm, event, original, length, &used);
+		return status == 0 && used != length ? IO_ERROR_IO : status;
+	}
+	/* Byte-oriented graphic command grammars own the original spelling. */
+	status = write_terminal_wire(session, original, length);
+	if (status == 0 && malformed) {
+		st_term_rip3_flush(session->rip3);
+		status = st_cterm_text_boundary(st_term_session_cterm(session));
+	}
+	return status;
+}
+
+static int
+write_malformed(st_term_session_t *session, const struct st_utf8_decode_event *event)
+{
+	return write_character(session, event, event->data.malformed.bytes, event->data.malformed.size);
 }
 
 static int
 write_graphics(st_term_session_t *session, const uint8_t *bytes, size_t size)
 {
 	while (size != 0) {
-		bool split = st_utf8_decoder_incomplete(&session->ooii_decoder);
-		if (st_ooii_mode(session->ooii) == 0 && !split)
+		bool utf8  = session->config.encoding == ST_CTERM_ENCODING_UTF8;
+		bool split = st_utf8_decoder_incomplete(&session->wire_decoder);
+		bool ooii  = st_ooii_mode(session->ooii) != 0;
+		if (!split && !utf8 && !ooii)
 			return write_terminal_wire(session, bytes, size);
-
-		uint32_t       scalar;
-		size_t         used     = 1;
+		if (!split && !ooii && *bytes < 0x80) {
+			/* ASCII has the same wire spelling and scalar value. */
+			size_t ascii = 1;
+			while (ascii < size && bytes[ascii] < 0x80)
+				++ascii;
+			int status = write_terminal_wire(session, bytes, ascii);
+			if (status != 0)
+				return status;
+			bytes += ascii;
+			size -= ascii;
+			continue;
+		}
+		/* Once an octet grammar owns the input, even an apparent OO][
+		 * marker or an incomplete UTF-8 lead is part of its payload. */
+		if (!split
+		    && (cterm_big_owns_bytes(session->big) || cterm_igs_owns_bytes(session->igs)
+		        || (session->skypix != NULL && cterm_skypix_parser_owns_bytes(&session->skypix->parser))
+		        || st_cterm_input_bytes_pending(st_term_session_cterm(session)))) {
+			int status = write_terminal_wire(session, bytes, 1);
+			if (status != 0)
+				return status;
+			++bytes;
+			--size;
+			continue;
+		}
 		const uint8_t *original = bytes;
-		size_t         length   = 1;
-		char           encoded[4];
-		if (session->config.encoding != ST_CTERM_ENCODING_UTF8)
-			scalar = st_codepage_to_unicode(session->config.codepage, *bytes, false);
+		char                        encoded[4];
+		size_t                      used = 1, length = 1;
+		struct st_utf8_decode_event event = {.kind = ST_UTF8_DECODE_EVENT_SCALAR};
+		if (!utf8)
+			event.data.scalar = st_codepage_to_unicode(session->config.codepage, *bytes, false);
 		else if (*bytes < 0x80 && !split)
-			scalar = *bytes;
+			event.data.scalar = *bytes;
 		else {
-			struct st_utf8_decode_event event;
-			int status = st_utf8_decoder_feed(&session->ooii_decoder, bytes, size, &used, &event);
+			int status = st_utf8_decoder_feed(&session->wire_decoder, bytes, size, &used, &event);
 			if (status != 0 || event.kind == ST_UTF8_DECODE_EVENT_NONE)
 				return status;
-			if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
-				status = write_malformed(session, &event);
-				if (status != 0)
-					return status;
-				bytes += used;
-				size -= used;
-				continue;
-			}
-			scalar = event.data.scalar;
 			length = used;
-			if (split) {
-				ptrdiff_t written = st_utf8_encode_one(encoded, sizeof(encoded), scalar);
+			if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
+				original = event.data.malformed.bytes;
+				length   = event.data.malformed.size;
+			}
+			else if (split) {
+				ptrdiff_t written =
+				    st_utf8_encode_one(encoded, sizeof(encoded), event.data.scalar);
 				if (written < 0)
 					return (int)written;
-				length   = (size_t)written;
 				original = (const uint8_t *)encoded;
+				length   = (size_t)written;
 			}
 		}
-
-		bool consumed;
-		int  status = st_ooii_character(session->ooii, scalar, &consumed);
-		if (status == 0 && !consumed)
-			status = write_terminal_wire(session, original, length);
+		int status = write_character(session, &event, original, length);
 		if (status != 0)
 			return status;
 		bytes += used;

@@ -12,6 +12,12 @@ enum {
 	OPAQUE
 };
 
+bool
+cterm_skypix_parser_owns_bytes(const struct cterm_skypix_parser *parser)
+{
+	return parser->state != PLAIN;
+}
+
 static int
 emit(struct cterm_skypix_parser *p, const struct cterm_skypix_sink *s)
 {
