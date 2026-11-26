@@ -52,13 +52,18 @@ pinned revision. It found existing implementation and test evidence for
 observed defects and behaviors awaiting specific evidence. The 1,806
 Unreviewed blocks were outside this pass.
 
+The subsequent chapter-by-chapter review classified all remaining source blocks.
+The connected overlap test places two RIP pixels on opposite sides of a text-window
+edge. Scrolling the window by one row moves the inside pixel by eleven device pixels
+and leaves the outside pixel in place.
+
 Each remaining Pending entry has a `work_group` and a reason identifying the
 open behavior. One connected scenario can settle several entries when their
 commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Connection mode and default MicroANSI font | Eight Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
+| Connection mode and default MicroANSI font | Nine Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws

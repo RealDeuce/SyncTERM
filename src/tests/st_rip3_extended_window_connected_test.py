@@ -125,6 +125,15 @@ def run(args, width, height, cw, ch, font0_width, font0_height, columns, rows, b
                            + b"\x01|w0A050H0A10|gZZZZ\r\n\x1b[6n", b"\x1b[6;8R")
         assert xy(frame) == (8, 6) and frame.application["connected"] == 1
 
+        if width == 640:
+            t.case("Scrolling a text window moves the RIP pixels inside its edge")
+            # Font 0 at 640x480 has 8x11 cells. The last pixel in this
+            # three-column window is x=23. Start both marks on its second row.
+            frame = t.exchange(b"\x01|*|fHSDC|w0000020210|c0C|X0N0C|c0A|X0O0C|g0002\r\n"
+                               b"\x1b[?25l\r\n\x1b[6n", b"\x1b[3;1R")
+            assert pixel(frame, 23, 1) == 0xff5555 and pixel(frame, 23, 12) == 0
+            assert pixel(frame, 24, 1) == 0 and pixel(frame, 24, 12) == 0x55ff55
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
