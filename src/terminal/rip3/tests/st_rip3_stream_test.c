@@ -140,6 +140,8 @@ boundaries(void)
 	/* Unknown levels do not poison the next known opcode or its string. */
 	EXAMPLE_ERRORS("!|15Largs\\|1\x1b" "0000\\$Name\\$|123456789X0\r", "",
 	    "1\x1b" "0000\\$Name\\$\0", 1, 2);
+	EXAMPLE_ERRORS("!|1Nsentinel|1Oignored|1Stext|\x1b[!|$NAME$|c03\rOK",
+	    "OK", "c03\0", 1, 5);
 	EXAMPLE("!|Tbefore\x1b[!after\r\n", "", "Tbefore\x1b[!after\0", 1);
 	EXAMPLE("!|F|c01\r\n!|F1E180F|c02\n!|Ffree form?\x1b[!|c03\fOK",
 	    "OK", "F\0c01\0F\0c02\0F\0c03\0", 6);

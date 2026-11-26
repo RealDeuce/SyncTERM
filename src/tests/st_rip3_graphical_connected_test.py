@@ -207,6 +207,10 @@ def run(args):
                            + query(b'alive', at_cursor=True), b'alive')
         assert pixel(frame, 44, 44) == 0x00aa00 and pixel(frame, 46, 46) == 0xff5555
         assert pixel(frame, 45, 45) == 0 and frame.application['connected'] == 1
+        t.case('rip3-reserved-opcodes-skip-their-payload-and-resume-drawing')
+        frame = t.exchange(b'\x01|1N|1O|1S|\x1b[!|$COORDSIZE(CUR,3)$|c03|X1B1B\r\n'
+                           + query(b'$COORDSIZE$:alive', at_cursor=True), b'2:alive')
+        assert pixel(frame, 47, 47) == 0x00aaaa and frame.application['connected'] == 1
         t.case('rip3-early-numeric-terminator-with-live-coordinate-width')
         frame = t.exchange(b'\x01|n3|c2<|L18<19<1B<19<|X19<1A<|n2\r\n'
                            + query(b'$COORDSIZE$:alive', at_cursor=True), b'2:alive')

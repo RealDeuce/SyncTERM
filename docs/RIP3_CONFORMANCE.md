@@ -60,6 +60,15 @@ commands reach the same implementation.
 | --- | --- |
 | Connection mode and default MicroANSI font | Eight Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
 
+The command index has been checked against the detailed chapters. Connected
+CP437 and UTF-8 sessions discard reserved level-1 N/O/S, level-zero ESC and
+the legacy dollar opcode. A chained color and pixel still execute, and the
+host receives only its requested reply. Differences between the index or
+authoring guide and the detailed chapters are tracked in
+[#327](https://github.com/bbs-land/remote-imaging-protocol/issues/327),
+[#329](https://github.com/bbs-land/remote-imaging-protocol/issues/329) and
+[#330](https://github.com/bbs-land/remote-imaging-protocol/issues/330).
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask
