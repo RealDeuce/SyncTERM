@@ -225,7 +225,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 10 | 0 | +ooii.mode+, +ooii.protocol+
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
 | link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 11 | 0 | +history.clear+, +history.owner+
-| link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 74 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
+| link:../src/terminal/session/st_term.h[terminal/session/st_term.h] | 16 | 1 | 0 | 74 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+
 | link:../src/text/ascii/string_util.h[text/ascii/string_util.h] | 0 | 0 | 12 | 0 | 0 | +utility.ascii+
 | link:../src/text/codepage/st_codepage.h[text/codepage/st_codepage.h] | 35 | 0 | 0 | 0 | 0 | +text.codepages+
 | link:../src/text/emoji/st_emoji_catalog.h[text/emoji/st_emoji_catalog.h] | 6 | 0 | 0 | 0 | 0 | +emoji.catalog+
@@ -447,7 +447,7 @@ checks returned key errors and stops; no retry/replay/reset/rollback is added.
 Screen result fidelity is resolved by approved chunk 10. Both included
 assessments are resolved, closing this shared finding.
 
-Evidence: link:../src/scripting/wren_host/wren_bind_session.c[write/key/error binding]; link:../scripts/auto/connected/connected.wren[login caller]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[native and Wren result regressions]; link:../src/terminal/term/st_term.h[native semantic key contract].
+Evidence: link:../src/scripting/wren_host/wren_bind_session.c[write/key/error binding]; link:../scripts/auto/connected/connected.wren[login caller]; link:../src/scripting/wren_host/tests/st_wren_host_test.c[native and Wren result regressions]; link:../src/terminal/session/st_term.h[native semantic key contract].
 
 [[finding-cterm-reset-contract]]
 === Direct terminal reset (resolved)
@@ -1048,7 +1048,7 @@ Evidence: link:../src/io/serial/serial.h[src/io/serial/serial.h:75]; link:../scr
 
 Native remote_closed records drained remote termination rather than a local hangup/exit. The script callbacks and connected Bool do not expose that exact final cause. Session.holdCount counts explicit Wren leases, not the native SSH auxiliary transport liveness or every pending SFTP request. Those aggregate owner decisions are not a public inspection result; exposing a reason/liveness snapshot is a scope decision, not a second transport owner.
 
-Evidence: link:../src/terminal/term/st_term.h[src/terminal/term/st_term.h:122]; link:../src/scripting/wren_host/wren_session.c[src/scripting/wren_host/wren_session.c:148]; link:../src/net/connection/connection_ssh.c[src/net/connection/connection_ssh.c:673].
+Evidence: link:../src/terminal/session/st_term.h[src/terminal/session/st_term.h:122]; link:../src/scripting/wren_host/wren_session.c[src/scripting/wren_host/wren_session.c:148]; link:../src/net/connection/connection_ssh.c[src/net/connection/connection_ssh.c:673].
 
 [[finding-settings-window-policy]]
 === Window state and text alignment settings

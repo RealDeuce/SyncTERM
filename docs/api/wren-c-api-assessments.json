@@ -364,7 +364,7 @@
       "symbol_count": 12
     },
     {
-      "path": "src/terminal/term/st_term.h",
+      "path": "src/terminal/session/st_term.h",
       "status": "reviewed",
       "symbol_count": 91
     },
@@ -1609,7 +1609,7 @@
           "anchor": "st_connection_set_binary_mode"
         },
         {
-          "path": "src/terminal/term/st_term.c",
+          "path": "src/terminal/session/st_term.c",
           "anchor": "st_connection_set_binary_mode"
         }
       ]
@@ -2665,7 +2665,7 @@
           "anchor": "struct st_cterm_config"
         },
         {
-          "path": "src/terminal/term/st_term.c",
+          "path": "src/terminal/session/st_term.c",
           "anchor": "st_cterm_create"
         },
         {
@@ -2876,7 +2876,7 @@
       "vm": "connected",
       "evidence": [
         {
-          "path": "src/terminal/term/st_term.h",
+          "path": "src/terminal/session/st_term.h",
           "anchor": "struct st_term_config"
         },
         {
@@ -3227,7 +3227,7 @@
       "vm": "same VM as the owning API",
       "evidence": [
         {
-          "path": "src/terminal/term/st_term.h",
+          "path": "src/terminal/session/st_term.h",
           "anchor": "st_term_session_remote_closed"
         },
         {
@@ -3287,7 +3287,7 @@
           "anchor": "foreign class CTermError is Error"
         },
         {
-          "path": "src/terminal/term/st_term.h",
+          "path": "src/terminal/session/st_term.h",
           "anchor": "int st_term_session_send_key"
         },
         {

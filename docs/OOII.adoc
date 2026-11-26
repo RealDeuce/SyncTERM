@@ -172,5 +172,5 @@ contain the three artwork generations and sample bytes.
 link:../src/terminal/ooii/tests/st_ooii_test.c[Native OOII tests] cover exact
 banner detection, split frames, negotiation, artwork/sound callbacks,
 malformed collection, mode changes and errors. Session integration is in
-link:../src/terminal/term/st_term.c[st_term.c]. ANSI rendering itself is
+link:../src/terminal/session/st_term.c[st_term.c]. ANSI rendering itself is
 specified in link:cterm.adoc[CTerm].

@@ -2312,97 +2312,97 @@ src/terminal/session_history/st_session_history.h	function:st_session_history_cl
 src/terminal/session_history/st_session_history.h	function:st_session_history_copy	49	int (st_session_history_t *, struct st_console_cell **, uint32_t *, size_t *, enum st_screen_mode *, _Bool *)	history.owner
 src/terminal/session_history/st_session_history.h	function:st_session_history_info	52	int (st_session_history_t *, uint32_t *, size_t *, enum st_screen_mode *, _Bool *)	history.owner
 src/terminal/session_history/st_session_history.h	function:st_session_history_copy_pixels	55	int (st_session_history_t *, size_t, struct st_pixel_buffer **)	history.owner
-src/terminal/term/st_term.h	function:st_term_session_set_auxiliary_active	23	void (st_term_session_t *, bool)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_inspect_transfer	26	bool (st_term_session_t *, struct st_transfer_inspection *, bool *)	term.controls
-src/terminal/term/st_term.h	enum:ST_TERM_RETURN_TO_PICKER	30	st_term_disposition	term.owner
-src/terminal/term/st_term.h	enum:ST_TERM_EXIT_APPLICATION	31	st_term_disposition	term.owner
-src/terminal/term/st_term.h	macro:ST_TERM_WIRE_REPLACEMENT_CAPACITY	34	256	term.owner
-src/terminal/term/st_term.h	callback:st_term_wire_filter_t	36	int (*)(void *, uint8_t, bool *, uint8_t *, size_t, size_t *)	term.owner
-src/terminal/term/st_term.h	field:st_term_config.console	42	st_console_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.connection	43	st_connection_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.fonts	44	st_font_catalog_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.audio	45	st_audio_runtime_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.hyperlinks	46	st_hyperlink_registry_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.history	47	st_session_history_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.screen_mode	48	enum st_screen_mode	term.owner
-src/terminal/term/st_term.h	field:st_term_config.encoding	51	enum st_cterm_encoding	term.owner
-src/terminal/term/st_term.h	field:st_term_config.graphics_mode	52	enum st_cterm_graphics_mode	term.owner
-src/terminal/term/st_term.h	field:st_term_config.rip_directory	53	const char *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.amiga_font_directory	54	const char *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.amiga_font	56	const st_amiga_font_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.skypix_height	57	uint32_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.skypix_width	57	uint32_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.skypix_transfer	58	st_cterm_skypix_transfer_callback_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.skypix_transfer_context	59	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.apc_directory	60	const char *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.application_version	61	const char *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.codepage	62	enum st_codepage	term.owner
-src/terminal/term/st_term.h	field:st_term_config.font_selector	63	uint8_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.hide_status	64	bool	term.owner
-src/terminal/term/st_term.h	field:st_term_config.expand_lf	66	bool	term.owner
-src/terminal/term/st_term.h	field:st_term_config.force_lcf	67	bool	term.owner
-src/terminal/term/st_term.h	field:st_term_config.yellow_is_yellow	68	bool	term.owner
-src/terminal/term/st_term.h	field:st_term_config.palette	69	const uint32_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.palette_size	70	size_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.suppress_responses	72	bool	term.owner
-src/terminal/term/st_term.h	field:st_term_config.throttle_supported	74	bool	term.owner
-src/terminal/term/st_term.h	field:st_term_config.initial_throttle_bps	75	uint32_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.rip_prompt	76	st_cterm_rip_prompt_callback_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.rip_prompt_context	77	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.rip_transfer	78	st_cterm_rip_transfer_callback_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.rip_transfer_context	79	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.event_hook	81	int (*)(void *, const struct st_console_event *, bool *)	term.owner
-src/terminal/term/st_term.h	field:st_term_config.event_hook_context	83	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.wire_filter	86	st_term_wire_filter_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.wire_filter_active	88	bool (*)(void *)	term.owner
-src/terminal/term/st_term.h	field:st_term_config.wire_filter_context	89	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.input_filter	92	st_cterm_input_filter_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.input_filter_active	93	bool (*)(void *)	term.owner
-src/terminal/term/st_term.h	field:st_term_config.input_filter_context	94	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.wire_capture	97	int (*)(void *, const uint8_t *, size_t)	term.owner
-src/terminal/term/st_term.h	field:st_term_config.capture	99	st_cterm_capture_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.capture_active	100	bool (*)(void *)	term.owner
-src/terminal/term/st_term.h	field:st_term_config.capture_context	101	void *	term.owner
-src/terminal/term/st_term.h	field:st_term_config.cterm_log_level	102	int	term.owner
-src/terminal/term/st_term.h	field:st_term_config.cterm_diagnostic	103	st_cterm_log_callback_t	term.owner
-src/terminal/term/st_term.h	field:st_term_config.cterm_diagnostic_context	104	void *	term.owner
-src/terminal/term/st_term.h	function:st_term_connect_profile	107	int (st_connection_t **, const struct st_profile *, st_console_t *, const struct st_connection_hooks *, struct st_connection_error *)	term.owner
-src/terminal/term/st_term.h	function:st_term_profile_encoding	111	enum st_cterm_encoding (const struct st_profile *)	term.owner
-src/terminal/term/st_term.h	function:st_term_profile_graphics_mode	113	enum st_cterm_graphics_mode (const struct st_profile *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_create	115	int (st_term_session_t **, const struct st_term_config *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_destroy	117	void (st_term_session_t **)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_cterm	119	st_cterm_t *(st_term_session_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_font_selector	120	bool (const st_term_session_t *, uint16_t, uint8_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_request_end	122	void (st_term_session_t *, bool)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_remote_closed	125	bool (const st_term_session_t *)	session.lifecycle-info
-src/terminal/term/st_term.h	function:st_term_session_prepare_disconnect	128	int (st_term_session_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_set_suspended	129	void (st_term_session_t *, bool)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_begin_transfer	132	int (st_term_session_t *, st_transfer_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_end_transfer	133	int (st_term_session_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_reserve_transfer	134	int (st_term_session_t *, bool)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_reserve_rip_transfer	136	int (st_term_session_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_prestel_frame	137	const uint8_t *(st_term_session_t *, size_t *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_set_mouse_disabled	138	void (st_term_session_t *, bool)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_throttle_speed	140	uint32_t (const st_term_session_t *)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_set_throttle_speed	141	void (st_term_session_t *, uint32_t)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_ooii_mode	143	int (const st_term_session_t *)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_set_ooii_mode	144	void (st_term_session_t *, int)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_run	150	int (st_term_session_t *, enum st_term_disposition *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_pump	152	int (st_term_session_t *, enum st_term_disposition *, bool *)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_send_key	161	int (st_term_session_t *, const struct st_console_event *, bool *)	cterm.operation-status
-src/terminal/term/st_term.h	function:st_term_session_send_text	169	int (st_term_session_t *, const char *, size_t)	term.controls
-src/terminal/term/st_term.h	field:st_term_encoded_text.bytes	177	uint8_t *	term.owner
-src/terminal/term/st_term.h	field:st_term_encoded_text.size	178	size_t	term.owner
-src/terminal/term/st_term.h	field:st_term_encoded_text.storage_size	179	size_t	term.owner
-src/terminal/term/st_term.h	field:st_term_encoded_text.utf8	180	bool	term.owner
-src/terminal/term/st_term.h	function:st_term_session_encode_text	182	int (st_term_session_t *, const char *, size_t, struct st_term_encoded_text *)	term.owner
-src/terminal/term/st_term.h	function:st_term_prepare_paste	185	int (char **, size_t *, const char *, size_t, bool)	term.owner
-src/terminal/term/st_term.h	function:st_term_rip_wire_to_utf8	191	int (char *, size_t, size_t *, const uint8_t *, size_t, enum st_codepage)	term.owner
-src/terminal/term/st_term.h	function:st_term_session_claim_wire	199	int (st_term_session_t *, const void *)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_release_wire	200	bool (st_term_session_t *, const void *)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_wire_owned	201	bool (st_term_session_t *)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_wire_available	202	int (st_term_session_t *, const void *, size_t *)	term.controls
-src/terminal/term/st_term.h	function:st_term_session_read_wire	204	ssize_t (st_term_session_t *, const void *, void *, size_t, bool)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_set_auxiliary_active	23	void (st_term_session_t *, bool)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_inspect_transfer	26	bool (st_term_session_t *, struct st_transfer_inspection *, bool *)	term.controls
+src/terminal/session/st_term.h	enum:ST_TERM_RETURN_TO_PICKER	30	st_term_disposition	term.owner
+src/terminal/session/st_term.h	enum:ST_TERM_EXIT_APPLICATION	31	st_term_disposition	term.owner
+src/terminal/session/st_term.h	macro:ST_TERM_WIRE_REPLACEMENT_CAPACITY	34	256	term.owner
+src/terminal/session/st_term.h	callback:st_term_wire_filter_t	36	int (*)(void *, uint8_t, bool *, uint8_t *, size_t, size_t *)	term.owner
+src/terminal/session/st_term.h	field:st_term_config.console	42	st_console_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.connection	43	st_connection_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.fonts	44	st_font_catalog_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.audio	45	st_audio_runtime_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.hyperlinks	46	st_hyperlink_registry_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.history	47	st_session_history_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.screen_mode	48	enum st_screen_mode	term.owner
+src/terminal/session/st_term.h	field:st_term_config.encoding	51	enum st_cterm_encoding	term.owner
+src/terminal/session/st_term.h	field:st_term_config.graphics_mode	52	enum st_cterm_graphics_mode	term.owner
+src/terminal/session/st_term.h	field:st_term_config.rip_directory	53	const char *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.amiga_font_directory	54	const char *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.amiga_font	56	const st_amiga_font_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.skypix_height	57	uint32_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.skypix_width	57	uint32_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.skypix_transfer	58	st_cterm_skypix_transfer_callback_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.skypix_transfer_context	59	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.apc_directory	60	const char *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.application_version	61	const char *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.codepage	62	enum st_codepage	term.owner
+src/terminal/session/st_term.h	field:st_term_config.font_selector	63	uint8_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.hide_status	64	bool	term.owner
+src/terminal/session/st_term.h	field:st_term_config.expand_lf	66	bool	term.owner
+src/terminal/session/st_term.h	field:st_term_config.force_lcf	67	bool	term.owner
+src/terminal/session/st_term.h	field:st_term_config.yellow_is_yellow	68	bool	term.owner
+src/terminal/session/st_term.h	field:st_term_config.palette	69	const uint32_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.palette_size	70	size_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.suppress_responses	72	bool	term.owner
+src/terminal/session/st_term.h	field:st_term_config.throttle_supported	74	bool	term.owner
+src/terminal/session/st_term.h	field:st_term_config.initial_throttle_bps	75	uint32_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.rip_prompt	76	st_cterm_rip_prompt_callback_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.rip_prompt_context	77	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.rip_transfer	78	st_cterm_rip_transfer_callback_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.rip_transfer_context	79	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.event_hook	81	int (*)(void *, const struct st_console_event *, bool *)	term.owner
+src/terminal/session/st_term.h	field:st_term_config.event_hook_context	83	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.wire_filter	86	st_term_wire_filter_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.wire_filter_active	88	bool (*)(void *)	term.owner
+src/terminal/session/st_term.h	field:st_term_config.wire_filter_context	89	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.input_filter	92	st_cterm_input_filter_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.input_filter_active	93	bool (*)(void *)	term.owner
+src/terminal/session/st_term.h	field:st_term_config.input_filter_context	94	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.wire_capture	97	int (*)(void *, const uint8_t *, size_t)	term.owner
+src/terminal/session/st_term.h	field:st_term_config.capture	99	st_cterm_capture_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.capture_active	100	bool (*)(void *)	term.owner
+src/terminal/session/st_term.h	field:st_term_config.capture_context	101	void *	term.owner
+src/terminal/session/st_term.h	field:st_term_config.cterm_log_level	102	int	term.owner
+src/terminal/session/st_term.h	field:st_term_config.cterm_diagnostic	103	st_cterm_log_callback_t	term.owner
+src/terminal/session/st_term.h	field:st_term_config.cterm_diagnostic_context	104	void *	term.owner
+src/terminal/session/st_term.h	function:st_term_connect_profile	107	int (st_connection_t **, const struct st_profile *, st_console_t *, const struct st_connection_hooks *, struct st_connection_error *)	term.owner
+src/terminal/session/st_term.h	function:st_term_profile_encoding	111	enum st_cterm_encoding (const struct st_profile *)	term.owner
+src/terminal/session/st_term.h	function:st_term_profile_graphics_mode	113	enum st_cterm_graphics_mode (const struct st_profile *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_create	115	int (st_term_session_t **, const struct st_term_config *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_destroy	117	void (st_term_session_t **)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_cterm	119	st_cterm_t *(st_term_session_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_font_selector	120	bool (const st_term_session_t *, uint16_t, uint8_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_request_end	122	void (st_term_session_t *, bool)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_remote_closed	125	bool (const st_term_session_t *)	session.lifecycle-info
+src/terminal/session/st_term.h	function:st_term_session_prepare_disconnect	128	int (st_term_session_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_set_suspended	129	void (st_term_session_t *, bool)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_begin_transfer	132	int (st_term_session_t *, st_transfer_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_end_transfer	133	int (st_term_session_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_reserve_transfer	134	int (st_term_session_t *, bool)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_reserve_rip_transfer	136	int (st_term_session_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_prestel_frame	137	const uint8_t *(st_term_session_t *, size_t *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_set_mouse_disabled	138	void (st_term_session_t *, bool)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_throttle_speed	140	uint32_t (const st_term_session_t *)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_set_throttle_speed	141	void (st_term_session_t *, uint32_t)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_ooii_mode	143	int (const st_term_session_t *)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_set_ooii_mode	144	void (st_term_session_t *, int)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_run	150	int (st_term_session_t *, enum st_term_disposition *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_pump	152	int (st_term_session_t *, enum st_term_disposition *, bool *)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_send_key	161	int (st_term_session_t *, const struct st_console_event *, bool *)	cterm.operation-status
+src/terminal/session/st_term.h	function:st_term_session_send_text	169	int (st_term_session_t *, const char *, size_t)	term.controls
+src/terminal/session/st_term.h	field:st_term_encoded_text.bytes	177	uint8_t *	term.owner
+src/terminal/session/st_term.h	field:st_term_encoded_text.size	178	size_t	term.owner
+src/terminal/session/st_term.h	field:st_term_encoded_text.storage_size	179	size_t	term.owner
+src/terminal/session/st_term.h	field:st_term_encoded_text.utf8	180	bool	term.owner
+src/terminal/session/st_term.h	function:st_term_session_encode_text	182	int (st_term_session_t *, const char *, size_t, struct st_term_encoded_text *)	term.owner
+src/terminal/session/st_term.h	function:st_term_prepare_paste	185	int (char **, size_t *, const char *, size_t, bool)	term.owner
+src/terminal/session/st_term.h	function:st_term_rip_wire_to_utf8	191	int (char *, size_t, size_t *, const uint8_t *, size_t, enum st_codepage)	term.owner
+src/terminal/session/st_term.h	function:st_term_session_claim_wire	199	int (st_term_session_t *, const void *)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_release_wire	200	bool (st_term_session_t *, const void *)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_wire_owned	201	bool (st_term_session_t *)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_wire_available	202	int (st_term_session_t *, const void *, size_t *)	term.controls
+src/terminal/session/st_term.h	function:st_term_session_read_wire	204	ssize_t (st_term_session_t *, const void *, void *, size_t, bool)	term.controls
 src/text/ascii/string_util.h	function:ascii_is_space	14	_Bool (unsigned char)	utility.ascii
 src/text/ascii/string_util.h	function:ascii_is_printable	15	_Bool (unsigned char)	utility.ascii
 src/text/ascii/string_util.h	function:ascii_is_digit	16	_Bool (unsigned char)	utility.ascii

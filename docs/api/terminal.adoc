@@ -107,7 +107,7 @@ download-slot target rather than its validated slot argument.
 
 === Minimal connected session
 
-Header: link:../src/terminal/term/st_term.h[st_term.h].  This first `term.c` replacement handles
+Header: link:../src/terminal/session/st_term.h[st_term.h].  This first `term.c` replacement handles
 Raw, RLogin (both username orders), Serial, 3-wire Serial, Modem, and Shell
 profiles.  Other connection types return `IO_ERROR_NOT_SUPPORTED`; Wren,
 transfers, RIP, and auxiliary connected applications remain outside this

@@ -4186,7 +4186,7 @@ exercise_auto_transfer(st_wren_host_t *host, st_console_t *console)
 	struct st_profile    profile;
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	strcpy(profile.address, "sh ../../terminal/term/term-fixture.sh auto-transfer");
+	strcpy(profile.address, "sh ../../terminal/session/term-fixture.sh auto-transfer");
 	profile.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
 	CHECK(profile.download_directory != NULL);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
@@ -4309,7 +4309,7 @@ exercise_rip_transfer(st_wren_host_t *host)
 		struct rip_wire      wire = {0};
 		st_profile_init(&profile);
 		profile.connection_type = ST_CONNECTION_SHELL;
-		snprintf(profile.address, sizeof(profile.address), "sh ../../terminal/term/term-fixture.sh rip %u",
+		snprintf(profile.address, sizeof(profile.address), "sh ../../terminal/session/term-fixture.sh rip %u",
 		    mode);
 		profile.download_directory = strdup(ST_WREN_TEST_DIRECTORY);
 		CHECK(profile.download_directory != NULL);
