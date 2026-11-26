@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-e6ee96af96a3eefafe1d2a6d555cf15819b2c928](https://github.com/RealDeuce/remote-imaging-protocol/tree/e6ee96af96a3eefafe1d2a6d555cf15819b2c928/version/3.0)
+defe4e8d5a3af7453d1bba3aac8fffc10affd32e](https://github.com/RealDeuce/remote-imaging-protocol/tree/defe4e8d5a3af7453d1bba3aac8fffc10affd32e/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -63,9 +63,9 @@ commands reach the same implementation.
 The command index has been checked against the detailed chapters. Connected
 CP437 and UTF-8 sessions discard reserved level-1 N/O/S, level-zero ESC and
 the legacy dollar opcode. A chained color and pixel still execute, and the
-host receives only its requested reply. Differences between the index or
-authoring guide and the detailed chapters are tracked in
-[#327](https://github.com/bbs-land/remote-imaging-protocol/issues/327),
+host receives only its requested reply. The index now agrees on erase color, soft reset and
+cursor selection after [PR #328](https://github.com/bbs-land/remote-imaging-protocol/pull/328).
+The remaining authoring-guide discrepancies are tracked in
 [#329](https://github.com/bbs-land/remote-imaging-protocol/issues/329) and
 [#330](https://github.com/bbs-land/remote-imaging-protocol/issues/330).
 

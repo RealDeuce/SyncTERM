@@ -1,24 +1,21 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/326",
-  "revision": "e6ee96af96a3eefafe1d2a6d555cf15819b2c928",
-  "previous_revision": "43c3d91162b0573f06e1e17e3db861f535455fe6",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/328",
+  "revision": "defe4e8d5a3af7453d1bba3aac8fffc10affd32e",
+  "previous_revision": "e6ee96af96a3eefafe1d2a6d555cf15819b2c928",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates PRs #325 and #326.",
-  "archive_sha256": "c42cfa7340e087a3a08354ff822c0e7462b9089ce79ca7f2f629d4ca5188ad97",
+  "upstream_state_at_adoption": "Fork stable incorporates PR #328.",
+  "archive_sha256": "2ef8e242988f06b8470a7246bded9a23cc293fea09f7ab188c1c054d41c4c66a",
   "normative_scope": [
-    "Classic stroke-font button metrics, positioning and hotkey decoration.",
-    "SOFT, HARD and HEADER palette selection."
+    "Command summaries for e, *, and 1c now reflect their existing detailed chapters."
   ],
   "changed_documents": [
-    "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
-    "version/3.0/ripscrip/3.0-text-output-and-fonts.md",
-    "version/3.0/ripscrip/4.3-buttons.md"
+    "version/3.0/ripscrip/9.0-command-reference.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9708,
+  "matched_source_blocks": 9730,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -952,7 +949,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 160,
+  "upstream_issue_resolutions": 161,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1907,6 +1904,12 @@
       "sha256": "1fcbae89dfc8268215fdc6344a9cf3846e0acb08de4871a0f7a6ffced8c2077f",
       "title": "Issue #324 — Palette selection after a drawing reset",
       "role": "Palette selection for SOFT, HARD and HEADER resets."
+    },
+    {
+      "path": "version/3.0/research/issue-327-command-index-erase-reset-cursor.md",
+      "sha256": "19ab513b2e0cf77208981a4e0e7df3695cfb791620542ba9f5c82cc7709657ed",
+      "title": "Issue #327 — Command summaries for erase, reset and pointer selection",
+      "role": "Reconciles the command index with its existing detailed erase, reset and cursor contracts."
     }
   ],
   "documents": [
@@ -2112,7 +2115,7 @@
     },
     {
       "path": "version/3.0/ripscrip/9.0-command-reference.md",
-      "sha256": "aa9f29fc426605a2da36ae8d00c9cedd87e2489753fa8418cc20a32fdb3bb1f8"
+      "sha256": "1c2ea0525d0af9c86de1a347ce3adc416a2992128766e48c98b3722b66be63d3"
     },
     {
       "path": "version/3.0/ripscrip/9.1-text-variable-reference.md",
@@ -2183,7 +2186,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "eb1093408fd14eefc5c1e4fb831b299aceeb8e64",
+  "previous_ledger_commit": "76834f930b19faecb2d946734a8bf847c73807b1",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2258,11 +2261,12 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "unreviewed": 1159,
-    "context": 2714,
-    "implemented": 5570,
-    "excluded": 266,
-    "pending": 24
+    "unreviewed": 987,
+    "context": 2797,
+    "implemented": 5664,
+    "excluded": 272,
+    "pending": 8,
+    "blocked": 5
   },
   "source_blocks_at_adoption": 9733,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
@@ -21929,6 +21933,60 @@
         "version/3.0/ripscrip/4.3-buttons.md:523",
         "version/3.0/ripscrip/4.3-buttons.md:524",
         "version/3.0/ripscrip/4.3-buttons.md:525"
+      ]
+    },
+    {
+      "previous_revision": "e6ee96af96a3eefafe1d2a6d555cf15819b2c928",
+      "revision": "defe4e8d5a3af7453d1bba3aac8fffc10affd32e",
+      "archive_sha256": "2ef8e242988f06b8470a7246bded9a23cc293fea09f7ab188c1c054d41c4c66a",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/327",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/328",
+          "reviewed_head": "e0149d81a5043832a829ad4ecb04e6f42597dacd",
+          "integration": "8e4cc03c66934e48eb964fab9f98db81dff05514"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/9.0-command-reference.md",
+          "previous_sha256": "aa9f29fc426605a2da36ae8d00c9cedd87e2489753fa8418cc20a32fdb3bb1f8",
+          "sha256": "1c2ea0525d0af9c86de1a347ce3adc416a2992128766e48c98b3722b66be63d3"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-327-command-index-erase-reset-cursor.md",
+          "sha256": "19ab513b2e0cf77208981a4e0e7df3695cfb791620542ba9f5c82cc7709657ed",
+          "title": "Issue #327 — Command summaries for erase, reset and pointer selection",
+          "role": "Reconciles the command index with its existing detailed erase, reset and cursor contracts."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 0,
+      "new_source_units": [
+        "version/3.0/ripscrip/9.0-command-reference.md:49",
+        "version/3.0/ripscrip/9.0-command-reference.md:58",
+        "version/3.0/ripscrip/9.0-command-reference.md:186"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/9.0-command-reference.md:49",
+        "version/3.0/ripscrip/9.0-command-reference.md:58",
+        "version/3.0/ripscrip/9.0-command-reference.md:186"
+      ],
+      "states_after_update": {
+        "unreviewed": 987,
+        "context": 2797,
+        "implemented": 5664,
+        "excluded": 272,
+        "pending": 8,
+        "blocked": 5
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/9.0-command-reference.md:49",
+        "version/3.0/ripscrip/9.0-command-reference.md:58",
+        "version/3.0/ripscrip/9.0-command-reference.md:186"
       ]
     }
   ],

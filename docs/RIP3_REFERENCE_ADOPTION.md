@@ -1837,3 +1837,10 @@ The second resolves the palette selection after a drawing reset. The ledger
 tracks the CHR implementation separately from the historical font tables.
 Connected reset tests exercise the specified slot-5 example and the explicit
 HEADER selection of slot zero.
+
+## Command index for erase, reset and pointer selection
+
+Stable commit `defe4e8d5a3af7453d1bba3aac8fffc10affd32e` incorporates
+[PR #328](https://github.com/bbs-land/remote-imaging-protocol/pull/328).
+The three corrected rows describe the behavior covered by the connected
+text-window erase, palette reset and pointer tests.
