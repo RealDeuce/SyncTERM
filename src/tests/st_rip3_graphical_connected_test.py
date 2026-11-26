@@ -166,7 +166,7 @@ def run(args):
         frame = t.exchange(query(b'$WORLD(CUR,640,480)$', at_cursor=True)
                            + b'\x01|a0004|c02|X0A0A|X0D0D\r\n')
         assert pixel(frame, 10, 10) == 0x00aa00 and pixel(frame, 13, 13) == 0
-        before = values(b'$CUR(PORT,0)$$EGW(5,BAD)$')
+        before = values(b'$CUR(PORT,0)$$EGW(5,BAD)$', b'$EGW(5,BAD)$')
         assert pixel(before, 10, 10) == 0x00aa00
         erased = values(b'$EGW(5)$$CUR(PORT)$', b'0')
         assert pixel(erased, 10, 10) == 0 and pixel(erased, 17, 17) == 0x00aa00

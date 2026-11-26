@@ -45,7 +45,7 @@ def run(args,width,height):
                    +field((10,10,60,60),b'ID=7:field:$FIELDID$'))
         t.case('rip3-reset-query-preserves-display-hover-and-active-entries')
         before=client.capture()
-        after=values(b'$RESET(QUERY,TW,0,VIEW,CUR)$')
+        after=values(b'$RESET(QUERY,TW,0,VIEW,CUR)$', b'$RESET(QUERY,TW,0,VIEW,CUR)$')
         assert after.primary==before.primary and after.alternate==before.alternate
         after=values(b'$RESET(QUERY,ALL)$$CUR(PORT)$:$CUR(TW)$',b'0:0')
         assert after.primary==before.primary and after.alternate==before.alternate

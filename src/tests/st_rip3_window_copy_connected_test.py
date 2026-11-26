@@ -71,9 +71,14 @@ def run(args,width,height):
         values(b'$CUR(TW)$:$TWW$:$TWH$:$TWFONT$:$ISPROT(TW,2)$:$ISPROT(TW,35)$',b'2:20:8:1:1:1')
         values(b'$CUR(ENV)$:$WORLD$:$CUR(PAL)$:$CUR(STYLE)$:$CUR(BUT)$:$CUR(PORT)$:$&EFFECT$',b'5:160:100:17:7:6:4:cold')
         t.case('rip3-tw-entry-copy-preflight-has-no-partial-definitions')
-        for source in (b'$COPY(TW,1,7,2,8)$',b'$COPY(TW,1,7,1,8)$',
-                       b'$COPY(TW,1,7,36,8)$',b'$COPY(TW,1,7,BASE,8)$',b'$COPY(TW,34,7)$'):
-            before=capture();frame=values(source);same(before,frame);ordinary(frame)
+        for source, rejected in (
+            (b'$COPY(TW,1,7,2,8)$', False),
+            (b'$COPY(TW,1,7,1,8)$', True),
+            (b'$COPY(TW,1,7,36,8)$', True),
+            (b'$COPY(TW,1,7,BASE,8)$', True),
+            (b'$COPY(TW,34,7)$', False),
+        ):
+            before=capture();frame=values(source, source if rejected else b'');same(before,frame);ordinary(frame)
             values(b'$INUSE(TW,7)$$INUSE(TW,8)$$INUSE(TW,34)$',b'000')
         t.case('rip3-tw-entry-copy-independent-cursors-and-native-font-output')
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()

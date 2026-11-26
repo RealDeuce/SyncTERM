@@ -318,7 +318,7 @@ def check_host_directory(t, root, rip, values, encoding):
     store(other_bbs, b"\x00\xaa\x00")
     other_copy = (other_bbs / "Override.bmp").read_bytes()
     (rip / "KeepDir").mkdir()
-    values(b"$FILEDEL()$alive", b"alive")
+    values(b"$FILEDEL()$alive", b"$FILEDEL()$alive")
     rejected = b"$FILEDEL(../Override.bmp)$"
     values(b'<' + rejected + b'>', b'<' + rejected + b'>')
     assert (rip / "Override.bmp").read_bytes() == cached
@@ -353,7 +353,8 @@ def check_host_directory(t, root, rip, values, encoding):
     (rip / "HOST-BLOCKED").write_bytes(b"ordinary file")
     values(b"$HOSTDIR(Blocked)$$HOSTDIR$", b"BLOCKED")
     for bad in (b".", b"..", b"1234567890123", b"foo:bar", b"extra,argument"):
-        values(b"$HOSTDIR(" + bad + b")$after:$HOSTDIR$", b"after:BLOCKED")
+        rejected = b"$HOSTDIR(" + bad + b")$"
+        values(rejected + b"after:$HOSTDIR$", rejected + b"after:BLOCKED")
     values(b"$HOSTDIR(\"\")$", b"$HOSTDIR(\"\")$")
     frame = values(b"$<Override$$HOSTDIR$", b"BLOCKED")
     assert pixel(frame, 2, 2) == 0x0000aa
@@ -464,7 +465,8 @@ def check_host_directory(t, root, rip, values, encoding):
     named = directory_name("a")
     values(b"$HOSTDIR( " + named + b" )$$HOSTDIR$", directory_name("A"))
     assert (rip / ("HOST-A" + suffix)).is_dir()
-    values(b"$HOSTDIR(" + named + b"b)$ok:$HOSTDIR$", b"ok:" + directory_name("A"))
+    rejected = b"$HOSTDIR(" + named + b"b)$"
+    values(rejected + b"ok:$HOSTDIR$", rejected + b"ok:" + directory_name("A"))
     assert not (rip / ("HOST-A" + suffix + "B")).exists()
 
     named = directory_name("b")

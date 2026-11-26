@@ -373,7 +373,7 @@ def run(args,width,height):
         values(b"$SMF(8)$$MKILL$"+occupancy+b":$INUSE(MOUSE,S8)$", b"0:0:1")
         values(b"$RMF(8)$"+occupancy, b"1:0")
         values(b"$MKILL$")
-        values(b"$INUSE(MOUSE,1)$alive", b"alive")
+        values(b"$INUSE(MOUSE,1)$alive", b"$INUSE(MOUSE,1)$alive")
         definitions=[]
         for i in range(128):
             definitions.append(field((100,100,120,120),b"full") if i%2==0
@@ -400,19 +400,19 @@ def run(args,width,height):
         before=t.exchange()
         # Creation stores raw HCL without querying providers. A later reached
         # argument error neither drops the field nor terminates the session.
-        rejected = b'$RAND("bad")$'
-        action = b'$-=BEFORE=1$pre' + rejected + b'post$-=AFTER=1$'
-        values(b"$-=BEFORE=0$$-=AFTER=0$")
-        after=t.exchange(style(flags=256|1024)+button((400,300,430,330),b'<><>'+action,flags=1)
-                         +b"\x01|1Ubad\r\n")
-        assert pixel(after,410,310)==0xaaaaaa
-        values(b"$&BEFORE$:$&AFTER$",b"0:0")
-        click(410,310,b"pre"+rejected+b"post")
-        values(b"$&BEFORE$:$&AFTER$",b"1:1")
-        values(b"$-=BEFORE=0$$-=AFTER=0$")
-        values(action,b"pre"+rejected+b"post")
-        values(b"$&BEFORE$:$&AFTER$",b"1:1")
-        values(b"$MKILL$")
+        for rejected in (b'$RAND("bad")$', b'$RAND(bad)$'):
+            action = b'$-=BEFORE=1$pre' + rejected + b'post$-=AFTER=1$'
+            values(b"$-=BEFORE=0$$-=AFTER=0$")
+            after=t.exchange(style(flags=256|1024)+button((400,300,430,330),b'<><>'+action,flags=1)
+                             +b"\x01|1Ubad\r\n")
+            assert pixel(after,410,310)==0xaaaaaa
+            values(b"$&BEFORE$:$&AFTER$",b"0:0")
+            click(410,310,b"pre"+rejected+b"post")
+            values(b"$&BEFORE$:$&AFTER$",b"1:1")
+            values(b"$-=BEFORE=0$$-=AFTER=0$")
+            values(action,b"pre"+rejected+b"post")
+            values(b"$&BEFORE$:$&AFTER$",b"1:1")
+            values(b"$MKILL$")
         t.exchange(button((400,300,430,330),b"<><><>"))
         click(410,310,b"<>")
 

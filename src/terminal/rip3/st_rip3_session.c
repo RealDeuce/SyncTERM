@@ -1824,7 +1824,11 @@ static int
 request_transfer(void *context, bool upload, unsigned protocol, unsigned type,
     const char *filenames)
 {
-	return start_transfer(context, upload, protocol, type, filenames, false);
+	/* XFER has already accepted its arguments. Block-mode rejection is a
+	 * transfer failure, so the ordinary scanner must not retry the request. */
+	int status = start_transfer(context, upload, protocol, type, filenames, false);
+	return status == IO_ERROR_INVALID_FORMAT || status == IO_ERROR_INVALID_ARGUMENT
+	    || status == IO_ERROR_OUT_OF_RANGE ? IO_ERROR_IO : status;
 }
 
 static int

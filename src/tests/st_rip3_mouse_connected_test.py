@@ -55,11 +55,11 @@ def run(args):
         values(b"$XYM(DEVICE)$", b"0297:0321:101")
         mouse(298,322,buttons=4)
         values(b"[$X(bad)$][$M(DEVICE)$][$XYM(DEVICE,WORLD)$]$XYM(DEVICE)$",
-               b"[][][]0298:0322:001")
+               b"[$X(bad)$][$M(DEVICE)$][$XYM(DEVICE,WORLD)$]0298:0322:001")
         before = client.capture().metadata["events_dequeued"]
         client.focus(False)
         client.wait_for(lambda snapshot: snapshot.metadata["events_dequeued"] > before)
-        values(b"[$MSTAT(1)$]$MSTAT$/$M$/$XYM(DEVICE)$", b"[]YES/000/0298:0322:000")
+        values(b"[$MSTAT(1)$]$MSTAT$/$M$/$XYM(DEVICE)$", b"[$MSTAT(1)$]YES/000/0298:0322:000")
         client.focus(True)
         mouse(298,322)
         values(b"$WORLD(CUR,640,480)$")

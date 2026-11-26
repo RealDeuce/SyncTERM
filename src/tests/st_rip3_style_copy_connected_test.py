@@ -47,9 +47,13 @@ def run(args,width,height):
         assert pixel(frame,10,10)==0x00aa00 and pixel(frame,11,10)==0xaa0000
         assert pixel(frame,20,20)==0xaa0000 and pixel(frame,21,21)==0x00aaaa
         t.case('rip3-style-copy-full-preflight-and-zero')
-        for source in (b'$COPY(STYLE,5,7,6,8)$',b'$COPY(STYLE,5,7,5,8)$',
-                       b'$COPY(STYLE,5,7,36,8)$',b'$COPY(STYLE,34,7)$'):
-            values(source);values(b'$INUSE(STYLE,7)$$INUSE(STYLE,8)$$INUSE(STYLE,34)$',b'000')
+        for source, rejected in (
+            (b'$COPY(STYLE,5,7,6,8)$', False),
+            (b'$COPY(STYLE,5,7,5,8)$', True),
+            (b'$COPY(STYLE,5,7,36,8)$', True),
+            (b'$COPY(STYLE,34,7)$', False),
+        ):
+            values(source, source if rejected else b'');values(b'$INUSE(STYLE,7)$$INUSE(STYLE,8)$$INUSE(STYLE,34)$',b'000')
         values(b'$COPY(STYLE,CUR,0,35,35)$')
         values(b'$CUR(STYLE)$:$ISPROT(STYLE,35)$',b'6:1')
         values(b'$CUR(STYLE,0)$$ISPROT(STYLE,CUR)$',b'0')
@@ -74,9 +78,13 @@ def run(args,width,height):
         frame=t.exchange(style(width=17,height=9,surface=4,bevel=0)+button((200,120,0,0)))
         assert pixel(frame,200,120)==0xaa0000 and pixel(frame,216,128)==0xaa0000
         assert pixel(frame,217,120)==0 and pixel(frame,100,120)==0x00aaaa
-        for source in (b'$COPY(BUT,6,7,5,8)$',b'$COPY(BUT,6,7,6,8)$',
-                       b'$COPY(BUT,5,7,36,8)$',b'$COPY(BUT,34,7)$'):
-            values(source);values(b'$INUSE(BUT,7)$$INUSE(BUT,8)$$INUSE(BUT,34)$',b'000')
+        for source, rejected in (
+            (b'$COPY(BUT,6,7,5,8)$', False),
+            (b'$COPY(BUT,6,7,6,8)$', True),
+            (b'$COPY(BUT,5,7,36,8)$', True),
+            (b'$COPY(BUT,34,7)$', False),
+        ):
+            values(source, source if rejected else b'');values(b'$INUSE(BUT,7)$$INUSE(BUT,8)$$INUSE(BUT,34)$',b'000')
         values(b'$COPY(BUT,5,0,35,35)$')
         values(b'$CUR(BUT)$:$ISPROT(BUT,35)$',b'6:0')
         values(b'$CUR(BUT,0)$$ISPROT(BUT,CUR)$',b'0')
@@ -87,7 +95,7 @@ def run(args,width,height):
         values(b'$CUR(BUT,9)$$RESET(BUT,9)$$COPY(BUT,CUR,10)$')
         values(b'$CUR(BUT)$:$INUSE(BUT,9)$$INUSE(BUT,10)$',b'9:00')
         independent_state(client.capture())
-        values(b'$COPY(STYLE,5)$');values(b'$COPY(BUT,5,CUR,36)$')
+        values(b'$COPY(STYLE,5)$', b'$COPY(STYLE,5)$');values(b'$COPY(BUT,5,CUR,36)$', b'$COPY(BUT,5,CUR,36)$')
 
         t.case(f'rip3-style-reset-live-record-and-defined-flag-{width}x{height}')
         values(b'$CUR(STYLE,9)$')

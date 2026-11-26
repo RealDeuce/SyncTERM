@@ -90,7 +90,7 @@ def run(args, width, height):
         values(expression,b"".join(b"1" if i in defined else b"0" for i in range(1,36)))
         # Malformed wire fields and backup selectors are consumed internally.
         t.exchange(b"\x01|1Bbad|2BZ?|2B10\r\n")
-        values(b"$RESET(BUT,S10)$")
+        values(b"$RESET(BUT,S10)$", b"$RESET(BUT,S10)$")
         frame=values(b"$CUR(BUT)$:alive",b"1:alive")
         assert frame.application["connected"]==1
 

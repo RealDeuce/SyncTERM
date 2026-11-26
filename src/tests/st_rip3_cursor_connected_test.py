@@ -38,7 +38,7 @@ def controls(t, columns, rows, ox, oy, cw, ch):
     assert xy(frame) == (4, 3) and frame.application["connected"] == 1
     frame = t.exchange(query(b"$COFF$", at_cursor=True))
     assert not visible(frame) and xy(frame) == (4, 3) and frame.primary == before.primary
-    frame = t.exchange(query(b"$CON(CUR,36)$$TWGOTO(CUR,0,NO)$alive", at_cursor=True), b"alive")
+    frame = t.exchange(query(b"$CON(CUR,36)$$TWGOTO(CUR,0,NO)$alive", at_cursor=True), b"$CON(CUR,36)$$TWGOTO(CUR,0,NO)$alive")
     assert not visible(frame) and xy(frame) == (4, 3) and frame.primary == before.primary
     frame = t.exchange(query(b"$TWGOTO(CUR,99999999999999999999,99999999999999999999)$$CON$", at_cursor=True))
     assert xy(frame) == (columns, rows) and visible(frame) and frame.primary == before.primary

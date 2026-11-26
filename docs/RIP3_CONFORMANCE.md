@@ -58,7 +58,6 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Ordinary host argument rejection | Complete spans, missing closing dollars, two-pass recovery and exact query and button replies |
 | Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
@@ -98,12 +97,17 @@ after label cancellation. PR #316 subsequently specified the exact response to a
 argument. Connected button clicks and immediate queries now preserve the
 literal `$RAND("bad")$` between two successful assignments. A clipped
 opening dollar also survives without invoking the incomplete command.
+For `$RAND(bad)$`, the callback rejects the argument on both passes.
+The query or button sends its original spelling, even with a user variable
+named RAND. An accepted XFER that subsequently fails in block mode issues
+only one request.
 [Upstream PR #316](https://github.com/bbs-land/remote-imaging-protocol/pull/316)
 
 The current scanner preserves every byte inside a parser-rejected span.
 The FILEDEL reference describes a different pass-two result for a backslash
-inside that span. Its exact reply remains open.
-[Upstream issue #318](https://github.com/bbs-land/remote-imaging-protocol/issues/318)
+inside that span. PR #320 distinguishes a quoted closing parenthesis from
+an explicit argument error. Adoption of that clarification is pending.
+[Upstream PR #320](https://github.com/bbs-land/remote-imaging-protocol/pull/320)
 
 A local RIP file invoked by a field inherits its numeric identity. The
 connected mouse fixtures read field 7 in two nested files after deleting

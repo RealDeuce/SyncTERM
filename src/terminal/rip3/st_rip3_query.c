@@ -261,11 +261,33 @@ replace(void *context, const uint8_t *bytes, size_t length)
 	query->length=query->cursor+retained;
 }
 
+struct ordinary_reference {
+	struct st_rip3_query *query;
+	const uint8_t *bytes;
+	size_t length;
+	bool replied;
+};
+
 static void
-forward_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
+ordinary_reply(void *context, const uint8_t *bytes, size_t length)
 {
-	if (kind==ST_RIP3_HOST_ABORTED) st_rip3_query_cancel(context);
-	else diagnose(context,kind);
+	struct ordinary_reference *reference = context;
+	reference->replied = true;
+	replace(reference->query, bytes, length);
+}
+
+static void
+ordinary_diagnostic(void *context, enum st_rip3_host_diagnostic kind)
+{
+	struct ordinary_reference *reference = context;
+	if (kind == ST_RIP3_HOST_ABORTED) {
+		st_rip3_query_cancel(reference->query);
+		return;
+	}
+	/* Some providers already supply the rejected spelling as their reply. */
+	if (kind == ST_RIP3_HOST_INVALID_REFERENCE && !reference->replied)
+		append(reference->query, reference->bytes, reference->length);
+	diagnose(reference->query, kind);
 }
 
 int
@@ -709,7 +731,8 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		}
 		query->cursor+=value.length;
 		if (value.kind==REFERENCE) {
-			const struct st_rip3_host_sink sink={query,replace,forward_diagnostic};
+			struct ordinary_reference reference = {query, bytes, value.length, false};
+			const struct st_rip3_host_sink sink = {&reference, ordinary_reply, ordinary_diagnostic};
 			if (process_builtin(query, &sink, bytes, value.length)) return;
 		}
 		else if (value.kind==USER_REFERENCE) {

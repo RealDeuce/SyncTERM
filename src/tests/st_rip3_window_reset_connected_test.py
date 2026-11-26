@@ -93,7 +93,7 @@ def run(args,width,height):
         before=capture();frame=values(b'$RESET(TW,5,CUR)$');same(before,frame);fresh(frame)
         t.case('rip3-live-tw-reset-late-invalid-selector-keeps-earlier-state')
         values(b'$CUR(TW,5)$$STW$')
-        before=capture();frame=values(b'$RESET(TW,BASE,5,BOGUS)$');same(before,frame)
+        before=capture();frame=values(b'$RESET(TW,BASE,5,BOGUS)$', b'$RESET(TW,BASE,5,BOGUS)$');same(before,frame)
         values(b'$CUR(TW)$:$INUSE(TW,5)$:$INUSE(TW,BASE)$',b'5:1:1')
         t.case('rip3-live-tw-reset-retains-connection-partial-ansi')
         values(b'$CUR(TW,0)$')

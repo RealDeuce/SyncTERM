@@ -33,7 +33,7 @@ def check_clear(t, width, height):
     assert pixel(before, width-1, height-1) == 0xffffff
     assert before.primary != before.alternate
 
-    rejected = values(b"$CLS(1)$alive", b"alive")
+    rejected = values(b"$CLS(1)$alive", b"$CLS(1)$alive")
     assert before.primary == rejected.primary and before.alternate == rejected.alternate
     frame = values(b"$CLS$$CUR(PORT)$:$CUR(PAL)$:$ISPROT(PORT,6)$:$INUSE(SCREEN,S4)$:$TWIN$:"
                    b"$PALENTRY(0,0)$", b"6:0:1:1:YES:6;42:0:0")
@@ -142,9 +142,9 @@ def run(args,width,height):
         values(b'$INUSE(SCREEN,S3)$$ISPROT(SCREEN,S3)$',b'11')
         values(b'$SAVE(PUSH)$$RESTORE(POP)$$INUSE(SCREEN,STACK)$',b'0')
         values(b'before:$RESTORE9$after',b'before:after')  # Valid failed action is not a variable failure.
-        values(b'$SAVE0(1)$bad',b'bad')
-        values(b'$RESTORE0(1)$bad',b'bad')
-        values(b'$SAVE(10)$bad',b'bad')
+        values(b'$SAVE0(1)$bad',b'$SAVE0(1)$bad')
+        values(b'$RESTORE0(1)$bad',b'$RESTORE0(1)$bad')
+        values(b'$SAVE(10)$bad',b'$SAVE(10)$bad')
         values(b'$INUSE(SCREEN,S0)$',b'0')
         values(b'alive',b'alive')
         values(b'$UNPROT(SCREEN,S3)$$RESET(SCREEN,BACKUP)$')

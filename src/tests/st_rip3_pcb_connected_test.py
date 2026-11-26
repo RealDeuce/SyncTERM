@@ -88,7 +88,7 @@ def run(args,width,height):
         before=client.capture();frame=values(b'$PCB(5)$');same(before,frame)
         values(b'$UNPROT(PORT,5)$$AVP(5)$$PROT(PORT,5)$')
         for source in (b'$PCB( )$',b'$PCB(-1)$',b'$PCB(+1)$',b'$PCB(0x5)$',b'$PCB(ALL)$',b'$PCB(36)$',b'$PCB(5,10)$'):
-            before=client.capture();frame=values(source);same(before,frame)
+            before=client.capture();frame=values(source, source);same(before,frame)
         frame=values(b'$PCB(, 0005 ,,)$');region(frame,(100,100,104,104),0xaa0000)
         selections(frame)
 

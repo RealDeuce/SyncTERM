@@ -257,7 +257,8 @@ def clipboard_actions(t, values, wire, width, height):
     wire(capture)
     values(b'$BASEMATH(CUR,64)$$OFFSCREEN(CliP)$:$OFFSCREEN(TOTAL)$:$OFFSCREEN(USED)$:$OFFSCREEN(FREE)$:$OFFSCREEN$',
            f'1:{budget}:48:{budget - 48}:{budget - 48}'.encode())
-    values(b'$BASEMATH(CUR,36)$$OFFSCREEN(USED,FREE)$$OFFSCREEN(BOGUS)$alive', b'alive')
+    values(b'$BASEMATH(CUR,36)$$OFFSCREEN(USED,FREE)$$OFFSCREEN(BOGUS)$alive',
+           b'$OFFSCREEN(USED,FREE)$$OFFSCREEN(BOGUS)$alive')
 
     t.case('rip3-header-clipboard-protection-and-live-delete')
     values(b'$PROT(PORT,1)$$SCB$')
@@ -463,7 +464,7 @@ def run(args, width, height):
         t.case('rip3-header-releases-mouse-and-keyboard-independently')
         t.exchange(field((80, 20, 120, 60), b'hotkey', hotkey=ord('h')))
         wire(b'h01000400')
-        frame = values(b'$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$')
+        frame = values(b'$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$', b'$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$')
         assert frame.metadata['pointer_shape'] == 6
         frame = values(b'$RESET(MCURSOR)$')
         assert frame.metadata['pointer_shape'] == 0

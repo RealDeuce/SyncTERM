@@ -84,8 +84,8 @@ def run(args, width, height, ox, oy, cw, ch, bcw, bch, bx, by):
                        f"1200:880:{2*bx}:{2*by}".encode())
         assert frame.primary == before.primary and frame.application["cterm.last_column_flag.set"] == 1
         values(b"$TWX1(CUR,TEXT)$:$TWY1(CUR,TEXT)$:$TWX1(CUR,TEXT,COLS)$bad-cell",
-               f"{2*(bx+20*bcw)}:{2*(by+15*bch)}:bad-cell".encode())
-        values(b"$TWH(CUR,TEXT,COLS)$bad-syntax", b"bad-syntax")
+               f"{2*(bx+20*bcw)}:{2*(by+15*bch)}:$TWX1(CUR,TEXT,COLS)$bad-cell".encode())
+        values(b"$TWH(CUR,TEXT,COLS)$bad-syntax", b"$TWH(CUR,TEXT,COLS)$bad-syntax")
         values(b"$PROT(TW,1)$$CURX$:$CURY$:$CURSOR$", b"20:15:YES")
         values(b"$UNPROT(TW,1)$$DTW(1)$$CURSOR$:$CURX$:$CURY$:$TWFONT$:$TWW$:$TWH$:$TWX0$:$TWY1(CUR,BOUND,DEVICE)$",
                b"NO:0:0:0:0:0:-1:-1")

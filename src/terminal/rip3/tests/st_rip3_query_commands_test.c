@@ -215,7 +215,8 @@ fields(void)
 	const struct { const char *text; uint64_t duration; } valid[] = {
 		{"$D(1)$",16666667},{"$d(2)$",33333334},{"$D(3)$",50000000},
 		{"$D(60)$",1000000000},{"$D(000000000060)$",1000000000},
-		{"$D(65535)$",1092250000000},
+		{"$D(65535)$",1092250000000},{"$D(65536)$",1092266666667},
+		{"$D(0)$",0},{"$D(1.0)$",16666667},{"$D(1A)$",16666667},
 		/* Leading zeros count against the documented 20-byte argument slot,
 		 * not the old decoder's artificial twelve-byte ceiling. */
 		{"$D(0000000000001)$",16666667},{"$D(00000000000000000001)$",16666667},
@@ -224,8 +225,8 @@ fields(void)
 		CHECK(reference(&f,valid[i].text,-1) == 0 && st_rip3_input_wait_ns(f.host.input) == valid[i].duration);
 		CHECK(f.replies == 0);
 	}
-	const char *const invalid[] = {"$D$","$D()$","$D(0)$","$D(-1)$","$D(+1)$","$D(1.0)$",
-	    "$D(1O)$","$D(65536)$","$D(999999999999)$","$D(000000000000000000001)$","$D(1,2)$"};
+	const char *const invalid[] = {"$D$","$D()$","$D( 1)$","$D(-1)$","$D(+1)$",
+	    "$D(999999999999)$","$D(000000000000000000001)$","$D(1,2)$"};
 	for (size_t i = 0; i < sizeof(invalid)/sizeof(invalid[0]); i++) {
 		st_rip3_input_delay(f.host.input,60);
 		CHECK(reference(&f,invalid[i],ST_RIP3_HOST_INVALID_REFERENCE) == 0);
@@ -272,9 +273,9 @@ query_forms(void)
 	CHECK(process(&f,"1\0330000$D(1)$",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.host.query = bound;
 	f.query_sink.reply = NULL;
 	CHECK(process(&f,"1\0330000$D(1)$",ST_RIP3_COMMAND_UNSUPPORTED) == 0); f.query_sink.reply = reply;
-	CHECK(process(&f,"1\0330000$D(0)$",-1) == 0 && f.host_errors == 1 && f.host_kind == ST_RIP3_HOST_INVALID_REFERENCE);
-	CHECK(process(&f,"1\0330000$APP$",-1) == 0 && f.host_errors == 2 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
-	CHECK(process(&f,"1\0330000$GOTOURL$",-1) == 0 && f.host_errors == 3 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
+	CHECK(process(&f,"1\0330000$D(0)$",-1) == 0 && f.host_errors == 0);
+	CHECK(process(&f,"1\0330000$APP$",-1) == 0 && f.host_errors == 1 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
+	CHECK(process(&f,"1\0330000$GOTOURL$",-1) == 0 && f.host_errors == 2 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 0);
 	/* Results below the response limit are retained in full. */
 	char name[4096]; memset(name,'x',sizeof(name)-1); name[sizeof(name)-1] = 0;
@@ -294,11 +295,11 @@ recovery(void)
 	CHECK(append(&f,"!|1\0330000$D(0)$|1\0330000$D(1)$tail$UNKNOWN$|1\0330000$TERMINFO(NAME)$|J1S|1\0330000$D(1)$|1\0330000$RESX$\r") == 0);
 	st_rip3_input_process(f.host.input,2048);
 	CHECK(f.errors == 0);
-	CHECK(f.host_errors == 1 && f.host_kind == ST_RIP3_HOST_INVALID_REFERENCE);
+	CHECK(f.host_errors == 0);
 	CHECK(f.replies == 0 && f.reply_length == 0);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667 && f.read < f.length);
 	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
-	CHECK(f.errors == 0 && f.host_errors == 2 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
+	CHECK(f.errors == 0 && f.host_errors == 1 && f.host_kind == ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(f.replies == 1 && f.reply_length == 7 && memcmp(f.reply,"Fixture",7) == 0);
 	CHECK(st_rip3_input_wait_ns(f.host.input) == 16666667 && f.read < f.length);
 	f.now += 16666667; st_rip3_input_process(f.host.input,2048);
@@ -350,7 +351,7 @@ owned_and_recovery(void)
 	CHECK(append(&f,"later\r\n") == 0);
 	f.now = 16666667; st_rip3_input_process(f.host.input,2048);
 	const char expected[] = "owned \xb3 \xe2\x98\x83" "end";
-	CHECK(f.reply_length==0 && f.host_errors==2 && f.host_kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
+	CHECK(f.reply_length==0 && f.host_errors==1 && f.host_kind==ST_RIP3_HOST_UNSUPPORTED_REFERENCE);
 	CHECK(st_rip3_query_pending(f.host.query) && f.read==0);
 	CHECK(st_rip3_input_wait_ns(f.host.input)==16666667); /* Final delay precedes transmission too. */
 	f.now+=16666667;st_rip3_input_process(f.host.input,2048);
@@ -476,13 +477,16 @@ reset_text_variables(void)
 	CHECK(create(&f,ST_RIP3_CANVAS_640_480)==0 && bind_users(&f)==0);
 	CHECK(st_rip3_variables_define(f.persistent,NULL,"KEEP",4,(const uint8_t *)"saved",5,true)==0);
 	CHECK(st_rip3_variables_set(f.session,"KEEP",4,(const uint8_t *)"live",4)==0);
+	const char rejected[] = "$RESET(TV)$x$RESET(TV,)$y$RESET(TV,A B)$z"
+	    "$RESET(TV,X1234567890123456789)$$RESET(TV,KEEP,OTHER)$";
 	CHECK(process(&f,"1\0330000$RESET(TV)$x$RESET(TV,)$y$RESET(TV,A B)$z"
 	    "$RESET(TV,X1234567890123456789)$$RESET(TV,KEEP,OTHER)$$&KEEP$",-1)==0);
-	CHECK(f.host_errors==5 && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE
-	    && f.reply_length==7 && memcmp(f.reply,"xyzlive",7)==0);
+	CHECK(f.host_errors==10 && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE
+	    && f.reply_length==strlen(rejected)+4 && memcmp(f.reply,rejected,strlen(rejected))==0
+	    && memcmp(f.reply+strlen(rejected),"live",4)==0);
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000a$RESET(tv,,keep,)$$&KEEP$b$RESET(TV,Missing)$",-1)==0);
-	CHECK(f.host_errors==5 && f.reply_length==7 && memcmp(f.reply,"asavedb",7)==0
+	CHECK(f.host_errors==10 && f.reply_length==7 && memcmp(f.reply,"asavedb",7)==0
 	    && user_value(f.session,"KEEP",NULL)==0 && user_value(f.persistent,"KEEP","saved")==0);
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000<<RESET(TV,KEEP)>>$&KEEP=fallback$",-1)==0);
@@ -544,9 +548,9 @@ user_queries(enum st_rip3_canvas canvas, const char *width)
 	f.reply_length=0;
 	/* Known invalid/unsupported built-ins never prompt, including excluded
 	 * external-launch names. P has no built-in registration and does prompt. */
-	CHECK(st_rip3_variables_set(f.session,"D",1,(const uint8_t *)"fake",4)==0);
-	CHECK(process(&f,"1\0330000$D(0)$$APP$$GOTOURL$end",-1)==0);
-	CHECK(f.host_errors==3 && f.reply_length==3 && memcmp(f.reply,"end",3)==0
+	CHECK(st_rip3_variables_set(f.session,"RAND",4,(const uint8_t *)"fake",4)==0);
+	CHECK(process(&f,"1\0330000$RAND(bad)$$APP$$GOTOURL$end",-1)==0);
+	CHECK(f.host_errors==4 && f.reply_length==14 && memcmp(f.reply,"$RAND(bad)$end",14)==0
 	    && st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
 	f.reply_length=0;
 	CHECK(process(&f,"1\0330000$P$",-1)==0 && st_rip3_query_pending(f.host.query));
@@ -682,6 +686,15 @@ two_passes(void)
 		CHECK(process(&f,source,-1)==0 && f.reply_length==strlen(forms[i].expected)
 		    && memcmp(f.reply,forms[i].expected,f.reply_length)==0 && f.host_errors==0);
 	}
+	/* Parser rejection above never reached RAND. With valid syntax, RAND
+	 * declines once per pass, even when a user record has the same name. */
+	CHECK(st_rip3_variables_set(f.session,"RAND",4,(const uint8_t *)"shadow",6)==0);
+	const char rejected[] = "$RAND(bad)$";
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000$NULL$$RAND(bad)$$NULL$",-1)==0
+	    && f.host_errors==2 && f.host_kind==ST_RIP3_HOST_INVALID_REFERENCE
+	    && f.user_errors==0 && f.reply_length==sizeof(rejected)-1
+	    && memcmp(f.reply,rejected,sizeof(rejected)-1)==0);
 	/* A callback introduced by pass one can prompt in pass two. Its accepted
 	 * response is transmitted literally, with no third ordinary pass. */
 	CHECK(st_rip3_variables_set(f.session,"A",1,(const uint8_t *)"$=NEW$",6)==0);
@@ -987,9 +1000,10 @@ local_queries(void)
 	CHECK(keys.calls==3 && f.reply_length==strlen(expected) && memcmp(f.reply,expected,strlen(expected))==0
 	    && f.errors==0 && f.host_errors==0 && f.read==f.length && f.text_length==5 && memcmp(f.text,"raw\r\n",5)==0);
 	f.reply_length=0;
-	CHECK(process(&f,"1\0330000$SHIFT(BAD)$$XY(BAD)$ok",-1)==0 && f.host_errors==2 && f.reply_length==2
-	    && memcmp(f.reply,"ok",2)==0 && keys.calls==3);
-	CHECK(process(&f,"1\0330000$CTRL$",-1)==0 && keys.calls==4 && f.reply_length==3 && f.reply[2]=='1');
+	CHECK(process(&f,"1\0330000$SHIFT(BAD)$$XY(BAD)$ok",-1)==0 && f.host_errors==4 && f.reply_length==strlen("$SHIFT(BAD)$$XY(BAD)$ok")
+	    && memcmp(f.reply,"$SHIFT(BAD)$$XY(BAD)$ok",f.reply_length)==0 && keys.calls==3);
+	f.reply_length=0;
+	CHECK(process(&f,"1\0330000$CTRL$",-1)==0 && keys.calls==4 && f.reply_length==1 && f.reply[0]=='1');
 	destroy(&f);return 0;
 }
 

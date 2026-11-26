@@ -287,7 +287,7 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 			result[0] = '\0';
 		return status;
 	}
-	if (strcmp(reference->name,"D")==0 || strcmp(reference->name,"IFS")==0) {
+	if (strcmp(reference->name,"IFS")==0) {
 		int status=st_rip3_builtin_reference_words(&words,reference);
 		if (status!=0) return status;
 		reference=&words;
@@ -404,19 +404,27 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		if (status!=IO_ERROR_NOT_SUPPORTED) return status;
 	}
 	if (strcmp(reference->name, "D") == 0) {
-		unsigned ticks;
 		if (reference->count != 1)
 			return IO_ERROR_INVALID_FORMAT;
-		int status = st_rip3_host_number(reference->parameters[0].text,1,65535,&ticks);
-		if (status != 0)
-			return status;
+		const struct st_rip3_builtin_parameter *duration = &reference->parameters[0];
+		if (duration->length == 0 || duration->length >= sizeof(duration->text)
+		    || duration->text[0] < '0' || duration->text[0] > '9')
+			return IO_ERROR_INVALID_FORMAT;
+		uint32_t ticks = 0;
+		for (size_t i = 0; i < duration->length; i++) {
+			char ch = duration->text[i];
+			if (ch < '0' || ch > '9')
+				break;
+			unsigned digit = (unsigned)(ch - '0');
+			if (ticks > (UINT32_MAX - digit) / 10)
+				return IO_ERROR_OUT_OF_RANGE;
+			ticks = ticks * 10 + digit;
+		}
 		if (capacity == 0)
 			return IO_ERROR_OUT_OF_RANGE;
 		if (host->input == NULL)
 			return IO_ERROR_NOT_SUPPORTED;
-		/* The detailed D rule and inventory specify 60ths; its summary's
-		 * milliseconds wording remains a documented conflict under #46. */
-		st_rip3_input_delay(host->input,(uint32_t)ticks);
+		st_rip3_input_delay(host->input,ticks);
 		result[0] = 0;
 		return 0;
 	}

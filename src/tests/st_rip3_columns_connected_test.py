@@ -186,7 +186,7 @@ def check_overflow(terminal, root, accent):
     values(b"discard$OVERFLOW(13,PREV)$discard")
     frame = terminal.exchange(commands(column(110), b"1R00000000$OVERFLOW(13,CUR,QUERY)$", b"1E"))
     check_pixels(frame, (109, 299, 118, 311), [(110, 300, CAPITAL_A, GREEN)])
-    values(b"$OVERFLOW(13,2)$$OVERFLOW(13,PAGE)$", b"1")
+    values(b"$OVERFLOW(13,2)$$OVERFLOW(13,PAGE)$", b"$OVERFLOW(13,2)$1")
     values(b"$OVERFLOW(13,NEXT)$$OVERFLOW(13,PAGE)$", b"2")
 
     terminal.case("Reassigning a column preserves the old owner's pages and pixels")

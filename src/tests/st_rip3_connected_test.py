@@ -113,7 +113,7 @@ def datetime_queries(t):
     now = int(time.time())
     zones = {(time.strftime("%Z", time.localtime(value)) or "NONE").encode()
              for value in (now - 1, now, now + 1)}
-    zone = re.compile(rb"(?:" + b"|".join(map(re.escape, zones)) + rb"):alive")
+    zone = re.compile(rb"(?:" + b"|".join(map(re.escape, zones)) + rb"):\$DATETIME\(1\)\$alive")
     t.exchange(query(b"$TIMEZONE$:$DATETIME(1)$alive", at_cursor=True), zone)
 
 
@@ -232,7 +232,7 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(b"\x1b[?25h")
         t.case("rip3-wire-color-mode-and-corpus-prologue")
         # The actual corpus prologue must restore palette mode after RGB.
-        t.exchange(query(b"$ISPALETTE()$:$ISPALETTE(0)$alive"), b"1:alive")
+        t.exchange(query(b"$ISPALETTE()$:$ISPALETTE(0)$alive"), b"1:$ISPALETTE(0)$alive")
         t.exchange(b"\x01|M18\r\n" + query(b"$COLORMODE$:$ISPALETTE$"), b"8:1")
         t.exchange(b"!|J10|n2000|M08|fZKQO\r\n"
                    + query(b"$COLORMODE$:$WORLD$"), b"0:1280:960")
@@ -293,9 +293,9 @@ Hook.onKey(Key.f9) {|event|
             frame = t.exchange(query(b"$TERMINFO$:$TERMINFO(vendor)$:$TERMINFO(LIST)$:$TERMINFO(unknown)$",
                                      at_cursor=True), b"SyncTERM:Stephen Hurd:LIST,NAME,VENDOR,VERSION:NONE")
             assert frame.application["connected"] == 1
-            t.exchange(query(b"A$NULL$B<<NULL>>C$NULL(1)$D", at_cursor=True), b"ABCD")
+            t.exchange(query(b"A$NULL$B<<NULL>>C$NULL(1)$D", at_cursor=True), b"ABC$NULL(1)$D")
             t.exchange(query(b"$RAND(9,3,2)$:$RAND()$:$RAND(0)$:alive", at_cursor=True),
-                       re.compile(rb"(00[2-9]|010):::alive"))
+                       re.compile(rb"(00[2-9]|010):\$RAND\(\)\$:\$RAND\(0\)\$:alive"))
             t.exchange(query(b"$APP(0,example)$$APP0$$APP9$$GOTOURL(example)$"
                              b"$VT102ON$alive", at_cursor=True)
                        + b"\x1b[4;5H\x1b[6n", b"alive\x1b[4;5R")
@@ -306,7 +306,7 @@ Hook.onKey(Key.f9) {|event|
                                      at_cursor=True), b"USASCII:eng:eng:en:English")
             assert frame.application["connected"] == 1
             t.exchange(query(b"$CDCS(1)$$LANG(OTHER)$$LANG(TWOCHAR,VERBOSE)$alive",
-                             at_cursor=True), b"alive")
+                             at_cursor=True), b"$CDCS(1)$$LANG(OTHER)$$LANG(TWOCHAR,VERBOSE)$alive")
             t.case("rip3-connected-prompt")
             send(query(b"$*=PROMPT,20@RIP3 validation$") + b"\x1b[5n")
             required = client.wait_text("RIP3 validation")
@@ -622,7 +622,7 @@ Hook.onKey(Key.f9) {|event|
         frame = t.exchange(query(b"$ATW(CUR)$window-on") + b"\x1b[6n", b"window-on\x1b[2;2R")
         assert frame.primary == hidden.primary and frame.metadata["pixel_cursor_visible"] == 1
         assert pixel(frame, px, py) == 0x55ff55
-        frame = t.exchange(query(b"$DTW(ALL,36)$still-on", at_cursor=True) + b"\x1b[6n", b"still-on\x1b[2;2R")
+        frame = t.exchange(query(b"$DTW(ALL,36)$still-on", at_cursor=True) + b"\x1b[6n", b"$DTW(ALL,36)$still-on\x1b[2;2R")
         assert frame.primary == hidden.primary and frame.application["connected"] == 1
 
         t.case("rip3-normal-window-ordered-clamped-identity")
@@ -675,8 +675,8 @@ Hook.onKey(Key.f9) {|event|
         assert frame.primary == before.primary and frame.application["connected"] == 1
         t.exchange(query(b"$WORLD(CUR,65536,1)$$WORLD$"), b"0:1")
         t.exchange(query(b"$WORLD(CUR,1,65536)$$WORLD$"), b"1:0")
-        t.exchange(query(b"$WORLD(CUR,65536,65536)$$WORLD$"), b"1:0")
-        t.exchange(query(b"$WORLDH(CUR,1000)$$WORLD$"), b"1:0")
+        t.exchange(query(b"$WORLD(CUR,65536,65536)$$WORLD$"), b"$WORLD(CUR,65536,65536)$1:0")
+        t.exchange(query(b"$WORLDH(CUR,1000)$$WORLD$"), b"$WORLDH(CUR,1000)$1:0")
         t.exchange(query(b"$WORLDH(BOGUS,65535)$$WORLD$"), b"1:65535")
         t.exchange(query(b"$WORLDW(5,32768)$$WORLD$:$WORLDW(5)$"), b"32768:65535:-1")
         t.exchange(query(b"$WORLD(CUR," + str(width).encode() + b"," + str(height).encode()
@@ -696,7 +696,8 @@ Hook.onKey(Key.f9) {|event|
             assert frame.application["connected"] == 1
         t.exchange(query(b"$COLORMODE(CUR,RGB,3)$") + b"\x01|M17\r\n"
                    + query(b"$COLORMODE$:$COLORMODE(6)$:$INUSE(ENV,6)$"), b"3:-1:0")
-        t.exchange(query(b"$COLORMODE(CUR,RGB,0)$$COLORMODE(CUR,RGB,9)$$COLORMODE$"), b"3")
+        t.exchange(query(b"$COLORMODE(CUR,RGB,0)$$COLORMODE(CUR,RGB,9)$$COLORMODE$"),
+                   b"$COLORMODE(CUR,RGB,0)$$COLORMODE(CUR,RGB,9)$3")
         # A protected graphics style cannot block ENV color-mode edits.
         frame = t.exchange(query(b"$CUR(STYLE,1)$$PROT(STYLE,1)$$COLORMODE(CUR,RGB,1)$")
                            + b"\x01|X0401\r\n" + query(b"$COLORMODE$"), b"1")
@@ -777,7 +778,7 @@ def font_switch_with_status(args, width, height):
         assert pixel(overwritten, *sample) == 0
         assert displayed_pixel(overwritten, *sample) != 0
         restored = values(b"$OPTION(STATBAR,OFF)$$RESTORE$$SBARON(1)$$STATBAR$/$OPTION(STATBAR,QUERY)$:"
-                          + geometry, b"NO/0:" + expected_geometry)
+                          + geometry, b"$SBARON(1)$NO/0:" + expected_geometry)
         assert pixel(restored, *sample) == 0xffffff
         assert displayed_pixel(restored, *sample) == 0xffffff
         for key in ("cterm.x", "cterm.y", "cterm.attr", "cterm.top_margin", "cterm.bottom_margin"):

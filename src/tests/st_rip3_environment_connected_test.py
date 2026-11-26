@@ -18,8 +18,9 @@ def charset_metadata(t, encoding):
     t.case('rip3-charset-metadata-replies-and-recovery')
     values(b'$CDCS$/$SDCS()$/$DCS()$/$CHARSET()$/$LANG$', b'USASCII/USASCII/0/USASCII/eng')
     values(b'$CHARSET(35)$:$DCS(35,OTHER)$:$DCS(35,KANJI)$:$INUSE(ENV,35)$', b'-1:-1:-1:0')
-    values(b'[$CHARSET(36)$][$CHARSET(-1)$][$CHARSET(CUR,0)$][$DCS(KANJI)$]'
-           b'[$DCS(CUR,OTHER)$][$SDCS(OTHER)$][$SDCS(OFF,QUERY)$]alive', b'[][][][][][][]alive')
+    rejected = (b'[$CHARSET(36)$][$CHARSET(-1)$][$CHARSET(CUR,0)$][$DCS(KANJI)$]'
+           b'[$DCS(CUR,OTHER)$][$SDCS(OTHER)$][$SDCS(OFF,QUERY)$]alive')
+    values(rejected, rejected)
     sample = b'\x1b[H#' + (b'\xb3' if encoding == 'CP437' else '│'.encode())
     t.check('rip3-charset-default-ansi-glyphs', sample, lines=((1, 1, '#│'),), reset=False)
     t.exchange(b'\x01|T$SDCS(KANJI)$\r\n')
@@ -131,9 +132,13 @@ def run(args,width,height):
         assert frame.metadata['pointer_shape']==7
         values(b'$COLORMODE(CUR,PAL)$$COPY(ENV,CUR,6,8)$')
         values(b'$ISPROT(ENV,6)$:$ISPROT(ENV,8)$:$CUR(ENV)$',b'1:1:5')
-        for source in (b'$COPY(ENV,5,9,6,10)$',b'$COPY(ENV,5,9,5,10)$',
-                       b'$COPY(ENV,5,9,36,10)$',b'$COPY(ENV,34,9)$'):
-            values(source);values(b'$INUSE(ENV,9)$$INUSE(ENV,10)$$INUSE(ENV,34)$',b'000')
+        for source, rejected in (
+            (b'$COPY(ENV,5,9,6,10)$', False),
+            (b'$COPY(ENV,5,9,5,10)$', True),
+            (b'$COPY(ENV,5,9,36,10)$', True),
+            (b'$COPY(ENV,34,9)$', False),
+        ):
+            values(source, source if rejected else b'');values(b'$INUSE(ENV,9)$$INUSE(ENV,10)$$INUSE(ENV,34)$',b'000')
         values(b'$COPY(ENV,5,0)$$CUR(ENV)$',b'5')
         values(b'$CUR(ENV,0)$$ISPROT(ENV,CUR)$',b'0')
         values(b'$WORLD$:$BAUDEMUL$',f'{2*width}:{2*height}:1200'.encode())
@@ -153,7 +158,7 @@ def run(args,width,height):
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$CUR(ENV)$:$WORLD$:$INUSE(ENV,5)$$INUSE(ENV,6)$$INUSE(ENV,8)$',b'0:640:350:111')
         values(b'$BAUDEMUL$',b'1200')
-        values(b'$CUR(ENV,36)$');wire(b'2E|2E0|2E10.|2E?0|2E..')
+        values(b'$CUR(ENV,36)$', b'$CUR(ENV,36)$');wire(b'2E|2E0|2E10.|2E?0|2E..')
         values(b'$CUR(ENV)$:alive',b'0:alive')
         assert client.capture().application['connected']==1
 
@@ -173,7 +178,7 @@ def run(args,width,height):
                b'$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(PORT,4)$$CUR(TW,3)$$CUR(PAL,17)$'
                b'$SENV$$SENV(3)$$PROT(ENV,S3)$')
         values(b'$RESET(ENV,BASE,11,INVALID)$$INUSE(ENV,BASE)$:$WORLD$:$COORDSIZE$',
-               b'1:1280:960:5')
+               b'$RESET(ENV,BASE,11,INVALID)$1:1280:960:5')
         values(b'$RESET(ENV,0)$$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$', b'1280:960:64:5:8')
         before=wire(b'h01000400')
         after=values(b'$RESET(ENV,11)$$CUR(ENV)$:$INUSE(ENV,11)$:$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$',
@@ -206,7 +211,7 @@ def run(args,width,height):
                        b'[]0:800:600:64:5:8:640:350:36:2:0:1')
         assert after.primary == before.primary and after.alternate == before.alternate
         values(b'[$COMPAT(13)$][$COMPAT(36)$][$COMPAT(CUR,0)$]$WORLD$:$INUSE(ENV,13)$',
-               b'[][][]800:600:0')
+               b'[$COMPAT(13)$][$COMPAT(36)$][$COMPAT(CUR,0)$]800:600:0')
         after = values(b'[$COMPAT(cur)$]$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$BAUDEMUL$',
                        b'[]640:350:36:2:0:1200')
         assert after.primary == before.primary and after.alternate == before.alternate
@@ -218,7 +223,7 @@ def run(args,width,height):
         values(b'$COMPAT(CUR)$$COLORMODE$:$ISPROT(ENV,CUR)$', b'0:1')
         values(b'$COLORMODE(CUR,RGB,8)$$COMPAT(12)$$COLORMODE$:$ISPROT(ENV,CUR)$', b'0:1')
         values(b'$UNPROT(ENV,12)$$RESET(ENV,12)$$WORLD(CUR,800,600)$'
-               b'$COMPAT(12)$$WORLD$:$INUSE(ENV,12)$', b'800:600:0')
+               b'$COMPAT(12)$$WORLD$:$INUSE(ENV,12)$', b'$COMPAT(12)$800:600:0')
         values(b'$COMPAT$$WORLD$:$INUSE(ENV,12)$:$BAUDEMUL$', b'640:350:0:1200')
         values(b'$WORLD(CUR,800,600)$$COMPAT()$$WORLD$:$INUSE(ENV,12)$', b'640:350:0')
         values(b'$WORLD(0,800,600)$$COMPAT(0)$$WORLD(0)$:$CUR(ENV)$', b'640:350:12')

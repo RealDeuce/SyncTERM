@@ -156,7 +156,7 @@ def run(args, width, height):
         for number in range(3, 36):
             variables(f"$CUR(TW,{number})$$CUR(TW)$".encode(), str(number).encode())
         variables(b"$INUSE(TW,ALL)$:$ISPROT(TW,35)$", b"1:0")
-        variables(b"$PROT(TW,0)$$CUR(TW)$", b"35")
+        variables(b"$PROT(TW,0)$$CUR(TW)$", b"$PROT(TW,0)$35")
         variables(b"$CUR(TW,0)$$PROT(TW,CUR)$$ISPROT(TW,CUR)$$CUR(TW,35)$", b"0")
         frame = capture(query(b"$BASEMATH(CUR,64)$", at_cursor=True)
                         + b"\x01|2T?0|2Ta0|2TZ0\r\n"

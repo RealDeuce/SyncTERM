@@ -74,7 +74,9 @@ def run(args,width,height):
         values(b'$CUR(PORT,0)$')
         frame=wire(b'2C20000080805K5K60600')  # Saved brown offscreen pixels copied to screen.
         assert pixel(frame,200,200)==0xaa5500
-        assert pixel(wire(b'X0505'),5,5)==0xaa0000  # RGS keeps live index 7 but restores its red record.
+        # Restored STYLE 7 draws index 4. The saved a0404 palette edit
+        # publishes six-bit red 42 as component 168.
+        assert pixel(wire(b'X0505'),5,5)==0xa80000
         client.text('a');t.input(b'saved:7')
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()
         frame=t.exchange(accented)
@@ -95,7 +97,7 @@ def run(args,width,height):
         # BASE/slot/stack state and every other family remain independently usable.
         values(b'$SAVEALL(2)$');used('S2',b'11111111')
         values(b'$SAVEALL(3)$$RESTOREALL(3)$');used('S3',b'00000000')
-        values(b'$SAVEALL(10)$');values(b'$RESTOREALL(PUSH)$')
+        values(b'$SAVEALL(10)$', b'$SAVEALL(10)$');values(b'$RESTOREALL(PUSH)$', b'$RESTOREALL(PUSH)$')
         values(b'$RESTOREALL(9)$');values(b'$WORLD$:alive',f'{width}:{height}:alive'.encode())
         assert client.capture().application['connected']==1
 

@@ -287,7 +287,7 @@ def run(args):
         terminal.exchange(b"!|9\x1b01010000../escape.bin<>\r\n"
                           + query(b"confined", at_cursor=True), b"\x18" * 10 + b"confined")
         terminal.exchange(b"!|9U000000\r\n!|9U010000\r\n!|9U020000\r\n"
-                          + query(b"$XFER(RECEIVE,XMODEMCRC,NONE)$after", at_cursor=True), b"after")
+                          + query(b"$XFER(RECEIVE,XMODEMCRC,NONE)$after", at_cursor=True), b"$XFER(RECEIVE,XMODEMCRC,NONE)$after")
         assert not list(root.rglob("escape.bin"))
 
         terminal.case("rip3-received-scene-plays-before-the-calling-expression-resumes")

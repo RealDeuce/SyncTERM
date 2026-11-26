@@ -533,11 +533,11 @@ text_erases(void)
 	CHECK(query(&f,"$DTW$$ETW$","")==0 && f.erases==4);
 	CHECK(append(&f,"!|e|>|e0|>0\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==0);
 	CHECK(query(&f,"$ETW(1,35)$$ATW$","")==0 && f.erases==4);
-	CHECK(append(&f,"!|1\0330000$ETW(CUR,36)$\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==1);
+	CHECK(append(&f,"!|1\0330000$ETW(CUR,36)$\r")==0 && pump(&f)==0 && f.erases==4 && f.errors==2);
 	f.erase_status=IO_ERROR_IO;
-	CHECK(append(&f,"!|e\r")==0 && pump(&f)==0 && f.erases==5 && f.errors==2 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
+	CHECK(append(&f,"!|e\r")==0 && pump(&f)==0 && f.erases==5 && f.errors==3 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
 	f.erase_status=IO_ERROR_OUT_OF_MEMORY;
-	CHECK(append(&f,"!|>\r")==0 && pump(&f)==0 && f.erases==6 && f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	CHECK(append(&f,"!|>\r")==0 && pump(&f)==0 && f.erases==6 && f.errors==4 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
 	CHECK(query(&f,"$RESX$","4")==0);
 	CHECK(st_rip3_session_capture(f.session,&capture)==0);
 	for (size_t y=0;y<3;y++) for (size_t x=0;x<4;x++)
@@ -552,13 +552,13 @@ text_erases(void)
 	CHECK(query(&f,"$TWERASEEOL(ALL,CUR,0,0)$","")==0 && f.eol_erases==2);
 	CHECK(query(&f,"$DTW$$TWERASEEOL$$ATW$$TWERASEEOL(1,35)$","")==0 && f.eol_erases==2);
 	CHECK(append(&f,"!|1\0330000$TWERASEEOL(CUR,36)$\r")==0 && pump(&f)==0
-	    && f.eol_erases==2 && f.errors==1 && f.kind==ST_RIP3_COMMAND_INVALID);
+	    && f.eol_erases==2 && f.errors==2 && f.kind==ST_RIP3_COMMAND_INVALID);
 	f.erase_status=IO_ERROR_OUT_OF_MEMORY;
 	CHECK(append(&f,"!|1\0330000$TWERASEEOL$\r")==0 && pump(&f)==0
-	    && f.eol_erases==3 && f.errors==2 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
+	    && f.eol_erases==3 && f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE);
 	f.erase_status=IO_ERROR_IO;
 	CHECK(append(&f,"!|1\0330000$TWERASEEOL$\r")==0 && pump(&f)==0
-	    && f.eol_erases==4 && f.errors==3 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
+	    && f.eol_erases==4 && f.errors==4 && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
 	f.erase_status=0;
 	CHECK(query(&f,"$TWERASEEOL$alive","alive")==0 && f.eol_erases==5);
 	st_rip3_session_destroy(f.session);return 0;
@@ -714,17 +714,17 @@ cursor_variables(void)
 	CHECK(query(&f,"$CON$","")==0 && f.cursor_changes==1 && f.cursor_visible);
 	CHECK(query(&f,"$COFF$","")==0 && f.cursor_changes==2 && !f.cursor_visible);
 	CHECK(append(&f,"!|1\0330000$TWGOTO(CUR,0,NO)$$CON(CUR,36)$\r")==0 && pump(&f)==0
-	    && f.moves==3 && f.cursor_changes==2 && f.errors==2 && f.kind==ST_RIP3_COMMAND_INVALID);
+	    && f.moves==3 && f.cursor_changes==2 && f.errors==4 && f.kind==ST_RIP3_COMMAND_INVALID);
 	f.move_status=IO_ERROR_IO;
-	CHECK(append(&f,"!|1\0330000$TWHOME$\r")==0 && pump(&f)==0 && f.moves==4 && f.errors==3
+	CHECK(append(&f,"!|1\0330000$TWHOME$\r")==0 && pump(&f)==0 && f.moves==4 && f.errors==5
 	    && f.kind==ST_RIP3_COMMAND_OPERATION_FAILED);
 	CHECK(query(&f,"$RESX$","640")==0);
 	f.move_status=0;f.cursor_status=IO_ERROR_OUT_OF_MEMORY;
-	CHECK(append(&f,"!|1\0330000$CON$\r")==0 && pump(&f)==0 && f.cursor_changes==3 && f.errors==4
+	CHECK(append(&f,"!|1\0330000$CON$\r")==0 && pump(&f)==0 && f.cursor_changes==3 && f.errors==6
 	    && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE && !f.cursor_visible);
 	f.cursor_status=0;
 	CHECK(query(&f,"$DTW$$CON$$TWGOTO(CUR,2,3)$$TWHOME$","")==0 && f.cursor_changes==3 && f.moves==4);
-	CHECK(query(&f,"$ATW$$CON$","")==0 && f.cursor_changes==4 && f.cursor_visible && f.errors==4);
+	CHECK(query(&f,"$ATW$$CON$","")==0 && f.cursor_changes==4 && f.cursor_visible && f.errors==6);
 	st_rip3_session_destroy(f.session);
 	struct fixture missing={0};options=config(&missing,ST_RIP3_CANVAS_640_480);
 	CHECK(st_rip3_session_create(&missing.session,&options)==0);
@@ -919,10 +919,10 @@ text_activation_variables(void)
 	CHECK(query(&f,"$ATW(1,35)$","")==0 && !st_rip3_session_text_active(f.session));
 	CHECK(query(&f,"$ATW(0)$","")==0 && st_rip3_session_text_active(f.session));
 	CHECK(append(&f,"!|1\0330000$DTW(CUR,36)$\r")==0 && pump(&f)==0
-	    && f.errors==1 && f.kind==ST_RIP3_COMMAND_INVALID && st_rip3_session_text_active(f.session));
+	    && f.errors==2 && f.kind==ST_RIP3_COMMAND_INVALID && st_rip3_session_text_active(f.session));
 	CHECK(query(&f,"$dtw(ALL)$","")==0 && !st_rip3_session_text_active(f.session));
 	CHECK(append(&f,"!|1\0330000$ATW(CUR,OTHER)$\r")==0 && pump(&f)==0
-	    && f.errors==2 && !st_rip3_session_text_active(f.session));
+	    && f.errors==4 && !st_rip3_session_text_active(f.session));
 	CHECK(query(&f,"$ATW( cur, 0, 0 )$","")==0 && st_rip3_session_text_active(f.session));
 	CHECK(append(&f,"!|w0000000000\r")==0 && pump(&f)==0 && !st_rip3_session_text_active(f.session));
 	CHECK(query(&f,"$ATW()$","")==0 && st_rip3_session_text_active(f.session));
@@ -1511,7 +1511,7 @@ resident_query_resets(void)
 	};
 	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
 		unsigned errors=f.errors;
-		CHECK(append(&f,invalid[i])==0 && pump(&f)==0 && f.errors==errors+1);
+		CHECK(append(&f,invalid[i])==0 && pump(&f)==0 && f.errors==errors+2);
 	}
 	CHECK(resident_value(&f,4,10,"TW ten")==0 && resident_value(&f,3,5,"VIEW five")==0
 	    && resident_value(&f,2,0,"floating TW")==0);
@@ -1568,11 +1568,13 @@ static int text_entry_copies(void)
 	CHECK(resident_value(&f,4,2,"source")==0 && resident_value(&f,4,35,"source")==0);
 	CHECK(query(&f,"$UNPROT(TW,1)$","")==0 && store_query(&f,4,'1',"changed",false)==0);
 	CHECK(resident_value(&f,4,2,"source")==0 && resident_value(&f,4,0,"source")==0);
-	const char *const invalid[]={"$COPY(TW,1,7,2,8)$","$COPY(TW,1,7,1,8)$",
-	    "$COPY(TW,1,7,36,8)$","$COPY(TW,1,7,BASE,8)$","$COPY(TW,34,7)$"};
+	const struct { const char *source; unsigned diagnostics; } invalid[] = {
+		{"$COPY(TW,1,7,2,8)$",1}, {"$COPY(TW,1,7,1,8)$",2},
+		{"$COPY(TW,1,7,36,8)$",2}, {"$COPY(TW,1,7,BASE,8)$",2}, {"$COPY(TW,34,7)$",1},
+	};
 	for (size_t i=0;i<sizeof(invalid)/sizeof(invalid[0]);i++) {
-		char wire[128];snprintf(wire,sizeof(wire),"!|1\0330000%s\r",invalid[i]);unsigned errors=f.errors;
-		CHECK(append(&f,wire)==0 && pump(&f)==0 && f.errors==errors+1 && f.copies==4);
+		char wire[128];snprintf(wire,sizeof(wire),"!|1\0330000%s\r",invalid[i].source);unsigned errors=f.errors;
+		CHECK(append(&f,wire)==0 && pump(&f)==0 && f.errors==errors+invalid[i].diagnostics && f.copies==4);
 		CHECK(query(&f,"$INUSE(TW,7)$$INUSE(TW,8)$$INUSE(TW,34)$","000")==0);
 	}
 	/* Permission checks finish before any helper; resource failures afterward
@@ -1659,7 +1661,7 @@ static int live_text_resets(void)
 	/* Late syntax rejects the whole list, including a preceding BASE clear. */
 	CHECK(query(&f,"$CUR(TW,5)$$STW$","")==0);
 	unsigned calls=f.live_resets,errors=f.errors;
-	CHECK(append(&f,"!|1\0330000$RESET(TW,BASE,5,BOGUS)$\r")==0 && pump(&f)==0 && f.errors==errors+1 && f.live_resets==calls);
+	CHECK(append(&f,"!|1\0330000$RESET(TW,BASE,5,BOGUS)$\r")==0 && pump(&f)==0 && f.errors==errors+2 && f.live_resets==calls);
 	CHECK(query(&f,"$CUR(TW)$:$INUSE(TW,5)$:$INUSE(TW,BASE)$","5:1:1")==0);
 	/* Failure does not change CUR before its retry. It does not stop later
 	 * backup deletion, publish a half definition, or discard fixed queries. */
@@ -1721,7 +1723,7 @@ static int text_backups(void)
 	CHECK(query(&f,"$STW(4)$","")==0 && st_rip3_session_test_soft_reset(f.session)==0);
 	CHECK(query(&f,"$INUSE(TW,35)$$RTW(4)$$CUR(TW)$","035")==0 && resident_value(&f,4,35,"last")==0);
 	CHECK(query(&f,"$RTW$$CUR(TW)$:$INUSE(TW,35)$","1:0")==0);
-	errors=f.errors;CHECK(append(&f,"!|1\0330000$RESET(TW,BASE,BOGUS)$\r")==0 && pump(&f)==0 && f.errors==errors+1);
+	errors=f.errors;CHECK(append(&f,"!|1\0330000$RESET(TW,BASE,BOGUS)$\r")==0 && pump(&f)==0 && f.errors==errors+2);
 	CHECK(query(&f,"$INUSE(TW,BASE)$","1")==0);
 	CHECK(query(&f,"$STW(3)$$PROT(TW,S3)$$RESET(TW,BACKUP)$$INUSE(TW,BASE)$$INUSE(TW,S3)$","01")==0);
 	CHECK(resident_value(&f,4,1,"one")==0);
@@ -1854,12 +1856,13 @@ maximize_window_list(void)
 	CHECK(append(&f,"!|w0000040410\r")==0 && pump(&f)==0);
 	CHECK(store_query(&f,4,'5',"five",false)==0);
 	CHECK(append(&f,"!|1\0330000$MTW(0,CUR,36)$alive\r")==0 && pump(&f)==0);
-	CHECK(f.errors==1 && f.kind==ST_RIP3_COMMAND_INVALID && f.maximized==0
-	    && f.reply_length==5 && memcmp(f.reply,"alive",5)==0);
+	CHECK(f.errors==2 && f.kind==ST_RIP3_COMMAND_INVALID && f.maximized==0
+	    && f.reply_length==strlen("$MTW(0,CUR,36)$alive")
+	    && memcmp(f.reply,"$MTW(0,CUR,36)$alive",f.reply_length)==0);
 	f.fail_zero_maximize=true;
 	f.reply_length=0;
 	CHECK(append(&f,"!|1\0330000$MTW(5,0,CUR)$alive\r")==0 && pump(&f)==0);
-	CHECK(f.errors==2 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE
+	CHECK(f.errors==3 && f.kind==ST_RIP3_COMMAND_RESOURCE_FAILURE
 	    && f.reply_length==5 && memcmp(f.reply,"alive",5)==0);
 	CHECK(f.maximized==3 && f.maximize_targets[0]==5 && f.maximize_targets[1]==0 && f.maximize_targets[2]==5);
 	CHECK(query(&f,"$CUR(TW)$:$TWW(0)$:$TWH(0)$:$TWW$:$TWH$","5:4:4:80:43")==0);
@@ -2118,7 +2121,7 @@ sound_reset(void)
 	CHECK(query(&f, "before:$reset(sound)$after", "before:after") == 0);
 	CHECK(st_rip3_session_test_stops == stops + 1);
 	CHECK(append(&f, "!|1\0330000$RESET(SOUND,CUR)$\r") == 0 && pump(&f) == 0);
-	CHECK(st_rip3_session_test_stops == stops + 1 && f.errors == 1
+	CHECK(st_rip3_session_test_stops == stops + 1 && f.errors == 2
 	    && f.kind == ST_RIP3_COMMAND_INVALID);
 	CHECK(query(&f, "$RESET(SOUND)$still here", "still here") == 0);
 	CHECK(st_rip3_session_test_stops == stops + 2);
@@ -2227,9 +2230,10 @@ scene_input_resets(void)
 	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 6);
 	unsigned errors = f.errors;
 	CHECK(append(&f, "!|1\0330000$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$\r") == 0
-	    && pump(&f) == 0 && f.errors == errors + 2);
+	    && pump(&f) == 0 && f.errors == errors + 4);
 	CHECK(st_rip3_session_key(f.session, 'x') && st_rip3_session_mouse(f.session, 20, 20, false));
-	CHECK(f.reply_length == 0);
+	const char rejected[] = "$RESET(MCURSOR,1)$$RESET(KEYBOARD,CUR)$";
+	CHECK(f.reply_length == sizeof(rejected)-1 && memcmp(f.reply,rejected,f.reply_length)==0);
 	CHECK(query(&f, "$RESET(MCURSOR)$", "") == 0);
 	CHECK(st_rip3_session_mouse_pointer(f.session, &pointer) && pointer == 0);
 	CHECK(st_rip3_session_key(f.session, 'x'));

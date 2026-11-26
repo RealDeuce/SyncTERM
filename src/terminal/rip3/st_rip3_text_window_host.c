@@ -172,6 +172,9 @@ window_query(const struct st_rip3_host_variables *host,
 				struct st_rip3_frame frame;status=query_frame(host,&frame);
 				if (status==0) status=world_value(value,vertical ? frame.world_height : frame.world_width,
 				    vertical ? frame.device_height : frame.device_width,&value);
+				/* A valid WORLD query can reach an unusable current frame. */
+				if (status==IO_ERROR_INVALID_ARGUMENT || status==IO_ERROR_OUT_OF_RANGE)
+					return IO_ERROR_IO;
 				if (status!=0) return status;
 			}
 		}

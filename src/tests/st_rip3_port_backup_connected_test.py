@@ -74,7 +74,7 @@ def run(args,width,height):
         values(b'$SCB(5)$')
         t.exchange(b'\x01|*\r\n\x1b[?25l')
         values(b'$RCB(5)$$INUSE(PORT,8)$',b'1')
-        values(b'$SCB(10)$');values(b'$RCB(PUSH)$');values(b'$RCB(9)$')
+        values(b'$SCB(10)$', b'$SCB(10)$');values(b'$RCB(PUSH)$', b'$RCB(PUSH)$');values(b'$RCB(9)$')
         values(b'$CUR(PORT)$:alive',b'0:alive')
         t.case('rip3-port-reset-orders-live-targets-and-preserves-independent-saves')
         values(f'$WORLD(CUR,{width},{height})$'.encode())
@@ -84,7 +84,7 @@ def run(args,width,height):
         define(9,(0,0,3,3),1)
         values(b'$CUR(PORT,6)$$SCB$$SCB(3)$$PROT(PORT,S3)$$SCB(PUSH)$')
         before=client.capture()
-        after=values(b'$RESET(PORT,BASE,6,36)$')
+        after=values(b'$RESET(PORT,BASE,6,36)$', b'$RESET(PORT,BASE,6,36)$')
         assert after.primary==before.primary and after.alternate==before.alternate
         values(b'$CUR(PORT)$:$INUSE(PORT,6)$:$INUSE(PORT,BASE)$',b'6:1:1')
         after=values(b'$RESET(PORT,7,34,6,CUR)$')

@@ -52,7 +52,7 @@ def run(args,width,height):
         movement(90,90,b'X8;X7;')
         t.case('rip3-mouse-backup-rejected-request-retains-capture')
         mouse(30,30,True);t.exchange()
-        values(b'$RMF(9)$');values(b'$SMF(10)$')
+        values(b'$RMF(9)$');values(b'$SMF(10)$', b'$SMF(10)$')
         mouse(30,30);t.input(b'B8')
         t.case('rip3-mouse-backup-slots-stack-copy-and-protection')
         values(b'$PROT(MOUSE,S3)$$RMF(3)$')
@@ -124,7 +124,7 @@ def run(args,width,height):
         click(210,130,b'icon:9')
         t.case('rip3-mouse-backup-reset-selectors-and-handler-ownership')
         values(b'$SMF(2)$$SMF(PUSH)$$PROT(MOUSE,S2)$')
-        values(b'$RESET(MOUSE,BASE,CUR)$')  # All selectors validate before mutation.
+        values(b'$RESET(MOUSE,BASE,CUR)$', b'$RESET(MOUSE,BASE,CUR)$')  # All selectors validate before mutation.
         values(b'$INUSE(MOUSE,BASE)$',b'1')
         t.exchange(resident(5,b'E$FIELDID$;'))
         before=values(b'$RESET(MOUSE)$')

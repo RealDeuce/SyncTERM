@@ -178,8 +178,8 @@ struct st_rip3_host_sink {
  * record backup/protection is separate from future scene-wide activation.
  * COLORMODE queries undefined slots as -1 and edits defined precision 0..8,
  * bypassing ENV protection. Its wire counterpart accepts only eight-bit RGB.
- * D requires one decimal duration 1..65535 in 60ths of a second (the detailed
- * rule; the milliseconds summary conflicts under #46). It emits no text and
+ * D takes the leading decimal digits of one argument as a duration in
+ * sixtieths of a second. A zero duration succeeds. It emits no text and
  * starts the bound input gate. General same-host-command continuation/yield
  * integration remains with the enclosing evaluator, not this one-reference API.
  * Local queries use explicit borrowed client services. SHIFT/CTRL read current

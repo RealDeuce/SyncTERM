@@ -26,7 +26,7 @@ def port_query_arguments(t, values, width, height):
     for arguments in (b'(CUR,,DEVICE)', b'(1,WORLD)', b'(,VIEW,DEVICE)',
                       b'(CUR,PORT,DEVICE,1)'):
         values(b'begin:' + fields(arguments) + b':next:' + fields(b'(1,PORT,DEVICE)'),
-               b'begin:::::::next:40:30:100:80:140:110')
+               b'begin:' + fields(arguments) + b':next:40:30:100:80:140:110')
     values(b'$DVP(1)$' + fields(b'(0001,,VIEW,DEVICE)'), b'0:0:-1:-1:-1:-1')
     values(b'$AVP(1)$$BASEMATH(CUR,36)$' + f'$WORLD(CUR,{width},{height})$'.encode())
 
@@ -110,7 +110,8 @@ def run(args,width,height):
         t.case('rip3-view-reset-rejects-invalid-late-selectors-before-changes')
         values(b'$DVP(2)$')
         for selector in (b'36',b'BASE',b'ALL',b'S0',b'STACK',b'BOGUS',b'-1'):
-            before=client.capture();frame=values(b'$RESET(VIEW,2,'+selector+b')$');same(before,frame)
+            source = b'$RESET(VIEW,2,'+selector+b')$'
+            before=client.capture();frame=values(source, source);same(before,frame)
             values(b'$TEXTXY(2)$',b'-1')
         before=client.capture();frame=values(b'$RESET(VIEW,0002,CUR,2,35)$');same(before,frame)
         values(b'$INUSE(PORT,35)$:$TEXTXY(2)$:$CUR(PORT)$',b'0:32:33:0')
@@ -136,13 +137,13 @@ def run(args,width,height):
         values(b'$PROT(PORT,1)$$DVP(aLL)$')
         before=client.capture()
         frame=values(b'$MVP(ALL)$$AVP(2,36)$$TEXTXY(1)$:$TEXTXY(2)$:$PORTW(1,VIEW,DEVICE)$',
-                     b'141:122:-1:11')
+                     b'$AVP(2,36)$141:122:-1:11')
         same(before,frame)
         values(b'$AVP(ALL)$$MVP(ALL)$$PORTW(1,VIEW,DEVICE)$:$PORTW(2,VIEW,DEVICE)$'
                b':$PORTH(2,VIEW,DEVICE)$:$PORTW(2,PORT,DEVICE)$:$PORTH(2,PORT,DEVICE)$',
                f'11:{width}:{height}:4:3'.encode())
         values(b'$UNPROT(PORT,1)$$DVP(CUR,36)$$MVP(CUR,INVALID)$'
-               b'$TEXTXY(CUR)$:$PORTW(1,VIEW,DEVICE)$', b'141:122:11')
+               b'$TEXTXY(CUR)$:$PORTW(1,VIEW,DEVICE)$', b'$DVP(CUR,36)$$MVP(CUR,INVALID)$141:122:11')
         before=wire(b'c02|X'+coords((160,120)))
         assert pixel(before,160,120)==0
         frame=values(b'[$MVP$]$CUR(PORT)$:$TEXTXY$:$PORTX0(1,VIEW,DEVICE)$:$PORTY0(1,VIEW,DEVICE)$'

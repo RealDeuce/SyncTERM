@@ -74,7 +74,7 @@ def controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
     expect_region(frame, width, height, whole, 0x0000ff)
     before = t.exchange(b"\x1b8" + scene(width, height))
     assert (before.application["cterm.x"], before.application["cterm.y"]) == (4, 3)
-    frame = t.exchange(query(b"$ETW(CUR,36)$alive", at_cursor=True), b"alive")
+    frame = t.exchange(query(b"$ETW(CUR,36)$alive", at_cursor=True), b"$ETW(CUR,36)$alive")
     assert frame.primary == before.primary
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 3)
     # Whole erase is always palette index 0, even in RGB mode and with a
@@ -99,7 +99,7 @@ def ansi_controls(t, width, height, columns, rows, ox, oy, cw, ch, encoding):
     modes = (f"\x1b[2;{rows-1}r\x1b[?69h\x1b[3;{columns-2}s"
              "\x1b[?6h\x1b[2;2H\x1b7\x1b[31;41;4m").encode()
     before = t.exchange(scene(width, height) + modes)
-    frame = t.exchange(query(b"$TWERASEEOL(CUR,36)$alive", at_cursor=True), b"alive")
+    frame = t.exchange(query(b"$TWERASEEOL(CUR,36)$alive", at_cursor=True), b"$TWERASEEOL(CUR,36)$alive")
     assert frame.primary == before.primary
     eol = (ox+3*cw, oy+2*ch, (columns-3)*cw, ch)
     frame = t.exchange(query(b"$tweraseeol( all,cur,0,0 )$", at_cursor=True))

@@ -114,7 +114,8 @@ def run(args,width,height):
         values(b'$DTW(7)$$CUR(TW,5)$')
         before = capture()
         for invalid in (b'36', b'BASE', b'ALL,BOGUS'):
-            frame = values(b'$MTW(0,CUR,' + invalid + b')$alive', b'alive')
+            source = b'$MTW(0,CUR,' + invalid + b')$alive'
+            frame = values(source, source)
             same(before, frame)
             cursor(frame, 5, 4)
             values(b'$TWW(0)$:$TWH(0)$:$CURX(0)$:$CURY(0)$', b'8:6:5:4')

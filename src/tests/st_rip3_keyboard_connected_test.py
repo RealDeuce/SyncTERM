@@ -106,7 +106,7 @@ def check_tab_navigation(t):
     key("tab", b"\t")
     values(b"$TABON$$OPTION(TAB)$", b"1")
     key("tab")
-    still_focused = values(b"$TABOFF(1)$$OPTION(TAB)$", b"1")
+    still_focused = values(b"$TABOFF(1)$$OPTION(TAB)$", b"$TABOFF(1)$1")
     same_pixels(still_focused, focused)
     cleared_by_option = values(b"$OPTION(tab, off)$$OPTION(TAB,QUERY)$", b"0")
     same_pixels(cleared_by_option, cleared)
@@ -175,16 +175,16 @@ def check_tab_navigation(t):
     values(b"$MKILL$")
 
     t.case("rip3-mkill-absolute-region")
-    for expression, survivors, retains_focus in (
-        (b"$MKILL(20,20,60,60,IN)$", (b"B", b"C"), False),
-        (b"$MKILL(20,20,60,60,OuT)$", (b"A", b"B"), False),
-        (b"$MKILL(60,60,20,20)$", (b"B", b"C"), False),
-        (b"$MKILL(20,20,20,60,OUT)$", (b"A", b"B", b"C"), True),
-        (b"$MKILL(20,20,60,60,UNKNOWN)$", (b"A", b"B", b"C"), True),
-        (b"$MKILL(20,20,65536,60)$", (b"A", b"B", b"C"), True),
-        (b"$MKILL( 20,20,60,60)$", (b"A", b"B", b"C"), True),
-        (b"$MKILL(40,20,120,60,in)$", (b"B", b"C"), False),
-        (b"$MKILL$", (), False),
+    for expression, survivors, retains_focus, rejected in (
+        (b"$MKILL(20,20,60,60,IN)$", (b"B", b"C"), False, False),
+        (b"$MKILL(20,20,60,60,OuT)$", (b"A", b"B"), False, False),
+        (b"$MKILL(60,60,20,20)$", (b"B", b"C"), False, False),
+        (b"$MKILL(20,20,20,60,OUT)$", (b"A", b"B", b"C"), True, False),
+        (b"$MKILL(20,20,60,60,UNKNOWN)$", (b"A", b"B", b"C"), True, True),
+        (b"$MKILL(20,20,65536,60)$", (b"A", b"B", b"C"), True, True),
+        (b"$MKILL( 20,20,60,60)$", (b"A", b"B", b"C"), True, True),
+        (b"$MKILL(40,20,120,60,in)$", (b"B", b"C"), False, False),
+        (b"$MKILL$", (), False, False),
     ):
         values(b"$MKILL$$WORLD(CUR,640,480)$")
         before = t.exchange(
@@ -196,7 +196,7 @@ def check_tab_navigation(t):
         focused = key("tab")
         if expression.startswith(b"$MKILL(40,"):
             values(b"$WORLD(CUR,1280,480)$")
-        result = values(expression + b"alive", b"alive")
+        result = values(expression + b"alive", (expression if rejected else b"") + b"alive")
         same_pixels(result, focused if retains_focus else before)
         if retains_focus:
             same_pixels(key("escape"), before)
@@ -283,7 +283,7 @@ def check_backspace(t, half_duplex):
     assert cursor(after) == (2, 1) and cell(after) == cell(before)
 
     t.case("rip3-backspace-full-duplex-and-generated-output")
-    values(b"$BSXMIT(del)$[$BSMODE(BS)$][$BSXMIT(BS,DEL)$]$BSMODE$:$BSXMIT$", b"[][]0:0")
+    values(b"$BSXMIT(del)$[$BSMODE(BS)$][$BSXMIT(BS,DEL)$]$BSMODE$:$BSXMIT$", b"[$BSMODE(BS)$][$BSXMIT(BS,DEL)$]0:0")
     before = t.exchange(sample)
     for modifiers, expected in ((0, b"\x7f"), (CONTROL, b"\x08")):
         after = key(expected, modifiers)
@@ -430,7 +430,7 @@ def run(args):
         check_keyboard_action_mode(t, args.encoding)
         t.exchange(b"\x01|*\r\n\x1b[0m\x1b[?25l")
         t.case("rip3-keyboard-capability-and-engine-identity")
-        values(b"A$RIPVER$B$RIPVER()$C$RIPVER(1)$D", b"ARIPSCRIP030001BRIPSCRIP030001CD")
+        values(b"A$RIPVER$B$RIPVER()$C$RIPVER(1)$D", b"ARIPSCRIP030001BRIPSCRIP030001C$RIPVER(1)$D")
         values(b"$IFS(DOORWAY)$:$IFS(ENG)$:$IFS(VT102)$:$IFS(EXTAPPS)$", b"1:1:0:0")
         values(b"$IFS(LIST, _EMULATIONS)$:$IFS(LIST, _LANGUAGES)$", b"ANSI,DOORWAY,RIPSCRIP:ENG")
 
@@ -446,7 +446,7 @@ def run(args):
         t.exchange(b"\x01|2T10\r\n" + query(b"$CUR(TW)$", at_cursor=True), b"1")
         key("up", b"\x00\x48")
         t.exchange(b"\x1b[=255l")
-        values(b"$DWAYON(1)$$OPTION(DOORWAY)$", b"0")
+        values(b"$DWAYON(1)$$OPTION(DOORWAY)$", b"$DWAYON(1)$0")
         key("up", b"\x1b[A")
         t.exchange(b"\x01|2T00\r\n\x1b[=255h")
         values(b"$OPTION(DOORWAY)$", b"1")
