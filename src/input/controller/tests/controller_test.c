@@ -150,7 +150,7 @@ repeated_vendor_usage(void)
 	pad_report(p, report, sizeof report, false);
 	for (size_t i = 0; i < 16; ++i) {
 		char label[64];
-		snprintf(label, sizeof label, "Vendor FF00:0001 #%zu", i + 1);
+		snprintf(label, sizeof label, "Vendor Defined FF00:0001 #%zu", i + 1);
 		CHECK(strcmp(st_controller_field(p, i), label) == 0);
 		int value;
 		CHECK(st_controller_preview(p, i, &value) && value == (i == 0 || i == 15));

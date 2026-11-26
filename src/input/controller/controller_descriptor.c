@@ -60,8 +60,8 @@ add_field(struct st_pad *p, const struct globals *g, unsigned bit, uint32_t usag
 				f.target = pad_target(3, id - 0x30);
 		}
 		else {
-			snprintf(f.label, sizeof f.label, "%s %04X:%04X", page >= 0xff00 ? "Vendor" : "Usage",
-			    page, id);
+			snprintf(f.label, sizeof f.label, "%s %04X:%04X",
+			    page >= 0xff00 ? "Vendor Defined" : "Usage", page, id);
 			if (page == 2 && f.kind != ST_BUTTON) {
 				switch (id) {
 					case 0xba:
