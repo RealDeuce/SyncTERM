@@ -513,6 +513,7 @@ bookmark_variables(void)
 	CHECK(st_rip3_variables_define(f.persistent,NULL,"PASSWORD",8,
 	    (const uint8_t *)"legacy-saved",12,true)==0);
 	CHECK(process(&f,"1\0330000A$userName$B<<PASSWORD>>C$&USERNAME=fallback$D"
+	    "$*#20,10:PASSWORD,10@Please enter your password$"
 	    "$-+=PASSWORD=foreign$$RESET(TV,userName)$$RESET(TV,password)$"
 	    "$INUSE(TV,username)$$INUSE(TV,PASSWORD)$tail",-1)==0);
 	CHECK(!st_rip3_query_pending(f.host.query) && !st_rip3_query_prompt_pending(f.host.query));
@@ -526,6 +527,33 @@ bookmark_variables(void)
 	CHECK(user_value(f.session,"USERNAME","legacy-live")==0);
 	CHECK(user_value(f.session,"PASSWORD",NULL)==0);
 	CHECK(user_value(f.persistent,"PASSWORD","legacy-saved")==0);
+	destroy(&f);
+	return 0;
+}
+
+static int
+address_query(void)
+{
+	struct fixture f = {0};
+	CHECK(create(&f, ST_RIP3_CANVAS_640_480) == 0 && bind_users(&f) == 0);
+	CHECK(process(&f, "1\0330000$FULL_NAME$^m$COMPANY$^m$ST_ADDR$^m$CITY$, $STATE$ $ZIP$^m", -1) == 0);
+	const struct { const char *name, *answer; } fields[] = {
+		{"FULL_NAME", "Joe Sixpack"}, {"COMPANY", "ACME Corporation"},
+		{"ST_ADDR", "13631 Palindrome Parkway"}, {"CITY", "Surf City"},
+		{"STATE", "CA"}, {"ZIP", "92649"}
+	};
+	for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++) {
+		const struct st_rip3_variable_reference *prompt = st_rip3_user_variables_prompt(f.variables.user_variables);
+		CHECK(prompt != NULL && strcmp(prompt->name, fields[i].name) == 0 && f.reply_length == 0);
+		st_rip3_user_variables_respond(f.variables.user_variables,
+		    (const uint8_t *)fields[i].answer, strlen(fields[i].answer), false);
+		st_rip3_query_process(f.host.query, 256);
+	}
+	const char expected[] = "Joe Sixpack\rACME Corporation\r13631 Palindrome Parkway\rSurf City, CA 92649\r";
+	CHECK(f.reply_length == sizeof(expected) - 1 && memcmp(f.reply, expected, sizeof(expected) - 1) == 0);
+	f.reply_length = 0;
+	CHECK(process(&f, "1\0330000$ZIP^m", -1) == 0);
+	CHECK(f.reply_length == 5 && memcmp(f.reply, "$ZIP\r", 5) == 0);
 	destroy(&f);
 	return 0;
 }
@@ -1392,6 +1420,7 @@ main(void)
 	CHECK(compound(ST_RIP3_CANVAS_640_480,"640") == 0);
 	CHECK(compound(ST_RIP3_CANVAS_800_600,"800") == 0);
 	CHECK(compound(ST_RIP3_CANVAS_1024_768,"1024") == 0);
+	CHECK(address_query()==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_640_480,"640")==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_800_600,"800")==0);
 	CHECK(user_queries(ST_RIP3_CANVAS_1024_768,"1024")==0);

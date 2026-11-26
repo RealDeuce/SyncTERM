@@ -84,6 +84,11 @@ checks that local JPEG playback uses the image style selected after button
 creation. Three host-response index entries still need reconciliation with the
 detailed chapters. [Issue #334](https://github.com/bbs-land/remote-imaging-protocol/issues/334)
 
+The address-query test answers six ordinary prompts and checks the full
+CR-separated reply. An unterminated final `$ZIP^m` instead sends literal
+`$ZIP` and CR. A required, positioned prompt using the reserved PASSWORD name
+also returns empty. [Issue #336](https://github.com/bbs-land/remote-imaging-protocol/issues/336)
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask
