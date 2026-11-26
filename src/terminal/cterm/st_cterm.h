@@ -178,8 +178,8 @@ void st_cterm_destroy(st_cterm_t **terminal);
  * before the parser applies the control. consumed is always written.
  * Codepage text is converted at the input boundary and shares UTF-8 text
  * presentation. Counts refer to original input bytes, not converted UTF-8.
- * With a RIP3 session owner, consuming ESC 7 or ESC 8 can end a successful
- * write early. Take the window action before submitting the unread bytes.
+ * An escape extension may end a successful write early. Its owner must take
+ * the deferred final byte before submitting the unread input.
  * RIP/IGS/BIG command rejections warn and continue with the unread stream;
  * they do not return command/parser errors to the session owner.
  */
@@ -225,18 +225,12 @@ int st_cterm_text_boundary(st_cterm_t *terminal);
 struct st_cterm_suspended_input;
 int  st_cterm_suspend_input(st_cterm_t *terminal, struct st_cterm_suspended_input **result);
 void st_cterm_resume_input(st_cterm_t *terminal, struct st_cterm_suspended_input *saved);
-/* RIP3 ESC7/8 hand off only after the recognized sequence has been consumed
- * and the native input stack has unwound. A successful write may stop short;
- * the connection owner takes the action before continuing the remaining bytes. */
-enum st_cterm_window_action {
-	ST_CTERM_WINDOW_NONE,
-	ST_CTERM_WINDOW_SAVE,
-	ST_CTERM_WINDOW_RESTORE
-};
-enum st_cterm_window_action st_cterm_take_window_action(st_cterm_t *terminal);
-bool                        st_cterm_escape_pending(st_cterm_t *terminal);
-void                        st_cterm_set_destructive_backspace(st_cterm_t *, bool destructive);
-int                         st_cterm_echo_window_backspace(st_cterm_t *, bool destructive);
+/* Take the final byte deferred by an escape extension after input unwinds.
+ * Zero means there is no final byte available. */
+uint8_t st_cterm_take_deferred_escape(st_cterm_t *terminal);
+bool    st_cterm_escape_pending(st_cterm_t *terminal);
+void    st_cterm_set_destructive_backspace(st_cterm_t *, bool destructive);
+int     st_cterm_echo_window_backspace(st_cterm_t *, bool destructive);
 /* Restore physical cursor presentation from the retained native state. */
 int st_cterm_present_text_cursor(st_cterm_t *terminal);
 /* Zero-based local cursor placement. A RIP3 session owner uses full-window

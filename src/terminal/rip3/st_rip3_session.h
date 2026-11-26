@@ -214,7 +214,7 @@ void st_rip3_session_request_refresh(struct st_rip3_session *session);
  * RIP identification/control handling remains independent of TTY visibility. */
 bool st_rip3_session_text_active(const struct st_rip3_session *session);
 bool st_rip3_session_status_bar(const struct st_rip3_session *session);
-/* CTerm calls through its owner after recognizing ESC7/8 and unwinding input.
+/* The RIP3 escape handler defers ESC 7/8 until the text writer unwinds.
  * One reusable connection save; failures are diagnosed here and consumed.
  * May be called from sink.text, but invokes no received-input/parser callback. */
 void st_rip3_session_ansi_window(struct st_rip3_session *session, bool restore);

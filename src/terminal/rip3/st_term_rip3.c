@@ -499,11 +499,11 @@ flush_text(void *context)
 		if (rip->view != NULL && status == 0)
 			status = st_term_rip3_view_present(rip->view, rip->config.console,
 			    st_rip3_session_text_active(rip->session));
-		enum st_cterm_window_action action = st_cterm_take_window_action(text);
+		uint8_t final = st_cterm_take_deferred_escape(text);
 		/* Replacing a window is safe only after CTerm's writer has unwound.
 		 * Consume the action once, then resume at the following original byte. */
-		if (status == 0 && action != ST_CTERM_WINDOW_NONE)
-			st_rip3_session_ansi_window(rip->session, action == ST_CTERM_WINDOW_RESTORE);
+		if (status == 0 && final != 0)
+			st_rip3_session_ansi_window(rip->session, final == '8');
 		else if (consumed == 0)
 			break;
 	}
@@ -1682,11 +1682,14 @@ bool
 st_term_rip3_escape(void *context, st_cterm_t *text, uint8_t byte)
 {
 	bool query = byte == '!' && text->seq_phase == SEQ_PHASE_PARAMS;
-	if (!query && byte != 0x18 && byte != 0x1a && byte != 0x1b)
-		return false;
 	uint64_t first = 0;
 	if (query)
 		query = cterm_csi_intermediate(text, byte, &first);
+	else if ((byte == '7' || byte == '8') && text->seq_phase == SEQ_PHASE_C1
+	    && text->seq_key == SEQ_ESC && text->windowed_ansi)
+		text->deferred_escape = byte;
+	else if (byte != 0x18 && byte != 0x1a && byte != 0x1b)
+		return false;
 	text->seq_phase   = SEQ_PHASE_IDLE;
 	text->sequence    = 0;
 	text->accumulator = NULL;

@@ -979,7 +979,7 @@ write_input(struct cterminal *terminal, const void *bytes, size_t size, size_t *
 		status = cterm_render_take_error(owner->status_sub);
 	while (*consumed < size && status == 0) {
 		st_cterm_t *target = input_display(owner);
-		if (target->window_action != ST_CTERM_WINDOW_NONE)
+		if (target->deferred_escape != 0)
 			break;
 		uint8_t byte      = input[*consumed];
 		bool    text_mode = utf8 || target->emulation == CTERM_EMULATION_ANSI_BBS
@@ -1126,14 +1126,14 @@ write_plain(st_cterm_t *terminal, const void *bytes, size_t size, size_t *consum
 	    semantic_utf8 ? CTERM_INPUT_SEMANTIC_UTF8 : CTERM_INPUT_WIRE);
 }
 
-enum st_cterm_window_action
-st_cterm_take_window_action(st_cterm_t *terminal)
+uint8_t
+st_cterm_take_deferred_escape(st_cterm_t *terminal)
 {
 	if (terminal == NULL || terminal->input_depth != 0)
-		return ST_CTERM_WINDOW_NONE;
-	enum st_cterm_window_action action = terminal->window_action;
-	terminal->window_action            = ST_CTERM_WINDOW_NONE;
-	return action;
+		return 0;
+	uint8_t final = terminal->deferred_escape;
+	terminal->deferred_escape = 0;
+	return final;
 }
 
 int

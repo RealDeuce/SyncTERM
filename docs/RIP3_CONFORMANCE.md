@@ -17,7 +17,8 @@ An active requirement must identify a RIPscrip command, variable, framing
 rule, or interoperability rule and the observable effect it requires.
 For example, wire `2T` selects a RIP text window, `1U` defines a button and
 its host response, and `ESC[!` queries RIP capability. The RIP session
-owns routing and recognition of RIP messages. Ordinary ANSI bytes use
+owns routing and recognition of RIP messages, including the private `ESC 7`
+and `ESC 8` controls for its text-window snapshot. Ordinary ANSI bytes use
 SyncTERM's existing CTerm rules. RIP text-window commands can use CTerm
 APIs to configure geometry, apply RIP erasure and cursor operations, and
 retain or initialize supported window state.
@@ -39,8 +40,8 @@ documentation issue only when a gap or conflict prevents implementing or
 verifying an in-scope RIP effect.
 
 **The pinned RIPscrip 3.0 requirements are implemented in connected RIPv3 sessions.**
-The ledger records 6,118 implemented source blocks, 3,393 context blocks and
-277 exclusions. All clarification issues have a disposition. The completion
+The ledger records 6,173 implemented source blocks, 3,393 context blocks and
+222 exclusions. All clarification issues have a disposition. The completion
 check and the native and connected tests described below cover this scope.
 
 The final connected run covered all 40 RIPv3 test groups in CP437 and UTF-8.
@@ -8923,13 +8924,11 @@ archive/review scratch files are removed, and full RIP3 compliance is incomplete
 
 ## Connected ANSI ESC7/8 text-window state
 
-CTerm now recognizes ESC7/8 on the existing ANSI route and yields after the
-completed sequence with a successful consumed-prefix count. The connection
-owner handles the action after native input unwinds, then feeds following bytes
-to the resulting selected native window. No ECMA parsing moved into RIP framing,
-and command/resource failures remain diagnosed and consumed below the void
-session boundary. Ordinary ANSI/RIP1/non-owner handlers keep their existing
-cursor behavior; CSI s/u retains its separate per-window coordinates.
+The RIPv3 escape handler recognizes bare `ESC 7` and `ESC 8` on the ANSI text
+path. The text writer yields after the final byte so the RIPv3 session can
+save or replace the selected window before processing the next byte.
+Ordinary ANSI and RIP1 use CTerm's DEC cursor handlers. CSI s/u saves and
+restores coordinates within the selected window.
 
 One optional interpreter-owned save independently owns the logical definition,
 fixed query and represented native metadata. It captures the live cursor for

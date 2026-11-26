@@ -53,7 +53,12 @@ def run(args,width,height):
         values(f'$WORLD(CUR,{width},{height})$'.encode())
         capture(window((30,40,400,250),8,5,2,1))
         setup=b'\x1b[H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[2;4H\x1b(A\x1b)0\x1b[31;44m'
-        capture(setup+b'\x1b7\x1b[32m')
+        capture(setup+b'\x1b')
+        capture(b'7\x1b[32m')
+        # Digits in CSI parameters, ESC with an intermediate, and RIP comment
+        # payloads must leave the saved state and the current window alone.
+        frame=capture(b'\x1b[3;7H\x1b(8\x01|!\x1b7\x1b8\r\n')
+        cursor(frame,7,3,0x12)
         frame=capture(b'\x1b[u');cursor(frame,1,1,0x12)  # ESC7 did not replace source CSI save.
         values(b'$CUR(TW,5)$');capture(window((450,300,600,380),4,3,4,1))
         values(b'$WORLD(CUR,160,100)$')

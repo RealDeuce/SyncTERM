@@ -165,9 +165,9 @@ DEVICE/WORLD bounds, live scaling, unclipped wide origins and unchanged pixels/
 cursor/wrap. The connected RIP3 screen tests compare the first scroll at
 line 42 on startup with the first scroll at line 43 after an explicit mode 0
 window definition. Both encodings cover the local status preference, the
-host status switch, and a graphics pixel below the text window. PR #107's separate
-CSI saved coordinates remain separate from the now-connected ESC7/8 represented
-text-window save, covered by `cterm_text_window`, `rip3_session` and
+host status switch, and a graphics pixel below the text window. The RIPv3 parser
+handles `ESC 7` and `ESC 8` on the ANSI text path. CSI s/u keeps its own saved
+cursor in each window. The snapshot tests include `cterm_text_window`, `rip3_session` and
 `syncterm_rip3_ansi_save_CP437`/UTF-8. Those tests assert old source CSI versus
 captured live position, origin-aware restored CSI coordinates, independent query
 ownership, atomic resource failures, repeated restore and protection, current

@@ -144,7 +144,8 @@ struct cterminal {
 	/* RIP3 ANSI records designations, but always displays the CP437 bank.
 	 * SI/SO do not invoke G1 in this profile. Values are ESC final bytes. */
 	uint8_t                     g0_designation, g1_designation;
-	enum st_cterm_window_action window_action;
+	/* An escape extension can yield input after consuming this final byte. */
+	uint8_t                     deferred_escape;
 
 	struct cterm_apc_state             *apc;
 	enum st_cterm_encoding     wire_encoding;

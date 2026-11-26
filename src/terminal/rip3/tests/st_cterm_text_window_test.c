@@ -7,6 +7,7 @@
 #include "io_error.h"
 #include "st_cterm.h"
 #include "st_rip3_native_window.h"
+#include "st_term_rip3.h"
 
 #define CHECK(x)                                                        \
 	do {                                                            \
@@ -510,6 +511,8 @@ ansi_window_save(void)
 {
 	struct fixture source = {0}, target = {0};
 	CHECK(create(&source, 17) == 0 && create(&target, 17) == 0);
+	source.text->escape_extension = st_term_rip3_escape;
+	target.text->escape_extension = st_term_rip3_escape;
 	/* CSI's old save remains independent of the live cursor captured by ESC7. */
 	const char setup[] =
 	    "\x1b[1;1H\x1b[s\x1b[3g\x1b[1;6H\x1bH\x1b[3;1H\x1bJ\x1b[2;4H\x1b(A\x1b)0\x1b[31;44m\x1b[38;2;12;34;56m\x1b[48;2;65;43;21m";
@@ -522,7 +525,7 @@ ansi_window_save(void)
 		CHECK(st_cterm_write(source.text, save_sequence, split, &used) == 0 && used == split);
 		CHECK(st_cterm_write(source.text, save_sequence + split, 3 - split, &used) == 0
 		      && used == 2 - split);
-		CHECK(st_cterm_take_window_action(source.text) == ST_CTERM_WINDOW_SAVE);
+		CHECK(st_cterm_take_deferred_escape(source.text) == '7');
 		CHECK(source.text->save_xpos == 1 && source.text->save_ypos == 1 && position(&source, 4, 2) == 0);
 	}
 	struct st_cterm_window_definition *saved = NULL;
@@ -572,8 +575,8 @@ ansi_window_save(void)
 		  3, &used)
 	          == 0
 	      && used == 2);
-	CHECK(st_cterm_take_window_action(target.text) == ST_CTERM_WINDOW_RESTORE);
-	CHECK(st_cterm_take_window_action(target.text) == ST_CTERM_WINDOW_NONE);
+	CHECK(st_cterm_take_deferred_escape(target.text) == '8');
+	CHECK(st_cterm_take_deferred_escape(target.text) == 0);
 	st_cterm_window_definition_destroy(saved);
 	static const char origin[] = "\x1b[2;4r\x1b[?6h\x1b[2;4H";
 	CHECK(feed(&target, origin, sizeof(origin) - 1) == 0 && position(&target, 4, 3) == 0);
@@ -594,7 +597,7 @@ ansi_window_save(void)
 		    "7\x1b[H\x1b"
 		    "8X";
 		CHECK(feed(&source, legacy, sizeof(legacy) - 1) == 0 && position(&source, 5, 2) == 0);
-		CHECK(st_cterm_take_window_action(source.text) == ST_CTERM_WINDOW_NONE);
+		CHECK(st_cterm_take_deferred_escape(source.text) == 0);
 		destroy(&source);
 	}
 	return 0;
