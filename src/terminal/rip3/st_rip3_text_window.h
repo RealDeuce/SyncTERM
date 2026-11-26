@@ -72,8 +72,7 @@ struct st_rip3_text_window_layout {
 
 struct st_rip3_text_cell { uint32_t width,height; };
 /* Read-only native observation. Cursor coordinates are one-based within the
- * full window, independently of ANSI origin/margins. Layout is unclipped.
- * The client's unredefined startup TTY has no established MicroANSI font. */
+ * full window, independently of ANSI origin/margins. Layout is unclipped. */
 struct st_rip3_text_window_snapshot {
 	struct st_rip3_text_window_layout layout;
 	uint32_t column,row;
@@ -87,11 +86,13 @@ int st_rip3_text_window_backup_create(struct st_rip3_backup **result);
  * non-deactivation w layouts: the all-zero tuple's gate operation belongs
  * to the owner and must retain its prior geometry/cursor. Reversed endpoint
  * pairs are ordered and every coordinate clamps to the nominal font grid
- * before computing extents and placement. Failure preserves
- * result. No font resource, ANSI parser, text rendering or table mutation. */
+ * before computing extents and placement. Failure preserves the result. */
 int st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	const struct st_rip3_frame *device, uint32_t x0, uint32_t y0,
 	uint32_t x1, uint32_t y1, unsigned wrap, unsigned font);
+/* Startup and reset use the original RIPtel default row table. */
+int st_rip3_text_window_default(struct st_rip3_text_window_layout *result,
+	const struct st_rip3_frame *device, bool wrap, unsigned font);
 /* Grow or shrink to the retained font's nominal grid at current cell metrics. */
 int st_rip3_text_window_maximize(struct st_rip3_text_window_layout *layout);
 /* The ordinary w identity excludes wrap. Repeating an identical definition

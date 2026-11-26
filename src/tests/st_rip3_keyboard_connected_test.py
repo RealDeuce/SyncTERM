@@ -6,12 +6,12 @@ from pathlib import Path
 
 from st_migrated_control_test import connection
 from st_rip3_buttons_connected_test import button,style,remove_fields
-from st_rip3_connected_test import pixel, query
+from st_rip3_connected_test import check_default_text, pixel, query
 from st_rip3_extended_window_connected_test import window
 from st_rip3_mouse_connected_test import field
-from st_terminal_conformance_test import Terminal, colour
+from st_terminal_conformance_test import Terminal
 from syncterm_control import CONTROL, SHIFT
-from syncterm_fixture import cell_at, receive
+from syncterm_fixture import receive
 
 
 def check_autosense(t):
@@ -29,7 +29,7 @@ def check_autosense(t):
                        b"\x1b[8;1H!|m0B0B\r\n" + query(b"ignored", at_cursor=True)
                        + b"\x1b[2!\x1b[3!" + query(b"$TEXTXY$", at_cursor=True),
                        ident + b"\r10:10")
-    assert frame.lines[7].startswith("!|m0B0B")
+    check_default_text(frame, b"!|m0B0B", row=7)
     t.exchange(b"\x1b[1!\x1b[2!\x01|m0C0C\r\n" + query(b"$TEXTXY$", at_cursor=True), b"12:12")
 
     t.case("rip3-disable-suppresses-port-and-style-switches")
@@ -228,27 +228,18 @@ def check_backspace(t, half_duplex):
         t.client.key("backspace", modifiers)
         return t.input(expected)
 
-    def cell(frame):
-        return cell_at(frame, 1, 0)
-
     def cursor(frame):
         return frame.application["cterm.x"], frame.application["cterm.y"]
 
-    def private_cell(frame):
-        # Reset's MicroANSI view at 640x480 has an 8x11 device cell.
+    def cell(frame):
+        # Mode 0's second 8x11 cell on the 640x480 canvas.
         return tuple(pixel(frame, x, y) for y in range(11) for x in range(8, 16))
 
     def blank(frame):
         assert cursor(frame) == (2, 1)
-        if half_duplex:
-            assert set(private_cell(frame)) == {0x0000a8}
-        else:
-            assert frame.lines[0].startswith("A "), frame.lines[0]
-            assert colour(frame, cell(frame)) == 0xa8a8a8
-            assert colour(frame, cell(frame), background=True) == 0x0000a8
+        check_default_text(frame, b"A", foreground=0xa80000)
+        assert set(cell(frame)) == {0x0000a8}
 
-    # Custom's root ANSI map is monochrome. Use direct colors there to
-    # distinguish both attributes, and indexed SGR in the reset text view.
     colors = b"\x1b[37;44m" if half_duplex else b"\x1b[38;2;168;168;168;48;2;0;0;168m"
     sample = b"\x1b[H\x1b[31;40mAB" + colors
     if half_duplex:
@@ -256,7 +247,7 @@ def check_backspace(t, half_duplex):
         values(b"$BSMODE$:$BSXMIT$", b"0:0")
         before = t.exchange(sample)
         after = key(b"\x7f")
-        assert cursor(after) == (2, 1) and private_cell(after) == private_cell(before)
+        assert cursor(after) == (2, 1) and cell(after) == cell(before)
         values(b"$BSMODE(DEST)$")
         t.exchange(sample)
         blank(key(b"\x08", CONTROL))
@@ -286,7 +277,8 @@ def check_backspace(t, half_duplex):
     values(b"$BSMODE()$:$BSXMIT(QUERY)$", b"1:1")
     blank(t.exchange(sample + b"\x08"))
     frame = t.exchange(b"\x1b[H\x08")
-    assert frame.lines[0].startswith("A ") and cursor(frame) == (1, 1)
+    check_default_text(frame, b"A", foreground=0xa80000)
+    assert set(cell(frame)) == {0x0000a8} and cursor(frame) == (1, 1)
     t.exchange(b"\x01|T$BSMODE(nondest)$\r\n")
     values(b"$BSMODE$", b"0")
     before = t.exchange(sample)

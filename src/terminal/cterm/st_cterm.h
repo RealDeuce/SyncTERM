@@ -204,6 +204,8 @@ struct st_cterm_config {
 	/* Initially reserve one available row for the DEC indicator status line. */
 	bool status_line;
 	size_t scrollback_lines;
+	/* Borrow the display terminal's pixel history for a raster view at the display origin. */
+	st_cterm_t *history_display;
 	bool quiet;
 	/* Treat a received LF as CR+LF; false retains the current column. */
 	bool expand_lf;

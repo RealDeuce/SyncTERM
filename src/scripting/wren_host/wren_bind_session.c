@@ -683,13 +683,20 @@ fn_conn_elapsed_seconds(WrenVM *vm)
 		    (double)((now - context->connected_at_ms) / 1000));
 }
 
+static st_cterm_t *
+scrollback_terminal(WrenVM *vm)
+{
+	struct st_wren_context *context = st_wren_context_from_vm(vm);
+	return context->session == NULL ? context->cterm : st_term_session_history_terminal(context->session);
+}
+
 static void
 fn_scrollback_width(WrenVM *vm)
 {
 	uint32_t columns = 0;
 	size_t rows;
 
-	(void)st_cterm_scrollback_size(st_wren_context_from_vm(vm)->cterm,
+	(void)st_cterm_scrollback_size(scrollback_terminal(vm),
 	    &columns, &rows);
 	wrenSetSlotDouble(vm, 0, columns);
 }
@@ -700,7 +707,7 @@ fn_scrollback_height(WrenVM *vm)
 	uint32_t columns = 0;
 	size_t rows = 0;
 
-	(void)st_cterm_scrollback_size(st_wren_context_from_vm(vm)->cterm,
+	(void)st_cterm_scrollback_size(scrollback_terminal(vm),
 	    &columns, &rows);
 	wrenSetSlotDouble(vm, 0, (double)rows);
 }
@@ -751,12 +758,13 @@ fn_scrollback_copy_rows(WrenVM *vm)
 		wrenSetSlotDouble(vm, 0, 0);
 		return;
 	}
-	if (st_wren_context_from_vm(vm)->cterm == NULL) {
+	st_cterm_t *terminal = scrollback_terminal(vm);
+	if (terminal == NULL) {
 		wrenSetSlotDouble(vm, 0, 0);
 		return;
 	}
 	copied = st_cterm_copy_scrollback_rows(
-	    st_wren_context_from_vm(vm)->cterm, cells, width, height,
+	    terminal, cells, width, height,
 	    (size_t)source, (size_t)count, (size_t)destination);
 	if (copied < 0) {
 		st_wren_screen_result(vm, copied, "Scrollback.copyRowsTo");
@@ -764,11 +772,11 @@ fn_scrollback_copy_rows(WrenVM *vm)
 	}
 	uint32_t history_width = 0;
 	size_t history_rows;
-	(void)st_cterm_scrollback_size(st_wren_context_from_vm(vm)->cterm,
+	(void)st_cterm_scrollback_size(terminal,
 		&history_width, &history_rows);
 	for (int row = 0; row < copied; ++row) {
 		struct st_pixel_buffer *pixels = NULL;
-		int status = st_cterm_copy_history_pixels(st_wren_context_from_vm(vm)->cterm,
+		int status = st_cterm_copy_history_pixels(terminal,
 			(size_t)source + (size_t)row, &pixels);
 		if (status == 0)
 			status = st_wren_surface_take_row_pixels(vm, 1,

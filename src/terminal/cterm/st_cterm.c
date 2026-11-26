@@ -2265,6 +2265,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 		terminal->apc->directory = config->apc_directory;
 		terminal->apc->version = config->application_version;
 	}
+	terminal->history_display = config->history_display;
 	terminal->api_size_changed = config->size_changed;
 	terminal->api_size_context = config->size_context;
 	terminal->igs_loop_service_pending = config->igs_loop_service_pending;

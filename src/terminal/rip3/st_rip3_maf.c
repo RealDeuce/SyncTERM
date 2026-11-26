@@ -107,6 +107,18 @@ builtin_font(struct st_rip3_maf_font *result, unsigned width, unsigned height,
 	struct st_rip3_maf file;
 	int status=st_rip3_maf_open(&file,asset->data,asset->size);
 	if (status!=0) return status;
+	/* The three smaller MAF keys describe inclusive client-size ranges. */
+	static const struct { unsigned min_w,max_w,min_h,max_h; } ranges[]={
+		{560,639,430,479},{640,799,516,599},{880,1023,688,767}
+	};
+	for (size_t i=0;i<sizeof(ranges)/sizeof(ranges[0]);i++) {
+		if (width>=ranges[i].min_w && width<=ranges[i].max_w
+		    && height>=ranges[i].min_h && height<=ranges[i].max_h) {
+			width=ranges[i].max_w;
+			height=ranges[i].max_h;
+			break;
+		}
+	}
 	status=st_rip3_maf_find(result,&file,width,height,mode);
 	if (status==IO_ERROR_NOT_FOUND && fallback) status=st_rip3_maf_find(result,&file,640,480,mode);
 	return status;
@@ -120,7 +132,7 @@ st_rip3_maf_builtin_font(struct st_rip3_maf_font *result,
 }
 
 int
-st_rip3_maf_builtin_font_exact(struct st_rip3_maf_font *result,
+st_rip3_maf_device_font(struct st_rip3_maf_font *result,
     unsigned width, unsigned height, enum st_rip3_maf_mode mode)
 {
 	return builtin_font(result,width,height,mode,false);

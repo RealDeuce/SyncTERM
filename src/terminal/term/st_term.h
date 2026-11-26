@@ -145,6 +145,8 @@ void st_term_session_destroy(st_term_session_t **session);
 /* Borrowed active parser. Reacquire after remote output can select/redefine a
  * RIP3 text window; do not cache across pumps. Bracket local writes below. */
 st_cterm_t *st_term_session_cterm(st_term_session_t *session);
+/* History is recorded in the physical display grid. */
+st_cterm_t *st_term_session_history_terminal(st_term_session_t *session);
 /* The RIPv3 indicator lives outside ANSI display state and screen contents. */
 bool st_term_session_has_status_overlay(const st_term_session_t *session);
 bool st_term_session_status_visible(const st_term_session_t *session);

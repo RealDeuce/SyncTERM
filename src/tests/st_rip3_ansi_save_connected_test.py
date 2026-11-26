@@ -37,10 +37,9 @@ def run(args,width,height):
         capture(b'\x1b[!',b'RIPSCRIP030001')
         t.case(f'rip3-ansi-save-absent-and-startup-font-{width}x{height}')
         before=capture(b'\x1b[2;4H');frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2)
-        # The unredefined entry font is a valid source; it is not replaced by MAF.
         capture(b'\x1b7');values(b'$CUR(TW,5)$')
         before=capture();frame=capture(b'\x1b8');same(before,frame);cursor(frame,4,2)
-        assert frame.metadata['pixel_cursor_width']==8
+        assert frame.metadata['pixel_cursor_width']==width//80
         values(b'$CUR(TW,0)$');capture(b'\x01|*\r\n')
         t.case('rip3-ansi-save-ordinary-font-two-and-requested-cursor')
         capture(b'\x01|w0000270O12\r\n\x1b[H\x1b[s\x1b[2;4H\x1b[?25l\x1b7')

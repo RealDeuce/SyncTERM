@@ -46,10 +46,9 @@ def run(args, width, height, ox, oy, cw, ch, bcw, bch, bx, by):
         t.case(f"rip3-window-query-root-{width}x{height}")
         before = capture(scene(width, height))
         frame = values(b"$CURX$:$CURY$:$CURSOR$:$TWW$:$TWH$",
-                       f"1:1:YES:{width//8}:{height//8}".encode())
+                       b"1:1:YES:80:42")
         assert frame.primary == before.primary
-        # No invented MicroANSI font is reported for an unredefined client TTY.
-        values(b"$TWFONT$alive", b"alive")
+        values(b"$TWFONT$alive", b"1alive")
         t.case(f"rip3-window-query-ordinary-and-noncurrent-{width}x{height}")
         capture(b"\x01|w0A050H0A10\r\n\x1b[2;5r\x1b[?6h\x01|g0403\r\n")
         values(b"$CURX$:$CURY$:$TWFONT$:$TWW$:$TWH$", b"5:4:1:8:6")

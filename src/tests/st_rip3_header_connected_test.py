@@ -393,7 +393,7 @@ def run(args, width, height):
             frame = t.exchange(b'\x01|h01000001300W00\r\n')
             assert xy(frame) == (1, 1)
             assert frame.primary == before.primary and frame.alternate == before.alternate
-            values(b'$TWW$:$TWH$:$TWFONT$entry', b'80:43:entry')
+            values(b'$TWW$:$TWH$:$TWFONT$entry', b'80:43:1entry')
             assert frame.metadata['plane_width'] == width and frame.metadata['plane_height'] == height
         wire(b'*')
         if width == 640:

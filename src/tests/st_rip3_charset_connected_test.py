@@ -7,29 +7,11 @@ emulator. No VT-102 mode or UK/special display translation is requested.
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
-import struct
 import time
 from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
-from st_rip3_connected_test import query,pixel
+from st_rip3_connected_test import query,check_default_text
 from st_rip3_extended_window_connected_test import window,xy
-
-
-def cp437_row(frame,codes):
-    data=(Path(__file__).resolve().parents[1]/'terminal/rip3/assets/fonts/RIPscrip.maf').read_bytes()
-    word=lambda at:struct.unpack_from('<H',data,at)[0]
-    dword=lambda at:struct.unpack_from('<I',data,at)[0]
-    directory=dword(42)
-    records=[directory+60*i for i in range(word(40))]
-    record=next(r for r in records if (word(r),word(r+2))==(640,480))
-    font=dword(record+4);width,height=word(font),word(font+2);size=word(font+36)
-    assert (width,height)==(8,11) and size==11 and word(font+34)==255
-    for column,code in enumerate(codes):
-        glyph=font+50+(code-1)*size
-        for y in range(height):
-            for x in range(width):
-                expected=0xa8a8a8 if data[glyph+y]&(0x80>>x) else 0
-                assert pixel(frame,column*width+x,y)==expected,(column,code,x,y)
 
 
 def run(args,width,height):
@@ -60,7 +42,7 @@ def run(args,width,height):
         t.case(f'rip3-ansi-literal-designation-si-so-bank-vector-{width}x{height}')
         box=b'\xb3' if args.encoding=='CP437' else '│'.encode()
         frame=capture(b'\x1b(A#\x0eq\x0f#'+box);sets(frame,'A','B');assert xy(frame)==(7,1)
-        if (width,height)==(640,480):cp437_row(frame,[0x23,0x0e,0x71,0x0f,0x23,0xb3])
+        check_default_text(frame,[0x23,0x0e,0x71,0x0f,0x23,0xb3])
         before=capture();frame=capture(b'\x1b)0\x1b(H\x1b)x');same(before,frame);sets(frame,'A','0');assert xy(frame)==(7,1)
         frame=capture(b'\x1b[s\x1b(B\x1b[u');sets(frame,'B','0')
         frame=capture(b'\x1b(A\x1b' b'c');sets(frame,'A','0')

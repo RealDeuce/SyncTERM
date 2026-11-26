@@ -48,15 +48,13 @@ def run(args,width,height):
 
         t.case(f'rip3-tw-entry-copy-entry-console-{width}x{height}')
         before=capture(b'\x1b[?25lF');frame=values(b'$COPY(TW,0,3)$$CUR(TW,3)$');same(before,frame)
-        assert xy(frame)==(2,1) and frame.metadata['pixel_cursor_width']==8
-        # The unredefined entry console has no established MicroANSI mode;
-        # TWFONT cannot identify it. Copy must retain its native geometry/font.
-        values(b'$TWW$:$TWH$',f'{width//8}:{height//8}'.encode())
+        assert xy(frame)==(2,1) and frame.metadata['pixel_cursor_width']==width//80
+        values(b'$TWW$:$TWH$:$TWFONT$',b'80:42:1')
         capture(b'F')
         frame=capture()
-        assert all(pixel(frame,x,y)==pixel(frame,x+8,y) for y in range(8) for x in range(8))
+        assert all(pixel(frame,x,y)==pixel(frame,x+width//80,y) for y in range(height//43) for x in range(width//80))
         before=capture();frame=values(b'$COPY(TW,3,5)$$CUR(TW)$',b'3');same(before,frame)
-        frame=values(b'$CUR(TW,5)$');assert xy(frame)==(3,1) and frame.metadata['pixel_cursor_width']==8
+        frame=values(b'$CUR(TW,5)$');assert xy(frame)==(3,1) and frame.metadata['pixel_cursor_width']==width//80
         capture(b'\x01|*\r\n');values(f'$WORLD(CUR,{width},{height})$'.encode())
 
         t.case('rip3-tw-entry-copy-active-destination-and-protection')

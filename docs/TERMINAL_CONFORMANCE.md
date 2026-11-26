@@ -145,8 +145,10 @@ requests reject nonfatally, retaining the old owner. TW backups/reset, MTW and
 for current and noncurrent slots on three reference rasters and 720x400. Expected
 replies include inactive sentinels, actual established font metrics, explicit
 DEVICE/WORLD bounds, live scaling, unclipped wide origins and unchanged pixels/
-cursor/wrap. Disputed far-edge defaults (#108) and startup-font initialization
-(#105) remain pending alongside MTW and TW backups/reset. PR #107's separate
+cursor/wrap. The connected RIP3 screen tests compare the first scroll at
+line 42 on startup with the first scroll at line 43 after an explicit mode 0
+window definition. Both encodings cover the local status preference, the
+host status switch, and a graphics pixel below the text window. PR #107's separate
 CSI saved coordinates remain separate from the now-connected ESC7/8 represented
 text-window save, covered by `cterm_text_window`, `rip3_session` and
 `syncterm_rip3_ansi_save_CP437`/UTF-8. Those tests assert old source CSI versus
@@ -1545,7 +1547,9 @@ all input splits, clipping, numeric wrapping and full-reset cleanup.
 RIP v1/v3 and both SkyPix variants, with status on/off and CP437/UTF-8 where
 applicable. Literal coloured rectangles and two blink planes survive live
 viewing, scrolling, palette changes, disconnect and reopening from the directory.
-The RIP cases include an actual RIP_PIXEL command; SkyPix includes native Pearl
+The RIP cases include an actual RIP_PIXEL command. The RIPv3 case scrolls
+three 19-pixel MicroANSI rows and checks the original scanlines in the
+16-pixel display grid for both live and saved history. SkyPix includes native Pearl
 g/p/y text after remote font selection. Clipped/overlapping Surface copies and
 text overlays retain their expected pixels. Input replies fence one coherent
 capture; source expectations are fixture colours and pinned glyph rows.

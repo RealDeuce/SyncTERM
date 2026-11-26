@@ -196,7 +196,7 @@ def run(args, width, height):
         frame = capture(b"\x1b[3\x01|* reset scene\r\n")
         black(frame)
         assert (frame.application["cterm.x"], frame.application["cterm.y"], frame.application["cterm.attr"]) == (1, 1, 7)
-        assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (1, 43)
+        assert (frame.application["cterm.top_margin"], frame.application["cterm.bottom_margin"]) == (1, 42)
         assert frame.metadata["pixel_cursor_visible"]
         values(b"$CUR(TW)$:$CUR(STYLE)$:$CUR(PORT)$:$CUR(ENV)$:$CUR(PAL)$:$WORLD$:$BASEMATH$:$COORDSIZE$:$COLORMODE$:$TEXTXY$",
                b"0:0:0:0:5:640:350:36:2:0:0:0")
@@ -310,7 +310,7 @@ def run(args, width, height):
             black(frame)
             assert frame.primary == frame.alternate
             assert xy(frame) == (1,1) and frame.application['cterm.attr'] == 7
-            assert frame.application['cterm.right_margin'] == 80 and frame.application['cterm.bottom_margin'] == 43
+            assert frame.application['cterm.right_margin'] == 80 and frame.application['cterm.bottom_margin'] == 42
             assert frame.application['cterm.ext_attr.auto_wrap'] == 1 and frame.metadata['pixel_cursor_visible']
             assert frame.application['cterm.rip3_g0'] == frame.application['cterm.rip3_g1'] == ord('B')
             assert frame.metadata['pointer_shape'] == 0

@@ -89,6 +89,10 @@ st_term_rip3_view_create(struct st_term_rip3_view **result,
 	config.console=view->console;config.fonts=view->fonts;config.font_selector=ST_FONT_CATALOG_FIRST_CUSTOM;
 	config.palette_mapping=NULL;config.palette_override=NULL;config.status_line=false;
 	config.terminal_rows=0;config.scrollback_lines=0;config.force_lcf=false;
+	/* A positioned subwindow retires only its own local content. The ordinary
+	 * window at the display origin feeds the connection's scrollback. */
+	if (layout->extended || layout->x!=0 || layout->y!=0)
+		config.history_display=NULL;
 	config.output=output;config.output_context=view;config.size_changed=NULL;
 	if (status==0) status=st_cterm_create(&view->text,&config);
 	if (status==0) status=st_cterm_start_text(view->text);

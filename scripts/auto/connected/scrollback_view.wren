@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Stephen Hurd
 // SPDX-License-Identifier: BSD-2-Clause
 
-import "syncterm" for Cleanup_, Scrollback, Surface, Screen, Input, Key, Mouse, KeyEvent, MouseEvent, CTerm, Hook
+import "syncterm" for Cleanup_, Scrollback, Surface, Screen, Input, Key, Mouse, KeyEvent, MouseEvent, CTerm, GraphicsMode, Hook
 import "ui_app" for App
 import "ui_help" for Help
 
@@ -21,6 +21,11 @@ class ScrollbackView {
           var height = CTerm.height
           var x = CTerm.originX
           var y = CTerm.originY
+          if (CTerm.graphicsMode == GraphicsMode.v3) {
+            height = Screen.checked_(Screen.size)[1]
+            x = 1
+            y = 1
+          }
           if (width <= 0 || height <= 0) return
           var live = Screen.checked_(Screen.readRect(x, y, x + width - 1, y + height - 1))
           if (live == null) return

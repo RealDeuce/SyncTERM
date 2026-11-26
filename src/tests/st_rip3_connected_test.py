@@ -10,6 +10,7 @@ identity. Each checkpoint fences the wire before taking one coherent capture.
 import argparse
 from pathlib import Path
 import re
+import struct
 import time
 
 from st_migrated_control_test import connection, square_canvas
@@ -28,6 +29,35 @@ def pixel(frame, x, y):
     # Control capture has already copied the console's circular raster in row order.
     word = frame.primary[y * m["plane_width"] + x]
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
+
+
+def check_default_text(frame, text, *, row=0, foreground=0xa8a8a8, bank_key=None):
+    """Compare rendered cells with the original MicroANSI mode 0 bitmap for these 8×8 entry modes."""
+    w, h = frame.metadata["plane_width"], frame.metadata["plane_height"]
+    data = (Path(__file__).resolve().parents[1] / "terminal/rip3/assets/fonts/RIPscrip.maf").read_bytes()
+    directory, = struct.unpack_from("<I", data, 42)
+    count, = struct.unpack_from("<H", data, 40)
+    banks = {struct.unpack_from("<HH", data, pos): pos for pos in range(directory, directory + 60*count, 60)}
+    bank = banks.get(bank_key or (w, h))
+    if bank is None:
+        # The portable profile specifies cell metrics for an unmatched
+        # device. The fallback face is a client choice.
+        cw, ch = w // 80, h // 43
+        for column, code in enumerate(text):
+            colors = {pixel(frame, column*cw+x, row*ch+y)
+                      for y in range(ch) for x in range(cw)}
+            assert colors == ({0} if code == 32 else {0, foreground}), (code, column, row)
+        return
+    font, = struct.unpack_from("<I", data, bank + 4)
+    fw, fh = struct.unpack_from("<HH", data, font)
+    stride = (fw+7)//8
+    for column, code in enumerate(text):
+        glyph = font + 50 + (code-1)*fh*stride
+        for y in range(fh):
+            for x in range(fw):
+                bits = data[glyph + y*stride + x//8]
+                expected = foreground if bits & (0x80 >> (x % 8)) else 0
+                assert pixel(frame, column*fw+x, row*fh+y) == expected, (code, column, row, x, y)
 
 
 def displayed_pixel(frame, x, y):
@@ -199,10 +229,15 @@ Hook.onKey(Key.f9) {|event|
 
         t.case("rip3-bare-lf-and-form-feed-end-commands-on-the-wire")
         frame = t.exchange(
-            b"\x1b[2;1H" + query(b"LF", at_cursor=True)[:-2] + b"\nraw\x1b[6n"
+            b"\x1b[4;1Hraw\x1b[5;1Hend\x1b[2;1H" + query(b"LF", at_cursor=True)[:-2] + b"\nraw\x1b[6n"
             + b"\x1b[3;1H" + query(b"FF", at_cursor=True)[:-2] + b"\fend\x1b[6n",
             b"LF\x1b[2;4RFF\x1b[3;4R")
-        assert frame.lines[1][:3] == "raw" and frame.lines[2][:3] == "end", frame.lines[:4]
+        check_default_text(frame, b"raw", row=1)
+        check_default_text(frame, b"end", row=2)
+        cw, ch = width // 80, height // 43
+        for y in range(ch, 3*ch):
+            for x in range(3*cw):
+                assert pixel(frame, x, y) == pixel(frame, x, y+2*ch)
 
         t.case("rip3-quoted-line-endings-continue-the-same-wire-command")
         t.exchange(query(b"cont\\\n\f\r\ninued", at_cursor=True) + b"\x1b[2J", b"continued")
@@ -211,7 +246,7 @@ Hook.onKey(Key.f9) {|event|
         t.exchange(b"\x01|g0509\r\n\x1b[6n", b"\x1b[10;6R")
         t.exchange(b"\x01|H\r\n\x1b[6n", b"\x1b[1;1R")
         t.case("rip3-entry-cursor-independent-of-ansi-origin")
-        absolute_cursor_with_origin(t, width // 8, height // 8, 0, 0, 8, 8)
+        absolute_cursor_with_origin(t, 80, 42, 0, 0, width // 80, height // 43)
         t.case("rip3-default-text-activation-variables-and-cursor")
         before = t.exchange(b"\x1b[?25h")
         send(query(b"$DTW$") + b"HIDDEN\r\n" * (height // 8 + 10)
@@ -752,7 +787,7 @@ def font_switch_with_status(args, width, height):
         t.exchange(b"\x1b[3\x01|c0F|X2S2S\r\n1mZ" + query(b"$WORLD$", at_cursor=True), b"640:350")
         sample = (width - 4, height - 2)
         initial = client.wait_for(lambda frame: displayed_pixel(frame, *sample) != pixel(frame, *sample))
-        assert initial.lines[0].startswith("Z")
+        check_default_text(initial, b"Z", foreground=0xa80000)
         assert initial.application["cterm.attr"] == 4
         assert pixel(initial, art_x, art_y) == 0xffffff
         metrics = ("columns", "rows", "cell_width", "cell_height", "plane_width",
@@ -766,7 +801,7 @@ def font_switch_with_status(args, width, height):
                 (91, 25, 7, 14), (40, 25, 16, 14))[font]
             x = 2 * ref_w * width // 640
             y = 3 * ref_h * height // 350
-            cw, ch = width // cols, height // rows
+            cw, ch = (20, 24) if (width, height, font) == (1024, 768, 4) else (width // cols, height // rows)
             frame = t.exchange(b"\x01|w020307061" + str(font).encode() + b"\r\n"
                                b"\x1b[2 q\x1b[44m \x1b[6n"
                                + query(b"$TWW$:$TWH$:$TWFONT$", at_cursor=True),

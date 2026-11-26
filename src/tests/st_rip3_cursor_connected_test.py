@@ -92,7 +92,7 @@ def run(args, width, height):
         send(b"\x1b[!")
         receive(peer, b"RIPSCRIP030001", root / "replies.bin")
         t.case(f"rip3-cursor-variables-entry-{width}x{height}")
-        controls(t, width//8, height//8, 0, 0, 8, 8)
+        controls(t, 80, 42, 0, 0, width//80, height//43)
         t.case(f"rip3-cursor-variables-positioned-{width}x{height}")
         t.exchange(b"\x01|w0A050H0A10\r\n")
         controls(t, 8, 6, 80*width//640, 40*height//350, width//80, height//43)

@@ -576,6 +576,12 @@ st_term_session_cterm(st_term_session_t *session)
 	return session == NULL ? NULL : session->rip3==NULL ? session->cterm : st_term_rip3_text(session->rip3);
 }
 
+st_cterm_t *
+st_term_session_history_terminal(st_term_session_t *session)
+{
+	return session == NULL ? NULL : session->cterm;
+}
+
 bool
 st_term_session_has_status_overlay(const st_term_session_t *session)
 {
@@ -642,6 +648,10 @@ st_term_session_prepare_disconnect(st_term_session_t *session)
 	if (status != 0) return status;
 	/* Retain the completed screen before making room for the notice. */
 	publish_history(session);
+	/* The disconnected viewer may reconfigure the display. Release all
+	 * borrowed RIP raster views once the last live frame is archived. */
+	st_term_rip3_destroy(session->rip3);
+	session->rip3 = NULL;
 	return st_cterm_prepare_disconnect(session->cterm);
 }
 

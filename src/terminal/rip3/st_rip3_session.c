@@ -33,7 +33,6 @@
 #include "st_rip3_bitmap_file.h"
 #include "st_rip3_bitmap_error_ui.h"
 #include "st_rip3_text_window.h"
-#include "st_rip3_maf.h"
 #include "st_rip3_resident_query.h"
 #include "st_rip3_refresh.h"
 #include "st_pixels.h"
@@ -345,6 +344,16 @@ define_text_window(void *context, const struct st_rip3_text_window_layout *layou
 	return status;
 }
 
+int
+st_rip3_session_start_text_window(struct st_rip3_session *session)
+{
+	if (session==NULL) return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_text_window_layout layout;
+	int status=st_rip3_text_window_default(&layout,&session->frame,
+	    session->default_text_wrap,session->default_text_font);
+	return status==0 ? define_text_window(session,&layout) : status;
+}
+
 static int
 deactivate_window(void *context)
 {
@@ -548,7 +557,7 @@ select_text_window(struct st_rip3_session *session, unsigned number, bool clone)
 	bool first=!session->windows[number].info.defined;
 	struct st_rip3_text_window_layout fresh;
 	bool defaults=first && !clone;
-	int status=defaults ? st_rip3_text_window_normal(&fresh,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
+	int status=defaults ? st_rip3_text_window_default(&fresh,&session->frame,
 	    session->default_text_wrap,session->default_text_font) : 0;
 	if (status!=0) return status;
 	bool active=defaults || (first ? session->text_active : session->windows[number].info.active);
@@ -599,19 +608,10 @@ reset_scene(struct st_rip3_session *session, bool hard)
 {
 	if (session->sink.text_reset==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_text_window_layout layout;
-	int status=st_rip3_text_window_normal(&layout,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
+	int status=st_rip3_text_window_default(&layout,&session->frame,
 	    session->default_text_wrap,session->default_text_font);
 	if (status!=0) return status;
 	if (hard) {
-		struct st_rip3_maf_font font;
-		status=st_rip3_maf_builtin_font_exact(&font,session->frame.device_width,
-		    session->frame.device_height,(enum st_rip3_maf_mode)layout.font);
-		if (status==0) {
-			layout.cell_width=font.width;layout.cell_height=font.height;
-			layout.bound_width=(uint64_t)layout.columns*font.width;
-			layout.bound_height=(uint64_t)layout.rows*font.height;
-		}
-		else if (status!=IO_ERROR_NOT_FOUND) return status;
 		/* Remove transient feedback without evaluating a button label or
 		 * retargeting an already committed field's owned response. */
 		st_rip3_mouse_clear_tab_focus(session->commands.mouse);
@@ -733,7 +733,7 @@ reset_window_entry(void *context,unsigned number)
 	if (!session->windows[number].info.defined || session->windows[number].info.protected) return 0;
 	if (session->sink.text_reset_entry==NULL) return IO_ERROR_NOT_SUPPORTED;
 	struct st_rip3_text_window_layout fresh;
-	int status=number==0 ? st_rip3_text_window_normal(&fresh,&session->frame,0,0,UINT32_MAX,UINT32_MAX,
+	int status=number==0 ? st_rip3_text_window_default(&fresh,&session->frame,
 	    session->default_text_wrap,session->default_text_font) : 0;
 	if (status==0) status=session->sink.text_reset_entry(session->sink.context,number,
 	    number==0 ? &fresh : NULL,session->windows[0].info.active);

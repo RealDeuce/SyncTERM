@@ -2,16 +2,20 @@
 /* Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause */
 #include "st_rip3_text_window.h"
 #include "st_rip3_surface.h"
+#include "st_rip3_maf.h"
 #include "io_error.h"
 #include <stddef.h>
 
 static const uint32_t nominal_columns[]={80,91,80,91,40};
 static const uint32_t nominal_rows[]={43,43,25,25,25};
 
-int
-st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
+/* RIPtel 3.1 default-window table at driver RVA 0x760d8. */
+static const uint32_t default_rows[]={42,42,24,24,39};
+
+static int
+normal_layout(struct st_rip3_text_window_layout *result,
     const struct st_rip3_frame *device, uint32_t x0, uint32_t y0,
-    uint32_t x1, uint32_t y1, unsigned wrap, unsigned font)
+    uint32_t x1, uint32_t y1, unsigned wrap, unsigned font, bool default_window)
 {
 	static const unsigned reference_width[]={8,7,8,7,16},reference_height[]={8,8,14,14,14};
 	if (result==NULL || device==NULL) return IO_ERROR_INVALID_ARGUMENT;
@@ -25,10 +29,24 @@ st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	if (y0>y1) {uint32_t saved=y0;y0=y1;y1=saved;}
 	if (x0>=nominal_columns[font]) x0=nominal_columns[font]-1;
 	if (x1>=nominal_columns[font]) x1=nominal_columns[font]-1;
-	if (y0>=nominal_rows[font]) y0=nominal_rows[font]-1;
-	if (y1>=nominal_rows[font]) y1=nominal_rows[font]-1;
+	uint32_t rows=default_window ? default_rows[font] : nominal_rows[font];
+	if (y0>=rows) y0=rows-1;
+	if (y1>=rows) y1=rows-1;
 	uint32_t cw=device->device_width/nominal_columns[font],ch=device->device_height/nominal_rows[font];
-	if (cw==0 || ch==0) return IO_ERROR_NOT_SUPPORTED;
+	struct st_rip3_maf_font strike;
+	status=st_rip3_maf_device_font(&strike,device->device_width,device->device_height,
+	    (enum st_rip3_maf_mode)font);
+	if (status==0) {
+		cw=strike.width;
+		ch=strike.height;
+	}
+	else if (status!=IO_ERROR_NOT_FOUND) return status;
+	if (cw==0 || ch==0) {
+		if (!default_window) return IO_ERROR_NOT_SUPPORTED;
+		/* Only expose cells that fit on a small custom raster. */
+		if (cw==0) { cw=1; x1=device->device_width-1; }
+		if (ch==0) { ch=1; if (y1>=device->device_height) y1=device->device_height-1; }
+	}
 	struct st_rip3_text_window_layout value={.x0=x0,.y0=y0,.x1=x1,.y1=y1,
 	    .font=font,.wrap=wrap!=0,.columns=x1-x0+1,.rows=y1-y0+1,
 	    .cell_width=cw,.cell_height=ch,
@@ -37,6 +55,21 @@ st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
 	value.bound_x=value.x;value.bound_y=value.y;
 	value.bound_width=(uint64_t)value.columns*cw;value.bound_height=(uint64_t)value.rows*ch;
 	*result=value;return 0;
+}
+
+int
+st_rip3_text_window_normal(struct st_rip3_text_window_layout *result,
+    const struct st_rip3_frame *device, uint32_t x0, uint32_t y0,
+    uint32_t x1, uint32_t y1, unsigned wrap, unsigned font)
+{
+	return normal_layout(result,device,x0,y0,x1,y1,wrap,font,false);
+}
+
+int
+st_rip3_text_window_default(struct st_rip3_text_window_layout *result,
+    const struct st_rip3_frame *device, bool wrap, unsigned font)
+{
+	return normal_layout(result,device,0,0,UINT32_MAX,UINT32_MAX,wrap,font,true);
 }
 
 int

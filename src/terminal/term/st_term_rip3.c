@@ -2009,6 +2009,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	rip->backspace.nondestructive = config->rip3_nondestructive_backspace;
 	rip->backspace.send_del = config->rip3_backspace_sends_del;
 	rip->framing_enabled = true;
+	rip->text_config.history_display=ansi;
 	rip->text_config.palette_mapping=NULL;rip->text_config.palette_override=NULL;
 	rip->output=text_config->output;rip->output_context=text_config->output_context;
 	uint32_t width,height,cell_width,cell_height;
@@ -2096,6 +2097,7 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	/* Start ANSI before the first graphics command; its lazy startup clears
 	 * the text window. It must never clear a subsequently drawn RIP scene. */
 	if (status==0) status=st_cterm_start_text(ansi);
+	if (status==0) status=st_rip3_session_start_text_window(rip->session);
 	if (status!=0) {st_term_rip3_destroy(rip);return status;}
 	status_bar_changed(rip, st_rip3_session_status_bar(rip->session));
 	rip->ready=true;refresh_pointer(rip);*result=rip;return 0;

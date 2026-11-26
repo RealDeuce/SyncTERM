@@ -1341,9 +1341,45 @@ cterm_history_copy_pixels(const struct cterminal *cterm, size_t row, struct st_p
 	return 0;
 }
 
+static int
+archive_view_row(struct cterminal *view, int row)
+{
+	struct cterminal *display = view->history_display;
+	if (display->scrollback == NULL)
+		return 0;
+	uint32_t cw, ch, view_cw, view_ch, width, height;
+	int status = st_console_cell_pixel_size(view->screen.console, &view_cw, &view_ch);
+	if (status == 0)
+		status = st_console_cell_pixel_size(display->screen.console, &cw, &ch);
+	if (status == 0)
+		status = st_console_pixel_size(display->screen.console, &width, &height);
+	if (status != 0)
+		return status;
+	uint64_t y = (uint64_t)(row - 1) * view_ch;
+	if (y >= height)
+		return 0;
+	/* History surfaces use the physical console's cell grid. Pack the
+	 * departing scanlines at native size even when the two fonts differ. */
+	const struct st_console_rect strip = {0, (uint32_t)y, (uint32_t)display->backwidth * cw,
+		view_ch < height - y ? view_ch : (uint32_t)(height - y)};
+	const struct st_console_cell graphics = {.flags = ST_CONSOLE_CELL_PIXEL_GRAPHICS};
+	struct st_pixel_buffer *pixels = NULL;
+	status = st_console_present(view->screen.console);
+	if (status == 0)
+		status = st_history_capture_pixels(&pixels, display->screen.console, &graphics, 1, &strip);
+	if (status == 0)
+		status = cterm_history_append_pixels(display, pixels, NULL, ch);
+	st_pixel_buffer_destroy(pixels);
+	return status;
+}
+
 static void
 cterm_line_to_scrollback(struct cterminal *cterm, int row)
 {
+	if (cterm->history_display != NULL) {
+		cterm_render_record_error(cterm, archive_view_row(cterm, row));
+		return;
+	}
 	if (cterm->scrollback == NULL)
 		return;
 	int width = cterm->backwidth < cterm->width ? cterm->backwidth : cterm->width;
@@ -1361,13 +1397,13 @@ cterm_line_to_scrollback(struct cterminal *cterm, int row)
 		const struct st_console_rect region = {
 			(uint32_t)(cterm->x - 1) * cw, (uint32_t)(row - 1) * ch, (uint32_t)width * cw, ch};
 		uint32_t flags = cells[0].flags;
-		if (cterm->skypix_engine != NULL) cells[0].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
+		if (cterm->skypix_engine != NULL || cterm->rip3_session_owner) cells[0].flags |= ST_CONSOLE_CELL_PIXEL_GRAPHICS;
 		status = st_history_capture_pixels(&pixels, cterm->screen.console, cells,
 			(uint32_t)width, &region);
 		cells[0].flags = flags;
 	}
 	if (status == 0) {
-		if (cterm->skypix_engine != NULL)
+		if (cterm->skypix_engine != NULL || cterm->rip3_session_owner)
 			status = cterm_history_append_pixels(cterm, pixels, cells, ch);
 		else {
 			status = history_store_row(cterm, cells, pixels, (size_t)width);

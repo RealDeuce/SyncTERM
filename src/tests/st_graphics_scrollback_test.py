@@ -63,11 +63,15 @@ def rgb(frame, x, y, alternate=False):
 
 
 def check_blocks(frame, column, row):
+    check_blocks_at(frame, column, row * frame.metadata['cell_height'])
+
+
+def check_blocks_at(frame, column, top):
     cw, ch = frame.metadata['cell_width'], frame.metadata['cell_height']
     for phase, colours in ((False, (0xff0000, 0x0000ff)), (True, (0x00ff00, 0xffff00))):
         for y in range(2 * ch):
             for x in range(2 * cw):
-                assert rgb(frame, column * cw + x, row * ch + y, phase) == colours[x // cw], (column, row, phase, x, y)
+                assert rgb(frame, column * cw + x, top + y, phase) == colours[x // cw], (column, top, phase, x, y)
 
 
 def run(executable, reports, graphics, encoding, status):
@@ -86,6 +90,9 @@ def run(executable, reports, graphics, encoding, status):
                 peer.settimeout(10)
                 connected = client.wait_for(lambda s: s.application.get('connected') == 1)
                 height = connected.metadata['rows'] - (1 if connected.application['cterm.status_display'] >= 1 else 0)
+                if graphics == 'RIPv3':
+                    assert connected.application['cterm.bottom_margin'] == 24
+                    height = 24
                 def exchange(data=b''):
                     peer.sendall(data + b'\x1b[5n')
                     assert receive(peer, b'\x1b[0n') == b'\x1b[0n'
@@ -131,7 +138,8 @@ def run(executable, reports, graphics, encoding, status):
                 client.key('escape')
                 check_blocks(exchange(),31,5)
                 frame = exchange(f'\x1b[{height};1H\n\n\n'.encode())
-                check_blocks(frame, 31, 2)
+                scroll_height = 19 if graphics == 'RIPv3' else ch
+                check_blocks_at(frame, 31, 5 * ch - 3 * scroll_height)
                 client.key('f9')
                 assert receive(peer, b'PALETTE\n') == b'PALETTE\n'
                 exchange()
@@ -142,12 +150,22 @@ def run(executable, reports, graphics, encoding, status):
                         return client.wait_for(lambda s:s.metadata['events_dequeued']>before)
                     shown=step('home')
                     for _ in range(12):
-                        if 'ROW 00' in shown.text:
+                        if graphics == 'RIPv3':
+                            # The 19-scanline RIP rows cross 16-scanline display
+                            # cells. Locate the original first scanline by its RIP pixel.
+                            ys = [y for y in range(shown.metadata['plane_height'])
+                                  if rgb(shown, 200, y) == 0xaa0000]
+                            viewport_bottom = shown.metadata['plane_height'] - (ch if status else 0)
+                            if ys and ys[0] + 2 * ch <= viewport_bottom:
+                                check_blocks_at(shown, 20, ys[0])
+                                return shown, ys[0]
+                            shown = step('down')
+                        elif 'ROW 00' in shown.text:
                             y=next(y for y,line in enumerate(shown.lines) if 'ROW 00' in line)
                             if y+1 < height:
                                 check_blocks(shown,20,y)
                                 check_native_font(shown,y)
-                                return shown,y
+                                return shown,y*ch
                             shown=step('down')
                         else:
                             visible=[int(n) for n in re.findall(r'ROW (\d+)',shown.text)]
@@ -158,7 +176,7 @@ def run(executable, reports, graphics, encoding, status):
                 client.command_key(48); client.wait_text('Scrollback')
                 oldest,offset=oldest_scene()
                 if graphics.startswith('RIP'):
-                    assert rgb(oldest, 200, offset*ch) == 0xaa0000
+                    assert rgb(oldest, 200, offset) == 0xaa0000
                 client.key('escape'); exchange()
                 peer.shutdown(socket.SHUT_RDWR)
                 client.wait_text('Disconnected: Enter exits, F1 details')

@@ -35,13 +35,13 @@ def run(args,width,height):
             assert before.primary==after.primary and before.alternate==after.alternate
         def fresh(frame):
             assert xy(frame)==(1,1) and frame.application['cterm.attr']==7
-            assert (frame.application['cterm.top_margin'],frame.application['cterm.bottom_margin'])==(1,43)
+            assert (frame.application['cterm.top_margin'],frame.application['cterm.bottom_margin'])==(1,42)
             assert frame.application['cterm.right_margin']==80
             assert frame.application['cterm.ext_attr.origin_mode']==0 and frame.application['cterm.ext_attr.auto_wrap']==1
             assert frame.metadata['pixel_cursor_visible']
             assert (frame.metadata['plane_width'],frame.metadata['plane_height'])==(width,height)
             assert (frame.metadata['pixel_cursor_width'],frame.metadata['pixel_cursor_height'])==(width//80,1)
-            values(b'$CUR(TW)$:$ISEXTWIN$:$TWW$:$TWH$:$TWFONT$:$TWIN$',b'0:0:80:43:1:YES')
+            values(b'$CUR(TW)$:$ISEXTWIN$:$TWW$:$TWH$:$TWFONT$:$TWIN$',b'0:0:80:42:1:YES')
         capture(b'\x1b[!',b'RIPSCRIP030001')
         capture(b'\x01|*\r\n');values(f'$WORLD(CUR,{width},{height})$'.encode())
         t.case(f'rip3-live-tw-reset-forced-fresh-zero-no-paint-{width}x{height}')

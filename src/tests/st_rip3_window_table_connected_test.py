@@ -54,10 +54,10 @@ def first_use_transition(t, capture, values, width):
     assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (3, 3)
     assert frame.application["cterm.attr"] & 7 == 4  # The split SGR selected red in TW 3.
     frame = values(b"$CUR(TW,4)$$ISPROT(TW,3)$:$TWIN$:$TWW$:$TWH$:$TWFONT$:$CURSOR$",
-                   b"1:YES:80:43:1:YES")
+                   b"1:YES:80:42:1:YES")
     assert (frame.application["cterm.x"], frame.application["cterm.y"], frame.application["cterm.attr"]) == (1, 1, 7)
     assert (frame.metadata["pixel_cursor_width"], frame.metadata["pixel_cursor_height"]) == (width//80, 1)
-    assert frame.application["cterm.top_margin"] == 1 and frame.application["cterm.bottom_margin"] == 43
+    assert frame.application["cterm.top_margin"] == 1 and frame.application["cterm.bottom_margin"] == 42
 
 
 def run(args, width, height):
@@ -101,7 +101,7 @@ def run(args, width, height):
         frame = capture(b"F")
         # Both glyphs are observed in one capture, after the source root has
         # stopped receiving text; a cloned font must retain the same artwork.
-        assert all(pixel(frame, x, y) == pixel(frame, x+8, y) for y in range(8) for x in range(8))
+        assert all(pixel(frame, x, y) == pixel(frame, x+width//80, y) for y in range(height//43) for x in range(width//80))
         cw, ch = width//80, height//43
         ox, oy = 80*width//640, 40*height//350
         capture(b"\x01|w0A050H0A10\r\n\x1b[31;41m\x1b[2;2H\x1b7")
@@ -151,7 +151,7 @@ def run(args, width, height):
         variables(b"$CUR(TW,1)$")
         before = capture(scene(width, height))
         frame = variables(b"$CUR(TW,4)$$TWW$:$TWH$:$TWFONT$:$CURX$:$CURY$:$CURSOR$:$ISPROT(TW,CUR)$",
-                          b"80:43:1:1:1:YES:0")
+                          b"80:42:1:1:1:YES:0")
         assert frame.application["cterm.attr"] == 7
         assert all(pixel(frame, x, y) == pixel(before, x, y)
                    for y in range(height) for x in range(width))
@@ -192,7 +192,7 @@ def run(args, width, height):
         variables(b"$ATW(1)$")
         if width == 640 and args.encoding == "CP437":
             t.case("rip3-window-aggregate-resource-budget")
-            capture(b"\x01|n3\r\n" + window((0, 0, 2560, 1440), 320, 130, 0, 1, xy=3))
+            capture(b"\x01|n3\r\n" + window((0, 0, 2560, 1440), 320, 120, 0, 1, xy=3))
             capture(b"\x01|2T80|2T90\r\n" + query(b"$CUR(TW)$", at_cursor=True), b"9")
             capture(b"\x01|2TA0\r\n" + query(b"$CUR(TW)$:$INUSE(TW,10)$", at_cursor=True), b"9:0")
             # Release each large plane by a real definition replacement.
@@ -214,7 +214,7 @@ def run(args, width, height):
         frame = capture(scene(width, height) + query(b"$CUR(TW,0)$$ETW(35)$", at_cursor=True))
         expect_region(frame, width, height, (20, 20, 80, 80), 0xff0000)
         frame = capture(scene(width, height) + query(b"$ETW(ALL)$", at_cursor=True))
-        expect_region(frame, width, height, (0, 0, width, height), 0xff0000)
+        expect_region(frame, width, height, (0, 0, width//80*80, height//43*42), 0xff0000)
         assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, 1)
         frame = variables(b"$CUR(TW,35)$$ISPROT(TW,CUR)$", b"1")
         assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (1, 1)

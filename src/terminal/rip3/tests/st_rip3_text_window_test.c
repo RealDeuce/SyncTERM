@@ -84,6 +84,20 @@ main(void)
 		const unsigned fallback_width[]={8,7,8,7,16},fallback_height[]={11,11,19,19,19};
 		CHECK(loaded.width==fallback_width[font] && loaded.height==fallback_height[font]);
 	}
+	/* Inclusive two-axis ranges in the original font initializer. */
+	static const struct { unsigned w,h,cw,ch; } devices[]={
+		{560,430,7,10},{639,479,7,10},{620,460,7,10},
+		{640,516,9,12},{799,599,9,12},{792,592,9,12},
+		{880,688,12,16},{1023,767,12,16},
+		{559,450,0,0},{620,480,0,0},{640,479,0,0},{799,515,0,0},
+		{800,599,0,0},{879,700,0,0},{1023,768,0,0}
+	};
+	for (size_t i=0;i<sizeof(devices)/sizeof(devices[0]);i++) {
+		struct st_rip3_maf_font strike;
+		int status=st_rip3_maf_device_font(&strike,devices[i].w,devices[i].h,ST_RIP3_MAF_80X43);
+		if (devices[i].cw==0) CHECK(status==IO_ERROR_NOT_FOUND);
+		else CHECK(status==0 && strike.width==devices[i].cw && strike.height==devices[i].ch);
+	}
 	static const struct {
 		unsigned width,height,font,x,y,cw,ch;
 	} cases[]={

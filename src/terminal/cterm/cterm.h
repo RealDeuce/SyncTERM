@@ -190,6 +190,7 @@ struct cterminal {
 	int					quiet;			// No sounds are made
 	bool atari_st_key_clicks;
 	struct st_console_cell	*scrollback;
+	struct cterminal *history_display;
 	struct st_pixel_buffer **backpixels; /* Optional, owned pixel strip per ring slot. */
 	struct st_pixel_buffer *backpartial; /* RGB pixels not yet filling one history row. */
 	uint32_t backpartial_rows;

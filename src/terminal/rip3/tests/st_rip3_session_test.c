@@ -611,7 +611,7 @@ soft_reset(void)
 	CHECK(query(&f,"$COPY(PAL,TBL,BASE,S0,PUSH)$$COPY(PORT,TBL,BASE)$$COPY(STYLE,TBL,BASE)$$COPY(ENV,TBL,BASE)$","")==0);
 	CHECK(query(&f,"$WORLD(CUR,0,0)$$BASEMATH(CUR,64)$$COORDSIZE(CUR,5)$$COLORMODE(CUR,RGB,8)$","")==0);
 	CHECK(append(&f,"!|*\r")==0 && pump(&f)==0 && f.resets==1 && f.reset_old_active && f.reset_keep[1]
-	    && !f.reset_keep[2] && f.window.font==2 && f.window.columns==80 && f.window.rows==25 && f.window.wrap);
+	    && !f.reset_keep[2] && f.window.font==2 && f.window.columns==80 && f.window.rows==24 && f.window.wrap);
 	CHECK(query(&f,"$CUR(TW)$:$CUR(STYLE)$:$CUR(PORT)$:$CUR(ENV)$:$CUR(PAL)$","0:0:0:0:5")==0);
 	CHECK(query(&f,"$INUSE(TW,1)$$INUSE(TW,2)$$INUSE(STYLE,1)$$INUSE(STYLE,2)$$INUSE(PORT,5)$$INUSE(PORT,6)$$INUSE(PAL,5)$","1010101")==0);
 	CHECK(query(&f,"$WORLD$:$BASEMATH$:$COORDSIZE$","640:350:36:2")==0);
@@ -664,8 +664,8 @@ window_table(void)
 	    && f.selected_first && !f.selected_fresh && f.selected_active);
 	CHECK(query(&f,"$CUR(TW)$:$ISPROT(TW,CUR)$:$ISPROT(TW,2)$","3:0:1")==0);
 	CHECK(query(&f,"$DTW$$CUR(TW,4)$","")==0 && f.selected_first && f.selected_fresh && f.selected_active
-	    && f.window.font==2 && f.window.columns==80 && f.window.rows==25 && f.window.wrap
-	    && f.window.x0==0 && f.window.y0==0 && f.window.x1==79 && f.window.y1==24);
+	    && f.window.font==2 && f.window.columns==80 && f.window.rows==24 && f.window.wrap
+	    && f.window.x0==0 && f.window.y0==0 && f.window.x1==79 && f.window.y1==23);
 	CHECK(query(&f,"$TWIN$:$ISPROT(TW,CUR)$:$TWIN(3)$","YES:0:NO")==0);
 	CHECK(query(&f,"$CUR(TW,2)$","")==0 && !f.selected_first && !f.selected_fresh);
 	st_rip3_session_destroy(f.session);return 0;
@@ -1672,7 +1672,7 @@ static int reset_test_window(void *context,unsigned number,
 }
 static int live_text_resets(void)
 {
-	static const unsigned columns[]={80,91,80,91,40},rows[]={43,43,25,25,25};
+	static const unsigned columns[]={80,91,80,91,40},rows[]={42,42,24,24,39};
 	for (unsigned font=0;font<5;font++) {
 		struct fixture f={0};struct st_rip3_session_config options=config(&f,ST_RIP3_CANVAS_640_480);
 		options.default_text_font=font;options.default_text_wrap=font%2!=0;
@@ -2076,8 +2076,8 @@ hard_reset_lifetime(void)
 	CHECK(query(&f,"<<?3>>:$RESET(HARD)$AFTER:$?3$:$?Z$:$&N$:$&P$","OLD:AFTER:::MEM:DISK")==0);
 	CHECK(st_rip3_session_keyboard_locked(f.session) && st_rip3_session_key(f.session,'a'));
 	CHECK(f.resets==1 && f.reset_hard && f.window.font==4 && !f.window.wrap && !f.window.extended);
-	CHECK(f.window.columns==40 && f.window.rows==25 && f.window.cell_width==20 && f.window.cell_height==24);
-	CHECK(f.window.bound_width==800 && f.window.bound_height==600);
+	CHECK(f.window.columns==40 && f.window.rows==39 && f.window.cell_width==20 && f.window.cell_height==24);
+	CHECK(f.window.bound_width==800 && f.window.bound_height==936);
 	CHECK(st_rip3_session_capture(f.session,&state)==0 && state.scene_revision==0 && !state.outline_cache_valid);
 	st_rip3_session_capture_dispose(&state);
 	for (unsigned mode=1;mode<=4;mode++) CHECK(resident_value(&f,mode,0,"")==0);

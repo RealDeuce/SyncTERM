@@ -6,7 +6,7 @@ import struct
 from pathlib import Path
 from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
-from st_rip3_connected_test import query,pixel
+from st_rip3_connected_test import query,pixel,check_default_text
 from st_rip3_buttons_connected_test import style,button
 from st_rip3_button_styles_connected_test import number
 
@@ -167,6 +167,44 @@ def run(args,width,height):
         check_clear(t, width, height)
 
 
+def check_scroll_region(args):
+    # PR #354, mode 0. Exercise the directory option at connection time and
+    # the RIP status action on an existing window before its first scroll.
+    for width, height, bank, hide_status, send_sbaroff in (
+            (1024, 768, (1024, 768), False, False),
+            (1024, 768, (1024, 768), True, False),
+            (1024, 768, (1024, 768), False, True),
+            (792, 592, (799, 599), True, False)):
+        options = f"ScreenMode=Custom\nRIP=RIPv3\nNoStatus={str(hide_status).lower()}\nLFExpand=false\n"
+        with connection(args.executable, args.reports, encoding=args.encoding,
+                        options=options, settings=square_canvas(width, height)) as (client, root, peer, send):
+            t = Terminal(client, root, peer, send)
+            t.case(f"rip3-startup-first-scroll-{width}x{height}-NoStatus-{hide_status}-SBAROFF-{send_sbaroff}")
+            t.exchange(query(f"$WORLD(CUR,{width},{height})$".encode(), at_cursor=True))
+
+            def first_scroll(rows, status=b""):
+                # A RIP pixel directly below the scrolling region must survive the LF.
+                bottom = rows * (17 if width == 1024 else 12)
+                t.exchange(b"\x01|c0F|X00" + number(bottom, 2) + b"\r\n")
+                lines = b"".join(f"{n:02}\r\n".encode() for n in range(1, rows))
+                cursor = f"\x1b[{rows};1R".encode()
+                frame = t.exchange(lines + b"\x1b[6n", cursor)
+                check_default_text(frame, b"01", bank_key=bank)
+                check_default_text(frame, f"{rows-1:02}".encode(), row=rows-2, bank_key=bank)
+                check_default_text(frame, b"  ", row=rows-1, bank_key=bank)
+                frame = t.exchange(status + f"{rows:02}\r\n\x1b[6n".encode(),
+                                   (b"NO" if status else b"") + cursor)
+                assert pixel(frame, 0, bottom) == 0xffffff
+                check_default_text(frame, b"02", bank_key=bank)
+                check_default_text(frame, f"{rows:02}".encode(), row=rows-2, bank_key=bank)
+                check_default_text(frame, b"  ", row=rows-1, bank_key=bank)
+
+            status = query(b"$SBAROFF$$STATBAR$", at_cursor=True) if send_sbaroff else b""
+            first_scroll(42, status)
+            t.exchange(b"\x01|w0000271610\r\n\x1b[2J\x1b[H")
+            first_scroll(43, status)
+
+
 def check_entry_modes(args):
     custom = "CustomColumns=80\nCustomRows=50\nCustomFontHeight=14\n"
     cases = (
@@ -190,7 +228,8 @@ def check_entry_modes(args):
             assert abs(m["destination_width"] * height - m["destination_height"] * width) <= max(width, height)
             window = query(b"$TWW$:$TWH$:$TWFONT$", at_cursor=True)
             # TWFONT reports the stored index plus one.
-            default = b"80:43:1" if cell_height == 8 else b"80:25:3"
+            default = b"80:42:1" if cell_height == 8 else b"80:24:3"
+            t.exchange(window, default)
             for reset in (query(b"$RESET(TW,0)$", at_cursor=True),
                           b"\x01|*\r\n", query(b"$RESET(HARD)$", at_cursor=True)):
                 t.exchange(b"\x01|w0000030314\r\n" + window, b"4:4:5")
@@ -203,6 +242,7 @@ if __name__=='__main__':
     parser.add_argument('encoding',choices=('CP437','UTF-8'))
     parser.add_argument('--reports',type=Path,required=True)
     args=parser.parse_args()
+    check_scroll_region(args)
     check_entry_modes(args)
     for width,height in ((640,480),(720,400)):
         run(args,width,height)

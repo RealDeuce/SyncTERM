@@ -63,7 +63,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Connection mode and default MicroANSI font | Pending blocks cover text-window startup, reset and font selection. SyncTERM uses square-pixel entry modes. The default comes from the entry mode’s font height. Remaining font work covers native-size MAF strikes and nominal cell metrics when the raster has no matching bank. The portable contract leaves the fallback face unspecified. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
+| Connection mode and default MicroANSI font | Startup and reset use RIPtel’s default window dimensions. Ordinary windows use native MAF cell sizes for matching client areas. Extended-window fitting on a raster outside every MAF bank still needs nominal cell metrics. The portable contract leaves the fallback face unspecified. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws
@@ -253,8 +253,14 @@ Custom uses the configured columns, rows, font height and aspect ratio.
 Current uses the active console raster and aspect.
 
 SyncTERM uses the effective connection mode’s font height to choose its
-RIPv3 text-window default. An 8-pixel font selects MicroANSI mode 0 (80×43).
-The 14- and 16-pixel fonts select mode 2 (80×25). Wrap starts enabled.
+RIPv3 text-window default. An 8-pixel font selects MicroANSI mode 0 and opens an 80×42
+window. The 14- and 16-pixel fonts select mode 2 and open an 80×24 window.
+At 1024×768, mode 0 uses 12×17 cells. The 42 rows occupy 714 scan lines,
+leaving 54 pixels below the text available for graphics. Status-bar visibility
+preserves that layout. An explicit mode 0 `w` can address all 43 nominal rows.
+[PR #354](https://github.com/bbs-land/remote-imaging-protocol/pull/354)
+
+Wrap starts enabled.
 A host can select a different font for a window. Recreating the default window
 restores the choice derived from the connection mode.
 
@@ -270,7 +276,7 @@ unopened. Persistent variables use
 `rip3-variables.bin` in the existing RIP cache, separately from 1.54 storage.
 Device geometry comes from the entry's selected raster; WORLD remains independent.
 The three 4:3 presets remain supported without overriding other entry modes.
-Unlisted bitmap-font resolutions use the original 640x480 MAF bank; vector and
+Device sizes outside all six MAF records and their ranges use the 640×480 fallback glyphs; vector and
 outline scaling use the actual device dimensions. CR, LF and form feed
 terminate RIP commands. A command's CRLF is consumed even when split across
 reads, while ordinary text keeps its own line endings. Processing

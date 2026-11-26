@@ -38,8 +38,8 @@ def run(args,width,height):
         before=values(b'$STW(8)$')
         capture(b'\x01|*\r\n');frame=values(b'$RTW(8)$')
         assert (frame.metadata['plane_width'],frame.metadata['plane_height'])==(width,height)
-        assert frame.metadata['pixel_cursor_width']==8
-        assert (frame.application['cterm.right_margin'],frame.application['cterm.bottom_margin'])==(width//8,height//8)
+        assert frame.metadata['pixel_cursor_width']==width//80
+        assert (frame.application['cterm.right_margin'],frame.application['cterm.bottom_margin'])==(80,42)
         values(b'$INUSE(TW,S8)$',b'0')
         t.case('rip3-tw-slot-zero-protection-skips-to-later-selectors')
         values(b'$CUR(TW,1)$$CUR(TW,0)$$STW(8)$')
