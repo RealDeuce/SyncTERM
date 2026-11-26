@@ -11,6 +11,7 @@ from st_migrated_control_test import connection
 from st_terminal_conformance_test import Terminal
 from st_rip3_connected_test import query,pixel
 from st_rip3_buttons_connected_test import style,button
+from st_rip3_scroll_connected_test import plane_pixel
 
 
 def run(args,width,height):
@@ -108,6 +109,36 @@ def run(args,width,height):
         frame = wire(b'X1614')
         assert pixel(frame, 42, 40) == 0xffffff
         independent_state(frame)
+        t.case('rip3-style-patterns-through-selection-reset-and-restore')
+        # Same DEVICE coordinates for every sample. A nonblack background
+        # distinguishes opaque line gaps from pixels left by a previous draw.
+        stamp = b'B4G4G4N4N|L4G4O4V4O'  # 8x8 at (160,160), then a 16-pixel line
+        def masks(frame, rows, ink, pen, stroke, background):
+            for phase in ('primary', 'alternate'):
+                for y, row in enumerate(rows):
+                    actual = [plane_pixel(frame, 160 + x, 160 + y, phase) for x in range(8)]
+                    expected = [ink if row & (128 >> x) else background for x in range(8)]
+                    assert actual == expected, (phase, y, actual, expected)
+                actual = [plane_pixel(frame, 160 + x, 168, phase) for x in range(16)]
+                expected = [stroke if pen & (0x8000 >> x) else background for x in range(16)]
+                assert actual == expected, (phase, actual, expected)
+
+        values(b'$CUR(STYLE,12)$')
+        masks(wire(stamp), [255] * 8, 0xffffff, 0xffff, 0xffffff, 0)
+        # Each custom row has one foreground pixel. The two ink colors differ.
+        custom = [128, 64, 32, 16, 8, 4, 2, 1]
+        wire(b'k01|c04|s3K1S0W0G0804020102|=140XPM01')
+        values(b'$SGS(2)$$COPY(STYLE,12,13)$')
+        masks(wire(stamp), custom, 0x00aa00, 0xaaaa, 0xaa0000, 0x0000aa)
+        # For built-in lines the custom mask field is ignored.
+        masks(wire(b'S0203|=110XPM01|' + stamp), [255,255,0,0] * 2,
+              0x00aaaa, 0x3333, 0xaa0000, 0x0000aa)
+        values(b'$RESET(STYLE,CUR)$')
+        masks(wire(stamp), [255] * 8, 0xffffff, 0xffff, 0xffffff, 0)
+        values(b'$CUR(STYLE,13)$')
+        masks(wire(stamp), custom, 0x00aa00, 0xaaaa, 0xaa0000, 0x0000aa)
+        values(b'$CUR(STYLE,12)$$RGS(2)$')
+        masks(wire(stamp), custom, 0x00aa00, 0xaaaa, 0xaa0000, 0x0000aa)
         values(b'alive',b'alive')
         assert client.capture().application['connected']==1
 

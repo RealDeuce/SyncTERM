@@ -36,12 +36,19 @@ struct st_rip3_outline_style {
 	char name[40]; /* Owned, NUL terminated, at most 39 protocol bytes. */
 };
 
+enum { ST_RIP3_FILL_CUSTOM = -1, ST_RIP3_FILL_SOLID = 1 };
+
 struct st_rip3_style {
 	uint32_t drawing_color, background_color, fill_color;
 	struct st_rip3_pen pen;
 	/* Original logical type 0..4, distinct from the resolved/custom mask.
 	 * K maps this to SOLID/DOT/DASHDOT/DASH/DASHDOTDOT. */
 	unsigned line_type;
+	uint16_t user_line_mask;
+	/* Normal defaults use zero row data with the solid brush selected.
+	 * fill and pen carry the effective masks used by drawing kernels. */
+	int fill_type; /* Wire preset 0..11 or ST_RIP3_FILL_CUSTOM. */
+	uint8_t fill_rows[8];
 	struct st_rip3_fill fill;
 	struct st_rip3_classic_text_style font;
 	enum st_rip3_write_mode write_mode;

@@ -34,6 +34,9 @@ value(unsigned number)
 	};
 	(void)snprintf(style.outline.name,sizeof(style.outline.name),"font-%u",number);
 	style.pen.pattern = (uint16_t)(0xa500+number);
+	style.user_line_mask = (uint16_t)(0x5000 + number);
+	style.fill_type = number % 12;
+	for (unsigned i = 0; i < 8; i++) style.fill_rows[i] = (uint8_t)(number + i);
 	style.pen.thickness = number+1;
 	style.pen.draw_background = (number%2) != 0;
 	for (unsigned i = 0; i < 8; i++) style.fill.rows[i] = (uint8_t)(number+i*17);
@@ -46,6 +49,8 @@ equal(const struct st_rip3_style *a, const struct st_rip3_style *b)
 {
 	return a->drawing_color == b->drawing_color && a->background_color == b->background_color
 	    && a->fill_color == b->fill_color && a->pen.pattern == b->pen.pattern && a->line_type == b->line_type
+	    && a->user_line_mask == b->user_line_mask && a->fill_type == b->fill_type
+	    && memcmp(a->fill_rows, b->fill_rows, sizeof(a->fill_rows)) == 0
 	    && a->pen.thickness == b->pen.thickness && a->pen.draw_background == b->pen.draw_background
 	    && memcmp(a->fill.rows, b->fill.rows, 8) == 0
 	    && a->fill.origin.x == b->fill.origin.x && a->fill.origin.y == b->fill.origin.y
@@ -70,7 +75,7 @@ expect(struct st_rip3_styles *styles, unsigned number, const struct st_rip3_styl
 static struct st_rip3_style
 defaults(void)
 {
-	struct st_rip3_style result = {.drawing_color=15,.fill_color=15,
+	struct st_rip3_style result = {.drawing_color=15,.fill_color=15,.fill_type=1,
 	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
 	    .write_mode=ST_RIP3_COPY,.borders=true,.outline={.spacing=100}};
 	memset(result.fill.rows,255,8);

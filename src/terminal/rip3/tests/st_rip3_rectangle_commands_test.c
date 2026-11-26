@@ -172,6 +172,7 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 			style.background_color=rgb ? 0x010101 : 1;
 			style.borders=borders;
 			CHECK(st_rip3_styles_set(host.styles,0,&style)==0);
+			uint16_t last_custom = style.user_line_mask;
 			for (unsigned col=0; col<40; col++) {
 				unsigned type=col%5,flags=(col/5)%4;
 				const struct st_rip3_rect cell={(int32_t)col*8,(int32_t)row*8,(int32_t)col*8+7,(int32_t)row*8+7};
@@ -180,13 +181,14 @@ matrix(enum st_rip3_canvas canvas, uint32_t width, uint32_t height, bool offscre
 				number(setting+1,1,flags,base);number(setting+2,1,type,base);number(setting+3,4,custom[flags],base);
 				number(setting+7,2,thickness*((flags&2)!=0 ? scale : 1),base);
 				wire(stream,"!|");wire(stream,setting);wire(stream,"\r");
-				CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.line_type==type
+				if (type == 4) last_custom = custom[flags];
+				CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.line_type==type && after.user_line_mask==last_custom
 				    && after.pen.pattern==(type==4 ? custom[flags] : stored[type]) && after.pen.thickness==thickness
 				    && after.pen.draw_background==(flags==1));
 				CHECK(st_rip3_ports_fill(host.ports,&cell,0x55,ST_RIP3_COPY)==0);
 				rectangle(bytes,col,row,scale,xy,base);
 				wire(stream,"!|");wire(stream,bytes);wire(stream,"\r");
-				CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.line_type==type
+				CHECK(st_rip3_styles_get(host.styles,0,&after)==0 && after.line_type==type && after.user_line_mask==last_custom
 				    && after.pen.pattern==(type==4 ? custom[flags] : stored[type]) && after.pen.thickness==thickness
 				    && after.pen.draw_background==(flags==1) && after.write_mode==style.write_mode);
 			}

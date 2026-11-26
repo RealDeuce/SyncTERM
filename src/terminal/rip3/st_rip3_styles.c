@@ -25,6 +25,7 @@ valid(const struct st_rip3_style *value)
 
 	return value->drawing_color <= 0xffffff && value->background_color <= 0xffffff
 	    && value->fill_color <= 0xffffff && value->pen.pattern != 0 && value->line_type <= 4
+	    && value->fill_type >= ST_RIP3_FILL_CUSTOM && value->fill_type <= 11
 	    && value->pen.thickness > 0 && value->pen.thickness <= INT32_MAX
 	    && value->font_mode >= ST_RIP3_FONT_CLASSIC && value->font_mode <= ST_RIP3_FONT_OUTLINE
 	    && value->outline.compatibility_s <= 63 && value->outline.compatibility_f <= 63
@@ -42,7 +43,7 @@ int
 st_rip3_style_defaults(struct st_rip3_style *result)
 {
 	if (result == NULL) return IO_ERROR_INVALID_ARGUMENT;
-	struct st_rip3_style value = {.drawing_color=15,.fill_color=15,
+	struct st_rip3_style value = {.drawing_color=15,.fill_color=15,.fill_type=ST_RIP3_FILL_SOLID,
 	    .pen={.pattern=0xffff,.thickness=1},.font={0,0,1,0},
 	    .write_mode=ST_RIP3_COPY,.borders=true,.outline={.spacing=100}};
 	(void)st_rip3_fill_solid(&value.fill,true);

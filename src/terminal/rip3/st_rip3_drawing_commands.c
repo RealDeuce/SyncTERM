@@ -44,20 +44,15 @@ fill_style(struct st_rip3_style *style, const struct st_rip3_environment *enviro
 	int status;
 
 	if (custom) {
-		unsigned rows[8];
-
 		for (size_t i = 0; i < 8; i++) {
 			status = st_rip3_command_next_field(&fields, &value, 2, environment->base_math, false);
 			if (status != 0)
 				return status;
 			if (value > 255)
 				return IO_ERROR_OUT_OF_RANGE;
-			rows[i] = (unsigned)value;
+			style->fill_rows[i] = (uint8_t)value;
 		}
-		status = color_field(environment, &fields, &color);
-		if (status != 0)
-			return status;
-		status = st_rip3_fill_custom(&style->fill, rows, &style->fill.origin);
+		style->fill_type = ST_RIP3_FILL_CUSTOM;
 	}
 	else {
 		/* Canonical driver 3.0.7 rows from the adopted #12 reconstruction.
@@ -81,15 +76,14 @@ fill_style(struct st_rip3_style *style, const struct st_rip3_environment *enviro
 			return status;
 		if (value > 11)
 			return IO_ERROR_OUT_OF_RANGE;
-		status = color_field(environment, &fields, &color);
-		if (status != 0)
-			return status;
-		/* S/s replace mask and ink. Wire phase is resolved from the selected
-		 * drawing context at paint time, not stored in a STYLE entry. */
-		memcpy(style->fill.rows, masks[value], sizeof(style->fill.rows));
+		style->fill_type = (int)value;
+		memcpy(style->fill_rows, masks[value], sizeof(style->fill_rows));
 	}
-	if (status == 0)
-		style->fill_color = color;
+	status = color_field(environment, &fields, &color);
+	if (status != 0)
+		return status;
+	style->fill_color = color;
+	memcpy(style->fill.rows, style->fill_rows, sizeof(style->fill.rows));
 	return status;
 }
 
@@ -122,8 +116,10 @@ line_style(const struct st_rip3_command_host *host, unsigned environment_number,
 	 * The device kernels store effective pixel widths: wrapped byte zero is
 	 * the cosmetic one-pixel pen (and has POINT radius zero, like byte one). */
 	uint8_t stored = (uint8_t)thickness;
+	if (kind == 4)
+		style->user_line_mask = (uint16_t)pattern;
 	status = st_rip3_pen_set(&style->pen,flags == 1,(unsigned)kind,
-	    (uint16_t)pattern,stored == 0 ? 1 : stored);
+	    style->user_line_mask,stored == 0 ? 1 : stored);
 	if (status == 0) style->line_type = (unsigned)kind;
 	return status;
 }

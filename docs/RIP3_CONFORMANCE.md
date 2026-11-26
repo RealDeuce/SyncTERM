@@ -131,6 +131,12 @@ queries and copy rectangles. Restoring it leaves the visible screen intact.
 `TW` is RIPscrip's table keyword for a **text window**. A text-window
 definition records its position, size, font and activation/protection settings.
 
+A fresh drawing style has zero stored fill rows and a zero user line mask.
+Its selected solid brush and pen cover every pixel. Wire `s` sets the eight
+rows, and `S` loads the selected preset's rows. Wire `=` uses the supplied
+line mask for custom lines. Connected tests draw with each selection and
+verify both blink planes after live copy, reset and whole-table restore.
+
 On a connected session, first use of wire `2T` copies the current window's
 direct colors, cursor request and explicit tab stops. First use through
 `$CUR(TW,n)$` creates a fresh window. HEADER maximization preserves the

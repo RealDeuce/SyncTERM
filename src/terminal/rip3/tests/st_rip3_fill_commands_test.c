@@ -85,7 +85,8 @@ same(const struct st_rip3_style *a, const struct st_rip3_style *b, bool fill)
 	    && a->font.font == b->font.font && a->font.direction == b->font.direction
 	    && a->font.magnification == b->font.magnification && a->font.flags == b->font.flags
 	    && a->fill.origin.x == b->fill.origin.x && a->fill.origin.y == b->fill.origin.y
-	    && (!fill || (a->fill_color == b->fill_color && memcmp(a->fill.rows,b->fill.rows,8) == 0));
+	    && (!fill || (a->fill_color == b->fill_color && a->fill_type == b->fill_type
+	    && memcmp(a->fill_rows,b->fill_rows,8) == 0 && memcmp(a->fill.rows,b->fill.rows,8) == 0));
 }
 
 static void
@@ -115,8 +116,8 @@ attributes(void)
 			for (size_t i = 0; i < 8; i++) pair(command+1+2*i, value, base);
 			CHECK(process(&host, command, -1) == 0);
 			CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && same(&initial,&after,false));
-			CHECK(after.fill_color == 3);
-			for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == value);
+			CHECK(after.fill_color == 3 && after.fill_type == ST_RIP3_FILL_CUSTOM);
+			for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == value && after.fill_rows[i] == value);
 		}
 		pair(command+15, 256, base);
 		CHECK(st_rip3_styles_get(host.styles, 0, &before) == 0);
@@ -126,10 +127,10 @@ attributes(void)
 		CHECK(process(&host, "S00. suffix", -1) == 0);
 		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.fill_color == 0
 		    && same(&initial,&after,false));
-		for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 0);
+		for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 0 && after.fill_rows[i] == 0 && after.fill_type == 0);
 		CHECK(process(&host, "S013", -1) == 0);
 		CHECK(st_rip3_styles_get(host.styles, 0, &after) == 0 && after.fill_color == 3);
-		for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 255);
+		for (size_t i = 0; i < 8; i++) CHECK(after.fill.rows[i] == 255 && after.fill_rows[i] == 255 && after.fill_type == 1);
 	}
 	CHECK(process(&host, "J10", -1) == 0 && process(&host, "n2", -1) == 0);
 	const struct st_rip3_rect underlay = {0,0,7,7};
