@@ -63,7 +63,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Connection mode and default MicroANSI font | Pending blocks cover text-window startup, reset and font selection. SyncTERM uses square-pixel entry modes. The remaining font work covers the documented mode #2 default, native-size MAF strikes and the fallback for unmatched rasters. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
+| Connection mode and default MicroANSI font | Pending blocks cover text-window startup, reset and font selection. SyncTERM uses square-pixel entry modes. The remaining font work covers the documented mode #2 default, native-size MAF strikes and nominal cell metrics when the raster has no matching bank. The portable contract leaves the fallback face unspecified. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws

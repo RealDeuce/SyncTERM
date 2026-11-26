@@ -1879,4 +1879,4 @@ All thirty font subrecords in the bundled file end after 255 stored glyphs. The 
 
 ## MicroANSI font selection and circle radius
 
-Stable `b36caf046d2cea146aa90f35aa9401d3202e665d` incorporates [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) and [PR #352](https://github.com/bbs-land/remote-imaging-protocol/pull/352). The ledger tracks native MAF metrics, size ranges and fallback realization. The existing curve test covers equal device radii under unequal WORLD scales.
+Stable `b36caf046d2cea146aa90f35aa9401d3202e665d` incorporates [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) and [PR #352](https://github.com/bbs-land/remote-imaging-protocol/pull/352). The ledger tracks native MAF metrics, bank-selection ranges and nominal cell metrics for unmatched sizes. The Windows font cache is historical implementation detail. The existing curve test covers equal device radii under unequal WORLD scales.
