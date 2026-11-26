@@ -126,7 +126,7 @@ def run(args):
                         b"$FILEEXISTS(Pixel.icn" + accent + b")$"):
             values(b"a" + invalid + b"b", b"a" + invalid + b"b")
         term.exchange(query(b"$FILEEXISTS(Invalid/Name)$", at_cursor=True)
-                      + query(b"$FILEEXISTS(Pixel.icn)$", at_cursor=True), b"1")
+                      + query(b"$FILEEXISTS(Pixel.icn)$", at_cursor=True), b"$FILEEXISTS(Invalid/Name)$1")
         fixture(local, "1.RIP", b"!|c04|X0A0A\r\n")
         fixture(local, "0.RIP", b"!|c02|X0B0B\r\n")
         fixture(local, "A$FILEEXISTS()$B.RIP", b"!|c01|X0C0C\r\n")

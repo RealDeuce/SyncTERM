@@ -672,6 +672,9 @@ two_passes(void)
 		{"\\$TERMINFO(NAME)\\$","$TERMINFO(NAME)$"},
 		{"$TERMINFO(NA\\ME)$","Fixture"},
 		{"$TERMINFO(A\\$B)$","NONE"},
+		{"$RAND(\"bad\")$^m","$RAND(\"bad\")$\r"},
+		{"$RAND(A\\\\$^M)$^m","$RAND(A\\\\$^M)$\r"},
+		{"tail$^m","tail$\r"},
 		{"^$RESX$","^640"},{"[","["},{"[?]","[?]"},{"\\[?]","[?]"},
 	};
 	for (size_t i=0; i<sizeof(forms)/sizeof(forms[0]); i++) {
@@ -903,19 +906,17 @@ embedding_limits(enum st_rip3_canvas canvas)
 	CHECK(capped_query(&f,bytes,4106)==0 && expect_x(&f,4096,-1,-1)==0
 	    && st_rip3_user_variables_prompt(f.variables.user_variables)==NULL);
 	memset(bytes,'X',4094);memcpy(bytes+4094,"$D(1)$",6);
-	uint8_t source[4110];memcpy(source,"1\0330000",6);memcpy(source+6,bytes,4100);
-	errors=f.errors;f.reply_length=0;command(&f,source,4106);
-	CHECK(f.errors==errors+1 && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
-	memset(bytes,'X',4093);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4093)==0);errors=f.host_errors;
-	CHECK(capped_query(&f,(const uint8_t *)"$?3$$D(1)$",10)==0 && f.host_errors==errors+1
-	    && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
-	memset(bytes,'X',4095);CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,4095)==0);errors=f.host_errors;
-	CHECK(capped_query(&f,(const uint8_t *)"$?3$$D(1)$",10)==0 && f.host_errors==errors+1
-	    && f.reply_length==0 && st_rip3_input_wait_ns(f.host.input)==0 && !st_rip3_query_pending(f.host.query));
-	/* An incomplete inserted reference is rejected when the next pass scans
-	 * it. The same byte inserted in the final pass has no later scan. */
+	CHECK(capped_query(&f,bytes,4100)==0 && f.reply_length==4096 && memcmp(f.reply,bytes,4096)==0);
+	for (size_t prefix=4093; prefix<=4095; prefix++) {
+		memset(bytes,'X',prefix);
+		CHECK(st_rip3_templates_set(f.templates.slots,3,bytes,prefix)==0);
+		memcpy(bytes+prefix,"$D(1)$",6);
+		CHECK(capped_query(&f,(const uint8_t *)"$?3$$D(1)$",10)==0
+		    && f.reply_length==4096 && memcmp(f.reply,bytes,4096)==0 && st_rip3_input_wait_ns(f.host.input)==0);
+	}
+	/* A dollar without a close remains literal in either pass. */
 	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$",1)==0);errors=f.host_errors;
-	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.host_errors==errors+1 && f.reply_length==0);
+	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.host_errors==errors && f.reply_length==1 && f.reply[0]=='$');
 	CHECK(st_rip3_templates_set(f.templates.slots,3,(const uint8_t *)"$?4$",4)==0
 	    && st_rip3_templates_set(f.templates.slots,4,(const uint8_t *)"$",1)==0);errors=f.host_errors;
 	CHECK(capped_query(&f,(const uint8_t *)"$?3$",4)==0 && f.host_errors==errors && f.reply_length==1 && f.reply[0]=='$');

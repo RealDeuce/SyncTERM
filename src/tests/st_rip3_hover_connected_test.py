@@ -89,7 +89,7 @@ def run(args,width,height):
         t.exchange(resident(6,b'X$FIELDID$;'))
         t.case('rip3-hover-handler-failure-stays-inside-parser')
         t.exchange(resident(5,b'$RAND("bad")$'))
-        move(30,30)  # rejected handlers send nothing and do not end the session
+        move(30,30,b'$RAND("bad")$' * 2)  # Both overlapping fields run the stored query.
         move(90,90,b'X8;X7;')
         t.exchange(resident(5,b'E$FIELDID$;'))
         t.case('rip3-hover-button-redraw-and-held-gesture')

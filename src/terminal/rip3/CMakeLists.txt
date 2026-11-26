@@ -34,7 +34,7 @@ target_link_libraries(st_rip3 PUBLIC syncterm_io_error st_pixels st_codepage)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/SynctermDependencies.cmake")
 add_library(st_rip3_math INTERFACE)
 syncterm_dependency_math(st_rip3_math)
-target_link_libraries(st_rip3 PRIVATE st_rip3_math st_utf8 syncterm_string_util)
+target_link_libraries(st_rip3 PRIVATE st_rip3_math st_utf8)
 set_target_properties(st_rip3 PROPERTIES
 	C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
@@ -422,7 +422,7 @@ if(BUILD_TESTING)
 	add_test(NAME rip3_delay_commands COMMAND st_rip3_delay_commands_test)
 	add_executable(st_rip3_query_commands_test tests/st_rip3_query_commands_test.c
 		tests/st_rip3_query_fault_impl.c tests/st_rip3_templates_fault_impl.c)
-	target_link_libraries(st_rip3_query_commands_test PRIVATE st_rip3_commands st_utf8 syncterm_string_util)
+	target_link_libraries(st_rip3_query_commands_test PRIVATE st_rip3_commands st_utf8)
 	set_target_properties(st_rip3_query_commands_test PROPERTIES
 		C_STANDARD 17 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 	if(MSVC)

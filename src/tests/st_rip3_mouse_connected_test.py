@@ -199,7 +199,7 @@ def run(args):
 
         t.case("rip3-field-clear-runs-after-successful-host-action")
         t.exchange(b"\x01|2T20|w0A050C0710|c0C|X2S2S\r\n"
-                   +field((90,90,110,110),b"$CUR(TW)$unclosed$",clear=True)
+                   +field((90,90,110,110),b"<<IF broken>>",clear=True)
                    +field((120,90,140,110),b"ID=7:$D(3)$old:$CUR(TW)$:$FIELDID$",invert=True,clear=2))
         before=values(b"$CUR(TW)$",b"2")
         assert pixel(before,100,100)==0xff5555

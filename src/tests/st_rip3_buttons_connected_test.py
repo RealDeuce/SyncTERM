@@ -400,16 +400,18 @@ def run(args,width,height):
         before=t.exchange()
         # Creation stores raw HCL without querying providers. A later reached
         # argument error neither drops the field nor terminates the session.
-        values(b"$-=CLICKED=0$")
-        after=t.exchange(style(flags=256|1024)+button((400,300,430,330),b'<><>$-=CLICKED=1$$RAND("bad")$alive',flags=1)
+        rejected = b'$RAND("bad")$'
+        action = b'$-=BEFORE=1$pre' + rejected + b'post$-=AFTER=1$'
+        values(b"$-=BEFORE=0$$-=AFTER=0$")
+        after=t.exchange(style(flags=256|1024)+button((400,300,430,330),b'<><>'+action,flags=1)
                          +b"\x01|1Ubad\r\n")
         assert pixel(after,410,310)==0xaaaaaa
-        values(b"$&CLICKED$",b"0")
-        click(410,310)
-        values(b"$&CLICKED$",b"1")
-        values(b"$-=CLICKED=0$")
-        click(410,310)
-        values(b"$&CLICKED$",b"1")
+        values(b"$&BEFORE$:$&AFTER$",b"0:0")
+        click(410,310,b"pre"+rejected+b"post")
+        values(b"$&BEFORE$:$&AFTER$",b"1:1")
+        values(b"$-=BEFORE=0$$-=AFTER=0$")
+        values(action,b"pre"+rejected+b"post")
+        values(b"$&BEFORE$:$&AFTER$",b"1:1")
         values(b"$MKILL$")
         t.exchange(button((400,300,430,330),b"<><><>"))
         click(410,310,b"<>")

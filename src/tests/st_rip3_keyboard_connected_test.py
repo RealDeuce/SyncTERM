@@ -499,7 +499,9 @@ def run(args):
         t.case("rip3-keyboard-consumption-and-gates")
         t.exchange(button((100,40,150,60),b"ID=9:<><>",hotkey=ord("Z"))
                    +button((100,70,150,90),b'<><>$RAND("bad")$',hotkey=ord("F")))
-        text("z");text("f");text("f")  # No original key or wildcard fallback.
+        text("z")
+        for _ in range(2):
+            text("f",b'$RAND("bad")$')  # No original key or wildcard fallback.
         mouse(300,250,move=True)
         values(b"$XY(DEVICE)$",b"0300:0250")
         text("a",b"a2")

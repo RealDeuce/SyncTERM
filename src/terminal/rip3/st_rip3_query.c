@@ -8,7 +8,6 @@
 #include "st_rip3_angle.h"
 #include "st_rip3_graphical_bytes.h"
 #include "io_error.h"
-#include "string_util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +50,7 @@ slot_number(uint8_t byte)
 	return (uint8_t)(byte<='9' ? byte-'0' : byte-'A'+10);
 }
 
-enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, REJECTED_ARGUMENTS, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK, PICK_LIST };
+enum token_kind { LITERAL, CONTROL, ESCAPED, REFERENCE, USER_REFERENCE, TEMPLATE_REFERENCE, PLAYBACK, PICK_LIST };
 struct token {
 	enum token_kind kind;
 	size_t length;
@@ -59,20 +58,11 @@ struct token {
 };
 
 static size_t
-reference_length(const uint8_t *bytes, size_t length, size_t *literal)
+reference_length(const uint8_t *bytes, size_t length)
 {
-	bool arguments=false;
-	*literal=0;
 	for (size_t i=1; i<length; i++) {
-		/* Argument-local dollars are payload. A quoted closing dollar after
-		 * the argument/name instead leaves a literal reference for pass two. */
-		if (bytes[i]=='\\' && i+1<length) {
-			if (!arguments && bytes[i+1]=='$') { *literal=i+2;return 0; }
-			i++;continue;
-		}
-		if (bytes[i]=='(') arguments=true;
-		else if (bytes[i]==')') arguments=false;
-		if (bytes[i]=='$') return i+1;
+		if (bytes[i]=='$' && bytes[i-1]!='\\')
+			return i+1;
 	}
 	return 0;
 }
@@ -106,7 +96,7 @@ unquoted(const uint8_t *bytes, size_t length, uint8_t first, uint8_t second)
 
 static bool
 token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned pass,
-    bool converted, bool outer_quoted, struct token *result)
+    bool converted, struct token *result)
 {
 	struct token value={.kind=LITERAL,.length=1};
 	if (bytes[0]==0) return false;
@@ -118,30 +108,18 @@ token(const uint8_t *bytes, size_t length, bool users, bool templates, unsigned 
 		}
 	}
 	else if (bytes[0]=='$') {
-		size_t literal;
-		value.length=reference_length(bytes,length,&literal);
-		if (value.length==0) {
-			/* The documented host quote-both-dollars form has no unquoted
-			 * terminator in pass one. Preserve it until outer unquoting. */
-			/* An isolated quoted dollar also survives pass one so pass
-			 * two can unquote it after an unclosed playback opener. */
-			if (literal==0 && !(pass==1 && outer_quoted)) return false;
-			value.length=pass==1 && literal!=0 ? literal : 1;
-		}
+		value.length=reference_length(bytes,length);
+		if (value.length==0)
+			value.length=1;
 		else if (value.length==4 && bytes[1]=='?' && slot(bytes[2])) {
 			if (!templates) return false;
 			value.kind=TEMPLATE_REFERENCE;value.control=slot_number(bytes[2]);
 		}
 		else if (!reference(bytes,value.length,users,converted,&value)) {
 			const uint8_t *open = memchr(bytes + 1, '(', value.length - 1);
-			if (open == NULL || bytes[value.length - 2] != ')')
+			if (open == NULL || !st_rip3_builtin_known((const char *)bytes+1, (size_t)(open-bytes-1)))
 				return false;
-			const char *name = (const char *)bytes + 1;
-			size_t size = (size_t)(open - bytes - 1);
-			if (!ascii_case_span_equal(name, size, "FILEDEL") && !ascii_case_span_equal(name, size, "HOSTDIR")
-			    && !ascii_case_span_equal(name, size, "XFER"))
-				return false;
-			value.kind = REJECTED_ARGUMENTS;
+			/* Retain the complete rejected argument span as one literal. */
 		}
 	}
 	else if (bytes[0]=='\\' && pass==2) {
@@ -220,8 +198,7 @@ block_playback_span(const uint8_t *bytes, size_t length, size_t at, size_t *ordi
 	if (bytes[at]!='$' || length-at<2 || at<*ordinary_end) return 0;
 	if (st_rip3_playback_prefix(bytes[at+1]))
 		return st_rip3_playback_token(bytes+at,length-at);
-	size_t quoted;
-	*ordinary_end=at+reference_length(bytes+at,length-at,&quoted);
+	*ordinary_end=at+reference_length(bytes+at,length-at);
 	return 0;
 }
 
@@ -690,29 +667,6 @@ settle(struct st_rip3_query *query)
 	}
 }
 
-/* Rejected argument syntax leaves the spelling in ordinary text. Pass two
- * still decodes outer escapes and control pairs without retrying the call. */
-static void
-append_rejected(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
-{
-	size_t start = 0;
-	for (size_t i = 0; i < length;) {
-		if (bytes[i] != '\\' && bytes[i] != '^' && bytes[i] != '`') {
-			i++;
-			continue;
-		}
-		append(query, bytes + start, i - start);
-		struct token part;
-		token(bytes + i, length - i, false, false, 2, query->codepage_converted, false, &part);
-		size_t skip = part.kind == ESCAPED && part.length > 1;
-		if (part.kind == CONTROL) append(query, &part.control, 1);
-		else append(query, bytes + i + skip, part.length - skip);
-		i += part.length;
-		start = i;
-	}
-	append(query, bytes + start, length - start);
-}
-
 static bool
 playback(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 {
@@ -750,7 +704,7 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 		struct token value;
 		if (!token(bytes,query->length-query->cursor,query->variables->user_variables!=NULL,
 		    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,query->pass,
-		    query->codepage_converted,query->cursor!=0 && bytes[-1]=='\\',&value)) {
+		    query->codepage_converted,&value)) {
 			st_rip3_query_cancel(query);diagnose(query,ST_RIP3_HOST_UNSUPPORTED_REFERENCE);return;
 		}
 		query->cursor+=value.length;
@@ -758,8 +712,6 @@ st_rip3_query_process(struct st_rip3_query *query, size_t budget)
 			const struct st_rip3_host_sink sink={query,replace,forward_diagnostic};
 			if (process_builtin(query, &sink, bytes, value.length)) return;
 		}
-		else if (value.kind==REJECTED_ARGUMENTS && query->pass==2)
-			append_rejected(query,bytes,value.length);
 		else if (value.kind==USER_REFERENCE) {
 			struct st_rip3_variable_reference decoded;
 			if (st_rip3_user_variables_decode(query->variables->user_variables,&decoded,bytes,value.length)!=0) {
@@ -826,7 +778,7 @@ start_program(struct st_rip3_query *query, const uint8_t *bytes, size_t length)
 			struct token parsed;
 			if (!token(bytes+at,working_end-at,query->variables->user_variables!=NULL,
 			    query->variables->templates!=NULL && query->variables->templates->slots!=NULL,1,
-			    query->codepage_converted,at>value.begin && bytes[at-1]=='\\',&parsed)) return IO_ERROR_NOT_SUPPORTED;
+			    query->codepage_converted,&parsed)) return IO_ERROR_NOT_SUPPORTED;
 			if (parsed.kind==USER_REFERENCE && st_rip3_user_variables_state(query->variables->user_variables)==ST_RIP3_USER_VARIABLE_PROMPT)
 				return IO_ERROR_BUSY;
 			/* A replacement can discard the remaining ordinary source. Its
