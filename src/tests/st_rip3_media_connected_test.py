@@ -184,6 +184,29 @@ def check_bitmap(t, assets, values, encoding):
         assert plane_pixel(frame, 9, 1, phase) == dest ^ red
     values(b"alive", b"alive")
 
+    t.case("Manual BMM and BMP stamps compose over a four-pixel RGB destination")
+    reset()
+    # Give the indexed RIP palette exact matches for the reference RGB sources.
+    # The two explicit loads below use the reference files and unmodified flags.
+    colors = bytes.fromhex("00000000 ffffff00 0ff0f000 f00f0f00")
+    (assets / "Colors.BMP").write_bytes(bitmap_file(4, bytes(4), colors + bytes(12*4)))
+    wire(b"1b" + coords(20, 20, 0, 0) + b"0002000000Colors.BMP")
+    (assets / "Mask.BMM").write_bytes(bitmap_file(1, bytes.fromhex("50000000"),
+        bytes.fromhex("ffffff00 00000000"), width=4))
+    (assets / "SOURCE.BMP").write_bytes(bitmap_file(24,
+        bytes.fromhex("000000 0ff0f0 000000 f00f0f"), width=4))
+    (assets / "SOURCE.BMM").write_bytes(b"unused companion")
+    background = 0x123456
+    frame = t.exchange(b"\x1b[?25l\x1b[H\x1b[0;48;2;18;52;86m ")
+    assert tint(frame, 0, 0, 5, 2) == [[background]*5]*2
+    masked = wire(b"1b000004010300000000MASK.BMM")
+    composed = wire(b"1b000004010200000000SOURCE.BMP")
+    for frame, first_row in ((masked, [background, 0, background, 0]),
+                             (composed, [background, 0xf0f00f, background, 0x0f0ff0])):
+        for phase in phases:
+            assert [plane_pixel(frame, x, 0, phase) for x in range(5)] == first_row + [background]
+            assert [plane_pixel(frame, x, 1, phase) for x in range(5)] == [background]*5
+
     t.case("Wire bitmap wallpaper repeats the live composited seed in both blink phases")
     reset()
     glyph = b"\xdb" if encoding == "CP437" else "█".encode()

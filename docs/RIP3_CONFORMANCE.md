@@ -110,6 +110,12 @@ collapsed source draws no bitmap pixels, can allocate a clear clipboard, and
 can delete an explicit duplicate. Missing resources use the original request
 for marker placement. [Bitmap geometry](https://github.com/bbs-land/remote-imaging-protocol/pull/346)
 
+The connected bitmap fixture sends the two commands in the four-pixel BMM
+example over a TCP session. With the source colors in the drawing palette,
+the AND stamp preserves RGB 123456 at pixels 0 and 2 and clears pixels 1 and
+3. The OR stamp fills the cleared pixels with F0F00F and 0F0FF0. Both blink
+phases and the adjacent row are checked after each command.
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask
