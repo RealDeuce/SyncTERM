@@ -31,6 +31,31 @@ def run(args,width,height):
             mouse(x,y,True);mouse(x,y)
             return t.input(expected) if expected else t.exchange()
         if width == 640:
+            t.case('rip3-template-composition-before-the-two-response-passes')
+            values(b'[L:]Here is a $?$ and $?M$[M:]ANOTHER $?M$ EMBEDDED $?N$ VALUE[N:](hello)')
+            values(b'[L]CHAINED COMMAND',
+                   b'Here is a CHAINED COMMAND and ANOTHER ANOTHER $?M$ EMBEDDED $?N$ VALUE EMBEDDED (hello) VALUE')
+            values(b'[L:]$?M$ $?$ WORLD[M:]HELLO[N:]print("$?$")^m')
+            values(b'[LNN](silly)', b'print("print("HELLO (silly) WORLD")\r")\r')
+            values(b'$-=STAGE=initial$[P:]$-=STAGE=discarded$[Q:]done')
+            values(b'[PQ]$-=STAGE=feed$[]:$&STAGE$', b'done:initial')
+
+            t.case('rip3-template-insertion-preserves-control-and-parenthesis-order')
+            values(b'$-=STAMP=07/18/93$$-=DAYNAME=Sunday$')
+            values(b'[J:]The day is $&DAYNAME$^m[K:]The time is $TIME$^m'
+                   b'[H:]The date is $&STAMP$^m$?J$^m')
+            values(b'HELLO THERE^m($?H$)($?I$)($?J$)',
+                   b'HELLO THERE\r(The date is 07/18/93\rThe day is $&DAYNAME$^m\r)()(The day is Sunday\r)')
+
+            t.case('rip3-button-template-preprocesses-on-definition-and-expands-on-use')
+            values(b'$-=TAG=before$')
+            t.exchange(style(flags=256|1024) + button((300,100,340,130),
+                       b'<><>[V:]<<TAG>>/$&TAG$[]stored'))
+            values(b'$-=TAG=click$')
+            click(320,115,b'stored')
+            values(b'$-=TAG=later$$?V$', b'click/later')
+            values(b'$MKILL$')
+
             t.case('rip3-template-storage-and-chain-wire-byte-limit')
             body = glyph * (4095 // len(glyph))
             stored = body + glyph + b'discarded'

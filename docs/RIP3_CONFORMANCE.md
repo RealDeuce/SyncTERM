@@ -69,6 +69,14 @@ The authoring guide now agrees with the command chapters on port and cursor fiel
 resource filenames, scene framing during article flow, command line endings and
 encoded-stream handling. [PR #331](https://github.com/bbs-land/remote-imaging-protocol/pull/331) · [PR #332](https://github.com/bbs-land/remote-imaging-protocol/pull/332)
 
+Connected template tests cover repeated chaining, a self-reference that remains
+literal after the second pass, and assignments in discarded feeds. A button
+captures an angle reference at click time and evaluates its ordinary variable
+on later use. The nested date/time example reads an undefined slot and gives
+inconsistent CR and parenthesis positions. The fixture checks the documented
+pass rules with fixed values while the example awaits correction.
+[Issue #333](https://github.com/bbs-land/remote-imaging-protocol/issues/333)
+
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
 in each blink phase. Connected tests check keyed BMM loads, an inverted mask
