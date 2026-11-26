@@ -610,6 +610,15 @@ def check_read_scene(t, root, assets, encoding):
     check_default_text(frame, b"B ", row=17, column=0)
     check_default_text(frame, b"D! ", row=18, column=0)
 
+    t.case("A disabled scene passes text through and can re-enable RIP locally")
+    (assets / "Toggle.RIP").write_bytes(b"\x1b[1!\x1b[12;4HA\nB\r\n!|m0D0D\r\n"
+                                       b"\x1b[02!p\x1b[2!" + query(b"local", at_cursor=True))
+    frame = t.exchange(b"\x01|" + read_scene(b"Toggle") + b"\r" + query(b"wire", at_cursor=True),
+                       b"localwire")
+    check_default_text(frame, b"A", row=11, column=3)
+    check_default_text(frame, b"B", row=12, column=4)
+    check_default_text(frame, b"!|m0D0D", row=13)
+
     t.case("Each nested scene discards its incomplete ANSI syntax and resumes its caller")
     (assets / "AnsiInner.RIP").write_bytes(b"\x1b[21;5H\x1b[32mI\x1b]0;unfinished")
     (assets / "AnsiOuter.RIP").write_bytes(

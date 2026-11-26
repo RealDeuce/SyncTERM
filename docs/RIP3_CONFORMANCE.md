@@ -9743,12 +9743,14 @@ reply after an invalid `DATETIME` argument.
 `RIPVER` expands to the same 14 ASCII bytes as connected autosense selectors
 0 and default. Selector 3 appends one CR. Selectors 1 and 2 disable and
 enable RIP framing immediately, preserving buffered RIP commands. While
-disabled, ordinary input goes to the text path and selectors 0 and 3
-produce no reply. CTerm decodes the first ANSI parameter with 16-bit wrap
-for this control, including on a split sequence. Private and unused
-selectors send no reply. A pending RIP command keeps its ESC bytes, and a
+disabled, the stream recognizes only the literal four bytes `ESC[2!`.
+It passes all other bytes to the terminal, including version queries,
+RIP introducers, and padded or multi-parameter forms of selector 2. While
+enabled, the RIPv3 ANSI extension uses the first ANSI parameter with 16-bit
+wrap, including on a split sequence. Private and unused selectors send no
+reply. A pending RIP command keeps its ESC bytes, and a
 pending ANSI sequence survives a SOH command or a local scene. The inactive
-text-window discard rule applies to autosense on the ordinary text path.
+text-window discard rule applies to enabled autosense on the ordinary text path.
 [PR #34](https://github.com/bbs-land/remote-imaging-protocol/pull/34)
 
 `DWAYON`, `DWAYOFF` and `OPTION(DOORWAY)` share the active ANSI

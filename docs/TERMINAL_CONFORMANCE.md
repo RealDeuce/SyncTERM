@@ -1728,6 +1728,10 @@ RIPterm 1.54 compatibility has a separate [historical regression inventory](RIP1
 including reference rasters, parser boundaries, button interaction and capture UI context.
 Its CP437/UTF-8 interaction tests also check host-command templates, local playback
 variables and pick-list input with coherent screen restoration.
+In both RIP engines, `ESC[1!` switches the stream to terminal passthrough.
+The literal four-byte `ESC[2!` resumes RIP parsing. Native tests check split
+and overlapping prefixes. Connected CP437 and UTF-8 tests check disabled
+RIP commands as ordinary text and command execution after re-enable.
 RIP raster checks compare both blink phases against the historical graphics
 references and add literal packed-index, viewport/stride, RGB fallback and
 clipboard expectations. Flood fill restores v1.10a's two-phase viewport output;

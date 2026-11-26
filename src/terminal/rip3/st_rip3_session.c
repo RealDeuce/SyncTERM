@@ -275,11 +275,17 @@ user_diagnostic(void *context, enum st_rip3_user_variable_diagnostic kind)
 	                                                                : ST_RIP3_COMMAND_OPERATION_FAILED);
 }
 
+static bool
+framing_enabled(const struct st_rip3_session *session)
+{
+	return session->sink.framing_enabled == NULL || *session->sink.framing_enabled;
+}
+
 static void
 text(void *context, const uint8_t *bytes, size_t length)
 {
 	struct st_rip3_session *session = context;
-	if (st_rip3_columns_raw_active(&session->columns)) {
+	if (framing_enabled(session) && st_rip3_columns_raw_active(&session->columns)) {
 		bool changed = false;
 		int  status = st_rip3_columns_feed(&session->columns, &session->commands, bytes, length, &changed);
 		if (changed)
@@ -295,7 +301,7 @@ static void
 scene_text(void *context, const uint8_t *bytes, size_t length)
 {
 	static const uint8_t crlf[] = {'\r', '\n'};
-	if (length == 1 && bytes[0] == '\n')
+	if (framing_enabled(context) && length == 1 && bytes[0] == '\n')
 		text(context, crlf, sizeof(crlf));
 	else
 		text(context, bytes, length);
@@ -1105,6 +1111,14 @@ create_query(struct st_rip3_session *session, struct st_rip3_query **result,
 	return status;
 }
 
+static void
+before_enable(void *context)
+{
+	struct st_rip3_session *session = context;
+	if (session->sink.before_command != NULL)
+		session->sink.before_command(session->sink.context);
+}
+
 static int
 create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, bool playback_file)
 {
@@ -1114,7 +1128,8 @@ create_stream(struct st_rip3_session *session, struct st_rip3_stream **result, b
 	    .at_line_start                                = line_start,
 	    .diagnostic                                   = diagnose,
 	    .ansi_owns_bang                               = ansi_owns_bang,
-	    .framing_enabled                              = session->sink.framing_enabled};
+	    .framing_enabled                              = session->sink.framing_enabled,
+	    .before_enable                                = before_enable};
 	return st_rip3_stream_create(result, &sink, session->commands.environments);
 }
 
@@ -1175,9 +1190,7 @@ scene_playback_rate(struct local_scene *scene, uint32_t rate)
 static int
 start_scene(struct st_rip3_session *session, struct local_scene scene, bool suspend_query)
 {
-	int status = 0;
-	if (!scene.normalized)
-		status = create_stream(session, &scene.stream, true);
+	int status = create_stream(session, &scene.stream, true);
 	if (status == 0 && suspend_query)
 		status = create_query(session, &scene.query, &session->variables);
 	if (status == 0 && suspend_query)
@@ -1381,14 +1394,14 @@ scene_byte_due(struct st_rip3_session *session, struct local_scene *scene)
 }
 
 static int
-next_scene_byte(struct local_scene *scene)
+next_scene_byte(struct local_scene *scene, bool framing)
 {
 	int value = fgetc(scene->file.stream);
 	if (scene->normalized)
 		return value;
 	if (value == 0x1a)
 		return EOF;
-	if (!scene->normalized && value == '\r') {
+	if (framing && value == '\r') {
 		/* A binary resource stream needs the same text conversion on every
 		 * platform. Use one character of pushback for a bare CR. */
 		int following = fgetc(scene->file.stream);
@@ -1407,11 +1420,12 @@ next(void *context, uint8_t *byte)
 	while (session->scene_count != 0) {
 		struct local_scene *scene = &session->scenes[session->scene_count - 1];
 		if (!scene->byte_ready) {
-			int value = next_scene_byte(scene);
+			int value = next_scene_byte(scene, framing_enabled(session));
 			if (value == EOF) {
 				if (ferror(scene->file.stream))
 					diagnose(session, ST_RIP3_COMMAND_OPERATION_FAILED);
 				/* Flush buffered text and its replies before resuming the caller. */
+				st_rip3_stream_finish_text(scene->stream);
 				if (session->sink.before_command != NULL)
 					session->sink.before_command(session->sink.context);
 				bool resume_query = scene->queries_active;
@@ -1432,10 +1446,17 @@ next(void *context, uint8_t *byte)
 	return session->source.next(session->source.context, byte);
 }
 
+void
+st_rip3_session_finish_wire_text(struct st_rip3_session *session)
+{
+	if (session != NULL)
+		st_rip3_stream_finish_text(session->stream);
+}
+
 bool
 st_rip3_session_in_wire_command(const struct st_rip3_session *session)
 {
-	return st_rip3_stream_in_command(session->stream);
+	return framing_enabled(session) && st_rip3_stream_in_command(session->stream);
 }
 
 static void
@@ -1447,7 +1468,7 @@ consume(void *context, uint8_t byte)
 		return;
 	}
 	struct local_scene *scene = &session->scenes[session->scene_count - 1];
-	if (!scene->normalized && byte == 0)
+	if (framing_enabled(session) && !scene->normalized && byte == 0)
 		return;
 	const uint8_t *data = &byte;
 	size_t         size = 1;
@@ -1458,7 +1479,7 @@ consume(void *context, uint8_t byte)
 			return;
 		data = output;
 	}
-	if (scene->normalized)
+	if (scene->normalized && framing_enabled(session))
 		text(session, data, size);
 	else
 		st_rip3_stream_process(scene->stream, data, size);

@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "cterm_rip_parser.h"
+#include "../st_rip_enable.h"
 #include "io_error.h"
 
 void
@@ -312,8 +313,14 @@ feed_one(struct cterm_rip_parser *parser, const struct cterm_rip_parser_sink *si
 {
 	int status;
 
-	if (!parser->enabled || parser->suspended)
+	if (parser->suspended)
 		return emit(sink, &byte, 1);
+	if (!parser->enabled) {
+		uint8_t plain[sizeof(st_rip_enable_sequence)];
+		size_t length;
+		parser->enabled = st_rip_match_enable(&parser->enable_prefix, byte, plain, &length);
+		return emit(sink, plain, length);
+	}
 	if (parser->escape_utf8_remaining != 0) {
 		if (byte >= 0x80 && byte <= 0xbf) {
 			/* A continuation byte belongs to the preceding literal
@@ -420,7 +427,7 @@ cterm_rip_parser_feed(struct cterm_rip_parser *parser, const struct cterm_rip_pa
 			i = end - 1;
 			continue;
 		}
-		bool track_history = parser->enabled && !parser->suspended;
+		bool track_history = !parser->suspended;
 		status             = feed_one(parser, sink, bytes[i]);
 		/* History records raw input, including consumed RIP/ANSI bytes.
 		 * Releasing a saved prefix must not record those bytes twice. */
@@ -439,5 +446,10 @@ cterm_rip_parser_flush(struct cterm_rip_parser *parser, const struct cterm_rip_p
 	if (parser == NULL || sink == NULL || sink->passthrough == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	parser->command_terminated_cr = false;
+	if (!parser->enabled) {
+		size_t length = parser->enable_prefix;
+		parser->enable_prefix = 0;
+		return emit(sink, st_rip_enable_sequence, length);
+	}
 	return parser->length == 0 ? 0 : dispatch_command(parser, sink);
 }

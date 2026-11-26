@@ -402,19 +402,18 @@ classified as modern-port regressions.
 | S6 | Numeric CSI decoding is absent for zero-padded autosense parameters. `ESC[00!` should reply with `RIPSCRIP015410`; neither release path does. | Re-disassembled `09C6:064A–06AD`: the handler tests decoded parameter count/value, not literal spelling. P2 is the additional modern text-loss regression on the fallback. |
 | S7 | The reference descriptor table contains both `9 ESC` and `0 ESC`, and both jump-table entries target the same block-mode handler. Both SyncTERM command assemblers only consume level digits `1`–`9`, so the `0 ESC` spelling is decoded as command `0`. | The binary table at file offset `0x2FD62` and targets 59/60 at `1814:197D`; modern and legacy dispatch prefix decoding. Host dispatch also needs to preserve the alias if this reference behavior is implemented. |
 
-One-way disable is an existing, explicitly documented SyncTERM compatibility
-behavior, including the v1.8rc2 source. It is not a v2.0 regression: once
-disabled, the RIP parser cannot receive `ESC[2!`. It nevertheless differs from
-the research reference, where ANSI handles the enable sequence outside the RIP
-gate. This audit does not silently change that policy. Similarly, newer RIP
-extensions retained from legacy SyncTERM are not automatically bugs merely
-because the RIPterm 1.54 descriptor table lacks them.
+One-way disable was documented in legacy SyncTERM, including the v1.8rc2
+source. The research reference handles re-enable in ANSI. Modern SyncTERM's
+RIP parser recognizes the literal `ESC[2!` while disabled and passes every
+other byte through to the terminal.
+Newer RIP extensions retained from legacy SyncTERM are not automatically bugs
+merely because the RIPterm 1.54 descriptor table lacks them.
 
 ### Coverage of the research findings
 
 | Research finding | Assessment |
 | --- | --- |
-| Q1: ANSI/RIP separation, autosense and unknown CSI | Known one-way policy; P2/S6 remain unresolved. Unknown ordinary CSI finals are consumed by the base ANSI parser. |
+| Q1: ANSI/RIP separation, autosense and unknown CSI | Literal re-enable is covered. P2/S6 remain unresolved for enabled-state CSI. Unknown ordinary CSI finals are consumed by the base ANSI parser. |
 | Q2: unconditional backslash preprocessing and continuation | Generic escapes and escaped pipes pass the focused vectors. S1 covers the longer delimiter runs; do not extrapolate parity from the passing one/two/three-slash CR cases. |
 | Q3: introducers, byte history and cursor fallback | Normal BOL/mid-column/escaped cases and every split pass existing tests. Modern S4 and mid-ESC SOH/STX are fixed; S3 remains. The notes' conflicting summary is corrected below. |
 | Q4: pre-dispatch viewport/cursor helper | The modern boundary callback commits text before graphics; the legacy helper has no command-buffer side effects. Existing real-renderer cursor/split tests cover that ordering. |
@@ -460,9 +459,10 @@ playback, file-query replies, and transfer lifecycle/error paths. The
 comparison remains optional and is not required for these fixtures.
 
 The tests do not validate physical audio, native mouse cursors, filesystem-wide
-artwork collections, or every interactive template/popup permutation. The existing
-SyncTERM parser's one-way disable behavior is covered by `cterm_rip_parser`;
-this suite does not claim that `ESC [ 2 !` can re-enable it after disable.
+artwork collections, or every interactive template/popup permutation.
+`cterm_rip_parser` checks the disabled byte transcript across every receive
+split. The connected CP437 and UTF-8 wire tests check that disabled drawing
+commands appear as text and the first command after re-enable draws its pixel.
 
 RIP's existing91-word Q1.15 table and sine/unsigned-radius product now reside
 once in st_bgi_trig, also used by BIG. Every table word matches the retained

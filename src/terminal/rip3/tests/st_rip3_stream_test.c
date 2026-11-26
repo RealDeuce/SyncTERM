@@ -333,10 +333,25 @@ framing_gate(void)
 	enabled = false;
 	st_rip3_stream_process(stream, (const uint8_t *)"ignored\r!|X0000\r", 16);
 	CHECK(seen.calls == 0 && seen.text_length == 19);
-	enabled = true;
-	st_rip3_stream_process(stream, (const uint8_t *)"AFTER\r", 6);
+	static const char pass[] = "\x1b[1!\x1b[!\x1b[3!\x1b[02!\x1b[2;0!\x1b[?2!\x1b[2\0!\x1b[2\x1b";
+	for (size_t i = 0; i < sizeof(pass) - 1; ++i)
+		st_rip3_stream_process(stream, (const uint8_t *)pass + i, 1);
+	CHECK(!enabled);
+	st_rip3_stream_process(stream, (const uint8_t *)"\x1b[", 2);
+	st_rip3_stream_process(stream, (const uint8_t *)"2!AFTER\r", 8);
+	CHECK(enabled && seen.text_length == 19 + sizeof(pass) - 1);
+	CHECK(memcmp(seen.text + 19, pass, sizeof(pass) - 1) == 0);
 	CHECK(seen.calls == 1 && seen.command_length == 13
 	      && strcmp((const char *)seen.commands, "TBEFOREAFTER") == 0);
+	enabled = false;
+	for (size_t length = 1; length < 4; ++length) {
+		seen.text_length = 0;
+		st_rip3_stream_process(stream, (const uint8_t *)"\x1b[2", length);
+		CHECK(seen.text_length == 0);
+		st_rip3_stream_finish_text(stream);
+		st_rip3_stream_finish_text(stream);
+		CHECK(!enabled && seen.text_length == length && memcmp(seen.text, "\x1b[2", length) == 0);
+	}
 	st_rip3_stream_destroy(stream);
 	return 0;
 }

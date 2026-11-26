@@ -189,11 +189,12 @@ decoded decimal parameter values. No parameter or one zero requests
 does not change those values. Unsupported parameter combinations do not
 consume the next ordinary text byte as an ANSI final.
 
-SyncTERM deliberately gates these controls through RIP processing. Once
-RIP is disabled, `ESC[2!` cannot be parsed there. That is an inherited
-project policy, not a newly discovered v2.0 regression. Reference separation
-of ANSI and RIP documents the difference; it does not authorize changing
-SyncTERM's gate. Modern loss of `H` in `ESC[3!HELLO` or `ESC[00!HELLO`
+In earlier SyncTERM releases, disabling RIP also cut off the parser's
+access to the enable sequence. The current wire parser watches for the
+literal four bytes `ESC[2!` while disabled. It passes all other bytes to
+the terminal, including padded selectors, version queries and RIP command
+introducers. Normal RIP parsing resumes with the next byte, even in the
+same read. Enabled-state loss of `H` in `ESC[3!HELLO` or `ESC[00!HELLO`
 and the absent padded version query are separate findings.
 
 == Descriptor decoding and the stored numeric word

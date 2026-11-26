@@ -41,7 +41,7 @@ struct st_rip3_session_sink {
 	void        (*reply)(void *context, const uint8_t *bytes, size_t length);
 	bool        (*at_line_start)(void *context);
 	bool        (*ansi_owns_bang)(void *context);
-	const bool *framing_enabled;
+	bool       *framing_enabled;
 	void        (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
 	void        (*selection_required)(void *context, unsigned group);
 	/* Commit pending ordinary text before changing graphics/window state. */
@@ -197,6 +197,8 @@ int st_rip3_session_create(struct st_rip3_session **result, const struct st_rip3
 /* Bind the initial text window once the connected text and graphics sinks are ready. */
 int  st_rip3_session_start_text_window(struct st_rip3_session *session);
 void st_rip3_session_destroy(struct st_rip3_session *session);
+/* Release any partial enable sequence at the end of the live input. */
+void st_rip3_session_finish_wire_text(struct st_rip3_session *session);
 /* The live stream is collecting a RIP command payload. */
 bool st_rip3_session_in_wire_command(const struct st_rip3_session *);
 

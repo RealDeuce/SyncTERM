@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "io_error.h"
+#include "../st_rip_enable.h"
 #include "st_rip3_bezier.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_header.h"
@@ -18,7 +19,7 @@ struct st_rip3_stream {
 	struct st_rip3_stream_sink         sink;
 	const struct st_rip3_environments *environments;
 	uint8_t                           *command;
-	size_t                             length, capacity;
+	size_t                             length, capacity, enable_prefix;
 	const char                        *fields;
 	enum record_list                   records;
 	unsigned                           base_math, coordinate_width, field_digits, level_digits;
@@ -406,10 +407,21 @@ st_rip3_stream_reset(struct st_rip3_stream *stream)
 	if (stream == NULL)
 		return;
 	clear_command(stream);
+	stream->enable_prefix = 0;
 	stream->introducer = 0;
 	stream->active     = false;
 	stream->skip_lf    = false;
 	stream->line_start = true;
+}
+
+void
+st_rip3_stream_finish_text(struct st_rip3_stream *stream)
+{
+	if (stream == NULL)
+		return;
+	for (size_t i = 0; i < stream->enable_prefix; ++i)
+		raw(stream, st_rip_enable_sequence[i]);
+	stream->enable_prefix = 0;
 }
 
 bool
@@ -443,7 +455,15 @@ st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size
 	for (size_t i = 0; i < length; i++) {
 		uint8_t byte = bytes[i];
 		if (stream->sink.framing_enabled != NULL && !*stream->sink.framing_enabled) {
-			raw(stream, byte);
+			uint8_t plain[sizeof(st_rip_enable_sequence)];
+			size_t plain_length;
+			if (st_rip_match_enable(&stream->enable_prefix, byte, plain, &plain_length)) {
+				if (stream->sink.before_enable != NULL)
+					stream->sink.before_enable(stream->sink.context);
+				*stream->sink.framing_enabled = true;
+			}
+			for (size_t j = 0; j < plain_length; ++j)
+				raw(stream, plain[j]);
 			continue;
 		}
 		if (stream->skip_lf) {

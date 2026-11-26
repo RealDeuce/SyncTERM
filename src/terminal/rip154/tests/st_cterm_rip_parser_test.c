@@ -249,6 +249,41 @@ test_controls_and_disable(void)
 }
 
 static int
+test_disabled_passthrough(void)
+{
+	static const char pass[] = "!|c0F\r\n\x01|#\r\n\x1b[!\x1b[0!\x1b[3!\x1b[1!"
+	                           "\x1b[02!\x1b[2;0!\x1b[?2!\x1b[2\0!\x1b[2\x1b";
+	static const char tail[] = "\x1b[2!\x01|c02\r\n";
+	uint8_t wire[sizeof(pass) - 1 + sizeof(tail) - 1];
+	memcpy(wire, pass, sizeof(pass) - 1);
+	memcpy(wire + sizeof(pass) - 1, tail, sizeof(tail) - 1);
+	for (size_t split = 0; split <= sizeof(wire); ++split) {
+		struct cterm_rip_parser parser;
+		struct capture capture = {0};
+		cterm_rip_parser_init(&parser, true);
+		CHECK(write_bytes(&parser, &capture, "\x1b[1!", 4) == 0 && !parser.enabled);
+		CHECK(write_bytes(&parser, &capture, wire, split) == 0);
+		CHECK(write_bytes(&parser, &capture, wire + split, sizeof(wire) - split) == 0);
+		CHECK(parser.enabled && capture.commands == 1 && capture.code == 'c' && strcmp(capture.args, "02") == 0);
+		CHECK(capture.controls == 1 && capture.warnings == 0);
+		CHECK(capture.text_size == sizeof(pass) - 1 && memcmp(capture.text, pass, sizeof(pass) - 1) == 0);
+		cterm_rip_parser_destroy(&parser);
+	}
+	for (size_t length = 1; length < 4; ++length) {
+		struct cterm_rip_parser parser;
+		struct capture capture = {0};
+		struct cterm_rip_parser_sink sink = sink_for(&capture);
+		cterm_rip_parser_init(&parser, false);
+		CHECK(write_bytes(&parser, &capture, "\x1b[2", length) == 0 && capture.text_size == 0);
+		CHECK(cterm_rip_parser_flush(&parser, &sink) == 0);
+		CHECK(cterm_rip_parser_flush(&parser, &sink) == 0);
+		CHECK(!parser.enabled && capture.text_size == length && memcmp(capture.text, "\x1b[2", length) == 0);
+		cterm_rip_parser_destroy(&parser);
+	}
+	return 0;
+}
+
+static int
 test_text_window_controls(void)
 {
 	struct cterm_rip_parser parser;
@@ -774,7 +809,8 @@ st_cterm_rip_parser_test_main(void)
 	if (test_ansi_interleaving() != 0 || test_interleaving_bounds() != 0 || test_rejected_command() != 0
 	    || test_v154_dispatch_vectors() != 0 || test_split_and_ebc() != 0 || test_ansi_and_bol() != 0
 	    || test_bogus_introducer_batch() != 0 || test_lone_introducer_splits() != 0
-	    || test_controls_and_disable() != 0 || test_text_window_controls() != 0 || test_every_split() != 0
+	    || test_controls_and_disable() != 0 || test_disabled_passthrough() != 0
+	    || test_text_window_controls() != 0 || test_every_split() != 0
 	    || test_deferred_transfer_recognition() != 0 || test_plain_batch() != 0
 	    || test_escape_utf8_when_text_disabled() != 0 || test_lf_does_not_separate_commands() != 0
 	    || test_lf_inside_command() != 0 || test_continued_crlf_before_introducer() != 0

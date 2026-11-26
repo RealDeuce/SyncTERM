@@ -33,11 +33,12 @@ struct st_rip3_stream_sink {
 	 * Physical line starts and SOH/STX need no client cursor information. */
 	bool (*at_line_start)(void *context);
 	void (*diagnostic)(void *context, enum st_rip3_command_diagnostic kind);
-	/* The host ANSI decoder can claim a bang before RIP checks for !|.
-	 * Read the live framing flag ahead of each byte. Disabled input bypasses
-	 * framing and preserves any unfinished RIP command for re-enable. */
-	bool        (*ansi_owns_bang)(void *context);
-	const bool *framing_enabled;
+	/* The host ANSI decoder can claim a bang before RIP checks for !|. */
+	bool (*ansi_owns_bang)(void *context);
+	/* While false, only literal ESC[2! sets this flag and resumes framing. */
+	bool *framing_enabled;
+	/* Commit disabled passthrough before switching how the text sink decodes it. */
+	void (*before_enable)(void *context);
 };
 
 /* Borrow the environment table for numeric widths and radix. Without a
@@ -60,6 +61,8 @@ void st_rip3_stream_reset(struct st_rip3_stream *stream);
  * dispatcher can adjudicate them (#7). */
 void st_rip3_stream_process(struct st_rip3_stream *stream, const uint8_t *bytes, size_t length);
 
+/* At source EOF, release an incomplete enable sequence as ordinary text. */
+void st_rip3_stream_finish_text(struct st_rip3_stream *stream);
 bool st_rip3_stream_in_command(const struct st_rip3_stream *);
 /* Transfer handoff may take responsibility for the optional LF of a CRLF. */
 bool st_rip3_stream_pending_lf(const struct st_rip3_stream *stream);

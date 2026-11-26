@@ -203,6 +203,13 @@ def wire_cases(t):
     numeric_cases(t)
     t.check("rip-version", b"\x1b[!", expected=b"RIPSCRIP015410", reset=False)
     t.check("rip-version-zero", b"\x1b[0!", expected=b"RIPSCRIP015410", reset=False)
+    scene(t)
+    frame = t.check("disable-pass-through-and-enable", b"\x1b[1!!|X2S2S\r\n\x1b[02!p"
+                    b"\x1b[2;0!p\x1b[2!\x01|X2T2S\r\n\x1b[!", (1, 2),
+                    ((1, 1, "!|X2S2S"),), expected=b"RIPSCRIP015410", reset=False)
+    for phase in ("primary", "alternate"):
+        assert pixel(frame, 100, 100, phase) == 0
+        assert pixel(frame, 101, 100, phase) == 0xffffff
     # An unfinished ANSI prefix survives intervening RIP commands. Verify
     # replies, cells/colours, cursor and both pixel phases in one capture.
     # RIP text uses its EGA palette (aa channel steps).

@@ -407,7 +407,7 @@ present(struct st_term_rip3 *rip)
 static void
 ansi(struct st_term_rip3 *rip, const uint8_t *bytes, size_t length)
 {
-	if (!st_rip3_session_text_active(rip->session))
+	if (rip->framing_enabled && !st_rip3_session_text_active(rip->session))
 		return;
 	if (length != 0)
 		rip->text_since_boundary = true;
@@ -1655,7 +1655,7 @@ text(void *context, const uint8_t *bytes, size_t length)
 	present(rip);
 	if (text_visibility(rip) != 0)
 		diagnostic(rip, ST_RIP3_COMMAND_OPERATION_FAILED);
-	bool pending = length == 1 && bytes[0] == '!' && ansi_owns_bang(context);
+	bool pending = rip->framing_enabled && length == 1 && bytes[0] == '!' && ansi_owns_bang(context);
 	ansi(rip, bytes, length);
 	/* Commit a possible emulation change before the stream sees another byte. */
 	if (pending)
@@ -1667,9 +1667,9 @@ autosense(struct st_term_rip3 *rip, uint16_t selector)
 {
 	if (rip == NULL)
 		return;
-	if (selector == 1 || selector == 2)
-		rip->framing_enabled = selector == 2;
-	else if (rip->framing_enabled && (selector == 0 || selector == 3)) {
+	if (selector == 1)
+		rip->framing_enabled = false;
+	else if (selector == 0 || selector == 3) {
 		static const uint8_t version[] = ST_RIP3_IDENTIFICATION "\r";
 		size_t               length    = sizeof(ST_RIP3_IDENTIFICATION) - 1;
 		if (selector == 3)
@@ -1681,6 +1681,9 @@ autosense(struct st_term_rip3 *rip, uint16_t selector)
 bool
 st_term_rip3_escape(void *context, st_cterm_t *text, uint8_t byte)
 {
+	struct st_term_rip3 *rip = context;
+	if (rip != NULL && !rip->framing_enabled)
+		return false;
 	bool query = byte == '!' && text->seq_phase == SEQ_PHASE_PARAMS;
 	uint64_t first = 0;
 	if (query)
@@ -2417,6 +2420,7 @@ st_term_rip3_cancel(struct st_term_rip3 *rip)
 	feedback_begin(rip);
 	close_pick_list(rip);
 	st_rip3_session_mouse_cancel(rip->session);
+	st_rip3_session_finish_wire_text(rip->session);
 	flush_text(rip);
 	if (rip->view != NULL) {
 		(void)st_cterm_finish(st_term_rip3_text(rip));

@@ -32,6 +32,18 @@ def check_autosense(t):
     check_default_text(frame, b"!|m0B0B", row=7)
     t.exchange(b"\x1b[1!\x1b[2!\x01|m0C0C\r\n" + query(b"$TEXTXY$", at_cursor=True), b"12:12")
 
+    t.case("rip3-disabled-only-literal-enable")
+    frame = t.exchange(b"\x1b[1!\x1b[02!p\x1b[2;0!p\x1b[65538!p\x1b[7;1H\x1b[!XZ\r\n!|m0D0D\r\n"
+                       b"\x1b[!p\x1b[3!p\x1b[2!" + query(b"$TEXTXY$", at_cursor=True), b"12:12")
+    check_default_text(frame, b"Z", row=6)
+    check_default_text(frame, b"!|m0D0D", row=7)
+
+    t.case("rip3-disabled-esc-7-8-use-terminal-cursor")
+    frame = t.exchange(b"\x1b[1!\x1b[3;4H\x1b7\x1b[H\x1b[31;44m\x1b8\x1b[2!")
+    assert (frame.application["cterm.x"], frame.application["cterm.y"]) == (4, 3)
+    assert frame.application["cterm.attr"] == 0x14
+    t.exchange(b"\x1b[0m")
+
     t.case("rip3-disable-suppresses-port-and-style-switches")
     t.exchange(query(b"$CUR(PORT,3)$$CUR(STYLE,3)$$DVP(3)$", at_cursor=True))
     switches = b"\x01|2s505|2Y505\r\n"

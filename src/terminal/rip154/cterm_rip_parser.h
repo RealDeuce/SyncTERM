@@ -20,6 +20,7 @@ struct cterm_rip_parser {
 	/* RIPv1 can assemble a SOH/STX command while retaining an ANSI prefix. */
 	uint8_t escape[32];
 	size_t  escape_length;
+	size_t  enable_prefix;
 	uint8_t escape_utf8_remaining;
 	bool    ebc;
 	bool    music_pending;
