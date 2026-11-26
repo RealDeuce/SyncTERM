@@ -2559,6 +2559,8 @@ st_term_rip3_create(struct st_term_rip3 **result, const struct st_term_config *c
 	const struct st_rip3_host_variables services = {.features = &rip->features,
 	    .identity                                             = &rip->identity,
 	    .local_clock                                          = read_local_clock,
+	    .follow_link                                          = config->follow_link,
+	    .link_context                                         = config->link_context,
 	    .local                                                = &rip->local,
 	    .user_variables                                       = rip->user,
 	    .backspace                                            = &rip->backspace,

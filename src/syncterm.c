@@ -759,6 +759,13 @@ connection_alert(void *context, const char *title, const char *message)
 		(void)st_wren_host_alert(ui->host, title, message);
 }
 
+static void
+connection_follow_link(void *context, const char *uri)
+{
+	struct connection_ui *ui = context;
+	st_wren_host_follow_link(ui->host, ui->console, ui->profile, uri);
+}
+
 static char *
 connection_help_escape(char *output, const char *text, size_t length, bool hard_breaks)
 {
@@ -1101,6 +1108,8 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	    .rip3_data_directory           = paths->rip_data_directory,
 	    .rip3_alert                    = connection_alert,
 	    .rip3_alert_context            = &connection_ui,
+	    .follow_link                   = connection_follow_link,
+	    .link_context                  = &connection_ui,
 	    .amiga_font_directory          = amiga_font_directory,
 	    .amiga_font                    = amiga_font,
 	    .skypix_transfer               = run_wren_skypix_transfer,

@@ -116,6 +116,21 @@ lookup(const struct st_rip3_user_variables *variables, const char *name, size_t 
 }
 
 int
+st_rip3_user_variables_get(const struct st_rip3_user_variables *variables, const char *name, size_t length,
+    struct st_rip3_variable_value *value)
+{
+	if (variables == NULL)
+		return IO_ERROR_NOT_SUPPORTED;
+	if (value == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_rip3_variable_entry entry;
+	int                           status = lookup(variables, name, length, &entry, NULL);
+	if (status == 0)
+		*value = entry.value;
+	return status;
+}
+
+int
 st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables, const char *name, size_t length,
     bool *defined)
 {

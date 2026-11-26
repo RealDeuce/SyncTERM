@@ -101,6 +101,8 @@ preservation/inventory coverage, not a claim of RIPtel 3.1 compliance.
 `syncterm_rip3_mouse_CP437` and `syncterm_rip3_mouse_UTF-8` cover connected
 simple mouse fields, host execution, captured coordinates, deletion and native
 text/graphics press feedback and the adopted PR #115 gesture/identity policy.
+The bitmap backend records the URI from a clicked `$GOTOURL$` field and the
+clipboard fallback for a URI with an unsupported scheme.
 `syncterm_rip3_buttons_CP437` and `syncterm_rip3_buttons_UTF-8` exercise
 plain `1U` buttons, native clipboard faces (including inactive/protected reads
 and partial-viewport padding), classic/Dixon labels, pointer

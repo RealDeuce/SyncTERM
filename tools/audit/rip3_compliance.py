@@ -100,8 +100,8 @@ def index_reference(directory):
                    "source": relative, "lines": [start, end],
                    "text": text, "sha256": digest(text.encode()),
                    "status": "unreviewed", "implementation": [], "tests": []}
-            if relative.endswith("5.1-text-variables.md") and heading in ("$APP$", "$APPx$", "$GOTOURL$"):
-                row.update(status="excluded", reason="External application and URL launching excluded by approved goal.")
+            if relative.endswith("5.1-text-variables.md") and heading in ("$APP$", "$APPx$"):
+                row.update(status="excluded", reason="External application launching excluded by approved goal.")
             prior = previous.get(identifier)
             if prior and prior["sha256"] == row["sha256"]:
                 row = prior

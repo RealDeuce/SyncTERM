@@ -6,10 +6,15 @@ from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
 requirements. Rendering is judged by protocol behavior on the agreed
-canvases. RIPlib extensions, future proposals, external application and URL
-launching, and exact RIPtel raster reproduction are outside this goal. The
+canvases. RIPlib extensions, future proposals, external application launching,
+and exact RIPtel raster reproduction are outside this goal. The
 level-9 `G` descriptor at RVA `0x81bd0` invokes `ripWebBrowser` from
-`0x252aa` in the catalogued 3.0.7 DLL and falls under the URL-launch exclusion.
+`0x252aa` in the catalogued 3.0.7 DLL and is excluded.
+
+`$GOTOURL(name)$` resolves the named RIP user variable and passes its stored
+URL to the connected hyperlink handler when the user activates a RIP field
+or button by click or keyboard. The handler applies the same scheme,
+safe-mode, and clipboard rules as a terminal hyperlink click.
 
 ## Acceptance scope
 
@@ -40,8 +45,8 @@ documentation issue only when a gap or conflict prevents implementing or
 verifying an in-scope RIP effect.
 
 **The pinned RIPscrip 3.0 requirements are implemented in connected RIPv3 sessions.**
-The ledger records 6,173 implemented source blocks, 3,393 context blocks and
-222 exclusions. All clarification issues have a disposition. The completion
+The ledger records 6,183 implemented source blocks, 3,397 context blocks and
+208 exclusions. All clarification issues have a disposition. The completion
 check and the native and connected tests described below cover this scope.
 
 The final connected run covered all 40 RIPv3 test groups in CP437 and UTF-8.

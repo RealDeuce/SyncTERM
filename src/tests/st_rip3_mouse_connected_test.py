@@ -240,6 +240,30 @@ def run(args):
             click(130,100,b"" if clear else b"replacement:7")
             values(b"$CUR(TW)$",b"0")
 
+        t.case("rip3-mouse-stored-hyperlink")
+        url = "https://example.invalid/Rip?Page=One"
+        values(b"$WORLD(CUR,640,480)$")
+        t.exchange(field((10, 10, 60, 30), b"ID=1:$-=WEBURL=" + url.encode() + b"$$GOTOURL(weburl)$clicked"))
+        serial = client.capture().metadata["url_serial"]
+        # A remote query and a resident mouse-enter handler both run without activation.
+        values(b"$-=OTHER=https://example.invalid/passive$$GOTOURL(OTHER)$alive", b"alive")
+        t.exchange(b"\x01|1\x1b5000$GOTOURL(OTHER)$hover\r\n")
+        mouse(20, 20, move=True)
+        hovered = t.input(b"hover")
+        assert hovered.metadata["url_serial"] == serial
+        t.exchange(b"\x01|1\x1b5000$OFF$\r\n")
+        opened = click(20, 20, b"clicked")
+        assert opened.url == url and opened.metadata["url_serial"] == serial + 1
+        t.exchange(field((10, 10, 60, 30), b"$-=WEBURL=file:///example$$D(1)$$GOTOURL(WEBURL)$done",
+                         hotkey=ord("L")))
+        client.text("l")
+        fallback = t.input(b"done")
+        assert fallback.clipboard == "file:///example" and fallback.metadata["url_serial"] == serial + 1
+        t.exchange(field((10, 10, 60, 30), b"$GOTOURL(MISSING)$alive"))
+        missing = click(20, 20, b"alive")
+        assert missing.clipboard == fallback.clipboard and missing.metadata["url_serial"] == serial + 1
+        t.exchange(b"\x01|1K\r\n")
+
         t.case("rip3-field-clear-applies-on-focused-enter-after-local-action")
         values(b"$WORLD(CUR,640,480)$$TABON$")
         t.exchange(b"\x01|2T20|w0A050C0710|J1S\r\n"

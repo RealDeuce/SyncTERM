@@ -166,6 +166,18 @@ st_wren_hover_uri(struct st_wren_context *context)
 	return link.uri;
 }
 
+void
+st_wren_host_follow_link(st_wren_host_t *host, st_console_t *console, const struct st_profile *profile,
+    const char *uri)
+{
+	if (host->config.safe_mode || !st_wren_uri_openable(uri) || st_console_open_url(console, uri) != 0) {
+		int copied = st_console_set_clipboard_text(console, uri);
+		if (!profile->hide_popups)
+			(void)st_wren_host_alert(host,
+			    copied == 0 ? "URL copied to clipboard" : "Unable to open URL", uri);
+	}
+}
+
 bool
 st_wren_link_mouse(struct st_wren_context *context, const struct st_wren_input_record *record)
 {
@@ -227,13 +239,7 @@ st_wren_link_mouse(struct st_wren_context *context, const struct st_wren_input_r
 	if (uri == NULL)
 		return false;
 	context->link_gesture = true;
-	if (context->host->config.safe_mode || !st_wren_uri_openable(uri)
-	    || st_console_open_url(context->console, uri) != 0) {
-		int copied = st_console_set_clipboard_text(context->console, uri);
-		if (!context->profile->hide_popups)
-			(void)st_wren_host_alert(context->host,
-			    copied == 0 ? "URL copied to clipboard" : "Unable to open URL", uri);
-	}
+	st_wren_host_follow_link(context->host, context->console, context->profile, uri);
 	free(uri);
 	return true;
 }

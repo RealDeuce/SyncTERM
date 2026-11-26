@@ -23,7 +23,7 @@ struct activation {
 	struct activation       *next;
 	uint64_t                 redraw_preview;
 	size_t                   redraw_count, redraw_at, redraw_capacity;
-	bool                     associated, render_only;
+	bool                     associated, render_only, user_activated;
 	size_t                   length;
 	uint64_t                 instance;
 	unsigned                 stage;
@@ -136,6 +136,12 @@ st_rip3_mouse_group_check(const struct st_rip3_mouse *mouse, unsigned group, enu
 	return mouse == NULL || mouse->templates == NULL
 		   ? IO_ERROR_NOT_SUPPORTED
 		   : st_rip3_templates_group_check(mouse->templates, group, kind);
+}
+
+bool
+st_rip3_mouse_user_activated(const struct st_rip3_mouse *mouse)
+{
+	return mouse && mouse->activation && mouse->activation->user_activated;
 }
 
 uint64_t
@@ -706,6 +712,7 @@ commit(struct st_rip3_mouse *mouse, struct field *field, bool keyboard, int32_t 
 	                                  : malloc(sizeof(*action) + extra + field->length);
 	if (action != NULL) {
 		*action = (struct activation) {.length = field->length,
+		    .user_activated                    = true,
 		    .instance                          = field->instance,
 		    .identity                          = field->identity,
 		    .x                                 = x,

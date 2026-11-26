@@ -92,6 +92,8 @@ int st_rip3_mouse_backup_create(struct st_rip3_backup **);
 /* Bind before definitions; template state outlives every live mouse field. */
 void st_rip3_mouse_bind_templates(struct st_rip3_mouse *, struct st_rip3_templates *);
 int  st_rip3_mouse_group_check(const struct st_rip3_mouse *, unsigned, enum st_rip3_group_kind);
+/* True for a committed click or key activation while its host program runs. */
+bool st_rip3_mouse_user_activated(const struct st_rip3_mouse *);
 /* Stable owner of a committed grouped activation, including redraw/prompt
  * suspension; zero for hover and ungrouped actions. */
 uint64_t st_rip3_mouse_callback_owner(const struct st_rip3_mouse *);

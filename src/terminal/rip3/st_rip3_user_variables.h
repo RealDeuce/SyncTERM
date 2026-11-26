@@ -72,6 +72,9 @@ void st_rip3_user_variables_define(struct st_rip3_user_variables *variables,
 /* Host executor for RESET(TV,name). Like retrieval, deletion chooses the
  * session record first. A protected record is removed only on acceptance. */
 int st_rip3_user_variables_delete(struct st_rip3_user_variables *variables, const char *name, size_t length);
+/* Read a stored value without expansion, prompting or changing interpreter state. */
+int st_rip3_user_variables_get(const struct st_rip3_user_variables *variables, const char *name, size_t length,
+    struct st_rip3_variable_value *value);
 /* The INUSE(TV,name) query reads both stores without invoking the editor. */
 int  st_rip3_user_variables_inuse(const struct st_rip3_user_variables *variables, const char *name, size_t length,
     bool *defined);

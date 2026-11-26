@@ -488,7 +488,28 @@ st_rip3_host_variables_execute(const struct st_rip3_host_variables *host,
 		memcpy(result, text, (size_t)length + 1);
 		return 0;
 	}
-	if (strcmp(reference->name, "APP") == 0 || strcmp(reference->name, "GOTOURL") == 0)
+	if (strcmp(reference->name, "GOTOURL") == 0) {
+		if (!host->follow_link)
+			return IO_ERROR_NOT_SUPPORTED;
+		if (reference->count != 1)
+			return IO_ERROR_INVALID_FORMAT;
+		if (!capacity)
+			return IO_ERROR_OUT_OF_RANGE;
+		const struct st_rip3_builtin_parameter *name = &reference->parameters[0];
+		struct st_rip3_variable_value           uri;
+		int status = st_rip3_user_variables_get(host->user_variables, name->text, name->length, &uri);
+		if (status != 0 && status != IO_ERROR_NOT_FOUND)
+			return status;
+		if (status == 0 && uri.length && host->field_context && host->field_context->active
+		    && st_rip3_mouse_user_activated(host->mouse)) {
+			if (memchr(uri.bytes, 0, uri.length))
+				return IO_ERROR_INVALID_FORMAT;
+			host->follow_link(host->link_context, (const char *)uri.bytes);
+		}
+		result[0] = 0;
+		return 0;
+	}
+	if (strcmp(reference->name, "APP") == 0)
 		return IO_ERROR_NOT_SUPPORTED;
 	{
 		int status = st_rip3_datetime_execute(host, reference, result, capacity);
