@@ -58,7 +58,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Window, port and table lifetime | Selection, reset, saved state, query ownership and remembered copy rectangles |
+| Connection mode and default MicroANSI font | Eight Pending blocks cover the initial text window or resets that select the user’s default font. The entry-mode decision remains deferred. |
 
 The first group, bitmap loading and capture, closed 22 of those blocks.
 Wire `1I` and `1b` now apply Boolean image modes to the visible destination
@@ -141,7 +141,10 @@ On a connected session, first use of wire `2T` copies the current window's
 direct colors, cursor request and explicit tab stops. First use through
 `$CUR(TW,n)$` creates a fresh window. HEADER maximization preserves the
 font binding, ESC snapshot and whole-table backup. Restoring a text-window
-backup during an article preserves the partially received word.
+backup during an article preserves the partially received word. ESC restore
+also preserves an article defined after the save, including its next line.
+A physical key reaches the host after a repeated extended definition or a
+live reset of window zero clears the window's keyboard lock.
 
 The engine accepts ordinary default fonts 0–4. The connection frontend
 currently supplies font 0 and enables wrap. Alternate startup-font vectors

@@ -503,6 +503,14 @@ def run(args):
                      [(210, 435, CAPITAL_A, GREEN), (210, 445, CAPITAL_A, GREEN),
                       (218, 445, ACCENT, GREEN)])
 
+        terminal.case("ESC restore leaves later article definitions and pagination intact")
+        frame = terminal.exchange(b"\x1b[2;3H\x1b7"
+                                  + commands(region((265, 435, 299, 469), 22, 22), b"1t0A", b"1E")
+                                  + b"\x1b[4;5H\x1b8\x1b[6n"
+                                  + commands(select(22), b"1t0" + accent, b"1E"), b"\x1b[2;3R")
+        check_pixels(frame, (263, 433, 301, 469),
+                     [(265, 435, CAPITAL_A, GREEN), (265, 445, ACCENT, GREEN)])
+
         terminal.case("Changing articles flushes the old article's pending text")
         frame = terminal.exchange(commands(region((130, 130, 153, 140), 1, 10)) + b"A\r\n"
                                   + commands(region((161, 130, 184, 140), 2, 11)) + accent + b"\r\n!|1E\r\n")

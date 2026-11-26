@@ -7,6 +7,7 @@ from pathlib import Path
 from st_migrated_control_test import connection
 from st_rip3_buttons_connected_test import button,style,remove_fields
 from st_rip3_connected_test import pixel, query
+from st_rip3_extended_window_connected_test import window
 from st_rip3_mouse_connected_test import field
 from st_terminal_conformance_test import Terminal, colour
 from syncterm_control import CONTROL, SHIFT
@@ -398,6 +399,19 @@ def check_keyboard_action_mode(t, encoding):
     key(ord("q"), b"q")
     t.exchange(b"\x1b[2h\x01|w00000F0A00\r\n")
     blocked(lambda: client.key(ord("q")))
+
+    t.case("rip3-window-redefinition-and-live-reset-restore-keyboard-input")
+    definition = window((0, 0, 159, 119), 10, 5, 0, 1)
+    t.exchange(definition + b"\x1b[2h")
+    blocked(lambda: client.key(ord("q")))
+    t.exchange(definition)
+    key(ord("q"), b"q")
+    values(b"$CUR(TW,0)$")
+    t.exchange(b"\x1b[2h")
+    blocked(lambda: client.key(ord("q")))
+    values(b"$RESET(TW,0)$")
+    key(ord("q"), b"q")
+    t.exchange(b"\x1b[2h")
 
     t.case("rip3-ansi-mode-2-uses-inactive-window-state")
     def without_ansi_fence(data, expected=b""):
