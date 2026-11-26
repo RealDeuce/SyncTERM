@@ -1876,3 +1876,7 @@ Stable commit `f61a957b96880f45e22aca0d4638ad7dc9c64c52` incorporates #345, #346
 
 Stable commit `98016aef6472f265ddd11985fece4e3e8f83c3c3` incorporates #348.
 All thirty font subrecords in the bundled file end after 255 stored glyphs. The three smaller resolution banks supplement three nominal banks. The correction updates the source descriptions for the existing decoder.
+
+## MicroANSI font selection and circle radius
+
+Stable `b36caf046d2cea146aa90f35aa9401d3202e665d` incorporates [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) and [PR #352](https://github.com/bbs-land/remote-imaging-protocol/pull/352). The ledger tracks native MAF metrics, size ranges and fallback realization. The existing curve test covers equal device radii under unequal WORLD scales.

@@ -1,23 +1,24 @@
 {
   "schema": 1,
-  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/348",
-  "revision": "98016aef6472f265ddd11985fece4e3e8f83c3c3",
-  "previous_revision": "f61a957b96880f45e22aca0d4638ad7dc9c64c52",
+  "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/352",
+  "revision": "b36caf046d2cea146aa90f35aa9401d3202e665d",
+  "previous_revision": "98016aef6472f265ddd11985fece4e3e8f83c3c3",
   "authorization": "User selected fork stable as reference. Existing explicit exclusion of VT-102 mode remains authoritative.",
   "acceptance_scope": "See docs/RIP3_CONFORMANCE.md#acceptance-scope and the current requirements ledger. These adoption and implementation records are historical evidence. They do not add requirements for ordinary ANSI behavior, transport negotiation or client features.",
-  "upstream_state_at_adoption": "Fork stable incorporates #348.",
-  "archive_sha256": "4c9be5aa2dd150ea6c712f8c1d50e4a284b3ae37305ec40b5e564962e46a6c99",
+  "upstream_state_at_adoption": "Fork stable incorporates #351 and #352.",
+  "archive_sha256": "658b126e1f6c936c31f7bfce2467497fd2ff634fa50d8c641dfcad5231b777c7",
   "normative_scope": [
-    "Aligns the font overviews with the 255 stored glyphs, implicit blank code zero and three added resolution banks."
+    "Defines the client-size ranges, active mode, native cell metrics and unmatched-size fallback.",
+    "Defines horizontal WORLD conversion and equal device radii for C."
   ],
   "changed_documents": [
-    "version/2.0/techspecs/3.3-microansi-fonts.md",
-    "version/3.0/ripscrip/6.1-content-file-roles.md",
+    "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+    "version/3.0/ripscrip/2.2-curves.md",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md"
   ],
   "new_documents": [],
   "retired_documents": [],
-  "matched_source_blocks": 9760,
+  "matched_source_blocks": 9755,
   "reopened_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:9",
     "version/1.54/techspecs/3.0-icon-format.md:11",
@@ -951,7 +952,7 @@
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:26",
     "version/3.0/techspecs/3.3-microansi-maf-delta.md:32"
   ],
-  "upstream_issue_resolutions": 171,
+  "upstream_issue_resolutions": 173,
   "historical_pending_followups": [
     "B130 complete graphics metrics; B131 persistent grouped selection/template ownership; B132 hover handler/membership lifecycle edge policy.",
     "Stored-but-unexecuted query modes 1..4 and numbered table copy/backup ownership.",
@@ -1972,6 +1973,18 @@
       "sha256": "c3353f7036e57d491cb6caf9885f76203758c27b9f5f2e33513004110116590d",
       "title": "Issue #347 — MicroANSI glyph and resolution counts",
       "role": "Aligns the font overviews with the 255 stored glyphs, implicit blank code zero and three added resolution banks."
+    },
+    {
+      "path": "version/3.0/research/issue-349-microansi-font-selection.md",
+      "sha256": "a3ff04294df6bb9eab58c89085fda4a1529257c093a32bcec98fe59024c5678c",
+      "title": "Issue #349 — MicroANSI font selection",
+      "role": "Defines the client-size ranges, active mode, native cell metrics and unmatched-size fallback."
+    },
+    {
+      "path": "version/3.0/research/issue-350-circle-device-radius.md",
+      "sha256": "89d071239b6f374d652602273c511f61af65c73ed9996770a70cee395def5472",
+      "title": "Issue #350 — RIP_CIRCLE device radius",
+      "role": "Defines horizontal WORLD conversion and equal device radii for C."
     }
   ],
   "documents": [
@@ -2077,7 +2090,7 @@
     },
     {
       "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
-      "sha256": "d696588329c36bbe21f106ba2159a07278a90f24001fa58aefb346ac41de2885"
+      "sha256": "fc5747df207ae16a368e0879fd3b18303bc000948ddbd34ef0f4a1fbcf6cb2a3"
     },
     {
       "path": "version/3.0/ripscrip/2.0-color-modes-and-palettes.md",
@@ -2089,7 +2102,7 @@
     },
     {
       "path": "version/3.0/ripscrip/2.2-curves.md",
-      "sha256": "e7d963779ee39a12dac02ecd15f3025f3962ae56d7bcfb26ab687023e7667f53"
+      "sha256": "c7146a70530fc5d3e9ddd7dbe5e9992d07dbc492b55fd7dab20af3fe655a7456"
     },
     {
       "path": "version/3.0/ripscrip/2.3-shapes-and-fills.md",
@@ -2225,7 +2238,7 @@
     },
     {
       "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
-      "sha256": "98a9273c1bf824f2a6d9e7f50ada466c5bbc2635bc988e4a4744d83fa822123c"
+      "sha256": "64dab01282abc0bcce08baa7a0e26bf9a67ffdf6525c2cd8548cd212975cac0c"
     },
     {
       "path": "version/3.0/techspecs/4.0-connection-directory-model-delta.md",
@@ -2248,7 +2261,7 @@
       "sha256": "f4ee849fa10559e8bab0f5b94d49a4277d9ffc79ebb1b0899ec3eb5003ab5fcd"
     }
   ],
-  "previous_ledger_commit": "f714e2e2aa1635ba4993ef7c6d8b6d7249bd1291",
+  "previous_ledger_commit": "8c7cc9cc6ca6c668c55934874d12928870b22ef2",
   "replaced_implementation_claims": [
     "version/1.54/techspecs/3.0-icon-format.md:33",
     "version/1.54/techspecs/3.1-bgi-stroked-fonts.md:94",
@@ -2323,12 +2336,12 @@
     "version/3.0/ripscrip/9.1-text-variable-reference.md:50"
   ],
   "states_at_adoption": {
-    "context": 3381,
-    "implemented": 6096,
+    "context": 3384,
+    "implemented": 6092,
     "excluded": 277,
-    "pending": 9
+    "pending": 23
   },
-  "source_blocks_at_adoption": 9763,
+  "source_blocks_at_adoption": 9776,
   "initial_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "claim_review_revision": "a9e0c2f490714d82a0827675ffbc074aa5ae00e6",
   "initial_archive_sha256": "846bad7021422040ba2d4b477875af46461fcccb5db787c76a9158a40c97c813",
@@ -22592,6 +22605,107 @@
         "version/2.0/techspecs/3.3-microansi-fonts.md:5",
         "version/3.0/ripscrip/6.1-content-file-roles.md:76",
         "version/3.0/techspecs/3.3-microansi-maf-delta.md:60"
+      ]
+    },
+    {
+      "previous_revision": "98016aef6472f265ddd11985fece4e3e8f83c3c3",
+      "revision": "b36caf046d2cea146aa90f35aa9401d3202e665d",
+      "archive_sha256": "658b126e1f6c936c31f7bfce2467497fd2ff634fa50d8c641dfcad5231b777c7",
+      "archive_format": "git archive --format=tar",
+      "reviewed_pull_requests": [
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/349",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/351",
+          "reviewed_head": "08302979d9c78609a806bca5734dd61a47c228a2",
+          "integration": "5b7a41e6f695352d4199eab84f244cbb66e35c4d"
+        },
+        {
+          "issue": "https://github.com/bbs-land/remote-imaging-protocol/issues/350",
+          "pull_request": "https://github.com/bbs-land/remote-imaging-protocol/pull/352",
+          "reviewed_head": "cfa6624063b6a1c83a9c7db01bd4893bd56aee40",
+          "integration": "601d80a68761f86591e8f1494655afe58494d321"
+        }
+      ],
+      "changed_documents": [
+        {
+          "path": "version/3.0/ripscrip/1.4-terminal-ansi-view.md",
+          "previous_sha256": "d696588329c36bbe21f106ba2159a07278a90f24001fa58aefb346ac41de2885",
+          "sha256": "fc5747df207ae16a368e0879fd3b18303bc000948ddbd34ef0f4a1fbcf6cb2a3"
+        },
+        {
+          "path": "version/3.0/ripscrip/2.2-curves.md",
+          "previous_sha256": "e7d963779ee39a12dac02ecd15f3025f3962ae56d7bcfb26ab687023e7667f53",
+          "sha256": "c7146a70530fc5d3e9ddd7dbe5e9992d07dbc492b55fd7dab20af3fe655a7456"
+        },
+        {
+          "path": "version/3.0/techspecs/3.3-microansi-maf-delta.md",
+          "previous_sha256": "98a9273c1bf824f2a6d9e7f50ada466c5bbc2635bc988e4a4744d83fa822123c",
+          "sha256": "64dab01282abc0bcce08baa7a0e26bf9a67ffdf6525c2cd8548cd212975cac0c"
+        }
+      ],
+      "new_derivations": [
+        {
+          "path": "version/3.0/research/issue-349-microansi-font-selection.md",
+          "sha256": "a3ff04294df6bb9eab58c89085fda4a1529257c093a32bcec98fe59024c5678c",
+          "title": "Issue #349 — MicroANSI font selection",
+          "role": "Defines the client-size ranges, active mode, native cell metrics and unmatched-size fallback."
+        },
+        {
+          "path": "version/3.0/research/issue-350-circle-device-radius.md",
+          "sha256": "89d071239b6f374d652602273c511f61af65c73ed9996770a70cee395def5472",
+          "title": "Issue #350 — RIP_CIRCLE device radius",
+          "role": "Defines horizontal WORLD conversion and equal device radii for C."
+        }
+      ],
+      "changed_derivations": [],
+      "moved_source_blocks": 408,
+      "new_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:293",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:295",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:297",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:299",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:337",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:341",
+        "version/3.0/ripscrip/2.2-curves.md:83",
+        "version/3.0/ripscrip/2.2-curves.md:85",
+        "version/3.0/ripscrip/2.2-curves.md:87",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:28",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:32",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:34",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:35",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:36",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:37",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:38",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:39",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:40",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:41",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:43",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:45"
+      ],
+      "retired_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:293",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:295",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:333",
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:337",
+        "version/3.0/ripscrip/2.2-curves.md:83",
+        "version/3.0/ripscrip/2.2-curves.md:85",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:28",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:30"
+      ],
+      "states_after_update": {
+        "context": 3384,
+        "implemented": 6092,
+        "excluded": 277,
+        "pending": 23
+      },
+      "resolved_source_units": [
+        "version/3.0/ripscrip/1.4-terminal-ansi-view.md:293",
+        "version/3.0/ripscrip/2.2-curves.md:83",
+        "version/3.0/ripscrip/2.2-curves.md:85",
+        "version/3.0/ripscrip/2.2-curves.md:87",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:28",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:34",
+        "version/3.0/techspecs/3.3-microansi-maf-delta.md:35"
       ]
     }
   ],

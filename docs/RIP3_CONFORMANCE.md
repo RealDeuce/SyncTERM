@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-98016aef6472f265ddd11985fece4e3e8f83c3c3](https://github.com/RealDeuce/remote-imaging-protocol/tree/98016aef6472f265ddd11985fece4e3e8f83c3c3/version/3.0)
+b36caf046d2cea146aa90f35aa9401d3202e665d](https://github.com/RealDeuce/remote-imaging-protocol/tree/b36caf046d2cea146aa90f35aa9401d3202e665d/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
@@ -63,7 +63,7 @@ commands reach the same implementation.
 
 | Work group | Behavior to settle together |
 | --- | --- |
-| Connection mode and default MicroANSI font | Nine Pending blocks cover the initial text window or resets that select the user’s default font. SyncTERM uses square-pixel entry modes. The remaining font work covers the documented mode #2 default, native-size MAF strikes and the fallback for unmatched rasters. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
+| Connection mode and default MicroANSI font | Pending blocks cover text-window startup, reset and font selection. SyncTERM uses square-pixel entry modes. The remaining font work covers the documented mode #2 default, native-size MAF strikes and the fallback for unmatched rasters. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws
