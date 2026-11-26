@@ -94,7 +94,7 @@ def geometry_actions(t, values, width, height):
     frame = t.exchange(b'\x01|h01000001300040\r\n')
     assert xy(frame) == (8, 7)
     assert frame.primary == before.primary and frame.alternate == before.alternate
-    expected = {640: (640, 475), 800: (800, 600), 1024: (800, 600), 720: (640, 475)}
+    expected = {640: (640, 475), 800: (800, 600), 1024: (800, 600), 720: (720, 400)}
     w, h = expected[width]
     values(b'$CUR(TW)$:$ISEXTWIN(0)$:$TWFONT(0)$:$TWW(0)$:$TWH(0)$:$CURX(0)$:$CURY(0)$',
            b'5:1:5:40:25:1:1')

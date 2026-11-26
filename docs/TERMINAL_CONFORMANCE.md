@@ -130,7 +130,9 @@ character-set support and full TW backups/reset/metadata remain pending.
 `syncterm_rip3_extended_window_CP437` and its UTF-8 counterpart cover connected
 `b` WORLD/device bounds, actual MAF metrics, directional font fitting, centered
 placement, state/tab reset, flag-16 bounding-box clear before deactivation,
-offscreen clipping and nonfatal allocation rejection. The connected
+offscreen clipping and nonfatal allocation rejection. At 720×400 these tests
+check nominal cell sizes and the resulting change of font in a narrow window.
+At 792×592 they check the matching 799×599 bitmap bank. The connected
 `syncterm_rip3_text_erase_CP437` and UTF-8 suites cover PAL0 whole-window e/ETW,
 STYLE-background wire >, and ANSI-background TWERASEEOL, including full-row
 extent, unchanged cursor/wrap/ANSI state and untouched extended bounding margins.

@@ -8,7 +8,6 @@
 #include "st_rip3_command_internal.h"
 #include "st_rip3_environments.h"
 #include "st_rip3_input.h"
-#include "st_rip3_maf.h"
 #include "st_rip3_mouse.h"
 #include "st_rip3_number.h"
 #include "st_rip3_palettes.h"
@@ -454,21 +453,13 @@ extended_text_window(const struct st_rip3_command_host *host, const uint8_t *com
 		return IO_ERROR_OUT_OF_RANGE;
 	if (host->text_window == NULL || host->text_window->define == NULL)
 		return IO_ERROR_NOT_SUPPORTED;
-	struct st_rip3_frame     frame;
-	struct st_rip3_text_cell cells[5];
+	struct st_rip3_frame frame;
 	status = st_rip3_environments_frame(host->environments, number, &frame);
-	for (unsigned i = 0; status == 0 && i < 5; i++) {
-		struct st_rip3_maf_font font;
-		status = st_rip3_maf_builtin_font(&font, frame.device_width, frame.device_height,
-		    (enum st_rip3_maf_mode)i);
-		if (status == 0)
-			cells[i] = (struct st_rip3_text_cell) {font.width, font.height};
-	}
 	struct st_rip3_text_window_layout layout;
 	if (status == 0)
-		status = st_rip3_text_window_extended(&layout, &frame, cells, (uint32_t)fields[0],
-		    (uint32_t)fields[1], (uint32_t)fields[2], (uint32_t)fields[3], (uint32_t)fields[4],
-		    (uint32_t)fields[5], (unsigned)fields[6], (unsigned)fields[7]);
+		status = st_rip3_text_window_extended(&layout, &frame, (uint32_t)fields[0], (uint32_t)fields[1],
+		    (uint32_t)fields[2], (uint32_t)fields[3], (uint32_t)fields[4], (uint32_t)fields[5],
+		    (unsigned)fields[6], (unsigned)fields[7]);
 	if (status != 0)
 		return status;
 	*operation = true;

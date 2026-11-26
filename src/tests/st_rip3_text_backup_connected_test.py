@@ -68,7 +68,7 @@ def run(args,width,height):
         assert xy(frame)==(2,4) and frame.application['cterm.attr']==0x46 and frame.metadata['pixel_cursor_visible']
         assert frame.application['cterm.right_margin']==10 and frame.application['cterm.bottom_margin']==6
         t.case('rip3-tw-backup-font-and-ansi-following-restore')
-        cw,ch=(8,19) if width in (640,720) else (10,24) if width==800 else (12,30)
+        cw,ch={640: (8,19), 720: (9,16), 800: (10,24), 1024: (12,30)}[width]
         assert (frame.metadata['pixel_cursor_width'],frame.metadata['pixel_cursor_height'])==(cw,ch)
         x=frame.metadata['pixel_cursor_x'];y=frame.metadata['pixel_cursor_y']
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()

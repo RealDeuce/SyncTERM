@@ -124,7 +124,7 @@ def run(args,width,height):
         cursor(frame, 5, 4)
         values(b'$CUR(TW)$:$INUSE(TW,35)$:$TWIN(7)$:$ISEXTWIN(0)$:$TWFONT(0)$:$TWW(0)$:$TWH(0)$',
                b'5:0:NO:1:5:40:25')
-        expected = {640: (640, 475), 800: (800, 600), 1024: (800, 600), 720: (640, 475)}
+        expected = {640: (640, 475), 800: (800, 600), 1024: (800, 600), 720: (720, 400)}
         w, h = expected[width]
         values(b'$TWX0(0,BOUND,DEVICE)$:$TWY0(0,TEXT,DEVICE)$:$TWX1(0,TEXT,DEVICE)$:$TWY1(0,BOUND,DEVICE)$',
                f'0:0:{w}:{h}'.encode())

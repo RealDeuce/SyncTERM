@@ -19,7 +19,9 @@
 static int
 extended(void)
 {
-	const struct st_rip3_text_cell cells[5] = {
+	const struct {
+		unsigned width, height;
+	} cells[5] = {
 	    {12, 17},
             {11, 17},
             {12, 30},
@@ -48,7 +50,7 @@ extended(void)
 	CHECK(st_rip3_frame_init_device(&frame, 1024, 768) == 0 && st_rip3_frame_world(&frame, 1024, 768) == 0);
 	for (size_t i = 0; i < sizeof(cases) / sizeof(*cases); i++) {
 		struct st_rip3_text_window_layout layout;
-		CHECK(st_rip3_text_window_extended(&layout, &frame, cells, cases[i].x0, cases[i].y0, cases[i].x1,
+		CHECK(st_rip3_text_window_extended(&layout, &frame, cases[i].x0, cases[i].y0, cases[i].x1,
 			  cases[i].y1, cases[i].columns, cases[i].rows, cases[i].font, cases[i].flags)
 		      == 0);
 		CHECK(layout.extended && layout.font == cases[i].selected && layout.columns == cases[i].c
@@ -60,45 +62,33 @@ extended(void)
 	}
 	struct st_rip3_text_window_layout layout;
 	CHECK(st_rip3_frame_world(&frame, 1, 1) == 0);
-	CHECK(st_rip3_text_window_extended(&layout, &frame, cells, 16777216, 0, 16777217, 1, 1, 1, 4, 0) == 0
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 16777216, 0, 16777217, 1, 1, 1, 4, 0) == 0
 	      && layout.bound_x == UINT64_C(17179869184) && layout.x == UINT64_C(17179869686) && layout.y == 372);
 	struct st_rip3_rect bounds;
 	CHECK(st_rip3_text_window_bounds(&layout, 1024, 768, &bounds) == 0 && bounds.x0 == 0 && bounds.x1 == -1);
 	CHECK(st_rip3_frame_init_device(&frame, 640, 480) == 0 && st_rip3_frame_world(&frame, 7, 7) == 0);
-	const struct st_rip3_text_cell small[5] = {
-	    {8,  11},
-            {7,  11},
-            {8,  19},
-            {7,  19},
-            {16, 19}
-        };
-	CHECK(st_rip3_text_window_extended(&layout, &frame, small, 6, 6, 1, 1, 10, 10, 0, 8) == 0
-	      && layout.bound_x == 91 && layout.bound_y == 68 && layout.bound_width == 457
-	      && layout.bound_height == 343 && layout.x == 239 && layout.y == 144 && layout.font == 4);
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 6, 6, 1, 1, 10, 10, 0, 8) == 0 && layout.bound_x == 91
+	      && layout.bound_y == 68 && layout.bound_width == 457 && layout.bound_height == 343 && layout.x == 239
+	      && layout.y == 144 && layout.font == 4);
 	CHECK(st_rip3_text_window_bounds(&layout, 640, 480, &bounds) == 0 && bounds.x0 == 91 && bounds.y0 == 68
 	      && bounds.x1 == 547 && bounds.y1 == 410);
 	struct st_rip3_text_window_layout saved = layout;
-	CHECK(st_rip3_text_window_extended(&layout, &frame, small, 1, 1, 6, 6, 0, 10, 0, 0)
-	      == IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_text_window_extended(&layout, &frame, small, 1, 1, 6, 6, 10, 10, 5, 0)
-	      == IO_ERROR_OUT_OF_RANGE);
-	CHECK(st_rip3_text_window_extended(&layout, &frame, small, 1, 1, 6, 6, 10, 10, 0, 64)
-	      == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 1, 1, 6, 6, 0, 10, 0, 0) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 1, 1, 6, 6, 10, 10, 5, 0) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 1, 1, 6, 6, 10, 10, 0, 64) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(memcmp(&layout, &saved, sizeof(layout)) == 0);
-	struct st_rip3_text_cell missing[5];
-	memcpy(missing, small, sizeof(missing));
-	missing[0].width = 0;
-	CHECK(st_rip3_text_window_extended(&layout, &frame, missing, 1, 1, 6, 6, 10, 10, 0, 0)
-	      == IO_ERROR_NOT_SUPPORTED);
-	CHECK(st_rip3_text_window_extended(&layout, &frame, missing, 1, 1, 6, 6, 1, 1, 4, 0) == 0
-	      && layout.font == 4);
+	/* A 40x25 raster can fit a mode-4 cell, but not a mode-0 cell. */
+	struct st_rip3_frame tiny;
+	CHECK(st_rip3_frame_init_device(&tiny, 40, 25) == 0 && st_rip3_frame_world(&tiny, 40, 25) == 0);
+	CHECK(st_rip3_text_window_extended(&layout, &tiny, 1, 1, 6, 6, 1, 1, 0, 0) == IO_ERROR_NOT_SUPPORTED);
+	CHECK(memcmp(&layout, &saved, sizeof(layout)) == 0);
+	CHECK(st_rip3_text_window_extended(&layout, &tiny, 1, 1, 6, 6, 1, 1, 4, 0) == 0 && layout.font == 4);
 	CHECK(st_rip3_frame_world(&frame, 65535, 65535) == 0);
 	saved = layout;
-	CHECK(
-	    st_rip3_text_window_extended(&layout, &frame, small, 1, 1, 2, 2, 1, 1, 0, 0) == IO_ERROR_OUT_OF_RANGE);
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 1, 1, 2, 2, 1, 1, 0, 0) == IO_ERROR_OUT_OF_RANGE);
 	CHECK(memcmp(&layout, &saved, sizeof(layout)) == 0);
 	frame.world_width = 0;
-	CHECK(st_rip3_text_window_extended(&layout, &frame, small, 1, 1, 6, 6, 1, 1, 0, 0) != 0);
+	CHECK(st_rip3_text_window_extended(&layout, &frame, 1, 1, 6, 6, 1, 1, 0, 0) != 0);
 	CHECK(st_rip3_text_window_normal(&layout, &frame, 10, 5, 12, 7, 1, 0) == 0 && layout.x == 80
 	      && layout.y == 54 && layout.columns == 3 && layout.rows == 3);
 	return 0;

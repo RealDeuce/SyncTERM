@@ -114,7 +114,7 @@ def run(args,width,height):
         before=capture();frame=values(b'$COPY(TW,35,CUR)$');same(before,frame)
         values(b'$CUR(TW)$:$ISEXTWIN$:$TWW$:$TWH$:$TWFONT$:$ISPROT(TW,CUR)$',b'0:1:10:6:3:0')
         assert xy(frame)==(2,4) and frame.application['cterm.attr']==0x46
-        cell=(8,19) if width in (640,720) else (10,24) if width==800 else (12,30)
+        cell={640: (8,19), 720: (9,16), 800: (10,24), 1024: (12,30)}[width]
         assert (frame.metadata['pixel_cursor_width'],frame.metadata['pixel_cursor_height'])==cell
         values(b'$&EFFECT$',b'cold')
         assert frame.application['connected']==1

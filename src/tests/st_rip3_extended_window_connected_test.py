@@ -59,6 +59,14 @@ def run(args, width, height, cw, ch, font0_width, font0_height, columns, rows, b
         frame = t.exchange(command + b"1m")
         assert frame.application["cterm.attr"] == 4 and xy(frame) == (1, 1)
 
+        if (width, height) == (720, 400):
+            t.case("rip3-extended-fit-without-a-matching-MAF-bank")
+            # 20 mode-4 columns need 360 pixels. Mode 2 fits at 9x16.
+            frame = t.exchange(query(b"$CON$", at_cursor=True)
+                               + window((0, 0, 340, 300), 20, 15, 4, 8)
+                               + b"\x1b[2 q" + query(b"$TWFONT$", at_cursor=True), b"3")
+            geometry(frame, width, height, 80, 30, 9, 16)
+
         if width == 1024:
             t.case("rip3-extended-directed-height-fit")
             frame = t.exchange(query(b"$CON$", at_cursor=True)
@@ -142,7 +150,8 @@ def main():
     for case in ((640, 480, 16, 19, 8, 11, 20, 15, (10, 20, 630, 460), (160, 97)),
                  (800, 600, 20, 24, 10, 13, 20, 15, (10, 20, 790, 580), (200, 120)),
                  (1024, 768, 20, 24, 12, 17, 40, 25, (10, 20, 1010, 620), (110, 20)),
-                 (720, 400, 16, 19, 8, 11, 20, 15, (10, 20, 710, 380), (200, 57))):
+                 (792, 592, 18, 21, 9, 12, 20, 15, (10, 20, 782, 572), (216, 138)),
+                 (720, 400, 18, 16, 9, 9, 20, 15, (10, 20, 710, 380), (180, 80))):
         run(args, *case)
 
 

@@ -3,12 +3,10 @@
 # Copyright (c) 2026 Stephen Hurd; SPDX-License-Identifier: BSD-2-Clause
 import argparse
 from pathlib import Path
-from unicodedata import normalize
 from st_migrated_control_test import connection, square_canvas
 from st_terminal_conformance_test import Terminal
-from st_rip3_connected_test import query,pixel
+from st_rip3_connected_test import query,pixel,check_default_text
 from st_rip3_button_styles_connected_test import number
-from syncterm_fixture import cell_at
 
 
 def charset_metadata(t, encoding):
@@ -22,11 +20,12 @@ def charset_metadata(t, encoding):
            b'[$DCS(CUR,OTHER)$][$SDCS(OTHER)$][$SDCS(OFF,QUERY)$]alive')
     values(rejected, rejected)
     sample = b'\x1b[H#' + (b'\xb3' if encoding == 'CP437' else '│'.encode())
-    t.check('rip3-charset-default-ansi-glyphs', sample, lines=((1, 1, '#│'),), reset=False)
+    t.case('rip3-charset-default-ansi-glyphs')
+    check_default_text(t.exchange(sample), b'#\xb3')
     t.exchange(b'\x01|T$SDCS(KANJI)$\r\n')
     values(b'$SDCS(query)$:$DCS$:$CHARSET(cur)$', b'KANJI:0:KANJI')
-    t.check('rip3-charset-kanji-metadata-preserves-ansi-glyphs', sample,
-            lines=((1, 1, '#│'),), reset=False)
+    t.case('rip3-charset-kanji-metadata-preserves-ansi-glyphs')
+    check_default_text(t.exchange(sample), b'#\xb3')
 
     t.case('rip3-charset-entry-protection-copy-and-backup')
     values(b'$DCS(CUR,USASCII)$$DCS(CUR,OFF)$$DCS(CUR,query)$:$CHARSET$', b'USASCII:USASCII')
@@ -68,8 +67,7 @@ def run(args,width,height):
                 frame = t.check('rip3-group-markers-preserve-a-pending-grapheme',
                                 b'\x1b[He\x01|(|(|)|)\r\n' + '\u0301!'.encode(),
                                 xy=(3, 1), reset=False)
-                assert normalize('NFC', frame.cell_text(cell_at(frame, 0, 0))) == 'é'
-                assert frame.cell_text(cell_at(frame, 1, 0)) == '!'
+                check_default_text(frame, b'\x82!')
             charset_metadata(t, args.encoding)
             t.case('rip3-coordinate-width-reserve-and-invalid-size')
             width_query = b'$BASEMATH$:$COORDSIZE$'

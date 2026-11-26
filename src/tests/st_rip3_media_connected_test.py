@@ -9,10 +9,10 @@ import time
 from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
 from st_rip3_buttons_connected_test import style
-from st_rip3_connected_test import pixel, query
+from st_rip3_connected_test import check_default_text, pixel, query
 from st_rip3_mouse_connected_test import field
 from st_rip3_scroll_connected_test import plane_pixel
-from st_terminal_conformance_test import Terminal, cell_at
+from st_terminal_conformance_test import Terminal
 from syncterm_control import SHIFT
 
 
@@ -576,7 +576,7 @@ def check_read_scene(t, root, assets, encoding):
                        b"\x1b[9;5Rlocal reply")
     assert pixel(frame, 10, 10) == 0xaa0000
     assert [pixel(frame, point, point) for point in (11, 12, 13)] == [0x00aa00] * 3
-    assert frame.cell_text(cell_at(frame, 3, 8)) == "é"
+    check_default_text(frame, b"\x82", row=8, column=3)
     assert frame.application["cterm.x"] == 5 and frame.application["cterm.y"] == 9
 
     t.case("Missing and recursive 1R scenes return to the caller")
@@ -606,9 +606,9 @@ def check_read_scene(t, root, assets, encoding):
     t.case("Local ordinary LF returns to column one and bare CR stays on its row")
     (assets / "Lines.TXT").write_bytes(b"A\r\nB\nC!\rD\x1aZ")
     frame = t.exchange(b"\x1b[17;4H\x01|" + read_scene(b"Lines.TXT") + b"\r")
-    assert frame.lines[16][3:4] == "A"
-    assert frame.lines[17][:2] == "B "
-    assert frame.lines[18][:3] == "D! "
+    check_default_text(frame, b"A", row=16, column=3)
+    check_default_text(frame, b"B ", row=17, column=0)
+    check_default_text(frame, b"D! ", row=18, column=0)
 
     t.case("Each nested scene discards its incomplete ANSI syntax and resumes its caller")
     (assets / "AnsiInner.RIP").write_bytes(b"\x1b[21;5H\x1b[32mI\x1b]0;unfinished")
@@ -616,7 +616,9 @@ def check_read_scene(t, root, assets, encoding):
         b"\x1b[4\x01|" + read_scene(b"AnsiInner") + b"\n4mP\x1b[3")
     frame = t.exchange(b"\x1b[0m\x1b[3\x01|" + read_scene(b"AnsiOuter")
                        + b"\r1mL\x1b[6n", b"\x1b[21;8R")
-    assert frame.lines[20][4:7] == "IPL"
+    check_default_text(frame, b"I", row=20, column=4, foreground=0x00a800)
+    check_default_text(frame, b"P", row=20, column=5, foreground=0x00a800, background=0x0000a8)
+    check_default_text(frame, b"L", row=20, column=6, foreground=0xa80000, background=0x0000a8)
     assert frame.application["cterm.attr"] == 0x14
 
     t.case("A scene cannot consume the caller's pending RIP identification prefix")
@@ -630,7 +632,7 @@ def check_read_scene(t, root, assets, encoding):
     begin = time.monotonic()
     frame = t.exchange(b"\x1b[12;3H\x01|" + read_scene(b"Pace.TXT") + b"\r\n")
     assert time.monotonic() - begin >= 0.19
-    assert frame.lines[11][2:8] == "abcdef"
+    check_default_text(frame, b"abcdef", row=11, column=2, foreground=0xa80000, background=0x0000a8)
     t.exchange(b"\x01|3e.\r\n" + query(b"$BAUDEMUL$", at_cursor=True), b"0")
 
     t.case("HCL scene macros finish nested scenes before replying")
@@ -640,7 +642,7 @@ def check_read_scene(t, root, assets, encoding):
     (assets / "Tail.RIP").write_bytes(query(b"$-=LOADED=last$", at_cursor=True))
     frame = t.exchange(query(b"before$>Missing$$>Macro$$&LOADED$$>Tail$$&LOADED$after", at_cursor=True),
                        b"from childlocalbeforeyeslastafter")
-    assert frame.lines[13][3:8] == "drawn"
+    check_default_text(frame, b"drawn", row=13, column=3, foreground=0xa80000, background=0x0000a8)
     t.exchange(b"\x01|2R0000refresh$>Nested$$&LOADED$\r\n")
     t.exchange(query(b"$REFRESH$done", at_cursor=True), b"from childrefreshyesdone")
 

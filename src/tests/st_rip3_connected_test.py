@@ -31,7 +31,7 @@ def pixel(frame, x, y):
     return (word if word & 0x80000000 else frame.palette[word]) & 0xffffff
 
 
-def check_default_text(frame, text, *, row=0, foreground=0xa8a8a8, bank_key=None):
+def check_default_text(frame, text, *, row=0, column=0, foreground=0xa8a8a8, background=0, bank_key=None):
     """Compare rendered cells with the original MicroANSI mode 0 bitmap for these 8×8 entry modes."""
     w, h = frame.metadata["plane_width"], frame.metadata["plane_height"]
     data = (Path(__file__).resolve().parents[1] / "terminal/rip3/assets/fonts/RIPscrip.maf").read_bytes()
@@ -43,21 +43,21 @@ def check_default_text(frame, text, *, row=0, foreground=0xa8a8a8, bank_key=None
         # The portable profile specifies cell metrics for an unmatched
         # device. The fallback face is a client choice.
         cw, ch = w // 80, h // 43
-        for column, code in enumerate(text):
-            colors = {pixel(frame, column*cw+x, row*ch+y)
+        for x_cell, code in enumerate(text, column):
+            colors = {pixel(frame, x_cell*cw+x, row*ch+y)
                       for y in range(ch) for x in range(cw)}
-            assert colors == ({0} if code == 32 else {0, foreground}), (code, column, row)
+            assert colors == ({background} if code == 32 else {background, foreground}), (code, x_cell, row)
         return
     font, = struct.unpack_from("<I", data, bank + 4)
     fw, fh = struct.unpack_from("<HH", data, font)
     stride = (fw+7)//8
-    for column, code in enumerate(text):
+    for x_cell, code in enumerate(text, column):
         glyph = font + 50 + (code-1)*fh*stride
         for y in range(fh):
             for x in range(fw):
                 bits = data[glyph + y*stride + x//8]
-                expected = foreground if bits & (0x80 >> (x % 8)) else 0
-                assert pixel(frame, column*fw+x, row*fh+y) == expected, (code, column, row, x, y)
+                expected = foreground if bits & (0x80 >> (x % 8)) else background
+                assert pixel(frame, x_cell*fw+x, row*fh+y) == expected, (code, x_cell, row, x, y)
 
 
 def displayed_pixel(frame, x, y):

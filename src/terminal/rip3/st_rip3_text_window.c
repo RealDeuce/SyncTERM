@@ -14,6 +14,24 @@ static const uint32_t nominal_rows[]    = {43, 43, 25, 25, 25};
 static const uint32_t default_rows[] = {42, 42, 24, 24, 39};
 
 static int
+cell_size(const struct st_rip3_frame *device, unsigned font, uint32_t *width, uint32_t *height)
+{
+	struct st_rip3_maf_font strike;
+	int status = st_rip3_maf_device_font(&strike, device->device_width, device->device_height,
+	    (enum st_rip3_maf_mode)font);
+	if (status == IO_ERROR_NOT_FOUND) {
+		*width  = device->device_width / nominal_columns[font];
+		*height = device->device_height / nominal_rows[font];
+		return 0;
+	}
+	if (status == 0) {
+		*width  = strike.width;
+		*height = strike.height;
+	}
+	return status;
+}
+
+static int
 normal_layout(struct st_rip3_text_window_layout *result, const struct st_rip3_frame *device, uint32_t x0,
     uint32_t y0, uint32_t x1, uint32_t y1, unsigned wrap, unsigned font, bool default_window)
 {
@@ -47,16 +65,10 @@ normal_layout(struct st_rip3_text_window_layout *result, const struct st_rip3_fr
 		y0 = rows - 1;
 	if (y1 >= rows)
 		y1 = rows - 1;
-	uint32_t                cw = device->device_width / nominal_columns[font],
-				ch = device->device_height / nominal_rows[font];
-	struct st_rip3_maf_font strike;
-	status = st_rip3_maf_device_font(&strike, device->device_width, device->device_height,
-	    (enum st_rip3_maf_mode)font);
-	if (status == 0) {
-		cw = strike.width;
-		ch = strike.height;
-	}
-	else if (status != IO_ERROR_NOT_FOUND)
+
+	uint32_t cw, ch;
+	status = cell_size(device, font, &cw, &ch);
+	if (status != 0)
 		return status;
 	if (cw == 0 || ch == 0) {
 		if (!default_window)
@@ -133,8 +145,8 @@ st_rip3_text_window_same(const struct st_rip3_text_window_layout *left,
 
 int
 st_rip3_text_window_extended(struct st_rip3_text_window_layout *result, const struct st_rip3_frame *device,
-    const struct st_rip3_text_cell cells[5], uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t columns,
-    uint32_t rows, unsigned font, unsigned flags)
+    uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t columns, uint32_t rows, unsigned font,
+    unsigned flags)
 {
 	static const int next[5][3] = {
 	    {1,  -1, -1},
@@ -143,7 +155,7 @@ st_rip3_text_window_extended(struct st_rip3_text_window_layout *result, const st
             {-1, 1,  -1},
             {2,  0,  0 }
         };
-	if (result == NULL || device == NULL || cells == NULL)
+	if (result == NULL || device == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	struct st_rip3_frame checked = *device;
 	int                  status  = st_rip3_frame_world(&checked, device->world_width, device->world_height);
@@ -170,11 +182,15 @@ st_rip3_text_window_extended(struct st_rip3_text_window_layout *result, const st
 	uint64_t width = right - left, height = bottom - top;
 	if (flags & 8)
 		font = 4;
+	uint32_t cw, ch;
 	for (;;) {
-		if (cells[font].width == 0 || cells[font].height == 0)
+		status = cell_size(device, font, &cw, &ch);
+		if (status != 0)
+			return status;
+		if (cw == 0 || ch == 0)
 			return IO_ERROR_NOT_SUPPORTED;
-		bool wide = (uint64_t)columns * cells[font].width > width;
-		bool tall = (uint64_t)rows * cells[font].height > height;
+		bool wide = (uint64_t)columns * cw > width;
+		bool tall = (uint64_t)rows * ch > height;
 		if (!wide && !tall)
 			break;
 		int candidate = next[font][wide ? tall ? 2 : 0 : 1];
@@ -182,7 +198,7 @@ st_rip3_text_window_extended(struct st_rip3_text_window_layout *result, const st
 			break;
 		font = (unsigned)candidate;
 	}
-	uint32_t cw = cells[font].width, ch = cells[font].height;
+
 	if ((uint64_t)columns > width / cw)
 		columns = (uint32_t)(width / cw);
 	if ((uint64_t)rows > height / ch)

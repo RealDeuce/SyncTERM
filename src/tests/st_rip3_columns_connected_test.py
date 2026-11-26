@@ -8,7 +8,7 @@ import socket
 
 from st_migrated_control_test import connection
 from st_rip3_button_styles_connected_test import number
-from st_rip3_connected_test import query
+from st_rip3_connected_test import query, check_default_text
 from st_rip3_mouse_connected_test import field
 from st_rip3_scroll_connected_test import plane_pixel
 from st_terminal_conformance_test import Terminal
@@ -264,7 +264,7 @@ def check_selection(terminal, accent):
         + b"\x1b[3;2HOK", b"\x1b[4;8R")
     check_pixels(frame, (242, 309, 254, 344),
                  [(245, 310, CAPITAL_A, GREEN), (245, 320, ACCENT, GREEN), (245, 330, CAPITAL_A, GREEN)])
-    assert frame.lines[2][1:3] == "OK"
+    check_default_text(frame, b"OK", row=2, column=1)
 
     terminal.case("Invalid selectors retain the current selection and allow the next command")
     terminal.exchange(commands(extended((270, 310, 277, 320), 17, 17, 1), b"1E")
@@ -484,7 +484,7 @@ def run(args):
                                   + b"A\r\nA " + accent + b"\r\n!|1E\r\n\x1b[3;2HOK")
         check_pixels(frame, (126, 39, 196, 54),
                      [(130, 40, CAPITAL_A, GREEN), (146, 40, CAPITAL_A, GREEN), (170, 40, ACCENT, GREEN)])
-        assert frame.lines[2][1:3] == "OK"
+        check_default_text(frame, b"OK", row=2, column=1)
 
         terminal.case("Raw CRLF paragraphs and same-article redefinition")
         paragraph = region((130, 75, 177, 107), 0, 7)

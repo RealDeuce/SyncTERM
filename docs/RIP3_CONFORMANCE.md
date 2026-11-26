@@ -38,13 +38,16 @@ ledger governs completion and future reference adoption. File a new
 documentation issue only when a gap or conflict prevents implementing or
 verifying an in-scope RIP effect.
 
-**Status: implementation in progress; no full-compliance claim.** Connected
-RIP3 sessions now use the separate engine for its completed command families.
-Incomplete families remain unsupported and nonfatal; full compliance is not a
-prerequisite for connecting completed work. RIP1.54 retains its original route.
-Source indexing is discovery, not adjudication or working-feature evidence.
+**The pinned RIPscrip 3.0 requirements are implemented in connected RIPv3 sessions.**
+The ledger records 6,118 implemented source blocks, 3,393 context blocks and
+277 exclusions. All clarification issues have a disposition. The completion
+check and the native and connected tests described below cover this scope.
 
-## Pending work
+The final connected run covered all 40 RIPv3 test groups in CP437 and UTF-8.
+A separate TCP replay of the original `acc.rip` at 1024×768 reached its
+authored buttons. Clicking “Home Phone Number” returned the host byte `D`.
+
+## Requirements review
 
 The November 25 review covered all 1,072 blocks that were Pending at the
 pinned revision. It found existing implementation and test evidence for
@@ -57,13 +60,12 @@ The connected overlap test places two RIP pixels on opposite sides of a text-win
 edge. Scrolling the window by one row moves the inside pixel by eleven device pixels
 and leaves the outside pixel in place.
 
-Each remaining Pending entry has a `work_group` and a reason identifying the
-open behavior. One connected scenario can settle several entries when their
-commands reach the same implementation.
-
-| Work group | Behavior to settle together |
-| --- | --- |
-| Connection mode and default MicroANSI font | Startup and reset use RIPtel’s default window dimensions. Ordinary windows use native MAF cell sizes for matching client areas. Extended-window fitting on a raster outside every MAF bank still needs nominal cell metrics. The portable contract leaves the fallback face unspecified. [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) |
+Ordinary and extended text windows use the same MicroANSI cell metrics.
+At 792×592, mode 4 uses the 799×599 bank’s 18×21 cells. At 720×400,
+the nominal 40×25 grid gives 18×16 cells. An extended window requesting
+20 columns in 340 pixels therefore switches from mode 4 to mode 2, whose
+9×16 cells fit. The fallback glyph face remains a client choice.
+[PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351)
 
 Outline font measurement and drawing use the DPI projected from the connected
 device and the current WORLD. A 1280×400 connection with a 1×400 WORLD draws
@@ -285,7 +287,7 @@ errors. Constructor/accessor and transport failures remain distinct.
 
 ## Implementation history
 
-The milestones below describe the state at the time of each change. For current work, use the Pending entries in the ledger.
+The milestones below describe the state at the time of each change. The requirements ledger records the current disposition of each source block.
 
 Level-0 `M` now selects the current environment's color mode on connections:
 `M08` restores palette mapping, `M18` enables eight-bit direct RGB, and other

@@ -48,15 +48,17 @@ def run(args,width,height):
         t.exchange(b'\x1b[!',b'RIPSCRIP030001')
         t.case('rip3-drawing-distinguishes-root-ansi-from-a-matching-index')
         values(f'$WORLD(CUR,{width},{height})$'.encode())
-        wire(palette_entry(1,0xa0b0c0)+b'|c01|X0800')
+        x = {640: 8, 800: 10, 1024: 12, 720: 9}[width]  # First pixel of the second mode-0 cell.
+        point = b'X'+number(x,2)+b'00'
+        wire(palette_entry(1,0xa0b0c0)+b'|c01|'+point)
         frame=t.exchange(b'\x1b[1;2H\x1b[48;2;160;176;192m ')
-        assert pixel(frame,8,0)==0xa0b0c0
-        frame=wire(b'W04|X0800')
-        assert pixel(frame,8,0)==0x5f4f3f
+        assert pixel(frame,x,0)==0xa0b0c0
+        frame=wire(b'W04|'+point)
+        assert pixel(frame,x,0)==0x5f4f3f
         frame=t.exchange(b'\x1b[2;2H\x1b[48;2;17;34;51m \x1b[1S')
-        assert pixel(frame,8,0)==0x112233
-        frame=wire(b'X0800')
-        assert pixel(frame,8,0)==0xeeddcc
+        assert pixel(frame,x,0)==0x112233
+        frame=wire(point)
+        assert pixel(frame,x,0)==0xeeddcc
         wire(b'*')
         values(b'$CUR(ENV,5)$'+f'$WORLD(CUR,{width},{height})$'.encode()+b'$CUR(PAL,17)$$CUR(STYLE,7)$$CUR(BUT,6)$$CUR(TW,3)$')
         accented=b'\x82' if args.encoding=='CP437' else 'é'.encode()
