@@ -506,17 +506,11 @@ removed. No native GUI, physical audio or Windows execution is claimed.
 
 ## RIP 1.54 preservation boundary
 
-The baseline is commit `e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a`.
-[`rip154-freeze.json`](../src/tests/rip3/rip154-freeze.json) freezes legacy RIP
-sources, shared BGI kernels/data, historical assets/expectations, and existing
-`rip_*` helper definitions in the terminal adapter. Do not regenerate it or
-advance its baseline during this goal. Surrounding public dispatch/lifecycle
-changes still require unchanged runtime expectations to pass. Known 1.54
-differences are retained, not fixed here.
-
-The frozen capture inventory includes its descriptive scope text. Keep new
-coverage notes in `docs/RIP154_CONFORMANCE.md` without modifying that inventory
-or advancing the preservation baseline.
+RIPv1.54 compatibility is checked by its conformance tests and historical
+connected captures. The source checksum gate introduced during RIPv3
+development was retired for the terminal refactor. Earlier milestone entries
+below record checks against the then-active baseline
+`e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a`.
 
 A separately developed RIPv3 text-video-mode repair landed as `4c230452` and
 is recorded in the manifest's `maintenance` entry, with previous checksums

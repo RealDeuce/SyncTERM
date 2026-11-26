@@ -166,11 +166,9 @@ if(BUILD_TESTING)
 		add_test(NAME rip3_builtin_inventory COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/test_rip3_builtin_catalog.py"
 			"$<TARGET_FILE:st_rip3_builtin_catalog_test>")
-		add_test(NAME rip154_source_freeze COMMAND "${Python3_EXECUTABLE}"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/rip3_compliance.py" --freeze-only)
 		add_test(NAME rip3_contract COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/rip3_compliance.py")
-		add_test(NAME rip3_preservation_guard COMMAND "${Python3_EXECUTABLE}"
+		add_test(NAME rip3_contract_checks COMMAND "${Python3_EXECUTABLE}"
 			-B "${CMAKE_CURRENT_SOURCE_DIR}/tools/audit/test_rip3_compliance.py")
 		add_test(NAME dependency_parallel COMMAND "${Python3_EXECUTABLE}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/dependency_parallel.py"

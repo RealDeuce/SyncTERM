@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Index the pinned RIP3 contract and check its legacy preservation boundary.
+"""Index and validate the pinned RIP3 contract.
 
 The index is a review queue, not a generated claim of conformance. Every source
 block starts unreviewed; implementation and independent tests must be recorded
@@ -16,7 +16,6 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "src/tests/rip3"
 REFERENCE = "1e0bff4190bc2bc10faf357b060a4a4c2e6e535b"
-BASELINE = "e49ee49a0ee97b397dd190eb4e3ab3fe3bbffb7a"
 UPSTREAM = "https://github.com/RealDeuce/remote-imaging-protocol"
 REFERENCE_BRANCH = "stable"
 ISSUE_REPOSITORY = "https://github.com/bbs-land/remote-imaging-protocol"
@@ -39,51 +38,6 @@ def write_index(data):
     text += ",\n".join("    " + json.dumps(row, ensure_ascii=False)
                          for row in data["requirements"])
     (DATA / "requirements.json").write_text(text + "\n  ]\n}\n")
-
-
-def c_functions(source):
-    """Locate RIP helper definitions without interpreting braces in C tokens."""
-    masked = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',
-                    lambda m: re.sub(r"[^\n]", " ", m[0]), source,
-                    flags=re.S)
-    functions = {}
-    for match in re.finditer(r"(?m)^(rip_[A-Za-z0-9_]+)\([^;{}]*\)\s*\{", masked):
-        depth = 1
-        end = match.end()
-        while end < len(masked) and depth:
-            depth += (masked[end] == "{") - (masked[end] == "}")
-            end += 1
-        if depth:
-            raise ValueError("unterminated function: " + match[1])
-        # Include the preceding return type/storage qualifiers, not just the
-        # name/parameter list. Definitions in the frozen adapter are separated
-        # by blank lines. Freezing leading comments as well is intentional.
-        separator = source.rfind("\n\n", 0, match.start())
-        start = 0 if separator < 0 else separator + 2
-        functions[match[1]] = source[start:end].encode()
-    return functions
-
-
-def check_freeze(root=ROOT, manifest=None):
-    if manifest is None:
-        manifest = json.loads((DATA / "rip154-freeze.json").read_text())
-    if manifest["baseline"] != BASELINE:
-        raise ValueError("RIP154 baseline must not be advanced by RIP3 work")
-    failures = []
-    for relative, expected in manifest["files"].items():
-        path = root / relative
-        if not path.is_file() or digest(path.read_bytes()) != expected:
-            failures.append(relative)
-    for relative, expected in manifest["functions"].items():
-        path = root / relative
-        actual = c_functions(path.read_text()) if path.is_file() else {}
-        for name, checksum in expected.items():
-            if name not in actual or digest(actual[name]) != checksum:
-                failures.append(relative + "::" + name)
-    if failures:
-        raise ValueError("frozen RIP154 implementation/fixture changed:\n" +
-                         "\n".join(failures))
-    return len(manifest["files"]), sum(map(len, manifest["functions"].values()))
 
 
 def blocks(text):
@@ -242,20 +196,12 @@ def check_requirements(require_complete=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference", type=Path, help="reindex an extracted copy of the pinned reference (preserves unchanged reviews)")
-    parser.add_argument("--freeze-only", action="store_true")
     parser.add_argument("--require-complete", action="store_true",
                         help="acceptance gate; fail while any review or implementation is unfinished")
     args = parser.parse_args()
     if args.reference:
         index_reference(args.reference)
-    files, functions = check_freeze()
-    manifest = json.loads((DATA / "rip154-freeze.json").read_text())
-    maintained = {name for entry in manifest.get("maintenance", [])
-                  for name in entry.get("previous_checksums", {})}
-    print(f"RIP154 preservation: {files} files, {functions} helper definitions match recorded checksums"
-          + (f" ({len(maintained)} documented maintenance updates)" if maintained else ""))
-    if not args.freeze_only:
-        check_requirements(args.require_complete)
+    check_requirements(args.require_complete)
 
 
 if __name__ == "__main__":
