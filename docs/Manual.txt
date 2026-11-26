@@ -1219,6 +1219,15 @@ You can insert and delete items using the normal menu commands.
 
 ==== Program Settings
 
+Controller Mapping::
+Select a BBS input such as *Bottom face button*, then press the physical
+button you want to use. Its name appears beside the BBS input. To start with
+a physical control, choose *Press a control to assign*, move it, and pick
+what it should send. *Browse physical controls* lets you select it by name.
+Select an assigned input to preview it, replace or clear it, or invert an
+axis. F1 opens help. Assignments are saved as you make them, except in safe
+mode, where they apply only in memory.
+
 Confirm Program Exit::
 Asks if you are sure you want to quit when pressing
 ESC or right-clicking in the main SyncTERM screen.

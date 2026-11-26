@@ -984,9 +984,9 @@ device and announces its new capabilities under a fresh ID.
   `−2n−1`. For example, `ESC[=3;1;3;0;3J` moves device 1's X axis to −2.
   A following `ESC[=4;1J` commits the change. SyncTERM reports changes in the scaled value. There is no gameplay dead zone.
 
-In Program Settings, open *Controller Mapping*. Choose *Identify a control*
-and actuate it, or choose a named input first and then actuate the physical
-control. Unknown button numbers remain unassigned until mapped. The mapper
+In Program Settings, open *Controller Mapping*. Select a BBS input and move or press
+the physical control to assign it. To start with the controller, choose
+*Press a control to assign*. Unknown button numbers remain unassigned until mapped. The mapper
 can preview movement, invert an axis, clear a binding, or move a binding
 between controls. Mappings are shared by devices with the same USB vendor,
 product, report descriptor and application collection. Each attached unit

@@ -604,6 +604,7 @@ class SettingsMenu {
             "Select its unencrypted private key; Delete clears it") +
         helpItem_("Scaling", "Cycle the display scaling algorithm") +
         helpItem_("Invert Mouse Wheel", "Reverse wheel-up and wheel-down") +
+        helpItem_("Controller Mapping", "Assign physical buttons, sticks, triggers and hats to the inputs a BBS receives") +
         helpItem_("Colour Emoji", "Use intrinsic emoji colours in graphical output; disable for monochrome") +
         helpItem_("Key Derivation Shift", "The scrypt cost used for list encryption") +
         helpItem_("Classic Theme Colours",
@@ -853,98 +854,171 @@ class SettingsMenu {
     return file == null ? null : file.path
   }
 
+  static controllerHelp() {
+    var saving = Host.safeMode ? "Safe mode keeps these changes in memory." : "Each assignment is saved immediately."
+    return "# Controller Mapping\n\n" +
+        "Choose what a BBS receives when you use your controller. " +
+        "Each row shows a BBS input and the physical control assigned to it. An unassigned input sends nothing.\n\n" +
+        "**Example:** Select Bottom face button, then press the button you want to use. " +
+        "Its device name (such as Button 7) appears next to Bottom face button.\n\n" +
+        "To start with the controller, select Press a control to assign, move it, then choose its BBS input. " +
+        "Browse physical controls lets you select it by name instead.\n\n" +
+        "Select an assigned input to test it, change the control, clear it, or reverse an axis. " + saving +
+        " Identical controller models with the same report layout share their assignments."
+  }
+
+  static captureHelp_() {
+    return "# Detect a physical control\n\n" +
+        "Release held buttons and let the sticks rest. Press one button, push the directional hat, pull a trigger, or move a stick along one axis. " +
+        "For a horizontal axis, move left or right. For a vertical axis, move up or down. " +
+        "If a control was already held, release it and try again. Esc cancels this step."
+  }
+
   static controllerMapping(app) {
-    var devices = Menu.controllers
-    if (devices == null || devices.count == 0) {
-      Alert.show(app, "Controller Mapping", devices == null ? "USB HID controller support is unavailable." : "No controllers are attached.")
-      return
+    while (true) {
+      var devices = Menu.controllers
+      if (devices == null || devices.count == 0) {
+        var message = devices == null ? "USB HID controller support is unavailable." : "No USB joystick or gamepad was detected."
+        var help = "Connect a controller in USB HID mode, then reopen Controller Mapping. On the Logitech F310, select D with the underside switch."
+        if (devices == null) help = "This build needs HIDAPI or libusb support for native USB controllers."
+        Alert.show(app, "Controller Mapping", message, help)
+        return
+      }
+      var device = devices[0][0]
+      if (devices.count > 1) {
+        device = MenuUi.choice(app, "Choose a controller", devices, device, controllerHelp())
+        if (device == null) return
+      }
+      controllerInputs_(app, device, MenuUi.rowName(devices, device))
+      if (devices.count == 1) return
     }
-    var device = MenuUi.choice(app, "Controller Mapping", devices, devices[0][0])
-    if (device == null) return
+  }
+
+  static controllerInputs_(app, device, name) {
     var targets = Menu.controllerTargets(device, -1)
     if (targets == null) return
+    var selected = -1
+    var view = ChoiceViewState.new()
     while (true) {
       var fields = Menu.controllerFields(device)
       if (fields == null) return
       if (fields.count == 0) {
-        Alert.show(app, "Controller Mapping", "Configure this RetroPad in the libretro frontend.")
+        Alert.show(app, "Controller Mapping", "Configure this RetroPad in the libretro frontend.",
+            "Open the frontend's input settings for this controller port. SyncTERM uses the RetroPad assignments supplied by the frontend.")
         return
       }
-      var rows = [[-1, "Identify a control…"], [-2, "Choose an input to assign…"]]
+      var bindings = {}
       for (i in 0...fields.count) {
-        var binding = fields[i][1]
-        var name = binding < 0 ? "Unassigned" : targets[binding][1]
-        rows.add([i, "%(fields[i][0])   %(name)"])
+        if (fields[i][1] >= 0) bindings[fields[i][1]] = i
       }
-      var field = MenuUi.choice(app, "Controller Mapping", rows, -1)
-      if (field == null) return
-      var target = null
-      if (field == -2) {
-        target = MenuUi.choice(app, "Choose an input", targets, null)
-        if (target == null) continue
+      var rows = [[-1, "Press a control to assign..."], [-2, "Browse physical controls..."]]
+      for (target in targets) {
+        var index = bindings[target[0]]
+        var source = index == null ? "Unassigned" : fields[index][0]
+        if (index != null && fields[index][2]) source = "%(source) (inverted)"
+        rows.add([target[0], settingsLine_(target[1].split(" (")[0], source)])
       }
-      var movement = null
-      if (field < 0) {
-        movement = detectController_(app, device)
-        if (movement == null) continue
-        field = movement[0]
-      }
-      fields = Menu.controllerFields(device)
-      if (fields == null) return
-      var current = fields[field]
-      var allowed = Menu.controllerTargets(device, field)
-      if (allowed == null) return
-      if (target != null && !allowed.any {|t| t[0] == target }) {
-        Alert.show(app, "Controller Mapping", "%(current[0]) cannot supply %(targets[target][1]).")
-        continue
-      }
-      var inverted = current[2]
-      if (target == null) {
-        var label = current[1] < 0 ? "Unassigned" : targets[current[1]][1]
-        var choices = [[0, "Assign to an input…"], [1, "Clear assignment"], [2, "Preview movement"]]
-        if (current[1] >= 0 && [1, 2].contains(targets[current[1]][2])) {
-          choices.add([3, inverted ? "Restore axis direction" : "Invert axis direction"])
-        }
-        var physical = current[0]
-        if (movement != null && allowed.count > 0 && allowed[0][2] != 0) {
-          physical = "%(physical) %(movementValue_(allowed[0][2], movement[1]))"
-        }
-        var action = MenuUi.choice(app, "%(physical) — %(label)", choices, 0)
-        if (action == null) continue
-        if (action == 2) {
-          previewController_(app, device, field)
-          continue
-        }
-        if (action == 3) {
-          target = current[1]
-          inverted = !inverted
-        } else {
-          target = action == 1 ? -1 : MenuUi.choice(app, "Assign %(current[0])", allowed, current[1])
-          inverted = false
-        }
-        if (target == null) continue
-      }
-      var conflict = null
-      for (i in 0...fields.count) {
-        if (i != field && target >= 0 && fields[i][1] == target) conflict = fields[i][0]
-      }
-      if (conflict != null && !Confirm.show(app, "Move %(targets[target][1]) from %(conflict) to %(current[0])?")) continue
-      var saved = Menu.bindController(device, field, target, inverted)
-      if (saved == null) return
-      if (saved is MenuError) Alert.show(app, "Controller Mapping", saved.message)
+      var assigned = null
+      selected = MenuUi.choice(app, "BBS inputs - %(name)", rows, selected, controllerHelp(), Fn.new {|target|
+        assigned = editControllerInput_(app, device, fields, targets, bindings, target)
+      }, view)
+      if (selected == null) return
+      if (assigned != null && assigned >= 0) selected = assigned
     }
   }
 
-  static detectController_(app, device) {
+  static editControllerInput_(app, device, fields, targets, bindings, target) {
+    var field = bindings[target]
+    var inverted = false
+    if (target < 0) {
+      var motion = null
+      if (target == -1) {
+        motion = detectController_(app, device, "Identify a physical control", "Press a button or move a hat, stick or trigger.")
+        if (motion == null) return null
+        field = motion[0]
+      } else {
+        var physical = []
+        for (i in 0...fields.count) physical.add([i, fields[i][0]])
+        field = MenuUi.choice(app, "Choose a physical control", physical, null, controllerHelp())
+        if (field == null) return null
+      }
+      var allowed = Menu.controllerTargets(device, field)
+      if (allowed == null) return null
+      var label = fields[field][0]
+      if (motion != null && allowed.count > 0 && allowed[0][2] != 0) {
+        label = "%(label) (%(movementValue_(allowed[0][2], motion[1])))"
+      }
+      var options = allowed.toList
+      options.add([-1, "Preview this physical control..."])
+      var current = fields[field][1] < 0 ? null : fields[field][1]
+      target = MenuUi.choice(app, "Send %(label) to the BBS as", options, current,
+          "Choose the BBS input this control should send. Choosing a new input replaces its previous assignment. The name in parentheses is the evdev code. Esc cancels.")
+      if (target == null) return null
+      if (target == -1) {
+        previewController_(app, device, field)
+        return null
+      }
+      inverted = target == fields[field][1] && fields[field][2]
+    } else {
+      var label = targets[target][1].split(" (")[0]
+      if (field != null) {
+        var actions = [[0, "Use a different physical control..."], [1, "Preview current control..."], [2, "Clear assignment"]]
+        if ([1, 2].contains(targets[target][2])) {
+          actions.add([3, fields[field][2] ? "Restore axis direction" : "Invert axis direction"])
+        }
+        var action = MenuUi.choice(app, "%(label) uses %(fields[field][0])", actions, 0,
+            "Preview shows the value this control sends. Clear stops sending this input. Invert reverses the direction of an axis.")
+        if (action == null) return null
+        if (action == 1) {
+          previewController_(app, device, field)
+          return null
+        }
+        if (action == 0) field = null
+        if (action == 2) target = -1
+        if (action == 3) inverted = !fields[field][2]
+      }
+      var gestures = ["Press the button you want to use.", "Move the stick or axis you want to use.",
+          "Pull the trigger or move the axis you want to use.", "Push the directional hat in any direction."]
+      while (field == null) {
+        var gesture = gestures[targets[target][2]]
+        var motion = detectController_(app, device, "Choose control for %(label)", gesture)
+        if (motion == null) return null
+        var allowed = Menu.controllerTargets(device, motion[0])
+        if (allowed == null) return null
+        if (allowed.any {|t| t[0] == target }) {
+          field = motion[0]
+        } else {
+          Alert.show(app, "Choose control for %(label)", "%(fields[motion[0]][0]) cannot send %(label). %(gesture)", captureHelp_())
+        }
+      }
+    }
+
+    var previous = bindings[target]
+    if (previous != null && previous != field) {
+      var msg = "Move %(targets[target][1]) from %(fields[previous][0]) to %(fields[field][0])?"
+      if (!Confirm.show(app, msg, controllerHelp())) return null
+    }
+    var saved = Menu.bindController(device, field, target, inverted)
+    if (saved is MenuError) Alert.show(app, "Controller Mapping", saved.message)
+    return saved == true ? target : null
+  }
+
+  static detectController_(app, device, title, gesture) {
     Menu.armController(device)
-    var pane = PopStatus.show("Press a button, push a hat, or move an axis. Esc cancels.")
-    pane.title = "Identify a control"
+    var pane = PopStatus.show("%(gesture) F1 help  Esc cancels")
+    pane.title = title
     app.pushModal(pane)
     app.drawAll_()
     var selected = null
     while (true) {
       var ev = Input.next(20)
       if (ev is KeyEvent && (ev.key == Key.escape || ev.key == Key.quit)) break
+      if (ev is KeyEvent && ev.key == Key.f1) {
+        Help.show(app, "Controller help", captureHelp_())
+        Menu.armController(device)
+        app.drawAll_()
+        continue
+      }
       var motion = Menu.controllerMotion(device)
       if (motion == null) break
       if (motion[0] >= 0) {
@@ -972,15 +1046,20 @@ class SettingsMenu {
       if (fields == null) break
       var current = fields[field]
       var value = movementValue_(targets[0][2], current[3])
+      if (targets[0][2] == 0 && current[3] != null) value = current[3] == 0 ? "Released" : "Pressed"
       if (pane == null || last != value) {
         if (pane != null) app.popModal()
-        pane = PopStatus.show("%(current[0])   %(value)   Esc closes")
+        pane = PopStatus.show("%(current[0])   %(value)   F1 help  Esc closes")
         pane.title = "Controller preview"
         app.pushModal(pane)
         app.drawAll_()
         last = value
       }
       var ev = Input.next(25)
+      if (ev is KeyEvent && ev.key == Key.f1) {
+        Help.show(app, "Controller preview", "Move this control to see its current value. A centered stick reads zero at rest, a trigger runs from 0 to 32767, and a hat shows its direction. Unknown means the controller has not reported a value yet.")
+        app.drawAll_()
+      }
       if (ev is KeyEvent && (ev.key == Key.escape || ev.key == Key.quit)) break
     }
     if (pane != null) app.popModal()

@@ -879,9 +879,9 @@ class DosForms {
       fields.add(field_("Colour Emoji", "bool", get, set, null, false, null, null, null, settingHelp_("Colour Emoji")))
     }
     if (page == 0) {
-      fields.add(field_("Controller Mapping", "action", Fn.new { "Manage" },
+      fields.add(field_("Controller Mapping", "action", Fn.new { "Map controls" },
           null, null, false, Fn.new { SettingsMenu.controllerMapping(app) }, null, null,
-          "Select a physical control or a named input to assign it."))
+          SettingsMenu.controllerHelp()))
       var get = Fn.new { s.invertWheel }
       var set = Fn.new {|value|
         if (value != s.invertWheel) s.invertWheel = value
