@@ -1880,3 +1880,7 @@ All thirty font subrecords in the bundled file end after 255 stored glyphs. The 
 ## MicroANSI font selection and circle radius
 
 Stable `b36caf046d2cea146aa90f35aa9401d3202e665d` incorporates [PR #351](https://github.com/bbs-land/remote-imaging-protocol/pull/351) and [PR #352](https://github.com/bbs-land/remote-imaging-protocol/pull/352). The ledger tracks native MAF metrics, bank-selection ranges and nominal cell metrics for unmatched sizes. The Windows font cache is historical implementation detail. The existing curve test covers equal device radii under unequal WORLD scales.
+
+## Default text area and scrolling
+
+Stable `1e0bff4190bc2bc10faf357b060a4a4c2e6e535b` incorporates the revised PR #354. SyncTERM chooses the area for its default RIP text window at connection setup. An explicit ordinary window uses the nominal coordinate limits for its font. A host status-bar action preserves the scrolling margins of an existing window. [PR #354](https://github.com/bbs-land/remote-imaging-protocol/pull/354)

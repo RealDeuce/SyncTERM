@@ -1,7 +1,7 @@
 # RIPscrip 3.0 implementation goal
 
 The target is RIPscrip 3.0 in SyncTERM's separate RIPv3 engine, using [reference revision
-b36caf046d2cea146aa90f35aa9401d3202e665d](https://github.com/RealDeuce/remote-imaging-protocol/tree/b36caf046d2cea146aa90f35aa9401d3202e665d/version/3.0)
+1e0bff4190bc2bc10faf357b060a4a4c2e6e535b](https://github.com/RealDeuce/remote-imaging-protocol/tree/1e0bff4190bc2bc10faf357b060a4a4c2e6e535b/version/3.0)
 from `RealDeuce/remote-imaging-protocol:stable`.
 The reference supplies the RIP command grammar, framing, required effects,
 and inherited asset formats. RIPtel 3.1 is evidence for interpreting those
