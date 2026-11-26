@@ -2274,8 +2274,7 @@ src/terminal/hyperlink/st_hyperlink.h	function:st_hyperlink_registry_register_ro
 src/terminal/hyperlink/st_hyperlink.h	function:st_hyperlink_registry_unregister_root	49	void (st_hyperlink_registry_t *, st_hyperlink_root_fn, void *)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	function:st_hyperlink_registry_collect	52	int (st_hyperlink_registry_t *)	hyperlinks.gc-owner
 src/terminal/hyperlink/st_hyperlink.h	function:st_hyperlink_dispose	53	void (struct st_hyperlink *)	hyperlinks.gc-owner
-src/terminal/ooii/st_ooii.h	macro:ST_OOII_MAX_MODE	9	3	ooii.mode
-src/terminal/ooii/st_ooii.h	field:st_ooii_config.pass	16	int (*)(void *, const uint8_t *, size_t)	ooii.protocol
+src/terminal/ooii/st_ooii.h	macro:ST_OOII_MAX_MODE	10	3	ooii.mode
 src/terminal/ooii/st_ooii.h	field:st_ooii_config.render	18	int (*)(void *, const uint8_t *, size_t)	ooii.protocol
 src/terminal/ooii/st_ooii.h	field:st_ooii_config.reply	19	int (*)(void *, const uint8_t *, size_t)	ooii.protocol
 src/terminal/ooii/st_ooii.h	field:st_ooii_config.sound	20	void (*)(void *, const uint8_t *, size_t)	ooii.protocol
@@ -2285,7 +2284,9 @@ src/terminal/ooii/st_ooii.h	function:st_ooii_create	25	int (st_ooii_t **, const 
 src/terminal/ooii/st_ooii.h	function:st_ooii_destroy	26	void (st_ooii_t *)	ooii.protocol
 src/terminal/ooii/st_ooii.h	function:st_ooii_mode	27	int (const st_ooii_t *)	ooii.mode
 src/terminal/ooii/st_ooii.h	function:st_ooii_set_mode	29	void (st_ooii_t *, int)	ooii.mode
-src/terminal/ooii/st_ooii.h	function:st_ooii_write	33	int (st_ooii_t *, const void *, size_t)	ooii.protocol
+src/terminal/ooii/st_ooii.h	function:st_ooii_detect	31	_Bool (st_ooii_t *, uint8_t)	ooii.protocol
+src/terminal/ooii/st_ooii.h	function:st_ooii_finish_banner	32	void (st_ooii_t *)	ooii.protocol
+src/terminal/ooii/st_ooii.h	function:st_ooii_character	34	int (st_ooii_t *, uint32_t, _Bool *)	ooii.protocol
 src/terminal/screen_mode/st_screen_mode.h	enum:ST_SCREEN_PALETTE_MONO	18	st_screen_palette	screen.modes
 src/terminal/screen_mode/st_screen_mode.h	enum:ST_SCREEN_PALETTE_GREYSCALE	19	st_screen_palette	screen.modes
 src/terminal/screen_mode/st_screen_mode.h	enum:ST_SCREEN_PALETTE_COLOUR	20	st_screen_palette	screen.modes

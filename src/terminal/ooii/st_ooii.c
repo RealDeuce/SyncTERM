@@ -14,6 +14,7 @@
 #include "ooii_cmenus.h"
 #include "ooii_logons.h"
 #include "ooii_sounds.h"
+#include "st_codepage.h"
 #include "st_ooii.h"
 #include "string_compat.h"
 #include "value_convert_time.h"
@@ -26,6 +27,7 @@ struct st_ooii {
 	unsigned              attribute;
 	uint32_t              random;
 	size_t                match[2];
+	int                   detected_mode;
 	uint8_t               command[256];
 	uint8_t              *end;
 	size_t                command_size;
@@ -2152,7 +2154,7 @@ st_ooii_create(st_ooii_t **result, const struct st_ooii_config *config)
 {
 	st_ooii_t *ooii;
 
-	if (result == NULL || config == NULL || config->pass == NULL || config->render == NULL)
+	if (result == NULL || config == NULL || config->render == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	ooii = calloc(1, sizeof(*ooii));
 	if (ooii == NULL)
@@ -2184,77 +2186,79 @@ st_ooii_set_mode(st_ooii_t *ooii, int mode)
 	if (ooii == NULL)
 		return;
 	++ooii->mode_generation;
-	ooii->mode         = mode < 0 ? 0 : mode > ST_OOII_MAX_MODE ? ST_OOII_MAX_MODE : mode;
-	ooii->command_size = 0;
-	ooii->discard      = false;
+	ooii->mode          = mode < 0 ? 0 : mode > ST_OOII_MAX_MODE ? ST_OOII_MAX_MODE : mode;
+	ooii->command_size  = 0;
+	ooii->discard       = false;
+	ooii->detected_mode = 0;
 	ooii->match[0] = ooii->match[1] = 0;
 }
 
-int
-st_ooii_write(st_ooii_t *ooii, const void *data, size_t size)
+bool
+st_ooii_detect(st_ooii_t *ooii, uint8_t byte)
 {
-	const uint8_t *bytes      = data;
-	const uint8_t *patterns[] = {init1, init2};
-	const size_t   lengths[]  = {sizeof(init1) - 1, sizeof(init2) - 1};
+	static const uint8_t *const patterns[] = {init1, init2};
+	static const size_t         lengths[]  = {sizeof(init1) - 1, sizeof(init2) - 1};
 
-	if (ooii == NULL || (data == NULL && size != 0))
-		return IO_ERROR_INVALID_ARGUMENT;
-	ooii->error = 0;
-	for (size_t i = 0; i < size;) {
-		uint8_t byte = bytes[i];
-		if (ooii->mode != 0 && (ooii->command_size != 0 || byte == 0xab)) {
-			if (byte == 0 || ooii->command_size >= sizeof(ooii->command) - 1)
-				ooii->discard = true;
-			if (!ooii->discard)
-				ooii->command[ooii->command_size++] = byte;
-			if (byte == '|') {
-				if (!ooii->discard) {
-					uint8_t response[16];
-					int     mode                      = ooii->mode;
-					size_t  generation                = ooii->mode_generation;
-					ooii->command[ooii->command_size] = 0;
-					ooii->end                         = ooii->command + ooii->command_size - 1;
-					bool quit = handle_ooii_code(ooii, ooii->command, &mode, response,
-					    sizeof(response));
-					/* Text hooks may select another mode while a screen expands.
-					 * Finish with a stable artwork index, then honor their choice. */
-					if (generation == ooii->mode_generation)
-						ooii->mode = quit ? 0 : mode;
-					if (ooii->error == 0 && response[0] != 0 && ooii->config.reply != NULL)
-						ooii->error = ooii->config.reply(ooii->config.context, response,
-						    strlen((const char *)response));
-				}
-				ooii->command_size = 0;
-				ooii->discard      = false;
-			}
-			++i;
+	for (size_t i = 0; i < 2; ++i) {
+		if (byte == patterns[i][ooii->match[i]])
+			++ooii->match[i];
+		else
+			ooii->match[i] = byte == patterns[i][0] ? 1 : 0;
+
+		if (ooii->match[i] == lengths[i]) {
+			ooii->match[0] = ooii->match[1] = 0;
+			ooii->detected_mode             = (int)i + 1;
+			return true;
 		}
-		else {
-			/* Preserve ordinary receive chunks, stopping at protocol boundaries.
-			 * Deliver the banner before enabling the commands that follow it. */
-			size_t start = i, generation = ooii->mode_generation;
-			int    detected = 0;
-			do {
-				byte = bytes[i++];
-				if (ooii->mode == 0) {
-					for (size_t p = 0; p < 2; ++p) {
-						if (byte == patterns[p][ooii->match[p]])
-							++ooii->match[p];
-						else
-							ooii->match[p] = byte == patterns[p][0] ? 1 : 0;
-						if (ooii->match[p] == lengths[p]) {
-							detected = (int)p + 1;
-							break;
-						}
-					}
-				}
-			} while (i < size && detected == 0 && bytes[i] != 0xab);
-			ooii->error = ooii->config.pass(ooii->config.context, bytes + start, i - start);
-			if (detected != 0 && generation == ooii->mode_generation)
-				st_ooii_set_mode(ooii, detected);
-		}
-		if (ooii->error != 0)
-			return ooii->error;
 	}
 	return 0;
+}
+
+void
+st_ooii_finish_banner(st_ooii_t *ooii)
+{
+	/* A callback delivering the banner may already have selected a mode. */
+	if (ooii->detected_mode != 0)
+		st_ooii_set_mode(ooii, ooii->detected_mode);
+}
+
+int
+st_ooii_character(st_ooii_t *ooii, uint32_t scalar, bool *consumed)
+{
+	if (ooii == NULL || consumed == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	*consumed = ooii->mode != 0 && (ooii->command_size != 0 || scalar == 0x00bd);
+	if (!*consumed)
+		return 0;
+
+	/* The menu interpreter and its strings use the original DOS codepage. */
+	uint8_t byte;
+	if (scalar < 0x80)
+		byte = (uint8_t)scalar;
+	else if (!st_codepage_from_unicode(&byte, ST_CODEPAGE_CP437, scalar))
+		byte = 0;
+	if (byte == 0 || ooii->command_size >= sizeof(ooii->command) - 1)
+		ooii->discard = true;
+	if (!ooii->discard)
+		ooii->command[ooii->command_size++] = byte;
+	if (scalar != '|')
+		return 0;
+
+	ooii->error = 0;
+	if (!ooii->discard) {
+		uint8_t response[16];
+		int     mode                      = ooii->mode;
+		size_t  generation                = ooii->mode_generation;
+		ooii->command[ooii->command_size] = 0;
+		ooii->end                         = ooii->command + ooii->command_size - 1;
+		bool quit = handle_ooii_code(ooii, ooii->command, &mode, response, sizeof(response));
+		if (generation == ooii->mode_generation)
+			ooii->mode = quit ? 0 : mode;
+		if (ooii->error == 0 && response[0] != 0 && ooii->config.reply != NULL)
+			ooii->error =
+			    ooii->config.reply(ooii->config.context, response, strlen((const char *)response));
+	}
+	ooii->command_size = 0;
+	ooii->discard      = false;
+	return ooii->error;
 }

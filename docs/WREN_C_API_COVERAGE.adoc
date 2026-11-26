@@ -23,7 +23,7 @@ limitations; it does not authorize implementing every omitted C facility.
 
 == Result and how to read this report
 
-The review covers 83 project-owned public headers, 2,577 named native items,
+The review covers 83 project-owned public headers, 2,578 named native items,
 and 133 explicitly excluded implementation/vendor/test headers. Every inventoried
 item has a disposition. The initial review recorded 51 finding topics, including
 broader API-scope decisions, plus one stale documentation finding. Twenty-three topics
@@ -223,7 +223,7 @@ ids refer to the full mappings in the JSON, including VM-specific restrictions.
 | link:../src/syncterm_types.h[syncterm_types.h] | 0 | 0 | 0 | 0 | 0 | (no named declarations)
 | link:../src/terminal/cterm/st_cterm.h[terminal/cterm/st_cterm.h] | 91 | 1 | 1 | 86 | 0 | +cterm.audio-fx+, +cterm.encoding-control+, +cterm.font-result+, +cterm.operation-status+, +cterm.owner+, +cterm.reset+, +cterm.state+, +fonts.assignments+, +fonts.catalog+
 | link:../src/terminal/hyperlink/st_hyperlink.h[terminal/hyperlink/st_hyperlink.h] | 5 | 0 | 0 | 8 | 0 | +hyperlinks.gc-owner+, +hyperlinks.registry+
-| link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 9 | 0 | +ooii.mode+, +ooii.protocol+
+| link:../src/terminal/ooii/st_ooii.h[terminal/ooii/st_ooii.h] | 3 | 0 | 0 | 10 | 0 | +ooii.mode+, +ooii.protocol+
 | link:../src/terminal/screen_mode/st_screen_mode.h[terminal/screen_mode/st_screen_mode.h] | 25 | 0 | 0 | 0 | 0 | +screen.modes+
 | link:../src/terminal/session_history/st_session_history.h[terminal/session_history/st_session_history.h] | 0 | 0 | 1 | 11 | 0 | +history.clear+, +history.owner+
 | link:../src/terminal/term/st_term.h[terminal/term/st_term.h] | 16 | 1 | 0 | 74 | 0 | +cterm.operation-status+, +session.lifecycle-info+, +term.controls+, +term.owner+

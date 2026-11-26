@@ -44,6 +44,13 @@ index in all 256 slots, using doorway quoting for the eight control bytes.
 The RIPv1 and RIPv3 cases exercise the drawable bytes in each mode with
 RIP command recognition enabled.
 
+`syncterm_behavior_graphics_{cp437,utf8}` checks that partial OO][ banners
+appear immediately and the next command can follow the banner in the same
+receive. Active OO][ commands start with U+00BD (½), encoded as AB in CP437,
+BD in ISO-8859-1, or C2 BD in UTF-8. Connected checks cover ordinary text
+containing UTF-8 continuation byte AB, malformed UTF-8, negotiation replies,
+menu artwork and return to terminal text.
+
 `syncterm_control_transfer` checks ZMODEM detection over a live TCP connection.
 The peer waits for each asterisk and each partial startup byte to reach the
 terminal before sending the next. The four-byte upload and download triggers

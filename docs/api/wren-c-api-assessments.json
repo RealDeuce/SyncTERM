@@ -2790,7 +2790,7 @@
     "ooii.protocol": {
       "status": "host-owned",
       "wren": "term session OOII parser; CTerm.ooiiMode / Host.haveOOII/maxOOIIMode",
-      "reason": "Mode query/set/limits are exposed; parser create/destroy/write and artwork/reply/sound/attribute callbacks are native protocol orchestration on the current connection. Scripts do not take ownership of a second OOII parser or raw embedded resources. Direct sound playback omission is in audio.playback.",
+      "reason": "Mode query/set/limits are exposed; banner detection, decoded command parsing and artwork/reply/sound/attribute callbacks are native protocol orchestration on the current connection. Scripts do not take ownership of a second OOII parser or raw embedded resources. Direct sound playback omission is in audio.playback.",
       "vm": "connected",
       "evidence": [
         {
@@ -2799,7 +2799,7 @@
         },
         {
           "path": "src/terminal/ooii/st_ooii.h",
-          "anchor": "st_ooii_write"
+          "anchor": "st_ooii_character"
         }
       ]
     },

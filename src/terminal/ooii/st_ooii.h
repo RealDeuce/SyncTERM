@@ -3,6 +3,7 @@
 #ifndef ST_OOII_H_
 #define ST_OOII_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -12,8 +13,7 @@ typedef struct st_ooii st_ooii_t;
 
 struct st_ooii_config {
 	/* All callbacks run synchronously on the session owner. They may select
-	 * a mode, but must not reenter write() or destroy this parser. */
-	int (*pass)(void *context, const uint8_t *bytes, size_t size);
+	 * a mode, but must not reenter the parser or destroy this parser. */
 	/* Embedded artwork and expanded text are always ANSI/CP437. */
 	int      (*render)(void *context, const uint8_t *bytes, size_t size);
 	int      (*reply)(void *context, const uint8_t *bytes, size_t size);
@@ -27,9 +27,10 @@ void st_ooii_destroy(st_ooii_t *ooii);
 int  st_ooii_mode(const st_ooii_t *ooii);
 /* Clamps to 0..3 and discards a partial command or detection prefix. */
 void st_ooii_set_mode(st_ooii_t *ooii, int mode);
-/* Matches the legacy automatic mode-1/mode-2 banners even across reads.
- * Once enabled, consumes AB...7C command frames and passes other wire bytes.
- * Oversized or truncated frames are discarded, never executed partially. */
-int st_ooii_write(st_ooii_t *ooii, const void *bytes, size_t size);
+/* Observe original wire bytes while disabled. Finish a matched banner after delivery. */
+bool st_ooii_detect(st_ooii_t *ooii, uint8_t byte);
+void st_ooii_finish_banner(st_ooii_t *ooii);
+/* Consume a decoded U+00BD...U+007C command and pass ordinary characters through. */
+int st_ooii_character(st_ooii_t *ooii, uint32_t scalar, bool *consumed);
 
 #endif

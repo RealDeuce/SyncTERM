@@ -27,13 +27,17 @@ responses)
 	;;
 ooii)
 	stty raw -echo
-	printf '\253?_2|'
+	marker='\0253'
+	if [ "$3" = utf8 ]; then
+		marker='\0302\0275'
+	fi
+	printf '%b?_2|' "$marker"
 	if [ "$2" = normal ]; then
 		dd bs=1 count=3 2>/dev/null | od -An -tx1 | tr -d ' \n'
 	fi
-	printf '\253a|'
+	printf '%ba|' "$marker"
 	dd bs=1 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n'
-	printf '\253\\|AFTER'
+	printf '%b\\|AFTER' "$marker"
 	;;
 apc)
 	stty raw -echo

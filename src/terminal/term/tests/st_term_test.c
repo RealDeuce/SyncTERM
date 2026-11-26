@@ -72,8 +72,9 @@ screen_contains(st_console_t *console, const char *wanted, bool diagnose)
 }
 
 struct ooii_observed {
-	bool text;
-	bool wire_command;
+	bool    text;
+	bool    wire_command;
+	uint8_t marker_end;
 };
 
 static int
@@ -94,7 +95,7 @@ static int
 ooii_wire_observed(void *context, const uint8_t *bytes, size_t size)
 {
 	struct ooii_observed *observed = context;
-	if (memchr(bytes, 0xab, size) != NULL)
+	if (memchr(bytes, observed->marker_end, size) != NULL)
 		observed->wire_command = true;
 	return 0;
 }
@@ -111,12 +112,13 @@ test_ooii_session(enum st_cterm_encoding encoding, bool suppress)
 	struct st_profile              profile;
 	enum st_term_disposition       disposition;
 	bool                           finished = false;
-	struct ooii_observed           observed = {0};
+	struct ooii_observed           observed = {.marker_end = encoding == ST_CTERM_ENCODING_UTF8 ? 0xbd : 0xab};
 	CHECK(st_console_create(&console, &display, &geometry) == 0);
 	CHECK(st_font_catalog_create(&fonts, console) == 0);
 	st_profile_init(&profile);
 	profile.connection_type = ST_CONNECTION_SHELL;
-	strcpy(profile.address, suppress ? "sh term-fixture.sh ooii suppress" : "sh term-fixture.sh ooii normal");
+	snprintf(profile.address, sizeof(profile.address), "sh term-fixture.sh ooii %s %s",
+	    suppress ? "suppress" : "normal", encoding == ST_CTERM_ENCODING_UTF8 ? "utf8" : "cp437");
 	CHECK(st_term_connect_profile(&connection, &profile, console, NULL, NULL) == 0);
 	const struct st_term_config config = {
 	    .console              = console,

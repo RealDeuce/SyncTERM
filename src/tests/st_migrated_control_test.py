@@ -1041,16 +1041,39 @@ def settings_ui(executable, reports):
 
 
 def graphics(executable, encoding, reports):
-    with connection(executable, reports, encoding=encoding,
-                    script='import "syncterm" for CTerm\nCTerm.ooiiMode = 1\n') as (client, root, peer, send):
-        send(b"\xab?_2|")
+    marker = "½".encode("utf-8" if encoding == "UTF-8" else "cp437")
+    # A partial raw banner reaches the terminal before detection completes.
+    banner = b"".join(b"\xdb\x08" + bytes([c]) for c in b"  [[ Maintenance Complete ]] ")
+    banner += b"\x08\r\n\r\n\r\n\x1b[0;0;36mDo you have the Overkill Ansiterm installed? (y/N)  "
+    with connection(executable, reports, encoding=encoding) as (client, root, peer, send):
+        send(banner)
+        client.wait_text("Overkill Ansiterm installed?")
+        send(b"\xe9 " + marker + b"?_2|")
         receive(peer, b"\xaf2|", root / "wire.bin")
-        send(b"\xaba|")
+        if encoding == "UTF-8":
+            send(b"\x1b[2J\x1b[HA\xc3")
+            client.wait_text("A")
+            send(b"\xabX|Z" + "«".encode() + b"\xabX|END")
+            frame = client.wait_text("X|END")
+            text = [frame.cell_text(cell_at(frame, x, 0)) for x in range(12)]
+            assert text == list("AëX|Z«") + [""] + list("X|END"), text
+            # An OO][ command between two malformed bytes must not join them into ë.
+            send(b"\r\nP\xc3" + marker + b"?_2|\xabQ\x1b[6n")
+            receive(peer, b"\xaf2|\x1b[2;5R", root / "wire.bin")
+            frame = client.capture()
+            assert [frame.cell_text(cell_at(frame, x, 1)) for x in range(4)] == ["P", "", "", "Q"]
+        send(marker + b"a|")
         client.wait_text("Supply Room")
         client.text("U")
         receive(peer, b"U", root / "wire.bin")
-        send(b"55\xab\\|AFTER")
+        send(b"55" + marker + b"\\|AFTER")
         client.wait_text("55AFTER")
+    if encoding == "CP437":
+        with connection(executable, reports, encoding="ISO-8859-1",
+                        script='import "syncterm" for CTerm\nCTerm.ooiiMode = 1\n') as (client, root, peer, send):
+            send(b"\xabX|Z\xbd?_2|")
+            receive(peer, b"\xaf2|", root / "wire.bin")
+            client.wait_text("«X|Z")
     with connection(executable, reports, encoding=encoding,
                     options="RIP=RIPv1\n") as (client, root, peer, send):
         send(b"!|*\r\n!|X2S2S\r")

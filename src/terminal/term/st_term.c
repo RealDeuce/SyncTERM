@@ -31,6 +31,7 @@ struct st_term_session {
 	struct st_term_config  config;
 	st_cterm_t            *cterm;
 	st_ooii_t             *ooii;
+	struct st_utf8_decoder ooii_decoder;
 	struct st_term_rip3   *rip3;
 	struct deferred_event *deferred_head, *deferred_tail;
 	struct deferred_event  modal_tail;
@@ -95,9 +96,18 @@ input_paused(st_term_session_t *session)
 	return st_term_rip3_paused(session->rip3) || st_cterm_input_paused(st_term_session_cterm(session));
 }
 
+static int write_malformed(st_term_session_t *session, const struct st_utf8_decode_event *event);
+
 static int
 finish(st_term_session_t *session)
 {
+	struct st_utf8_decode_event event;
+	st_utf8_decoder_flush(&session->ooii_decoder, &event);
+	if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
+		int status = write_malformed(session, &event);
+		if (status != 0)
+			return status;
+	}
 	st_term_rip3_cancel(session->rip3);
 	return st_cterm_finish(session->cterm);
 }
@@ -134,7 +144,6 @@ st_term_session_rip3_receive_asset(st_term_session_t *session, const char *direc
 	return st_term_rip3_receive_asset(session->rip3, directory, cache_root, name, file_type);
 }
 
-static int      write_cterm_wire(void *context, const uint8_t *bytes, size_t size);
 static int      ooii_render(void *context, const uint8_t *bytes, size_t size);
 static int      ooii_reply(void *context, const uint8_t *bytes, size_t size);
 static void     ooii_sound(void *context, const uint8_t *samples, size_t size);
@@ -509,7 +518,6 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 		return status;
 	}
 	const struct st_ooii_config ooii_config = {
-	    .pass       = write_cterm_wire,
 	    .render     = ooii_render,
 	    .reply      = ooii_reply,
 	    .sound      = ooii_sound,
@@ -936,13 +944,12 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 }
 
 static int
-write_cterm_wire(void *context, const uint8_t *bytes, size_t size)
+write_terminal_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
 {
-	st_term_session_t *session = context;
-	char               unicode[4096 * 4];
-	size_t             converted = 0;
-	size_t             consumed;
-	int                status;
+	char   unicode[4096 * 4];
+	size_t converted = 0;
+	size_t consumed;
+	int    status;
 
 	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
 	    || (session->config.graphics_mode != ST_CTERM_GRAPHICS_RIP_1
@@ -1024,11 +1031,73 @@ st_term_session_set_ooii_mode(st_term_session_t *session, int mode)
 }
 
 static int
-write_wire(st_term_session_t *session, const uint8_t *bytes, size_t size)
+write_malformed(st_term_session_t *session, const struct st_utf8_decode_event *event)
 {
-	return st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF
-		   ? write_cterm_wire(session, bytes, size)
-		   : st_ooii_write(session->ooii, bytes, size);
+	bool consumed;
+	int  status = st_ooii_character(session->ooii, 0xfffd, &consumed);
+	if (status != 0 || consumed)
+		return status;
+
+	status = write_terminal_wire(session, event->data.malformed.bytes, event->data.malformed.size);
+	if (status != 0)
+		return status;
+	/* The byte that terminated this prefix may belong to OO][. Complete the
+	 * text decoder's error before it sees unrelated bytes after the command. */
+	st_term_rip3_flush(session->rip3);
+	return st_cterm_text_boundary(st_term_session_cterm(session));
+}
+
+static int
+write_graphics(st_term_session_t *session, const uint8_t *bytes, size_t size)
+{
+	while (size != 0) {
+		bool split = st_utf8_decoder_incomplete(&session->ooii_decoder);
+		if (st_ooii_mode(session->ooii) == 0 && !split)
+			return write_terminal_wire(session, bytes, size);
+
+		uint32_t       scalar;
+		size_t         used     = 1;
+		const uint8_t *original = bytes;
+		size_t         length   = 1;
+		char           encoded[4];
+		if (session->config.encoding != ST_CTERM_ENCODING_UTF8)
+			scalar = st_codepage_to_unicode(session->config.codepage, *bytes, false);
+		else if (*bytes < 0x80 && !split)
+			scalar = *bytes;
+		else {
+			struct st_utf8_decode_event event;
+			int status = st_utf8_decoder_feed(&session->ooii_decoder, bytes, size, &used, &event);
+			if (status != 0 || event.kind == ST_UTF8_DECODE_EVENT_NONE)
+				return status;
+			if (event.kind == ST_UTF8_DECODE_EVENT_MALFORMED) {
+				status = write_malformed(session, &event);
+				if (status != 0)
+					return status;
+				bytes += used;
+				size -= used;
+				continue;
+			}
+			scalar = event.data.scalar;
+			length = used;
+			if (split) {
+				ptrdiff_t written = st_utf8_encode_one(encoded, sizeof(encoded), scalar);
+				if (written < 0)
+					return (int)written;
+				length   = (size_t)written;
+				original = (const uint8_t *)encoded;
+			}
+		}
+
+		bool consumed;
+		int  status = st_ooii_character(session->ooii, scalar, &consumed);
+		if (status == 0 && !consumed)
+			status = write_terminal_wire(session, original, length);
+		if (status != 0)
+			return status;
+		bytes += used;
+		size -= used;
+	}
+	return 0;
 }
 
 static int
@@ -1046,11 +1115,11 @@ write_wire_filtered(st_term_session_t *session, const uint8_t *bytes, size_t siz
 			return status;
 	}
 	if (st_cterm_musicomm_state(session->cterm) != ST_CTERM_MUSICOMM_OFF)
-		return write_cterm_wire(session, bytes, size);
+		return write_terminal_wire(session, bytes, size);
 	if (session->config.wire_filter == NULL
 	    || (session->config.wire_filter_active != NULL
 	        && !session->config.wire_filter_active(session->config.wire_filter_context)))
-		return write_wire(session, bytes, size);
+		return write_graphics(session, bytes, size);
 	for (size_t i = 0; i < size; ++i) {
 		bool   consumed         = false;
 		size_t replacement_size = 0;
@@ -1064,18 +1133,18 @@ write_wire_filtered(st_term_session_t *session, const uint8_t *bytes, size_t siz
 		if (!consumed)
 			continue;
 		if (i > run_start) {
-			status = write_wire(session, bytes + run_start, i - run_start);
+			status = write_graphics(session, bytes + run_start, i - run_start);
 			if (status != 0)
 				return status;
 		}
 		if (replacement_size != 0) {
-			status = write_wire(session, replacement, replacement_size);
+			status = write_graphics(session, replacement, replacement_size);
 			if (status != 0)
 				return status;
 		}
 		run_start = i + 1;
 	}
-	return run_start < size ? write_wire(session, bytes + run_start, size - run_start) : 0;
+	return run_start < size ? write_graphics(session, bytes + run_start, size - run_start) : 0;
 }
 
 int
@@ -1426,13 +1495,26 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		                       || session->config.wire_filter_active(session->config.wire_filter_context));
 		if (!filtering && !session->config.throttle_supported && session->throttle_bps == 0
 		    && session->config.graphics_mode == ST_CTERM_GRAPHICS_OFF
-		    && session->config.screen_mode != ST_SCREEN_MODE_PRESTEL)
+		    && session->config.screen_mode != ST_SCREEN_MODE_PRESTEL && st_ooii_mode(session->ooii) == 0)
 			count = size - *position;
 		if (!replay && session->config.screen_mode == ST_SCREEN_MODE_PRESTEL) {
 			if (bytes[*position] == 12)
 				session->prestel_frame_size = 0;
 			if (session->prestel_frame_size < sizeof(session->prestel_frame))
 				session->prestel_frame[session->prestel_frame_size++] = bytes[*position];
+		}
+		/* Inspect only original bytes. A banner can end mid-read; deliver its
+		 * last byte through the hooks before the next byte enters OO][ mode. */
+		bool banner = false;
+		if (st_ooii_mode(session->ooii) == 0
+		    && st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF) {
+			for (size_t i = 0; i < count; ++i) {
+				if (st_ooii_detect(session->ooii, bytes[*position + i])) {
+					count  = i + 1;
+					banner = true;
+					break;
+				}
+			}
 		}
 		session->wire_replaying    = replay;
 		session->input_dispatching = true;
@@ -1441,6 +1523,8 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 		session->wire_replaying    = false;
 		if (status != 0)
 			return status;
+		if (banner)
+			st_ooii_finish_banner(session->ooii);
 		*position += count;
 		session->did_work = true;
 		protocol_input    = session->transfer != NULL && st_transfer_needs_input(session->transfer);

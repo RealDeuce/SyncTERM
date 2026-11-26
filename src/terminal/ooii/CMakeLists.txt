@@ -12,11 +12,14 @@ foreach(component io_error string_compat value_convert)
 			"${CMAKE_CURRENT_BINARY_DIR}/${component}")
 	endif()
 endforeach()
+if(NOT TARGET st_codepage)
+	add_subdirectory("../../text/codepage" "${CMAKE_CURRENT_BINARY_DIR}/codepage")
+endif()
 add_library(st_ooii STATIC st_ooii.c ooii_bmenus.c ooii_cmenus.c
 	ooii_logons.c ooii_sounds.c)
 target_include_directories(st_ooii PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(st_ooii PUBLIC syncterm_io_error
-	PRIVATE syncterm_string_compat syncterm_value_convert)
+	PRIVATE st_codepage syncterm_string_compat syncterm_value_convert)
 set_target_properties(st_ooii PROPERTIES C_STANDARD ${SYNCTERM_C_STANDARD}
 	C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
 if(MSVC)
