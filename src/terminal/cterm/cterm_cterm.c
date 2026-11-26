@@ -35,7 +35,6 @@
 
 #include "cterm.h"
 #include "cterm_apc.h"
-#include "cterm_big.h"
 #include "cterm_cterm.h"
 #include "cterm_dec.h"    /* cterm_handle_decsm/decrm chained from ext */
 #include "cterm_ecma48.h" /* cterm_handle_sm/rm chained from SyncTERM ext */
@@ -918,7 +917,8 @@ cterm_play_fx(struct cterminal *cterm, const int16_t *frames, size_t nframes)
 {
 	if (!cterm || !frames || nframes == 0)
 		return false;
-	cterm_big_yield_fx(cterm->big_engine);
+	if (cterm->device.yield_fx != NULL)
+		cterm->device.yield_fx(cterm->device.context);
 	if (!cterm_fx_ensure_open(cterm))
 		return false;
 	return audio_stream_append(cterm->fx_stream, frames, nframes, NULL) == 0;
@@ -932,7 +932,8 @@ cterm_play_fx_tone(struct cterminal *cterm, double freq, uint32_t duration_ms, u
 
 	if (!cterm || duration_ms == 0)
 		return false;
-	cterm_big_yield_fx(cterm->big_engine);
+	if (cterm->device.yield_fx != NULL)
+		cterm->device.yield_fx(cterm->device.context);
 	if (!cterm_fx_ensure_open(cterm))
 		return false;
 	nframes = (size_t)AUDIO_SAMPLE_RATE * duration_ms / 1000;
@@ -956,7 +957,8 @@ cterm_play_fx_u8(struct cterminal *cterm, const unsigned char *samp, size_t size
 {
 	if (!cterm || !samp || size == 0)
 		return false;
-	cterm_big_yield_fx(cterm->big_engine);
+	if (cterm->device.yield_fx != NULL)
+		cterm->device.yield_fx(cterm->device.context);
 	if (!cterm_fx_ensure_open(cterm))
 		return false;
 	return audio_stream_append_u8_mono_22050(cterm->fx_stream, samp, size, NULL) == 0;

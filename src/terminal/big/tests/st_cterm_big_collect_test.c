@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -46,7 +47,7 @@ bell(void *context)
 	++f->bells;
 	f->bell_mode = b->state.bgi.write_mode;
 	if (f->reset_bell)
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 }
 
 static void
@@ -91,14 +92,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .output_context   = f,
 	    .size_changed     = resized,
 	    .size_context     = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0 && f->resizes == 1 && f->heights[0] == 350);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = bell;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0 && f->resizes == 1 && f->heights[0] == 350);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = bell;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -108,7 +110,7 @@ static void
 feed(struct fixture *f, const void *wire, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, wire, size, &used);
+	int    status = cterm_big_feed(f->big, wire, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -123,11 +125,11 @@ one_key(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#< 1,0,0:");
-	CHECK(st_cterm_input_paused(f.terminal) && b->control.input.pending == 1 && b->control.input.count == 0);
-	CHECK(st_cterm_handle_key(f.terminal, 'A', 0) && st_cterm_poll(f.terminal) == 0);
-	CHECK(!st_cterm_input_paused(f.terminal) && f.size == 2 && memcmp(f.output, "A\r", 2) == 0);
+	CHECK(cterm_big_paused(f.big) && b->control.input.pending == 1 && b->control.input.count == 0);
+	CHECK(st_cterm_handle_key(f.terminal, 'A', 0) && cterm_big_poll(f.big) == 0);
+	CHECK(!cterm_big_paused(f.big) && f.size == 2 && memcmp(f.output, "A\r", 2) == 0);
 	destroy(&f);
 }
 
@@ -135,10 +137,9 @@ static void
 key(struct fixture *f, int code)
 {
 	CHECK(st_cterm_handle_key(f->terminal, code, 0));
-	CHECK(st_cterm_poll(f->terminal) == 0);
-	for (unsigned i = 0;
-	    i < 16 && !f->terminal->big_engine->collect.active && st_cterm_input_paused(f->terminal); ++i)
-		CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
+	for (unsigned i = 0; i < 16 && !f->big->collect.active && cterm_big_paused(f->big); ++i)
+		CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static bool
@@ -156,7 +157,7 @@ mouse(struct fixture *f, int x, int y, uint32_t buttons, enum st_console_mouse_a
 static void
 canvas(struct fixture *f, bool pointer, unsigned cx, unsigned cy)
 {
-	struct cterm_big            *b      = f->terminal->big_engine;
+	struct cterm_big            *b      = f->big;
 	struct st_pixel_buffer      *pixels = NULL;
 	const struct st_console_rect r      = {0, 0, 640, b->state.bgi.height};
 	CHECK(st_console_get_pixels(&pixels, f->console, &r, false) == 0);
@@ -183,14 +184,14 @@ partitions_and_prefixes(void)
 				create(&f, utf8, status);
 				feed(&f, wire, split);
 				feed(&f, wire + split, sizeof(wire) - 1 - split);
-				CHECK(st_cterm_input_paused(f.terminal));
+				CHECK(cterm_big_paused(f.big));
 				key(&f, 'K');
 				CHECK(f.size == 2 && memcmp(f.output, "K\r", 2) == 0 && f.terminal->xpos == 1);
 				destroy(&f);
 			}
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (size_t i = 0; i < sizeof(wire) - 1; ++i)
 		feed(&f, wire + i, 1);
 	key(&f, 'Q');
@@ -201,11 +202,10 @@ partitions_and_prefixes(void)
 	memcpy(b->control.input.payload + 1, "XY", 2);
 	string(&f, "< 256,");
 	CHECK(b->control.input.append_cr == 0 && b->control.input.pending == 1 && b->control.input.count == 2);
-	CHECK(
-	    st_cterm_finish(f.terminal) == 0 && b->control.input.count == 2 && b->control.input.payload[1] == 'X');
+	CHECK(cterm_big_finish(f.big) == 0 && b->control.input.count == 2 && b->control.input.payload[1] == 'X');
 	const char tail[] = "I#< 0,0,0:Z";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, tail, sizeof(tail) - 1, &used) == IO_ERROR_IN_PROGRESS
+	CHECK(cterm_big_feed(f.big, tail, sizeof(tail) - 1, &used) == IO_ERROR_IN_PROGRESS
 	      && used == sizeof(tail) - 2);
 	key(&f, 'B');
 	feed(&f, tail + used, sizeof(tail) - 1 - used);
@@ -218,12 +218,12 @@ keyboard_echo_and_replay(void)
 {
 	struct fixture f;
 	create(&f, true, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "\033[10;10HI#< 0,1,1:");
 	const int keys[] = {'A', 'B', 8, 'C', 13, 'Z'};
 	for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i)
 		CHECK(st_cterm_handle_key(f.terminal, keys[i], 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.size == 3 && memcmp(f.output, "ACZ", 3) == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && f.size == 3 && memcmp(f.output, "ACZ", 3) == 0);
 	CHECK(f.terminal->xpos == 13 && f.terminal->ypos == 10 && b->control.input.count == 2);
 	struct st_console_cell       cells[3];
 	const struct st_console_rect r = {9, 9, 3, 1};
@@ -250,7 +250,7 @@ keyboard_raw_bounds_sources_and_reset(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#< 0,1,0:");
 	for (unsigned i = 0; i < 130; ++i)
 		key(&f, 'A');
@@ -260,7 +260,7 @@ keyboard_raw_bounds_sources_and_reset(void)
 	f.size = 0;
 	string(&f, "I#< 1,+1,0:");
 	CHECK(st_cterm_handle_codepage_key(f.terminal, 255));
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.size == 1 && f.output[0] == 13);
+	CHECK(cterm_big_poll(f.big) == 0 && f.size == 1 && f.output[0] == 13);
 	f.size = 0;
 	string(&f, "I#< 0,0,0:");
 	key(&f, ST_CONSOLE_KEY_UP);
@@ -279,15 +279,15 @@ keyboard_raw_bounds_sources_and_reset(void)
 	key(&f, 127);
 	key(&f, 127);
 	CHECK(st_cterm_handle_key(f.terminal, 'B', 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
+	CHECK(cterm_big_poll(f.big) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
 	      && b->control.input.count == 65535 && !b->collect.active && !b->control.input.pending);
 	string(&f, "I#< 0,1,0:");
 	key(&f, 'C');
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->collect.active && b->control.input.payload[1] == 'C'
+	CHECK(cterm_big_finish(f.big) == 0 && !b->collect.active && b->control.input.payload[1] == 'C'
 	      && f.size == 0);
 	string(&f, "I#< 0,1,0:");
 	key(&f, 'D');
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !b->collect.active && b->control.input.payload[1] == 'D'
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !b->collect.active && b->control.input.payload[1] == 'D'
 	      && f.size == 0);
 	string(&f, "I#& 0,2,1,0,<@3,0,0,0:");
 	CHECK(b->collect.active);
@@ -303,7 +303,7 @@ hybrid_pointer(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 4,0,112,60,112,60,3:");
 	const uint8_t payload[] = {0, '|', '~', '!'};
 	feed(&f, payload, sizeof(payload));
@@ -332,11 +332,11 @@ mouse_suppression_and_confirmation(void)
 {
 	struct fixture f;
 	create(&f, true, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 4,47,0,0,0,0,1:A!I#T 1,2,1:I#< 0,2,0:");
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON) && b->collect.armed);
 	st_cterm_sync_mouse_buttons(f.terminal, 0);
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->collect.active && !b->collect.armed);
+	CHECK(cterm_big_poll(f.big) == 0 && b->collect.active && !b->collect.armed);
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.active);
 	CHECK(mouse(&f, 50, 340, 1, ST_CONSOLE_MOUSE_BUTTON) && !b->collect.armed);
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON) && !b->collect.armed);
@@ -346,7 +346,7 @@ mouse_suppression_and_confirmation(void)
 	    .data.mouse = {.action = ST_CONSOLE_MOUSE_BUTTON, .pixel_x = 70, .pixel_y = 70, .buttons = 1}
         };
 	st_cterm_observe_mouse(f.terminal, &ui);
-	CHECK(st_cterm_poll(f.terminal) == 0 && !b->collect.armed);
+	CHECK(cterm_big_poll(f.big) == 0 && !b->collect.armed);
 	CHECK(mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.active);
 	key(&f, ST_CONSOLE_KEY_RIGHT);
 	CHECK(b->collect.x == 62);
@@ -354,7 +354,7 @@ mouse_suppression_and_confirmation(void)
 	CHECK(mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.x == 62 && !b->collect.armed);
 	CHECK(!mouse(&f, 70, 70, 0, ST_CONSOLE_MOUSE_WHEEL));
 	CHECK(st_cterm_handle_key(f.terminal, 13, 0) && st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_RIGHT, 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && !b->collect.active && b->collect.x == 62 && f.size == 1
+	CHECK(cterm_big_poll(f.big) == 0 && !b->collect.active && b->collect.x == 62 && f.size == 1
 	      && f.output[0] == 'A');
 	canvas(&f, false, 0, 0);
 	CHECK(!mouse(&f, -1, -1, 0, ST_CONSOLE_MOUSE_MOVE));
@@ -370,7 +370,7 @@ strict_retry_private_scan_and_cleanup(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 4,0,318,98,318,98,1:R!I#X 4,9998:I#T 1,2,1:I#< 0,2,0:");
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_MOVE));
 	key(&f, 13);
@@ -392,11 +392,11 @@ strict_retry_private_scan_and_cleanup(void)
 	CHECK(f.size == 2 && f.output[1] == 'H' && !b->collect.active);
 	string(&f, "I#< 0,2,0:");
 	CHECK(mouse(&f, 318, 98, 1, ST_CONSOLE_MOUSE_BUTTON));
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !b->collect.active && !b->collect.armed);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !b->collect.active && !b->collect.armed);
 	canvas(&f, false, 0, 0);
 	CHECK(!mouse(&f, 318, 98, 0, ST_CONSOLE_MOUSE_BUTTON) && f.size == 2);
 	string(&f, "I#< 0,2,0:");
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->collect.active);
+	CHECK(cterm_big_finish(f.big) == 0 && !b->collect.active);
 	canvas(&f, false, 0, 0);
 	bool visible = false;
 	CHECK(st_console_get_pointer_visible(f.console, &visible) == 0 && visible);
@@ -408,7 +408,7 @@ early_key_and_mouse_overflow(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#< 1,");
 	CHECK(st_cterm_handle_key(f.terminal, 'P', 0) && f.size == 0 && b->input.count == 1);
 	string(&f, "0,0:");
@@ -421,7 +421,7 @@ early_key_and_mouse_overflow(void)
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON));
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON));
 	b->feeding = false;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->collect.active && !b->collect.armed && f.size == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->collect.active && !b->collect.armed && f.size == 0);
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON));
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON));
 	CHECK(!b->collect.active && f.size == 1 && f.output[0] == 'A');
@@ -442,11 +442,11 @@ failure_and_destroy_cleanup(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#T 1,2,1:I#< 0,2,0:");
 	CHECK(st_console_modify_pixels(f.console, invalid_pixel, NULL) == 0);
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_MOVE));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE && !b->collect.active
+	CHECK(cterm_big_poll(f.big) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE && !b->collect.active
 	      && !b->control.input.pending && f.size == 0);
 	bool visible = false;
 	CHECK(st_console_get_pointer_visible(f.console, &visible) == 0 && visible && b->state.bgi.write_mode == 0);
@@ -455,7 +455,7 @@ failure_and_destroy_cleanup(void)
 	CHECK(f.size == 1 && f.output[0] == 'Z');
 	destroy(&f);
 	create(&f, false, false);
-	b = f.terminal->big_engine;
+	b = f.big;
 	string(&f, "I#X 4,9998:I#T 1,2,1:I#< 0,2,0:");
 	f.reset_bell = true;
 	key(&f, 13);
@@ -463,6 +463,7 @@ failure_and_destroy_cleanup(void)
 	canvas(&f, false, 0, 0);
 	string(&f, "I#< 0,2,0:");
 	CHECK(st_cterm_mouse_mode(f.terminal) == 4);
+	cterm_big_destroy(f.big);
 	st_cterm_destroy(&f.terminal);
 	CHECK(st_console_get_pointer_visible(f.console, &visible) == 0 && visible);
 	st_font_catalog_destroy(f.fonts);
@@ -474,7 +475,7 @@ stale_mouse_generation(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 4,47,0,0,0,0,1:A!I#< 0,2,0:");
 	uint64_t old = b->collect.generation;
 	key(&f, 13);
@@ -484,7 +485,7 @@ stale_mouse_generation(void)
 	    .mouse       = true,
 	    .data.sample = {.x = 50, .y = 60, .buttons = 1, .generation = old, .allowed = true}
         };
-	CHECK(cterm_big_input_push(b, &stale) && st_cterm_poll(f.terminal) == 0 && !b->collect.armed);
+	CHECK(cterm_big_input_push(b, &stale) && cterm_big_poll(f.big) == 0 && !b->collect.armed);
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON) && b->collect.active && f.size == 1);
 	CHECK(mouse(&f, 50, 60, 1, ST_CONSOLE_MOUSE_BUTTON));
 	CHECK(mouse(&f, 50, 60, 0, ST_CONSOLE_MOUSE_BUTTON));
@@ -497,7 +498,7 @@ wire_writing_mode_lifetime(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#M 2:I#I 1:");
 	CHECK(b->state.bgi.write_mode == 1 && b->state.application.write_mode == 1);
 	string(&f, "I#R 2:I#I 1:I#T 1,2,1:");
@@ -513,11 +514,11 @@ wire_writing_mode_lifetime(void)
 	CHECK(b->state.bgi.write_mode == 0 && b->state.application.write_mode == 0);
 	canvas(&f, false, 0, 0);
 	string(&f, "I#M 3:I#R 2:I#< 0,2,0:");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	CHECK(b->state.bgi.write_mode == 1 && b->state.application.write_mode == 1);
 	canvas(&f, false, 0, 0);
 	string(&f, "I#R 2:I#< 0,2,0:");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	CHECK(b->state.bgi.write_mode == 1 && b->state.application.write_mode == 1);
 	canvas(&f, false, 0, 0);
 	string(&f, "I#I 0:");

@@ -18,6 +18,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big           *big;
 	st_console_t               *console;
 	st_font_catalog_t          *fonts;
 	st_cterm_t                 *terminal;
@@ -53,7 +54,7 @@ bell(void *context)
 	if (f->color_bell)
 		CHECK(st_big_draw_color(&b->state, 5) == 0);
 	if (f->reset_bell)
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 }
 
 static void
@@ -88,14 +89,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = bell;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = bell;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -105,7 +107,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, bytes, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, bytes, size, &used) == 0 && used == size);
 }
 
 static void
@@ -121,14 +123,14 @@ setup(struct fixture *f, unsigned resolution)
 	snprintf(wire, sizeof(wire), "I#R %u:I#g 0:I#C 1,5:I#m 2,31,32:", resolution);
 	string(f, wire);
 	f->size                                  = 0;
-	f->terminal->big_engine->state.bgi.error = -11;
+	f->big->state.bgi.error                  = -11;
 }
 
 static void
 canvas_with_fill(struct fixture *f, const struct dot *dots, size_t count, const struct dot *fill,
     size_t fill_count)
 {
-	const struct st_console_rect area = {0, 0, 640, f->terminal->big_engine->state.bgi.height};
+	const struct st_console_rect area = {0, 0, 640, f->big->state.bgi.height};
 	struct st_pixel_buffer      *p    = NULL;
 	CHECK(st_console_get_pixels(&p, f->console, &area, false) == 0);
 	uint8_t *expected = calloc((size_t)area.width * area.height, 1);
@@ -141,9 +143,8 @@ canvas_with_fill(struct fixture *f, const struct dot *dots, size_t count, const 
 		if (p->primary[i] != 800u + expected[i] || p->alternate[i] != 800u + expected[i])
 			fprintf(stderr, "%s pixel%zu,%zu actual%u/%u expected%u, error%d span%u radius%u/%u\n",
 			    stage, i % 640, i / 640, p->primary[i], p->alternate[i], 800u + expected[i],
-			    f->terminal->big_engine->last_error, f->terminal->big_engine->state.bgi.curve_span,
-			    f->terminal->big_engine->state.bgi.curve_radius[0],
-			    f->terminal->big_engine->state.bgi.curve_radius[1]);
+			    f->big->last_error, f->big->state.bgi.curve_span, f->big->state.bgi.curve_radius[0],
+			    f->big->state.bgi.curve_radius[1]);
 		CHECK(p->primary[i] == 800u + expected[i] && p->alternate[i] == 800u + expected[i]);
 	}
 	free(expected);
@@ -159,7 +160,7 @@ canvas(struct fixture *f, const struct dot *dots, size_t count)
 static void
 owners(struct fixture *f, unsigned x, unsigned y, unsigned device_x, unsigned device_y)
 {
-	const struct st_big_state *s = &f->terminal->big_engine->state;
+	const struct st_big_state *s = &f->big->state;
 	CHECK(s->bgi.x == 31 && s->bgi.y == 32 && s->bgi.ddo_x == x && s->bgi.ddo_y == y
 	      && s->bgi.device_x == device_x && s->bgi.device_y == device_y);
 }
@@ -181,7 +182,7 @@ partitions_and_profiles(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (size_t c = 0; c < sizeof(wires) / sizeof(wires[0]); ++c)
 				for (unsigned resolution = 1; resolution <= 3; ++resolution)
 					for (size_t split = 0; split <= strlen(wires[c]); ++split) {
@@ -223,7 +224,7 @@ late_color_and_partial_lifecycle(void)
 	for (size_t command = 0; command < 2; ++command) {
 		struct fixture f;
 		create(&f, false, false);
-		struct cterm_big *b = f.terminal->big_engine;
+		struct cterm_big *b = f.big;
 		setup(&f, 2);
 		b->state.application.colors[1] = 6;
 		string(&f, prefixes[command]);
@@ -239,32 +240,31 @@ late_color_and_partial_lifecycle(void)
 		CHECK(b->state.bgi.color == 5 && f.size == 0);
 		setup(&f, 2);
 		string(&f, prefixes[command]);
-		CHECK(st_cterm_finish(f.terminal) == 0);
+		CHECK(cterm_big_finish(f.big) == 0);
 		canvas(&f, NULL, 0);
 		owners(&f, 31, 32, 31, 32);
 		CHECK(b->state.bgi.color == 15);
 		string(&f, prefixes[command]);
-		CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f.big) == 0);
 		canvas(&f, NULL, 0);
 		owners(&f, 31, 32, 31, 32);
 		/* Timeout completes only the final empty field; colour remains late. */
 		string(&f, prefixes[command]);
 		local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-		CHECK(st_cterm_poll(f.terminal) == 0);
+		CHECK(cterm_big_poll(f.big) == 0);
 		CHECK(b->state.bgi.color == 5 && b->state.bgi.curve_span == 0 && b->state.bgi.ddo_x == 100);
 		canvas(&f, NULL, 0);
 		setup(&f, 2);
 		f.reset_bell = true;
 		string(&f, prefixes[command]);
 		local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-		CHECK(st_cterm_poll(f.terminal) == 0 && b->state.bgi.color == 15
-		      && !st_cterm_input_paused(f.terminal));
+		CHECK(cterm_big_poll(f.big) == 0 && b->state.bgi.color == 15 && !cterm_big_paused(f.big));
 		owners(&f, 31, 32, 31, 32);
 		f.reset_bell = false;
 		setup(&f, 2);
 		string(&f, prefixes[command]);
 		clock_error = IO_ERROR_IO;
-		CHECK(st_cterm_poll(f.terminal) == 0);
+		CHECK(cterm_big_poll(f.big) == 0);
 		clock_error = 0;
 		string(&f, "\033[6n");
 		CHECK(b->last_error == IO_ERROR_IO && f.size == 6);
@@ -273,7 +273,7 @@ late_color_and_partial_lifecycle(void)
 		setup(&f, 2);
 		string(&f, command == 0 ? "I#K 100,100," : "I#J 100,100,");
 		clock_error = IO_ERROR_IO;
-		CHECK(st_cterm_poll(f.terminal) == 0);
+		CHECK(cterm_big_poll(f.big) == 0);
 		clock_error = 0;
 		string(&f, "\033[6n");
 		CHECK(b->last_error == IO_ERROR_IO && f.size == 6);
@@ -289,7 +289,7 @@ query_zero_overflow_and_aspects(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned resolution = 1; resolution <= 3; ++resolution) {
 		setup(&f, resolution);
 		string(&f, "I#K 100,100,2,0,90:");
@@ -332,7 +332,7 @@ buffered_pages_source_and_storage(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	string(&f, "I#T 2,4,0,1,1:I#M 2:I#K 100,100,1,0,3:");
 	const struct dot thick[] = {
@@ -352,8 +352,8 @@ buffered_pages_source_and_storage(void)
 	memcpy(saved, storage, sizeof(saved));
 	string(&f, "I#R 1:I#I 1:");
 	CHECK(b->producer.points == storage && memcmp(saved, storage, sizeof(saved)) == 0);
-	CHECK(st_cterm_finish(f.terminal) == 0 && st_cterm_reset_terminal(f.terminal) == 0
-	      && b->producer.points == storage && memcmp(saved, storage, sizeof(saved)) == 0);
+	CHECK(cterm_big_finish(f.big) == 0 && cterm_big_reset_terminal(f.big) == 0 && b->producer.points == storage
+	      && memcmp(saved, storage, sizeof(saved)) == 0);
 	for (unsigned resolution = 1; resolution <= 3; ++resolution) {
 		setup(&f, resolution);
 		string(&f, "I#G>6,1:K 100,100,1,0,360:");
@@ -403,7 +403,7 @@ banks_errors_and_footer(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	CHECK(st_console_modify_pixels(f.console, blink_seed, NULL) == 0);
 	string(&f, "I#M 2:I#K 100,100,1,0,360:");
@@ -452,7 +452,7 @@ shared_scratch_and_scaling(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	string(&f, "I#T 2,4,0,1,1:I#M 2:I#K 100,100,1,0,3:");
 	struct st_big_producer_point saved[5];
@@ -502,7 +502,7 @@ explicit_radius_J(void)
         };
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned mode = 1; mode <= 3; ++mode) {
 		setup(&f, mode);
 		string(&f, "I#J 100,100,1,2,0,360:");
@@ -672,7 +672,7 @@ circle_O(void)
         };
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned mode = 1; mode <= 3; ++mode) {
 		setup(&f, mode);
 		string(&f, "I#H 0:I#C 2,6:I#O 100,100,1:");
@@ -709,16 +709,16 @@ circle_O(void)
 	canvas(&f, full, 4);
 	setup(&f, 2);
 	string(&f, "I#O 100,100,");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.fill_color == 15 && b->state.bgi.color == 15);
 	string(&f, "I#O 100,100,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	canvas(&f, NULL, 0);
 	owners(&f, 31, 32, 31, 32);
 	string(&f, "I#O 100,100,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	CHECK(b->state.bgi.curve_radius[0] == 0 && b->state.bgi.curve_radius[1] == 0
 	      && b->state.bgi.fill_color == 6);
 	canvas(&f, full, 4);
@@ -726,13 +726,13 @@ circle_O(void)
 	string(&f, "I#O 100,100,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
 	f.reset_bell = false;
 	canvas(&f, NULL, 0);
 	setup(&f, 2);
 	string(&f, "I#O 100,100,");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	CHECK(b->last_error == IO_ERROR_IO && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
 	canvas(&f, NULL, 0);
@@ -941,7 +941,7 @@ ellipse_Q(void)
         };
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned mode = 1; mode <= 3; ++mode) {
 		setup(&f, mode);
 		string(&f, "I#H 0:I#C 2,6:I#Q 100,100,1,2:");
@@ -967,23 +967,23 @@ ellipse_Q(void)
 	b->state.application.colors[1] = 5;
 	setup(&f, 2);
 	string(&f, "I#Q 100,100,1,");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.color == 5 && b->state.bgi.fill_color == 15);
 	string(&f, "I#Q 100,100,1,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	canvas(&f, NULL, 0);
 	owners(&f, 31, 32, 31, 32);
 	string(&f, "I#Q 100,100,1,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	canvas(&f, full, 4);
 	CHECK(b->state.bgi.curve_radius[1] == 0 && b->state.bgi.fill_color == 15);
 	setup(&f, 2);
 	string(&f, "I#Q 100,100,1,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.bgi.color == 5 && b->state.bgi.fill_color == 15);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.bgi.color == 5 && b->state.bgi.fill_color == 15);
 	f.reset_bell = false;
 	canvas(&f, NULL, 0);
 	setup(&f, 2);
@@ -992,7 +992,7 @@ ellipse_Q(void)
 	CHECK(b->state.bgi.color == 6);
 	f.color_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	f.color_bell = false;
 	canvas(&f, full, 4);
 	CHECK(b->state.bgi.color == 5 && b->state.application.colors[1] == 6);
@@ -1000,7 +1000,7 @@ ellipse_Q(void)
 	setup(&f, 2);
 	string(&f, "I#Q 100,100,1,");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	CHECK(b->last_error == IO_ERROR_IO && b->state.bgi.color == 5 && b->state.bgi.fill_color == 15);
 	canvas(&f, NULL, 0);
@@ -1182,7 +1182,7 @@ pieslice_V(void)
 				inside[] = {{101, 99}};
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	stage               = "V unit quarter";
 	setup(&f, 3);
 	string(&f, "I#H 0:I#C 2,6:I#V 100,100,1,0,90:");
@@ -1289,16 +1289,16 @@ pieslice_V(void)
 	stage = "V EOF/reset/timeout";
 	setup(&f, 2);
 	string(&f, "I#V 100,100,2,0,");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.fill_color == 15);
 	string(&f, "I#V 100,100,2,0,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	canvas(&f, NULL, 0);
 	owners(&f, 31, 32, 31, 32);
 	string(&f, "I#V 100,100,2,0,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	canvas(&f, center, 1);
 	CHECK(b->state.bgi.fill_color == 6);
 	stage = "V timeout reset";
@@ -1306,7 +1306,7 @@ pieslice_V(void)
 	string(&f, "I#V 100,100,2,0,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	f.reset_bell = false;
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.fill_color == 15);
@@ -1314,7 +1314,7 @@ pieslice_V(void)
 	setup(&f, 2);
 	string(&f, "I#V 100,100,2,0,");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.fill_color == 15 && b->last_error == IO_ERROR_IO);
@@ -1422,7 +1422,7 @@ sector_Y(void)
 				inside[] = {{101, 99}};
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned mode = 1; mode <= 3; ++mode) {
 		stage = "Y explicit tall";
 		setup(&f, mode);
@@ -1564,23 +1564,23 @@ sector_Y(void)
 	stage = "Y EOF/reset/timeout";
 	setup(&f, 2);
 	string(&f, "I#Y 100,100,1,2,0,");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.fill_color == 15);
 	string(&f, "I#Y 100,100,1,2,0,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	canvas(&f, NULL, 0);
 	owners(&f, 31, 32, 31, 32);
 	string(&f, "I#Y 100,100,1,2,0,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	canvas(&f, center, 1);
 	CHECK(b->state.bgi.fill_color == 6);
 	stage = "Y clock failure";
 	setup(&f, 2);
 	string(&f, "I#Y 100,100,1,2,0,");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	canvas(&f, NULL, 0);
 	CHECK(b->last_error == IO_ERROR_IO && b->state.bgi.fill_color == 15);

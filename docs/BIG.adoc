@@ -342,7 +342,7 @@ ordering and numeric, page, clear, loop, PCM and source-lifetime decisions.
 The complete 36 top-level / 9-selector list is
 link:../src/tests/big/conformance.json[the command ledger].
 The active wire descriptors are in
-link:../src/terminal/cterm/cterm_big.c[cterm_big.c], with native drawing and
+link:../src/terminal/big/cterm_big.c[cterm_big.c], with native drawing and
 state components in `src/terminal/big/`. Independent expected-result tests
 cover native command streams and coherent application captures; physical
 audio/MIDI and audible-device equivalence are not established by those checks.

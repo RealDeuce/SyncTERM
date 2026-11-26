@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -66,13 +67,14 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -82,7 +84,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -95,7 +97,7 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
@@ -106,7 +108,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -147,7 +149,7 @@ static size_t
 write_some(struct fixture *f, const char *wire)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, wire, strlen(wire), &used);
+	int    status = cterm_big_feed(f->big, wire, strlen(wire), &used);
 	CHECK(status == 0 || status == IO_ERROR_IN_PROGRESS);
 	return used;
 }
@@ -157,13 +159,13 @@ entry_progress(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 7,1:");
 	b->control.music.running            = 1;
 	b->control.music.position_low       = 5;
 	enum st_big_numeric_phase old_phase = b->numeric.field.phase;
 	CHECK(write_some(&f, "I#X 7,0:\033[6n") == 4);
-	CHECK(st_cterm_input_paused(f.terminal) && b->control.music.scratch == 5 && b->control.music.sync == 1);
+	CHECK(cterm_big_paused(f.big) && b->control.music.scratch == 5 && b->control.music.sync == 1);
 	CHECK(b->numeric.field.phase == old_phase && !b->pair_wait);
 	const struct cterm_key key = {.kind = CTERM_KEY_TEXT, .value = 'A'};
 	CHECK(cterm_big_handle_key(b, &key) && b->input.count == 1);
@@ -175,10 +177,10 @@ entry_progress(void)
 		poll(&f);
 		CHECK(write_some(&f, "7,0:") == 0);
 	}
-	CHECK(st_cterm_input_paused(f.terminal) && b->input.count == 1 && f.size == 0);
+	CHECK(cterm_big_paused(f.big) && b->input.count == 1 && f.size == 0);
 	b->control.music.scratch = 6; /* Live scratch alone releases. */
 	poll(&f);
-	CHECK(!st_cterm_input_paused(f.terminal));
+	CHECK(!cterm_big_paused(f.big));
 	string(&f, "7,0:\033[6n");
 	CHECK(b->control.music.sync == 0 && f.size == 7 && memcmp(f.output, "A\033[1;1R", 7) == 0);
 	f.size                        = 0;
@@ -191,7 +193,7 @@ entry_progress(void)
 	b->control.music.position_high = 1;
 	poll(&f);
 	string(&f, "7,0:");
-	CHECK(b->control.music.sync == 0 && !st_cterm_input_paused(f.terminal));
+	CHECK(b->control.music.sync == 0 && !cterm_big_paused(f.big));
 	/* Every chained pair snapshots independently, including unknown codes. */
 	b->control.music.position_high = 0;
 	string(&f, "I#X 7,1:");
@@ -199,7 +201,7 @@ entry_progress(void)
 	++b->control.music.position_low;
 	poll(&f);
 	CHECK(write_some(&f, "X 7,0:") == 2 && b->control.music.scratch == 6);
-	CHECK(st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_paused(f.big));
 	++b->control.music.position_low;
 	poll(&f);
 	string(&f, "7,0:");
@@ -209,7 +211,7 @@ entry_progress(void)
 	string(&f, "I#X 7,");
 	b->control.music.running = 1;
 	string(&f, "6554:");
-	CHECK(b->control.music.sync == 6554 && !st_cterm_input_paused(f.terminal));
+	CHECK(b->control.music.sync == 6554 && !cterm_big_paused(f.big));
 	destroy(&f);
 }
 
@@ -218,25 +220,25 @@ repeats_and_lifetimes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	/* The & gate precedes loop setup. Its internally selected X7 bodies
 	 * must not reenter synchronization when the first record enables it. */
 	b->control.music.running      = 1;
 	b->control.music.position_low = 19;
 	string(&f, "I#& 0,2,1,0,X@2,7,9999,0:");
-	CHECK(!st_cterm_input_paused(f.terminal) && b->control.music.sync == 9999 && b->numeric.loop.active == 0);
+	CHECK(!cterm_big_paused(f.big) && b->control.music.sync == 9999 && b->numeric.loop.active == 0);
 	for (unsigned cancel = 0; cancel < 3; ++cancel) {
 		/* Each independent cancellation now stops the installed native
 		 * music owner. Recreate running state for this next gate fixture. */
 		b->control.music.running = 1;
-		CHECK(write_some(&f, "I#X 7,0:") == 4 && st_cterm_input_paused(f.terminal));
+		CHECK(write_some(&f, "I#X 7,0:") == 4 && cterm_big_paused(f.big));
 		if (cancel == 0)
 			cterm_big_reset(b);
 		else if (cancel == 1)
-			CHECK(st_cterm_finish(f.terminal) == 0);
+			CHECK(cterm_big_finish(f.big) == 0);
 		else
-			CHECK(st_cterm_reset_terminal(f.terminal) == 0);
-		CHECK(!st_cterm_input_paused(f.terminal) && b->control.music.sync == 9999
+			CHECK(cterm_big_reset_terminal(f.big) == 0);
+		CHECK(!cterm_big_paused(f.big) && b->control.music.sync == 9999
 		      && b->control.music.position_low == 19 && b->control.music.running == 0);
 	}
 	b->control.music.running = 0;
@@ -245,7 +247,7 @@ repeats_and_lifetimes(void)
 	/* Partial operand has no store; timeout obtains the numeric default. */
 	string(&f, "I#X 7,12");
 	CHECK(b->control.music.sync == 9999);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->control.music.sync == 9999);
+	CHECK(cterm_big_finish(f.big) == 0 && b->control.music.sync == 9999);
 	string(&f, "I#X 7,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
 	poll(&f);
@@ -260,7 +262,7 @@ repeats_and_lifetimes(void)
 	CHECK(b->control.music.sync == 0 && f.size == 6 && memcmp(f.output, "\033[1;1R", 6) == 0);
 	destroy(&f);
 	create(&f, false, false);
-	CHECK(f.terminal->big_engine->control.music.sync == 0);
+	CHECK(f.big->control.music.sync == 0);
 	destroy(&f);
 }
 

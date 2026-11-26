@@ -22,6 +22,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -42,7 +43,7 @@ now(void *context, uint64_t *value)
 	*value = local_ns;
 	if (reset_on_clock) {
 		reset_on_clock = false;
-		CHECK(st_cterm_reset_terminal(((struct cterm_big *)context)->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(context) == 0);
 	}
 	return clock_error;
 }
@@ -53,7 +54,7 @@ read_key(void *context, uint8_t *value)
 	++reads;
 	if (reset_on_read) {
 		reset_on_read = false;
-		CHECK(st_cterm_reset_terminal(((struct cterm_big *)context)->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(context) == 0);
 	}
 	return read_error ? read_error : cterm_big_input_read(context, value);
 }
@@ -98,15 +99,16 @@ create(struct fixture *f, bool utf8, bool status)
 	    .output           = output,
 	    .output_context   = f,
 	    .apc_directory    = "."};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns   = now;
-	f->terminal->big_engine->numeric.io.read_key = read_key;
-	f->terminal->big_engine->numeric.io.peek_key = peek_key;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns   = now;
+	f->big->numeric.io.read_key = read_key;
+	f->big->numeric.io.peek_key = peek_key;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -116,7 +118,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -129,20 +131,20 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
 key(struct fixture *f, struct cterm_key k)
 {
-	CHECK(cterm_big_handle_key(f->terminal->big_engine, &k));
+	CHECK(cterm_big_handle_key(f->big, &k));
 }
 
 static size_t
 write_some(struct fixture *f, const char *wire)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, wire, strlen(wire), &used);
+	int    status = cterm_big_feed(f->big, wire, strlen(wire), &used);
 	CHECK(status == 0 || status == IO_ERROR_IN_PROGRESS);
 	return used;
 }
@@ -151,7 +153,7 @@ static struct st_big_speaker
 voice(struct fixture *f)
 {
 	struct st_big_speaker s;
-	CHECK(cterm_big_speaker_snapshot(f->terminal->big_engine, &s) == 0);
+	CHECK(cterm_big_speaker_snapshot(f->big, &s) == 0);
 	return s;
 }
 
@@ -194,7 +196,7 @@ splits_and_scenes(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (unsigned selector = 0; selector < 20; ++selector) {
 					char wire[24];
@@ -204,7 +206,7 @@ splits_and_scenes(void)
 					                          ? (unsigned)length + 2
 					                          : 1;
 					for (unsigned split = 0; split < partitions; ++split) {
-						CHECK(st_cterm_finish(f.terminal) == 0);
+						CHECK(cterm_big_finish(f.big) == 0);
 						char setup[80];
 						snprintf(setup, sizeof(setup), "I#R %u:I#C>0,5:P 100,100:", res);
 						string(&f, setup);
@@ -222,12 +224,12 @@ splits_and_scenes(void)
 							feed(&f, wire + cut, length - cut);
 						}
 						CHECK(b->effect.active && b->effect.selector == selector
-						      && st_cterm_input_paused(f.terminal));
+						      && cterm_big_paused(f.big));
 						CHECK(write_some(&f, "\033[6n") == 0 && f.size == 0 && reads == 0);
 						advance(&f, duration(selector) - 1);
-						CHECK(b->effect.active && st_cterm_input_paused(f.terminal));
+						CHECK(b->effect.active && cterm_big_paused(f.big));
 						advance(&f, 1);
-						CHECK(!b->effect.active && !st_cterm_input_paused(f.terminal)
+						CHECK(!b->effect.active && !cterm_big_paused(f.big)
 						      && !voice(&f).playing);
 						CHECK(b->last_error == 0
 						      && memcmp(&before, &b->state, sizeof(before)) == 0);
@@ -248,9 +250,9 @@ gates_sources_and_keys(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#b ");
-	CHECK(!st_cterm_input_paused(f.terminal));
+	CHECK(!cterm_big_paused(f.big));
 	b->feature_gates[3][1] = 1;
 	string(&f, "18:");
 	CHECK(b->effect.selector == 9);
@@ -303,7 +305,7 @@ static struct st_big_effect_player
 player(struct fixture *f)
 {
 	struct st_big_effect_player p;
-	CHECK(cterm_big_effect_snapshot(f->terminal->big_engine, &p) == 0);
+	CHECK(cterm_big_effect_snapshot(f->big, &p) == 0);
 	return p;
 }
 
@@ -312,13 +314,13 @@ rng_prefix_and_errors(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b     = f.terminal->big_engine;
+	struct cterm_big *b     = f.big;
 	b->numeric.random_state = 1;
 	string(&f, "I#b 7:");
 	CHECK(b->numeric.random_state == 0x015a4e36 && voice(&f).frequency == 5536);
 	advance(&f, 1);
 	CHECK(b->numeric.random_state == 0x8082a52f && voice(&f).frequency == 2080);
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->effect.active && !voice(&f).playing
+	CHECK(cterm_big_finish(f.big) == 0 && !b->effect.active && !voice(&f).playing
 	      && b->numeric.random_state == 0x8082a52f);
 	string(&f, "I#X 2,0,2:"); /* Completed effect no longer owns/overwrites numeric RNG. */
 	b->numeric.random_state = 123;
@@ -332,7 +334,7 @@ rng_prefix_and_errors(void)
 	CHECK(b->last_error == IO_ERROR_IO && f.size == 6 && memcmp(f.output, "\033[1;1R", 6) == 0);
 	clock_error = 0;
 	f.size      = 0;
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !voice(&f).playing);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !voice(&f).playing);
 	string(&f, "I#b 15:");
 	--local_ns;
 	poll(&f);
@@ -359,7 +361,7 @@ pcm_mute_and_flush(void)
 	struct fixture f;
 	create(&f, false, false);
 	st_audio_runtime_t *r   = attach(&f);
-	struct cterm_big   *b   = f.terminal->big_engine;
+	struct cterm_big   *b   = f.big;
 	b->numeric.random_state = 1;
 	string(&f, "I#b 7:");
 	CHECK(f.terminal->music_stream == NULL && f.terminal->fx_stream != NULL);
@@ -391,8 +393,7 @@ pcm_mute_and_flush(void)
 	poll(&f);
 	CHECK(!b->effect.active && !player(&f).active && !voice(&f).playing);
 	string(&f, "I#b 3:");
-	CHECK(
-	    st_cterm_finish(f.terminal) == 0 && !player(&f).active && audio_stream_is_idle(f.terminal->fx_stream));
+	CHECK(cterm_big_finish(f.big) == 0 && !player(&f).active && audio_stream_is_idle(f.terminal->fx_stream));
 	string(&f, "I#b 3:");
 	st_audio_runtime_stop(r);
 	poll(&f);
@@ -444,8 +445,8 @@ concurrent_reset(void)
 		string(&f, "I#b 7:");
 		atomic_fetch_add(&c.requests, 1);
 		poll(&f);
-		CHECK(st_cterm_reset_terminal(f.terminal) == 0);
-		struct cterm_big *b   = f.terminal->big_engine;
+		CHECK(cterm_big_reset_terminal(f.big) == 0);
+		struct cterm_big *b   = f.big;
 		uint32_t          rng = b->numeric.random_state;
 		CHECK(!b->effect.active && !player(&f).active && !voice(&f).playing);
 		poll(&f);

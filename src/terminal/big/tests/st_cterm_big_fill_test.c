@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -44,7 +45,7 @@ bell(void *context)
 	struct fixture   *f = b->terminal->api_output_context;
 	++f->bells;
 	if (f->reset_bell)
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 }
 
 static void
@@ -77,14 +78,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = bell;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = bell;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -94,7 +96,7 @@ static void
 feed(struct fixture *f, const void *wire, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, wire, size, &used);
+	int    status = cterm_big_feed(f->big, wire, size, &used);
 	if (status != 0 || used != size)
 		fprintf(stderr, "feed status=%d used=%zu/%zu wire=%.*s\n", status, used, size, (int)size,
 		    (const char *)wire);
@@ -110,7 +112,7 @@ string(struct fixture *f, const char *wire)
 static void
 blank(struct fixture *f)
 {
-	const struct st_console_rect r = {0, 0, 640, f->terminal->big_engine->state.bgi.height};
+	const struct st_console_rect r = {0, 0, 640, f->big->state.bgi.height};
 	struct st_pixel_buffer      *p = NULL;
 	CHECK(st_console_get_pixels(&p, f->console, &r, false) == 0);
 	for (size_t i = 0; i < (size_t)r.width * r.height; ++i)
@@ -136,7 +138,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
 					const size_t size = strlen(cases[c].wire);
@@ -174,19 +176,19 @@ prefixes_sources_and_errors(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#A 12");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.fill == 1 && b->state.bgi.fill_style == 1);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.fill == 1 && b->state.bgi.fill_style == 1);
 	string(&f, "I#C 2,31:I#A ");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.application.fill == 1);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.application.fill == 1);
 	string(&f, "I#A ");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && b->state.application.fill == 0
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1 && b->state.application.fill == 0
 	      && b->state.bgi.fill_style == 0 && b->state.bgi.fill_color == 31);
 	string(&f, "I#A 3:I#A ");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 2 && b->state.application.fill == 3);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 2 && b->state.application.fill == 3);
 	string(&f, "I#R 3:I#g 3:I#C 2,5:I#A 3:");
 	CHECK(b->state.application.fill == 3 && b->state.bgi.fill_style == 3);
 	string(&f, "I#& 0,1,1,0,A@1,12:");
@@ -224,15 +226,15 @@ prefixes_sources_and_errors(void)
 	string(&f, "I#C 2,31:I#A ");
 	const char builtin[] = "3:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, builtin, sizeof(builtin) - 1, &used) == 0
-	      && b->last_error == IO_ERROR_PROTOCOL && used == sizeof(builtin) - 1);
+	CHECK(cterm_big_feed(f.big, builtin, sizeof(builtin) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	      && used == sizeof(builtin) - 1);
 	CHECK(b->state.application.fill == 3 && b->state.bgi.fill_style == 3 && b->state.bgi.fill_color == 31
 	      && b->state.bgi.error == -1);
 	CHECK(b->state.bgi.fill_low == 31 && b->state.bgi.device_fill_style == 1
 	      && b->state.bgi.device_fill_color == 15 && b->state.bgi.fill_pixels[0] == 15);
 	const char custom[] = "I#A 12:";
-	CHECK(st_cterm_write(f.terminal, custom, sizeof(custom) - 1, &used) == 0
-	      && b->last_error == IO_ERROR_PROTOCOL && used == sizeof(custom) - 1);
+	CHECK(cterm_big_feed(f.big, custom, sizeof(custom) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	      && used == sizeof(custom) - 1);
 	CHECK(b->state.application.fill == 12 && b->state.bgi.fill_style == 3 && b->state.bgi.fill_color == 31
 	      && b->state.bgi.error == -1);
 	b->state.bgi.state = 3;
@@ -263,7 +265,7 @@ edit_partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
 					size_t size   = strlen(cases[c].wire),
@@ -312,25 +314,25 @@ edit_prefixes_and_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	memset(b->state.application.patterns[0], 0xcc, 8);
 	string(&f, "I#X 1,9,");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.patterns[0][0] == 0xcc);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.patterns[0][0] == 0xcc);
 	string(&f, "I#X 1,12,0:I#X 1,12,1,257,258,");
 	CHECK(b->state.application.patterns[0][0] == 1 && b->state.application.patterns[0][1] == 2
 	      && b->state.application.patterns[0][2] == 0xaa);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.patterns[0][0] == 1
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.patterns[0][0] == 1
 	      && b->state.application.patterns[0][1] == 2);
 	string(&f, "I#X 1,12,0:I#X 1,12,1,3,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && b->state.application.patterns[0][0] == 3
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1 && b->state.application.patterns[0][0] == 3
 	      && b->state.application.patterns[0][1] == 0x55);
 	f.reset_bell = false;
 	string(&f, "I#X 1,12,1,4,");
 	for (unsigned row = 1; row < 8; ++row) {
 		local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-		CHECK(st_cterm_poll(f.terminal) == 0);
+		CHECK(cterm_big_poll(f.big) == 0);
 	}
 	CHECK(f.bells == 8 && b->state.application.patterns[0][0] == 4);
 	for (size_t i = 1; i < 8; ++i)
@@ -383,7 +385,7 @@ edit_live_frame(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 1,12,1,1,");
 	CHECK(b->fill_edit.active && b->fill_edit.row == 1);
 	b->fill_edit.slot  = 13;
@@ -395,8 +397,8 @@ edit_live_frame(void)
 	b->fill_edit.slot = 24;
 	const char bad[]  = "10,TAIL";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, bad, sizeof(bad) - 1, &used) == 0
-	      && b->last_error == IO_ERROR_OUT_OF_RANGE && used == sizeof(bad) - 1);
+	CHECK(cterm_big_feed(f.big, bad, sizeof(bad) - 1, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
+	      && used == sizeof(bad) - 1);
 	CHECK(!b->fill_edit.active && b->state.application.patterns[0][0] == 9
 	      && b->state.application.patterns[0][1] == 0x55 && b->state.bgi.error == 0);
 	string(&f, "I#X 1,12,0:");
@@ -416,13 +418,13 @@ flood_scene(struct fixture *f, unsigned mode, unsigned border)
 	    mode, border);
 	string(f, wire);
 	f->size                                           = 0;
-	f->terminal->big_engine->state.application.hollow = 1;
+	f->big->state.application.hollow                  = 1;
 }
 
 static void
 flood_pixels(struct fixture *f, unsigned border, unsigned inside)
 {
-	const struct st_console_rect r = {0, 0, 640, f->terminal->big_engine->state.bgi.height};
+	const struct st_console_rect r = {0, 0, 640, f->big->state.bgi.height};
 	struct st_pixel_buffer      *p = NULL;
 	CHECK(st_console_get_pixels(&p, f->console, &r, false) == 0);
 	for (unsigned y = 0; y < r.height; ++y)
@@ -444,7 +446,7 @@ flood_partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t c = 0; c < 6; ++c) {
 					char wire[48];
@@ -493,7 +495,7 @@ flood_waits(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	b->control_io.ready = flood_ready;
 	for (unsigned mode = 0; mode < 4; ++mode) {
 		flood_scene(&f, 2, 15);
@@ -504,7 +506,7 @@ flood_waits(void)
 		string(&f, "I#F 12,12,0:");
 		CHECK(!b->flood.active && f.size == 0 && f.ready_calls == 0 && b->last_error == 0);
 		flood_pixels(&f, 15, 5);
-		CHECK(st_cterm_finish(f.terminal) == 0 && st_cterm_reset_terminal(f.terminal) == 0 && f.size == 0);
+		CHECK(cterm_big_finish(f.big) == 0 && cterm_big_reset_terminal(f.big) == 0 && f.size == 0);
 		flood_pixels(&f, 15, 5);
 	}
 	destroy(&f);
@@ -531,20 +533,20 @@ flood_prefixes_errors_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	flood_scene(&f, 2, 15);
 	string(&f, "I#F 12,12,");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.bgi.fill_color == 3 && f.size == 0);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.bgi.fill_color == 3 && f.size == 0);
 	flood_pixels(&f, 15, 3);
 	string(&f, "I#F 12,12,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && f.size == 0 && b->state.bgi.fill_color == 5);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1 && f.size == 0 && b->state.bgi.fill_color == 5);
 	flood_pixels(&f, 15, 5);
 	flood_scene(&f, 2, 15);
 	string(&f, "I#F 12,12,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && !b->flood.active && b->state.bgi.fill_color == 3 && f.size == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && !b->flood.active && b->state.bgi.fill_color == 3 && f.size == 0);
 	flood_pixels(&f, 15, 3);
 	f.reset_bell = false;
 	/* Rejected custom attributes retain the previous fill but do not suppress F. */
@@ -557,7 +559,7 @@ flood_prefixes_errors_sources(void)
 	b->state.bgi.state = 0;
 	const char wire[]  = "I#F 12,12,0:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	CHECK(cterm_big_feed(f.big, wire, sizeof(wire) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
 	      && used == sizeof(wire) - 1);
 	CHECK(f.size == 0 && b->state.bgi.error == -1 && b->state.bgi.fill_color == 5);
 	flood_pixels(&f, 15, 3);
@@ -581,8 +583,8 @@ flood_prefixes_errors_sources(void)
 	flood_scene(&f, 2, 15);
 	const struct corrupt_pixel c = {8, 12, 42, 42};
 	CHECK(st_console_modify_pixels(f.console, corrupt, (void *)&c) == 0);
-	CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == 0
-	      && b->last_error == IO_ERROR_OUT_OF_RANGE && used == sizeof(wire) - 1);
+	CHECK(cterm_big_feed(f.big, wire, sizeof(wire) - 1, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
+	      && used == sizeof(wire) - 1);
 	CHECK(f.size == 0 && !b->flood.active && b->state.bgi.error == -7);
 	flood_scene(&f, 2, 15);
 	string(&f, wire);
@@ -623,7 +625,7 @@ flood_native_byte_planes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	flood_scene(&f, 2, 15);
 	string(&f, "I#C 1,15:I#C 2,3:I#B 10,10,35,14,1:I#C 2,5:");
 	/* One byte reaches all four plane-mask passes. Unselected alternate

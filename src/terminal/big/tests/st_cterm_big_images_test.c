@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -69,13 +70,14 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -85,7 +87,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, bytes, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, bytes, size, &used) == 0 && used == size);
 }
 
 static void
@@ -161,7 +163,7 @@ partitions_and_modes(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *big = f.terminal->big_engine;
+			struct cterm_big *big = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (unsigned mode = 0; mode < 5; ++mode) {
 					char wire[128];
@@ -202,8 +204,7 @@ partitions_and_modes(void)
 						    {60, 60, a[mode], b[mode]}
                                                 };
 						canvas(&f, expected, 3);
-						CHECK(st_cterm_poll(f.terminal) == 0
-						      && st_cterm_finish(f.terminal) == 0);
+						CHECK(cterm_big_poll(f.big) == 0 && cterm_big_finish(f.big) == 0);
 					}
 				}
 			destroy(&f);
@@ -222,7 +223,7 @@ page_routes(void)
 	for (unsigned res = 1; res <= 3; ++res) {
 		struct fixture f;
 		create(&f, false, false);
-		struct cterm_big *big = f.terminal->big_engine;
+		struct cterm_big *big = f.big;
 		resolution(&f, res);
 		paint(&f, source, 4);
 		size_t calls = big->image_page_calls;
@@ -273,7 +274,7 @@ page_routes(void)
 	 * separate visual page through one chained interpreter frame. */
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	resolution(&f, 1);
 	string(&f, "I#G 5,2:");
 	paint(&f, source, 4);
@@ -304,14 +305,14 @@ prefixes_gates_and_errors(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#G 6,1:");
 	size_t calls = b->image_page_calls;
 	string(&f, "I#G 0,");
 	CHECK(b->video_active_page == 0 && b->image_page_calls == calls + 1);
 	string(&f, "9,");
 	CHECK(b->image_mode == 0);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	string(&f, "I#G 2,9,");
 	CHECK(b->image_mode == 9);
 	string(&f, "40,");
@@ -359,7 +360,7 @@ prefixes_gates_and_errors(void)
 	calls                         = b->image_page_calls;
 	string(&f, "I#G 257:");
 	CHECK(b->image_operation == 257 && b->image_page_calls == calls && b->state.memory_page == 0);
-	CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
@@ -368,7 +369,7 @@ lifetime_scaling_and_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b        = f.terminal->big_engine;
+	struct cterm_big *b        = f.big;
 	const struct dot  source[] = {
 	    {20, 20, 5, 10}
         };
@@ -384,8 +385,8 @@ lifetime_scaling_and_sources(void)
         };
 	canvas(&f, copied, 1);
 	string(&f, "I#G 3,4,1,");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->image_bytes[5] == 0x80);
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->image_bytes[5] == 0x80);
+	CHECK(cterm_big_finish(f.big) == 0 && b->image_bytes[5] == 0x80);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->image_bytes[5] == 0x80);
 	resolution(&f, 3);
 	const struct dot scaled[] = {
 	    {20, 11, 5, 10}
@@ -409,7 +410,7 @@ lifetime_scaling_and_sources(void)
 	CHECK(f.size == 0 && b->numeric.loop.active == 0);
 	destroy(&f);
 	create(&f, false, false);
-	b                        = f.terminal->big_engine;
+	b                        = f.big;
 	const struct dot fresh[] = {
 	    {60, 60, 6, 9}
         };
@@ -439,7 +440,7 @@ unaligned_blocks(void)
 	static const uint8_t pens[] = {1, 2, 4, 8, 15, 0, 7, 9, 2};
 	struct fixture       f;
 	create(&f, true, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned res = 1; res <= 3; ++res)
 		for (unsigned mode = 0; mode < 5; ++mode) {
 			resolution(&f, res);
@@ -472,7 +473,7 @@ failure_prefixes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b        = f.terminal->big_engine;
+	struct cterm_big *b        = f.big;
 	const struct dot  source[] = {
 	    {20, 20, 5, 10}
         };
@@ -501,7 +502,7 @@ failure_prefixes(void)
 	CHECK(b->video_backing->primary[41 * 640 + 41] == 806 && f.size == 6
 	      && memcmp(f.output, "\033[1;1R", 6) == 0);
 	canvas(&f, source, 1);
-	CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && cterm_big_finish(f.big) == 0);
 	/* A native byte callback can fail partway through selected pixels.
 	 * Keep the first three plane3 writes and both blink destinations. */
 	resolution(&f, 2);
@@ -555,7 +556,7 @@ failure_prefixes(void)
 	string(&f, "20,20,20,20,40,40:");
 	CHECK(b->video_active_page == 3 && b->image_page_calls == calls + 1 && b->image_size == 10
 	      && b->last_error == IO_ERROR_OUT_OF_RANGE);
-	CHECK(b->image_bytes[0] == 0 && b->image_bytes[2] == 0 && st_cterm_finish(f.terminal) == 0);
+	CHECK(b->image_bytes[0] == 0 && b->image_bytes[2] == 0 && cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
@@ -564,7 +565,7 @@ status_source(void)
 {
 	struct fixture f;
 	create(&f, false, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned res = 1; res <= 3; ++res) {
 		resolution(&f, res);
 		const struct st_big_mode *m = st_big_mode(res);

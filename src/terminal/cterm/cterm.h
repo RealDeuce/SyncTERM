@@ -93,7 +93,18 @@ enum prestel_prog_states {
 struct cterm_rip_engine;
 struct cterm_skypix;
 struct cterm_igs;
-struct cterm_big;
+struct cterm_key;
+
+/* Events a session-owned device may observe while the emulation is active. */
+struct cterm_device_events {
+	void *context;
+	bool  (*key)(void *, const struct cterm_key *);
+	int   (*mouse_mode)(const void *);
+	bool  (*mouse)(void *, const struct st_console_event *);
+	void  (*observe_mouse)(void *, const struct st_console_event *);
+	void  (*sync_mouse)(void *, uint32_t);
+	void  (*yield_fx)(void *);
+};
 struct cterm_apc_state;
 
 struct cterminal {
@@ -102,7 +113,8 @@ struct cterminal {
 	struct cterm_rip_engine  *rip_engine;
 	struct cterm_skypix      *skypix_engine;
 	struct cterm_igs         *igs_engine;
-	struct cterm_big         *big_engine;
+	struct cterm_device_events device;
+	bool                       fixed_geometry;
 	/* Explicit cursor placement can matter even within the same text cell. */
 	/* Explicit terminal positioning, excluding renderer cursor restoration. */
 	uint64_t                    cursor_position_changes;

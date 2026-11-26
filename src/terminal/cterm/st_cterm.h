@@ -194,6 +194,7 @@ struct st_cterm_config {
 	enum st_codepage codepage;
 	/* Optional 16-entry attribute-to-canonical-palette mapping. */
 	const uint16_t *palette_mapping;
+	uint32_t        disabled_capabilities;
 	/* Used only by PETSCII to select C64/C128 colour and font semantics. */
 	enum st_cterm_petscii_machine petscii_machine;
 	uint8_t                       font_selector;

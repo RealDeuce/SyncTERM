@@ -26,6 +26,7 @@
 #include "st_ooii.h"
 #include "st_session_history.h"
 #include "st_settings.h"
+#include "st_term.h"
 #include "st_theme.h"
 #include "st_time.h"
 #include "st_unicode_compare.h"
@@ -1209,18 +1210,25 @@ next_input_event(WrenVM *vm, bool wait, int64_t timeout_ms, bool at_exit, bool w
 		st_cterm_t             *terminal     = poll_context != NULL ? poll_context->cterm : NULL;
 		/* Synchronous UI waits keep the owner from reaching the outer
 		 * terminal pump. Refill audio here without parsing remote input. */
-		bool service = terminal != NULL && st_cterm_input_paused(terminal);
+		st_term_session_t *session = poll_context != NULL ? poll_context->session : NULL;
+		bool               service =
+		    session != NULL ? st_term_session_device_paused(session) : st_cterm_input_paused(terminal);
 		if (service) {
-			int poll_status = poll_context->connection != NULL
-			                          && !st_connection_is_connected(poll_context->connection)
-			                      ? st_cterm_finish(terminal)
-			                      : st_cterm_poll(terminal);
+			bool closed = poll_context->connection != NULL
+			              && !st_connection_is_connected(poll_context->connection);
+			int  poll_status;
+			if (session != NULL)
+				poll_status = closed ? st_term_session_finish_display(session)
+				                     : st_term_session_poll_display(session);
+			else
+				poll_status = closed ? st_cterm_finish(terminal) : st_cterm_poll(terminal);
 			if (poll_status != 0) {
 				st_wren_abort(vm, "terminal polling failed during input wait");
 				return false;
 			}
 		}
-		service = terminal != NULL && st_cterm_input_paused(terminal);
+		service =
+		    session != NULL ? st_term_session_device_paused(session) : st_cterm_input_paused(terminal);
 		if (host->exit_requested && !at_exit) {
 			record = (struct st_wren_input_record) {
 			    .type                 = ST_WREN_INPUT_KEY,

@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -66,13 +67,14 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -82,7 +84,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -95,13 +97,13 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
 ratios(struct fixture *f, const uint16_t r[4])
 {
-	const struct st_big_state *s = &f->terminal->big_engine->state;
+	const struct st_big_state *s = &f->big->state;
 	CHECK(memcmp(s->bgi.saved_ratio, r, 8) == 0 && memcmp(s->bgi.effective_ratio, r, 8) == 0);
 }
 
@@ -113,7 +115,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -171,7 +173,7 @@ partials_defaults_and_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	ratios(&f, (const uint16_t[]) {1, 1, 1, 1});
 	CHECK(b->state.bgi.text_header[0] == '+' && b->state.bgi.text_cached[0] == 8
 	      && b->state.bgi.text_selected_size == 8);
@@ -181,11 +183,11 @@ partials_defaults_and_sources(void)
 	string(&f, "I#X 3,2,1,3,");
 	ratios(&f, (const uint16_t[]) {1, 1, 1, 1});
 	CHECK(b->state.bgi.text_size == 3 && b->state.bgi.text_cached[0] == 8);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	ratios(&f, (const uint16_t[]) {1, 1, 1, 1});
 	CHECK(b->state.bgi.text_size == 3);
 	string(&f, "I#X 3,2,1,3,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.bgi.text_size == 3);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.bgi.text_size == 3);
 	string(&f, "I#X 3,2,1,3,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
 	poll(&f);
@@ -215,7 +217,7 @@ partials_defaults_and_sources(void)
 	destroy(&f);
 	create(&f, false, false);
 	ratios(&f, (const uint16_t[]) {1, 1, 1, 1});
-	CHECK(f.terminal->big_engine->state.bgi.text_size == 1);
+	CHECK(f.big->state.bgi.text_size == 1);
 	destroy(&f);
 }
 
@@ -224,7 +226,7 @@ validation_control_and_recovery(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b    = f.terminal->big_engine;
+	struct cterm_big *b    = f.big;
 	b->state.bgi.error     = -11;
 	b->state.bgi.text_size = 3;
 	string(&f, "I#X 3,2,1,3,");

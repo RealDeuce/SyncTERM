@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -48,7 +49,7 @@ bell(void *context)
 	struct fixture   *f = b->terminal->api_output_context;
 	++f->bells;
 	if (f->reset_bell)
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 }
 
 static void
@@ -81,14 +82,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = bell;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = bell;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -98,7 +100,7 @@ static void
 feed(struct fixture *f, const void *wire, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, wire, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, wire, size, &used) == 0 && used == size);
 }
 
 static void
@@ -110,7 +112,7 @@ string(struct fixture *f, const char *wire)
 static void
 point(struct fixture *f, uint16_t x, uint16_t y)
 {
-	const struct st_big_state *s = &f->terminal->big_engine->state;
+	const struct st_big_state *s = &f->big->state;
 	CHECK(s->bgi.x == x && s->bgi.y == y && s->bgi.ddo_x == x && s->bgi.ddo_y == y && s->bgi.device_x == x
 	      && s->bgi.device_y == y);
 }
@@ -119,7 +121,7 @@ static void
 canvas(struct fixture *f, const struct dot *dots, size_t count)
 {
 	struct st_pixel_buffer      *pixels = NULL;
-	const struct st_console_rect r      = {0, 0, 640, f->terminal->big_engine->state.bgi.height};
+	const struct st_console_rect r      = {0, 0, 640, f->big->state.bgi.height};
 	CHECK(st_console_get_pixels(&pixels, f->console, &r, false) == 0);
 	uint32_t *a = calloc((size_t)r.width * r.height, sizeof(*a)),
 		 *b = calloc((size_t)r.width * r.height, sizeof(*b));
@@ -225,7 +227,7 @@ color_and_waiting_prefix(void)
         };
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (size_t i = 0; i < 3; ++i) {
 		reset_mode(&f, 2);
 		b->state.bgi.x = b->state.bgi.ddo_x = b->state.bgi.device_x = 10;
@@ -255,19 +257,19 @@ color_and_waiting_prefix(void)
 	canvas(&f, current, 3);
 	point(&f, 12, 20);
 	string(&f, "I#L 30,31,");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	point(&f, 12, 20);
 	string(&f, "I#D 32,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	point(&f, 12, 20);
 	string(&f, "I#d 1,2,1");
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	point(&f, 12, 20);
 	b->state.bgi.state             = 0;
 	b->state.application.colors[1] = 0x127;
 	const char wire[]              = "I#L 1,2,3,4:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	CHECK(cterm_big_feed(f.big, wire, sizeof(wire) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
 	      && used == sizeof(wire) - 1);
 	CHECK(b->state.bgi.color == 0x27 && b->state.bgi.device_color == 6 && b->state.bgi.error == -1);
 	destroy(&f);
@@ -278,7 +280,7 @@ repeat_and_deferred_reply(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#& 0,3,1,0,L@4,x,20,x,20:");
 	const struct dot repeated[] = {
 	    {0, 20, 815, 815},
@@ -346,7 +348,7 @@ sources_scaling_and_deadlines(void)
 {
 	struct fixture f;
 	create(&f, true, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#R 3:I#g 3:I#L 5,5,5,5:");
 	const struct dot scaled[] = {
 	    {5, 11, 815, 815}
@@ -384,13 +386,13 @@ sources_scaling_and_deadlines(void)
 	reset_mode(&f, 3);
 	string(&f, "I#g 0:I#D 12,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1);
 	point(&f, 12, 0);
 	reset_mode(&f, 3);
 	string(&f, "I#D 12,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 2);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 2);
 	point(&f, 0, 0);
 	canvas(&f, NULL, 0);
 	destroy(&f);
@@ -411,7 +413,7 @@ point_owners_xor_and_failures(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	b->state.bgi.x      = 50;
 	b->state.bgi.y      = 60;
 	b->state.bgi.ddo_x  = 10;
@@ -462,7 +464,7 @@ point_owners_xor_and_failures(void)
 	b->control.input.payload[1] = 'R';
 	const char l[]              = "I#L 10,20,12,20:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, l, sizeof(l) - 1, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
+	CHECK(cterm_big_feed(f.big, l, sizeof(l) - 1, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
 	      && used == sizeof(l) - 1);
 	CHECK(f.size == 0 && b->control.input.count == 1 && b->control.input.payload[1] == 'R');
 	const struct dot partial[] = {
@@ -475,7 +477,7 @@ point_owners_xor_and_failures(void)
 	b->state.bgi.ddo_x = 12;
 	b->state.bgi.ddo_y = 20;
 	const char d[]     = "I#D 10,20:";
-	CHECK(st_cterm_write(f.terminal, d, sizeof(d) - 1, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
+	CHECK(cterm_big_feed(f.big, d, sizeof(d) - 1, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
 	      && used == sizeof(d) - 1);
 	CHECK(b->state.bgi.x == 0 && b->state.bgi.y == 0 && b->state.bgi.device_x == 0 && b->state.bgi.ddo_x == 10
 	      && b->state.bgi.ddo_y == 20);
@@ -497,7 +499,7 @@ move_state_and_origin(void)
 {
 	struct fixture f;
 	create(&f, true, true);
-	struct cterm_big *b       = f.terminal->big_engine;
+	struct cterm_big *b       = f.big;
 	bool              invalid = false;
 	CHECK(st_console_modify_pixels(f.console, seed, &invalid) == 0);
 	string(&f, "\033[10;20HI#T 2,1,1,1,1:");
@@ -560,7 +562,7 @@ move_sources_and_replies(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#R 3:I#g 3:I#m 2,5,5:");
 	point(&f, 5, 11);
 	string(&f, "I#R 3:I#m 1,2,1,5:");
@@ -596,28 +598,28 @@ move_cancellation_and_failure(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#m 2,100,100:");
 	point(&f, 100, 100);
 	string(&f, "I#m 2,12,");
 	point(&f, 100, 100);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	point(&f, 100, 100);
 	string(&f, "I#m 1,2,1");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	point(&f, 100, 100);
 	string(&f, "I#m 2,12,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1);
 	point(&f, 12, 0);
 	string(&f, "I#m 1,2,1,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 2);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 2);
 	point(&f, 10, 0);
 	string(&f, "I#m 2,12,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 3);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 3);
 	point(&f, 10, 0);
 	b->state.bgi.state = 0;
 	b->state.bgi.color = 7;
@@ -627,12 +629,12 @@ move_cancellation_and_failure(void)
 	CHECK(b->state.bgi.error == 0 && b->state.bgi.color == 7);
 	const char tail[] = "60:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, tail, sizeof(tail) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	CHECK(cterm_big_feed(f.big, tail, sizeof(tail) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
 	      && used == sizeof(tail) - 1);
 	point(&f, 10, 0);
 	CHECK(b->state.bgi.error == -1 && b->state.bgi.color == 7 && f.size == 0);
 	const char relative_wire[] = "I#m 1,2,1,5:";
-	CHECK(st_cterm_write(f.terminal, relative_wire, sizeof(relative_wire) - 1, &used) == 0
+	CHECK(cterm_big_feed(f.big, relative_wire, sizeof(relative_wire) - 1, &used) == 0
 	      && b->last_error == IO_ERROR_PROTOCOL && used == sizeof(relative_wire) - 1);
 	point(&f, 10, 0);
 	b->state.bgi.state = 3;
@@ -661,7 +663,7 @@ writing_mode_partitions(void)
         };
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (size_t c = 0; c < sizeof(requests) / sizeof(requests[0]); ++c)
 		for (size_t split = 0; split <= strlen(requests[c].wire); ++split) {
 			reset_mode(&f, 2);
@@ -678,7 +680,7 @@ writing_mode_partitions(void)
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8)
 		for (unsigned status = 0; status < 2; ++status) {
 			create(&f, utf8, status);
-			b = f.terminal->big_engine;
+			b = f.big;
 			for (unsigned resolution = 1; resolution <= 3; ++resolution)
 				for (size_t c = 0; c < sizeof(requests) / sizeof(requests[0]); ++c) {
 					reset_mode(&f, resolution);
@@ -699,7 +701,7 @@ writing_mode_sources_and_failures(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#m 2,100,60:");
 
 	static const struct {
@@ -729,15 +731,15 @@ writing_mode_sources_and_failures(void)
 		CHECK(f.size == 0 && f.terminal->xpos == 1);
 	}
 	string(&f, "I#M 2");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.bgi.write_mode == 0
-	      && b->state.application.write_mode == 0);
+	CHECK(
+	    cterm_big_finish(f.big) == 0 && b->state.bgi.write_mode == 0 && b->state.application.write_mode == 0);
 	string(&f, "I#M 2:");
 	string(&f, "I#M ");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.bgi.write_mode == 1
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.bgi.write_mode == 1
 	      && b->state.application.write_mode == 1);
 	string(&f, "I#M ");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && b->state.bgi.write_mode == 0
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1 && b->state.bgi.write_mode == 0
 	      && b->state.application.write_mode == 0);
 	string(&f, "I#R 3:I#g 3:I#M 2:");
 	CHECK(b->state.bgi.write_mode == 1 && b->state.application.write_mode == 1);
@@ -759,7 +761,7 @@ writing_mode_sources_and_failures(void)
 	CHECK(b->state.bgi.error == 0 && b->state.bgi.write_mode == 9 && b->state.application.write_mode == 7);
 	const char tail[] = "2:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, tail, sizeof(tail) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	CHECK(cterm_big_feed(f.big, tail, sizeof(tail) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
 	      && used == sizeof(tail) - 1);
 	CHECK(b->state.bgi.error == -1 && b->state.bgi.write_mode == 9 && b->state.application.write_mode == 7
 	      && f.size == 1);
@@ -798,7 +800,7 @@ color_partitions(void)
 	};
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (size_t c = 0; c < sizeof(requests) / sizeof(requests[0]); ++c)
 		for (size_t split = 0; split <= strlen(requests[c].wire); ++split) {
 			reset_mode(&f, 2);
@@ -819,7 +821,7 @@ color_partitions(void)
 	for (unsigned utf8 = 0; utf8 < 2; ++utf8)
 		for (unsigned status = 0; status < 2; ++status) {
 			create(&f, utf8, status);
-			b = f.terminal->big_engine;
+			b = f.big;
 			for (unsigned resolution = 1; resolution <= 3; ++resolution)
 				for (size_t c = 0; c < sizeof(requests) / sizeof(requests[0]); ++c) {
 					reset_mode(&f, resolution);
@@ -845,7 +847,7 @@ color_prefixes_sources_and_lifetime(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b         = f.terminal->big_engine;
+	struct cterm_big *b         = f.big;
 	const uint16_t    initial[] = {11, 12, 13, 14};
 	memcpy(b->state.application.colors, initial, sizeof(initial));
 	b->state.bgi.color = b->state.bgi.device_color = 9;
@@ -856,17 +858,17 @@ color_prefixes_sources_and_lifetime(void)
 	CHECK(b->state.application.colors[0] == 31 && b->state.application.colors[1] == 12
 	      && b->state.bgi.color == 9 && b->state.bgi.fill_color == 15);
 	string(&f, "I#C 0,+1:I#C 3,291");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.colors[0] == 65535
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.colors[0] == 65535
 	      && b->state.application.colors[3] == 14);
 	string(&f, "I#C 1,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.application.colors[1] == 12);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.application.colors[1] == 12);
 	string(&f, "I#C 1,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && b->state.application.colors[1] == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1 && b->state.application.colors[1] == 0);
 	string(&f, "I#C 2,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 2 && b->state.application.colors[2] == 13);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 2 && b->state.application.colors[2] == 13);
 	string(&f, "I#R 3:I#g 3:I#C 1,5:");
 	CHECK(b->state.application.colors[1] == 5 && b->state.bgi.color == 15);
 	string(&f, "I#& 0,1,1,0,C@2,1,291:");

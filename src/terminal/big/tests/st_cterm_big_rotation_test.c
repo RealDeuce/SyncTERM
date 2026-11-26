@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -85,14 +86,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns   = now;
-	f->terminal->big_engine->numeric.io.read_key = read_key;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns   = now;
+	f->big->numeric.io.read_key = read_key;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -102,7 +104,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -115,13 +117,13 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
 key(struct fixture *f, struct cterm_key k)
 {
-	CHECK(cterm_big_handle_key(f->terminal->big_engine, &k));
+	CHECK(cterm_big_handle_key(f->big, &k));
 }
 
 static void
@@ -132,7 +134,7 @@ setup(struct fixture *f, unsigned res)
 	    "I#R %u:I#C>0,5:P>100,100:G>0,0,100,100,100,100,120,100:S>2,7:S>3,10:S>4,20:X 8,1,1,1,1:", res);
 	string(f, wire);
 	f->size             = 0;
-	struct cterm_big *b = f->terminal->big_engine;
+	struct cterm_big *b = f->big;
 	CHECK(
 	    b->state.saved_palette[2] == 7 && b->state.saved_palette[3] == 10 && b->state.saved_palette[4] == 20);
 	b->state.bgi.error      = -11;
@@ -161,7 +163,7 @@ partitions_and_owners(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -204,7 +206,7 @@ capture_restore_and_skips(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#X 8,0,15,0,+1:");
 	CHECK(f.size == 0 && b->state.bgi.palette[15] == 0);
 	setup(&f, 2);
@@ -235,7 +237,7 @@ deadlines_keys_and_wrap(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	string(&f, "I#X 8,3,4,9,20:");
 	CHECK(b->rotation.active && b->rotation.counter == 0 && b->state.bgi.palette[3] == 20 && f.size == 0);
@@ -320,15 +322,14 @@ errors_eof_reset(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	string(&f, "I#X 8,3,4,9,+1:");
 	CHECK(b->rotation.active && b->rotation.deadline == local_ns + UINT64_C(65535000000));
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->rotation.active && f.size == 0
-	      && b->state.bgi.palette[3] == 20);
+	CHECK(cterm_big_finish(f.big) == 0 && !b->rotation.active && f.size == 0 && b->state.bgi.palette[3] == 20);
 	setup(&f, 2);
 	string(&f, "I#X 8,3,4,9,1:");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !b->rotation.active && f.size == 0
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !b->rotation.active && f.size == 0
 	      && b->state.bgi.palette[3] == 20);
 	setup(&f, 2);
 	string(&f, "I#X 8,3,4,9,1:");
@@ -360,7 +361,7 @@ flow_footer_and_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	b->control_io.ready = ready;
 	blocked             = true;
@@ -380,7 +381,7 @@ flow_footer_and_sources(void)
 	const struct st_big_state_sink unused = {0};
 	CHECK(cterm_big_rotation_poll(b, &budget, &work, &unused, &complete) == 0 && complete
 	      && f.size == 0); /* no tail XON */
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	setup(&f, 2);
 	/* Converse: entry skipped XOFF, exit rereads loop0 and emits XON. */
 	b->numeric.loop.active                   = 1;
@@ -402,7 +403,7 @@ flow_footer_and_sources(void)
 	b->rotation.colors.count = 0xffff;
 	work                     = 64;
 	CHECK(cterm_big_rotation_poll(b, &budget, &work, &unused, &complete) == 0 && complete && f.size == 0);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	setup(&f, 2);
 	string(&f, "I#g 3:I#& 0,2,1,0,X@5,8,3,4,1,0:");
 	/* Constant-only source steps at index0, so its final record has

@@ -19,6 +19,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -45,7 +46,7 @@ bell(void *context)
 	struct fixture   *f = b->terminal->api_output_context;
 	++f->bells;
 	if (f->reset_bell)
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 }
 
 static void
@@ -78,14 +79,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = bell;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = bell;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -95,7 +97,7 @@ static void
 feed(struct fixture *f, const void *wire, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, wire, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, wire, size, &used) == 0 && used == size);
 }
 
 static void
@@ -110,13 +112,13 @@ prepare(struct fixture *f, unsigned mode)
 	char wire[128];
 	snprintf(wire, sizeof(wire), "I#A 1:I#R %u:I#g 0:I#m 2,31,32:I#C 1,9:I#C 2,5:", mode);
 	string(f, wire);
-	f->terminal->big_engine->state.application.hollow = 1;
+	f->big->state.application.hollow = 1;
 }
 
 static void
 points(struct fixture *f, uint16_t dx, uint16_t dy, uint16_t vx, uint16_t vy)
 {
-	struct cterm_big *b = f->terminal->big_engine;
+	struct cterm_big *b = f->big;
 	if (b->state.bgi.x != 31 || b->state.bgi.y != 32 || b->state.bgi.ddo_x != dx || b->state.bgi.ddo_y != dy
 	    || b->state.bgi.device_x != vx || b->state.bgi.device_y != vy)
 		fprintf(stderr, "points public=%u,%u lower=%u,%u device=%u,%u; expected31,32 %u,%u %u,%u\n",
@@ -161,7 +163,7 @@ static const uint16_t tops[][2] = {
 static void
 scene(struct fixture *f, unsigned kind, uint8_t fill)
 {
-	const struct st_console_rect r = {0, 0, 640, f->terminal->big_engine->state.bgi.height};
+	const struct st_console_rect r = {0, 0, 640, f->big->state.bgi.height};
 	struct st_pixel_buffer      *p = NULL;
 	CHECK(st_console_get_pixels(&p, f->console, &r, false) == 0);
 	for (unsigned y = 0; y < r.height; ++y)
@@ -232,7 +234,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
 					size_t size   = strlen(cases[c].wire),
@@ -265,30 +267,30 @@ prefixes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	prepare(&f, 2);
 	string(&f, "I#B 10,10,14,14,");
 	CHECK(b->state.bgi.color == 15 && b->state.bgi.fill_color == 15 && !b->bar.active);
 	scene(&f, 7, 0);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
 	prepare(&f, 2);
 	string(&f, "I#B 10,10,14,14,");
 	string(&f, "4,");
 	CHECK(b->bar.active && b->state.bgi.color == 9 && b->state.bgi.fill_color == 5);
 	points(&f, 31, 32, 31, 32);
 	scene(&f, 7, 0);
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->bar.active);
+	CHECK(cterm_big_finish(f.big) == 0 && !b->bar.active);
 	scene(&f, 7, 0);
 	prepare(&f, 2);
 	string(&f, "I#B 10,10,14,14,4,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && !b->bar.active);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 1 && !b->bar.active);
 	scene(&f, 2, 5);
 	prepare(&f, 2);
 	string(&f, "I#B 10,10,14,14,4,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 2 && !b->bar.active);
+	CHECK(cterm_big_poll(f.big) == 0 && f.bells == 2 && !b->bar.active);
 	points(&f, 31, 32, 31, 32);
 	scene(&f, 7, 0);
 	f.reset_bell = false;
@@ -322,7 +324,7 @@ prefixes(void)
 	b->state.bgi.state = 0;
 	size_t     used;
 	const char bad[] = "I#B 10,10,14,14,+1:";
-	CHECK(st_cterm_write(f.terminal, bad, sizeof(bad) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
+	CHECK(cterm_big_feed(f.big, bad, sizeof(bad) - 1, &used) == 0 && b->last_error == IO_ERROR_PROTOCOL
 	      && used == sizeof(bad) - 1);
 	CHECK(b->state.bgi.color == 9 && b->state.bgi.device_color == 15 && b->state.bgi.fill_color == 15
 	      && b->state.bgi.error == -1 && !b->bar.active);
@@ -338,7 +340,7 @@ sources_and_reply(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	prepare(&f, 3);
 	string(&f, "I#g 3:I#& 0,1,1,0,B@5,10,10,14,14,4:");
 	CHECK(b->bar.active && b->numeric.loop.active == 0 && b->state.bgi.fill_color == 5);
@@ -387,7 +389,7 @@ scaling_and_repetition(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	prepare(&f, 3);
 	string(&f, "I#g 3:I#B 10,5,12,5,0:");
 	scene(&f, 8, 5);
@@ -410,7 +412,7 @@ scaling_and_repetition(void)
 static void
 rectangle_scene(struct fixture *f, unsigned kind, unsigned border, unsigned fill)
 {
-	struct cterm_big            *big  = f->terminal->big_engine;
+	struct cterm_big            *big     = f->big;
 	const struct st_console_rect r    = {0, 0, 640, big->state.bgi.height};
 	struct st_pixel_buffer      *p    = NULL;
 	const struct st_big_mode    *mode = st_big_mode((unsigned)big->state.bgi.mode + 1);
@@ -487,7 +489,7 @@ rectangle_partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
 					size_t size   = strlen(cases[c].wire),
@@ -531,25 +533,25 @@ rectangle_prefixes_and_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	prepare(&f, 2);
 	string(&f, "I#Z 10,10,14,");
 	CHECK(b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	rectangle_scene(&f, 5, 9, 5);
 	string(&f, "I#Z 10,10,14,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.bgi.color == 15);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.bgi.color == 15);
 	string(&f, "I#Z 10,10,14,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.bells == 1 && b->state.bgi.color == 9
-	      && b->state.bgi.fill_color == 5);
+	CHECK(
+	    cterm_big_poll(f.big) == 0 && f.bells == 1 && b->state.bgi.color == 9 && b->state.bgi.fill_color == 5);
 	rectangle_scene(&f, 9, 9, 5);
 	points(&f, 31, 32, 31, 32);
 	prepare(&f, 2);
 	string(&f, "I#Z 10,10,14,");
 	f.reset_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.bgi.color == 15 && b->state.bgi.fill_color == 15);
 	rectangle_scene(&f, 5, 9, 5);
 	f.reset_bell = false;
 	string(&f, "I#Z 10,10,14,");

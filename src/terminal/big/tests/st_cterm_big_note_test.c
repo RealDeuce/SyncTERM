@@ -22,6 +22,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -42,7 +43,7 @@ now(void *context, uint64_t *value)
 	*value = local_ns;
 	if (reset_on_clock) {
 		reset_on_clock = false;
-		CHECK(st_cterm_reset_terminal(((struct cterm_big *)context)->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(context) == 0);
 	}
 	return clock_error;
 }
@@ -53,7 +54,7 @@ read_key(void *context, uint8_t *value)
 	++reads;
 	if (reset_on_read) {
 		reset_on_read = false;
-		CHECK(st_cterm_reset_terminal(((struct cterm_big *)context)->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(context) == 0);
 	}
 	return read_error ? read_error : cterm_big_input_read(context, value);
 }
@@ -98,15 +99,16 @@ create(struct fixture *f, bool utf8, bool status)
 	    .output           = output,
 	    .output_context   = f,
 	    .apc_directory    = "."};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns   = now;
-	f->terminal->big_engine->numeric.io.read_key = read_key;
-	f->terminal->big_engine->numeric.io.peek_key = peek_key;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns   = now;
+	f->big->numeric.io.read_key = read_key;
+	f->big->numeric.io.peek_key = peek_key;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -116,7 +118,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -129,20 +131,20 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
 key(struct fixture *f, struct cterm_key k)
 {
-	CHECK(cterm_big_handle_key(f->terminal->big_engine, &k));
+	CHECK(cterm_big_handle_key(f->big, &k));
 }
 
 static size_t
 write_some(struct fixture *f, const char *wire)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, wire, strlen(wire), &used);
+	int    status = cterm_big_feed(f->big, wire, strlen(wire), &used);
 	CHECK(status == 0 || status == IO_ERROR_IN_PROGRESS);
 	return used;
 }
@@ -151,7 +153,7 @@ static struct st_big_speaker
 voice(struct fixture *f)
 {
 	struct st_big_speaker s;
-	CHECK(cterm_big_speaker_snapshot(f->terminal->big_engine, &s) == 0);
+	CHECK(cterm_big_speaker_snapshot(f->big, &s) == 0);
 	return s;
 }
 
@@ -160,17 +162,17 @@ note_and_sweeps(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#n 0,440,10,0:");
-	CHECK(st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_paused(f.big));
 	CHECK(voice(&f).playing && voice(&f).frequency == 440 && voice(&f).divisor == 2711);
 	CHECK(write_some(&f, "\033[6n") == 0 && f.size == 0 && reads == 0);
 	local_ns += 9999999;
 	poll(&f);
-	CHECK(st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_paused(f.big));
 	++local_ns;
 	poll(&f);
-	CHECK(!st_cterm_input_paused(f.terminal) && voice(&f).playing);
+	CHECK(!cterm_big_paused(f.big) && voice(&f).playing);
 	struct st_big_speaker s = voice(&f);
 	CHECK(s.phase == (uint32_t)(s.step * 441));
 	string(&f, "\033[6n");
@@ -206,12 +208,12 @@ note_and_sweeps(void)
 	poll(&f);
 	CHECK(!voice(&f).playing && !b->note.active);
 	string(&f, "I#n 1,100,103,+1,");
-	CHECK(b->note.step == 1 && !st_cterm_input_paused(f.terminal));
+	CHECK(b->note.step == 1 && !cterm_big_paused(f.big));
 	string(&f, "0,0,1:");
 	CHECK(!voice(&f).playing && voice(&f).frequency == 102 && !b->note.active);
 	/* Unsigned hold, no key drain or early keyboard abort. */
 	string(&f, "I#n 0,440,+1,1:");
-	CHECK(st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_paused(f.big));
 	key(&f, (struct cterm_key) {.kind = CTERM_KEY_TEXT, .value = 'A'});
 	local_ns += UINT64_C(65534) * 1000000;
 	poll(&f);
@@ -244,7 +246,7 @@ splits_and_owners(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (unsigned test = 0; test < 3; ++test) {
 					char setup[128];
@@ -277,7 +279,7 @@ splits_and_owners(void)
 							poll(&f);
 							CHECK(!voice(&f).playing);
 						}
-						CHECK(!st_cterm_input_paused(f.terminal) && !b->note.active);
+						CHECK(!cterm_big_paused(f.big) && !b->note.active);
 						CHECK(memcmp(&state, &b->state, sizeof(state)) == 0
 						      && memcmp(&image, &b->image, sizeof(image)) == 0
 						      && memcmp(bytes, b->image_bytes, 10) == 0);
@@ -296,9 +298,9 @@ reads_sources_and_wrap(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#n 0,+1,0,");
-	CHECK(b->note.from == 65535 && b->note.active && !st_cterm_input_paused(f.terminal));
+	CHECK(b->note.from == 65535 && b->note.active && !cterm_big_paused(f.big));
 	string(&f, "0:");
 	CHECK(b->note.from == 0 && b->audio == NULL);
 	string(&f, "I#n ");
@@ -316,7 +318,7 @@ reads_sources_and_wrap(void)
 	++local_ns;
 	local_ns += 999999;
 	poll(&f);
-	CHECK(b->note.active && b->note.phase == CTERM_BIG_NOTE_READ1 && !st_cterm_input_paused(f.terminal));
+	CHECK(b->note.active && b->note.phase == CTERM_BIG_NOTE_READ1 && !cterm_big_paused(f.big));
 	string(&f, "100,103,1,0,0,1:");
 	CHECK(!b->note.active && !voice(&f).playing && voice(&f).frequency == 102);
 	/* Immediate fields use the existing loop reader and bypass g3 scaling. */
@@ -346,12 +348,12 @@ reads_sources_and_wrap(void)
 	    .words         = {1, 0, 32767, 2, 0, 0, 1}
         };
 	string(&f, "n ");
-	CHECK(b->note.active && st_cterm_input_paused(f.terminal));
+	CHECK(b->note.active && cterm_big_paused(f.big));
 	for (unsigned i = 0; i < 12; ++i) {
 		poll(&f);
 		CHECK(b->note.active && b->last_error == 0 && (b->note.current & 1) == 0);
 	}
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->note.active && !voice(&f).playing);
+	CHECK(cterm_big_finish(f.big) == 0 && !b->note.active && !voice(&f).playing);
 	string(&f, "I#");
 	b->numeric.loop = (struct st_big_loop) {
 	    .active        = 1,
@@ -367,7 +369,7 @@ reads_sources_and_wrap(void)
 		poll(&f);
 		CHECK(b->note.active && b->last_error == 0 && (b->note.current & 1) == 1);
 	}
-	CHECK(st_cterm_finish(f.terminal) == 0 && !voice(&f).playing);
+	CHECK(cterm_big_finish(f.big) == 0 && !voice(&f).playing);
 	destroy(&f);
 }
 
@@ -376,7 +378,7 @@ errors_and_lifetime(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#n 0,440,10,1:");
 	clock_error = IO_ERROR_IO;
 	/* An asynchronous audio failure is rejected before consuming ordinary
@@ -394,7 +396,7 @@ errors_and_lifetime(void)
 	--local_ns;
 	poll(&f);
 	CHECK(!b->note.active && b->last_error == IO_ERROR_OUT_OF_RANGE && voice(&f).playing);
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !voice(&f).playing);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !voice(&f).playing);
 	string(&f, "I#n 0,440,10,1:");
 	reset_on_clock = true;
 	poll(&f);
@@ -402,28 +404,28 @@ errors_and_lifetime(void)
 	/* A delay clock can fail without ever allocating a speaker. */
 	destroy(&f);
 	create(&f, false, false);
-	b = f.terminal->big_engine;
+	b = f.big;
 	string(&f, "I#n 0,0,10,0:");
 	CHECK(b->audio == NULL);
 	clock_error = IO_ERROR_IN_PROGRESS;
 	poll(&f);
 	CHECK(!b->note.active && b->last_error == IO_ERROR_PROTOCOL);
 	clock_error = 0;
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	local_ns = UINT64_MAX - 100;
 	string(&f, "I#n 0,440,1,1:");
 	CHECK(b->note.deadline == UINT64_MAX);
 	local_ns = UINT64_MAX;
 	poll(&f);
 	CHECK(!b->note.active && !voice(&f).playing);
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	local_ns = 1000;
 	string(&f, "I#n 0,440,0,0:");
 	CHECK(voice(&f).playing);
-	CHECK(st_cterm_finish(f.terminal) == 0 && !voice(&f).playing);
+	CHECK(cterm_big_finish(f.big) == 0 && !voice(&f).playing);
 	string(&f, "I#n 0,330,0,0:");
 	CHECK(voice(&f).playing && voice(&f).frequency == 330);
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !voice(&f).playing);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !voice(&f).playing);
 	destroy(&f);
 }
 
@@ -507,9 +509,9 @@ mixer_and_mute(void)
 	CHECK(cterm_play_fx(f.terminal, effect, 1) && !voice(&f).playing);
 	CHECK(st_audio_runtime_pull(r, out, 1) == 0 && out[0] == mixed(1000, -12) && out[1] == mixed(-1000, -12));
 	string(&f, "I#n 0,440,0,0:");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !voice(&f).playing && audio_stream_is_idle(stream));
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !voice(&f).playing && audio_stream_is_idle(stream));
 	string(&f, "I#n 0,440,0,0:");
-	CHECK(st_cterm_finish(f.terminal) == 0 && audio_stream_is_idle(stream));
+	CHECK(cterm_big_finish(f.big) == 0 && audio_stream_is_idle(stream));
 	string(&f, "I#n 0,440,0,0:");
 	st_audio_runtime_stop(r);
 	poll(&f);
@@ -593,7 +595,7 @@ concurrent_shutdown(void)
 		atomic_fetch_add(&p.requests, 1);
 		string(&f, i % 2 ? "I#n 0,440,0,0:" : "I#n 0,880,0,1:");
 		if (i % 10 == 0)
-			CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+			CHECK(cterm_big_reset_terminal(f.big) == 0);
 	}
 	/* Destruction must detach/quiesce while the existing mixer still pulls. */
 	destroy(&f);

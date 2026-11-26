@@ -97,7 +97,9 @@ run(bool utf8, bool paced, unsigned kind)
 	    .capture_context    = &o};
 	CHECK(st_term_session_create(&session, &config) == 0);
 	st_cterm_t *t                    = st_term_session_cterm(session);
-	t->big_engine->numeric.io.now_ns = now;
+	struct st_cterm_state state;
+	CHECK(st_cterm_state(t, &state) == 0 && state.graphics_mode == ST_CTERM_GRAPHICS_BIG_103);
+	st_term_session_big(session)->numeric.io.now_ns = now;
 	t->api_output                    = output;
 	t->api_output_context            = &o;
 	uint64_t start, current;
@@ -105,8 +107,8 @@ run(bool utf8, bool paced, unsigned kind)
 	do {
 		pump(session);
 		CHECK(st_time_monotonic_ms(&current) == 0);
-	} while (!st_cterm_input_paused(t) && current - start < 2000);
-	CHECK(st_cterm_input_paused(t) && o.count == prefix && o.replies == 0 && t->xpos == 1);
+	} while (!st_term_session_device_paused(session) && current - start < 2000);
+	CHECK(st_term_session_device_paused(session) && o.count == prefix && o.replies == 0 && t->xpos == 1);
 	st_term_session_set_throttle_speed(session, paced ? 1000 : 0);
 	/* Real pump ticks accumulate enough time to expose a 100 ms credit
 	 * bank. No sleeping inside the parser or a framebuffer callback. */
@@ -116,7 +118,7 @@ run(bool utf8, bool paced, unsigned kind)
 	}
 	local_ns += UINT64_C(1000000000);
 	pump(session);
-	CHECK(!st_cterm_input_paused(t));
+	CHECK(!st_term_session_device_paused(session));
 	if (paced)
 		CHECK(o.count <= prefix + 1 && t->xpos <= 2 && o.replies == 0);
 	else

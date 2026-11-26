@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big           *big;
 	st_console_t               *console;
 	st_font_catalog_t          *fonts;
 	st_cterm_t                 *terminal;
@@ -54,7 +55,7 @@ filter(void *context, uint32_t scalar, bool *consumed, char *replacement, size_t
 	*size     = 0;
 	if (f->reset && scalar == '!') {
 		f->reset = false;
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 		*consumed = true;
 	}
 	return 0;
@@ -71,7 +72,7 @@ output(void *context, enum st_cterm_output_origin origin, const uint8_t *bytes, 
 	f->output_size += size;
 	if (f->reset_output) {
 		f->reset_output = false;
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 	}
 }
 
@@ -93,7 +94,7 @@ ready_output(void *context, enum st_big_output_kind kind)
 		CHECK(b->control.input.pending == 0);
 	if (f->reset_ready) {
 		f->reset_ready = false;
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 	}
 	return f->block_output ? IO_ERROR_IN_PROGRESS : 0;
 }
@@ -125,15 +126,16 @@ create(struct fixture *f, bool utf8, bool status)
 	    .size_changed         = resized,
 	    .size_context         = f,
 	};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = clock_ns;
-	f->terminal->big_engine->numeric.io.bell   = bell;
-	f->terminal->big_engine->control_io.ready  = ready_output;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = clock_ns;
+	f->big->numeric.io.bell   = bell;
+	f->big->control_io.ready  = ready_output;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -143,7 +145,7 @@ static void
 feed(struct fixture *f, const void *wire, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, wire, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, wire, size, &used) == 0 && used == size);
 }
 
 static void
@@ -206,7 +208,7 @@ partitions(void)
 			for (size_t split = 0; split <= (size_t)n + 1; ++split) {
 				struct fixture f;
 				create(&f, utf8 != 0, status != 0);
-				f.terminal->big_engine->state.application.marker = 7;
+				f.big->state.application.marker = 7;
 				if (split == (size_t)n + 1) {
 					for (int i = 0; i < n; ++i)
 						feed(&f, wire + i, 1);
@@ -215,9 +217,9 @@ partitions(void)
 					feed(&f, wire, split);
 					feed(&f, wire + split, (size_t)n - split);
 				}
-				CHECK(st_cterm_finish(f.terminal) == 0);
+				CHECK(cterm_big_finish(f.big) == 0);
 				scene(&f);
-				CHECK(f.terminal->big_engine->state.application.marker == 7);
+				CHECK(f.big->state.application.marker == 7);
 				CHECK(f.terminal->height == (status ? 24 : 25));
 				destroy(&f);
 			}
@@ -229,7 +231,7 @@ framing_and_state(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b         = f.terminal->big_engine;
+	struct cterm_big *b         = f.big;
 	b->state.application.marker = 7;
 	const uint8_t filtered[]    = {'I', 0xff, '#', 'I', 0, '1', ':', 'A'};
 	feed(&f, filtered, sizeof(filtered));
@@ -269,21 +271,21 @@ deadlines_and_recovery(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b         = f.terminal->big_engine;
+	struct cterm_big *b         = f.big;
 	b->state.application.marker = 7;
 	string(&f, "I");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS * 2;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.terminal->xpos == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && f.terminal->xpos == 1);
 	string(&f, "#I");
 	uint64_t pair_start = local_ns;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS - 1;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->pair_wait);
+	CHECK(cterm_big_poll(f.big) == 0 && b->pair_wait);
 	local_ns = pair_start + ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && !b->pair_wait && b->state.application.marker == 7);
+	CHECK(cterm_big_poll(f.big) == 0 && !b->pair_wait && b->state.application.marker == 7);
 	/* The identifier survives pair timeout and its own reader starts afresh. */
 	CHECK(st_big_numeric_deadline(&b->numeric, &pair_start));
 	local_ns = pair_start;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.application.marker == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.application.marker == 0);
 	/* Late ready bytes retain original consume-before-timeout ownership. */
 	b->state.application.marker = 7;
 	string(&f, "I#I");
@@ -309,33 +311,33 @@ deadlines_and_recovery(void)
 	b->state.application.marker = 7;
 	string(&f, "I#");
 	local_ns = b->pair_deadline;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	CHECK(b->state.application.marker == 7 && !b->pair_wait);
 	/* Backwards local pair samples fail and cancel only pending acquisition. */
 	string(&f, "I#I");
 	--local_ns;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->last_error == IO_ERROR_PROTOCOL && !b->pair_wait
+	CHECK(cterm_big_poll(f.big) == 0 && b->last_error == IO_ERROR_PROTOCOL && !b->pair_wait
 	      && b->state.application.marker == 7);
 	++local_ns;
 	/* An unreachable random source pauses wire input but not session polls. */
 	b->numeric.random_from = b->numeric.random_to = 1;
 	size_t accepted;
-	CHECK(st_cterm_write(f.terminal, "I#I r:Z", 7, &accepted) == IO_ERROR_IN_PROGRESS && accepted == 6);
-	CHECK(st_cterm_input_paused(f.terminal));
-	CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_feed(f.big, "I#I r:Z", 7, &accepted) == IO_ERROR_IN_PROGRESS && accepted == 6);
+	CHECK(cterm_big_paused(f.big));
+	CHECK(cterm_big_poll(f.big) == 0 && cterm_big_paused(f.big));
 	b->numeric.random_from = b->numeric.random_to = 0;
-	CHECK(st_cterm_poll(f.terminal) == 0 && !st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_poll(f.big) == 0 && !cterm_big_paused(f.big));
 	string(&f, "Z");
 	CHECK(f.terminal->xpos == 2);
 	b->state.application.marker = 7;
 	/* Explicit EOF never completes a partial pair or number. */
 	b->state.application.marker = 7;
 	string(&f, "I#I 0");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.marker == 7);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.marker == 7);
 	string(&f, "I#I 1:");
 	CHECK(b->state.application.marker == 7);
 	string(&f, "I#I");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	string(&f, "I#I 1:");
 	CHECK(b->state.application.marker == 7);
 	/* Reset from an ordinary-text semantic callback must not reenter parser. */
@@ -352,7 +354,7 @@ reply_and_footer(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b        = f.terminal->big_engine;
+	struct cterm_big *b        = f.big;
 	b->control.input.pending   = 1;
 	b->control.input.count     = 4;
 	b->control.input.append_cr = 1;
@@ -371,7 +373,7 @@ reply_and_footer(void)
 	b->numeric.loop.command_read = true;
 	string(&f, "@ Z");
 	CHECK(b->numeric.loop.active == 1 && f.terminal->xpos == 3);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->numeric.loop.active == 0);
+	CHECK(cterm_big_finish(f.big) == 0 && b->numeric.loop.active == 0);
 	destroy(&f);
 }
 
@@ -380,7 +382,7 @@ stored_repetition(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#");
 	b->state.memory_page      = 3;
 	b->control.frame.did_loop = 1;
@@ -409,13 +411,12 @@ stored_repetition(void)
 	b->control.frame.did_loop = 1;
 	b->control.input.pending  = 1;
 	size_t used;
-	CHECK(st_cterm_write(f.terminal, "I ZZ", 4, &used) == IO_ERROR_IN_PROGRESS && used == 2);
-	CHECK(st_cterm_input_paused(f.terminal) && b->numeric.loop.current == 65 && b->control.frame.did_loop == 1
+	CHECK(cterm_big_feed(f.big, "I ZZ", 4, &used) == IO_ERROR_IN_PROGRESS && used == 2);
+	CHECK(cterm_big_paused(f.big) && b->numeric.loop.current == 65 && b->control.frame.did_loop == 1
 	      && f.output_size == 3);
-	CHECK(
-	    st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 129 && st_cterm_input_paused(f.terminal));
-	CHECK(st_cterm_finish(f.terminal) == 0 && !st_cterm_input_paused(f.terminal)
-	      && b->control.input.pending == 0 && b->numeric.loop.active == 0 && f.output_size == 3);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 129 && cterm_big_paused(f.big));
+	CHECK(cterm_big_finish(f.big) == 0 && !cterm_big_paused(f.big) && b->control.input.pending == 0
+	      && b->numeric.loop.active == 0 && f.output_size == 3);
 	destroy(&f);
 }
 
@@ -424,7 +425,7 @@ gang_source_seams(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#");
 	b->control.frame.gang_marker = '>';
 	b->control.frame.gang[0]     = 'I';
@@ -469,17 +470,17 @@ footer_wait_reset(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b      = f.terminal->big_engine;
+	struct cterm_big *b      = f.big;
 	b->control.input.pending = 1;
 	b->control.input.count   = 2;
 	memcpy(b->control.input.payload + 1, "AB", 2);
 	f.block_output = true;
 	size_t used;
-	CHECK(st_cterm_write(f.terminal, "I#I 0:TAIL", 10, &used) == IO_ERROR_IN_PROGRESS && used == 6);
-	CHECK(f.resizes == 2 && b->control.input.pending == 0 && st_cterm_input_paused(f.terminal));
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.resizes == 2 && f.output_size == 0);
+	CHECK(cterm_big_feed(f.big, "I#I 0:TAIL", 10, &used) == IO_ERROR_IN_PROGRESS && used == 6);
+	CHECK(f.resizes == 2 && b->control.input.pending == 0 && cterm_big_paused(f.big));
+	CHECK(cterm_big_poll(f.big) == 0 && f.resizes == 2 && f.output_size == 0);
 	f.block_output = false;
-	CHECK(st_cterm_poll(f.terminal) == 0 && !st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_poll(f.big) == 0 && !cterm_big_paused(f.big));
 	CHECK(f.output_size == 2 && memcmp(f.output, "AB", 2) == 0 && f.resizes == 2);
 	string(&f, "TAIL");
 	CHECK(f.terminal->xpos == 5);
@@ -487,31 +488,31 @@ footer_wait_reset(void)
 	b->control.input.count   = 3;
 	memcpy(b->control.input.payload + 1, "XYZ", 3);
 	f.reset_output = true;
-	CHECK(st_cterm_write(f.terminal, "I#I 1:TAIL", 10, &used) == 0 && used == 6 && !f.reset_output);
+	CHECK(cterm_big_feed(f.big, "I#I 1:TAIL", 10, &used) == 0 && used == 6 && !f.reset_output);
 	CHECK(f.output_size == 3 && f.output[2] == 'X' && !b->footer_active && b->control.input.pending == 0);
 	string(&f, "I#I 1:");
 	CHECK(f.output_size == 3);
 	b->control.input.pending = 1;
 	b->control.input.count   = 1;
 	f.reset_ready            = true;
-	CHECK(st_cterm_write(f.terminal, "I#I 1:", 6, &used) == 0 && used == 6);
+	CHECK(cterm_big_feed(f.big, "I#I 1:", 6, &used) == 0 && used == 6);
 	CHECK(f.output_size == 3 && !b->footer_active && !f.reset_ready);
 	b->control.input.pending = 1;
 	b->control.input.count   = 1;
 	f.block_output           = true;
-	CHECK(st_cterm_write(f.terminal, "I#I 1:", 6, &used) == IO_ERROR_IN_PROGRESS && used == 6);
-	CHECK(st_cterm_finish(f.terminal) == 0 && !st_cterm_input_paused(f.terminal));
+	CHECK(cterm_big_feed(f.big, "I#I 1:", 6, &used) == IO_ERROR_IN_PROGRESS && used == 6);
+	CHECK(cterm_big_finish(f.big) == 0 && !cterm_big_paused(f.big));
 	f.block_output = false;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == 3);
+	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 3);
 	/* Finishing legacy flow does not consult transport readiness. The
 	 * chained pair deadline starts immediately and expires normally. */
 	string(&f, "I#");
 	b->control.frame.did_loop = 1;
 	f.block_output            = true;
-	CHECK(st_cterm_write(f.terminal, "I>1:", 4, &used) == 0 && used == 4 && b->pair_wait);
+	CHECK(cterm_big_feed(f.big, "I>1:", 4, &used) == 0 && used == 4 && b->pair_wait);
 	CHECK(b->pair_deadline == local_ns + ST_BIG_NUMERIC_TIMEOUT_NS && f.output_size == 3);
 	local_ns += 2 * ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && !b->pair_wait && f.bells == 1 && f.output_size == 3);
+	CHECK(cterm_big_poll(f.big) == 0 && !b->pair_wait && f.bells == 1 && f.output_size == 3);
 	f.block_output = false;
 	string(&f, "I#I 1:");
 	CHECK(!b->pair_wait);
@@ -521,7 +522,7 @@ footer_wait_reset(void)
 static void
 key_loop(struct fixture *f)
 {
-	struct cterm_big *b = f->terminal->big_engine;
+	struct cterm_big *b = f->big;
 	string(f, "I#");
 	b->state.application.marker = 7;
 	b->control.frame.did_loop   = 1;
@@ -534,8 +535,8 @@ key_loop(struct fixture *f)
 	    .type                                       = '@',
 	    .words                                      = {1}};
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, "I ", 2, &used) == IO_ERROR_IN_PROGRESS && used == 2);
-	CHECK(b->numeric.loop.current == 0 && st_cterm_input_paused(f->terminal));
+	CHECK(cterm_big_feed(f->big, "I ", 2, &used) == IO_ERROR_IN_PROGRESS && used == 2);
+	CHECK(b->numeric.loop.current == 0 && cterm_big_paused(f->big));
 }
 
 static void
@@ -545,7 +546,7 @@ local_keys(void)
 		for (unsigned cancel = 0; cancel < 2; ++cancel) {
 			struct fixture f;
 			create(&f, utf8, false);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			CHECK(f.resizes == 1); /* Initial BIG profile installation. */
 			key_loop(&f);
 			CHECK(st_cterm_handle_key(f.terminal, cancel ? 24 : 3, ST_CONSOLE_MODIFIER_CONTROL));
@@ -555,7 +556,7 @@ local_keys(void)
 			CHECK(st_cterm_handle_doorway_key(f.terminal, 0x50));
 			CHECK(st_cterm_handle_codepage_key(f.terminal, 0xff));
 			CHECK(f.output_size == 0 && b->numeric.loop.active == 1);
-			CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.active == 0);
+			CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.active == 0);
 			CHECK(b->numeric.loop.current == 1 && b->state.application.marker == 7 && f.resizes == 1);
 			const uint8_t  expected_utf8[] = {0xc3, 0x85, 27, '[', 'A', 27, '[', '1', '3', ';', '5',
 			    '~', 27, '[', 'B', 0xff};
@@ -566,7 +567,7 @@ local_keys(void)
 			CHECK(f.output_size == size && memcmp(f.output, expected, size) == 0);
 			for (size_t i = 0; i < size; ++i)
 				CHECK(f.origins[i] == ST_CTERM_OUTPUT_USER);
-			CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == size);
+			CHECK(cterm_big_poll(f.big) == 0 && f.output_size == size);
 			CHECK(st_cterm_handle_key(f.terminal, 'z', 0) && f.output_size == size + 1
 			      && f.output[size] == 'z');
 			destroy(&f);
@@ -578,26 +579,26 @@ local_key_bytes(void)
 {
 	struct fixture f;
 	create(&f, true, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	key_loop(&f);
 	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 1 && b->numeric.loop.active == 1
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1 && b->numeric.loop.active == 1
 	      && f.output_size == 0);
 	/* The first getch returns zero; its pending scan byte is not a new
 	 * BIOS key. A later real key admits the scan read before that key. */
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1);
 	CHECK(st_cterm_handle_text_key(f.terminal, 3));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 3 && b->numeric.loop.active == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 3 && b->numeric.loop.active == 0);
 	CHECK(f.output_size == 0);
 	key_loop(&f);
 	/* Unicode is converted to local CP437, never truncated to a C0 byte. */
 	CHECK(st_cterm_handle_text_key(f.terminal, 0x1f603));
 	CHECK(st_cterm_handle_text_key(f.terminal, 0xe9));
 	CHECK(st_cterm_handle_codepage_key(f.terminal, 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 3 && b->numeric.loop.active == 1
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 3 && b->numeric.loop.active == 1
 	      && f.output_size == 0);
 	CHECK(st_cterm_handle_codepage_key(f.terminal, 24));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 4 && b->numeric.loop.active == 0
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 4 && b->numeric.loop.active == 0
 	      && f.output_size == 0);
 	destroy(&f);
 }
@@ -607,33 +608,33 @@ local_key_lifecycle(void)
 {
 	struct fixture f;
 	create(&f, true, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	key_loop(&f);
 	CHECK(st_cterm_handle_key(f.terminal, 'a', 0));
 	CHECK(st_cterm_handle_text_key(f.terminal, 0x1f603));
-	CHECK(st_cterm_finish(f.terminal) == 0 && st_cterm_poll(f.terminal) == 0 && f.output_size == 0);
+	CHECK(cterm_big_finish(f.big) == 0 && cterm_big_poll(f.big) == 0 && f.output_size == 0);
 	key_loop(&f);
 	CHECK(st_cterm_handle_key(f.terminal, ST_CONSOLE_KEY_UP, 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 1);
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1);
+	CHECK(cterm_big_reset_terminal(f.big) == 0);
 	key_loop(&f);
 	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 1 && f.output_size == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1 && f.output_size == 0);
 	/* A reset from the first replayed key discards the unread suffix. */
 	key_loop(&f);
 	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
 	CHECK(st_cterm_handle_key(f.terminal, 'A', 0) && st_cterm_handle_key(f.terminal, 'B', 0));
 	b->control.frame.did_loop = 0;
 	f.reset_output            = true;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == 1 && f.output[0] == 'A' && !f.reset_output);
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 1 && f.output[0] == 'A' && !f.reset_output);
+	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 1);
 	/* Saturation must never leak local input to the BBS. */
 	key_loop(&f);
 	CHECK(st_cterm_handle_key(f.terminal, 3, 0));
 	for (unsigned i = 0; i < 100; ++i)
 		CHECK(st_cterm_handle_key(f.terminal, 'Q', 0));
 	CHECK(f.output_size == 1);
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == 64);
+	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 64);
 	for (size_t i = 1; i < f.output_size; ++i)
 		CHECK(f.output[i] == 'Q');
 	destroy(&f);
@@ -644,7 +645,7 @@ local_key_return(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	key_loop(&f);
 	b->numeric.loop.to = 1;
 	/* A real counted reply can still block the footer independently of
@@ -654,27 +655,26 @@ local_key_return(void)
 	b->control.input.payload[1] = '!';
 	f.block_output              = true;
 	CHECK(st_cterm_handle_text_key(f.terminal, 'A') && st_cterm_handle_text_key(f.terminal, 'B'));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.active == 0 && b->footer_active
-	      && f.output_size == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.active == 0 && b->footer_active && f.output_size == 0);
 	CHECK(st_cterm_handle_key(f.terminal, 'C', 0) && f.output_size == 0);
 	f.block_output = false;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == 3 && memcmp(f.output, "!BC", 3) == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 3 && memcmp(f.output, "!BC", 3) == 0);
 	/* An inherited loop flag outside the interpreter cannot claim keys. */
 	b->numeric.loop.active = 1;
 	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && f.output_size == 4 && f.output[3] == 3);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	/* Noncanonical active values supply zero without a local checkpoint. */
 	string(&f, "I#");
 	b->numeric.loop.active = 2;
 	CHECK(st_cterm_handle_key(f.terminal, 'D', 0) && f.output_size == 5 && f.output[4] == 'D');
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
 static void
 wire_loop_scene(struct fixture *f)
 {
-	struct cterm_big *b = f->terminal->big_engine;
+	struct cterm_big *b = f->big;
 	CHECK(b->numeric.loop.active == 0 && b->numeric.loop.current == 3);
 	CHECK(b->numeric.loop.count == 1 && b->numeric.loop.words[0] == 1 && b->numeric.loop.no_parameters == 1);
 	CHECK(b->numeric.loop.random_suppression == 0 && b->control.frame.did_loop == 0);
@@ -689,7 +689,7 @@ wire_loops(void)
 	for (size_t split = 0; split < sizeof(wire); ++split) {
 		struct fixture f;
 		create(&f, split % 2, split % 3 == 0);
-		f.terminal->big_engine->state.application.marker = 7;
+		f.big->state.application.marker = 7;
 		feed(&f, wire, split);
 		feed(&f, wire + split, sizeof(wire) - 1 - split);
 		wire_loop_scene(&f);
@@ -697,13 +697,13 @@ wire_loops(void)
 	}
 	struct fixture f;
 	create(&f, false, false);
-	f.terminal->big_engine->state.application.marker = 7;
+	f.big->state.application.marker = 7;
 	for (size_t i = 0; i < sizeof(wire) - 1; ++i)
 		feed(&f, wire + i, 1);
 	wire_loop_scene(&f);
 	/* Gang text is followed immediately by the raw loop type. */
 	string(&f, "I#& 0,2,1,0,>I@@2,0,1:Z");
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	CHECK(b->numeric.loop.active == 0 && b->numeric.loop.current == 2 && b->numeric.loop.count == 2);
 	CHECK(b->control.frame.gang[0] == 'I' && b->control.frame.gang[1] == 0);
 	CHECK(f.output_size == 0 && f.terminal->xpos == 3);
@@ -711,7 +711,7 @@ wire_loops(void)
 	string(&f, "I#& 0,2,1,0,&@1,1:Z");
 	CHECK(b->numeric.loop.active == 1 && b->numeric.loop.current == 0 && b->numeric.loop.words[0] == 1);
 	CHECK(f.output_size == 0 && f.terminal->xpos == 4);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
@@ -720,21 +720,21 @@ wire_setup_prefixes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b                = f.terminal->big_engine;
+	struct cterm_big *b                = f.big;
 	b->numeric.loop.to                 = 91;
 	b->numeric.loop.type               = 'Z';
 	b->numeric.loop.random_suppression = 1;
 	string(&f, "I#& 7,");
 	CHECK(b->numeric.loop.current == 7 && b->numeric.loop.to == 91 && b->numeric.loop.type == 'Z'
 	      && b->numeric.loop.random_suppression == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->numeric.loop.current == 7
+	CHECK(cterm_big_finish(f.big) == 0 && b->numeric.loop.current == 7
 	      && b->numeric.loop.random_suppression == 1);
 	b->numeric.loop.random_suppression = 0;
 	string(&f, "I#& 3,0,2,0,&@1,1:");
 	CHECK(b->numeric.loop.step == 65534 && b->numeric.loop.origin == 3 && b->numeric.loop.active == 1);
 	string(&f, "I#& 3,0,0,0,&@1,1:");
 	CHECK(b->numeric.loop.step == 1 && b->numeric.loop.current == 3 && b->numeric.loop.active == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	/* The old Z type makes gang text reuse the shared buffer before raw @. */
 	memcpy(b->text.bytes, "~~~", 4);
 	b->numeric.loop.type = 'Z';
@@ -763,11 +763,11 @@ wire_setup_prefixes(void)
 	CHECK(b->numeric.loop.command == ' ' && f.bells == 1);
 	string(&f, "@1,1:");
 	CHECK(b->numeric.loop.active == 1 && b->numeric.loop.current == 0);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	/* A partial-pair timeout still enters initial & setup, not selected &. */
 	string(&f, "I#&");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->setup.phase == CTERM_BIG_SETUP_HEADER && f.bells == 2);
+	CHECK(cterm_big_poll(f.big) == 0 && b->setup.phase == CTERM_BIG_SETUP_HEADER && f.bells == 2);
 	string(&f, "0,1,1,0,I@1,1:");
 	CHECK(b->numeric.loop.active == 0 && b->numeric.loop.current == 1);
 	destroy(&f);
@@ -779,7 +779,7 @@ wire_setup_keys(void)
 	for (unsigned late = 0; late < 2; ++late) {
 		struct fixture f;
 		create(&f, false, false);
-		struct cterm_big *b = f.terminal->big_engine;
+		struct cterm_big *b = f.big;
 		string(&f, late ? "I#& 0,2,1,0,I@2,1" : "I#& 0,2,1,0,I@2");
 		CHECK(st_cterm_handle_key(f.terminal, late ? 24 : 3, 0) && f.output_size == 0);
 		string(&f, late ? ":Z" : ",Z");
@@ -791,13 +791,12 @@ wire_setup_keys(void)
 	}
 	struct fixture f;
 	create(&f, true, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	size_t            used;
-	CHECK(st_cterm_write(f.terminal, "I#& 0,1000,1,100,I@1,1:", 23, &used) == IO_ERROR_IN_PROGRESS
-	      && used == 23);
+	CHECK(cterm_big_feed(f.big, "I#& 0,1000,1,100,I@1,1:", 23, &used) == IO_ERROR_IN_PROGRESS && used == 23);
 	CHECK(b->numeric.loop.current == 0 && f.output_size == 0);
 	CHECK(st_cterm_handle_key(f.terminal, 3, 0) && st_cterm_handle_text_key(f.terminal, 'k'));
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 1 && b->numeric.loop.active == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 1 && b->numeric.loop.active == 0);
 	CHECK(f.output_size == 1 && memcmp(f.output, "k", 1) == 0);
 	destroy(&f);
 }
@@ -807,11 +806,11 @@ wire_setup_flow_lifecycle(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	size_t            used;
 	f.block_output   = true;
 	const char *wire = "I#& 1,1,1,0,I@1,x:";
-	CHECK(st_cterm_write(f.terminal, wire, strlen(wire), &used) == 0 && used == strlen(wire));
+	CHECK(cterm_big_feed(f.big, wire, strlen(wire), &used) == 0 && used == strlen(wire));
 	CHECK(b->numeric.loop.active == 0 && b->numeric.loop.no_parameters == 0
 	      && b->numeric.loop.words[0] == 0x8001);
 	CHECK(b->control.frame.did_loop == 0 && b->numeric.loop.random_suppression == 0 && f.output_size == 0
@@ -822,9 +821,9 @@ wire_setup_flow_lifecycle(void)
 	for (size_t i = 0; i < sizeof(partial) / sizeof(partial[0]); ++i) {
 		string(&f, partial[i]);
 		CHECK(st_cterm_handle_key(f.terminal, 3, 0));
-		CHECK(st_cterm_finish(f.terminal) == 0 && b->setup.phase == CTERM_BIG_SETUP_OFF
+		CHECK(cterm_big_finish(f.big) == 0 && b->setup.phase == CTERM_BIG_SETUP_OFF
 		      && b->numeric.loop.active == 0);
-		CHECK(st_cterm_poll(f.terminal) == 0 && f.output_size == 0 && b->text.active == 0);
+		CHECK(cterm_big_poll(f.big) == 0 && f.output_size == 0 && b->text.active == 0);
 	}
 	b->numeric.loop.random_suppression = 0;
 	f.reset_output                     = true;
@@ -840,15 +839,15 @@ static void
 pump(struct fixture *f, const char *wire, size_t size)
 {
 	size_t consumed = 0;
-	for (unsigned turns = 0; consumed < size || st_cterm_input_paused(f->terminal); ++turns) {
+	for (unsigned turns = 0; consumed < size || cterm_big_paused(f->big); ++turns) {
 		CHECK(turns < 1000);
-		if (st_cterm_input_paused(f->terminal))
-			CHECK(st_cterm_poll(f->terminal) == 0);
+		if (cterm_big_paused(f->big))
+			CHECK(cterm_big_poll(f->big) == 0);
 		else {
 			size_t used;
-			int    status = st_cterm_write(f->terminal, wire + consumed, size - consumed, &used);
+			int    status = cterm_big_feed(f->big, wire + consumed, size - consumed, &used);
 			CHECK(status == 0 || status == IO_ERROR_IN_PROGRESS);
-			CHECK(used != 0 || st_cterm_input_paused(f->terminal));
+			CHECK(used != 0 || cterm_big_paused(f->big));
 			consumed += used;
 		}
 	}
@@ -859,7 +858,7 @@ wire_setup_bounds(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b      = f.terminal->big_engine;
+	struct cterm_big *b      = f.big;
 	b->numeric.loop.words[1] = 0x55;
 	string(&f, "I#& 0,1,1,0,&@0,1:");
 	CHECK(b->numeric.loop.count == 1 && b->numeric.loop.words[0] == 1 && b->numeric.loop.words[1] == 0x55);
@@ -880,12 +879,12 @@ wire_setup_bounds(void)
 	for (size_t i = 0; i < 2048; ++i)
 		CHECK(b->numeric.loop.words[i] == 1);
 	CHECK(f.output_size == 0);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	/* Corrupted text without a terminator cannot copy into adjacent state. */
 	memset(b->text.bytes, 'Q', sizeof(b->text.bytes));
 	b->numeric.loop.type = 'Z';
 	size_t used;
-	CHECK(st_cterm_write(f.terminal, "I#& 7,1,1,0,>", 13, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
+	CHECK(cterm_big_feed(f.big, "I#& 7,1,1,0,>", 13, &used) == 0 && b->last_error == IO_ERROR_OUT_OF_RANGE
 	      && used == 13);
 	CHECK(b->numeric.loop.current == 7 && b->control.frame.gang[0] == 0 && b->numeric.loop.active == 0);
 	destroy(&f);
@@ -899,7 +898,7 @@ rejection_recovery(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (size_t split = 0; split < sizeof(wire); ++split) {
 				string(&f, "I#R 2:");
 				f.output_size   = 0;
@@ -911,7 +910,7 @@ rejection_recovery(void)
 					feed(&f, wire, split);
 					feed(&f, wire + split, sizeof(wire) - 1 - split);
 				}
-				CHECK(!st_cterm_input_paused(f.terminal) && b->zone.phase == CTERM_BIG_ZONE_OFF);
+				CHECK(!cterm_big_paused(f.big) && b->zone.phase == CTERM_BIG_ZONE_OFF);
 				CHECK(b->last_error == IO_ERROR_OUT_OF_RANGE
 				      && b->rejected_commands == rejected + 1);
 				CHECK(b->state.bgi.x == 20 && b->state.bgi.y == 20 && f.terminal->xpos == 3
@@ -922,7 +921,7 @@ rejection_recovery(void)
 				CHECK(st_console_get_pixels(&p, f.console, &r, false) == 0 && p->primary[0] == 805
 				      && p->alternate[0] == 805);
 				st_pixel_buffer_destroy(p);
-				CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_finish(f.terminal) == 0);
+				CHECK(cterm_big_poll(f.big) == 0 && cterm_big_finish(f.big) == 0);
 			}
 			destroy(&f);
 		}
@@ -933,7 +932,7 @@ wire_setup_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b    = f.terminal->big_engine;
+	struct cterm_big *b    = f.big;
 	b->numeric.random_from = b->numeric.random_to = 0;
 	string(&f, "I#& r,1,1,0,&@1,r:");
 	CHECK(b->numeric.loop.current == 0 && b->numeric.random_state == 0x015a4e36);
@@ -944,19 +943,19 @@ wire_setup_sources(void)
 	string(&f, "I#& r,1,1,0,&@1,r:");
 	CHECK(
 	    b->numeric.loop.current == 0x8003 && b->numeric.loop.origin == 0x8003 && b->numeric.random_state == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	/* Raw NUL/typeff retain byte identity inside the interpreter. */
 	static const uint8_t raw[] = {'I', '#', '&', ' ', '0', ',', '1', ',', '1', ',', '0', ',', 0, 255, '1', ',',
 	    '1', ':'};
 	feed(&f, raw, sizeof(raw));
 	CHECK(b->numeric.loop.command == 0 && b->numeric.loop.active == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	/* Whole-call text expiry copies the bounded old suffix, without a new NUL. */
 	memcpy(b->text.bytes, "OLD", 4);
 	b->numeric.loop.type = ' ';
 	string(&f, "I#& 0,1,1,0,>~");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->setup.phase == CTERM_BIG_SETUP_TYPE && f.bells == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && b->setup.phase == CTERM_BIG_SETUP_TYPE && f.bells == 1);
 	CHECK(b->text.count == 1 && memcmp(b->text.bytes, "~LD", 4) == 0
 	      && memcmp(b->control.frame.gang, "~LD", 4) == 0);
 	string(&f, "@1,0:");
@@ -965,7 +964,7 @@ wire_setup_sources(void)
 	string(&f, "I#& 0,2,1,0,&@1,1:");
 	string(&f, "I#I");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.loop.current == 2 && b->numeric.loop.active == 0
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.loop.current == 2 && b->numeric.loop.active == 0
 	      && f.bells == 2);
 	destroy(&f);
 }
@@ -975,7 +974,7 @@ scaling_probe(struct fixture *f, enum st_graphics_axis axis, int expected)
 {
 	/* Probe the production reader using state acquired by real wire g/R.
 	 * No synthetic coordinate command is registered in the live grammar. */
-	struct st_big_numeric                *n         = &f->terminal->big_engine->numeric;
+	struct st_big_numeric                *n         = &f->big->numeric;
 	const struct st_graphics_parameter    parameter = {.kind = ST_GRAPHICS_NUMBER, .axis = axis};
 	const struct st_graphics_command_view view      = {0};
 	CHECK(st_big_numeric_field(n, &view, &parameter) == 0);
@@ -998,22 +997,21 @@ scaling_wire(void)
 			for (size_t split = 0; split < sizeof(wire); ++split) {
 				struct fixture f;
 				create(&f, utf8, status);
-				CHECK(f.terminal->big_engine->numeric.context.scaling == 0);
+				CHECK(f.big->numeric.context.scaling == 0);
 				string(&f, "\033[10;20H");
-				f.terminal->big_engine->state.bgi.x = 19;
-				f.terminal->big_engine->state.bgi.y = 27;
+				f.big->state.bgi.x = 19;
+				f.big->state.bgi.y = 27;
 				feed(&f, wire, split);
 				feed(&f, wire + split, sizeof(wire) - 1 - split);
-				CHECK(f.terminal->big_engine->numeric.context.scaling == 258 && f.resizes == 1
-				      && f.output_size == 0);
+				CHECK(
+				    f.big->numeric.context.scaling == 258 && f.resizes == 1 && f.output_size == 0);
 				CHECK(f.terminal->xpos == 21 && f.terminal->ypos == 10);
-				CHECK(f.terminal->big_engine->state.bgi.x == 19
-				      && f.terminal->big_engine->state.bgi.y == 27);
+				CHECK(f.big->state.bgi.x == 19 && f.big->state.bgi.y == 27);
 				destroy(&f);
 			}
 	struct fixture f;
 	create(&f, true, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (size_t i = 0; i < sizeof(wire) - 1; ++i)
 		feed(&f, wire + i, 1);
 	CHECK(b->numeric.context.scaling == 258);
@@ -1045,12 +1043,12 @@ scaling_wire(void)
 	scaling_probe(&f, ST_GRAPHICS_Y, 5);
 	string(&f, "I#g 2");
 	CHECK(b->numeric.context.scaling == 3);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->numeric.context.scaling == 3);
+	CHECK(cterm_big_finish(f.big) == 0 && b->numeric.context.scaling == 3);
 	string(&f, "I#g 2");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->numeric.context.scaling == 3);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->numeric.context.scaling == 3);
 	string(&f, "I#g ");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->numeric.context.scaling == 0 && f.bells == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && b->numeric.context.scaling == 0 && f.bells == 1);
 	destroy(&f);
 }
 
@@ -1059,15 +1057,15 @@ scaling_sources_and_footer(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	size_t            used;
 	const char        wire[] = "I#& 1,3,1,1,g@1,x:";
-	CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == IO_ERROR_IN_PROGRESS
+	CHECK(cterm_big_feed(f.big, wire, sizeof(wire) - 1, &used) == IO_ERROR_IN_PROGRESS
 	      && used == sizeof(wire) - 1);
 	CHECK(b->numeric.context.scaling == 0 && f.output_size == 0);
 	for (unsigned value = 1; value <= 3; ++value) {
 		local_ns += UINT64_C(1000000000);
-		CHECK(st_cterm_poll(f.terminal) == 0);
+		CHECK(cterm_big_poll(f.big) == 0);
 		CHECK(b->numeric.context.scaling == value && b->numeric.loop.current == value);
 	}
 	CHECK(b->numeric.loop.active == 0 && f.output_size == 0);
@@ -1104,7 +1102,7 @@ hollow_partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b          = f.terminal->big_engine;
+			struct cterm_big *b          = f.big;
 			f.terminal->api_size_changed = NULL;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
@@ -1149,14 +1147,14 @@ hollow_lifecycle(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#H 2:I#H 0");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.hollow == 2);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.hollow == 2);
 	string(&f, "I#H ");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.application.hollow == 0 && f.bells == 1);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.application.hollow == 0 && f.bells == 1);
 	string(&f, "I#H 256:I#H ");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.application.hollow == 256);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.application.hollow == 256);
 	string(&f, "I#H 128:I#R 2:");
 	CHECK(b->state.application.hollow == 128);
 	string(&f, "I#I 1");
@@ -1192,9 +1190,9 @@ hollow_lifecycle(void)
 	f.block_output              = true;
 	const char wire[]           = "I#H 2:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, wire, sizeof(wire) - 1, &used) == IO_ERROR_IN_PROGRESS
+	CHECK(cterm_big_feed(f.big, wire, sizeof(wire) - 1, &used) == IO_ERROR_IN_PROGRESS
 	      && used == sizeof(wire) - 1 && b->state.application.hollow == 2 && b->footer_active);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.application.hollow == 2 && !b->control.input.pending
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.application.hollow == 2 && !b->control.input.pending
 	      && f.output_size == 0);
 	destroy(&f);
 }

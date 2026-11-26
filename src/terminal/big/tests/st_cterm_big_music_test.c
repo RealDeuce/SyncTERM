@@ -42,6 +42,7 @@ bell(void *context)
 }
 
 struct fixture {
+	struct cterm_big   *big;
 	st_console_t       *console;
 	st_font_catalog_t  *fonts;
 	st_cterm_t         *terminal;
@@ -72,15 +73,16 @@ create(struct fixture *f, bool pull, bool runtime)
 	    .quiet                                      = true,
 	    .scrollback_lines                           = 2,
 	    .apc_directory                              = "."};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = bell;
-	CHECK(f->terminal->big_engine->music_memory == 1);
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = bell;
+	CHECK(f->big->music_memory == 1);
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_audio_runtime_destroy(f->audio);
 	st_font_catalog_destroy(f->fonts);
@@ -90,13 +92,13 @@ destroy(struct fixture *f)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
 settle(struct fixture *f)
 {
-	for (unsigned i = 0; st_cterm_input_paused(f->terminal); ++i) {
+	for (unsigned i = 0; cterm_big_paused(f->big); ++i) {
 		CHECK(i < 10000);
 		poll(f);
 	}
@@ -109,7 +111,7 @@ feed(struct fixture *f, const void *data, size_t count)
 	unsigned attempts = 0;
 	while (offset < count) {
 		size_t used   = 0;
-		int    status = st_cterm_write(f->terminal, (const uint8_t *)data + offset, count - offset, &used);
+		int    status = cterm_big_feed(f->big, (const uint8_t *)data + offset, count - offset, &used);
 		CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used <= count - offset
 		      && ++attempts < 100000);
 		offset += used;
@@ -129,7 +131,7 @@ static struct st_big_music
 state(struct fixture *f)
 {
 	struct st_big_music m;
-	CHECK(cterm_big_music_snapshot(f->terminal->big_engine, &m) == 0);
+	CHECK(cterm_big_music_snapshot(f->big, &m) == 0);
 	return m;
 }
 
@@ -137,7 +139,7 @@ static uint16_t
 memory(struct fixture *f, uint16_t offset, bool word)
 {
 	uint16_t value = 999;
-	CHECK(cterm_big_music_read(f->terminal->big_engine, offset, word, &value) == 0);
+	CHECK(cterm_big_music_read(f->big, offset, word, &value) == 0);
 	return value;
 }
 
@@ -157,7 +159,7 @@ parsing_and_controls(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	CHECK(state(&f).enabled == 1 && state(&f).length == 0 && state(&f).running == 0);
 	load(&f, 0, example, sizeof(example));
 	struct st_big_music m = state(&f);
@@ -193,7 +195,7 @@ parsing_and_controls(void)
 	      && m.divider == 2485);
 	string(&f, "I#N 2:");
 	CHECK(state(&f).cached_divider == 1 && state(&f).end_low == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0 && state(&f).running == 0 && b->music_memory == 1);
+	CHECK(cterm_big_finish(f.big) == 0 && state(&f).running == 0 && b->music_memory == 1);
 	load(&f, 0, example, sizeof(example));
 	string(&f, "I#N 3,0,4,0,11:");
 	m = state(&f);
@@ -201,14 +203,14 @@ parsing_and_controls(void)
 	string(&f, "I#N 3,0,0,0,0:");
 	m = state(&f);
 	CHECK(m.position_low == 65534 && m.position_high == 65535 && m.end_low == 1 && m.running == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	b->feature_gates[2][0] = 1;
 	string(&f, "I#N 2:");
 	m = state(&f);
 	CHECK(
 	    m.running == 0 && m.position_low == 2 && m.end_low == 14 && m.delay == 1 && m.cached_divider == 2485);
 	b->feature_gates[2][0] = 0;
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && state(&f).length == 15 && b->music_memory == 1
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && state(&f).length == 15 && b->music_memory == 1
 	      && memory(&f, 14, false) == 255);
 	b->control.music.enabled = 0;
 	string(&f, "I#N 2:");
@@ -219,7 +221,7 @@ parsing_and_controls(void)
 	 * the selected library call does not introduce another memory gate. */
 	const char warm[] = "I#N 4:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, warm, sizeof(warm) - 1, &used) == IO_ERROR_IN_PROGRESS
+	CHECK(cterm_big_feed(f.big, warm, sizeof(warm) - 1, &used) == IO_ERROR_IN_PROGRESS
 	      && used == sizeof(warm) - 1);
 	CHECK(b->music_command.warm == 64 && b->music_command.warm_begun);
 	b->music_memory = 0;
@@ -234,7 +236,7 @@ split_raw_and_absent(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big    *b      = f.terminal->big_engine;
+	struct cterm_big    *b      = f.big;
 	static const uint8_t wire[] = {'I', '#', 'N', ' ', '0', ',', '0', ',', '1', '0', ':', 0, 'I', '#', 'N',
 	    255, ':', '\n', '\r', 7, 0};
 	for (size_t split = 0; split <= sizeof(wire) + 1; ++split) {
@@ -256,7 +258,7 @@ split_raw_and_absent(void)
 	b->music_memory = 1;
 	string(&f, "I#N +1:");
 	CHECK(state(&f).position_low == 2 && state(&f).running == 1); /* WORDffff selects2. */
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
@@ -265,7 +267,7 @@ timeout_and_recovery(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#N 0,0,2:");
 	const uint8_t renewing = 0x55;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS - 1;
@@ -291,14 +293,14 @@ timeout_and_recovery(void)
 	CHECK(memory(&f, 0, false) == 0x71 && memory(&f, 1, false) == 0 && state(&f).length == 0 && bells == 2);
 	string(&f, "I#N 0,0,9:");
 	feed(&f, &byte, 1);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	CHECK(state(&f).length == 9 && state(&f).scratch == 1 && bells == 2
 	      && b->music_command.phase == CTERM_BIG_MUSIC_OFF);
 	string(&f, "I#N 0,0,9:");
 	clock_error = IO_ERROR_IO;
 	poll(&f);
 	clock_error = 0;
-	CHECK(b->last_error == IO_ERROR_IO && b->rejected_commands == 1 && !st_cterm_input_paused(f.terminal));
+	CHECK(b->last_error == IO_ERROR_IO && b->rejected_commands == 1 && !cterm_big_paused(f.big));
 	string(&f, "I#C 0,7:");
 	CHECK(b->state.application.colors[0] == 7);
 	destroy(&f);
@@ -309,7 +311,7 @@ maximum_load_timeout(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#N 0,66,0:");
 	uint8_t wrapped[464] = {0};
 	feed(&f, wrapped, sizeof(wrapped));
@@ -325,7 +327,7 @@ maximum_load_timeout(void)
 	feed(&f, &last, 1);
 	CHECK(memory(&f, 65533, false) == 0xab && state(&f).scratch == 65534 && state(&f).length == 65534);
 	CHECK(b->last_error == IO_ERROR_OUT_OF_RANGE && b->rejected_commands == 1 && bells == 0
-	      && !st_cterm_input_paused(f.terminal));
+	      && !cterm_big_paused(f.big));
 	string(&f, "I#C 0,6:");
 	CHECK(b->state.application.colors[0] == 6);
 	destroy(&f);
@@ -336,7 +338,7 @@ sample_progress_and_channel(void)
 {
 	struct fixture f;
 	create(&f, true, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	load(&f, 1, example, sizeof(example));
 	CHECK(f.terminal->music_stream != NULL && st_music_busy(f.terminal->music_player));
 	CHECK(st_music_wait(f.terminal->music_player) == 0 && state(&f).position_low == 2);
@@ -356,9 +358,9 @@ sample_progress_and_channel(void)
 	CHECK(state(&f).running == 0 && b->music_memory == 1 && !st_music_busy(f.terminal->music_player));
 	string(&f, "I#N 2:");
 	CHECK(state(&f).position_low == 2 && st_music_busy(f.terminal->music_player));
-	CHECK(st_cterm_finish(f.terminal) == 0 && !st_music_busy(f.terminal->music_player));
+	CHECK(cterm_big_finish(f.big) == 0 && !st_music_busy(f.terminal->music_player));
 	string(&f, "I#N 2:");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !st_music_busy(f.terminal->music_player)
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !st_music_busy(f.terminal->music_player)
 	      && state(&f).length == 15);
 	string(&f, "I#N 2:");
 	destroy(&f);
@@ -369,7 +371,7 @@ muted_progress_and_bad_slice(void)
 {
 	struct fixture f;
 	create(&f, false, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	load(&f, 1, example, sizeof(example));
 	CHECK(f.terminal->music_stream == NULL && st_music_busy(f.terminal->music_player));
 	local_ns = 1000 + UINT64_C(2063493);
@@ -384,8 +386,8 @@ muted_progress_and_bad_slice(void)
 	string(&f, "I#N 3,0,0,0,0:");
 	local_ns += 100000000;
 	poll(&f);
-	CHECK(b->last_error == IO_ERROR_OUT_OF_RANGE && b->rejected_commands == 1
-	      && !st_cterm_input_paused(f.terminal) && state(&f).running == 0 && state(&f).position_low == 65534);
+	CHECK(b->last_error == IO_ERROR_OUT_OF_RANGE && b->rejected_commands == 1 && !cterm_big_paused(f.big)
+	      && state(&f).running == 0 && state(&f).position_low == 65534);
 	string(&f, "I#C 0,9:");
 	CHECK(b->state.application.colors[0] == 9 && b->music_memory == 1);
 	destroy(&f);
@@ -396,23 +398,21 @@ real_x7_progress(void)
 {
 	struct fixture f;
 	create(&f, true, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	load(&f, 1, example, sizeof(example));
 	string(&f, "I#X 7,1:");
 	const char command[] = "I#C 0,7:";
 	size_t     used;
-	CHECK(
-	    st_cterm_write(f.terminal, command, sizeof(command) - 1, &used) == IO_ERROR_IN_PROGRESS && used == 4);
-	CHECK(st_cterm_input_paused(f.terminal) && state(&f).scratch == 2 && b->state.application.colors[0] == 15);
+	CHECK(cterm_big_feed(f.big, command, sizeof(command) - 1, &used) == IO_ERROR_IN_PROGRESS && used == 4);
+	CHECK(cterm_big_paused(f.big) && state(&f).scratch == 2 && b->state.application.colors[0] == 15);
 	int16_t pcm[736];
 	CHECK(st_audio_runtime_pull(f.audio, pcm, 91) == 0 && state(&f).position_low == 8);
 	poll(&f);
-	CHECK(!st_cterm_input_paused(f.terminal));
+	CHECK(!cterm_big_paused(f.big));
 	feed(&f, command + used, sizeof(command) - 1 - used);
 	CHECK(b->state.application.colors[0] == 7 && state(&f).sync == 1);
 	const char disable[] = "I#X 7,0:";
-	CHECK(
-	    st_cterm_write(f.terminal, disable, sizeof(disable) - 1, &used) == IO_ERROR_IN_PROGRESS && used == 4);
+	CHECK(cterm_big_feed(f.big, disable, sizeof(disable) - 1, &used) == IO_ERROR_IN_PROGRESS && used == 4);
 	CHECK(st_audio_runtime_pull(f.audio, pcm, 368) == 0 && state(&f).running == 0
 	      && state(&f).position_low == 14);
 	poll(&f);
@@ -431,15 +431,15 @@ rotation_music_rate(void)
 	CHECK(state(&f).divider == 12345 && state(&f).cached_divider == 2485);
 	const char rotate[] = "I#X 8,3,4,1,1:";
 	size_t     used;
-	CHECK(st_cterm_write(f.terminal, rotate, sizeof(rotate) - 1, &used) == IO_ERROR_IN_PROGRESS
+	CHECK(cterm_big_feed(f.big, rotate, sizeof(rotate) - 1, &used) == IO_ERROR_IN_PROGRESS
 	      && used == sizeof(rotate) - 1);
-	CHECK(st_cterm_input_paused(f.terminal) && state(&f).divider == 0);
+	CHECK(cterm_big_paused(f.big) && state(&f).divider == 0);
 	local_ns += 1000000;
 	poll(&f);
-	CHECK(st_cterm_input_paused(f.terminal) && state(&f).divider == 0);
+	CHECK(cterm_big_paused(f.big) && state(&f).divider == 0);
 	local_ns += 1000000;
 	poll(&f);
-	CHECK(!st_cterm_input_paused(f.terminal) && state(&f).divider == 2485);
+	CHECK(!cterm_big_paused(f.big) && state(&f).divider == 2485);
 	string(&f, "I#N 5,12,345:I#X 8,1,1,1,1:");
 	CHECK(state(&f).divider == 2485
 	      && state(&f).cached_divider == 2485); /* Equal endpoints still reach both requests. */
@@ -520,11 +520,12 @@ concurrent_lifecycle(void)
 		CHECK(state(&f).enabled == 1 && memory(&f, 2, false) == 0x20);
 		CHECK(st_music_flush(f.terminal->music_player, 32) == 0);
 		poll(&f);
-		CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !st_music_busy(f.terminal->music_player));
+		CHECK(cterm_big_reset_terminal(f.big) == 0 && !st_music_busy(f.terminal->music_player));
 		load(&f, 1, example, sizeof(example));
 	}
 	/* Runtime/frontend outlives terminal/source destruction, just as the
 	 * existing device consumer can still be pulling during source teardown. */
+	cterm_big_destroy(f.big);
 	st_cterm_destroy(&f.terminal);
 	atomic_store(&p.stop, true);
 	int result;

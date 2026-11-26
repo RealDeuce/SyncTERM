@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big           *big;
 	st_console_t               *console;
 	st_font_catalog_t          *fonts;
 	st_cterm_t                 *terminal;
@@ -68,13 +69,14 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -84,7 +86,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, bytes, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, bytes, size, &used) == 0 && used == size);
 }
 
 static void
@@ -101,7 +103,7 @@ struct dot {
 static void
 canvas(struct fixture *f, const struct dot *dots, size_t count)
 {
-	struct cterm_big            *b = f->terminal->big_engine;
+	struct cterm_big            *b = f->big;
 	const struct st_console_rect r = {0, 0, 640, b->state.bgi.height};
 	struct st_pixel_buffer      *p = NULL;
 	CHECK(st_console_get_pixels(&p, f->console, &r, false) == 0);
@@ -137,7 +139,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode) {
 				size_t size   = sizeof(wire) - 1,
 				       splits = mode == 2 && !utf8 && !status ? size + 1 : 0;
@@ -172,7 +174,7 @@ active_visual_and_consumers(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#R 2:I#C 0,5:I#G 6,1:");
 	scene(&f, 0);
 	CHECK(b->state.active_page == 1 && b->video_active_page == 1 && b->video_visual_page == 0);
@@ -238,18 +240,18 @@ lifetimes_and_limits(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#R 1:I#G>4,3:G>6,2:G 5,1:");
 	CHECK(b->state.memory_page == 3 && b->state.active_page == 2 && b->state.visual_page == 1
 	      && b->video_active_page == 2 && b->video_visual_page == 1);
 	string(&f, "I#G 4,");
 	CHECK(b->state.memory_page == 1 && b->video_active_page == 2 && b->video_visual_page == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->video_active_page == 2 && b->video_visual_page == 1);
+	CHECK(cterm_big_finish(f.big) == 0 && b->video_active_page == 2 && b->video_visual_page == 1);
 	string(&f, "I#G 6,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->video_active_page == 2 && b->video_visual_page == 1);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->video_active_page == 2 && b->video_visual_page == 1);
 	string(&f, "I#G 4,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.memory_page == 1 && b->video_active_page == 2);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.memory_page == 1 && b->video_active_page == 2);
 	b->numeric.context.resolution = 3;
 	b->state.memory_page          = 3;
 	b->state.active_page          = 2;
@@ -287,7 +289,7 @@ lifetimes_and_limits(void)
             {1, 0, 805, 805}
         };
 	canvas(&f, recovered, 2);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->video_start == 0xa000 && b->video_active_page == 1);
+	CHECK(cterm_big_finish(f.big) == 0 && b->video_start == 0xa000 && b->video_active_page == 1);
 	destroy(&f);
 }
 
@@ -296,7 +298,7 @@ console_cursor_pages(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "\033[3;4HI#G 5,1:");
 	CHECK(f.terminal->xpos == 1 && f.terminal->ypos == 1);
 	string(&f, "\033[5;6HI#G 5,0:");
@@ -345,7 +347,7 @@ status_and_prefix_failures(void)
 {
 	struct fixture f;
 	create(&f, false, true);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	CHECK(st_console_modify_pixels(f.console, status_art, NULL) == 0);
 	string(&f, "I#C 0,5:I#P 20,349:I#G 5,1:I#G 5,0:");
 	const struct st_console_rect r = {0, 336, 640, 14};
@@ -362,7 +364,7 @@ status_and_prefix_failures(void)
 		}
 	destroy(&f);
 	create(&f, false, false);
-	b = f.terminal->big_engine;
+	b = f.big;
 	string(&f, "I#G 6,1:I#G 6,0:");
 	b->video.count = 10;
 	string(&f, "I#G 5,1:");
@@ -389,7 +391,7 @@ status_and_prefix_failures(void)
 	    {5, 0, 803, 803}
         };
 	canvas(&f, prefix, 6);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
@@ -398,7 +400,7 @@ source_repetition_and_point_bytes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#R 1:I#g 3:I#& 0,1,1,0,G@2,4,3:");
 	CHECK(b->state.memory_page == 3 && b->numeric.loop.active == 0 && f.size == 0);
 	f.size = 0;
@@ -453,7 +455,7 @@ normalization_wire(void)
         };
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned mode = 1; mode <= 3; ++mode)
 		for (unsigned operation = 4; operation <= 6; ++operation)
 			for (size_t n = 0; n < sizeof(cases) / sizeof(cases[0]); ++n) {
@@ -489,7 +491,7 @@ pointer_marker_page(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#G 6,1:I#C 0,5:I#T 1,4,1:I#M 2:");
 	CHECK(cterm_big_pmarker(b, 90, 50) == 0);
 	scene(&f, 0);
@@ -519,7 +521,7 @@ p_console_position(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (size_t split = 0; split <= strlen(wire); ++split) {
 					char reset[64];
@@ -567,7 +569,7 @@ p_console_position(void)
 		}
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#m 2,31,32:\033[3;4HI#G 5,1:\033[5;6HI#p 7,8:");
 	CHECK(f.terminal->xpos == 6 && f.terminal->ypos == 5 && b->video_cursors[0][0] == 7
 	      && b->video_cursors[0][1] == 8 && b->video_visual_page == 1);
@@ -587,17 +589,17 @@ p_console_position(void)
 	string(&f, "I#I 1:I#R 3:I#I 0:I#p 1,1:");
 	CHECK(f.terminal->xpos == 6 && f.terminal->ypos == 8 && b->console_window[2] == 14);
 	string(&f, "I#p 2,");
-	CHECK(st_cterm_finish(f.terminal) == 0 && f.terminal->xpos == 6 && f.terminal->ypos == 8);
+	CHECK(cterm_big_finish(f.big) == 0 && f.terminal->xpos == 6 && f.terminal->ypos == 8);
 	string(&f, "I#p 2,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->console_window[1] == 7 && f.terminal->xpos == 1
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->console_window[1] == 7 && f.terminal->xpos == 1
 	      && f.terminal->ypos == 1);
 	string(&f, "I#p 2,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && f.terminal->xpos == 1 && f.terminal->ypos == 1
+	CHECK(cterm_big_poll(f.big) == 0 && f.terminal->xpos == 1 && f.terminal->ypos == 1
 	      && b->video_cursors[0][0] == 6 && b->video_cursors[0][1] == 8);
 	string(&f, "I#p 2,");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	CHECK(b->last_error == IO_ERROR_IO && f.terminal->xpos == 1);
 	const uint8_t normal[] = {0, 0, 79, 24};
@@ -651,7 +653,7 @@ p_console_position(void)
 static void
 cleared_band(struct fixture *f, unsigned pen, unsigned height, bool tail_dot)
 {
-	struct cterm_big            *b = f->terminal->big_engine;
+	struct cterm_big            *b = f->big;
 	struct st_pixel_buffer      *p = NULL;
 	const struct st_console_rect r = {0, 0, 640, b->state.bgi.height};
 	CHECK(st_console_get_pixels(&p, f->console, &r, false) == 0);
@@ -675,7 +677,7 @@ s_clears(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned mode = 1; mode <= 3; ++mode)
 				for (unsigned kind = 0; kind < 3; ++kind) {
 					char wire[40];
@@ -736,7 +738,7 @@ s_clears(void)
 		}
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#R 3:I#C 0,5:I#P 20,420:I#m 2,31,32:\033[31;44mI#s 2:");
 	cleared_band(&f, 7, 400, true);
 	CHECK(b->state.bgi.x == 31 && b->state.bgi.y == 32 && b->console_attribute == 7 && f.terminal->attr != 7);
@@ -810,17 +812,17 @@ s_clears(void)
 		{20, 20, 805, 805}
         },
 	    1);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.bgi.x == 31);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.bgi.x == 31);
 	string(&f, "I#s ");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->console_attribute == 7);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->console_attribute == 7);
 	string(&f, "I#s ");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	canvas(&f, NULL, 0);
 	CHECK(b->state.bgi.x == 0);
 	string(&f, "I#s ");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	CHECK(b->last_error == IO_ERROR_IO);
 	string(&f, "I#R 2:I#p 6,5:");

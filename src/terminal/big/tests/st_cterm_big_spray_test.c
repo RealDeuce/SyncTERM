@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -80,9 +81,9 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	struct cterm_big *b                        = f->terminal->big_engine;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	struct cterm_big *b       = f->big;
 	CHECK(b->random_seconds != NULL);
 	b->random_seconds = seconds;
 }
@@ -90,6 +91,7 @@ create(struct fixture *f, bool utf8, bool status)
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -99,7 +101,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -112,7 +114,7 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static void
@@ -121,7 +123,7 @@ setup(struct fixture *f, unsigned res)
 	char wire[100];
 	snprintf(wire, sizeof(wire), "I#R %u:I#C>0,5:m 2,80,90:", res);
 	string(f, wire);
-	f->terminal->big_engine->state.bgi.error = -11;
+	f->big->state.bgi.error                  = -11;
 	f->size                                  = 0;
 	wall_calls                               = 0;
 }
@@ -158,7 +160,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -198,7 +200,7 @@ prefix_scaling_and_lifetimes(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	b->spray.counter = 77;
 	wall_seconds     = UINT64_C(0x12340000);
@@ -207,7 +209,7 @@ prefix_scaling_and_lifetimes(void)
 	    wall_calls == 1 && b->numeric.random_state == 0 && b->state.bgi.color == 5 && b->spray.counter == 77);
 	string(&f, "100,100,0,0,");
 	CHECK(b->spray.x == 100 && b->spray.y == 100 && b->spray.counter == 77);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->spray.counter == 77 && b->numeric.random_state == 0);
+	CHECK(cterm_big_finish(f.big) == 0 && b->spray.counter == 77 && b->numeric.random_state == 0);
 	canvas(&f, NULL, 0);
 	wall_seconds = 1;
 	string(&f, "I#X 0,100,100,0,0,");
@@ -222,7 +224,7 @@ prefix_scaling_and_lifetimes(void)
 	string(&f, "I#& 0,1,1,0,X@6,0,4,4,4,4,0:");
 	CHECK(b->spray.y == 4 && b->spray.height == 4 && b->spray.counter == 0);
 	string(&f, "I#g 0:I#X 0,100,100,0,0,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->spray.counter == 0 && b->numeric.random_state == 1);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->spray.counter == 0 && b->numeric.random_state == 1);
 	string(&f, "I#X 0,100,100,0,0,2:");
 	uint32_t state = b->numeric.random_state;
 	CHECK(state == UINT32_C(0x0442c2ed) && b->spray.counter == 2);
@@ -245,7 +247,7 @@ helper_pages_sources_and_recovery(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	string(&f, "I#T>0,2,1:X 0,100,100,0,0,1:");
 	CHECK(b->state.bgi.x == 104 && b->state.bgi.y == 100 && b->spray.counter == 1);
@@ -295,7 +297,7 @@ helper_pages_sources_and_recovery(void)
 	b->state.bgi.mode = 1;
 	destroy(&f);
 	create(&f, false, false);
-	CHECK(f.terminal->big_engine->spray.counter == 0 && f.terminal->big_engine->numeric.random_state == 1);
+	CHECK(f.big->spray.counter == 0 && f.big->numeric.random_state == 1);
 	destroy(&f);
 }
 

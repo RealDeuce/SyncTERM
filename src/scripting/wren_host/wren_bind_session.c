@@ -1335,7 +1335,8 @@ fn_cterm_reset(WrenVM *vm)
 	}
 	int status = context->session == NULL ? 0 : st_term_session_begin_local_text(context->session);
 	if (status == 0) {
-		status        = st_cterm_reset_terminal(context->cterm);
+		status        = context->session != NULL ? st_term_session_reset_display(context->session)
+		                                         : st_cterm_reset_terminal(context->cterm);
 		int presented = context->session == NULL ? 0 : st_term_session_end_local_text(context->session);
 		if (status == 0)
 			status = presented;

@@ -16,7 +16,6 @@
 
 #include "cterm.h"
 #include "cterm_apc.h"
-#include "cterm_big.h"
 #include "cterm_dec.h"
 #include "cterm_igs.h"
 #include "cterm_internal.h"
@@ -2105,15 +2104,10 @@ initialize_render_state(struct cterm_render_state *screen, const struct st_cterm
 		for (unsigned i = 0; i < 16; ++i)
 			screen->mode_palette[i] = (uint16_t)(CTERM_SKYPIX_PALETTE_FIRST + i);
 	}
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103) {
-		for (unsigned i = 0; i < 16; ++i)
-			screen->mode_palette[i] = CTERM_BIG_PALETTE_FIRST + i;
-	}
-	screen->capabilities = (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
-	                           || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31
-	                           || config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
-	                           ? capabilities & ~ST_CONSOLE_CAP_EXTENDED_PALETTE
-	                           : capabilities;
+	screen->capabilities = capabilities & ~config->disabled_capabilities;
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_13
+	    || config->graphics_mode == ST_CTERM_GRAPHICS_SKYPIX_31)
+		screen->capabilities &= ~ST_CONSOLE_CAP_EXTENDED_PALETTE;
 	screen->wscroll      = 1;
 	return 0;
 }
@@ -2135,7 +2129,7 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 	    || st_font_catalog_console(config->fonts) != config->console || config->emulation < ST_CTERM_ANSI_BBS
 	    || config->emulation > ST_CTERM_ATARI_ST_VT52 || config->encoding < ST_CTERM_ENCODING_UTF8
 	    || config->encoding > ST_CTERM_ENCODING_CODEPAGE || config->graphics_mode < ST_CTERM_GRAPHICS_OFF
-	    || config->graphics_mode > ST_CTERM_GRAPHICS_BIG_103
+	    || config->graphics_mode > ST_CTERM_GRAPHICS_IGS_221
 	    || (config->graphics_mode != ST_CTERM_GRAPHICS_OFF
 	        && config->graphics_mode != ST_CTERM_GRAPHICS_IGS_221 && config->emulation != ST_CTERM_ANSI_BBS)
 	    || (config->graphics_mode == ST_CTERM_GRAPHICS_IGS_221 && config->emulation != ST_CTERM_ATARI_ST_VT52)
@@ -2354,13 +2348,6 @@ st_cterm_create(st_cterm_t **result, const struct st_cterm_config *config)
 			return status;
 		}
 	}
-	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103) {
-		status = cterm_big_create(terminal);
-		if (status != 0) {
-			st_cterm_destroy(&terminal);
-			return status;
-		}
-	}
 	*result = terminal;
 	return 0;
 }
@@ -2375,8 +2362,6 @@ st_cterm_destroy(st_cterm_t **terminal)
 	scrollback = (*terminal)->scrollback;
 	cterm_musicomm_destroy(*terminal);
 	(void)st_cterm_finish(*terminal);
-	cterm_big_destroy((*terminal)->big_engine);
-	(*terminal)->big_engine = NULL;
 	cterm_igs_destroy((*terminal)->igs_engine);
 	(*terminal)->igs_engine = NULL;
 	st_unicode_presentation_destroy(&(*terminal)->screen.unicode);
@@ -2889,8 +2874,6 @@ st_cterm_write(st_cterm_t *terminal, const void *bytes, size_t size, size_t *con
 	}
 	if (terminal->skypix_engine != NULL)
 		return cterm_skypix_feed(terminal->skypix_engine, bytes, size, consumed);
-	if (terminal->big_engine != NULL)
-		return cterm_big_feed(terminal->big_engine, bytes, size, consumed);
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_feed(terminal->igs_engine, bytes, size, consumed);
 	if (terminal->rip_engine != NULL)
@@ -2902,7 +2885,7 @@ bool
 st_cterm_input_paused(st_cterm_t *terminal)
 {
 	return terminal != NULL
-	       && (cterm_big_paused(terminal->big_engine) || cterm_igs_paused(terminal->igs_engine)
+	       && (cterm_igs_paused(terminal->igs_engine)
 	           || (terminal->skypix_engine != NULL && cterm_skypix_paused(terminal->skypix_engine)));
 }
 
@@ -2927,8 +2910,7 @@ st_cterm_needs_poll(st_cterm_t *terminal)
 {
 	if (terminal == NULL)
 		return false;
-	if (cterm_big_needs_poll(terminal->big_engine)
-	    || st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF)
+	if (st_cterm_musicomm_state(terminal) != ST_CTERM_MUSICOMM_OFF)
 		return true;
 	if (terminal->igs_engine != NULL
 	    && (terminal->igs_engine->input_deadline != 0 || terminal->igs_engine->text_deadline != 0
@@ -2949,8 +2931,6 @@ st_cterm_poll(st_cterm_t *terminal)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_musicomm_poll(terminal);
 	cterm_apc_poll(terminal);
-	if (terminal->big_engine != NULL)
-		return cterm_big_poll(terminal->big_engine);
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_poll(terminal->igs_engine);
 	if (terminal->skypix_engine != NULL) {
@@ -3003,8 +2983,7 @@ st_cterm_finish(st_cterm_t *terminal)
 	if (terminal == NULL)
 		return IO_ERROR_INVALID_ARGUMENT;
 	cterm_musicomm_cancel(terminal);
-	status = terminal->big_engine != NULL      ? cterm_big_finish(terminal->big_engine)
-	         : terminal->igs_engine != NULL    ? cterm_igs_finish(terminal->igs_engine)
+	status = terminal->igs_engine != NULL      ? cterm_igs_finish(terminal->igs_engine)
 	         : terminal->skypix_engine != NULL ? cterm_skypix_finish(terminal->skypix_engine)
 	         : terminal->rip_engine == NULL    ? 0
 	                                           : cterm_rip_engine_flush(terminal->rip_engine);
@@ -3223,10 +3202,8 @@ st_cterm_set_text_wrap(st_cterm_t *terminal, bool enabled)
 int
 st_cterm_reset_terminal(st_cterm_t *terminal)
 {
-	if (terminal != NULL) {
+	if (terminal != NULL)
 		cterm_igs_reset(terminal->igs_engine);
-		cterm_big_reset(terminal->big_engine);
-	}
 	int status = st_cterm_finish(terminal);
 
 	if (status != 0)
@@ -3497,7 +3474,7 @@ st_cterm_resize(st_cterm_t *terminal, uint32_t columns, uint32_t rows)
 	if (rows <= terminal->api_reserved_rows + status_rows)
 		return IO_ERROR_OUT_OF_RANGE;
 	terminal_rows = rows - terminal->api_reserved_rows - status_rows;
-	if ((terminal->skypix_engine != NULL || terminal->igs_engine != NULL || terminal->big_engine != NULL)
+	if ((terminal->skypix_engine != NULL || terminal->igs_engine != NULL || terminal->fixed_geometry)
 	    && (columns != (uint32_t)terminal->width || terminal_rows != (uint32_t)terminal->height))
 		return IO_ERROR_NOT_SUPPORTED;
 	/* Geometry commits the old placement, but is not end-of-input for
@@ -3876,8 +3853,11 @@ st_cterm_mouse_mode(const st_cterm_t *terminal)
 		               || (terminal->igs_engine->collect.active && terminal->igs_engine->collect.type > 1)
 			   ? 3
 			   : 0;
-	if (cterm_big_pointer_active(terminal->big_engine))
-		return 4;
+	if (terminal->device.mouse_mode != NULL) {
+		int mode = terminal->device.mouse_mode(terminal->device.context);
+		if (mode != 0)
+			return mode;
+	}
 	if (terminal->skypix_engine != NULL)
 		return 2;
 	if (terminal->rip_engine != NULL
@@ -3900,7 +3880,8 @@ bool
 st_cterm_mouse_sgr_pixels(const st_cterm_t *terminal)
 {
 	return terminal != NULL && terminal->skypix_engine == NULL && terminal->igs_engine == NULL
-	       && !cterm_big_pointer_active(terminal->big_engine)
+	       && (terminal->device.mouse_mode == NULL
+	           || terminal->device.mouse_mode(terminal->device.context) == 0)
 	       && (terminal->api_mouse_modes & MOUSE_SGR_PIXELS) != 0;
 }
 
@@ -4127,10 +4108,11 @@ st_cterm_handle_key(st_cterm_t *terminal, uint16_t key_code, uint32_t modifiers)
 		return false;
 	if (st_cterm_musicomm_stop(terminal))
 		return true;
-	if (cterm_big_handle_key(terminal->big_engine, &(struct cterm_key) {.kind = CTERM_KEY_NORMAL,
-							   .value                 = key_code,
-							   .modifiers             = modifiers,
-							   .local = mapped_key(key_code, modifiers)}))
+	if (terminal->device.key != NULL
+	    && terminal->device.key(terminal->device.context, &(struct cterm_key) {.kind = CTERM_KEY_NORMAL,
+								  .value                 = key_code,
+								  .modifiers             = modifiers,
+								  .local = mapped_key(key_code, modifiers)}))
 		return true;
 	if (cterm_igs_handle_key(terminal->igs_engine, &(struct cterm_key) {.kind = CTERM_KEY_NORMAL,
 							   .value                 = key_code,
@@ -4176,7 +4158,8 @@ st_cterm_handle_codepage_key(st_cterm_t *terminal, uint8_t byte)
 		return false;
 	if (st_cterm_musicomm_stop(terminal))
 		return true;
-	if (cterm_big_handle_key(terminal->big_engine,
+	if (terminal->device.key != NULL
+	    && terminal->device.key(terminal->device.context,
 		&(struct cterm_key) {.kind = CTERM_KEY_CODEPAGE, .value = byte, .local = byte}))
 		return true;
 	if (cterm_igs_handle_key(terminal->igs_engine,
@@ -4197,7 +4180,8 @@ st_cterm_handle_text_key(st_cterm_t *terminal, uint32_t codepoint)
 		return false;
 	if (st_cterm_musicomm_stop(terminal))
 		return true;
-	if (cterm_big_handle_key(terminal->big_engine,
+	if (terminal->device.key != NULL
+	    && terminal->device.key(terminal->device.context,
 		&(struct cterm_key) {.kind = CTERM_KEY_TEXT, .value = codepoint}))
 		return true;
 	if (cterm_igs_handle_key(terminal->igs_engine,
@@ -4257,8 +4241,8 @@ st_cterm_handle_doorway_key(st_cterm_t *terminal, uint8_t scan_code)
 {
 	if (st_cterm_musicomm_stop(terminal))
 		return true;
-	if (terminal != NULL
-	    && cterm_big_handle_key(terminal->big_engine,
+	if (terminal != NULL && terminal->device.key != NULL
+	    && terminal->device.key(terminal->device.context,
 		&(struct cterm_key) {.kind = CTERM_KEY_DOORWAY, .value = scan_code, .local = (int)scan_code << 8}))
 		return true;
 	if (terminal != NULL
@@ -4929,9 +4913,10 @@ st_cterm_handle_mouse(st_cterm_t *terminal, const struct st_console_event *event
 	terminal->api_mouse_buttons = event->data.mouse.buttons;
 	if (terminal->igs_engine != NULL)
 		return cterm_igs_mouse(terminal->igs_engine, event);
-	if (terminal->big_engine != NULL) {
-		bool owned   = cterm_big_pointer_active(terminal->big_engine);
-		bool handled = cterm_big_mouse(terminal->big_engine, event);
+	if (terminal->device.mouse != NULL) {
+		bool owned   = terminal->device.mouse_mode != NULL
+		               && terminal->device.mouse_mode(terminal->device.context) != 0;
+		bool handled = terminal->device.mouse(terminal->device.context, event);
 		if (owned)
 			return handled;
 	}
@@ -5041,8 +5026,8 @@ st_cterm_observe_mouse(st_cterm_t *terminal, const struct st_console_event *even
 	if (terminal != NULL && event != NULL && event->type == ST_CONSOLE_EVENT_MOUSE) {
 		if (terminal->igs_engine != NULL)
 			cterm_igs_mouse_observe(terminal->igs_engine, event);
-		if (terminal->big_engine != NULL)
-			cterm_big_mouse_observe(terminal->big_engine, event);
+		if (terminal->device.observe_mouse != NULL)
+			terminal->device.observe_mouse(terminal->device.context, event);
 	}
 }
 
@@ -5053,8 +5038,8 @@ st_cterm_sync_mouse_buttons(st_cterm_t *terminal, uint32_t buttons)
 		terminal->api_mouse_buttons = buttons;
 		if (terminal->igs_engine != NULL)
 			cterm_igs_mouse_sync(terminal->igs_engine, buttons);
-		if (terminal->big_engine != NULL)
-			cterm_big_mouse_sync(terminal->big_engine, buttons);
+		if (terminal->device.sync_mouse != NULL)
+			terminal->device.sync_mouse(terminal->device.context, buttons);
 	}
 }
 

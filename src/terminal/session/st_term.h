@@ -140,6 +140,13 @@ st_cterm_t *st_term_session_cterm(st_term_session_t *session);
 /* History is recorded in the physical display grid. */
 st_cterm_t *st_term_session_history_terminal(st_term_session_t *session);
 /* The RIPv3 indicator lives outside ANSI display state and screen contents. */
+struct cterm_big;
+struct cterm_big *st_term_session_big(st_term_session_t *session);
+bool              st_term_session_device_paused(st_term_session_t *session);
+int               st_term_session_poll_display(st_term_session_t *session);
+int               st_term_session_finish_display(st_term_session_t *session);
+int               st_term_session_reset_display(st_term_session_t *session);
+
 bool st_term_session_has_status_overlay(const st_term_session_t *session);
 bool st_term_session_status_visible(const st_term_session_t *session);
 

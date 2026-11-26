@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -66,13 +67,14 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -82,7 +84,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -100,7 +102,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -166,15 +168,15 @@ partials_lifetimes_and_sources(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#E 4,3,");
 	CHECK(b->state.bgi.font == 0 && b->fonts.loaded == 0 && b->state.bgi.text_size == 1);
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.bgi.font == 0);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.bgi.font == 0);
 	string(&f, "I#E 4,3,");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->fonts.loaded == 0);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->fonts.loaded == 0);
 	string(&f, "I#E 4,3,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.bgi.font == 4 && b->state.bgi.direction == 0
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.bgi.font == 4 && b->state.bgi.direction == 0
 	      && b->state.bgi.text_size == 3);
 	string(&f, "I#X 3,2,1,3,2:I#E 1,0,1:I#I 1:");
 	CHECK(b->state.bgi.font == 1 && b->state.bgi.text_cached[0] == 62 && b->state.bgi.text_cached[1] == 46
@@ -210,8 +212,7 @@ partials_lifetimes_and_sources(void)
 	CHECK(f.size == 7 && memcmp(f.output, "\xff\033[1;1R", 7) == 0 && b->control.input.pending == 0);
 	destroy(&f);
 	create(&f, false, false);
-	CHECK(
-	    f.terminal->big_engine->fonts.loaded == 0 && f.terminal->big_engine->state.bgi.text_stroke_id == 255);
+	CHECK(f.big->fonts.loaded == 0 && f.big->state.bgi.text_stroke_id == 255);
 	destroy(&f);
 }
 
@@ -220,7 +221,7 @@ nonfatal_recovery(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	b->state.bgi.state  = 0;
 	string(&f, "I#E 3,2,1:");
 	CHECK(b->state.bgi.font == 3 && b->fonts.loaded == 3 && b->state.bgi.text_font == 0
@@ -230,7 +231,7 @@ nonfatal_recovery(void)
 	CHECK(b->state.bgi.text_cached[0] == 21 && b->state.bgi.text_font == 3 && f.size == 6);
 	string(&f, "I#E 4,4,");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	CHECK(b->state.bgi.font == 3 && b->state.bgi.text_size == 2 && b->last_error == IO_ERROR_IO
 	      && b->rejected_commands == 2);

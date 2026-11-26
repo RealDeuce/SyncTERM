@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "audio.h"
+#include "cterm_big.h"
 #include "io_error.h"
 #include "st_ooii.h"
 #include "st_term.h"
@@ -30,6 +31,7 @@ struct deferred_event {
 struct st_term_session {
 	struct st_term_config  config;
 	st_cterm_t            *cterm;
+	struct cterm_big      *big;
 	st_ooii_t             *ooii;
 	struct st_utf8_decoder ooii_decoder;
 	struct st_term_rip3   *rip3;
@@ -90,10 +92,52 @@ st_term_session_observe_prompt_input(st_term_session_t *session, const struct st
 		st_term_rip3_observe_prompt_input(session->rip3, event);
 }
 
+bool
+st_term_session_device_paused(st_term_session_t *session)
+{
+	return session != NULL
+	       && (cterm_big_paused(session->big) || st_cterm_input_paused(st_term_session_cterm(session)));
+}
+
+int
+st_term_session_poll_display(st_term_session_t *session)
+{
+	if (session == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	int status = st_cterm_poll(st_term_session_cterm(session));
+	if (status == 0 && session->big != NULL)
+		status = cterm_big_poll(session->big);
+	return status;
+}
+
+int
+st_term_session_finish_display(st_term_session_t *session)
+{
+	if (session == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	int status = cterm_big_finish(session->big);
+	return status != 0 ? status : st_cterm_finish(st_term_session_cterm(session));
+}
+
+int
+st_term_session_reset_display(st_term_session_t *session)
+{
+	if (session == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
+	return session->big != NULL ? cterm_big_reset_terminal(session->big)
+	                            : st_cterm_reset_terminal(st_term_session_cterm(session));
+}
+
+struct cterm_big *
+st_term_session_big(st_term_session_t *session)
+{
+	return session == NULL ? NULL : session->big;
+}
+
 static bool
 input_paused(st_term_session_t *session)
 {
-	return st_term_rip3_paused(session->rip3) || st_cterm_input_paused(st_term_session_cterm(session));
+	return st_term_rip3_paused(session->rip3) || st_term_session_device_paused(session);
 }
 
 static int write_malformed(st_term_session_t *session, const struct st_utf8_decode_event *event);
@@ -109,7 +153,8 @@ finish(st_term_session_t *session)
 			return status;
 	}
 	st_term_rip3_cancel(session->rip3);
-	return st_cterm_finish(session->cterm);
+	int status = cterm_big_finish(session->big);
+	return status != 0 ? status : st_cterm_finish(session->cterm);
 }
 
 bool
@@ -506,13 +551,17 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	    .diagnostic                  = config->cterm_diagnostic,
 	    .diagnostic_context          = config->cterm_diagnostic_context,
 	};
-	status = st_cterm_create(&session->cterm, &cterm_config);
+	if (config->graphics_mode == ST_CTERM_GRAPHICS_BIG_103)
+		status = cterm_big_open(&session->big, &session->cterm, &cterm_config);
+	else
+		status = st_cterm_create(&session->cterm, &cterm_config);
 	if (status != 0) {
 		free(session);
 		return status;
 	}
 	status = update_connection_geometry(session);
 	if (status != 0) {
+		cterm_big_destroy(session->big);
 		st_cterm_destroy(&session->cterm);
 		free(session);
 		return status;
@@ -526,6 +575,7 @@ st_term_session_create(st_term_session_t **result, const struct st_term_config *
 	};
 	status = st_ooii_create(&session->ooii, &ooii_config);
 	if (status != 0) {
+		cterm_big_destroy(session->big);
 		st_cterm_destroy(&session->cterm);
 		free(session);
 		return status;
@@ -591,6 +641,7 @@ st_term_session_destroy(st_term_session_t **session)
 	publish_history(*session);
 	st_ooii_destroy((*session)->ooii);
 	st_term_rip3_destroy((*session)->rip3);
+	cterm_big_destroy((*session)->big);
 	st_cterm_destroy(&(*session)->cterm);
 	free((*session)->returned_wire);
 	while ((*session)->deferred_head != NULL) {
@@ -940,6 +991,8 @@ write_protocol(st_term_session_t *session, const void *bytes, size_t size, size_
 		*consumed = size;
 		return 0;
 	}
+	if (session->big != NULL && st_cterm_musicomm_state(session->cterm) == ST_CTERM_MUSICOMM_OFF)
+		return cterm_big_feed(session->big, bytes, size, consumed);
 	return st_cterm_write(session->cterm, bytes, size, consumed);
 }
 
@@ -958,7 +1011,7 @@ write_terminal_wire(st_term_session_t *session, const uint8_t *bytes, size_t siz
 		status = write_protocol(session, bytes, size, &consumed);
 		/* An accepted asynchronous command can pause after this byte.
 		 * The pump retains the following bytes and polls its owner. */
-		if (status == IO_ERROR_IN_PROGRESS && consumed == size && st_cterm_input_paused(session->cterm))
+		if (status == IO_ERROR_IN_PROGRESS && consumed == size && st_term_session_device_paused(session))
 			return 0;
 		return status == 0 && consumed != size ? IO_ERROR_IO : status;
 	}
@@ -1347,7 +1400,7 @@ st_term_session_service(st_term_session_t *session, enum st_term_disposition *di
 	 * Still drain its received bytes and take the normal disconnect path. */
 	if (st_connection_is_connected(session->config.connection)) {
 		st_term_rip3_poll(session->rip3);
-		status = st_cterm_poll(st_term_session_cterm(session));
+		status = st_term_session_poll_display(session);
 		if (status != 0 || session->output_error != 0)
 			return status != 0 ? status : session->output_error;
 	}
@@ -1660,7 +1713,7 @@ st_term_session_wait(st_term_session_t *session, uint32_t timeout_ms)
 	}
 	if (timeout_ms > 1
 	    && (session->transfer != NULL || session->transfer_reserved || paused
-	        || st_cterm_needs_poll(st_term_session_cterm(session))))
+	        || cterm_big_needs_poll(session->big) || st_cterm_needs_poll(st_term_session_cterm(session))))
 		timeout_ms = 1;
 	struct timespec deadline;
 	int status = timeout_ms == UINT32_MAX ? 0 : st_time_utc_deadline_after_ms(&deadline, timeout_ms);

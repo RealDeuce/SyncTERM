@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -60,8 +61,8 @@ terminal(struct fixture *f)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
@@ -81,6 +82,7 @@ create(struct fixture *f, bool utf8, bool status)
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -90,7 +92,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	CHECK(st_cterm_write(f->terminal, bytes, size, &used) == 0 && used == size);
+	CHECK(cterm_big_feed(f->big, bytes, size, &used) == 0 && used == size);
 }
 
 static void
@@ -123,8 +125,8 @@ image(struct fixture *f, unsigned res)
 	char wire[100];
 	snprintf(wire, sizeof(wire), "I#R %u:I#C>0,5:P>100,100:G 0,0,100,100,100,100,120,100:", res);
 	string(f, wire);
-	f->terminal->big_engine->state.bgi.error      = -11;
-	f->terminal->big_engine->state.bgi.background = 7;
+	f->big->state.bgi.error                       = -11;
+	f->big->state.bgi.background                  = 7;
 	f->size                                       = 0;
 }
 
@@ -154,7 +156,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -184,7 +186,7 @@ partitions(void)
 					CHECK(f.size == 6 && memcmp(f.output, "\033[1;1R", 6) == 0);
 					color(&f, 5, 0xaaaa00);
 					canvas(&f, 2);
-					CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_finish(f.terminal) == 0);
+					CHECK(cterm_big_poll(f.big) == 0 && cterm_big_finish(f.big) == 0);
 				}
 			destroy(&f);
 		}
@@ -195,7 +197,7 @@ codes_images_and_restart(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	for (unsigned res = 1; res <= 3; ++res) {
 		image(&f, res);
 		for (unsigned code = 0; code < 256; ++code) {
@@ -225,9 +227,10 @@ codes_images_and_restart(void)
 	}
 	string(&f, "I#S 5,63:");
 	color(&f, 5, 0xffffff);
+	cterm_big_destroy(f.big);
 	st_cterm_destroy(&f.terminal);
 	terminal(&f);
-	b = f.terminal->big_engine;
+	b = f.big;
 	CHECK(b->state.bgi.palette_size == 16 && memcmp(b->state.bgi.palette, defaults, 16) == 0);
 	color(&f, 5, 0xaa00aa);
 	canvas(&f, 0);
@@ -239,7 +242,7 @@ acquisition_gates_and_recovery(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	image(&f, 2);
 	string(&f, "I#S 5,");
 	CHECK(b->state.bgi.palette[5] == 5);
@@ -274,11 +277,11 @@ acquisition_gates_and_recovery(void)
 	b->state.bgi.state = 3;
 	string(&f, "I#S 5,");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && b->state.bgi.palette[5] == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && b->state.bgi.palette[5] == 0);
 	color(&f, 5, 0);
 	string(&f, "I#S 5,63:I#S 5,");
-	CHECK(st_cterm_finish(f.terminal) == 0 && b->state.bgi.palette[5] == 63);
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && b->state.bgi.palette[5] == 63);
+	CHECK(cterm_big_finish(f.big) == 0 && b->state.bgi.palette[5] == 63);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && b->state.bgi.palette[5] == 63);
 	color(&f, 5, 0xffffff);
 	/* Checked corrupt-cache bounds reject nonfatally before an out-of-
 	 * array store, preserving the next valid S and ANSI reply. */
@@ -298,7 +301,7 @@ acquisition_gates_and_recovery(void)
 	f.size = 0;
 	string(&f, "I#& 0,2,1,0,S@2,5,x:");
 	CHECK(b->state.bgi.palette[5] == 2 && f.size == 0);
-	CHECK(st_cterm_poll(f.terminal) == 0 && st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0 && cterm_big_finish(f.big) == 0);
 	color(&f, 5, 0xaa00);
 	destroy(&f);
 }

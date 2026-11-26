@@ -20,7 +20,9 @@ void cterm_big_mouse_sync(struct cterm_big *, uint32_t buttons);
 bool cterm_big_handle_key(struct cterm_big *, const struct cterm_key *);
 struct st_console_test_application;
 void cterm_big_inspect(const struct cterm_big *, struct st_console_test_application *);
-int  cterm_big_create(struct cterminal *);
+struct st_cterm_config;
+int  cterm_big_open(struct cterm_big **result, struct cterminal **text, const struct st_cterm_config *config);
+int  cterm_big_reset_terminal(struct cterm_big *);
 void cterm_big_destroy(struct cterm_big *);
 void cterm_big_reset(struct cterm_big *);
 /* An explicit non-BIG FX producer takes over existing logical channel1. */

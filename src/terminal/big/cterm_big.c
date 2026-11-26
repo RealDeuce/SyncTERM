@@ -1577,11 +1577,53 @@ cterm_big_finish(struct cterm_big *big)
 	return 0;
 }
 
+static int
+mouse_mode(const void *context)
+{
+	return cterm_big_pointer_active(context) ? 4 : 0;
+}
+
+static bool
+key_event(void *context, const struct cterm_key *key)
+{
+	return cterm_big_handle_key(context, key);
+}
+
+static bool
+mouse_event(void *context, const struct st_console_event *event)
+{
+	return cterm_big_mouse(context, event);
+}
+
+static void
+observe_mouse(void *context, const struct st_console_event *event)
+{
+	cterm_big_mouse_observe(context, event);
+}
+
+static void
+sync_mouse(void *context, uint32_t buttons)
+{
+	cterm_big_mouse_sync(context, buttons);
+}
+
+static void
+yield_fx(void *context)
+{
+	cterm_big_yield_fx(context);
+}
+
 void
 cterm_big_destroy(struct cterm_big *big)
 {
 	if (big == NULL)
 		return;
+	if (big->terminal->device.context == big) {
+		(void)cterm_big_finish(big);
+		big->terminal->device         = (struct cterm_device_events) {0};
+		big->terminal->fixed_geometry = false;
+		big->terminal->graphics_mode = ST_CTERM_GRAPHICS_OFF;
+	}
 	(void)cterm_big_collect_cancel(big);
 	cterm_big_audio_destroy(big);
 	cterm_big_music_destroy(big);
@@ -1590,9 +1632,11 @@ cterm_big_destroy(struct cterm_big *big)
 	free(big);
 }
 
-int
-cterm_big_create(struct cterminal *t)
+static int
+cterm_big_create(struct cterm_big **result, struct cterminal *t)
 {
+	if (result == NULL || t == NULL)
+		return IO_ERROR_INVALID_ARGUMENT;
 	if ((t->screen.capabilities & ST_CONSOLE_CAP_PIXELS) == 0)
 		return IO_ERROR_NOT_SUPPORTED;
 	struct cterm_big *big = calloc(1, sizeof(*big));
@@ -1639,7 +1683,15 @@ cterm_big_create(struct cterminal *t)
 		cterm_big_destroy(big);
 		return status;
 	}
-	t->big_engine = big;
+	t->device         = (struct cterm_device_events) {.context = big,
+	    .key                                           = key_event,
+	    .mouse_mode                                    = mouse_mode,
+	    .mouse                                         = mouse_event,
+	    .observe_mouse                                 = observe_mouse,
+	    .sync_mouse                                    = sync_mouse,
+	    .yield_fx                                      = yield_fx};
+	t->fixed_geometry = true;
+	t->graphics_mode = ST_CTERM_GRAPHICS_BIG_103;
 	cterm_start(t);
 	status                                    = cterm_render_take_error(t);
 	const struct st_big_state_sink sink       = {big, install, palette, page};
@@ -1663,10 +1715,40 @@ cterm_big_create(struct cterminal *t)
 			big->numeric.context.resolution = (uint8_t)resolution;
 	}
 	if (status != 0) {
-		t->big_engine = NULL;
 		cterm_big_destroy(big);
 	}
+	else
+		*result = big;
 	return status;
+}
+
+int
+cterm_big_open(struct cterm_big **result, struct cterminal **text, const struct st_cterm_config *config)
+{
+	if (result == NULL || text == NULL || config == NULL || config->emulation != ST_CTERM_ANSI_BBS)
+		return IO_ERROR_INVALID_ARGUMENT;
+	struct st_cterm_config tty = *config;
+	uint16_t               palette[16];
+	for (size_t i = 0; i < 16; ++i)
+		palette[i] = CTERM_BIG_PALETTE_FIRST + i;
+	tty.graphics_mode   = ST_CTERM_GRAPHICS_OFF;
+	tty.palette_mapping = palette;
+	tty.disabled_capabilities |= ST_CONSOLE_CAP_EXTENDED_PALETTE;
+	int status = st_cterm_create(text, &tty);
+	if (status != 0)
+		return status;
+	status = cterm_big_create(result, *text);
+	if (status != 0)
+		st_cterm_destroy(text);
+	return status;
+}
+
+int
+cterm_big_reset_terminal(struct cterm_big *big)
+{
+	cterm_big_reset(big);
+	int status = cterm_big_finish(big);
+	return status != 0 ? status : st_cterm_reset_terminal(big->terminal);
 }
 
 #if ST_CONSOLE_TEST

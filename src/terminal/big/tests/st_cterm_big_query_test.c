@@ -17,6 +17,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big           *big;
 	st_console_t               *console;
 	st_font_catalog_t          *fonts;
 	st_cterm_t                 *terminal;
@@ -75,13 +76,14 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -91,7 +93,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -104,7 +106,7 @@ string(struct fixture *f, const char *wire)
 static void
 poll(struct fixture *f)
 {
-	CHECK(st_cterm_poll(f->terminal) == 0);
+	CHECK(cterm_big_poll(f->big) == 0);
 }
 
 static int
@@ -117,7 +119,7 @@ ready(void *context, enum st_big_output_kind kind)
 	++f->ready_calls;
 	if (f->reset_ready) {
 		f->reset_ready = false;
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 	}
 	return f->ready_error ? f->ready_error : f->block_ready ? IO_ERROR_IN_PROGRESS : 0;
 }
@@ -151,7 +153,7 @@ send(void *context, enum st_big_output_kind kind, uint8_t byte)
 	}
 	if (f->reset_send) {
 		f->reset_send = false;
-		CHECK(st_cterm_reset_terminal(f->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(f->big) == 0);
 	}
 	return status;
 }
@@ -159,7 +161,7 @@ send(void *context, enum st_big_output_kind kind, uint8_t byte)
 static void
 instrument(struct fixture *f)
 {
-	struct cterm_big *b = f->terminal->big_engine;
+	struct cterm_big *b = f->big;
 	f->native_send      = b->control_io.send;
 	b->control_io.ready = ready;
 	b->control_io.send  = send;
@@ -170,7 +172,7 @@ begin(struct fixture *f, uint16_t selector)
 {
 	struct st_graphics_argument           arg  = {.has_value = true, .value = selector};
 	const struct st_graphics_command_view view = {.code = '?', .arguments = &arg, .count = 1};
-	CHECK(cterm_big_query_begin(f->terminal->big_engine, &view) == IO_ERROR_IN_PROGRESS);
+	CHECK(cterm_big_query_begin(f->big, &view) == IO_ERROR_IN_PROGRESS);
 }
 
 static void
@@ -178,7 +180,7 @@ run(struct fixture *f)
 {
 	size_t budget   = 64;
 	bool   complete = false;
-	CHECK(cterm_big_query_poll(f->terminal->big_engine, &budget, &complete) == 0 && complete);
+	CHECK(cterm_big_query_poll(f->big, &budget, &complete) == 0 && complete);
 }
 
 static void
@@ -188,7 +190,7 @@ setup(struct fixture *f, unsigned resolution)
 	snprintf(wire, sizeof(wire), "I#R %u:I#C>0,5:P>100,100:G 0,0,100,100,100,100,120,100:", resolution);
 	string(f, wire);
 	f->size                                  = 0;
-	f->terminal->big_engine->state.bgi.error = -11;
+	f->big->state.bgi.error                  = -11;
 }
 
 static void
@@ -213,7 +215,7 @@ partitions_and_owners(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					setup(&f, res);
@@ -240,9 +242,8 @@ partitions_and_owners(void)
 					      && memcmp(f.output, expected, f.size) == 0);
 					for (size_t i = 0; i < f.size; ++i)
 						CHECK(f.origins[i] == ST_CTERM_OUTPUT_RESPONSE);
-					CHECK(b->query.phase == CTERM_BIG_QUERY_OFF
-					      && !st_cterm_input_paused(f.terminal) && b->query.selector == 9
-					      && b->music_memory == 1);
+					CHECK(b->query.phase == CTERM_BIG_QUERY_OFF && !cterm_big_paused(f.big)
+					      && b->query.selector == 9 && b->music_memory == 1);
 					CHECK(memcmp(&state, &b->state, sizeof(state)) == 0
 					      && memcmp(&image, &b->image, sizeof(image)) == 0
 					      && memcmp(bytes, b->image_bytes, 10) == 0);
@@ -258,7 +259,7 @@ raw_words_and_current_reads(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	instrument(&f);
 	for (unsigned selector = 0; selector <= 65535; ++selector) {
 		f.size = f.requested = f.attempts = f.ready_calls = 0;
@@ -312,22 +313,22 @@ readiness_budget_and_retry(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	instrument(&f);
 	string(&f, "I#? ");
 	CHECK(f.ready_calls == 0 && f.size == 0);
 	f.block_ready = true;
 	string(&f, "9:");
-	CHECK(st_cterm_input_paused(f.terminal) && f.ready_calls == 1 && f.size == 0);
+	CHECK(cterm_big_paused(f.big) && f.ready_calls == 1 && f.size == 0);
 	unsigned before = clocks;
 	local_ns += UINT64_C(1000000000000);
 	poll(&f);
-	CHECK(st_cterm_input_paused(f.terminal) && clocks == before && f.ready_calls == 2);
+	CHECK(cterm_big_paused(f.big) && clocks == before && f.ready_calls == 2);
 	CHECK(st_cterm_handle_key(f.terminal, 'K', 0) && f.size == 1
 	      && f.output[0] == 'K'); /* Query has no key cancellation. */
 	f.block_ready = false;
 	poll(&f);
-	CHECK(!st_cterm_input_paused(f.terminal) && f.size == 1);
+	CHECK(!cterm_big_paused(f.big) && f.size == 1);
 	begin(&f, 65535);
 	size_t empty    = 0;
 	bool   finished = false;
@@ -360,7 +361,7 @@ readiness_budget_and_retry(void)
 	f.block_send                  = false;
 	run(&f);
 	CHECK(f.size == 2 && memcmp(f.output, "2:", 2) == 0);
-	CHECK(st_cterm_finish(f.terminal) == 0);
+	CHECK(cterm_big_finish(f.big) == 0);
 	destroy(&f);
 }
 
@@ -369,7 +370,7 @@ cancellation_sources_and_replies(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	instrument(&f);
 	b->music_memory = 65535;
 	string(&f, "I#I 0:I#R 1:I#? 2:");
@@ -377,22 +378,21 @@ cancellation_sources_and_replies(void)
 	f.size        = 0;
 	f.block_ready = true;
 	string(&f, "I#? 0:");
-	CHECK(st_cterm_finish(f.terminal) == 0 && !st_cterm_input_paused(f.terminal) && f.size == 0
-	      && b->music_memory == 65535);
+	CHECK(cterm_big_finish(f.big) == 0 && !cterm_big_paused(f.big) && f.size == 0 && b->music_memory == 65535);
 	string(&f, "I#? 0:");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !st_cterm_input_paused(f.terminal) && f.size == 0
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !cterm_big_paused(f.big) && f.size == 0
 	      && b->music_memory == 65535);
 	f.block_ready = false;
 	f.ready_error = IO_ERROR_IO;
 	string(&f, "I#? 0:\033[6n");
 	CHECK(f.size == 6 && memcmp(f.output, "\033[1;1R", 6) == 0);
 	f.size = 0;
-	CHECK(b->last_error == IO_ERROR_IO && b->rejected_commands == 1 && f.size == 0
-	      && !st_cterm_input_paused(f.terminal));
+	CHECK(
+	    b->last_error == IO_ERROR_IO && b->rejected_commands == 1 && f.size == 0 && !cterm_big_paused(f.big));
 	f.ready_error = 0;
 	f.reset_ready = true;
 	string(&f, "I#? 0:");
-	CHECK(!st_cterm_input_paused(f.terminal) && f.size == 0 && b->rejected_commands == 1);
+	CHECK(!cterm_big_paused(f.big) && f.size == 0 && b->rejected_commands == 1);
 	f.reset_send = true;
 	string(&f, "I#? 0:");
 	CHECK(f.size == 1 && f.output[0] == '1' && b->query.phase == CTERM_BIG_QUERY_OFF
@@ -410,8 +410,8 @@ cancellation_sources_and_replies(void)
 		bool   complete = false;
 		CHECK(cterm_big_query_poll(b, &budget, &complete) == IO_ERROR_IN_PROGRESS && f.size == 2
 		      && memcmp(f.output, "1.", 2) == 0);
-		CHECK((reset ? st_cterm_reset_terminal(f.terminal) : st_cterm_finish(f.terminal)) == 0);
-		CHECK(!st_cterm_input_paused(f.terminal) && f.size == 2 && b->music_memory == 65535);
+		CHECK((reset ? cterm_big_reset_terminal(f.big) : cterm_big_finish(f.big)) == 0);
+		CHECK(!cterm_big_paused(f.big) && f.size == 2 && b->music_memory == 65535);
 	}
 	f.size = 0;
 	string(&f, "I#? ");

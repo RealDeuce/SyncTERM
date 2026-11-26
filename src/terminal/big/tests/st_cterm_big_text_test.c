@@ -18,6 +18,7 @@
 	} while (0)
 
 struct fixture {
+	struct cterm_big  *big;
 	st_console_t      *console;
 	st_font_catalog_t *fonts;
 	st_cterm_t        *terminal;
@@ -44,7 +45,7 @@ timeout_bell(void *context)
 	struct cterm_big *b = context;
 	++timeout_bells;
 	if (reset_on_bell)
-		CHECK(st_cterm_reset_terminal(b->terminal) == 0);
+		CHECK(cterm_big_reset_terminal(b) == 0);
 }
 
 static void
@@ -80,14 +81,15 @@ create(struct fixture *f, bool utf8, bool status)
 	    .scrollback_lines = 2,
 	    .output           = output,
 	    .output_context   = f};
-	CHECK(st_cterm_create(&f->terminal, &config) == 0);
-	f->terminal->big_engine->numeric.io.now_ns = now;
-	f->terminal->big_engine->numeric.io.bell   = timeout_bell;
+	CHECK(cterm_big_open(&f->big, &f->terminal, &config) == 0);
+	f->big->numeric.io.now_ns = now;
+	f->big->numeric.io.bell   = timeout_bell;
 }
 
 static void
 destroy(struct fixture *f)
 {
+	cterm_big_destroy(f->big);
 	st_cterm_destroy(&f->terminal);
 	st_font_catalog_destroy(f->fonts);
 	st_console_destroy(f->console);
@@ -97,7 +99,7 @@ static void
 feed(struct fixture *f, const void *bytes, size_t size)
 {
 	size_t used;
-	int    status = st_cterm_write(f->terminal, bytes, size, &used);
+	int    status = cterm_big_feed(f->big, bytes, size, &used);
 	CHECK((status == 0 || status == IO_ERROR_IN_PROGRESS) && used == size);
 }
 
@@ -113,7 +115,7 @@ setup(struct fixture *f, unsigned resolution)
 	char wire[64];
 	snprintf(wire, sizeof(wire), "I#R %u:I#C 3,5:", resolution);
 	string(f, wire);
-	struct st_big_state *s = &f->terminal->big_engine->state;
+	struct st_big_state *s = &f->big->state;
 	CHECK(st_big_draw_move(s, 100, 101) == 0);
 	s->bgi.error = -11;
 	f->size      = 0;
@@ -158,7 +160,7 @@ partitions(void)
 		for (unsigned status = 0; status < 2; ++status) {
 			struct fixture f;
 			create(&f, utf8, status);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			for (unsigned res = 1; res <= 3; ++res)
 				for (size_t split = 0; split <= sizeof(wire); ++split) {
 					if (res != 2 && split != sizeof(wire))
@@ -199,20 +201,20 @@ partials_and_recovery(void)
 	struct fixture f;
 	create(&f, false, false);
 	setup(&f, 2);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#W 20,");
 	CHECK(b->state.bgi.color == 15 && !b->text_output.active && b->state.bgi.ddo_x == 100);
 	string(&f, "30,");
 	CHECK(b->state.bgi.color == 5 && b->text_output.active && b->text.active && b->state.bgi.ddo_x == 100);
-	CHECK(st_cterm_finish(f.terminal) == 0 && !b->text_output.active && b->state.bgi.ddo_x == 100);
+	CHECK(cterm_big_finish(f.big) == 0 && !b->text_output.active && b->state.bgi.ddo_x == 100);
 	canvas(&f, 0, 0, false);
 	string(&f, "I#W 20,30,A");
-	CHECK(st_cterm_reset_terminal(f.terminal) == 0 && !b->text_output.active && b->state.bgi.ddo_x == 100);
+	CHECK(cterm_big_reset_terminal(f.big) == 0 && !b->text_output.active && b->state.bgi.ddo_x == 100);
 	setup(&f, 2);
 	memcpy(b->text.bytes, "OLD", 4);
 	string(&f, "I#W 20,30,A");
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	CHECK(memcmp(b->text.bytes, "ALD", 4) == 0 && b->text.count == 1 && b->state.bgi.text_count == 3
 	      && b->state.bgi.device_x == 44 && !b->text_output.active && timeout_bells == 1);
 	setup(&f, 2);
@@ -224,7 +226,7 @@ partials_and_recovery(void)
 	setup(&f, 2);
 	string(&f, "I#W 20,30,A");
 	clock_error = IO_ERROR_IO;
-	CHECK(st_cterm_poll(f.terminal) == 0);
+	CHECK(cterm_big_poll(f.big) == 0);
 	clock_error = 0;
 	CHECK(b->last_error == IO_ERROR_IO && b->rejected_commands == 1 && !b->text_output.active
 	      && b->state.bgi.ddo_x == 100);
@@ -256,7 +258,7 @@ payloads_loops_and_pages(void)
 {
 	struct fixture f;
 	create(&f, false, false);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	setup(&f, 2);
 	static const char nul[] = "I#W 20,30,A\0B@\033[6n";
 	feed(&f, nul, sizeof(nul) - 1);
@@ -335,7 +337,7 @@ stroke_text(void)
 				struct fixture f;
 				create(&f, utf8, status);
 				setup(&f, res);
-				struct cterm_big *b = f.terminal->big_engine;
+				struct cterm_big *b = f.big;
 				string(&f, "I#E 2,1,0:I#T 2,2,1,1,1:I#M 2:I#W 20,30,AA@\033[6n");
 				CHECK(b->state.bgi.text_total_width == 7 && b->state.bgi.text_count == 2
 				      && b->state.bgi.text_stroke_point[0] == 3
@@ -381,11 +383,11 @@ reset_during_timeout(void)
 	struct fixture f;
 	create(&f, false, false);
 	setup(&f, 2);
-	struct cterm_big *b = f.terminal->big_engine;
+	struct cterm_big *b = f.big;
 	string(&f, "I#W 20,30,A");
 	reset_on_bell = true;
 	local_ns += ST_BIG_NUMERIC_TIMEOUT_NS;
-	CHECK(st_cterm_poll(f.terminal) == 0 && timeout_bells == 1 && !b->text_output.active && !b->text.active
+	CHECK(cterm_big_poll(f.big) == 0 && timeout_bells == 1 && !b->text_output.active && !b->text.active
 	      && b->rejected_commands == 0);
 	CHECK(b->state.bgi.ddo_x == 100 && b->state.bgi.device_x == 100 && b->state.bgi.text_count == 0);
 	canvas(&f, 0, 0, false);
@@ -413,7 +415,7 @@ all_current_faces(void)
 			struct fixture f;
 			create(&f, false, false);
 			setup(&f, res);
-			struct cterm_big *b = f.terminal->big_engine;
+			struct cterm_big *b = f.big;
 			char              wire[64];
 			snprintf(wire, sizeof(wire), "I#E %u,4,0:I#W 20,30,AA@", font);
 			string(&f, wire);

@@ -104,7 +104,7 @@ inspect_application(void *context, struct st_console_test_application *app)
 		st_console_test_number(app, "cterm.skypix_sample_period", sky->audio.period);
 		st_console_test_number(app, "cterm.skypix_playing", sky->audio.playing);
 	}
-	cterm_big_inspect(st_term_session_cterm(owner->session)->big_engine, app);
+	cterm_big_inspect(st_term_session_big(owner->session), app);
 	const struct cterm_igs *igs = st_term_session_cterm(owner->session)->igs_engine;
 	if (igs != NULL) {
 		cterm_igs_audio_inspect(igs, app);
@@ -1234,7 +1234,7 @@ run_session(st_wren_host_t *host, st_console_display_t *display, st_console_t *c
 	}
 finished:
 	if (session != NULL) {
-		int finish_status = st_cterm_finish(st_term_session_cterm(session));
+		int finish_status = st_term_session_finish_display(session);
 		if (status == 0)
 			status = finish_status;
 	}
