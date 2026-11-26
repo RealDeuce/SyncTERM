@@ -11,6 +11,7 @@
 
 struct glyph_group {
 	size_t first, count;
+	int32_t first_row, last_row;
 };
 
 struct outlines {
@@ -335,39 +336,75 @@ build_bands(struct outlines *path, const struct st_rip3_rff *font,
 	return 0;
 }
 
+/* Runs for one glyph occupy consecutive vertices. Use the flattened device
+ * geometry here so rotation, shear, decorations and shadow all clip alike. */
+static size_t
+glyph_fill_bounds(const struct outlines *path, const struct glyph_group *group,
+    const struct st_rip3_port_info *info, double bold, struct st_rip3_rect *bounds)
+{
+	if (group->count == 0)
+		return 0;
+	const struct st_rip3_vector_run *last = &path->runs[group->first + group->count - 1];
+	size_t begin = path->runs[group->first].first, end = last->first + last->count;
+	double xmin = path->vertices[begin].x, xmax = xmin;
+	double ymin = path->vertices[begin].y, ymax = ymin;
+	for (size_t i = begin + 1; i < end; i++) {
+		const struct st_rip3_vector p = path->vertices[i];
+		if (p.x < xmin) xmin = p.x;
+		if (p.x > xmax) xmax = p.x;
+		if (p.y < ymin) ymin = p.y;
+		if (p.y > ymax) ymax = p.y;
+	}
+	double left = fmax(0, ceil(xmin - bold - 0.5));
+	double right = fmin(info->clip.x1, ceil(xmax + bold - 0.5) - 1);
+	double top = fmax(0, ceil(ymin - 0.5));
+	double bottom = fmin(info->clip.y1, ceil(ymax - 0.5) - 1);
+	if (left > right || top > bottom)
+		return 0;
+	*bounds = (struct st_rip3_rect){(int32_t)left, (int32_t)top, (int32_t)right, (int32_t)bottom};
+	return end - begin;
+}
+
 static int
-fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
+fill_collect(struct outlines *path, const struct st_rip3_port_info *info,
     enum st_rip3_outline_fill_rule rule, double bold, struct st_rip3_stroke_mask *result)
 {
 	struct st_rip3_stroke_mask mask = {0};
 	struct crossing *crossings;
-	double xmin, xmax, ymin, ymax, left, right, top, bottom;
+	size_t capacity = 0;
 
-	if (path->vertex_count == 0) {
+	for (size_t i = 0; i < path->glyph_count; i++) {
+		struct glyph_group *group = &path->glyphs[i];
+		struct st_rip3_rect bounds;
+		size_t vertices = glyph_fill_bounds(path, group, info, bold, &bounds);
+		if (vertices == 0) {
+			group->first_row = 0;
+			group->last_row = -1;
+			continue;
+		}
+		group->first_row = bounds.y0;
+		group->last_row = bounds.y1;
+		if (capacity == 0)
+			mask.bounds = bounds;
+		else {
+			if (bounds.x0 < mask.bounds.x0) mask.bounds.x0 = bounds.x0;
+			if (bounds.y0 < mask.bounds.y0) mask.bounds.y0 = bounds.y0;
+			if (bounds.x1 > mask.bounds.x1) mask.bounds.x1 = bounds.x1;
+			if (bounds.y1 > mask.bounds.y1) mask.bounds.y1 = bounds.y1;
+		}
+		if (vertices > capacity)
+			capacity = vertices;
+	}
+	if (capacity == 0) {
 		*result = mask;
 		return 0;
 	}
-	xmin = xmax = path->vertices[0].x;
-	ymin = ymax = path->vertices[0].y;
-	for (size_t i = 1; i < path->vertex_count; i++) {
-		xmin = fmin(xmin, path->vertices[i].x); xmax = fmax(xmax, path->vertices[i].x);
-		ymin = fmin(ymin, path->vertices[i].y); ymax = fmax(ymax, path->vertices[i].y);
-	}
-	left = fmax(0, ceil(xmin - bold - 0.5));
-	right = fmin(info->clip.x1, ceil(xmax + bold - 0.5) - 1);
-	top = fmax(0, ceil(ymin - 0.5));
-	bottom = fmin(info->clip.y1, ceil(ymax - 0.5) - 1);
-	if (left > right || top > bottom) {
-		*result = mask;
-		return 0;
-	}
-	mask.bounds = (struct st_rip3_rect){(int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom};
 	mask.width = (size_t)(mask.bounds.x1 - mask.bounds.x0) + 1;
 	mask.height = (size_t)(mask.bounds.y1 - mask.bounds.y0) + 1;
-	if (mask.width > SIZE_MAX / mask.height || path->vertex_count > SIZE_MAX / sizeof(*crossings))
+	if (mask.width > SIZE_MAX / mask.height || capacity > SIZE_MAX / sizeof(*crossings))
 		return IO_ERROR_OUT_OF_RANGE;
 	mask.coverage = calloc(mask.width * mask.height, 1);
-	crossings = malloc(path->vertex_count * sizeof(*crossings));
+	crossings = malloc(capacity * sizeof(*crossings));
 	if (mask.coverage == NULL || crossings == NULL) {
 		free(mask.coverage);
 		free(crossings);
@@ -376,7 +413,7 @@ fill_collect(const struct outlines *path, const struct st_rip3_port_info *info,
 	for (size_t g = 0; g < path->glyph_count; g++) {
 		const struct glyph_group *group = &path->glyphs[g];
 
-		for (int32_t y = mask.bounds.y0; y <= mask.bounds.y1; y++) {
+		for (int32_t y = group->first_row; y <= group->last_row; y++) {
 			size_t count = 0;
 			double scan_y = y + 0.5;
 			int64_t winding = 0;
@@ -444,7 +481,7 @@ unite(struct st_rip3_stroke_mask *ink, struct st_rip3_stroke_mask *bands)
 }
 
 static int
-collect(struct st_rip3_ports *ports, const struct outlines *path, const struct outlines *bands,
+collect(struct st_rip3_ports *ports, struct outlines *path, struct outlines *bands,
     const struct st_rip3_port_info *info, const struct st_rip3_rff_text_style *style,
     bool hollow, double bold, struct st_rip3_stroke_mask *result)
 {
